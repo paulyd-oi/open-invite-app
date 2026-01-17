@@ -1,16 +1,16 @@
 {
   "name": "template-app-53",
   "version": "1.0.0",
-  "main": "index.ts",
+  "private": true,
   "packageManager": "npm@10.5.0",
+  "main": "index.ts",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "DARK_MODE=class expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
@@ -160,7 +160,6 @@
     "react-test-renderer": "19.0.0",
     "typescript": "~5.8.3"
   },
-  "private": true,
   "overrides": {
     "react-native-css-interop": "0.1.22",
     "react-native-reanimated": "3.17.4"
