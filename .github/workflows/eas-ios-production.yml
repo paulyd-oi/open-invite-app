@@ -29,18 +29,19 @@ jobs:
           eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
+      # NOTE: We intentionally do NOT run npm ci / npm install here.
+      # EAS cloud builds will install dependencies in Expo's build environment.
+      # This avoids GitHub Actions cache outages causing build failures.
 
       - name: Guardrail - Print build provenance
         run: |
           echo "Repo: $GITHUB_REPOSITORY"
           echo "Branch: $GITHUB_REF_NAME"
           echo "Commit: $GITHUB_SHA"
-          echo "---- app.json buildNumber ----"
+          echo "---- app.json expo.ios.buildNumber ----"
           node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('app.json','utf8')); console.log('ios.buildNumber =', j.expo?.ios?.buildNumber);"
 
       - name: Trigger EAS iOS build (production)
-        run: 
+        run: |
           echo "Starting EAS build for commit $GITHUB_SHA"
           eas build -p ios --profile production --non-interactive
