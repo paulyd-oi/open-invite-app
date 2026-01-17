@@ -3,22 +3,13 @@
     "version": ">= 7.0.0"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "simulator": true
-      }
-    },
-    "preview": {
-      "distribution": "internal"
-    },
     "production": {
       "distribution": "store",
       "autoIncrement": false,
       "node": "18.18.0",
       "env": {
-        "NPM_CONFIG_PACKAGE_MANAGER": "npm"
+        "NPM_CONFIG_PACKAGE_MANAGER": "npm",
+        "EXPO_USE_BUN": "0"
       },
       "ios": {
         "resourceClass": "m-medium"
