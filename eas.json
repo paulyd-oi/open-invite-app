@@ -16,7 +16,7 @@
     "production": {
       "distribution": "store",
       "autoIncrement": false,
-      "node": ">=18 <19",
+      "node": "18.18.0",
       "env": {
         "NPM_CONFIG_PACKAGE_MANAGER": "npm"
       },
