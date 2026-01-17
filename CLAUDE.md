@@ -20,6 +20,14 @@
   Include ALL required properties when creating objects — TypeScript strict mode is enabled.
 </typescript>
 
+<secret_hygiene>
+  NEVER store API keys, secrets, or credentials in source files or documentation.
+  ALL secrets must be loaded via environment variables (EAS/Expo env vars).
+  .env files are gitignored and MUST NOT be committed.
+  Use placeholders in docs (e.g., "YOUR_API_KEY_HERE" or "Set in EAS environment").
+  Violating this rule triggers GitHub secret scanning and key rotation requirements.
+</secret_hygiene>
+
 <environment>
   You are in Vibecode. The system manages git and the dev server (port 8081).
   DO NOT: manage git, touch the dev server, or check its state.
@@ -685,9 +693,9 @@ Apple Sign In users may NOT have an email address (if they choose to hide it). T
 - `src/hooks/useVerificationGate.ts` - Hook for checking/gating deferred verification
 
 ## Google Maps API
-- **API Key**: `AIzaSyAvl_O6gmcbRpYKX4mIfS0EByFn9o1iMC0`
-- **Environment Variable**: `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY` (set in Expo account settings)
-- **Status**: Already configured in Expo production environment
+- **Environment Variable**: `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY`
+- **Configuration**: Set in EAS/Expo environment variables (NEVER commit keys to repo)
+- **Status**: Configured in Expo production environment
 - Used for: Google Places API, Maps, location autocomplete
 
 ## Calendar Event Import (.ics) - App Store Safe

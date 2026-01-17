@@ -20,7 +20,7 @@
         "EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY": "appl_uXmRYDvMcreZnTxzfgrvOdiCLin",
         "EXPO_PUBLIC_DATABASE_URL": "postgres-production-bf26.up.railway.app",
         "EXPO_PUBLIC_resend_api_key": "re_R6tLS2Ds_N2bJF7ahnuw65JXdeH5uG9uD",
-        "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY": "AIzaSyAvl_O6gmcbRpYKX4mIfS0EByFn9o1iMC0",
+        "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY": "YOUR_GOOGLE_API_KEY_HERE",
         "EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY": "goog_IrnGrwfGCflWRBdjJtLVVfXXHIX",
         "EXPO_PUBLIC_VIBECODE_BACKEND_URL": "https://open-invite-api.onrender.com/",
         "EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY": "sk-proj-anielepohng9eing5Ol6Phex3oin9geg-n0tr3al",

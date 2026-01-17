@@ -5,14 +5,14 @@ bun install v1.2.19 (aad3abea)
 $ prisma generate
 Prisma schema loaded from prisma/schema.prisma
 
-✔ Generated Prisma Client (v6.19.1) to ./node_modules/@prisma/client in 366ms
+✔ Generated Prisma Client (v6.19.1) to ./node_modules/@prisma/client in 357ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
 
 
-Checked 165 installs across 190 packages (no changes) [2.06s]
+Checked 165 installs across 190 packages (no changes) [2.04s]
 Starting server in dev mode with hot reload...
 $ NODE_ENV=development bun run --hot src/index.ts
 Failed to find Response internal state key
