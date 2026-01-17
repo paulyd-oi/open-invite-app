@@ -1,0 +1,454 @@
+// This is your Prisma schema file for Railway (PostgreSQL)
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String    @id
+  email               String    @unique
+  phone               String?   @unique
+  phoneNumberVerified Boolean   @default(false)
+  name                String?
+  emailVerified       Boolean   @default(false)
+  image               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
+  sessions            Session[]
+  accounts            Account[]
+
+  Profile Profile?
+
+  // Open Invite Relations
+  events             Event[]
+  friendGroups       FriendGroup[]
+  sentRequests       FriendRequest[]   @relation("SentRequests")
+  receivedRequests   FriendRequest[]   @relation("ReceivedRequests")
+  friendsAsUser      Friendship[]      @relation("UserFriends")
+  friendsAsFriend    Friendship[]      @relation("FriendOfUser")
+  eventJoinRequests  EventJoinRequest[]
+  notifications      Notification[]
+  eventComments      EventComment[]
+  eventInterests     EventInterest[]
+  eventTemplates     EventTemplate[]
+  hangoutHistory     HangoutHistory[]
+
+  // Blocked contacts relations
+  blockedContacts    BlockedContact[]  @relation("BlockedBy")
+  blockedByUsers     BlockedContact[]  @relation("BlockedUsers")
+
+  // Work schedule
+  workSchedules      WorkSchedule[]
+
+  // Subscription
+  subscription       Subscription?
+
+  // Onboarding
+  onboardingCompleted Boolean @default(false)
+
+  // Push tokens
+  pushTokens         PushToken[]
+
+  // Event photos
+  eventPhotos        EventPhoto[]
+
+  @@map("user")
+}
+
+// User subscription status
+model Subscription {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier           String    @default("free") // "free" or "premium"
+  expiresAt      DateTime? // null for free tier, expiration for premium
+  purchasedAt    DateTime?
+  transactionId  String?   // App Store/Play Store transaction ID
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("subscription")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("verification")
+}
+
+model Profile {
+  id          Int      @id @default(autoincrement())
+  handle      String   @unique
+  bio         String?
+  calendarBio String?  // "My calendar looks like..." - max 300 chars
+  avatarUrl   String?
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String   @unique
+
+  // Birthday settings
+  birthday              DateTime? // User's birthday
+  showBirthdayToFriends Boolean   @default(false) // Show birthday on friends' calendars
+  hideBirthdays         Boolean   @default(false) // Hide other users' birthdays from my calendar
+  omitBirthdayYear      Boolean   @default(false) // Don't show birth year (age) to others
+}
+
+// Friend Groups for categorizing friends (e.g., "Dance Friends", "Gaming Friends")
+model FriendGroup {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#FF6B4A") // Default coral color
+  icon      String   @default("users") // Lucide icon name
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Members of this group
+  memberships FriendGroupMembership[]
+  // Events visible to this group
+  eventVisibility EventGroupVisibility[]
+
+  @@unique([userId, name])
+  @@map("friend_group")
+}
+
+// Many-to-many relationship between Friendships and FriendGroups
+model FriendGroupMembership {
+  id           String      @id @default(cuid())
+  friendshipId String
+  friendship   Friendship  @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  groupId      String
+  group        FriendGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+
+  @@unique([friendshipId, groupId])
+  @@map("friend_group_membership")
+}
+
+// Friend Requests
+model FriendRequest {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status     String   @default("pending") // pending, accepted, rejected
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@map("friend_request")
+}
+
+// Friendship (bidirectional relationship)
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friendId  String
+  friend    User     @relation("FriendOfUser", fields: [friendId], references: [id], onDelete: Cascade)
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Group memberships for this friendship
+  groupMemberships FriendGroupMembership[]
+  // Private notes about this friend
+  notes FriendNote[]
+
+  @@unique([userId, friendId])
+  @@map("friendship")
+}
+
+// Private notes about a friend - only visible to the user who created them
+model FriendNote {
+  id           String     @id @default(cuid())
+  friendshipId String
+  friendship   Friendship @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  content      String     // The note content
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("friend_note")
+}
+
+// Events
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  location    String?
+  emoji       String   @default("📅") // Visual indicator for event type
+  startTime   DateTime
+  endTime     DateTime?
+  isRecurring Boolean  @default(false)
+  recurrence  String?  // "weekly", "daily", "monthly", etc.
+
+  // Privacy settings
+  visibility  String   @default("all_friends") // "all_friends" or "specific_groups"
+
+  // Event category/tag
+  category    String?  // "food", "sports", "entertainment", "social", "fitness", "outdoors", "work", "other"
+
+  // RSVP deadline - after this time, users cannot request to join
+  rsvpDeadline DateTime?
+
+  // Creator
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Which groups can see this event (if visibility = "specific_groups")
+  groupVisibility EventGroupVisibility[]
+  // Join requests for this event
+  joinRequests    EventJoinRequest[]
+  // Comments on this event
+  comments        EventComment[]
+  // Interest reactions
+  interests       EventInterest[]
+  // Photos/memories for this event
+  photos          EventPhoto[]
+
+  @@map("event")
+}
+
+// Event Comments
+model EventComment {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  imageUrl  String?  // Optional image attached to comment
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("event_comment")
+}
+
+// Many-to-many: Which friend groups can see an event
+model EventGroupVisibility {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     FriendGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([eventId, groupId])
+  @@map("event_group_visibility")
+}
+
+// Event Join Requests
+model EventJoinRequest {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    String   @default("pending") // pending, accepted, rejected
+  message   String?  // Optional message when requesting to join
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventId, userId])
+  @@map("event_join_request")
+}
+
+// Event Interest - "Interested" reactions (not committed, just interested)
+model EventInterest {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@map("event_interest")
+}
+
+// Event Templates - Quick-create common hangouts
+model EventTemplate {
+  id          String   @id @default(cuid())
+  name        String   // "Coffee", "Lunch", "Workout", etc.
+  emoji       String   // Default emoji for this template
+  duration    Int      @default(60) // Default duration in minutes
+  description String?  // Optional default description
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault   Boolean  @default(false) // System-provided templates
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("event_template")
+}
+
+// Hangout History - Track meetups between friends for streaks
+model HangoutHistory {
+  id           String   @id @default(cuid())
+  userId       String   // The user who owns this record
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  friendId     String   // The friend they hung out with
+  eventId      String?  // Optional: linked to an event
+  eventTitle   String?  // Title of the event/hangout
+  hangoutDate  DateTime // When they hung out
+  createdAt    DateTime @default(now())
+
+  @@map("hangout_history")
+}
+
+// Notifications
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // "new_event", "join_request", "friend_request", "request_accepted"
+  title     String
+  body      String
+  data      String?  // JSON string for additional data
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notification")
+}
+
+// Blocked Contacts - for privacy and safety
+model BlockedContact {
+  id              String   @id @default(cuid())
+  userId          String   // User who is blocking
+  user            User     @relation("BlockedBy", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Can block by user account OR by identifier (for non-users)
+  blockedUserId   String?  // If blocking an existing user
+  blockedUser     User?    @relation("BlockedUsers", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  blockedEmail    String?  // Block by email (for non-users)
+  blockedPhone    String?  // Block by phone (for non-users)
+
+  reason          String?  // Optional reason for blocking
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, blockedUserId])
+  @@unique([userId, blockedEmail])
+  @@unique([userId, blockedPhone])
+  @@map("blocked_contact")
+}
+
+// Work Schedule - recurring work hours for each day of the week
+model WorkSchedule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  isEnabled   Boolean  @default(false) // Whether work is scheduled for this day
+  startTime   String?  // HH:mm format (e.g., "09:00")
+  endTime     String?  // HH:mm format (e.g., "17:00")
+  label       String   @default("Work") // Customizable label (e.g., "Work", "Busy", "Classes")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, dayOfWeek])
+  @@map("work_schedule")
+}
+
+// Work Schedule Settings - global preferences for work schedule display
+model WorkScheduleSettings {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  showOnCalendar   Boolean  @default(true) // Show work events as bubbles on calendar grid
+
+  @@map("work_schedule_settings")
+}
+
+// Push Notification Tokens - store device push tokens for sending push notifications
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   // Expo push token
+  platform  String   @default("expo") // "expo", "fcm", "apns"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, token])
+  @@map("push_token")
+}
+
+// Event Reminders - scheduled reminders for events
+model EventReminder {
+  id           String   @id @default(cuid())
+  userId       String
+  eventId      String
+  minutesBefore Int     // Minutes before event to remind
+  isEnabled    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, eventId, minutesBefore])
+  @@map("event_reminder")
+}
+
+// Event Photos/Memories - photos shared after an event
+model EventPhoto {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  @@map("event_photo")
+}

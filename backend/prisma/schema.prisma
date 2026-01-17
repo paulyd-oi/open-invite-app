@@ -1,0 +1,776 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id                    Int       @id @default(autoincrement())
+  handle                String    @unique
+  bio                   String?
+  calendarBio           String?
+  avatarUrl             String?
+  userId                String    @unique
+  birthday              DateTime?
+  showBirthdayToFriends Boolean   @default(false)
+  hideBirthdays         Boolean   @default(false)
+  omitBirthdayYear      Boolean   @default(false)
+  usernameLastChangedAt DateTime? // Timestamp of last username (handle) change
+  user                  user      @relation(fields: [userId], references: [id])
+}
+
+model account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user                  user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model blocked_contact {
+  id                                       String   @id @default(cuid())
+  userId                                   String
+  blockedUserId                            String?
+  blockedEmail                             String?
+  blockedPhone                             String?
+  reason                                   String?
+  createdAt                                DateTime @default(now())
+  user_blocked_contact_blockedUserIdTouser user?    @relation("blocked_contact_blockedUserIdTouser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+  user_blocked_contact_userIdTouser        user     @relation("blocked_contact_userIdTouser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blockedEmail])
+  @@unique([userId, blockedPhone])
+  @@unique([userId, blockedUserId])
+}
+
+model business {
+  id                   String                 @id @default(cuid())
+  ownerId              String
+  name                 String
+  handle               String                 @unique
+  description          String?
+  category             String                 @default("other")
+  logoUrl              String?
+  coverUrl             String?
+  website              String?
+  email                String?
+  phone                String?
+  location             String?
+  instagram            String?
+  twitter              String?
+  facebook             String?
+  isVerified           Boolean                @default(false)
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user                 user                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  business_event       business_event[]
+  business_follow      business_follow[]
+  business_team_member business_team_member[]
+}
+
+model business_event {
+  id                      String                    @id @default(cuid())
+  businessId              String
+  title                   String
+  description             String?
+  location                String?
+  emoji                   String                    @default("📅")
+  startTime               DateTime
+  endTime                 DateTime?
+  isRecurring             Boolean                   @default(false)
+  recurrence              String?
+  category                String?
+  maxAttendees            Int?
+  rsvpDeadline            DateTime?
+  coverUrl                String?
+  createdAt               DateTime                  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  business                business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business_event_attendee business_event_attendee[]
+  business_event_comment  business_event_comment[]
+  business_event_interest business_event_interest[]
+}
+
+model business_event_attendee {
+  id             String         @id @default(cuid())
+  eventId        String
+  userId         String
+  status         String         @default("attending")
+  createdAt      DateTime       @default(now())
+  business_event business_event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model business_event_comment {
+  id             String         @id @default(cuid())
+  eventId        String
+  userId         String
+  content        String
+  imageUrl       String?
+  createdAt      DateTime       @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  business_event business_event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model business_event_interest {
+  id             String         @id @default(cuid())
+  eventId        String
+  userId         String
+  createdAt      DateTime       @default(now())
+  business_event business_event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model business_follow {
+  id           String   @id @default(cuid())
+  businessId   String
+  userId       String
+  notifyEvents Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  business     business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+}
+
+model business_team_member {
+  id         String    @id @default(cuid())
+  businessId String
+  userId     String
+  role       String    @default("manager")
+  invitedBy  String?
+  invitedAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  business   business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+}
+
+model circle {
+  id             String           @id @default(cuid())
+  name           String
+  emoji          String           @default("👥")
+  createdById    String
+  createdAt      DateTime         @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  circle_event   circle_event[]
+  circle_member  circle_member[]
+  circle_message circle_message[]
+}
+
+model circle_event {
+  id        String   @id @default(cuid())
+  circleId  String
+  eventId   String   @unique
+  isPrivate Boolean  @default(true)
+  createdAt DateTime @default(now())
+  circle    circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model circle_member {
+  id         String    @id @default(cuid())
+  circleId   String
+  userId     String
+  isPinned   Boolean   @default(false)
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+  circle     circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+}
+
+model circle_message {
+  id        String   @id @default(cuid())
+  circleId  String
+  userId    String
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  circle    circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+}
+
+model discount_code {
+  id                       String                     @id @default(cuid())
+  code                     String                     @unique
+  type                     String
+  maxUses                  Int?
+  usedCount                Int                        @default(0)
+  isActive                 Boolean                    @default(true)
+  expiresAt                DateTime?
+  createdAt                DateTime                   @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  discount_code_redemption discount_code_redemption[]
+}
+
+model discount_code_redemption {
+  id             String        @id @default(cuid())
+  discountCodeId String
+  userId         String
+  redeemedAt     DateTime      @default(now())
+  discount_code  discount_code @relation(fields: [discountCodeId], references: [id], onDelete: Cascade)
+
+  @@unique([discountCodeId, userId])
+}
+
+model email_verification_code {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([email, code])
+  @@index([email])
+}
+
+model event {
+  id                     String                   @id @default(cuid())
+  title                  String
+  description            String?
+  location               String?
+  emoji                  String                   @default("📅")
+  color                  String?                  // Custom event color (hex)
+  startTime              DateTime
+  endTime                DateTime                 // Required - defaults to startTime + 1 hour if not provided
+  isRecurring            Boolean                  @default(false)
+  recurrence             String?
+  visibility             String                   @default("all_friends")
+  category               String?
+  rsvpDeadline           DateTime?
+  userId                 String
+  createdAt              DateTime                 @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  summary                String?
+  summaryNotifiedAt      DateTime?
+  summaryRating          Int?
+  reflectionEnabled      Boolean                  @default(true)
+  // Imported calendar event tracking
+  isImported             Boolean                  @default(false)
+  deviceCalendarId       String?                  // ID from device calendar (for sync/updates)
+  deviceCalendarName     String?                  // Name of source calendar (e.g., "iCloud", "Work")
+  importedAt             DateTime?                // When it was imported
+  circle_event           circle_event?
+  user                   user                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event_comment          event_comment[]
+  event_group_visibility event_group_visibility[]
+  event_interest         event_interest[]
+  event_join_request     event_join_request[]
+  event_photo            event_photo[]
+
+  @@index([userId])
+  @@index([startTime])
+  @@index([userId, startTime])
+  @@index([createdAt])
+  @@index([userId, deviceCalendarId])
+}
+
+model event_comment {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model event_group_visibility {
+  id           String       @id @default(cuid())
+  eventId      String
+  groupId      String
+  createdAt    DateTime     @default(now())
+  event        event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  friend_group friend_group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupId])
+}
+
+model event_interest {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("interested") // going, interested, maybe, not_going
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model event_join_request {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("pending")
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model event_photo {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  imageUrl  String
+  caption   String?
+  createdAt DateTime @default(now())
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model event_reminder {
+  id            String   @id @default(cuid())
+  userId        String
+  eventId       String
+  minutesBefore Int
+  isEnabled     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([userId, eventId, minutesBefore])
+}
+
+model event_request {
+  id                   String                 @id @default(cuid())
+  title                String
+  description          String?
+  location             String?
+  emoji                String                 @default("📅")
+  startTime            DateTime
+  endTime              DateTime?
+  creatorId            String
+  status               String                 @default("pending")
+  createdAt            DateTime               @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user                 user                   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  event_request_member event_request_member[]
+}
+
+model event_request_member {
+  id             String        @id @default(cuid())
+  eventRequestId String
+  userId         String
+  status         String        @default("pending")
+  respondedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  event_request  event_request @relation(fields: [eventRequestId], references: [id], onDelete: Cascade)
+  user           user          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventRequestId, userId])
+}
+
+model event_template {
+  id          String   @id @default(cuid())
+  name        String
+  emoji       String
+  duration    Int      @default(60)
+  description String?
+  userId      String
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model friend_group {
+  id                      String                    @id @default(cuid())
+  name                    String
+  color                   String                    @default("#FF6B4A")
+  icon                    String                    @default("users")
+  userId                  String
+  createdAt               DateTime                  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  event_group_visibility  event_group_visibility[]
+  user                    user                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  friend_group_membership friend_group_membership[]
+  story_group_visibility  story_group_visibility[]
+
+  @@unique([userId, name])
+}
+
+model friend_group_membership {
+  id           String       @id @default(cuid())
+  friendshipId String
+  groupId      String
+  createdAt    DateTime     @default(now())
+  friendship   friendship   @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+  friend_group friend_group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([friendshipId, groupId])
+}
+
+model friend_note {
+  id           String     @id @default(cuid())
+  friendshipId String
+  content      String
+  createdAt    DateTime   @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  friendship   friendship @relation(fields: [friendshipId], references: [id], onDelete: Cascade)
+}
+
+model friend_request {
+  id                                   String   @id @default(cuid())
+  senderId                             String
+  receiverId                           String
+  status                               String   @default("pending")
+  createdAt                            DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user_friend_request_receiverIdTouser user     @relation("friend_request_receiverIdTouser", fields: [receiverId], references: [id], onDelete: Cascade)
+  user_friend_request_senderIdTouser   user     @relation("friend_request_senderIdTouser", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+model friendship {
+  id                             String                    @id @default(cuid())
+  userId                         String
+  friendId                       String
+  isBlocked                      Boolean                   @default(false)
+  createdAt                      DateTime                  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  friend_group_membership        friend_group_membership[]
+  friend_note                    friend_note[]
+  user_friendship_friendIdTouser user                      @relation("friendship_friendIdTouser", fields: [friendId], references: [id], onDelete: Cascade)
+  user_friendship_userIdTouser   user                      @relation("friendship_userIdTouser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+}
+
+model hangout_history {
+  id          String   @id @default(cuid())
+  userId      String
+  friendId    String
+  eventId     String?
+  eventTitle  String?
+  hangoutDate DateTime
+  createdAt   DateTime @default(now())
+  user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+model notification_preferences {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  createdAt              DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  pushEnabled            Boolean  @default(true)
+  newFriendEvents        Boolean  @default(true)
+  eventReminders         Boolean  @default(true)
+  eventUpdates           Boolean  @default(true)
+  eventCancellations     Boolean  @default(true)
+  eventStartingSoon      Boolean  @default(true)
+  newAttendee            Boolean  @default(true)
+  attendeeDeclined       Boolean  @default(true)
+  someoneInterested      Boolean  @default(true)
+  rsvpReminders          Boolean  @default(true)
+  eventRequestInvites    Boolean  @default(true)
+  eventRequestResponses  Boolean  @default(true)
+  eventRequestConfirmed  Boolean  @default(true)
+  eventRequestNudges     Boolean  @default(true)
+  eventComments          Boolean  @default(true)
+  eventPhotos            Boolean  @default(true)
+  commentReplies         Boolean  @default(true)
+  friendRequests         Boolean  @default(true)
+  friendRequestAccepted  Boolean  @default(true)
+  friendBirthdays        Boolean  @default(true)
+  circleMessages         Boolean  @default(true)
+  circleEvents           Boolean  @default(true)
+  circleInvites          Boolean  @default(true)
+  fomoFriendJoined       Boolean  @default(true)
+  fomoPopularEvents      Boolean  @default(true)
+  weeklySummary          Boolean  @default(true)
+  reconnectSuggestions   Boolean  @default(true)
+  businessEvents         Boolean  @default(true)
+  dailyDigest            Boolean  @default(false)
+  dailyDigestTime        String   @default("09:00")
+  digestDaysOfWeek       String   @default("MON,TUE,WED,THU,FRI") // Comma-separated: MON,TUE,WED,THU,FRI,SAT,SUN
+  timezone               String   @default("America/New_York") // IANA timezone
+  reminderOffsets        String   @default("30,120,1440") // Comma-separated minutes before event
+  quietHoursEnabled      Boolean  @default(false)
+  quietHoursStart        String   @default("22:00")
+  quietHoursEnd          String   @default("08:00")
+  eventReflectionPrompts Boolean  @default(true)
+}
+
+model notification_delivery_log {
+  id         String   @id @default(cuid())
+  userId     String
+  dedupeKey  String
+  sentAt     DateTime @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId])
+  @@index([sentAt])
+}
+
+// Cron job lease table for preventing overlapping executions
+// Uses lease-based locking with TTL - lock expires automatically if not released
+model cron_job_lease {
+  id           String   @id @default(cuid())
+  jobName      String   @unique // e.g., "reminders", "digest", "token_cleanup"
+  ownerId      String   // Unique identifier for this run instance (e.g., UUID)
+  lockedUntil  DateTime // Lease expiry - lock is released when this time passes
+  acquiredAt   DateTime @default(now())
+
+  @@index([jobName, lockedUntil])
+}
+
+model pinned_friendship {
+  id           String   @id @default(cuid())
+  userId       String
+  friendshipId String
+  pinnedAt     DateTime @default(now())
+
+  @@unique([userId, friendshipId])
+}
+
+model push_token {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String
+  platform   String   @default("expo")
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token])
+}
+
+model referral {
+  id             String   @id @default(cuid())
+  referrerId     String
+  referredUserId String?  @unique
+  referredEmail  String?
+  referredPhone  String?
+  status         String   @default("pending")
+  rewardClaimed  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model referral_reward {
+  id            String    @id @default(cuid())
+  userId        String
+  rewardType    String
+  referralCount Int
+  claimedAt     DateTime  @default(now())
+  expiresAt     DateTime?
+}
+
+model session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model story {
+  id                     String                   @id @default(cuid())
+  userId                 String
+  type                   String                   @default("text")
+  content                String?
+  imageUrl               String?
+  eventId                String?
+  visibility             String                   @default("all_friends")
+  backgroundColor        String                   @default("#FF6B4A")
+  expiresAt              DateTime
+  createdAt              DateTime                 @default(now())
+  user                   user                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story_group_visibility story_group_visibility[]
+  story_view             story_view[]
+}
+
+model story_group_visibility {
+  id           String       @id @default(cuid())
+  storyId      String
+  groupId      String
+  createdAt    DateTime     @default(now())
+  friend_group friend_group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  story        story        @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, groupId])
+}
+
+model story_view {
+  id       String   @id @default(cuid())
+  storyId  String
+  userId   String
+  viewedAt DateTime @default(now())
+  story    story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+}
+
+model subscription {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  tier          String    @default("free")
+  expiresAt     DateTime?
+  purchasedAt   DateTime?
+  transactionId String?
+  createdAt     DateTime  @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user          user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model unlocked_achievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  progress      Int
+
+  @@unique([userId, achievementId])
+}
+
+model user {
+  id                                                  String                 @id @default(cuid())
+  email                                               String?                @unique // Optional: Apple Sign In users may not have email
+  phone                                               String?                @unique
+  phoneNumberVerified                                 Boolean                @default(false)
+  name                                                String?
+  emailVerified                                       Boolean                @default(false)
+  image                                               String?
+  createdAt                                           DateTime               @default(now())
+  updatedAt                                           DateTime               @default(now())
+  referralCode                                        String?                @unique
+  referredBy                                          String?
+  onboardingCompleted                                 Boolean                @default(false)
+  activeBusinessId                                    String?
+  // Privacy settings
+  allowFriendRequests                                 String                 @default("everyone") // "everyone" | "friends_of_friends" | "nobody"
+  showInFriendSuggestions                             Boolean                @default(true)
+  shareCalendarAvailability                           Boolean                @default(true)
+  // Paywall/Entitlement tracking
+  lastPaywallShownAt                                  DateTime?
+  paywallCooldownUntil                                DateTime?
+  // Push notification tracking
+  pushPermissionStatus                                String                 @default("unknown") // "unknown" | "granted" | "denied"
+  notifNudgeState                                     String                 @default("none") // "none" | "nudged_once" | "denied_once" | "granted"
+  notifLastNudgedAt                                   DateTime?
+  Profile                                             Profile?
+  account                                             account[]
+  blocked_contact_blocked_contact_blockedUserIdTouser blocked_contact[]      @relation("blocked_contact_blockedUserIdTouser")
+  blocked_contact_blocked_contact_userIdTouser        blocked_contact[]      @relation("blocked_contact_userIdTouser")
+  business                                            business[]
+  business_team_member                                business_team_member[]
+  event                                               event[]
+  event_comment                                       event_comment[]
+  event_interest                                      event_interest[]
+  event_join_request                                  event_join_request[]
+  event_photo                                         event_photo[]
+  event_request                                       event_request[]
+  event_request_member                                event_request_member[]
+  event_template                                      event_template[]
+  friend_group                                        friend_group[]
+  friend_request_friend_request_receiverIdTouser      friend_request[]       @relation("friend_request_receiverIdTouser")
+  friend_request_friend_request_senderIdTouser        friend_request[]       @relation("friend_request_senderIdTouser")
+  friendship_friendship_friendIdTouser                friendship[]           @relation("friendship_friendIdTouser")
+  friendship_friendship_userIdTouser                  friendship[]           @relation("friendship_userIdTouser")
+  hangout_history                                     hangout_history[]
+  notification                                        notification[]
+  push_token                                          push_token[]
+  session                                             session[]
+  story                                               story[]
+  subscription                                        subscription?
+  work_schedule                                       work_schedule[]
+}
+
+model user_badge {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  achievementId String
+  createdAt     DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+model verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+}
+
+model work_schedule {
+  id        String   @id @default(cuid())
+  userId    String
+  dayOfWeek Int
+  isEnabled Boolean  @default(false)
+  startTime String?
+  endTime   String?
+  label     String   @default("Work")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek])
+}
+
+model work_schedule_settings {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  showOnCalendar Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}

@@ -1,0 +1,724 @@
+import { Hono } from "hono";
+import { db } from "../db";
+import { type AppType } from "../types";
+import { auth } from "../auth";
+
+export const seedDemoRouter = new Hono<AppType>();
+
+// Demo account credentials
+const DEMO_EMAIL = "demo@openinvite.app";
+const DEMO_PASSWORD = "DemoReview2024!";
+const DEMO_NAME = "Alex Demo";
+const DEMO_HANDLE = "alexdemo";
+
+// Friend data - diverse set of 12 friends
+const FRIENDS_DATA = [
+  {
+    name: "Sarah Chen",
+    handle: "sarahc",
+    bio: "Coffee enthusiast & weekend hiker. Always down for brunch!",
+    calendarBio: "My calendar is packed with yoga and coffee dates",
+    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Marcus Williams",
+    handle: "marcusw",
+    bio: "Basketball fanatic. Game nights are my thing.",
+    calendarBio: "Basketball practice Tuesdays & Thursdays",
+    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Emma Rodriguez",
+    handle: "emmar",
+    bio: "Foodie exploring the city one restaurant at a time",
+    calendarBio: "Usually free evenings - let's grab dinner!",
+    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "James Park",
+    handle: "jamesp",
+    bio: "Software engineer by day, gamer by night",
+    calendarBio: "WFH most days, flexible for lunch meetups",
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Olivia Thompson",
+    handle: "oliviat",
+    bio: "Yoga instructor & plant mom. Spreading good vibes!",
+    calendarBio: "Teaching yoga MWF mornings, free afternoons",
+    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "David Kim",
+    handle: "davidk",
+    bio: "Photographer capturing moments. Love sunset shoots!",
+    calendarBio: "Weekends are for photo adventures",
+    avatarUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Sophia Martinez",
+    handle: "sophiam",
+    bio: "Dance teacher & salsa lover. Let's hit the dance floor!",
+    calendarBio: "Dance classes evenings, free for weekend hangouts",
+    avatarUrl: "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Ryan Johnson",
+    handle: "ryanj",
+    bio: "Craft beer enthusiast & trivia night champion",
+    calendarBio: "Trivia Wednesdays at O'Malley's - join us!",
+    avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Mia Lee",
+    handle: "mialee",
+    bio: "Bookworm & cozy cafe lover. Book club every month!",
+    calendarBio: "Book club last Sunday of the month",
+    avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Chris Anderson",
+    handle: "chrisa",
+    bio: "Running marathons and chasing PRs. Early bird!",
+    calendarBio: "Morning runs 6am, busy with training",
+    avatarUrl: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Isabella Wright",
+    handle: "isabellaw",
+    bio: "Art curator with a passion for galleries & wine nights",
+    calendarBio: "Gallery openings Thursdays, wine Fridays",
+    avatarUrl: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Tyler Brown",
+    handle: "tylerb",
+    bio: "Music producer & concert junkie. Live shows are life!",
+    calendarBio: "Studio time varies, always free for concerts",
+    avatarUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=faces",
+  },
+];
+
+// People who will send friend requests to demo user
+const FRIEND_REQUEST_SENDERS = [
+  {
+    name: "Nicole Foster",
+    handle: "nicolef",
+    bio: "New to the city! Looking for hiking buddies",
+    avatarUrl: "https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Brandon Mitchell",
+    handle: "brandonm",
+    bio: "Tennis player seeking doubles partners",
+    avatarUrl: "https://images.unsplash.com/photo-1463453091185-61582044d556?w=400&h=400&fit=crop&crop=faces",
+  },
+  {
+    name: "Jessica Wang",
+    handle: "jessicaw",
+    bio: "Startup founder, always networking",
+    avatarUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop&crop=faces",
+  },
+];
+
+// Event templates
+const EVENT_TEMPLATES = [
+  { title: "Coffee catch-up", emoji: "☕", category: "food", duration: 60 },
+  { title: "Brunch at the new spot", emoji: "🥞", category: "food", duration: 90 },
+  { title: "Happy hour drinks", emoji: "🍻", category: "social", duration: 120 },
+  { title: "Movie night", emoji: "🎬", category: "entertainment", duration: 180 },
+  { title: "Basketball game", emoji: "🏀", category: "sports", duration: 120 },
+  { title: "Yoga session", emoji: "🧘", category: "fitness", duration: 60 },
+  { title: "Hiking adventure", emoji: "🥾", category: "outdoors", duration: 240 },
+  { title: "Game night", emoji: "🎮", category: "entertainment", duration: 180 },
+  { title: "Dinner reservation", emoji: "🍽️", category: "food", duration: 120 },
+  { title: "Concert", emoji: "🎵", category: "entertainment", duration: 180 },
+];
+
+const LOCATIONS = [
+  "Blue Bottle Coffee, Downtown",
+  "The Breakfast Club, Main St",
+  "O'Malley's Pub",
+  "AMC Metreon 16",
+  "24 Hour Fitness, Market St",
+  "Golden Gate Park",
+  "Dolores Park",
+  "The Fillmore",
+  "SFMOMA",
+  "City Lights Bookstore",
+];
+
+const COMMENTS = [
+  "Can't wait! This is going to be so fun!",
+  "I'll bring snacks!",
+  "Count me in!",
+  "What should I wear?",
+  "Is parking available nearby?",
+  "I might be 10 mins late, save me a spot!",
+  "Should we carpool?",
+  "Sounds amazing, see you there!",
+];
+
+function getRandomItem<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function getRandomDate(daysFromNow: number, hoursRange: [number, number]): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  const hour = Math.floor(Math.random() * (hoursRange[1] - hoursRange[0])) + hoursRange[0];
+  date.setHours(hour, 0, 0, 0);
+  return date;
+}
+
+function randomUUID(): string {
+  return crypto.randomUUID();
+}
+
+// POST /api/seed-demo - Seed demo account (protected by secret key)
+seedDemoRouter.post("/", async (c) => {
+  // Check for secret key to prevent unauthorized access
+  const secretKey = c.req.header("X-Seed-Secret");
+  const expectedSecret = process.env.SEED_SECRET || "OpenInvite2024SeedDemo!";
+
+  if (secretKey !== expectedSecret) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  try {
+    console.log("🌱 Starting demo account seed via API...");
+
+    // Clean up existing demo data
+    console.log("🧹 Cleaning up existing demo data...");
+    const existingDemoUser = await db.user.findUnique({
+      where: { email: DEMO_EMAIL },
+    });
+
+    if (existingDemoUser) {
+      await db.profile.deleteMany({ where: { userId: existingDemoUser.id } });
+      await db.user.delete({ where: { id: existingDemoUser.id } });
+      console.log("   Deleted existing demo user");
+    }
+
+    // Clean up friend users by handle
+    const allHandles = [...FRIENDS_DATA.map(f => f.handle), ...FRIEND_REQUEST_SENDERS.map(f => f.handle)];
+    for (const handle of allHandles) {
+      const profile = await db.profile.findUnique({ where: { handle } });
+      if (profile) {
+        await db.profile.delete({ where: { handle } });
+        await db.user.delete({ where: { id: profile.userId } }).catch(() => {});
+      }
+    }
+
+    // Create demo user using Better Auth's sign-up
+    console.log("👤 Creating demo user...");
+    const demoUserId = randomUUID();
+
+    // Use Better Auth to create user with proper password hashing
+    const signUpResult = await auth.api.signUpEmail({
+      body: {
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+        name: DEMO_NAME,
+      },
+    });
+
+    if (!signUpResult || !signUpResult.user) {
+      // User might already exist, try to get existing
+      const existingUser = await db.user.findUnique({ where: { email: DEMO_EMAIL } });
+      if (!existingUser) {
+        return c.json({ error: "Failed to create demo user" }, 500);
+      }
+    }
+
+    // Get the demo user
+    const demoUser = await db.user.findUnique({ where: { email: DEMO_EMAIL } });
+    if (!demoUser) {
+      return c.json({ error: "Demo user not found after creation" }, 500);
+    }
+
+    // Update demo user with additional fields
+    await db.user.update({
+      where: { id: demoUser.id },
+      data: {
+        emailVerified: true,
+        onboardingCompleted: true,
+        referralCode: "DEMO2024",
+      },
+    });
+
+    // Create profile for demo user
+    await db.profile.upsert({
+      where: { userId: demoUser.id },
+      update: {
+        handle: DEMO_HANDLE,
+        bio: "App Store reviewer - exploring all features!",
+        calendarBio: "Busy exploring the app, always open to hangouts!",
+        avatarUrl: "https://images.unsplash.com/photo-1599566150163-29194dcabd36?w=200",
+        birthday: new Date("1990-06-15"),
+        showBirthdayToFriends: true,
+      },
+      create: {
+        userId: demoUser.id,
+        handle: DEMO_HANDLE,
+        bio: "App Store reviewer - exploring all features!",
+        calendarBio: "Busy exploring the app, always open to hangouts!",
+        avatarUrl: "https://images.unsplash.com/photo-1599566150163-29194dcabd36?w=200",
+        birthday: new Date("1990-06-15"),
+        showBirthdayToFriends: true,
+      },
+    });
+
+    // Create subscription
+    await db.subscription.upsert({
+      where: { userId: demoUser.id },
+      update: {
+        tier: "premium",
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        purchasedAt: new Date(),
+      },
+      create: {
+        userId: demoUser.id,
+        tier: "premium",
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        purchasedAt: new Date(),
+      },
+    });
+
+    // Create friend groups
+    console.log("📁 Creating friend groups...");
+    const groups = await Promise.all([
+      db.friendGroup.create({
+        data: { name: "Close Friends", color: "#FF6B4A", icon: "heart", userId: demoUser.id },
+      }),
+      db.friendGroup.create({
+        data: { name: "Fitness Buddies", color: "#10B981", icon: "dumbbell", userId: demoUser.id },
+      }),
+      db.friendGroup.create({
+        data: { name: "Foodies", color: "#F59E0B", icon: "utensils", userId: demoUser.id },
+      }),
+      db.friendGroup.create({
+        data: { name: "Work Friends", color: "#3B82F6", icon: "briefcase", userId: demoUser.id },
+      }),
+    ]);
+
+    // Create friends
+    console.log("👥 Creating friends...");
+    const friendUsers: { id: string; name: string }[] = [];
+
+    for (const friendData of FRIENDS_DATA) {
+      const friendId = randomUUID();
+      await db.user.create({
+        data: {
+          id: friendId,
+          email: `${friendData.handle}@openinvite.demo`,
+          name: friendData.name,
+          image: friendData.avatarUrl,
+          emailVerified: true,
+          onboardingCompleted: true,
+          Profile: {
+            create: {
+              handle: friendData.handle,
+              bio: friendData.bio,
+              calendarBio: friendData.calendarBio,
+              avatarUrl: friendData.avatarUrl,
+              birthday: new Date(1988 + Math.floor(Math.random() * 10), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
+              showBirthdayToFriends: Math.random() > 0.3,
+            },
+          },
+        },
+      });
+      friendUsers.push({ id: friendId, name: friendData.name });
+    }
+
+    // Create bidirectional friendships
+    console.log("🤝 Creating friendships...");
+    const friendships: string[] = [];
+
+    for (const friend of friendUsers) {
+      const friendship1 = await db.friendship.create({
+        data: { userId: demoUser.id, friendId: friend.id },
+      });
+      friendships.push(friendship1.id);
+
+      await db.friendship.create({
+        data: { userId: friend.id, friendId: demoUser.id },
+      });
+    }
+
+    // Assign friends to groups
+    console.log("📋 Assigning friends to groups...");
+    const closeFriendIds = [0, 2, 3, 8].map(i => friendships[i]);
+    for (const fId of closeFriendIds) {
+      await db.friendGroupMembership.create({
+        data: { friendshipId: fId, groupId: groups[0].id },
+      });
+    }
+
+    // Create events for demo user - 10 events spread across next 3 weeks
+    console.log("📅 Creating demo user events...");
+    const demoEvents: string[] = [];
+
+    // Specific events for demo user with variety
+    const demoEventSchedule = [
+      { template: EVENT_TEMPLATES[0], dayOffset: 1, hour: 10 },   // Coffee tomorrow morning
+      { template: EVENT_TEMPLATES[1], dayOffset: 2, hour: 11 },   // Brunch in 2 days
+      { template: EVENT_TEMPLATES[2], dayOffset: 3, hour: 18 },   // Happy hour in 3 days
+      { template: EVENT_TEMPLATES[4], dayOffset: 5, hour: 14 },   // Basketball this weekend
+      { template: EVENT_TEMPLATES[6], dayOffset: 6, hour: 9 },    // Hiking Saturday morning
+      { template: EVENT_TEMPLATES[3], dayOffset: 7, hour: 19 },   // Movie night next Sunday
+      { template: EVENT_TEMPLATES[7], dayOffset: 10, hour: 20 },  // Game night
+      { template: EVENT_TEMPLATES[8], dayOffset: 12, hour: 19 },  // Dinner
+      { template: EVENT_TEMPLATES[9], dayOffset: 14, hour: 20 },  // Concert
+      { template: EVENT_TEMPLATES[5], dayOffset: 15, hour: 7 },   // Yoga
+    ];
+
+    for (const schedule of demoEventSchedule) {
+      const startTime = new Date();
+      startTime.setDate(startTime.getDate() + schedule.dayOffset);
+      startTime.setHours(schedule.hour, 0, 0, 0);
+      const endTime = new Date(startTime.getTime() + schedule.template.duration * 60 * 1000);
+
+      const event = await db.event.create({
+        data: {
+          title: schedule.template.title,
+          emoji: schedule.template.emoji,
+          category: schedule.template.category,
+          description: `Join me for ${schedule.template.title.toLowerCase()}! It's going to be great.`,
+          location: getRandomItem(LOCATIONS),
+          startTime,
+          endTime,
+          visibility: "all_friends",
+          userId: demoUser.id,
+        },
+      });
+      demoEvents.push(event.id);
+    }
+
+    // Create events for friends - more events with specific scheduling
+    console.log("📅 Creating friend events...");
+    const friendEvents: { id: string; userId: string }[] = [];
+
+    // Schedule friend events across different days and times for calendar variety
+    const friendEventSchedules = [
+      // Day 1
+      { friendIdx: 0, template: EVENT_TEMPLATES[0], dayOffset: 1, hour: 15 },
+      { friendIdx: 1, template: EVENT_TEMPLATES[4], dayOffset: 1, hour: 18 },
+      // Day 2
+      { friendIdx: 2, template: EVENT_TEMPLATES[1], dayOffset: 2, hour: 10 },
+      { friendIdx: 3, template: EVENT_TEMPLATES[7], dayOffset: 2, hour: 19 },
+      // Day 3
+      { friendIdx: 4, template: EVENT_TEMPLATES[5], dayOffset: 3, hour: 7 },
+      { friendIdx: 5, template: EVENT_TEMPLATES[2], dayOffset: 3, hour: 17 },
+      { friendIdx: 6, template: EVENT_TEMPLATES[8], dayOffset: 3, hour: 20 },
+      // Day 4
+      { friendIdx: 7, template: EVENT_TEMPLATES[3], dayOffset: 4, hour: 19 },
+      { friendIdx: 8, template: EVENT_TEMPLATES[0], dayOffset: 4, hour: 14 },
+      // Day 5
+      { friendIdx: 9, template: EVENT_TEMPLATES[6], dayOffset: 5, hour: 8 },
+      { friendIdx: 10, template: EVENT_TEMPLATES[4], dayOffset: 5, hour: 16 },
+      { friendIdx: 11, template: EVENT_TEMPLATES[2], dayOffset: 5, hour: 21 },
+      // Day 6 (weekend)
+      { friendIdx: 0, template: EVENT_TEMPLATES[6], dayOffset: 6, hour: 7 },
+      { friendIdx: 2, template: EVENT_TEMPLATES[1], dayOffset: 6, hour: 11 },
+      { friendIdx: 4, template: EVENT_TEMPLATES[9], dayOffset: 6, hour: 20 },
+      // Day 7 (weekend)
+      { friendIdx: 1, template: EVENT_TEMPLATES[5], dayOffset: 7, hour: 9 },
+      { friendIdx: 3, template: EVENT_TEMPLATES[8], dayOffset: 7, hour: 18 },
+      { friendIdx: 5, template: EVENT_TEMPLATES[7], dayOffset: 7, hour: 15 },
+      // Week 2
+      { friendIdx: 6, template: EVENT_TEMPLATES[0], dayOffset: 8, hour: 10 },
+      { friendIdx: 7, template: EVENT_TEMPLATES[4], dayOffset: 9, hour: 17 },
+      { friendIdx: 8, template: EVENT_TEMPLATES[2], dayOffset: 10, hour: 18 },
+      { friendIdx: 9, template: EVENT_TEMPLATES[3], dayOffset: 11, hour: 20 },
+      { friendIdx: 10, template: EVENT_TEMPLATES[1], dayOffset: 12, hour: 12 },
+      { friendIdx: 11, template: EVENT_TEMPLATES[6], dayOffset: 13, hour: 8 },
+      { friendIdx: 0, template: EVENT_TEMPLATES[9], dayOffset: 14, hour: 21 },
+    ];
+
+    for (const schedule of friendEventSchedules) {
+      const friend = friendUsers[schedule.friendIdx];
+      if (!friend) continue;
+
+      const startTime = new Date();
+      startTime.setDate(startTime.getDate() + schedule.dayOffset);
+      startTime.setHours(schedule.hour, 0, 0, 0);
+      const endTime = new Date(startTime.getTime() + schedule.template.duration * 60 * 1000);
+
+      const event = await db.event.create({
+        data: {
+          title: schedule.template.title,
+          emoji: schedule.template.emoji,
+          category: schedule.template.category,
+          description: `${friend.name.split(" ")[0]}'s ${schedule.template.title.toLowerCase()} - everyone welcome!`,
+          location: getRandomItem(LOCATIONS),
+          startTime,
+          endTime,
+          visibility: "all_friends",
+          userId: friend.id,
+        },
+      });
+      friendEvents.push({ id: event.id, userId: friend.id });
+    }
+
+    // Create accepted join requests for events to make them "popular"
+    console.log("🎟️ Creating join requests for popular events...");
+
+    // Add attendees to demo user's events
+    for (let i = 0; i < Math.min(demoEvents.length, 6); i++) {
+      const eventId = demoEvents[i];
+      // Add 2-4 random friends as accepted attendees
+      const attendeeCount = 2 + Math.floor(Math.random() * 3);
+      const attendees = [...friendUsers].sort(() => Math.random() - 0.5).slice(0, attendeeCount);
+
+      for (const attendee of attendees) {
+        await db.eventJoinRequest.create({
+          data: {
+            eventId,
+            userId: attendee.id,
+            status: "accepted",
+          },
+        });
+      }
+    }
+
+    // Add attendees to friend events (make some popular)
+    for (let i = 0; i < Math.min(friendEvents.length, 15); i++) {
+      const friendEvent = friendEvents[i];
+      // Add demo user and 1-3 other friends as attendees
+      const otherFriends = friendUsers.filter(f => f.id !== friendEvent.userId);
+      const attendeeCount = 1 + Math.floor(Math.random() * 3);
+      const attendees = [...otherFriends].sort(() => Math.random() - 0.5).slice(0, attendeeCount);
+
+      // Add demo user to some events
+      if (i % 2 === 0) {
+        await db.eventJoinRequest.create({
+          data: {
+            eventId: friendEvent.id,
+            userId: demoUser.id,
+            status: "accepted",
+          },
+        });
+      }
+
+      for (const attendee of attendees) {
+        await db.eventJoinRequest.create({
+          data: {
+            eventId: friendEvent.id,
+            userId: attendee.id,
+            status: "accepted",
+          },
+        });
+      }
+    }
+
+    // Add comments to events
+    console.log("💬 Adding comments...");
+    for (const eventId of demoEvents) {
+      const commentCount = 2 + Math.floor(Math.random() * 4);
+      const commenters = [...friendUsers].sort(() => Math.random() - 0.5).slice(0, commentCount);
+
+      for (const commenter of commenters) {
+        await db.eventComment.create({
+          data: {
+            eventId,
+            userId: commenter.id,
+            content: getRandomItem(COMMENTS),
+          },
+        });
+      }
+    }
+
+    // Create pending friend requests
+    console.log("📬 Creating friend requests...");
+    for (const senderData of FRIEND_REQUEST_SENDERS) {
+      const senderId = randomUUID();
+      await db.user.create({
+        data: {
+          id: senderId,
+          email: `${senderData.handle}@openinvite.demo`,
+          name: senderData.name,
+          image: senderData.avatarUrl,
+          emailVerified: true,
+          onboardingCompleted: true,
+          Profile: {
+            create: {
+              handle: senderData.handle,
+              bio: senderData.bio,
+              avatarUrl: senderData.avatarUrl,
+            },
+          },
+        },
+      });
+
+      await db.friendRequest.create({
+        data: {
+          senderId,
+          receiverId: demoUser.id,
+          status: "pending",
+        },
+      });
+    }
+
+    // Create notifications
+    console.log("🔔 Creating notifications...");
+    const notifications = [
+      { type: "friend_request", title: "New friend request", body: "Nicole Foster wants to be your friend" },
+      { type: "friend_request", title: "New friend request", body: "Brandon Mitchell wants to be your friend" },
+      { type: "new_event", title: "New event nearby", body: "Sarah Chen is hosting Coffee catch-up" },
+      { type: "join_request", title: "Join request", body: "Marcus Williams wants to join your event" },
+    ];
+
+    for (const notif of notifications) {
+      await db.notification.create({
+        data: {
+          userId: demoUser.id,
+          type: notif.type,
+          title: notif.title,
+          body: notif.body,
+          read: false,
+        },
+      });
+    }
+
+    // Create work schedule
+    console.log("💼 Creating work schedule...");
+    const workDays = [1, 2, 3, 4, 5];
+    for (const day of workDays) {
+      await db.workSchedule.create({
+        data: {
+          userId: demoUser.id,
+          dayOfWeek: day,
+          isEnabled: true,
+          startTime: "09:00",
+          endTime: "17:00",
+          label: "Work",
+        },
+      });
+    }
+
+    // Create circles (group chats)
+    console.log("💬 Creating circles...");
+    const circlesData = [
+      { name: "Weekend Crew", emoji: "🎉", members: [0, 2, 3, 7] },
+      { name: "Fitness Gang", emoji: "💪", members: [4, 5, 9] },
+      { name: "Foodies United", emoji: "🍕", members: [1, 2, 6, 8, 11] },
+      { name: "Game Night Squad", emoji: "🎮", members: [3, 7, 10] },
+    ];
+
+    const createdCircles: { id: string; name: string }[] = [];
+
+    for (const circleData of circlesData) {
+      const circle = await db.circle.create({
+        data: {
+          name: circleData.name,
+          emoji: circleData.emoji,
+          createdById: demoUser.id,
+        },
+      });
+
+      // Add demo user as member
+      await db.circleMember.create({
+        data: {
+          circleId: circle.id,
+          userId: demoUser.id,
+          isPinned: circleData.name === "Weekend Crew",
+        },
+      });
+
+      // Add friends as members
+      for (const friendIndex of circleData.members) {
+        if (friendUsers[friendIndex]) {
+          await db.circleMember.create({
+            data: {
+              circleId: circle.id,
+              userId: friendUsers[friendIndex].id,
+            },
+          });
+        }
+      }
+
+      createdCircles.push({ id: circle.id, name: circleData.name });
+    }
+
+    // Add sample messages to circles
+    console.log("📨 Adding circle messages...");
+    const circleMessages = [
+      "Hey everyone! 👋",
+      "Who's free this weekend?",
+      "I'm in! What time?",
+      "Let's meet at 3pm",
+      "Perfect, see you there!",
+      "Can't wait!",
+      "Should I bring anything?",
+      "Just yourselves 😄",
+    ];
+
+    for (const circle of createdCircles) {
+      // Get circle members
+      const members = await db.circleMember.findMany({
+        where: { circleId: circle.id },
+      });
+
+      // Add 3-5 messages per circle
+      const messageCount = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < messageCount; i++) {
+        const randomMember = members[Math.floor(Math.random() * members.length)];
+        const randomMessage = circleMessages[Math.floor(Math.random() * circleMessages.length)];
+
+        await db.circleMessage.create({
+          data: {
+            circleId: circle.id,
+            userId: randomMember.userId,
+            content: randomMessage,
+            createdAt: new Date(Date.now() - (messageCount - i) * 60 * 60 * 1000), // Stagger messages
+          },
+        });
+      }
+    }
+
+    console.log("✅ Demo account seeded successfully!");
+
+    return c.json({
+      success: true,
+      message: "Demo account created successfully!",
+      credentials: {
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      },
+      data: {
+        friendCount: friendUsers.length,
+        eventCount: demoEvents.length + friendEvents.length,
+        friendRequestCount: FRIEND_REQUEST_SENDERS.length,
+        groupCount: groups.length,
+        circleCount: createdCircles.length,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Error seeding demo account:", error);
+    return c.json({ error: error.message || "Failed to seed demo account" }, 500);
+  }
+});
+
+
+// GET /api/seed-demo/status - Check if demo account exists
+seedDemoRouter.get("/status", async (c) => {
+  const demoUser = await db.user.findUnique({
+    where: { email: DEMO_EMAIL },
+    include: {
+      friendsAsUser: true,
+      events: true,
+    },
+  });
+
+  if (!demoUser) {
+    return c.json({ exists: false });
+  }
+
+  return c.json({
+    exists: true,
+    email: DEMO_EMAIL,
+    friendCount: demoUser.friendsAsUser.length,
+    eventCount: demoUser.events.length,
+  });
+});

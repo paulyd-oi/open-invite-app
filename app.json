@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Open Invite",
+    "slug": "open-invite",
+    "scheme": "vibecode",
+    "version": "1.4.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
+      "buildNumber": "171",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Open Invite uses the camera to capture photos inside the app before you publish them.",
+        "NSPhotoLibraryUsageDescription": "Open Invite accesses your photo library so you can move media between the app and your library.",
+        "NSPhotoLibraryAddUsageDescription": "Open Invite saves media you export from the app into your photo library.",
+        "NSLocationWhenInUseUsageDescription": "Open Invite uses your location to show nearby content and services while you use the app.",
+        "NSContactsUsageDescription": "Open Invite accesses your contacts to help you find people you already know inside the app.",
+        "NSCalendarsUsageDescription": "Open Invite uses your calendar to add events you choose to save.",
+        "UIBackgroundModes": [
+          "remote-notification",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "iCalendar Event",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": ["com.apple.ical.ics"]
+          }
+        ],
+        "UTImportedTypeDeclarations": [
+          {
+            "UTTypeIdentifier": "com.apple.ical.ics",
+            "UTTypeTagSpecification": {
+              "public.filename-extension": ["ics"],
+              "public.mime-type": ["text/calendar"]
+            },
+            "UTTypeConformsTo": ["public.data", "public.content"]
+          }
+        ]
+      }
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "icon": "./icon.png",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9991157f-7ee4-4214-97e7-cc5333424701"
+      }
+    }
+  }
+}
