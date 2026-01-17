@@ -44,3 +44,7 @@ yarn-error.*
 # Expo log
 expo.log
 main,
+
+bun.lockb
+bun.lock
+
