@@ -2,8 +2,8 @@
   "name": "template-app-53",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "npm@10.9.0",
   "main": "index.ts",
+  "packageManager": "npm@10.5.0",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -11,6 +11,13 @@
     "web": "DARK_MODE=class expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "enabled": false
+      }
+    }
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
