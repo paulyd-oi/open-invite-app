@@ -16,6 +16,10 @@
     "production": {
       "distribution": "store",
       "autoIncrement": false,
+      "node": "18",
+      "env": {
+        "NPM_CONFIG_PACKAGE_MANAGER": "npm"
+      },
       "ios": {
         "resourceClass": "m-medium"
       }
