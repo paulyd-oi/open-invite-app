@@ -14,8 +14,8 @@
       "distribution": "internal"
     },
     "production": {
-      "distribution": "app-store",
-      "autoIncrement": true,
+      "distribution": "store",
+      "autoIncrement": false,
       "ios": {
         "resourceClass": "m-medium"
       }
