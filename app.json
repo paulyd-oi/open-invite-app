@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "171",
+      "buildNumber": "172",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Open Invite uses the camera to capture photos inside the app before you publish them.",
@@ -18,11 +18,9 @@
         "NSPhotoLibraryAddUsageDescription": "Open Invite saves media you export from the app into your photo library.",
         "NSLocationWhenInUseUsageDescription": "Open Invite uses your location to show nearby content and services while you use the app.",
         "NSContactsUsageDescription": "Open Invite accesses your contacts to help you find people you already know inside the app.",
-        "NSCalendarsUsageDescription": "Open Invite uses your calendar to add events you choose to save.",
-        "UIBackgroundModes": [
-          "remote-notification",
-          "remote-notification"
-        ],
+        "NSCalendarsUsageDescription": "Open Invite uses your calendar to help you save events you choose to attend.",
+        "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to save.",
+        "UIBackgroundModes": ["remote-notification"],
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleDocumentTypes": [
           {
@@ -46,9 +44,7 @@
     "android": {
       "edgeToEdgeEnabled": true
     },
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     },
@@ -61,3 +57,4 @@
     }
   }
 }
+
