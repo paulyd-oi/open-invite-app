@@ -5,13 +5,20 @@ bun install v1.2.19 (aad3abea)
 $ prisma generate
 Prisma schema loaded from prisma/schema.prisma
 
-✔ Generated Prisma Client (v6.19.1) to ./node_modules/@prisma/client in 418ms
+✔ Generated Prisma Client (v6.19.1) to ./node_modules/@prisma/client in 286ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
 
-Checked 165 installs across 190 packages (no changes) [2.14s]
+Checked 165 installs across 190 packages (no changes) [1.51s]
 Starting server in dev mode with hot reload...
 $ NODE_ENV=development bun run --hot src/index.ts
+Failed to find Response internal state key
+❌ Environment variable validation failed:
+  - DATABASE_URL: Invalid input: expected string, received undefined
+  - BETTER_AUTH_SECRET: Invalid input: expected string, received undefined
+
+Please check your .env file and ensure all required variables are set.
+error: script "dev" exited with code 1
