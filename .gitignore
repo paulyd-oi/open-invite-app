@@ -48,3 +48,4 @@ main,
 bun.lockb
 bun.lock
 
+.githooks/
