@@ -14,7 +14,8 @@
         "EXPO_NO_BUN": "1"
       },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "autoIncrement": true
       }
     }
   },
