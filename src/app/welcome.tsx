@@ -809,8 +809,10 @@ export default function WelcomeOnboardingScreen() {
       const token = data.token || data.session?.token;
       if (token) {
         try {
-          await SecureStore.setItemAsync("session_token", token);
-          if (data.session?.expiresAt) {
+          const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID;
+const tokenKey = `.session-token`;
+await SecureStore.setItemAsync(tokenKey, token);
+if (data.session?.expiresAt) {
             await SecureStore.setItemAsync("session_expires", data.session.expiresAt);
           }
         } catch (storeError) {
