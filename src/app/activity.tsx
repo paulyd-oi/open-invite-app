@@ -1,37 +1,17 @@
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  RefreshControl,
-  FlatList,
-} from "react-native";
+import { View, Text, Pressable, RefreshControl, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import {
-  Calendar,
-  UserPlus,
-  ChevronLeft,
-  Bell,
-  Users,
-  CheckCircle,
-  Gift,
-  Star,
-} from "lucide-react-native";
-import Animated, {
-  FadeInDown,
-} from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
-import {
-  type GetNotificationsResponse,
-  type Notification,
-} from "@/shared/contracts";
+import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: string): string {
@@ -51,15 +31,18 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 // Notification type config
-const notificationTypeConfig: Record<string, { icon: typeof Bell; color: string }> = {
-  friend_request: { icon: UserPlus, color: "#2196F3" },
-  friend_accepted: { icon: Users, color: "#4CAF50" },
-  event_invite: { icon: Calendar, color: "#FF6B4A" },
-  event_reminder: { icon: Bell, color: "#F59E0B" },
-  event_join: { icon: CheckCircle, color: "#10B981" },
-  achievement: { icon: Star, color: "#9333EA" },
-  referral: { icon: Gift, color: "#EC4899" },
-  default: { icon: Bell, color: "#6B7280" },
+const notificationTypeConfig: Record<
+  string,
+  { iconName: React.ComponentProps<typeof Ionicons>["name"]; color: string }
+> = {
+  friend_request: { iconName: "person-add-outline", color: "#2196F3" },
+  friend_accepted: { iconName: "people-outline", color: "#4CAF50" },
+  event_invite: { iconName: "calendar-outline", color: "#FF6B4A" },
+  event_reminder: { iconName: "notifications-outline", color: "#F59E0B" },
+  event_join: { iconName: "checkmark-circle-outline", color: "#10B981" },
+  achievement: { iconName: "star-outline", color: "#9333EA" },
+  referral: { iconName: "gift-outline", color: "#EC4899" },
+  default: { iconName: "notifications-outline", color: "#6B7280" },
 };
 
 // Notification Card Component
@@ -75,8 +58,8 @@ function NotificationCard({
   onMarkRead: () => void;
 }) {
   const { themeColor, colors } = useTheme();
-  const config = notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
-  const IconComponent = config.icon;
+  const config =
+    notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
@@ -90,9 +73,9 @@ function NotificationCard({
         }}
         className="mx-4 mb-3 p-4 rounded-2xl"
         style={{
-          backgroundColor: notification.read ? colors.surface : (themeColor + "10"),
+          backgroundColor: notification.read ? colors.surface : themeColor + "10",
           borderWidth: notification.read ? 0 : 1,
-          borderColor: notification.read ? "transparent" : (themeColor + "30"),
+          borderColor: notification.read ? "transparent" : themeColor + "30",
         }}
       >
         <View className="flex-row items-start">
@@ -101,7 +84,7 @@ function NotificationCard({
             className="w-10 h-10 rounded-full items-center justify-center"
             style={{ backgroundColor: config.color + "20" }}
           >
-            <IconComponent size={20} color={config.color} />
+            <Ionicons name={config.iconName} size={20} color={config.color} />
           </View>
 
           {/* Content */}
@@ -148,7 +131,7 @@ function EmptyState() {
         className="w-20 h-20 rounded-full items-center justify-center mb-4"
         style={{ backgroundColor: colors.surface }}
       >
-        <Bell size={36} color="#9CA3AF" />
+        <Ionicons name="notifications-outline" size={36} color="#9CA3AF" />
       </View>
       <Text className="text-lg font-semibold text-center" style={{ color: colors.text }}>
         No notifications yet
@@ -168,11 +151,7 @@ export default function ActivityScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch notifications
-  const {
-    data: notificationsData,
-    isLoading,
-    refetch,
-  } = useQuery({
+  const { data: notificationsData, isLoading, refetch } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get<GetNotificationsResponse>("/api/notifications"),
     enabled: !!session,
@@ -211,7 +190,11 @@ export default function ActivityScreen() {
       const data = notification.data ? JSON.parse(notification.data) : {};
       if (data.eventId) {
         router.push(`/event/${data.eventId}` as any);
-      } else if (data.friendId || notification.type === "friend_request" || notification.type === "friend_accepted") {
+      } else if (
+        data.friendId ||
+        notification.type === "friend_request" ||
+        notification.type === "friend_accepted"
+      ) {
         router.push("/friends" as any);
       } else if (data.achievementId) {
         router.push("/achievements" as any);
@@ -224,10 +207,7 @@ export default function ActivityScreen() {
   // Show login prompt if not authenticated
   if (!session && !sessionLoading) {
     return (
-      <SafeAreaView
-        className="flex-1"
-        style={{ backgroundColor: colors.background }}
-      >
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <View className="flex-1 items-center justify-center px-8">
           <Text
             className="text-xl font-semibold text-center mb-2"
@@ -235,10 +215,7 @@ export default function ActivityScreen() {
           >
             Sign in to see notifications
           </Text>
-          <Text
-            className="text-center text-sm mb-6"
-            style={{ color: colors.textSecondary }}
-          >
+          <Text className="text-center text-sm mb-6" style={{ color: colors.textSecondary }}>
             Stay updated with friend requests, event invites, and more.
           </Text>
           <Pressable
@@ -260,7 +237,10 @@ export default function ActivityScreen() {
       edges={["top"]}
     >
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b" style={{ borderBottomColor: colors.separator }}>
+      <View
+        className="flex-row items-center justify-between px-4 py-3 border-b"
+        style={{ borderBottomColor: colors.separator }}
+      >
         <Pressable
           onPress={() => {
             Haptics.selectionAsync();
@@ -268,8 +248,9 @@ export default function ActivityScreen() {
           }}
           className="w-10 h-10 items-center justify-center"
         >
-          <ChevronLeft size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
+
         <View className="flex-row items-center">
           <Text className="text-lg font-semibold" style={{ color: colors.text }}>
             Notifications
@@ -285,6 +266,7 @@ export default function ActivityScreen() {
             </View>
           )}
         </View>
+
         {unreadCount > 0 ? (
           <Pressable
             onPress={() => {
@@ -321,11 +303,7 @@ export default function ActivityScreen() {
         }}
         ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : <EmptyState />}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={themeColor}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />
         }
         showsVerticalScrollIndicator={false}
       />
