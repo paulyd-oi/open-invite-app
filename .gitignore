@@ -49,3 +49,6 @@ bun.lockb
 bun.lock
 
 .githooks/
+
+# local tooling
+.claude/
