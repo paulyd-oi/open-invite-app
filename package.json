@@ -170,5 +170,7 @@
   "patchedDependencies": {
     "react-native@0.79.6": "patches/react-native@0.79.6.patch",
     "expo-asset@11.1.5": "patches/expo-asset@11.1.5.patch"
-  }
+  },
+  "react": "19.0.0",
+  "react-dom": "19.0.0"
 }
