@@ -6,8 +6,9 @@
     "version": "1.4.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-
     "newArchEnabled": false,
+
+    "icon": "./icon.png",
 
     "ios": {
       "supportsTablet": true,
@@ -24,8 +25,9 @@
         "NSPhotoLibraryAddUsageDescription": "Open Invite saves media you export from the app into your photo library.",
         "NSLocationWhenInUseUsageDescription": "Open Invite uses your location to show nearby content and services while you use the app.",
         "NSContactsUsageDescription": "Open Invite accesses your contacts to help you find people you already know inside the app.",
+
         "NSCalendarsUsageDescription": "Open Invite uses your calendar to help you save events you choose to attend.",
-        "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to save.",
+        "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to attend.",
 
         "UIBackgroundModes": ["remote-notification"],
         "ITSAppUsesNonExemptEncryption": false,
@@ -54,13 +56,17 @@
       "edgeToEdgeEnabled": true
     },
 
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-video",
+      "expo-web-browser",
+      "react-native-edge-to-edge"
+    ],
 
     "experiments": {
       "typedRoutes": true
     },
-
-    "icon": "./icon.png",
 
     "extra": {
       "router": {},
