@@ -12,30 +12,21 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authClient } from "./authClient";
 import { useNetworkStatus, isNetworkError, shouldLogoutOnError } from "./networkStatus";
+import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
 
 // Storage key for cached session
 const SESSION_CACHE_KEY = "session_cache_v1";
 
 // Type for the session data from Better Auth
+// Simplified to match actual authClient.Session shape
 type SessionData = {
-  user: {
+  user?: {
     id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    email: string | null;
-    emailVerified: boolean;
-    name: string;
+    name?: string | null;
+    displayName?: string | null;
+    handle?: string | null;
     image?: string | null;
-  };
-  session: {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    userId: string;
-    expiresAt: Date;
-    token: string;
-    ipAddress?: string | null;
-    userAgent?: string | null;
+    email?: string | null;
   };
 } | null;
 
@@ -119,7 +110,8 @@ export function useResilientSession() {
     }
   }, [betterAuthSession.data, isOffline]);
 
-  // Handle session errors - only clear on true auth errors
+  // Handle session errors - only clear on true auth errors (401/403)
+  // 404s, network errors, rate limits, 5xx should NOT clear session
   useEffect(() => {
     if (betterAuthSession.error) {
       if (__DEV__) {
@@ -134,13 +126,18 @@ export function useResilientSession() {
         return; // Don't clear session on network errors
       }
 
-      // Check if this is a true auth error (should clear session)
+      // Check if this is a true auth error (401/403 only - should clear session)
+      // 404s and other errors will NOT trigger logout
       if (shouldLogoutOnError(betterAuthSession.error)) {
         if (__DEV__) {
           console.log("[useResilientSession] Auth error detected - clearing session");
         }
         clearCachedSession();
         setCachedSession(null);
+      } else {
+        if (__DEV__) {
+          console.log("[useResilientSession] Non-auth error, keeping cached session");
+        }
       }
     }
   }, [betterAuthSession.error, isOffline]);
@@ -180,6 +177,15 @@ export function useResilientSession() {
 
   // Provide a way to force refetch the session (for profile updates)
   const forceRefetchSession = useCallback(async () => {
+    // Check circuit breaker before fetching
+    if (isRateLimited()) {
+      const remaining = getRateLimitRemaining();
+      if (__DEV__) {
+        console.log(`[useResilientSession] Skipping refetch: rate-limited for ${remaining} more seconds`);
+      }
+      return; // Don't fetch if rate-limited
+    }
+    
     if (__DEV__) {
       console.log("[useResilientSession] Force refetching session...");
     }

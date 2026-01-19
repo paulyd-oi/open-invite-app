@@ -9,7 +9,7 @@ import {
   Modal,
   RefreshControl,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
       refetchGroups();
     },
     onError: () => {
-      toast.error("Error", "Failed to create group");
+      safeToast.error("Error", "Failed to create group");
     },
   });
 
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to add friend to group");
+      safeToast.error("Error", "Failed to add friend to group");
     },
   });
 
@@ -369,11 +369,14 @@ export default function ProfileScreen() {
   // Derive user safely - user may be null/undefined in some auth states
   const user = session?.user ?? null;
 
-  // Get display name with proper fallback chain (all null-safe)
-  const displayName = user?.name?.trim()
-    || (profileData?.profile?.handle ? `@${profileData.profile.handle}` : null)
+  // Get display name with proper fallback chain - displayName should be primary
+  const displayName = user?.displayName?.trim()
+    || user?.name?.trim()
     || ((user as any)?.email ? (user as any).email.split('@')[0] : null)
     || "Account";
+
+  // Get handle for secondary display (Instagram-style)
+  const userHandle = user?.handle || profileData?.profile?.handle;
 
   // Business mode is hidden for now - will be re-enabled in a future update
   // if (isBusinessMode && activeProfile) { ... }
@@ -456,6 +459,11 @@ export default function ProfileScreen() {
                     {displayName}
                   </Text>
                 </View>
+                {userHandle && (
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    @{userHandle}
+                  </Text>
+                )}
                 <View className="flex-row items-center mt-1">
                   <Calendar size={14} color={colors.textSecondary} />
                   <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>

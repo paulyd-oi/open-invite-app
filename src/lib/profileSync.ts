@@ -11,6 +11,8 @@
 
 import { QueryClient } from "@tanstack/react-query";
 import { authClient } from "./authClient";
+import { forceRefreshSession } from "./sessionCache";
+import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
 
 /**
  * Refresh both Better Auth session AND React Query profile cache
@@ -25,16 +27,20 @@ export async function updateProfileAndSync(queryClient: QueryClient): Promise<vo
   const errors: string[] = [];
 
   // Step 1: Refetch Better Auth session to update session.user fields (name, image)
-  try {
-    console.log("[ProfileSync] Refetching Better Auth session...");
-    await authClient.$fetch("/api/auth/get-session", {
-      method: "GET",
-      credentials: "include",
-    });
-    console.log("[ProfileSync] ✓ Better Auth session refreshed");
-  } catch (error) {
-    console.log("[ProfileSync] ⚠️ Better Auth session refresh error:", error);
-    errors.push("session");
+  // Skip if rate-limited
+  if (isRateLimited()) {
+    const remaining = getRateLimitRemaining();
+    console.log(`[ProfileSync] Skipping session refresh: rate-limited for ${remaining} more seconds`);
+    errors.push("session (rate-limited)");
+  } else {
+    try {
+      console.log("[ProfileSync] Force refreshing cached session...");
+      await forceRefreshSession();
+      console.log("[ProfileSync] ✓ Session cache refreshed");
+    } catch (error) {
+      console.log("[ProfileSync] ⚠️ Session refresh error:", error);
+      errors.push("session");
+    }
   }
 
   // Step 2: Invalidate React Query ['profile'] cache to refetch handle/bio/avatarUrl

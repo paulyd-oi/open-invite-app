@@ -17,6 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { authClient, hasAuthToken } from "./authClient";
+import { getSessionCached } from "./sessionCache";
 import { isNetworkError, shouldLogoutOnError, isRateLimitError } from "./networkStatus";
 import { isRateLimited, getRateLimitRemaining, setRateLimited, clearRateLimit } from "./rateLimitState";
 
@@ -144,52 +145,34 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
     let session: any = null;
     let sessionError: any = null;
     
-    // Single attempt only - no retries (they cause rate limit issues)
+    // Use cached session implementation to prevent request storms
     try {
-      // Use a timeout to prevent hanging
-      const sessionPromise = authClient.$fetch("/api/auth/get-session", {
-        method: "GET",
-        credentials: "include",
-      });
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Session fetch timeout")), 8000);
-      });
-
-      session = await Promise.race([sessionPromise, timeoutPromise]) as any;
+      session = await getSessionCached();
       log("  ✓ Session fetched:", session && typeof session === 'object' && 'user' in session ? `user: ${(session as any).user?.email}` : "null");
-      
-      // Clear rate limit on successful fetch
-      clearRateLimit();
       sessionError = null;
       
     } catch (error: any) {
       sessionError = error;
       log(`  ⚠️ Session fetch error:`, error.message);
       
-      const status = error?.status || error?.response?.status;
-      
-      // Check if this is a rate limit error
-      if (isRateLimitError(error) || status === 429) {
-        log(`  🛑 Rate limit detected, setting circuit breaker`);
-        setRateLimited(error);
-        // Don't retry, just fall through to cached session logic
-      }
-      
-      // Check if this is a 404 (endpoint doesn't exist on backend)
-      if (status === 404) {
-        if (__DEV__) {
-          log(`  ℹ️ 404 - session endpoint not implemented on backend, treating as no session`);
+      // getSessionCached handles 429 gracefully by returning cached session
+      // Only treat as real error if it's not a rate limit
+      if (!isRateLimitError(error) && error?.status !== 429) {
+        const status = error?.status || error?.response?.status;
+        
+        // Check if this is a 404 (endpoint doesn't exist on backend)
+        if (status === 404) {
+          if (__DEV__) {
+            log(`  ℹ️ 404 - session endpoint not implemented on backend, treating as no session`);
+          }
         }
-        // Don't retry, don't logout, just treat as no session
-      }
-      
-      // If it's an auth error (401/403), don't retry
-      if (shouldLogoutOnError(error)) {
-        if (__DEV__) {
-          log(`  ❌ Auth error detected (${status}), stopping retries`);
+        
+        // If it's an auth error (401/403), getSessionCached already handled clearing cache
+        if (shouldLogoutOnError(error)) {
+          if (__DEV__) {
+            log(`  ❌ Auth error detected (${status}), session cleared by cache`);
+          }
         }
-        // Will fall through to "no session" logic below
       }
     }
     

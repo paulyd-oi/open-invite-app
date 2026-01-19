@@ -63,10 +63,11 @@ import {
   hasEntitlement,
   restorePurchases,
 } from "@/lib/revenuecatClient";
-import { toast } from "@/components/Toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { deactivatePushTokenOnLogout } from "@/lib/pushTokenManager";
 import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
+import { safeToast } from "@/lib/safeToast";
+import { toUserMessage, logError } from "@/lib/errors";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -135,12 +136,12 @@ function ReferralCounterSection({
     if (!referralStats?.referralCode) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await Clipboard.setStringAsync(referralStats.referralCode);
-    toast.success("Copied!", "Your referral code has been copied to clipboard");
+    safeToast.success("Copied!", "Your referral code has been copied to clipboard");
   };
 
   const handleApplyReferrerCode = async () => {
     if (!referrerCodeInput.trim()) {
-      toast.warning("Error", "Please enter a referral code");
+      safeToast.warning("Error", "Please enter a referral code");
       return;
     }
 
@@ -151,7 +152,7 @@ function ReferralCounterSection({
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success(
+      safeToast.success(
         "Success!",
         `${response.referrerName} earned a referral credit. Invite friends to unlock rewards!`
       );
@@ -160,7 +161,7 @@ function ReferralCounterSection({
       queryClient.invalidateQueries({ queryKey: ["referralStats"] });
     } catch (error: any) {
       const message = error?.message || "Failed to apply referral code";
-      toast.error("Error", message);
+      safeToast.error("Error", message);
     } finally {
       setIsApplyingCode(false);
     }
@@ -355,7 +356,7 @@ export default function SettingsScreen() {
   const [showRemovePhoneConfirm, setShowRemovePhoneConfirm] = useState(false);
 
   // Profile editing states
-  const [editName, setEditName] = useState(session?.user?.name ?? "");
+  const [editName, setEditName] = useState(session?.user?.displayName ?? session?.user?.name ?? "");
   const [editImage, setEditImage] = useState(session?.user?.image ?? "");
   const [editCalendarBio, setEditCalendarBio] = useState("");
   const [editHandle, setEditHandle] = useState("");
@@ -419,12 +420,12 @@ export default function SettingsScreen() {
       if (entitlementResult.ok && entitlementResult.data) {
         setIsPremium(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.success("Restored!", "Your premium subscription has been restored.");
+        safeToast.success("Restored!", "Your premium subscription has been restored.");
       } else {
-        toast.info("No Purchases Found", "We couldn't find any previous purchases.");
+        safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
       }
     } else {
-      toast.error("Error", "Failed to restore purchases. Please try again.");
+      safeToast.error("Error", "Failed to restore purchases. Please try again.");
     }
 
     setIsRestoringPurchases(false);
@@ -484,10 +485,10 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       setShowEditProfile(false);
       setHandleError(null);
-      toast.success("Success", "Profile updated successfully");
+      safeToast.success("Success", "Profile updated successfully");
     },
     onError: (error: unknown) => {
-      if (__DEV__) console.error("[EditProfile] Save error:", error);
+      logError("EditProfile Save", error);
       // Check for handle-specific errors
       const errorMessage = error && typeof error === 'object' && 'message' in error
         ? String(error.message)
@@ -498,15 +499,16 @@ export default function SettingsScreen() {
 
       if (errorCode === "HANDLE_TAKEN" || errorMessage.includes("taken")) {
         setHandleError("That username is already taken");
-        toast.error("Username Taken", "That username is already taken");
+        safeToast.error("Username Taken", "That username is already taken");
       } else if (errorCode === "RESERVED" || errorMessage.includes("unavailable")) {
         setHandleError("That username is unavailable");
-        toast.error("Username Unavailable", "That username is unavailable");
+        safeToast.error("Username Unavailable", "That username is unavailable");
       } else if (errorMessage.includes("Username")) {
         setHandleError(errorMessage);
-        toast.error("Username Error", errorMessage);
+        safeToast.error("Username Error", errorMessage);
       } else {
-        toast.error("Error", "Failed to update profile. Please try again.");
+        const { title, message } = toUserMessage(error);
+        safeToast.error(title, message);
       }
     },
   });
@@ -519,7 +521,7 @@ export default function SettingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await updateProfileAndSync(queryClient);
       setIsSavingPhone(false);
-      toast.success("Success", "Phone number updated");
+      safeToast.success("Success", "Phone number updated");
     },
     onError: (error: unknown) => {
       setIsSavingPhone(false);
@@ -528,9 +530,9 @@ export default function SettingsScreen() {
         ? String(error.message)
         : '';
       if (errorMessage.includes("already in use") || errorMessage.includes("409")) {
-        toast.error("Phone Taken", "This phone number is already in use by another account");
+        safeToast.error("Phone Taken", "This phone number is already in use by another account");
       } else {
-        toast.error("Error", "Failed to update phone number");
+        safeToast.error("Error", "Failed to update phone number");
       }
     },
   });
@@ -550,7 +552,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["birthdays"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to update birthday settings");
+      safeToast.error("Error", "Failed to update birthday settings");
     },
   });
 
@@ -562,7 +564,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to update work schedule");
+      safeToast.error("Error", "Failed to update work schedule");
     },
   });
 
@@ -574,7 +576,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to update work settings");
+      safeToast.error("Error", "Failed to update work settings");
     },
   });
 
@@ -607,15 +609,21 @@ export default function SettingsScreen() {
   };
 
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setEditImage(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        setEditImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError("Pick Image", error);
+      const { title, message } = toUserMessage(error);
+      safeToast.error(title, message || "Failed to pick image. Please try again.");
     }
   };
 
@@ -635,9 +643,12 @@ export default function SettingsScreen() {
 
     setHandleError(null);
 
-    const updates: { name?: string; avatarUrl?: string; calendarBio?: string; handle?: string } = {};
-    if (editName.trim() && editName !== session?.user?.name) {
-      updates.name = editName.trim();
+    const updates: { displayName?: string; name?: string; avatarUrl?: string; calendarBio?: string; handle?: string } = {};
+    const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
+    if (editName.trim() && editName !== currentDisplayName) {
+      // Save as displayName for new API, fallback to name for compatibility
+      updates.displayName = editName.trim();
+      updates.name = editName.trim(); // For backward compatibility
     }
     if (editImage && editImage !== session?.user?.image) {
       updates.avatarUrl = editImage;
@@ -1640,7 +1651,7 @@ export default function SettingsScreen() {
               isDark={isDark}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                toast.info("About Open Invite", "Version 1.0.0 - Share plans with friends!");
+                safeToast.info("About Open Invite", "Version 1.0.0 - Share plans with friends!");
               }}
             />
           </View>
