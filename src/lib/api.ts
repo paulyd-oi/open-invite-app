@@ -69,7 +69,13 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
 
     // Step 3: Error handling - Check if the response was successful
     if (!response.ok) {
-      // Try to parse the error details from the response body
+      // Special case: Treat 404 on GET requests as empty state (not an error)
+      // This prevents console spam when querying for resources that don't exist yet
+      if (response.status === 404 && method === "GET") {
+        return null as T;
+      }
+
+      // For all other errors, try to parse the error details from the response body
       // Handle both JSON and non-JSON error responses gracefully
       let errorMessage = `${response.status} ${response.statusText}`;
       try {
