@@ -29,14 +29,13 @@ import {
   Star,
   Heart,
   ChevronRight,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { BottomNavigation } from "@/components/BottomNavigation";
+import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
-import { BusinessProfileDashboard } from "@/components/BusinessProfileDashboard";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
@@ -92,7 +91,6 @@ export default function ProfileScreen() {
   });
 
   const activeProfile = profilesData?.activeProfile;
-  const isBusinessMode = activeProfile?.type === "business";
 
   const { data: groupsData, refetch: refetchGroups } = useQuery({
     queryKey: ["groups"],
@@ -368,12 +366,24 @@ export default function ProfileScreen() {
     );
   }
 
-  const user = session.user;
+  const user = session?.user ?? null;
 
-  // Get display name with proper fallback chain
-  const displayName = user.name
+  // Guard: if session exists but user is missing (during bootstrap), show loading state
+  if (!user) {
+    return (
+      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
+    );
+  }
+
+  // Get display name with proper fallback chain (all null-safe)
+  const displayName = user?.name?.trim()
     || (profileData?.profile?.handle ? `@${profileData.profile.handle}` : null)
-    || (user.email ? user.email.split('@')[0] : null)
+    || (user?.email ? user.email.split('@')[0] : null)
     || "Account";
 
   // Business mode is hidden for now - will be re-enabled in a future update
@@ -423,8 +433,8 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <View className="relative">
                 <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                  {resolveImageUrl(user.image) ? (
-                    <Image source={{ uri: resolveImageUrl(user.image)! }} className="w-full h-full" />
+                  {resolveImageUrl(user?.image) ? (
+                    <Image source={{ uri: resolveImageUrl(user?.image)! }} className="w-full h-full" />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
                       <Text className="text-2xl font-bold" style={{ color: themeColor }}>
