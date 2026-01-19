@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Pressable, Text, Image } from "react-native";
 import { useRouter, usePathname } from "expo-router";
-import { Calendar, Plus, Sparkles, Users, User, Compass, Building2, type LucideIcon } from "lucide-react-native";
+import { Calendar, Users, User, Sparkles, Home, type LucideIcon } from "../ui/icons";
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -11,7 +11,6 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "@/lib/cn";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -32,10 +31,21 @@ interface NavButtonProps {
   badgeCount?: number;
   onLongPress?: () => void;
   customImage?: string | null;
-  isBusinessProfile?: boolean;
 }
 
-function NavButton({ Icon, label, href, isCenter, isActive, accentColor = "#FF6B4A", isDark, inactiveColor, badgeCount, onLongPress, customImage, isBusinessProfile }: NavButtonProps) {
+function NavButton({
+  Icon,
+  label,
+  href,
+  isCenter,
+  isActive,
+  accentColor = "#FF6B4A",
+  isDark,
+  inactiveColor,
+  badgeCount,
+  onLongPress,
+  customImage,
+}: NavButtonProps) {
   const router = useRouter();
   const scale = useSharedValue(1);
 
@@ -66,28 +76,30 @@ function NavButton({ Icon, label, href, isCenter, isActive, accentColor = "#FF6B
 
   if (isCenter) {
     return (
-      <AnimatedPressable
-        onPress={handlePress}
-        style={[
-          animatedStyle,
-          {
-            width: 64,
-            height: 64,
-            borderRadius: 32,
-            backgroundColor: accentColor,
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: -20,
-            shadowColor: accentColor,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: isDark ? 0.6 : 0.4,
-            shadowRadius: 8,
-            elevation: 8,
-          },
-        ]}
-      >
-        <Icon size={28} color="#fff" />
-      </AnimatedPressable>
+      <View style={{ position: "relative", zIndex: 100 }}>
+        <AnimatedPressable
+          onPress={handlePress}
+          style={[
+            animatedStyle,
+            {
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: accentColor,
+              alignItems: "center",
+              justifyContent: "center",
+              marginTop: -20,
+              shadowColor: accentColor,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.6 : 0.4,
+              shadowRadius: 8,
+              elevation: 12,
+            },
+          ]}
+        >
+          <Icon size={28} color="#fff" />
+        </AnimatedPressable>
+      </View>
     );
   }
 
@@ -104,8 +116,11 @@ function NavButton({ Icon, label, href, isCenter, isActive, accentColor = "#FF6B
     >
       <View className="relative">
         <View
-          className={cn("p-2 rounded-xl")}
-          style={isActive && !showCustomImage ? { backgroundColor: accentColor + "15" } : undefined}
+          style={
+            isActive && !showCustomImage
+              ? { backgroundColor: accentColor + "15", borderRadius: 12, padding: 8 }
+              : { padding: 8 }
+          }
         >
           {showCustomImage ? (
             <View className="relative">
@@ -158,7 +173,7 @@ function NavButton({ Icon, label, href, isCenter, isActive, accentColor = "#FF6B
   );
 }
 
-export function BottomNavigation() {
+export default function BottomNavigation() {
   const pathname = usePathname();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
@@ -203,16 +218,15 @@ export function BottomNavigation() {
 
   // Get active profile info
   const activeProfile = profilesData?.activeProfile;
-  const isBusinessProfile = activeProfile?.type === "business";
-  const profileImage = activeProfile?.image ?? session?.user?.image;
+  const profileImage = activeProfile?.image ?? (session?.user as any)?.image;
 
   // Check if user has multiple profiles (show indicator)
   const hasMultipleProfiles = (profilesData?.profiles?.length ?? 0) > 1;
 
   const navItems: { Icon: LucideIcon; label: string; href: string; isCenter?: boolean; badgeCount?: number }[] = [
-    { Icon: Compass, label: "Discover", href: "/discover" },
+    { Icon: Home, label: "Home", href: "/" },
     { Icon: Calendar, label: "Calendar", href: "/calendar", badgeCount: pendingEventRequestCount },
-    { Icon: Sparkles, label: "Feed", href: "/", isCenter: true },
+    { Icon: Sparkles, label: "Discover", href: "/discover", isCenter: true },
     { Icon: Users, label: "Friends", href: "/friends", badgeCount: friendsBadgeCount },
     { Icon: User, label: "Profile", href: "/profile" },
   ];
@@ -231,9 +245,10 @@ export function BottomNavigation() {
           shadowOpacity: isDark ? 0.2 : 0.05,
           shadowRadius: 12,
           elevation: 12,
+          overflow: "visible",
         }}
       >
-        <View className="flex-row items-end justify-around px-2 pt-2">
+        <View className="flex-row items-end justify-around px-2 pt-2" style={{ overflow: "visible" }}>
           {navItems.map((item) => (
             <NavButton
               key={item.href}
@@ -248,7 +263,6 @@ export function BottomNavigation() {
               badgeCount={item.badgeCount}
               onLongPress={item.label === "Profile" && hasMultipleProfiles ? () => setShowProfileSwitcher(true) : undefined}
               customImage={item.label === "Profile" ? profileImage : undefined}
-              isBusinessProfile={item.label === "Profile" ? isBusinessProfile : undefined}
             />
           ))}
         </View>
