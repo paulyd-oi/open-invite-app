@@ -366,24 +366,13 @@ export default function ProfileScreen() {
     );
   }
 
+  // Derive user safely - user may be null/undefined in some auth states
   const user = session?.user ?? null;
-
-  // Guard: if session exists but user is missing (during bootstrap), show loading state
-  if (!user) {
-    return (
-      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
-        </View>
-        <BottomNavigation />
-      </SafeAreaView>
-    );
-  }
 
   // Get display name with proper fallback chain (all null-safe)
   const displayName = user?.name?.trim()
     || (profileData?.profile?.handle ? `@${profileData.profile.handle}` : null)
-    || (user?.email ? user.email.split('@')[0] : null)
+    || ((user as any)?.email ? (user as any).email.split('@')[0] : null)
     || "Account";
 
   // Business mode is hidden for now - will be re-enabled in a future update
@@ -433,12 +422,12 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <View className="relative">
                 <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                  {resolveImageUrl(user?.image) ? (
-                    <Image source={{ uri: resolveImageUrl(user?.image)! }} className="w-full h-full" />
+                  {resolveImageUrl((user as any)?.image) ? (
+                    <Image source={{ uri: resolveImageUrl((user as any)?.image)! }} className="w-full h-full" />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
                       <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                        {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                        {user?.name?.[0] ?? (user as any)?.email?.[0]?.toUpperCase() ?? "?"}
                       </Text>
                     </View>
                   )}
