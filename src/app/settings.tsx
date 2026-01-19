@@ -44,7 +44,7 @@ import {
   Users,
   Sparkles,
   Copy,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -475,6 +475,7 @@ export default function SettingsScreen() {
     mutationFn: (data: { name?: string; avatarUrl?: string; calendarBio?: string; phone?: string | null; handle?: string }) =>
       api.put<UpdateProfileResponse>("/api/profile", data),
     onSuccess: async () => {
+      if (__DEV__) console.log("[EditProfile] Save success");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Use centralized sync helper to refresh both Better Auth session and React Query cache
       await updateProfileAndSync(queryClient);
@@ -486,6 +487,7 @@ export default function SettingsScreen() {
       toast.success("Success", "Profile updated successfully");
     },
     onError: (error: unknown) => {
+      if (__DEV__) console.error("[EditProfile] Save error:", error);
       // Check for handle-specific errors
       const errorMessage = error && typeof error === 'object' && 'message' in error
         ? String(error.message)
@@ -496,12 +498,15 @@ export default function SettingsScreen() {
 
       if (errorCode === "HANDLE_TAKEN" || errorMessage.includes("taken")) {
         setHandleError("That username is already taken");
+        toast.error("Username Taken", "That username is already taken");
       } else if (errorCode === "RESERVED" || errorMessage.includes("unavailable")) {
         setHandleError("That username is unavailable");
+        toast.error("Username Unavailable", "That username is unavailable");
       } else if (errorMessage.includes("Username")) {
         setHandleError(errorMessage);
+        toast.error("Username Error", errorMessage);
       } else {
-        toast.error("Error", "Failed to update profile");
+        toast.error("Error", "Failed to update profile. Please try again.");
       }
     },
   });
@@ -647,6 +652,7 @@ export default function SettingsScreen() {
       updates.handle = normalizedEditHandle;
     }
     if (Object.keys(updates).length > 0) {
+      if (__DEV__) console.log("[EditProfile] Save payload:", updates);
       updateProfileMutation.mutate(updates);
     } else {
       setShowEditProfile(false);
@@ -780,7 +786,7 @@ export default function SettingsScreen() {
     );
   }
 
-  const user = session.user;
+  const user = session?.user ?? null;
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: isDark ? "#000000" : "#F5F5F7" }} edges={["top"]}>
@@ -813,8 +819,8 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setEditName(user.name ?? "");
-                setEditImage(user.image ?? "");
+                setEditName(user?.name ?? "");
+                setEditImage(user?.image ?? "");
                 setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
                 setShowEditProfile(true);
               }}
@@ -828,19 +834,19 @@ export default function SettingsScreen() {
               }}
             >
               <View className="w-16 h-16 rounded-full mr-4 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {user.image ? (
+                {user?.image ? (
                   <Image source={{ uri: user.image }} className="w-full h-full" />
                 ) : (
                   <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
                     <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                      {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                      {user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
                     </Text>
                   </View>
                 )}
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-lg font-semibold">
-                  {user.name ?? "Add your name"}
+                  {user?.name ?? "Add your name"}
                 </Text>
                 <Text style={{ color: colors.textSecondary }} className="text-sm">Tap to edit profile</Text>
               </View>
@@ -870,7 +876,7 @@ export default function SettingsScreen() {
                     ) : (
                       <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
                         <Text style={{ color: themeColor }} className="text-3xl font-bold">
-                          {editName?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                          {editName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
                         </Text>
                       </View>
                     )}
