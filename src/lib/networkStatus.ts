@@ -150,22 +150,64 @@ export function isAuthError(status: number | undefined): boolean {
 }
 
 /**
+ * Check if an error is a rate limit error that should be retried
+ */
+export function isRateLimitError(error: any): boolean {
+  if (!error) return false;
+  
+  const message = error.message?.toLowerCase() || "";
+  const status = error?.status || error?.response?.status;
+  
+  return status === 429 || message.includes("rate limit exceeded");
+}
+
+/**
  * Determine if an error should trigger logout
  * Only true auth errors (401/403 from server) should cause logout
- * Network errors, 5xx, timeouts should NOT cause logout
+ * Network errors, 5xx, timeouts, rate limits, 404s should NOT cause logout
  */
 export function shouldLogoutOnError(error: any): boolean {
   // Network errors - never logout
   if (isNetworkError(error)) {
+    if (__DEV__) {
+      console.log("[Auth] Transient network error, will not logout:", error.message);
+    }
+    return false;
+  }
+  
+  // Rate limit errors - never logout, just retry
+  if (isRateLimitError(error)) {
+    if (__DEV__) {
+      console.log("[Auth] Rate limit error, will retry:", error.message);
+    }
     return false;
   }
 
   // Check for HTTP status in error
   const status = error?.status || error?.response?.status;
 
+  // 404 - endpoint doesn't exist on backend, don't logout
+  if (status === 404) {
+    if (__DEV__) {
+      console.log("[Auth] 404 session endpoint ignored (not implemented on backend)");
+    }
+    return false;
+  }
+
   // Only 401/403 from actual server response should trigger logout
   if (isAuthError(status)) {
+    if (__DEV__) {
+      console.log("[Auth] Invalid session (401/403), logging out");
+    }
     return true;
+  }
+  
+  // 5xx server errors - don't logout, might be temporary
+  if (status >= 500 && status < 600) {
+    if (__DEV__) {
+      console.log("[Auth] Server error, will not logout:", status);
+    }
+    return false;
   }
 
   // Check error message for auth-specific errors
@@ -177,9 +219,16 @@ export function shouldLogoutOnError(error: any): boolean {
     message.includes("not authenticated")
   ) {
     // But only if not a network error
-    return !isNetworkError(error);
+    const shouldLogout = !isNetworkError(error);
+    if (__DEV__) {
+      console.log("[Auth] Auth message detected, logout?", shouldLogout, error.message);
+    }
+    return shouldLogout;
   }
 
-  // Default: don't logout
+  // Default: don't logout on unknown errors
+  if (__DEV__) {
+    console.log("[Auth] Unknown error, will not logout:", error.message);
+  }
   return false;
 }

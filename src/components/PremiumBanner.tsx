@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { Crown, Lock, Sparkles } from "lucide-react-native";
+import { Crown, Lock, Sparkles } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";

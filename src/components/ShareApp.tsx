@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, Pressable, Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Share2, Copy, MessageCircle, Mail } from "lucide-react-native";
+import { Share2, Copy, MessageCircle, Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 
 const APP_STORE_URL = "https://apps.apple.com/app/open-invite"; // Placeholder
 const SHARE_MESSAGE = "Check out Open Invite - the easiest way to share plans with friends!";
@@ -75,7 +75,7 @@ export function InviteFriendsContent() {
   const copyLink = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await Clipboard.setStringAsync(APP_STORE_URL);
-    toast.success("Copied!", "Link copied to clipboard");
+    safeToast.success("Copied!", "Link copied to clipboard");
   };
 
   const shareVia = async (method: "message" | "email" | "other") => {

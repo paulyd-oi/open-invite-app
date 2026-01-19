@@ -21,12 +21,12 @@ import {
   MapPin,
   Upload,
   Users,
-  Globe,
+  Compass,
   Lock,
   X,
   CheckCircle,
   Settings,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,7 +43,7 @@ import {
   type CalendarPermissionResult,
 } from "@/lib/calendarSync";
 import { api } from "@/lib/api";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 
 // Types for calendar import
 interface ImportedCalendarEvent {
@@ -86,13 +86,13 @@ const VISIBILITY_OPTIONS: Array<{
   value: VisibilityOption;
   label: string;
   description: string;
-  icon: typeof Globe;
+  icon: typeof Compass;
 }> = [
   {
     value: "all_friends",
     label: "Open to Friends",
     description: "All friends can see this event",
-    icon: Globe,
+    icon: Compass,
   },
   {
     value: "specific_groups",
@@ -152,7 +152,7 @@ export default function ImportCalendarScreen() {
         updated: data.updated,
         skipped: data.skipped,
       });
-      toast.success(
+      safeToast.success(
         `Synced ${data.imported + data.updated} events to Open Invite`
       );
       // Invalidate events queries
@@ -163,7 +163,7 @@ export default function ImportCalendarScreen() {
       setSelectedEvents(new Set());
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to sync events");
+      safeToast.error(error.message || "Failed to sync events");
     },
   });
 
@@ -340,7 +340,7 @@ export default function ImportCalendarScreen() {
 
   const loadEvents = async () => {
     if (selectedCalendars.size === 0) {
-      toast.error("Please select at least one calendar");
+      safeToast.error("Please select at least one calendar");
       return;
     }
 
@@ -369,7 +369,7 @@ export default function ImportCalendarScreen() {
       setSyncResult(null);
     } catch (error) {
       console.error("Failed to load events:", error);
-      toast.error("Failed to load calendar events");
+      safeToast.error("Failed to load calendar events");
     } finally {
       setIsLoadingEvents(false);
     }
@@ -377,7 +377,7 @@ export default function ImportCalendarScreen() {
 
   const handleSyncEvents = () => {
     if (selectedEvents.size === 0) {
-      toast.error("Please select at least one event to sync");
+      safeToast.error("Please select at least one event to sync");
       return;
     }
 

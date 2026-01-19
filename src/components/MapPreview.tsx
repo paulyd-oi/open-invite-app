@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Image, ActivityIndicator, Platform } from "react-native";
-import { MapPin } from "lucide-react-native";
+import { MapPin } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 
 interface MapPreviewProps {

@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, TextInput } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
@@ -35,7 +35,7 @@ import {
   ListChecks,
   AlertTriangle,
   Send,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
@@ -262,12 +262,12 @@ export default function DevSmokeTestsScreen() {
         message: pushMessage,
       });
 
-      toast.success(
+      safeToast.success(
         "Test Push Sent!",
         "Check your device for the notification. Make sure you have notifications enabled."
       );
     } catch (error: any) {
-      toast.error(
+      safeToast.error(
         "Push Failed",
         error.response?.data?.error || "Failed to send test push notification"
       );
@@ -302,7 +302,7 @@ export default function DevSmokeTestsScreen() {
       });
     } catch (error) {
       console.error("[DevSmokeTests] Error checking token:", error);
-      toast.error("Error", "Failed to check Expo token status");
+      safeToast.error("Error", "Failed to check Expo token status");
     } finally {
       setCheckingToken(false);
     }
@@ -315,25 +315,25 @@ export default function DevSmokeTestsScreen() {
       const { status } = await Notifications.requestPermissionsAsync();
 
       if (status === "granted") {
-        toast.success("Success", "Notification permission granted! Token will be registered automatically.");
+        safeToast.success("Success", "Notification permission granted! Token will be registered automatically.");
         // Refresh token info
         await handleCheckExpoToken();
       } else {
-        toast.warning(
+        safeToast.warning(
           "Permission Denied",
           "Notification permission was denied. Go to Settings to enable it."
         );
       }
     } catch (error) {
       console.error("[DevSmokeTests] Error requesting permission:", error);
-      toast.error("Error", "Failed to request notification permission");
+      safeToast.error("Error", "Failed to request notification permission");
     }
   };
 
   const handleResetSessionTracking = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     resetSessionPaywallTracking();
-    toast.info("Session Reset", "Paywall session tracking has been reset.");
+    safeToast.info("Session Reset", "Paywall session tracking has been reset.");
   };
 
   // CTA handlers with audit logging
@@ -453,7 +453,7 @@ export default function DevSmokeTestsScreen() {
     console.log(`Total: ${passCount} PASS, ${failCount} FAIL, ${pendingCount} PENDING`);
     console.log("========================================");
 
-    toast.success(
+    safeToast.success(
       "Audit Complete",
       `Results: ${passCount} PASS, ${failCount} FAIL, ${pendingCount} PENDING. Check console for details.`
     );
@@ -710,7 +710,7 @@ export default function DevSmokeTestsScreen() {
                   <Text className="ml-2 text-sm font-medium" style={{ color: colors.text }}>
                     {testCase.title}
                   </Text>
-                  <ExternalLink size={12} color={colors.textTertiary} className="ml-1" />
+                  <ExternalLink size={12} color={colors.textTertiary} />
                 </Pressable>
               );
             })}

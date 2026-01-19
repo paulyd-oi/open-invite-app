@@ -9,7 +9,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Pin, UserMinus, Calendar } from "lucide-react-native";
+import { Pin, UserMinus, Calendar } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";

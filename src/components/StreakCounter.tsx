@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { Flame, Calendar, Sparkles, Trophy } from "lucide-react-native";
+import { Flame, Calendar, Sparkles, Trophy } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -51,7 +51,6 @@ export function StreakCounter({
               <Flame
                 size={36}
                 color={streakColor}
-                fill={currentStreak > 0 ? streakColor : "transparent"}
               />
             </View>
 
@@ -175,7 +174,7 @@ export function StreakBadge({ streak }: { streak: number }) {
       className="flex-row items-center px-2 py-1 rounded-full"
       style={{ backgroundColor: `${streakColor}20` }}
     >
-      <Flame size={12} color={streakColor} fill={streakColor} />
+      <Flame size={12} color={streakColor} />
       <Text
         className="text-xs font-bold ml-1"
         style={{ color: streakColor }}

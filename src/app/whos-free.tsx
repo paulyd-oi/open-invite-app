@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, UserCheck, Clock, ChevronRight, Plus, Briefcase, Check, ChevronLeft, Filter, X, Users } from "lucide-react-native";
+import { Calendar, UserCheck, Clock, ChevronRight, Plus, Briefcase, Check, ChevronLeft, Filter, X, Users } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

@@ -3,13 +3,13 @@ import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X } from "lucide-react-native";
+import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { BottomNavigation } from "@/components/BottomNavigation";
+import BottomNavigation from "@/components/BottomNavigation";
 import { GettingStartedChecklist } from "@/components/GettingStartedChecklist";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
@@ -68,8 +68,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const acceptedAttendees = event.joinRequests?.filter((r) => r.status === "accepted") ?? [];
   const attendeesList = acceptedAttendees.map((r) => ({
     id: r.userId,
-    name: r.user.name,
-    image: r.user.image,
+    name: r.user?.name ?? "Unknown",
+    image: r.user?.image ?? null,
   }));
 
   return (

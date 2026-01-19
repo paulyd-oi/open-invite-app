@@ -26,7 +26,7 @@ import {
   Layers,
   BookOpen,
   Gift,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

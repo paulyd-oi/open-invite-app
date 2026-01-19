@@ -7,9 +7,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
-
-    "icon": "./icon.png",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
@@ -19,43 +16,52 @@
       "infoPlist": {
         "UISupportsDocumentBrowser": false,
         "LSSupportsOpeningDocumentsInPlace": false,
-
         "NSCameraUsageDescription": "Open Invite uses the camera to capture photos inside the app before you publish them.",
         "NSPhotoLibraryUsageDescription": "Open Invite accesses your photo library so you can move media between the app and your library.",
         "NSPhotoLibraryAddUsageDescription": "Open Invite saves media you export from the app into your photo library.",
         "NSLocationWhenInUseUsageDescription": "Open Invite uses your location to show nearby content and services while you use the app.",
         "NSContactsUsageDescription": "Open Invite accesses your contacts to help you find people you already know inside the app.",
-
         "NSCalendarsUsageDescription": "Open Invite uses your calendar to help you save events you choose to attend.",
-        "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to attend.",
-
-        "UIBackgroundModes": ["remote-notification"],
+        "NSCalendarsFullAccessUsageDescription": "Open Invite needs full calendar access to create and manage events you choose to save.",
+        "NSCalendarsWriteOnlyUsageDescription": "Open Invite needs calendar write access to add events you choose to save.",
+        "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to save.",
+        "NSRemindersFullAccessUsageDescription": "Open Invite needs reminders access to help you stay on track with events you choose to save.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
-
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "iCalendar Event",
             "LSHandlerRank": "Alternate",
-            "LSItemContentTypes": ["com.apple.ical.ics"]
+            "LSItemContentTypes": [
+              "com.apple.ical.ics"
+            ]
           }
         ],
         "UTImportedTypeDeclarations": [
           {
             "UTTypeIdentifier": "com.apple.ical.ics",
             "UTTypeTagSpecification": {
-              "public.filename-extension": ["ics"],
-              "public.mime-type": ["text/calendar"]
+              "public.filename-extension": [
+                "ics"
+              ],
+              "public.mime-type": [
+                "text/calendar"
+              ]
             },
-            "UTTypeConformsTo": ["public.data", "public.content"]
+            "UTTypeConformsTo": [
+              "public.data",
+              "public.content"
+            ]
           }
         ]
       }
     },
-
     "android": {
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.vibecode.openinvite.x0qi5wk"
     },
-
     "plugins": [
       "expo-router",
       "expo-asset",
@@ -63,11 +69,10 @@
       "expo-web-browser",
       "react-native-edge-to-edge"
     ],
-
     "experiments": {
       "typedRoutes": true
     },
-
+    "icon": "./icon.png",
     "extra": {
       "router": {},
       "eas": {

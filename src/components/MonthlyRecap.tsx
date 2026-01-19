@@ -12,7 +12,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { X, Share2, ChevronRight, Calendar, Users, MapPin, Sparkles, Award, Star } from "lucide-react-native";
+import { X, Share2, ChevronRight, Calendar, Users, MapPin, Sparkles, Award, Star } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 

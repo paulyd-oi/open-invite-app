@@ -10,7 +10,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -38,7 +38,7 @@ import {
   ShieldCheck,
   CheckCircle,
   Sparkles,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import { useFonts } from "expo-font";
 import {
   Sora_400Regular,
@@ -134,7 +134,7 @@ export default function LoginScreen() {
   const handleSignIn = async () => {
     if (!email || !password) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Please enter email and password");
+      safeToast.error("Error", "Please enter email and password");
       return;
     }
 
@@ -154,7 +154,7 @@ export default function LoginScreen() {
           await handleResendCode();
         } else {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          toast.error(
+          safeToast.error(
             "Sign In Failed",
             result.error.message || "Please check your credentials"
           );
@@ -168,7 +168,7 @@ export default function LoginScreen() {
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error(
+      safeToast.error(
         "Sign In Failed",
         error?.message || "Unable to connect. Please try again."
       );
@@ -219,7 +219,7 @@ export default function LoginScreen() {
       });
 
       if (signInResult.error) {
-        toast.success(
+        safeToast.success(
           "Verification Successful",
           "Your email has been verified! Please sign in."
         );
@@ -240,7 +240,7 @@ export default function LoginScreen() {
 
   const handleResendCode = async () => {
     if (!email) {
-      toast.error("Error", "Please enter your email address");
+      safeToast.error("Error", "Please enter your email address");
       return;
     }
 
@@ -264,13 +264,13 @@ export default function LoginScreen() {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Code Sent", "A new verification code has been sent to your email.");
+      safeToast.success("Code Sent", "A new verification code has been sent to your email.");
 
       setVerificationCode(["", "", "", "", ""]);
       setCodeError(null);
       codeInputRefs.current[0]?.focus();
     } catch (error: any) {
-      toast.error("Error", error?.message || "Unable to resend code.");
+      safeToast.error("Error", error?.message || "Unable to resend code.");
     } finally {
       setIsLoading(false);
     }
@@ -278,7 +278,7 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      toast.error("Error", "Please enter your email address");
+      safeToast.error("Error", "Please enter your email address");
       return;
     }
 
@@ -301,7 +301,7 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setResetEmailSent(true);
     } catch (error: any) {
-      toast.error("Error", error?.message || "Unable to send reset email.");
+      safeToast.error("Error", error?.message || "Unable to send reset email.");
     } finally {
       setIsLoading(false);
     }

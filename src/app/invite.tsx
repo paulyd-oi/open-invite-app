@@ -20,7 +20,7 @@ import {
   Sparkles,
   Star,
   Check,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
@@ -29,7 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 
 interface ReferralStats {
   referralCode: string;
@@ -79,7 +79,7 @@ export default function InviteScreen() {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await Clipboard.setStringAsync(stats.referralCode);
-    toast.success("Copied!", "Referral code copied to clipboard");
+    safeToast.success("Copied!", "Referral code copied to clipboard");
   };
 
   const getRewardLabel = (type: string) => {

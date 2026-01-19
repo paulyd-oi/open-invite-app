@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
-import { Tag, Check, ChevronDown } from "lucide-react-native";
+import { Tag, Check, ChevronDown } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

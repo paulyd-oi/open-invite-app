@@ -10,7 +10,7 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Pin, Trash2 } from "lucide-react-native";
+import { Pin, Trash2 } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
 import { type Circle } from "@/shared/contracts";
@@ -197,7 +197,7 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
                   }}
                 >
                   {displayedMembers[0]?.user?.image ? (
-                    <Image source={{ uri: displayedMembers[0].user.image }} className="w-full h-full" />
+                    <Image source={{ uri: displayedMembers[0].user?.image }} className="w-full h-full" />
                   ) : (
                     <View
                       className="w-full h-full items-center justify-center"
@@ -242,8 +242,8 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
                         zIndex: memberCount - i,
                       }}
                     >
-                      {member.user.image ? (
-                        <Image source={{ uri: member.user.image }} className="w-full h-full" />
+                      {member.user?.image ? (
+                        <Image source={{ uri: member.user?.image }} className="w-full h-full" />
                       ) : (
                         <View
                           className="w-full h-full items-center justify-center"

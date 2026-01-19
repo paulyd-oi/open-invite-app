@@ -11,7 +11,7 @@ import Animated, { FadeIn, FadeInUp, SlideInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { X, Bell, MessageCircle, CalendarCheck, Users, BellOff, AlertCircle } from "lucide-react-native";
+import { X, Bell, MessageCircle, CalendarCheck, Users, BellOff, AlertCircle } from "@/ui/icons";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";

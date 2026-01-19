@@ -18,7 +18,7 @@ import {
   Settings,
   BadgeCheck,
   ChevronRight,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -79,12 +79,6 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
     } catch (error) {
       console.error("Failed to switch profile:", error);
     }
-  };
-
-  const handleCreateBusiness = () => {
-    onClose();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/create-business");
   };
 
   const handleAccountSettings = () => {
@@ -175,25 +169,6 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
                     Actions
                   </Text>
 
-                  {/* Create Business */}
-                  <Pressable
-                    onPress={handleCreateBusiness}
-                    className="flex-row items-center p-3 rounded-xl active:bg-zinc-800"
-                  >
-                    <View className="w-12 h-12 rounded-full bg-emerald-500/20 items-center justify-center">
-                      <Plus size={24} color="#10b981" />
-                    </View>
-                    <View className="flex-1 ml-3">
-                      <Text className="text-white font-medium">
-                        Create Business Profile
-                      </Text>
-                      <Text className="text-zinc-500 text-sm">
-                        For organizations, clubs, or businesses
-                      </Text>
-                    </View>
-                    <ChevronRight size={20} color="#71717a" />
-                  </Pressable>
-
                   {/* Account Center */}
                   <Pressable
                     onPress={handleAccountSettings}
@@ -267,7 +242,7 @@ function ProfileItem({ profile, isActive, onSelect, isSwitching }: ProfileItemPr
             {profile.name ?? "Personal"}
           </Text>
           {isBusiness && profile.isVerified && (
-            <BadgeCheck size={16} color="#3b82f6" className="ml-1" />
+            <BadgeCheck size={16} color="#3b82f6" />
           )}
         </View>
         <Text className="text-zinc-500 text-sm" numberOfLines={1}>
@@ -285,7 +260,7 @@ function ProfileItem({ profile, isActive, onSelect, isSwitching }: ProfileItemPr
       {/* Active indicator */}
       {isActive && (
         <View className="w-6 h-6 rounded-full bg-emerald-500 items-center justify-center">
-          <Check size={14} color="white" strokeWidth={3} />
+          <Check size={14} color="white" />
         </View>
       )}
     </Pressable>

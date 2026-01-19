@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/lib/useSession";
 import { api } from "./api";
 import type {
   Profile,
@@ -45,6 +46,7 @@ const ActiveProfileContext = createContext<ActiveProfileContextType | null>(null
 
 export function ActiveProfileProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
 
   // Fetch all profiles
   const { data, isLoading, refetch } = useQuery({
@@ -52,6 +54,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
     queryFn: async () => {
       return api.get<GetProfilesResponse>("/api/profiles");
     },
+    enabled: !!session,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

@@ -11,7 +11,7 @@ import {
   FlatList,
   Platform,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -46,7 +46,7 @@ import {
   Pin,
   Trash2,
   ChevronUp,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -61,7 +61,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
 
-import { BottomNavigation } from "@/components/BottomNavigation";
+import BottomNavigation from "@/components/BottomNavigation";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { CircleCard } from "@/components/CircleCard";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
@@ -185,265 +185,6 @@ function MiniCalendar({ friendshipId }: { friendshipId: string }) {
   );
 }
 
-// Mini calendar component for business cards
-function BusinessMiniCalendar({ businessId }: { businessId: string }) {
-  const { themeColor, isDark, colors } = useTheme();
-  const { data: session } = useSession();
-
-  const { data } = useQuery({
-    queryKey: ["businessEvents", businessId],
-    queryFn: () => api.get<{ events: BusinessEvent[] }>(`/api/businesses/${businessId}/events`),
-    enabled: !!session && !!businessId,
-    staleTime: 60000,
-  });
-
-  const events = data?.events ?? [];
-
-  // Get current month's calendar
-  const today = new Date();
-  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const startingDay = currentMonth.getDay();
-
-  // Create a set of days that have events
-  const eventDays = new Set<number>();
-  events.forEach((event) => {
-    const eventDate = new Date(event.startTime);
-    if (
-      eventDate.getMonth() === today.getMonth() &&
-      eventDate.getFullYear() === today.getFullYear()
-    ) {
-      eventDays.add(eventDate.getDate());
-    }
-  });
-
-  const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
-  const businessColor = "#9333EA"; // Purple for businesses
-
-  return (
-    <View className="mt-2 pt-2 border-t" style={{ borderTopColor: colors.separator }}>
-      {/* Day headers */}
-      <View className="flex-row mb-1">
-        {dayNames.map((day, i) => (
-          <View key={i} className="flex-1 items-center">
-            <Text className="text-[8px]" style={{ color: colors.textTertiary }}>{day}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Calendar grid */}
-      <View className="flex-row flex-wrap">
-        {/* Empty cells for days before month starts */}
-        {Array.from({ length: startingDay }).map((_, i) => (
-          <View key={`empty-${i}`} className="w-[14.28%] h-4" />
-        ))}
-
-        {/* Days of the month */}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const hasEvent = eventDays.has(day);
-          const isToday = day === today.getDate();
-
-          return (
-            <View key={day} className="w-[14.28%] h-4 items-center justify-center">
-              <View
-                className="w-3.5 h-3.5 rounded-full items-center justify-center"
-                style={{
-                  backgroundColor: hasEvent ? businessColor : "transparent",
-                  borderWidth: isToday ? 1 : 0,
-                  borderColor: isToday ? businessColor : "transparent",
-                }}
-              >
-                <Text
-                  className="text-[7px]"
-                  style={{
-                    color: hasEvent ? "#fff" : isToday ? businessColor : colors.textTertiary,
-                    fontWeight: hasEvent || isToday ? "600" : "400",
-                  }}
-                >
-                  {day}
-                </Text>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* Event count indicator */}
-      {events.length > 0 && (
-        <View className="flex-row items-center justify-center mt-1">
-          <View className="w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: businessColor }} />
-          <Text className="text-[9px]" style={{ color: colors.textSecondary }}>
-            {events.length} upcoming event{events.length !== 1 ? "s" : ""}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-// Business card that matches friend card layout
-function BusinessCard({ business, index }: { business: Business; index: number }) {
-  const router = useRouter();
-  const { themeColor, isDark, colors } = useTheme();
-  const businessColor = "#9333EA";
-
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push(`/business/${business.id}` as any);
-        }}
-        className="rounded-xl p-3 mb-2"
-        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-      >
-        <View className="flex-row items-center">
-          <View className="w-12 h-12 rounded-xl mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-            {business.logoUrl ? (
-              <Image source={{ uri: business.logoUrl }} className="w-full h-full" />
-            ) : (
-              <View className="w-full h-full items-center justify-center" style={{ backgroundColor: businessColor + "20" }}>
-                <Text className="text-xl">
-                  {BUSINESS_CATEGORIES.find((c) => c.value === business.category)?.emoji ?? "📌"}
-                </Text>
-              </View>
-            )}
-          </View>
-          <View className="flex-1">
-            <View className="flex-row items-center">
-              <Text className="font-semibold" style={{ color: colors.text }}>
-                {business.name}
-              </Text>
-              {business.isVerified && (
-                <BadgeCheck size={14} color={businessColor} style={{ marginLeft: 4 }} />
-              )}
-            </View>
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>
-              @{business.handle}
-            </Text>
-            {business.category && (
-              <View className="flex-row flex-wrap mt-1">
-                <View
-                  className="px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: businessColor + "15" }}
-                >
-                  <Text className="text-xs" style={{ color: businessColor }}>
-                    {BUSINESS_CATEGORIES.find((c) => c.value === business.category)?.label ?? business.category}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-          <ChevronRight size={20} color={colors.textTertiary} />
-        </View>
-
-        {/* Mini Calendar */}
-        <BusinessMiniCalendar businessId={business.id} />
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-// Business list item (collapsible) that matches friend list item layout
-function BusinessListItem({ business, index }: { business: Business; index: number }) {
-  const router = useRouter();
-  const { themeColor, isDark, colors } = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const rotation = useSharedValue(0);
-  const height = useSharedValue(0);
-  const businessColor = "#9333EA";
-
-  const toggleExpand = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setIsExpanded(!isExpanded);
-    rotation.value = withTiming(isExpanded ? 0 : 1, { duration: 200 });
-    height.value = withTiming(isExpanded ? 0 : 1, { duration: 250 });
-  };
-
-  const arrowStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 180])}deg` }],
-  }));
-
-  const calendarStyle = useAnimatedStyle(() => ({
-    opacity: height.value,
-    maxHeight: interpolate(height.value, [0, 1], [0, 200]),
-    overflow: "hidden" as const,
-  }));
-
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
-      <View
-        className="rounded-xl mb-2 overflow-hidden"
-        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-      >
-        {/* Main row */}
-        <View className="flex-row items-center p-3">
-          {/* Avatar - taps to profile */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/business/${business.id}` as any);
-            }}
-            className="flex-row items-center flex-1"
-          >
-            <View className="w-10 h-10 rounded-xl mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-              {business.logoUrl ? (
-                <Image source={{ uri: business.logoUrl }} className="w-full h-full" />
-              ) : (
-                <View className="w-full h-full items-center justify-center" style={{ backgroundColor: businessColor + "20" }}>
-                  <Text className="text-lg">
-                    {BUSINESS_CATEGORIES.find((c) => c.value === business.category)?.emoji ?? "📌"}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View className="flex-1">
-              <View className="flex-row items-center">
-                <Text className="font-medium" style={{ color: colors.text }}>
-                  {business.name}
-                </Text>
-                {business.isVerified && (
-                  <BadgeCheck size={12} color={businessColor} style={{ marginLeft: 4 }} />
-                )}
-              </View>
-              {business.category && (
-                <View className="flex-row flex-wrap mt-0.5">
-                  <View
-                    className="px-1.5 py-0.5 rounded-full"
-                    style={{ backgroundColor: businessColor + "15" }}
-                  >
-                    <Text className="text-[10px]" style={{ color: businessColor }}>
-                      {BUSINESS_CATEGORIES.find((c) => c.value === business.category)?.label ?? business.category}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          </Pressable>
-
-          {/* Expand/collapse button */}
-          <Pressable
-            onPress={toggleExpand}
-            className="w-9 h-9 rounded-full items-center justify-center"
-            style={{ backgroundColor: isExpanded ? businessColor + "15" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
-          >
-            <Animated.View style={arrowStyle}>
-              <ChevronDown size={18} color={isExpanded ? businessColor : colors.textSecondary} />
-            </Animated.View>
-          </Pressable>
-        </View>
-
-        {/* Expandable calendar section */}
-        <Animated.View style={calendarStyle}>
-          <View className="px-3 pb-3">
-            <BusinessMiniCalendar businessId={business.id} />
-          </View>
-        </Animated.View>
-      </View>
-    </Animated.View>
-  );
-}
 
 function FriendCard({ friendship, index }: { friendship: Friendship; index: number }) {
   const router = useRouter();
@@ -905,9 +646,9 @@ export default function FriendsScreen() {
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (data.message) {
-        toast.info("Info", data.message);
+        safeToast.info("Info", data.message);
       } else {
-        toast.success("Success", "Friend request sent!");
+        safeToast.success("Success", "Friend request sent!");
       }
       setSearchEmail("");
       setShowAddFriend(false);
@@ -915,7 +656,7 @@ export default function FriendsScreen() {
       refetchRequests();
     },
     onError: () => {
-      toast.error("Error", "Failed to send friend request");
+      safeToast.error("Error", "Failed to send friend request");
     },
   });
 
@@ -969,7 +710,7 @@ export default function FriendsScreen() {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to add friend to some groups");
+      safeToast.error("Error", "Failed to add friend to some groups");
     },
   });
 
@@ -978,7 +719,7 @@ export default function FriendsScreen() {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") {
-        toast.warning("Permission Required", "Please allow access to contacts to add friends.");
+        safeToast.warning("Permission Required", "Please allow access to contacts to add friends.");
         setContactsLoading(false);
         return;
       }
@@ -1003,7 +744,7 @@ export default function FriendsScreen() {
       setShowContactsModal(true);
     } catch (error) {
       console.error("Error loading contacts:", error);
-      toast.error("Error", "Failed to load contacts");
+      safeToast.error("Error", "Failed to load contacts");
     }
     setContactsLoading(false);
   };
@@ -1019,7 +760,7 @@ export default function FriendsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendRequestMutation.mutate({ phone });
     } else {
-      toast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
+      safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
     }
   };
 
@@ -1085,7 +826,7 @@ export default function FriendsScreen() {
       setShowCreateCircle(false);
     },
     onError: () => {
-      toast.error("Error", "Failed to create circle");
+      safeToast.error("Error", "Failed to create circle");
     },
   });
 
@@ -1514,6 +1255,20 @@ export default function FriendsScreen() {
               </Text>
             </View>
             <View className="flex-row items-center">
+              {circles.length > 0 && (
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/circles" as any);
+                  }}
+                  className="mr-2"
+                >
+                  <Text className="text-xs font-medium" style={{ color: "#9333EA" }}>
+                    View All
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={(e) => {
                   e.stopPropagation();
@@ -1728,7 +1483,7 @@ export default function FriendsScreen() {
                         if (status === "granted") {
                           setShowContactsModal(true);
                         } else {
-                          toast.warning("Permission Required", "Please allow access to contacts to import friends.");
+                          safeToast.warning("Permission Required", "Please allow access to contacts to import friends.");
                         }
                       }}
                       className="px-6 py-3 rounded-full"

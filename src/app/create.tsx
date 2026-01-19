@@ -16,20 +16,19 @@ import {
   MapPin,
   Clock,
   Users,
-  Globe,
+  Compass,
   ChevronDown,
   Check,
   X,
-  Repeat,
+  RefreshCw,
   Calendar,
   Search,
-  Navigation,
+  ArrowRight,
   Bell,
   BellOff,
   Sparkles,
   Lock,
-  Unlock,
-} from "lucide-react-native";
+} from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -37,11 +36,12 @@ import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-import { BottomNavigation } from "@/components/BottomNavigation";
+import BottomNavigation from "@/components/BottomNavigation";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
+import { toUserMessage, logError } from "@/lib/errors";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
 import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
@@ -294,14 +294,6 @@ export default function CreateEventScreen() {
   });
 
   const activeProfile = profilesData?.activeProfile;
-  const isBusinessProfile = activeProfile?.type === "business";
-
-  // Redirect to business event creation if switched to a business profile
-  useEffect(() => {
-    if (isBusinessProfile && activeProfile?.id) {
-      router.replace(`/business/${activeProfile.id}/create-event` as any);
-    }
-  }, [isBusinessProfile, activeProfile?.id, router]);
 
   // Fetch user location for location-biased place search
   useEffect(() => {
@@ -394,7 +386,7 @@ export default function CreateEventScreen() {
         if (pendingImport.notes) {
           setDescription(pendingImport.notes);
         }
-        toast.success('Event imported from calendar', 'Review and create your event');
+        safeToast.success('Event imported from calendar', 'Review and create your event');
       }
     };
     loadPendingImport();
@@ -483,8 +475,9 @@ export default function CreateEventScreen() {
       router.back();
     },
     onError: (error) => {
-      toast.error("Error", "Failed to create event. Please try again.");
-      console.error(error);
+      logError("Create Event", error);
+      const { title, message } = toUserMessage(error);
+      safeToast.error(title, message || "Failed to create event. Please try again.");
     },
   });
 
@@ -523,18 +516,18 @@ export default function CreateEventScreen() {
 
   const handleCreate = () => {
     if (!title.trim()) {
-      toast.warning("Missing Title", "Please enter a title for your event.");
+      safeToast.warning("Missing Title", "Please enter a title for your event.");
       return;
     }
 
     // Validate endTime > startTime
     if (endDate <= startDate) {
-      toast.warning("Invalid Time", "End time must be after start time.");
+      safeToast.warning("Invalid Time", "End time must be after start time.");
       return;
     }
 
     if (visibility === "specific_groups" && selectedGroupIds.length === 0) {
-      toast.warning("No Groups Selected", "Please select at least one group.");
+      safeToast.warning("No Groups Selected", "Please select at least one group.");
       return;
     }
 
@@ -834,7 +827,7 @@ export default function CreateEventScreen() {
                       >
                         <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
                           {index === 0 ? (
-                            <Navigation size={18} color="#4ECDC4" />
+                            <ArrowRight size={18} color="#4ECDC4" />
                           ) : (
                             <MapPin size={18} color={colors.textTertiary} />
                           )}
@@ -1123,7 +1116,7 @@ export default function CreateEventScreen() {
             >
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <Repeat size={18} color={themeColor} />
+                  <RefreshCw size={18} color={themeColor} />
                   <Text style={{ color: colors.text }} className="ml-3 font-medium">
                     {FREQUENCY_OPTIONS.find((f) => f.value === frequency)?.label}
                   </Text>
@@ -1159,7 +1152,7 @@ export default function CreateEventScreen() {
 
             {frequency !== "once" && (
               <View className="rounded-xl p-3 mb-4 flex-row items-center" style={{ backgroundColor: `${themeColor}15` }}>
-                <Repeat size={16} color={themeColor} />
+                <RefreshCw size={16} color={themeColor} />
                 <Text style={{ color: themeColor }} className="ml-2 text-sm">
                   This event will repeat {frequency} starting{" "}
                   {startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -1231,7 +1224,7 @@ export default function CreateEventScreen() {
                       borderColor: !isPrivateCircleEvent ? `${themeColor}40` : colors.border
                     }}
                   >
-                    <Unlock size={18} color={!isPrivateCircleEvent ? themeColor : colors.textTertiary} />
+                    <Lock size={18} color={!isPrivateCircleEvent ? themeColor : colors.textTertiary} />
                     <Text
                       className="ml-2 font-medium"
                       style={{ color: !isPrivateCircleEvent ? themeColor : colors.textSecondary }}
@@ -1264,7 +1257,7 @@ export default function CreateEventScreen() {
                       borderColor: visibility === "all_friends" ? `${themeColor}40` : colors.border
                     }}
                   >
-                    <Globe size={18} color={visibility === "all_friends" ? themeColor : colors.textTertiary} />
+                    <Compass size={18} color={visibility === "all_friends" ? themeColor : colors.textTertiary} />
                     <Text
                       className="ml-2 font-medium"
                       style={{ color: visibility === "all_friends" ? themeColor : colors.textSecondary }}

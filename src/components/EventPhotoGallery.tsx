@@ -10,9 +10,9 @@ import {
   Dimensions,
   Platform,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { Camera, ImagePlus, X, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react-native";
+import { Camera, ImagePlus, X, Trash2, ChevronLeft, ChevronRight, Download } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -97,7 +97,7 @@ export function EventPhotoGallery({
       setShowUploadModal(false);
     },
     onError: (error: any) => {
-      toast.error("Error", error?.message ?? "Failed to upload photo");
+      safeToast.error("Error", error?.message ?? "Failed to upload photo");
     },
   });
 
@@ -110,7 +110,7 @@ export function EventPhotoGallery({
       queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to delete photo");
+      safeToast.error("Error", "Failed to delete photo");
     },
   });
 
@@ -123,7 +123,7 @@ export function EventPhotoGallery({
       // Request permission to save to media library
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        toast.warning(
+        safeToast.warning(
           "Permission Required",
           "Please allow access to your photo library to save images."
         );
@@ -156,10 +156,10 @@ export function EventPhotoGallery({
       await FileSystem.deleteAsync(fileUri, { idempotent: true });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Saved!", "Photo has been saved to your photo library.");
+      safeToast.success("Saved!", "Photo has been saved to your photo library.");
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Error", "Failed to save photo. Please try again.");
+      safeToast.error("Error", "Failed to save photo. Please try again.");
     } finally {
       setDownloading(false);
     }
@@ -179,7 +179,7 @@ export function EventPhotoGallery({
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
-        toast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
       } finally {
         setUploading(false);
       }
@@ -205,7 +205,7 @@ export function EventPhotoGallery({
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
-        toast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
       } finally {
         setUploading(false);
       }
@@ -317,18 +317,18 @@ export function EventPhotoGallery({
                     style={{ backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 8, padding: 4 }}
                   >
                     <View className="w-5 h-5 rounded-full overflow-hidden mr-1">
-                      {photo.user.image ? (
-                        <Image source={{ uri: photo.user.image }} className="w-full h-full" />
+                      {photo.user?.image ? (
+                        <Image source={{ uri: photo.user?.image }} className="w-full h-full" />
                       ) : (
                         <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>
                           <Text className="text-white text-xs font-bold">
-                            {photo.user.name?.[0] ?? "?"}
+                            {photo.user?.name?.[0] ?? "?"}
                           </Text>
                         </View>
                       )}
                     </View>
                     <Text className="text-white text-xs flex-1" numberOfLines={1}>
-                      {photo.user.name ?? "User"}
+                      {photo.user?.name ?? "User"}
                     </Text>
                   </View>
                 </Pressable>
@@ -521,21 +521,21 @@ export function EventPhotoGallery({
             <View className="items-center">
               <View className="flex-row items-center">
                 <View className="w-8 h-8 rounded-full overflow-hidden mr-2">
-                  {photos[selectedPhotoIndex]?.user.image ? (
+                  {photos[selectedPhotoIndex]?.user?.image ? (
                     <Image
-                      source={{ uri: photos[selectedPhotoIndex].user.image ?? undefined }}
+                      source={{ uri: photos[selectedPhotoIndex]?.user?.image ?? undefined }}
                       className="w-full h-full"
                     />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>
                       <Text className="text-white font-bold">
-                        {photos[selectedPhotoIndex]?.user.name?.[0] ?? "?"}
+                        {photos[selectedPhotoIndex]?.user?.name?.[0] ?? "?"}
                       </Text>
                     </View>
                   )}
                 </View>
                 <Text className="text-white font-medium">
-                  {photos[selectedPhotoIndex]?.user.name ?? "User"}
+                  {photos[selectedPhotoIndex]?.user?.name ?? "User"}
                 </Text>
               </View>
             </View>

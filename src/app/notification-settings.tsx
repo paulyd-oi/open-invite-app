@@ -27,17 +27,16 @@ import {
   Mail,
   UserPlus,
   Camera,
-  Cake,
-  Send,
+  Gift,
   CheckCircle,
   AlertCircle,
   Zap,
   TrendingUp,
   RotateCcw,
-  Layers,
+  StickyNote,
   Volume2,
   VolumeX,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -499,7 +498,7 @@ export default function NotificationSettingsScreen() {
         <Animated.View entering={FadeInDown.delay(150).springify()}>
           <Section
             title="Event Requests"
-            icon={<Send size={20} color="#9B59B6" />}
+            icon={<MessageCircle size={20} color="#9B59B6" />}
             iconColor="#9B59B6"
             expanded={expandedSections.includes("requests")}
             onToggle={() => toggleSection("requests")}
@@ -507,7 +506,7 @@ export default function NotificationSettingsScreen() {
             colors={colors}
           >
             <ToggleItem
-              icon={<Send size={18} color="#9B59B6" />}
+              icon={<MessageCircle size={18} color="#9B59B6" />}
               title="New Invitations"
               description="When invited to event requests"
               value={preferences.eventRequestInvites}
@@ -625,7 +624,7 @@ export default function NotificationSettingsScreen() {
               colors={colors}
             />
             <ToggleItem
-              icon={<Cake size={18} color="#E91E63" />}
+              icon={<Gift size={18} color="#E91E63" />}
               title="Friend Birthdays"
               description="Birthday reminders for friends"
               value={preferences.friendBirthdays}
@@ -641,7 +640,7 @@ export default function NotificationSettingsScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <Section
             title="Circles"
-            icon={<Layers size={20} color="#F39C12" />}
+            icon={<StickyNote size={20} color="#F39C12" />}
             iconColor="#F39C12"
             expanded={expandedSections.includes("circles")}
             onToggle={() => toggleSection("circles")}

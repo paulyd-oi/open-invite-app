@@ -10,9 +10,23 @@ import {
   Heart,
   Search,
   Plus,
-} from "lucide-react-native";
+  type LucideIcon,
+} from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp, BounceIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+
+// Type for empty state configs
+type EmptyStateConfig = Record<
+  string,
+  {
+    icon: LucideIcon;
+    emoji: string;
+    defaultTitle: string;
+    defaultDescription: string;
+    color: string;
+    actionLabel?: string;
+  }
+>;
 
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -37,7 +51,7 @@ interface EmptyStateProps {
 const EMPTY_STATE_CONFIG: Record<
   EmptyStateType,
   {
-    icon: React.ComponentType<{ size: number; color: string }>;
+    icon: LucideIcon;
     emoji: string;
     defaultTitle: string;
     defaultDescription: string;

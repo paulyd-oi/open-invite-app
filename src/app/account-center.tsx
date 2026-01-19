@@ -7,7 +7,7 @@ import {
   Image,
   RefreshControl,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -25,7 +25,7 @@ import {
   BadgeCheck,
   Trash2,
   UserPlus,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -67,7 +67,6 @@ interface ProfileRowProps {
   profile: Profile;
   isActive: boolean;
   onPress: () => void;
-  onManageTeam?: () => void;
   isDark: boolean;
   themeColor: string;
   showBorder?: boolean;
@@ -77,7 +76,6 @@ function ProfileRow({
   profile,
   isActive,
   onPress,
-  onManageTeam,
   isDark,
   themeColor,
   showBorder = true,
@@ -172,22 +170,6 @@ function ProfileRow({
           <ChevronRight size={20} color={isDark ? "#636366" : "#9CA3AF"} />
         </View>
       </Pressable>
-
-      {/* Team Management Button for Business Profiles */}
-      {isBusiness && (profile.role === "owner" || profile.role === "admin") && onManageTeam && (
-        <Pressable
-          onPress={onManageTeam}
-          className="flex-row items-center px-4 pb-4 pt-0 ml-17"
-        >
-          <Users size={16} color={themeColor} />
-          <Text
-            className="text-sm font-medium ml-2"
-            style={{ color: themeColor }}
-          >
-            Manage Team
-          </Text>
-        </Pressable>
-      )}
     </View>
   );
 }
@@ -226,19 +208,7 @@ export default function AccountCenterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (profile.type === "personal") {
       router.push("/settings");
-    } else {
-      router.push(`/business/${profile.id}/settings`);
     }
-  };
-
-  const handleManageTeam = (businessId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/business/${businessId}/team`);
-  };
-
-  const handleCreateBusiness = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/create-business");
   };
 
   const handleLogout = () => {
@@ -333,7 +303,7 @@ export default function AccountCenterScreen() {
                   className="text-3xl font-bold"
                   style={{ color: themeColor }}
                 >
-                  {session.user?.name?.[0] ?? session.user?.email?.[0]?.toUpperCase()}
+                  {session.user?.name?.[0]?.toUpperCase() ?? "?"}
                 </Text>
               </View>
             )}
@@ -343,12 +313,14 @@ export default function AccountCenterScreen() {
             >
               {session.user?.name ?? "User"}
             </Text>
-            <Text
-              className="text-sm"
-              style={{ color: colors.textSecondary }}
-            >
-              {session.user?.email}
-            </Text>
+            {session.user?.handle && (
+              <Text
+                className="text-sm"
+                style={{ color: colors.textSecondary }}
+              >
+                @{session.user.handle}
+              </Text>
+            )}
             <Text
               className="text-xs mt-2"
               style={{ color: colors.textTertiary }}
@@ -397,7 +369,6 @@ export default function AccountCenterScreen() {
                 profile={profile}
                 isActive={activeProfileId === profile.id}
                 onPress={() => handleProfileSettings(profile)}
-                onManageTeam={() => handleManageTeam(profile.id)}
                 isDark={isDark}
                 themeColor={themeColor}
                 showBorder={index < ownedBusinesses.length - 1}
@@ -429,11 +400,6 @@ export default function AccountCenterScreen() {
                 profile={profile}
                 isActive={activeProfileId === profile.id}
                 onPress={() => handleProfileSettings(profile)}
-                onManageTeam={
-                  profile.role === "admin"
-                    ? () => handleManageTeam(profile.id)
-                    : undefined
-                }
                 isDark={isDark}
                 themeColor={themeColor}
                 showBorder={index < memberBusinesses.length - 1}
@@ -441,36 +407,6 @@ export default function AccountCenterScreen() {
             ))}
           </SectionCard>
         )}
-
-        {/* Create New Business */}
-        <SectionCard isDark={isDark} delay={300}>
-          <Pressable
-            onPress={handleCreateBusiness}
-            className="flex-row items-center p-4 active:opacity-70"
-          >
-            <View
-              className="w-14 h-14 rounded-full items-center justify-center"
-              style={{ backgroundColor: "#10B98120" }}
-            >
-              <Plus size={26} color="#10B981" />
-            </View>
-            <View className="flex-1 ml-3">
-              <Text
-                className="text-base font-semibold"
-                style={{ color: isDark ? "#FFFFFF" : "#1F2937" }}
-              >
-                Create Business Profile
-              </Text>
-              <Text
-                className="text-sm mt-0.5"
-                style={{ color: isDark ? "#8E8E93" : "#6B7280" }}
-              >
-                For organizations, clubs, or businesses
-              </Text>
-            </View>
-            <ChevronRight size={20} color={isDark ? "#636366" : "#9CA3AF"} />
-          </Pressable>
-        </SectionCard>
 
         {/* Account Settings */}
         <SectionCard isDark={isDark} delay={350}>

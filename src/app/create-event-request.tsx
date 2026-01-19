@@ -25,7 +25,7 @@ import {
   Navigation,
   Sparkles,
   UserPlus,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";

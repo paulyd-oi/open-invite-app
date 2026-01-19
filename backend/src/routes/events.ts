@@ -14,6 +14,7 @@ import {
   notifyPopularEvent,
   notifyFriendsOfNewEvent,
 } from "./smartNotifications";
+import { sendPushNotification } from "./notifications";
 import {
   canCreateEvent,
   canCreateRecurringEvent,
@@ -477,26 +478,39 @@ eventsRouter.post("/", async (c) => {
       },
     });
 
-    // Auto-add all circle members as attendees (with accepted status)
+    // Get circle for notifications (but DO NOT auto-RSVP members - spec requires explicit RSVP)
     const circle = await db.circle.findUnique({
       where: { id: circleId },
       include: { circle_member: true },
     });
 
     if (circle) {
-      for (const member of circle.circle_member) {
-        if (member.userId !== user.id) {
-          try {
-            await db.event_join_request.create({
-              data: {
-                eventId: event.id,
-                userId: member.userId,
-                status: "accepted",
-              },
-            });
-          } catch {
-            // Ignore if already exists
-          }
+      // Send notifications to circle members (excluding creator)
+      const memberIds = circle.circle_member
+        .map(m => m.userId)
+        .filter(id => id !== user.id);
+
+      if (memberIds.length > 0) {
+        const notificationBody = `New Open Invite in ${circle.name}: ${eventData.title}`;
+        
+        // Create in-app notifications
+        await db.notification.createMany({
+          data: memberIds.map((userId) => ({
+            userId,
+            type: "circle_event",
+            title: "New Circle Event",
+            body: notificationBody,
+            data: JSON.stringify({ eventId: event.id, circleId }),
+          })),
+        });
+
+        // Send push notifications asynchronously
+        for (const memberId of memberIds) {
+          sendPushNotification(memberId, {
+            title: "New Circle Event",
+            body: notificationBody,
+            data: { eventId: event.id, circleId, type: "circle_event", screen: "event" },
+          }).catch(err => console.error("Error sending circle event push notification:", err));
         }
       }
     }
@@ -632,6 +646,15 @@ eventsRouter.get("/:id", async (c) => {
           user: { select: { id: true, name: true, image: true } },
         },
       },
+      circle_event: {
+        include: {
+          circle: {
+            include: {
+              circle_member: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -642,6 +665,18 @@ eventsRouter.get("/:id", async (c) => {
   // Check if the event creator is blocked
   if (allBlockedIds.includes(event.userId)) {
     return c.json({ error: "Event not found" }, 404);
+  }
+
+  // Check if this is a circle event - enforce circle membership
+  if (event.circle_event) {
+    const isMember = event.circle_event.circle.circle_member.some(
+      (m) => m.userId === user.id
+    );
+    if (!isMember) {
+      return c.json({ error: "Event not found" }, 404);
+    }
+    // Member has access, return event
+    return c.json({ event: serializeEvent(event) });
   }
 
   // Check access:

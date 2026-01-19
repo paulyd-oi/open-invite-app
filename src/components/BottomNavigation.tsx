@@ -211,7 +211,7 @@ export default function BottomNavigation() {
     staleTime: 60000, // Cache for 1 minute
   });
 
-  const friendRequestCount = friendRequestsData?.received?.length ?? 0;
+  const friendRequestCount = Array.isArray(friendRequestsData?.received) ? friendRequestsData.received.length : 0;
   const circleUnreadCount = circleUnreadData?.totalUnread ?? 0;
   const friendsBadgeCount = friendRequestCount + circleUnreadCount;
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;

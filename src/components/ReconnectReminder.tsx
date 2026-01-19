@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable, Image, ScrollView } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Heart, ChevronRight, Plus } from "lucide-react-native";
+import { Heart, ChevronRight, Plus } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -72,7 +72,7 @@ export function ReconnectReminder({
     <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
-          <Heart size={18} color="#FF6B6B" fill="#FF6B6B" />
+          <Heart size={18} color="#FF6B6B" />
           <Text className="font-semibold ml-2" style={{ color: colors.text }}>
             Reconnect
           </Text>

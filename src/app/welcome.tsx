@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -53,7 +54,7 @@ import {
   MessageCircle,
   Sparkles,
   Lock,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
@@ -62,8 +63,9 @@ import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { updateProfileAndSync } from "@/lib/profileSync";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation } from "@/lib/appleSignIn";
+import { toUserMessage } from "@/lib/errors";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -355,7 +357,7 @@ const PrimaryButton = ({
               {title}
             </Text>
             {variant === "primary" && !disabled && (
-              <ArrowRight size={20} color="#fff" strokeWidth={2.5} />
+              <ArrowRight size={20} color="#fff" />
             )}
           </>
         )}
@@ -609,6 +611,11 @@ export default function WelcomeOnboardingScreen() {
 
   // Apple Sign-In availability (checked on mount)
   const [isAppleSignInReady, setIsAppleSignInReady] = useState(false);
+  const [appleDebugInfo, setAppleDebugInfo] = useState<{
+    available: boolean;
+    backendUrl: string;
+    bundleId?: string;
+  } | null>(null);
 
   // Form state
   const [email, setEmail] = useState("");
@@ -646,14 +653,23 @@ export default function WelcomeOnboardingScreen() {
   useEffect(() => {
     // Check Apple Sign-In availability on mount (iOS only)
     if (Platform.OS === "ios") {
-      isAppleSignInAvailable().then((available) => {
+      const checkAvailability = async () => {
+        const available = await isAppleSignInAvailable();
         setIsAppleSignInReady(available);
+        
+        // Collect debug info for DEV panel
         if (__DEV__) {
           console.log("[Apple Auth] Availability check:", available);
+          setAppleDebugInfo({
+            available,
+            backendUrl,
+            // Bundle ID might not be easily accessible, so we'll skip it for now
+          });
         }
-      });
+      };
+      checkAvailability();
     }
-  }, []);
+  }, [backendUrl]);
 
   // ============ PERSISTENCE ============
 
@@ -759,13 +775,24 @@ export default function WelcomeOnboardingScreen() {
   // ============ APPLE SIGN IN ============
   // Uses expo-apple-authentication to get identity token
   // Then verifies with backend and creates/links account
+  // NOTE: Apple Sign-In requires a native dev build or TestFlight.
+  // If you deleted the app, reinstall dev build with: npx expo run:ios
   const handleAppleSignIn = async () => {
+    // Double-check availability before proceeding
+    if (!isAppleSignInReady) {
+      safeToast.warning(
+        "Apple Sign-In unavailable", 
+        "Install the dev build or use TestFlight."
+      );
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       setIsLoading(true);
 
-      // Request Apple Sign In (availability already checked before showing button)
+      // Request Apple Sign In with proper scope handling
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -841,22 +868,15 @@ if (data.session?.expiresAt) {
         return;
       }
 
-      // Log error for debugging (but never log tokens)
-      console.error("[Apple Auth] Error:", error instanceof Error ? error.message : "Unknown error");
-
-      // Show user-friendly error message
-      let errorMessage = "Unable to sign in with Apple. Please try again.";
-      if (error instanceof Error) {
-        if (error.message.includes("network") || error.message.includes("fetch")) {
-          errorMessage = "Network error. Please check your connection and try again.";
-        } else if (error.message.includes("verification failed")) {
-          errorMessage = "Authentication failed. Please try again.";
-        } else if (error.message.includes("already linked")) {
-          errorMessage = error.message; // Show the specific linking error
-        }
+      // Log full error for debugging
+      if (__DEV__) {
+        console.error("[Apple Auth] Full error:", error);
       }
 
-      toast.error("Sign In Failed", errorMessage);
+      // Use toUserMessage for consistent error formatting
+      const { title, message } = toUserMessage(error);
+      safeToast.error(title, message || "Unable to sign in with Apple. Please try again.");
+      
     } finally {
       setIsLoading(false);
     }
@@ -866,7 +886,7 @@ if (data.session?.expiresAt) {
 
   const handleCreateAccount = async () => {
     if (!email || !password) {
-      toast.warning("Missing Info", "Please enter your email and password");
+      safeToast.warning("Missing Info", "Please enter your email and password");
       return;
     }
 
@@ -874,11 +894,18 @@ if (data.session?.expiresAt) {
     setAuthProvider("email");
 
     try {
-      const result = await authClient.signUp.email({
-        email,
-        password,
-        name: displayName || "User",
-      });
+      // Some runtime builds may not surface the `signUp.email` shim reliably.
+      // Call the backend directly via the shared $fetch helper to ensure signup works.
+      let result: any;
+      try {
+        const data = await authClient.$fetch('/api/auth/sign-up/email', {
+          method: 'POST',
+          body: { email, password, name: displayName || "User" },
+        });
+        result = { data };
+      } catch (e: any) {
+        result = { error: { message: e?.message || String(e) } };
+      }
 
       if (result.error) {
         if (result.error.message?.toLowerCase().includes("exist")) {
@@ -891,7 +918,7 @@ if (data.session?.expiresAt) {
               await sendVerificationCode();
               goToNext();
             } else {
-              toast.error("Sign In Failed", signInResult.error.message || "Invalid credentials");
+              safeToast.error("Sign In Failed", signInResult.error.message || "Invalid credentials");
             }
           } else {
             const user = signInResult.data?.user;
@@ -901,15 +928,34 @@ if (data.session?.expiresAt) {
             goToNext();
           }
         } else {
-          toast.error("Sign Up Failed", result.error.message || "Failed to create account");
+          safeToast.error("Sign Up Failed", result.error.message || "Failed to create account");
         }
       } else {
         await sendVerificationCode();
         goToNext();
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unable to connect";
-      toast.error("Connection Error", errorMessage);
+      const errorMessage = error instanceof Error ? error.message : String(error ?? "Unknown error");
+
+      // Detailed console error with non-enumerable properties included
+      try {
+        const errObj: any = error as any;
+        const names = Object.getOwnPropertyNames(errObj || {});
+        const payload: any = {};
+        names.forEach((n) => (payload[n] = errObj[n]));
+        console.error("[Onboarding] Create account error:", String(error), JSON.stringify(payload));
+      } catch (logErr) {
+        console.error("[Onboarding] Create account error (serializing failed):", String(error), logErr);
+      }
+
+      // Surface a visible alert to the user with the error message
+      try {
+        Alert.alert("Sign Up Failed", errorMessage);
+      } catch (alertErr) {
+        console.error("[Onboarding] Failed to show alert:", alertErr);
+      }
+
+      safeToast.error("Connection Error", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -956,7 +1002,7 @@ if (data.session?.expiresAt) {
   const handleVerifyEmail = async () => {
     const code = verificationCode.join("");
     if (code.length !== 5) {
-      toast.warning("Invalid Code", "Please enter the 5-digit code");
+      safeToast.warning("Invalid Code", "Please enter the 5-digit code");
       return;
     }
 
@@ -975,10 +1021,10 @@ if (data.session?.expiresAt) {
         setEmailVerified(true);
         goToNext();
       } else {
-        toast.error("Verification Failed", data.error || "Invalid verification code");
+        safeToast.error("Verification Failed", data.error || "Invalid verification code");
       }
     } catch (error) {
-      toast.error("Verification Failed", "Failed to verify code. Please try again.");
+      safeToast.error("Verification Failed", "Failed to verify code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -987,7 +1033,7 @@ if (data.session?.expiresAt) {
   const handleResendCode = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await sendVerificationCode();
-    toast.success("Code Sent", "A new verification code has been sent to your email.");
+    safeToast.success("Code Sent", "A new verification code has been sent to your email.");
   };
 
   const handleSkipVerification = async () => {
@@ -1018,7 +1064,7 @@ if (data.session?.expiresAt) {
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      toast.warning("Permission Required", "Please allow access to your photos in Settings.");
+      safeToast.warning("Permission Required", "Please allow access to your photos in Settings.");
       return;
     }
 
@@ -1037,7 +1083,7 @@ if (data.session?.expiresAt) {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      toast.warning("Permission Required", "Please allow access to your camera in Settings.");
+      safeToast.warning("Permission Required", "Please allow access to your camera in Settings.");
       return;
     }
 
@@ -1061,7 +1107,7 @@ if (data.session?.expiresAt) {
         const fileInfo = await require("expo-file-system").getInfoAsync(profileImage);
         const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
         if (fileInfo.size > MAX_UPLOAD_BYTES) {
-          toast.error("Image Too Large", "Image is too large (max 5MB). Please choose a smaller photo.");
+          safeToast.error("Image Too Large", "Image is too large (max 5MB). Please choose a smaller photo.");
           return;
         }
 
@@ -1094,7 +1140,7 @@ if (data.session?.expiresAt) {
         await updateProfileAndSync(queryClient);
       } catch (error) {
         console.log("[Onboarding] Failed to upload photo:", error);
-        toast.error("Upload Failed", "Could not upload photo. Please try again.");
+        safeToast.error("Upload Failed", "Could not upload photo. Please try again.");
       }
     }
     goToNext();
@@ -1260,17 +1306,21 @@ if (data.session?.expiresAt) {
                   <Animated.View entering={FadeInUp.delay(100).springify()} className="mb-2">
                     <Pressable
                       onPress={handleAppleSignIn}
-                      style={{
-                        backgroundColor: "#fff",
-                        borderRadius: 16,
-                        height: 56,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                      }}
+                      disabled={!isAppleSignInReady || isLoading}
+                      style={[
+                        {
+                          backgroundColor: "#fff",
+                          borderRadius: 16,
+                          height: 56,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                        },
+                        (!isAppleSignInReady || isLoading) && { opacity: 0.6 }
+                      ]}
                     >
-                      <Text style={{ fontSize: 20 }}></Text>
+                      <Text style={{ fontSize: 20 }}>🍎</Text>
                       <Text
                         style={{
                           color: "#000",
@@ -1328,6 +1378,37 @@ if (data.session?.expiresAt) {
                     disabled={!email || !password}
                   />
                 </Animated.View>
+
+                {/* DEV Debug Panel - Apple Sign-In Info */}
+                {__DEV__ && Platform.OS === "ios" && appleDebugInfo && (
+                  <Animated.View 
+                    entering={FadeInUp.delay(400).springify()} 
+                    className="mt-8 p-4 bg-black/20 rounded-lg"
+                  >
+                    <Text
+                      style={{
+                        color: "rgba(255,255,255,0.8)",
+                        fontSize: 12,
+                        fontFamily: "Sora_600SemiBold",
+                        marginBottom: 8,
+                      }}
+                    >
+                      🛠️ DEV: Apple Sign-In Debug
+                    </Text>
+                    <Text
+                      style={{
+                        color: "rgba(255,255,255,0.6)",
+                        fontSize: 10,
+                        fontFamily: "Sora_400Regular",
+                        lineHeight: 16,
+                      }}
+                    >
+                      Available: {appleDebugInfo.available ? "✅" : "❌"}{"\n"}
+                      Backend: {appleDebugInfo.backendUrl}{"\n"}
+                      {!appleDebugInfo.available && "⚠️ If you deleted the app, reinstall dev build: npx expo run:ios"}
+                    </Text>
+                  </Animated.View>
+                )}
               </ScrollView>
             </KeyboardAvoidingView>
           </OnboardingLayout>

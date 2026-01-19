@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
-import { Trophy, Check, ChevronLeft, Sparkles, Lock, Medal } from "lucide-react-native";
+import { Trophy, Check, ChevronLeft, Sparkles, Lock, Medal } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, withSpring, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

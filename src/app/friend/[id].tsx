@@ -3,14 +3,14 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, X, Check, StickyNote, ChevronDown, Trash2, Trophy } from "lucide-react-native";
+import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, X, Check, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge } from "@/shared/contracts";
 
@@ -320,7 +320,7 @@ export default function FriendDetailScreen() {
       refetchNotes();
     },
     onError: () => {
-      toast.error("Error", "Failed to add note");
+      safeToast.error("Error", "Failed to add note");
     },
   });
 
@@ -333,7 +333,7 @@ export default function FriendDetailScreen() {
       refetchNotes();
     },
     onError: () => {
-      toast.error("Error", "Failed to delete note");
+      safeToast.error("Error", "Failed to delete note");
     },
   });
 
@@ -342,14 +342,14 @@ export default function FriendDetailScreen() {
     mutationFn: () => api.delete(`/api/friends/${id}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Unfriended", `You and ${friend?.name ?? "this user"} are no longer friends`);
+      safeToast.success("Unfriended", `You and ${friend?.name ?? "this user"} are no longer friends`);
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       // Navigate back to friends list
       router.replace("/friends" as any);
     },
     onError: () => {
-      toast.error("Error", "Failed to unfriend");
+      safeToast.error("Error", "Failed to unfriend");
     },
   });
 

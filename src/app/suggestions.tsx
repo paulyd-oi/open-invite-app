@@ -16,7 +16,7 @@ import {
   Users,
   Check,
   Loader2,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, {
   FadeInDown,
   FadeIn,
@@ -59,7 +59,7 @@ function SuggestionCard({
     transform: [{ scale: scale.value }],
   }));
 
-  const userName = suggestion.user.name || (suggestion.user.handle ? `@${suggestion.user.handle}` : "Unknown");
+  const userName = suggestion.user?.name || (suggestion.user?.handle ? `@${suggestion.user.handle}` : "Unknown");
   const mutualCount = suggestion.mutualFriendCount;
 
   const handlePress = () => {

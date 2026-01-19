@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Mail, X } from "lucide-react-native";
+import { Mail, X } from "@/ui/icons";
 import Animated, { FadeIn, FadeInUp, SlideInDown } from "react-native-reanimated";
 import { useTheme } from "@/lib/ThemeContext";
 

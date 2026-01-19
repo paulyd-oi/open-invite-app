@@ -153,6 +153,54 @@ export function goToUser(router: Router, userId: string): void {
 }
 
 // ============================================
+// Safe Navigation with Error Handling
+// ============================================
+
+/**
+ * Safely push a route with error handling
+ * Falls back to home if navigation fails
+ */
+export function safePush(router: Router, path: string): void {
+  try {
+    router.push(path as any);
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[Navigation] Failed to push:', path, error);
+    }
+    // Fallback to home on error
+    try {
+      router.replace(ROUTES.HOME);
+    } catch (fallbackError) {
+      if (__DEV__) {
+        console.error('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
+      }
+    }
+  }
+}
+
+/**
+ * Safely replace a route with error handling
+ * Falls back to home if navigation fails
+ */
+export function safeReplace(router: Router, path: string): void {
+  try {
+    router.replace(path as any);
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[Navigation] Failed to replace:', path, error);
+    }
+    // Fallback to home on error
+    try {
+      router.replace(ROUTES.HOME);
+    } catch (fallbackError) {
+      if (__DEV__) {
+        console.error('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
+      }
+    }
+  }
+}
+
+// ============================================
 // Back Navigation
 // ============================================
 

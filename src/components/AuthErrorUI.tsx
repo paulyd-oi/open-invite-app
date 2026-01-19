@@ -8,7 +8,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AlertCircle, RefreshCw, Trash2 } from "lucide-react-native";
+import { AlertCircle, RefreshCw, Trash2 } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
 interface AuthErrorUIProps {

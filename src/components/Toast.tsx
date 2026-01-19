@@ -1,186 +1,162 @@
-import React, { useEffect, useCallback } from "react";
-import { View, Text, Pressable, Dimensions } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-  SlideInUp,
-  SlideOutUp,
-} from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Check, X, AlertCircle, Info } from "lucide-react-native";
-import * as Haptics from "expo-haptics";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { create } from "zustand";
+// src/components/Toast.tsx
+import React, { useEffect } from "react";
+import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+export type ToastVariant = "success" | "info" | "warning" | "error";
 
-// Toast types
-type ToastType = "success" | "error" | "info" | "warning";
-
-interface ToastData {
+export type ToastData = {
   id: string;
-  type: ToastType;
-  title: string;
-  message?: string;
-  duration?: number;
-}
-
-// Toast store
-interface ToastStore {
-  toasts: ToastData[];
-  addToast: (toast: Omit<ToastData, "id">) => void;
-  removeToast: (id: string) => void;
-}
-
-export const useToastStore = create<ToastStore>((set) => ({
-  toasts: [],
-  addToast: (toast) => {
-    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    set((state) => ({
-      toasts: [...state.toasts, { ...toast, id }],
-    }));
-  },
-  removeToast: (id) => {
-    set((state) => ({
-      toasts: state.toasts.filter((t) => t.id !== id),
-    }));
-  },
-}));
-
-// Helper functions for easy use
-export const toast = {
-  success: (title: string, message?: string, duration?: number) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    useToastStore.getState().addToast({ type: "success", title, message, duration });
-  },
-  error: (title: string, message?: string, duration?: number) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    useToastStore.getState().addToast({ type: "error", title, message, duration });
-  },
-  info: (title: string, message?: string, duration?: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    useToastStore.getState().addToast({ type: "info", title, message, duration });
-  },
-  warning: (title: string, message?: string, duration?: number) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    useToastStore.getState().addToast({ type: "warning", title, message, duration });
-  },
+  title?: string;
+  message: string;
+  variant?: ToastVariant;
+  durationMs?: number; // auto-dismiss
 };
 
-// Individual toast component
-function ToastItem({ toast: toastData, onDismiss }: { toast: ToastData; onDismiss: () => void }) {
-  const translateX = useSharedValue(0);
-  const opacity = useSharedValue(1);
+function getToastStyle(variant: ToastVariant) {
+  switch (variant) {
+    case "success":
+      return { bg: "#16A34A", icon: "checkmark-circle-outline" as const };
+    case "warning":
+      return { bg: "#F59E0B", icon: "warning-outline" as const };
+    case "error":
+      return { bg: "#EF4444", icon: "close-circle-outline" as const };
+    case "info":
+    default:
+      return { bg: "#3B82F6", icon: "information-circle-outline" as const };
+  }
+}
 
-  const typeConfig = {
-    success: {
-      bg: "#10B981",
-      icon: <Check size={20} color="#fff" strokeWidth={3} />,
-    },
-    error: {
-      bg: "#EF4444",
-      icon: <X size={20} color="#fff" strokeWidth={3} />,
-    },
-    info: {
-      bg: "#3B82F6",
-      icon: <Info size={20} color="#fff" strokeWidth={3} />,
-    },
-    warning: {
-      bg: "#F59E0B",
-      icon: <AlertCircle size={20} color="#fff" strokeWidth={3} />,
-    },
-  };
-
-  const config = typeConfig[toastData.type];
-  const duration = toastData.duration ?? 3000;
+function ToastItem({
+  toast,
+  onDismiss,
+}: {
+  toast: ToastData;
+  onDismiss?: (id: string) => void;
+}) {
+  const variant: ToastVariant = toast.variant ?? "info";
+  const { bg, icon } = getToastStyle(variant);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onDismiss();
-    }, duration);
-    return () => clearTimeout(timer);
-  }, [duration, onDismiss]);
+    const duration = toast.durationMs ?? 3500;
+    if (!duration || duration <= 0) return;
 
-  const panGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      translateX.value = e.translationX;
-      opacity.value = 1 - Math.abs(e.translationX) / (SCREEN_WIDTH / 2);
-    })
-    .onEnd((e) => {
-      if (Math.abs(e.translationX) > SCREEN_WIDTH / 4) {
-        translateX.value = withTiming(e.translationX > 0 ? SCREEN_WIDTH : -SCREEN_WIDTH, {}, () => {
-          runOnJS(onDismiss)();
-        });
-      } else {
-        translateX.value = withSpring(0);
-        opacity.value = withSpring(1);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    opacity: opacity.value,
-  }));
+    const t = setTimeout(() => onDismiss?.(toast.id), duration);
+    return () => clearTimeout(t);
+  }, [toast.durationMs, toast.id, onDismiss]);
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View
-        entering={SlideInUp.springify().damping(15)}
-        exiting={SlideOutUp.springify().damping(15)}
-        style={[animatedStyle]}
-        className="mx-4 mb-2"
-      >
-        <Pressable
-          onPress={onDismiss}
-          className="flex-row items-center p-4 rounded-2xl"
-          style={{
-            backgroundColor: config.bg,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 8,
-          }}
-        >
-          <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center mr-3">
-            {config.icon}
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-semibold text-base">{toastData.title}</Text>
-            {toastData.message && (
-              <Text className="text-white/80 text-sm mt-0.5">{toastData.message}</Text>
-            )}
-          </View>
-        </Pressable>
-      </Animated.View>
-    </GestureDetector>
+    <Pressable
+      onPress={() => onDismiss?.(toast.id)}
+      style={[styles.toast, { backgroundColor: bg }]}
+      accessibilityRole="button"
+      accessibilityLabel={toast.title ? `${toast.title}. ${toast.message}` : toast.message}
+    >
+      <View style={styles.iconWrap}>
+        <Ionicons name={icon} size={20} color="#fff" />
+      </View>
+
+      <View style={styles.textWrap}>
+        {!!toast.title && <Text style={styles.title}>{toast.title}</Text>}
+        <Text style={styles.message}>{toast.message}</Text>
+      </View>
+
+      <View style={styles.closeWrap}>
+        <Ionicons name="close" size={18} color="#fff" />
+      </View>
+    </Pressable>
   );
 }
 
-// Toast container - render this at the root
-export function ToastContainer() {
-  const insets = useSafeAreaInsets();
-  const toasts = useToastStore((s) => s.toasts);
-  const removeToast = useToastStore((s) => s.removeToast);
-
-  if (toasts.length === 0) return null;
+/**
+ * ToastContainer
+ * - Safe default: toasts = []
+ * - Renders nothing if empty
+ */
+export function ToastContainer({
+  toasts = [],
+  onDismiss,
+}: {
+  toasts?: ToastData[];
+  onDismiss?: (id: string) => void;
+}) {
+  if (!Array.isArray(toasts) || toasts.length === 0) return null;
 
   return (
-    <View
-      className="absolute left-0 right-0 z-50"
-      style={{ top: insets.top + 8 }}
-      pointerEvents="box-none"
-    >
+    <View pointerEvents="box-none" style={styles.container}>
       {toasts.map((t) => (
-        <ToastItem
-          key={t.id}
-          toast={t}
-          onDismiss={() => removeToast(t.id)}
-        />
+        <ToastItem key={t.id} toast={t} onDismiss={onDismiss} />
       ))}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 90, // above bottom nav
+    gap: 10,
+    zIndex: 9999,
+  },
+  toast: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  iconWrap: {
+    width: 28,
+    alignItems: "center",
+    marginRight: 10,
+  },
+  textWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  title: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  message: {
+    color: "#fff",
+    fontSize: 13,
+    opacity: 0.95,
+  },
+  closeWrap: {
+    width: 28,
+    alignItems: "flex-end",
+    marginLeft: 8,
+  },
+});
+
+/**
+ * Safe toast API that never crashes.
+ * Uses Alert.alert as fallback to guarantee runtime safety.
+ * All files can safely import and call safeToast.success/error/warning/info.
+ */
+export const toast = {
+  success(title: string, message?: string) {
+    if (__DEV__) console.log('[Toast Success]', title, message);
+    Alert.alert(title, message ?? "");
+  },
+  error(title: string, message?: string) {
+    if (__DEV__) console.error('[Toast Error]', title, message);
+    Alert.alert(title, message ?? "");
+  },
+  warning(title: string, message?: string) {
+    if (__DEV__) console.warn('[Toast Warning]', title, message);
+    Alert.alert(title, message ?? "");
+  },
+  info(title: string, message?: string) {
+    if (__DEV__) console.log('[Toast Info]', title, message);
+    Alert.alert(title, message ?? "");
+  },
+};

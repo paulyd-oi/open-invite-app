@@ -1,15 +1,22 @@
 import React from "react";
-import { Pressable, Text, View, ActivityIndicator, StyleProp, ViewStyle, TextStyle } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  ActivityIndicator,
+  StyleProp,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
-import { LucideIcon } from "lucide-react-native";
+import type { LucideIcon } from "@/ui/icons";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -64,7 +71,6 @@ export function AnimatedButton({
   const handlePress = () => {
     if (disabled || loading) return;
 
-    // Haptic feedback
     if (hapticStyle !== "none") {
       const feedbackStyle = {
         light: Haptics.ImpactFeedbackStyle.Light,
@@ -77,15 +83,13 @@ export function AnimatedButton({
     onPress();
   };
 
-  // Size styles
   const sizeStyles = {
     sm: { paddingVertical: 8, paddingHorizontal: 16, fontSize: 14, iconSize: 16 },
     md: { paddingVertical: 12, paddingHorizontal: 20, fontSize: 16, iconSize: 18 },
     lg: { paddingVertical: 16, paddingHorizontal: 28, fontSize: 18, iconSize: 20 },
   }[size];
 
-  // Variant styles
-  const getVariantStyles = () => {
+  const variantStyles = (() => {
     switch (variant) {
       case "primary":
         return {
@@ -123,9 +127,7 @@ export function AnimatedButton({
           textColor: "#FFFFFF",
         };
     }
-  };
-
-  const variantStyles = getVariantStyles();
+  })();
 
   return (
     <AnimatedPressable
@@ -145,16 +147,14 @@ export function AnimatedButton({
           borderWidth: variantStyles.borderWidth,
           borderColor: variantStyles.borderColor,
           alignSelf: fullWidth ? "stretch" : "flex-start",
+          opacity: disabled ? 0.7 : 1,
         },
         animatedStyle,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variantStyles.textColor}
-        />
+        <ActivityIndicator size="small" color={variantStyles.textColor} />
       ) : (
         <>
           {Icon && iconPosition === "left" && (
@@ -164,6 +164,7 @@ export function AnimatedButton({
               style={{ marginRight: 8 }}
             />
           )}
+
           <Text
             style={[
               {
@@ -176,6 +177,7 @@ export function AnimatedButton({
           >
             {title}
           </Text>
+
           {Icon && iconPosition === "right" && (
             <Icon
               size={sizeStyles.iconSize}
@@ -189,7 +191,6 @@ export function AnimatedButton({
   );
 }
 
-// Icon-only animated button
 interface AnimatedIconButtonProps {
   onPress: () => void;
   icon: LucideIcon;
@@ -213,7 +214,7 @@ export function AnimatedIconButton({
   hapticStyle = "light",
   style,
 }: AnimatedIconButtonProps) {
-  const { themeColor, isDark, colors } = useTheme();
+  const { themeColor, isDark } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({

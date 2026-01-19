@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { Zap, Coffee, UtensilsCrossed, Dumbbell, Film, Gamepad2, Beer, Music, BookOpen, ShoppingBag, X } from "lucide-react-native";
+import { Zap, Coffee, UtensilsCrossed, Dumbbell, Film, Gamepad2, Beer, Music, BookOpen, ShoppingBag, X } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, FadeOut, SlideInUp, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
@@ -126,7 +126,7 @@ export function QuickEventButton() {
             elevation: 8,
           }}
         >
-          <Zap size={20} color="#fff" fill="#fff" />
+          <Zap size={20} color="#fff" />
           <Text className="text-white font-bold ml-2">Quick Plan</Text>
         </Pressable>
       </Animated.View>

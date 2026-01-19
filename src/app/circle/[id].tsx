@@ -12,14 +12,14 @@ import {
   Modal,
   Keyboard,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import {
   ArrowLeft,
-  Send,
+  MessageCircle,
   Calendar,
   Clock,
   MapPin,
@@ -35,7 +35,7 @@ import {
   UserPlus,
   Check,
   UserCheck,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -783,7 +783,7 @@ export default function CircleScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Failed to add members. Please try again.");
+      safeToast.error("Error", "Failed to add members. Please try again.");
     },
   });
 
@@ -883,7 +883,7 @@ export default function CircleScreen() {
 
   const handleAddMembers = () => {
     if (selectedFriends.length === 0) {
-      toast.warning("Select Friends", "Please select at least one friend to add.");
+      safeToast.warning("Select Friends", "Please select at least one friend to add.");
       return;
     }
 
@@ -1127,7 +1127,7 @@ export default function CircleScreen() {
               backgroundColor: message.trim() ? themeColor : isDark ? "#2C2C2E" : "#E5E7EB",
             }}
           >
-            <Send
+            <MessageCircle
               size={18}
               color={message.trim() ? "#fff" : colors.textTertiary}
               style={{ marginLeft: 2 }}

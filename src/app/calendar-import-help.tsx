@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
-import { ChevronLeft, Share2, CalendarPlus, CheckCircle } from "lucide-react-native";
+import { ChevronLeft, Share2, CalendarPlus, CheckCircle } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

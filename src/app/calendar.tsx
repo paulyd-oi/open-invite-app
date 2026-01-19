@@ -22,7 +22,7 @@ import {
   CalendarPlus,
   Trash2,
   Palette,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
@@ -30,8 +30,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
 
-import { BottomNavigation } from "@/components/BottomNavigation";
-import { toast } from "@/components/Toast";
+import BottomNavigation from "@/components/BottomNavigation";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -176,7 +176,7 @@ const addEventToDeviceCalendar = async (event: Event) => {
     const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
 
     if (status !== "granted") {
-      toast.warning(
+      safeToast.warning(
         "Permission Required",
         "Please allow calendar access in Settings to add events."
       );
@@ -217,7 +217,7 @@ const addEventToDeviceCalendar = async (event: Event) => {
     }
 
     if (!targetCalendar) {
-      toast.error(
+      safeToast.error(
         "No Calendar Found",
         "Could not find a writable calendar."
       );
@@ -233,13 +233,13 @@ const addEventToDeviceCalendar = async (event: Event) => {
       alarms: [{ relativeOffset: -30 }],
     });
 
-    toast.success(
+    safeToast.success(
       "Event Added!",
       `"${event.title}" has been added to your calendar.`
     );
   } catch (error: any) {
     console.error("Error adding to calendar:", error);
-    toast.error("Error", "Failed to add event to calendar.");
+    safeToast.error("Error", "Failed to add event to calendar.");
   }
 };
 
@@ -614,9 +614,6 @@ function EventListItem({
 
   // Determine the correct route for the event
   const getEventRoute = () => {
-    if (event.isBusinessEvent && event.businessEventId) {
-      return `/business-event/${event.businessEventId}`;
-    }
     return `/event/${event.id}`;
   };
 
@@ -1335,7 +1332,7 @@ export default function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to delete event");
+      safeToast.error("Error", "Failed to delete event");
     },
   });
 
@@ -1349,7 +1346,7 @@ export default function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to update event color");
+      safeToast.error("Error", "Failed to update event color");
     },
   });
 

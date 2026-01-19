@@ -76,6 +76,7 @@ function RootLayoutNav() {
         <Stack.Screen name="calendar" />
         <Stack.Screen name="create" />
         <Stack.Screen name="friends" />
+        <Stack.Screen name="circles" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="settings" />
         <Stack.Screen

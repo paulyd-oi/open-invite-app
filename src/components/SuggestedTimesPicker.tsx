@@ -8,7 +8,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Clock, Users, Check, ChevronRight, Sparkles, Calendar } from "lucide-react-native";
+import { Clock, Users, Check, ChevronRight, Sparkles, Calendar } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";

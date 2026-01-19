@@ -22,7 +22,7 @@ import {
   MessageCircle,
   MapPin,
   Star,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 
 interface EmptyStateProps {
@@ -42,7 +42,7 @@ function FloatingElement({
   x,
   y,
 }: {
-  icon: React.ElementType;
+  icon: React.ElementType | undefined;
   color: string;
   size: number;
   delay: number;
@@ -69,6 +69,11 @@ function FloatingElement({
     transform: [{ translateY: translateY.value }],
   }));
 
+  // Guard: only render if Icon is a valid component
+  if (!Icon || typeof Icon !== 'function') {
+    return null;
+  }
+
   return (
     <Animated.View
       entering={FadeIn.delay(delay).duration(600)}
@@ -88,7 +93,7 @@ function FloatingElement({
 }
 
 // Pulsing center icon
-function PulsingIcon({ icon: Icon, color, backgroundColor }: { icon: React.ElementType; color: string; backgroundColor: string }) {
+function PulsingIcon({ icon: Icon, color, backgroundColor }: { icon: React.ElementType | undefined; color: string; backgroundColor: string }) {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(0.3);
 
@@ -115,6 +120,22 @@ function PulsingIcon({ icon: Icon, color, backgroundColor }: { icon: React.Eleme
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
+
+  // Guard: only render if Icon is a valid component
+  if (!Icon || typeof Icon !== 'function') {
+    return (
+      <View className="items-center justify-center">
+        <View
+          style={{
+            width: 100,
+            height: 100,
+            borderRadius: 50,
+            backgroundColor: color,
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View className="items-center justify-center">

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Image, ScrollView } from "react-native";
-import { Users } from "lucide-react-native";
+import { Users } from "@/ui/icons";
 import Animated, { FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";

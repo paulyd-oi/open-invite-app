@@ -12,6 +12,7 @@ import {
   Share,
   Switch,
 } from "react-native";
+import { openMaps } from "@/utils/openMaps";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,20 +21,18 @@ import {
   MapPin,
   Clock,
   Users,
-  Globe,
+  Compass,
   UserPlus,
   Check,
   X,
   Calendar,
-  Navigation,
+  ArrowRight,
   ChevronRight,
   UserCheck,
   Pencil,
   MessageCircle,
-  Send,
   ImagePlus,
   Trash2,
-  CalendarPlus,
   Share2,
   Heart,
   Bell,
@@ -42,7 +41,7 @@ import {
   NotebookPen,
   CalendarCheck,
   RefreshCw,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -53,7 +52,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   type GetEventsResponse,
@@ -66,7 +65,7 @@ import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
 import { EventCategoryBadge } from "@/components/EventCategoryPicker";
 import { EventSummaryModal } from "@/components/EventSummaryModal";
-import { MapPreview } from "@/components/MapPreview";
+// MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
   isEventSynced,
@@ -74,28 +73,15 @@ import {
   requestCalendarPermissions,
 } from "@/lib/calendarSync";
 
-// Helper to open location in maps
-const openInMaps = (location: string) => {
-  const encodedLocation = encodeURIComponent(location);
+// Helper to open event location using the shared utility
+const openEventLocation = (event: any) => {
+  const lat = event?.lat ?? event?.latitude ?? event?.latitude;
+  const lng = event?.lng ?? event?.longitude ?? event?.longitude;
 
-  // iOS uses Apple Maps by default, Android uses Google Maps
-  const scheme = Platform.select({
-    ios: `maps:0,0?q=${encodedLocation}`,
-    android: `geo:0,0?q=${encodedLocation}`,
-  });
-
-  const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedLocation}`;
-
-  if (scheme) {
-    Linking.canOpenURL(scheme).then((supported) => {
-      if (supported) {
-        Linking.openURL(scheme);
-      } else {
-        Linking.openURL(webUrl);
-      }
-    });
+  if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
+    openMaps({ lat: Number(lat), lng: Number(lng), label: event?.location ?? event?.title });
   } else {
-    Linking.openURL(webUrl);
+    openMaps({ query: event?.location ?? event?.title });
   }
 };
 
@@ -128,7 +114,7 @@ const openGoogleCalendar = (event: { title: string; description?: string | null;
 };
 
 // Helper to add event to device calendar (Apple Calendar on iOS)
-const addToDeviceCalendar = async (event: { title: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }, showToast: typeof toast) => {
+const addToDeviceCalendar = async (event: { title: string; description?: string | null; location?: string | null; startTime: string; endTime?: string | null }, showToast: typeof safeToast) => {
   try {
     // Request calendar permissions
     const { status } = await ExpoCalendar.requestCalendarPermissionsAsync();
@@ -258,7 +244,7 @@ export default function EventDetailScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const [joinMessage, setJoinMessage] = useState("");
   const [showJoinForm, setShowJoinForm] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, _setShowMap] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentImage, setCommentImage] = useState<string | null>(null);
@@ -364,23 +350,23 @@ export default function EventDetailScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         if (result.isUpdate) {
-          toast.success(
+          safeToast.success(
             "Calendar Updated",
             `Event updated in ${result.calendarTitle ?? "your calendar"}`
           );
         } else {
-          toast.success(
+          safeToast.success(
             "Added to Calendar",
             `Synced to ${result.calendarTitle ?? "your calendar"}`
           );
         }
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        toast.error("Sync Failed", result.error ?? "Could not sync to calendar");
+        safeToast.error("Sync Failed", result.error ?? "Could not sync to calendar");
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Sync Failed", error?.message ?? "An error occurred");
+      safeToast.error("Sync Failed", error?.message ?? "An error occurred");
     } finally {
       setIsSyncing(false);
     }
@@ -454,12 +440,12 @@ export default function EventDetailScreen() {
       api.post(`/api/events/${id}/join`, { message }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("You're Attending!", "This event has been added to your calendar.");
+      safeToast.success("You're Attending!", "This event has been added to your calendar.");
       setShowJoinForm(false);
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to join event");
+      safeToast.error("Error", "Failed to join event");
     },
   });
 
@@ -483,7 +469,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to post comment");
+      safeToast.error("Error", "Failed to post comment");
     },
   });
 
@@ -495,7 +481,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
     },
     onError: () => {
-      toast.error("Error", "Failed to delete comment");
+      safeToast.error("Error", "Failed to delete comment");
     },
   });
 
@@ -530,7 +516,7 @@ export default function EventDetailScreen() {
       setShowRsvpOptions(false);
     },
     onError: () => {
-      toast.error("Failed to update RSVP. Please try again.");
+      safeToast.error("Failed to update RSVP. Please try again.");
     },
   });
 
@@ -584,7 +570,7 @@ export default function EventDetailScreen() {
         setCommentImage(uploadResponse.url);
       } catch (error) {
         console.error("Image upload failed:", error);
-        toast.error("Upload Failed", "Could not upload image. Please try again.");
+        safeToast.error("Upload Failed", "Could not upload image. Please try again.");
       } finally {
         setIsUploadingImage(false);
       }
@@ -636,6 +622,17 @@ export default function EventDetailScreen() {
         <Stack.Screen options={{ title: "Event" }} />
         <View className="flex-1 items-center justify-center">
           <Text style={{ color: colors.textSecondary }}>Please sign in</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!id) {
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: "Event" }} />
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textSecondary }}>Invalid event ID</Text>
         </View>
       </SafeAreaView>
     );
@@ -701,7 +698,7 @@ export default function EventDetailScreen() {
                 }}
                 className="p-2"
               >
-                <Send size={20} color={themeColor} />
+                <MessageCircle size={20} color={themeColor} />
               </Pressable>
               {/* Edit Button (only for owner) */}
               {isMyEvent && (
@@ -741,12 +738,12 @@ export default function EventDetailScreen() {
             {event.user && (
               <View className="flex-row items-center py-3 border-t" style={{ borderColor: colors.border }}>
                 <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                  {event.user.image ? (
-                    <Image source={{ uri: event.user.image }} className="w-full h-full" />
+                  {event.user?.image ? (
+                    <Image source={{ uri: event.user?.image }} className="w-full h-full" />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
                       <Text className="text-sm font-semibold" style={{ color: themeColor }}>
-                        {event.user.name?.[0] ?? "?"}
+                        {event.user?.name?.[0] ?? "?"}
                       </Text>
                     </View>
                   )}
@@ -754,7 +751,7 @@ export default function EventDetailScreen() {
                 <View className="flex-1">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
                   <Text className="font-semibold" style={{ color: colors.text }}>
-                    {isMyEvent ? "You" : event.user.name ?? event.user.email ?? "Guest"}
+                    {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
                   </Text>
                 </View>
               </View>
@@ -777,7 +774,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setShowMap(!showMap);
+                    openEventLocation(event);
                   }}
                   className="flex-row items-center"
                 >
@@ -794,35 +791,26 @@ export default function EventDetailScreen() {
                     }}
                   />
                 </Pressable>
-
-                {showMap && (
-                  <View className="mt-3 ml-8">
-                    {/* Map Preview */}
-                    <View className="mb-3">
-                      <MapPreview location={event.location} height={140} />
-                    </View>
-
-                    {/* Navigation Button */}
-                    <Pressable
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        openInMaps(event.location!);
-                      }}
-                      className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
-                      style={{
-                        shadowColor: "#4ECDC4",
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 4,
-                      }}
-                    >
-                      <Navigation size={18} color="#fff" />
-                      <Text className="text-white font-semibold ml-2">
-                        Get Directions
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
+                <View className="mt-3 ml-8">
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      openEventLocation(event);
+                    }}
+                    className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
+                    style={{
+                      shadowColor: "#4ECDC4",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                    }}
+                  >
+                    <ArrowRight size={18} color="#fff" />
+                    <Text className="text-white font-semibold ml-2">
+                      Get Directions
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             )}
 
@@ -845,7 +833,7 @@ export default function EventDetailScreen() {
             <View className="py-3 border-t" style={{ borderColor: colors.border }}>
               <View className="flex-row items-center">
                 {event.visibility === "all_friends" ? (
-                  <Globe size={20} color="#9CA3AF" />
+                  <Compass size={20} color="#9CA3AF" />
                 ) : (
                   <Users size={20} color="#9CA3AF" />
                 )}
@@ -926,7 +914,7 @@ export default function EventDetailScreen() {
               ) : (
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center flex-1">
-                    <CalendarPlus size={18} color={themeColor} />
+                    <Calendar size={18} color={themeColor} />
                     <View className="ml-2">
                       <Text className="font-semibold text-sm" style={{ color: colors.text }}>
                         Sync to Calendar
@@ -1088,7 +1076,6 @@ export default function EventDetailScreen() {
                               key={star}
                               size={18}
                               color={star <= event.summaryRating! ? "#F59E0B" : isDark ? "#3C3C3E" : "#E5E7EB"}
-                              fill={star <= event.summaryRating! ? "#F59E0B" : "transparent"}
                             />
                           ))}
                         </View>
@@ -1184,14 +1171,14 @@ export default function EventDetailScreen() {
                       style={{ width: 60 }}
                     >
                       <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-1 border-2 border-green-200">
-                        {attendee.user.image ? (
+                        {attendee.user?.image ? (
                           <Image
                             source={{ uri: attendee.user.image }}
                             className="w-full h-full rounded-full"
                           />
                         ) : (
                           <Text className="text-lg font-semibold text-green-600">
-                            {attendee.user.name?.[0] ?? "?"}
+                            {attendee.user?.name?.[0] ?? "?"}
                           </Text>
                         )}
                       </View>
@@ -1200,7 +1187,7 @@ export default function EventDetailScreen() {
                         style={{ color: colors.textSecondary }}
                         numberOfLines={1}
                       >
-                        {attendee.user.name?.split(" ")[0] ?? "Guest"}
+                        {attendee.user?.name?.split(" ")[0] ?? "Guest"}
                       </Text>
                     </Pressable>
                   ))}
@@ -1309,7 +1296,7 @@ export default function EventDetailScreen() {
                   >
                     <View className="flex-row items-center">
                       {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
-                      {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" fill="#EC4899" />}
+                      {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
                       {myRsvpStatus === "maybe" && <Clock size={20} color="#F59E0B" />}
                       {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
                       <Text className="font-semibold ml-2" style={{
@@ -1416,7 +1403,7 @@ export default function EventDetailScreen() {
               className="flex-row items-center justify-between"
             >
               <View className="flex-row items-center">
-                <Heart size={16} color="#EC4899" fill="#EC4899" />
+                <Heart size={16} color="#EC4899" />
                 <Text className="font-semibold ml-2" style={{ color: colors.text }}>
                   {interests.length} Interested
                 </Text>
@@ -1466,7 +1453,7 @@ export default function EventDetailScreen() {
               className="rounded-xl p-4 flex-row items-center"
               style={{ backgroundColor: "#EC489910", borderWidth: 1, borderColor: "#EC489930" }}
             >
-              <Heart size={20} color="#EC4899" fill="#EC4899" />
+              <Heart size={20} color="#EC4899" />
               <View className="ml-3 flex-1">
                 <Text className="font-semibold" style={{ color: colors.text }}>
                   {interests.length} people interested
@@ -1569,7 +1556,7 @@ export default function EventDetailScreen() {
                   {createCommentMutation.isPending ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Send size={18} color={commentText.trim() || commentImage ? "#fff" : "#9CA3AF"} />
+                    <MessageCircle size={18} color={commentText.trim() || commentImage ? "#fff" : "#9CA3AF"} />
                   )}
                 </Pressable>
               </View>
@@ -1726,7 +1713,7 @@ export default function EventDetailScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowSyncModal(false);
-                  addToDeviceCalendar(event, toast);
+                  addToDeviceCalendar(event, safeToast);
                 }}
                 className="flex-row items-center px-5 py-4"
               >

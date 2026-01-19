@@ -6,13 +6,13 @@ import {
   Check,
   User,
   Users,
-  CalendarPlus,
+  Calendar,
   Briefcase,
   ChevronDown,
   ChevronUp,
   Sparkles,
   PartyPopper,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeOut, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -95,7 +95,7 @@ export function GettingStartedChecklist() {
       title: "Plan something",
       description: "Share what you're up to",
       encouragement: "Even coffee counts!",
-      icon: <CalendarPlus size={18} color={hasEvents ? "#10B981" : colors.textTertiary} />,
+      icon: <Calendar size={18} color={hasEvents ? "#10B981" : colors.textTertiary} />,
       completed: hasEvents,
       action: () => router.push("/create"),
     },

@@ -1,6 +1,10 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { View, Text, Pressable } from "react-native";
-import { AlertTriangle, RefreshCw } from "lucide-react-native";
+
+// IMPORTANT:
+// If an icon export is missing, importing it will be `undefined`.
+// This file is written to NEVER crash even if icons are missing.
+import { AlertTriangle, RefreshCw } from "@/ui/icons";
 
 interface Props {
   children: ReactNode;
@@ -12,12 +16,27 @@ interface State {
   error: Error | null;
 }
 
-/**
- * Error Boundary Component
- *
- * Catches JavaScript errors anywhere in the child component tree,
- * logs those errors, and displays a fallback UI instead of crashing.
- */
+type IconLike =
+  | React.ComponentType<{ size?: number; color?: string; style?: any }>
+  | undefined;
+
+function SafeIcon({
+  Icon,
+  size,
+  color,
+}: {
+  Icon: IconLike;
+  size: number;
+  color: string;
+}) {
+  if (!Icon) {
+    return (
+      <Text style={{ color, fontSize: size * 0.9, fontWeight: "700" }}>!</Text>
+    );
+  }
+  return <Icon size={size} color={color} />;
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -25,12 +44,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console (in production, send to error reporting service)
     console.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
@@ -40,42 +57,107 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      // Custom fallback UI
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
+      if (this.props.fallback) return this.props.fallback;
+
+      const accent = "#FF6B4A";
+      const danger = "#EF4444";
+      const bg = "#FFF9F5";
+      const text = "#111827";
+      const subtext = "#6B7280";
 
       return (
-        <View className="flex-1 items-center justify-center px-6 bg-[#FFF9F5]">
-          <View className="w-20 h-20 rounded-full bg-red-100 items-center justify-center mb-6">
-            <AlertTriangle size={40} color="#EF4444" />
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 24,
+            backgroundColor: bg,
+          }}
+        >
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: "rgba(239,68,68,0.12)",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 24,
+            }}
+          >
+            <SafeIcon Icon={AlertTriangle as any} size={40} color={danger} />
           </View>
 
-          <Text className="text-2xl font-bold text-gray-900 text-center mb-2">
+          <Text
+            style={{
+              fontSize: 22,
+              fontWeight: "800",
+              color: text,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
             Oops! Something went wrong
           </Text>
 
-          <Text className="text-base text-gray-500 text-center mb-8">
-            We're sorry for the inconvenience. Please try refreshing the app.
+          <Text
+            style={{
+              fontSize: 15,
+              color: subtext,
+              textAlign: "center",
+              marginBottom: 18,
+              lineHeight: 20,
+            }}
+          >
+            Please try again. If this keeps happening, restart the app.
           </Text>
 
           <Pressable
             onPress={this.handleReset}
-            className="flex-row items-center bg-[#FF6B4A] px-6 py-3 rounded-xl mb-3"
             style={{
-              shadowColor: "#FF6B4A",
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: accent,
+              paddingHorizontal: 18,
+              paddingVertical: 12,
+              borderRadius: 12,
+              shadowColor: accent,
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
+              shadowOpacity: 0.25,
               shadowRadius: 8,
             }}
           >
-            <RefreshCw size={20} color="#fff" />
-            <Text className="text-white font-semibold ml-2">Try Again</Text>
+            <SafeIcon Icon={RefreshCw as any} size={18} color="#FFFFFF" />
+            <Text
+              style={{
+                color: "#FFFFFF",
+                fontWeight: "700",
+                marginLeft: 8,
+                fontSize: 15,
+              }}
+            >
+              Try Again
+            </Text>
           </Pressable>
 
           {__DEV__ && this.state.error && (
-            <View className="mt-6 p-4 bg-gray-100 rounded-xl w-full">
-              <Text className="text-xs text-gray-600 font-mono">
+            <View
+              style={{
+                marginTop: 18,
+                padding: 12,
+                backgroundColor: "rgba(17,24,39,0.06)",
+                borderRadius: 12,
+                width: "100%",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#374151",
+                  fontFamily: "Menlo",
+                }}
+              >
                 {this.state.error.message}
               </Text>
             </View>

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Image, Pressable } from "react-native";
-import { Users } from "lucide-react-native";
+import { Users } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 
 interface Attendee {

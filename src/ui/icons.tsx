@@ -1,6 +1,6 @@
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
-import type { ViewStyle } from "react-native";
+import type { TextStyle } from "react-native";
 
 /**
  * We keep the existing "LucideIcon" naming to minimize refactors,
@@ -9,7 +9,7 @@ import type { ViewStyle } from "react-native";
 export type LucideIcon = React.ComponentType<{
   color?: string;
   size?: number;
-  style?: ViewStyle | ViewStyle[];
+  style?: TextStyle | TextStyle[];
 }>;
 
 type IonName = React.ComponentProps<typeof Ionicons>["name"];
@@ -17,7 +17,7 @@ type IonName = React.ComponentProps<typeof Ionicons>["name"];
 function ion(name: IonName): LucideIcon {
   const Icon: LucideIcon = ({ color, size = 24, style }) => {
     const resolvedColor = color === "currentColor" ? undefined : color;
-    return <Ionicons name={name} size={size} color={resolvedColor as any} style={style} />;
+    return <Ionicons name={name} size={size} color={resolvedColor as any} style={style as any} />;
   };
   return Icon;
 }
@@ -127,13 +127,13 @@ export const Film = ion("film-outline");
 export const Music = ion("musical-notes-outline");
 export const ShoppingBag = ion("bag-outline");
 export const NotebookPen = ion("document-outline");
-export const CalendarCheck = ion("checkmark-calendar-outline");
+export const CalendarCheck = ion("calendar-outline");
 
 // Additional icons for common UI
 export const Settings = ion("settings-outline");
 export const Shield = ion("shield-outline");
 export const LogOut = ion("log-out-outline");
-export const BadgeCheck = ion("checkmark-badge-outline");
+export const BadgeCheck = ion("medal-outline");
 export const UserX = ion("person-remove-outline");
 export const Phone = ion("call-outline");
 export const List = ion("list-outline");
@@ -142,16 +142,16 @@ export const Send = ion("send-outline");
 export const Cake = ion("gift-outline");
 export const Palette = ion("color-palette-outline");
 export const Navigation = ion("navigate-outline");
-export const UserCheck = ion("person-done-outline");
+export const UserCheck = ion("checkmark-circle-outline");
 export const CalendarPlus = ion("calendar-outline");
 export const Repeat = ion("repeat-outline");
 export const Award = ion("ribbon-outline");
-export const History = ion("history-outline");
+export const History = ion("time-outline");
 export const ExternalLink = ion("open-outline");
 export const Heart = ion("heart-outline");
 export const Play = ion("play-outline");
 export const Bookmark = ion("bookmark-outline");
-export const Headphones = ion("headphones-outline");
+export const Headphones = ion("headset-outline");
 export const TrendingUp = ion("trending-up-outline");
 export const Sun = ion("sunny-outline");
 export const Moon = ion("moon-outline");

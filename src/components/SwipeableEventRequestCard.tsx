@@ -10,7 +10,7 @@ import Animated, {
   interpolate,
   interpolateColor,
 } from "react-native-reanimated";
-import { Check, X, Clock, Users } from "lucide-react-native";
+import { Check, X, Clock, Users } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useTheme, type DARK_COLORS } from "@/lib/ThemeContext";

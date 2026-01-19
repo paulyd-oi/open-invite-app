@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Image } from "react-native";
-import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar, Building2 } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar, Building2 } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
@@ -93,11 +93,7 @@ function EventListItem({
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose?.();
-    if (event.isBusinessEvent && event.businessId) {
-      router.push(`/business-event/${event.id}` as any);
-    } else {
-      router.push(`/event/${event.id}` as any);
-    }
+    router.push(`/event/${event.id}` as any);
   };
 
   return (

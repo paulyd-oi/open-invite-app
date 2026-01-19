@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, Trophy, MapPin, Clock } from "lucide-react-native";
+import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, Trophy, MapPin, Clock } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

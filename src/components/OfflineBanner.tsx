@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
-import { WifiOff, RefreshCw, Cloud } from "lucide-react-native";
+import { WifiOff, RefreshCw, Cloud } from "@/ui/icons";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useTheme } from "@/lib/ThemeContext";

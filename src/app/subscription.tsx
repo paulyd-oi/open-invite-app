@@ -31,7 +31,7 @@ import {
   Zap,
   Star,
   Heart,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
@@ -45,7 +45,7 @@ import {
   restorePurchases,
   getCustomerInfo,
 } from "@/lib/revenuecatClient";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { useSubscription, FREE_TIER_LIMITS, PRO_TIER_LIMITS, PRICING } from "@/lib/useSubscription";
 import type { PurchasesPackage } from "react-native-purchases";
 
@@ -131,7 +131,7 @@ export default function SubscriptionScreen() {
     const packageToPurchase = selectedPlan === "yearly" ? yearlyPackage : lifetimePackage;
 
     if (!packageToPurchase) {
-      toast.error("Error", "Unable to load subscription options. Please try again.");
+      safeToast.error("Error", "Unable to load subscription options. Please try again.");
       return;
     }
 
@@ -143,7 +143,7 @@ export default function SubscriptionScreen() {
 
     if (result.ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Welcome to Pro!", "You now have access to all premium features.");
+      safeToast.success("Welcome to Pro!", "You now have access to all premium features.");
       refetch();
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
     } else {
@@ -153,7 +153,7 @@ export default function SubscriptionScreen() {
           : "Purchase could not be completed";
         // Don't show error for user cancellation
         if (!errorMessage.includes("cancel")) {
-          toast.error("Purchase Failed", errorMessage);
+          safeToast.error("Purchase Failed", errorMessage);
         }
       }
     }
@@ -171,14 +171,14 @@ export default function SubscriptionScreen() {
       const customerInfo = await getCustomerInfo();
       if (customerInfo.ok && Object.keys(customerInfo.data.entitlements.active || {}).length > 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.success("Restored!", "Your subscription has been restored.");
+        safeToast.success("Restored!", "Your subscription has been restored.");
         refetch();
         queryClient.invalidateQueries({ queryKey: ["subscription"] });
       } else {
-        toast.info("No Purchases Found", "We couldn't find any previous purchases.");
+        safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
       }
     } else {
-      toast.error("Error", "Failed to restore purchases. Please try again.");
+      safeToast.error("Error", "Failed to restore purchases. Please try again.");
     }
   };
 
@@ -197,19 +197,19 @@ export default function SubscriptionScreen() {
 
       if (response.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        toast.success("Success!", response.benefit || "Promo code applied!");
+        safeToast.success("Success!", response.benefit || "Promo code applied!");
         setPromoCode("");
         refetch();
         queryClient.invalidateQueries({ queryKey: ["subscription"] });
         queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        toast.error("Invalid Code", response.error || "This code is not valid.");
+        safeToast.error("Invalid Code", response.error || "This code is not valid.");
       }
     } catch (error: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMessage = error instanceof Error ? error.message : "Could not validate code.";
-      toast.error("Error", errorMessage);
+      safeToast.error("Error", errorMessage);
     } finally {
       setIsPromoLoading(false);
     }
@@ -534,7 +534,7 @@ export default function SubscriptionScreen() {
                     </View>
                     <View className="w-20 items-center">
                       {feature.proValue === "Yes" ? (
-                        <Check size={14} color="#10B981" strokeWidth={3} />
+                        <Check size={14} color="#10B981" />
                       ) : feature.proValue === "Unlimited" ? (
                         <Text style={{ color: "#10B981" }} className="text-xs font-medium">
                           Unlimited
@@ -593,7 +593,7 @@ export default function SubscriptionScreen() {
                       backgroundColor: selectedPlan === "yearly" ? themeColor : "transparent",
                     }}
                   >
-                    {selectedPlan === "yearly" && <Check size={14} color="#fff" strokeWidth={3} />}
+                    {selectedPlan === "yearly" && <Check size={14} color="#fff" />}
                   </View>
                 </View>
               </Pressable>
@@ -631,7 +631,7 @@ export default function SubscriptionScreen() {
                         backgroundColor: selectedPlan === "lifetime" ? colors.textTertiary : "transparent",
                       }}
                     >
-                      {selectedPlan === "lifetime" && <Check size={14} color="#fff" strokeWidth={3} />}
+                      {selectedPlan === "lifetime" && <Check size={14} color="#fff" />}
                     </View>
                   </View>
                 </Pressable>

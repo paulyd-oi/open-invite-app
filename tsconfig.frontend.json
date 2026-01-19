@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "expo-env.d.ts",
+    "nativewind-env.d.ts",
+    "global.d.ts",
+    "*.d.ts",
+    ".expo/types/**/*.ts",
+    "shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "backend",
+    "android",
+    "ios",
+    "dist",
+    "build",
+    ".expo"
+  ]
+}

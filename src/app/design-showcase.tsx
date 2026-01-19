@@ -34,7 +34,7 @@ import {
   Sun,
   Moon,
   Sparkles,
-} from "lucide-react-native";
+} from "@/ui/icons";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -149,11 +149,11 @@ function BoldVibrantStyle() {
           {/* Controls */}
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Heart size={24} color="#1DB954" fill="#1DB954" />
+              <Heart size={24} color="#1DB954" />
               <Text className="text-white ml-2">24.5K</Text>
             </View>
             <View className="w-16 h-16 rounded-full bg-green-500 items-center justify-center">
-              <Play size={32} color="black" fill="black" />
+              <Play size={32} color="black" />
             </View>
             <View className="flex-row items-center">
               <Share2 size={24} color="#9CA3AF" />
@@ -344,7 +344,7 @@ function EditorialStyle() {
           >
             <View className="flex-row items-center">
               <View className="bg-white/20 backdrop-blur px-3 py-1 rounded-full flex-row items-center">
-                <Star size={14} color="#FFD700" fill="#FFD700" />
+                <Star size={14} color="#FFD700" />
                 <Text className="text-white ml-1 font-medium text-sm">
                   4.98
                 </Text>

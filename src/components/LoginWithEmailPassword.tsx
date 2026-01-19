@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Pressable, Text, TextInput, View, Modal } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { ArrowLeft, Mail, CheckCircle, PartyPopper, Eye, EyeOff, ShieldCheck } from "lucide-react-native";
+import { ArrowLeft, Mail, CheckCircle, PartyPopper, Eye, EyeOff, ShieldCheck } from "@/ui/icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
+import { isRateLimited, getRateLimitRemaining } from "@/lib/rateLimitState";
 
 type AuthView = "login" | "forgotPassword" | "verifyEmail";
 
@@ -79,7 +80,19 @@ export default function LoginWithEmailPassword() {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      toast.error("Error", "Please enter email and password");
+      safeToast.error("Error", "Please enter email and password");
+      return;
+    }
+
+    // Check circuit breaker before attempting login
+    if (isRateLimited()) {
+      const remaining = getRateLimitRemaining();
+      const minutes = Math.floor(remaining / 60);
+      const seconds = remaining % 60;
+      const timeStr = minutes > 0 
+        ? `${minutes}m ${seconds}s` 
+        : `${seconds}s`;
+      safeToast.error("Rate Limit", `Too many requests. Try again in ${timeStr}`);
       return;
     }
 
@@ -98,18 +111,18 @@ export default function LoginWithEmailPassword() {
           // Resend verification code
           await handleResendCode();
         } else {
-          toast.error("Sign In Failed", result.error.message || "Please check your credentials");
+          safeToast.error("Sign In Failed", result.error.message || "Please check your credentials");
         }
       } else if (result.data) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowSuccessModal(true);
         resetForm();
       } else {
-        toast.error("Sign In Failed", "An unexpected error occurred. Please try again.");
+        safeToast.error("Sign In Failed", "An unexpected error occurred. Please try again.");
       }
     } catch (error: any) {
       const message = error?.message || "Unable to connect to server. Please check your internet connection.";
-      toast.error("Sign In Failed", message);
+      safeToast.error("Sign In Failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -117,20 +130,25 @@ export default function LoginWithEmailPassword() {
 
   const handleSignUp = async () => {
     if (!email || !password || !name) {
-      toast.error("Error", "Please fill in all fields");
+      safeToast.error("Error", "Please fill in all fields");
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await authClient.signUp.email({
-        email,
-        password,
-        name,
-      });
+      let result: any;
+      try {
+        const data = await authClient.$fetch('/api/auth/sign-up/email', {
+          method: 'POST',
+          body: { email, password, name },
+        });
+        result = { data };
+      } catch (e: any) {
+        result = { error: { message: e?.message || String(e) } };
+      }
 
       if (result.error) {
-        toast.error("Sign Up Failed", result.error.message || "Please try again");
+        safeToast.error("Sign Up Failed", result.error.message || "Please try again");
       } else if (result.data) {
         // Show verification code screen
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -141,7 +159,7 @@ export default function LoginWithEmailPassword() {
       }
     } catch (error: any) {
       const message = error?.message || "Unable to connect to server. Please check your internet connection.";
-      toast.error("Sign Up Failed", message);
+      safeToast.error("Sign Up Failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -184,6 +202,19 @@ export default function LoginWithEmailPassword() {
       // Success - email verified!
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      // Check circuit breaker before attempting login
+      if (isRateLimited()) {
+        const remaining = getRateLimitRemaining();
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        const timeStr = minutes > 0 
+          ? `${minutes}m ${seconds}s` 
+          : `${seconds}s`;
+        safeToast.error("Rate Limit", `Too many requests. Try again in ${timeStr}`);
+        setAuthView("login"); // Go back to login screen
+        return;
+      }
+
       // Now sign in the user
       const signInResult = await authClient.signIn.email({
         email,
@@ -191,7 +222,7 @@ export default function LoginWithEmailPassword() {
       });
 
       if (signInResult.error) {
-        toast.success("Verification Successful", "Your email has been verified! Please sign in.");
+        safeToast.success("Verification Successful", "Your email has been verified! Please sign in.");
         setAuthView("login");
         setIsSignUp(false);
       } else {
@@ -208,7 +239,7 @@ export default function LoginWithEmailPassword() {
 
   const handleResendCode = async () => {
     if (!email) {
-      toast.error("Error", "Please enter your email address");
+      safeToast.error("Error", "Please enter your email address");
       return;
     }
 
@@ -232,7 +263,7 @@ export default function LoginWithEmailPassword() {
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success("Code Sent", "A new verification code has been sent to your email.");
+      safeToast.success("Code Sent", "A new verification code has been sent to your email.");
 
       // Clear old code
       setVerificationCode(["", "", "", "", ""]);
@@ -240,7 +271,7 @@ export default function LoginWithEmailPassword() {
       codeInputRefs.current[0]?.focus();
     } catch (error: any) {
       const message = error?.message || "Unable to resend code.";
-      toast.error("Error", message);
+      safeToast.error("Error", message);
     } finally {
       setIsLoading(false);
     }
@@ -248,7 +279,7 @@ export default function LoginWithEmailPassword() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      toast.error("Error", "Please enter your email address");
+      safeToast.error("Error", "Please enter your email address");
       return;
     }
 
@@ -273,7 +304,7 @@ export default function LoginWithEmailPassword() {
       setResetEmailSent(true);
     } catch (error: any) {
       const message = error?.message || "Unable to connect to server. Please check your internet connection.";
-      toast.error("Error", message);
+      safeToast.error("Error", message);
     } finally {
       setIsLoading(false);
     }
@@ -282,9 +313,9 @@ export default function LoginWithEmailPassword() {
   const handleSignOut = async () => {
     try {
       await authClient.signOut();
-      toast.success("Success", "Signed out successfully!");
+      safeToast.success("Success", "Signed out successfully!");
     } catch {
-      toast.error("Error", "Failed to sign out");
+      safeToast.error("Error", "Failed to sign out");
     }
   };
 
@@ -360,10 +391,10 @@ export default function LoginWithEmailPassword() {
               Signed in as:
             </Text>
             <Text style={{ color: colors.text }} className="text-base">
-              {session.user.name}
+              {session?.user?.name ?? "User"}
             </Text>
             <Text style={{ color: colors.textSecondary }} className="text-sm">
-              {session.user.email}
+              {session?.user?.email ?? "No email"}
             </Text>
           </View>
           <Pressable

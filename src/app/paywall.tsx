@@ -18,14 +18,14 @@ import {
   Gift,
   Ticket,
   ChevronRight,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { type PurchasesPackage } from "react-native-purchases";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   isRevenueCatEnabled,
@@ -110,7 +110,7 @@ export default function PaywallScreen() {
 
   const handlePurchase = async () => {
     if (!yearlyPackage) {
-      toast.error("Error", "Unable to load subscription. Please try again.");
+      safeToast.error("Error", "Unable to load subscription. Please try again.");
       return;
     }
 
@@ -146,13 +146,13 @@ export default function PaywallScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowRestoreSuccessModal(true);
       } else {
-        toast.info(
+        safeToast.info(
           "No Purchases Found",
           "We couldn't find any previous purchases to restore."
         );
       }
     } else {
-      toast.error("Error", "Failed to restore purchases. Please try again.");
+      safeToast.error("Error", "Failed to restore purchases. Please try again.");
     }
 
     setIsPurchasing(false);
@@ -160,7 +160,7 @@ export default function PaywallScreen() {
 
   const handleRedeemCode = async () => {
     if (!discountCode.trim()) {
-      toast.warning("Error", "Please enter a discount code");
+      safeToast.warning("Error", "Please enter a discount code");
       return;
     }
 
@@ -190,7 +190,7 @@ export default function PaywallScreen() {
           // Use default error message
         }
       }
-      toast.error("Invalid Code", errorMessage);
+      safeToast.error("Invalid Code", errorMessage);
     } finally {
       setIsRedeemingCode(false);
     }

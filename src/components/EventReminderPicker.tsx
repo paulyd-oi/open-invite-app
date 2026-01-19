@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Modal } from "react-native";
-import { Bell, BellOff, Check, ChevronRight, Clock } from "lucide-react-native";
+import { Bell, BellOff, Check, ChevronRight, Clock } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

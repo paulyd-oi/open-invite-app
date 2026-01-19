@@ -15,7 +15,7 @@ import {
   MapPin,
   Clock,
   Users,
-  Globe,
+  Compass,
   ChevronDown,
   Check,
   Trash2,
@@ -23,7 +23,7 @@ import {
   ChevronLeft,
   Lock,
   CloudDownload,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -31,7 +31,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   type GetEventsResponse,
@@ -126,7 +126,7 @@ export default function EditEventScreen() {
       router.back();
     },
     onError: (error) => {
-      toast.error("Error", "Failed to update event. Please try again.");
+      safeToast.error("Error", "Failed to update event. Please try again.");
       console.error(error);
     },
   });
@@ -141,18 +141,18 @@ export default function EditEventScreen() {
       router.replace("/calendar");
     },
     onError: () => {
-      toast.error("Error", "Failed to delete event. Please try again.");
+      safeToast.error("Error", "Failed to delete event. Please try again.");
     },
   });
 
   const handleSave = () => {
     if (!title.trim()) {
-      toast.warning("Missing Title", "Please enter a title for your event.");
+      safeToast.warning("Missing Title", "Please enter a title for your event.");
       return;
     }
 
     if (visibility === "specific_groups" && selectedGroupIds.length === 0) {
-      toast.warning("No Groups Selected", "Please select at least one group.");
+      safeToast.warning("No Groups Selected", "Please select at least one group.");
       return;
     }
 
@@ -446,7 +446,7 @@ export default function EditEventScreen() {
                   minWidth: "30%",
                 }}
               >
-                <Globe size={18} color={visibility === "all_friends" ? themeColor : colors.textTertiary} />
+                <Compass size={18} color={visibility === "all_friends" ? themeColor : colors.textTertiary} />
                 <Text
                   className="ml-2 font-medium"
                   style={{ color: visibility === "all_friends" ? themeColor : colors.textSecondary }}

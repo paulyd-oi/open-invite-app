@@ -35,7 +35,7 @@ import {
   Phone,
   Mail,
   Send,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, {
   FadeInUp,
   SlideInRight,
@@ -55,7 +55,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -633,7 +633,7 @@ const FloatingAddButton = ({
       elevation: 8,
     }}
   >
-    <Plus size={28} color="#fff" strokeWidth={2.5} />
+    <Plus size={28} color="#fff" />
   </Pressable>
 );
 
@@ -668,7 +668,7 @@ export default function OnboardingScreen() {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") {
-        toast.warning(
+        safeToast.warning(
           "Permission Required",
           "Please allow access to contacts to find friends who are using Open Invite."
         );
@@ -696,7 +696,7 @@ export default function OnboardingScreen() {
       setContactsSynced(true);
     } catch (error) {
       console.error("Error loading contacts:", error);
-      toast.error("Error", "Failed to load contacts");
+      safeToast.error("Error", "Failed to load contacts");
     }
     setContactsLoading(false);
   };
@@ -746,7 +746,7 @@ export default function OnboardingScreen() {
 
     if (sentCount > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success(
+      safeToast.success(
         "Invites Sent!",
         `Friend requests sent to ${sentCount} contact${sentCount !== 1 ? "s" : ""}. They'll see your invite when they join Open Invite!`
       );
@@ -1051,7 +1051,7 @@ export default function OnboardingScreen() {
                               borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
                             }}
                           >
-                            {isSelected && <Check size={14} color="#fff" strokeWidth={3} />}
+                            {isSelected && <Check size={14} color="#fff" />}
                           </View>
                         </Pressable>
                       </Animated.View>

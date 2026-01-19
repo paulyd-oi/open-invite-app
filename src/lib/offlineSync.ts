@@ -28,7 +28,7 @@ import {
   generateLocalEventId,
   LocalEvent,
 } from "./offlineStore";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 
 // Types for API responses
 interface CreateEventResponse {
@@ -213,15 +213,15 @@ export function useOfflineSync() {
 
           // Show result
           if (result.failed > 0) {
-            toast.error("Sync Incomplete", `${result.failed} action(s) failed to sync`);
+            safeToast.error("Sync Incomplete", `${result.failed} action(s) failed to sync`);
           } else {
-            toast.success("Synced", "Your changes have been saved");
+            safeToast.success("Synced", "Your changes have been saved");
           }
         } catch (error) {
           if (__DEV__) {
             console.log("[OfflineSync] Queue replay error:", error);
           }
-          toast.error("Sync Failed", "Some changes couldn't be saved");
+          safeToast.error("Sync Failed", "Some changes couldn't be saved");
         } finally {
           setSyncing(false);
           setSyncProgress(null);
@@ -291,7 +291,7 @@ export function useOfflineCreateEvent() {
       localEvent.queueActionId = action.id;
 
       // Show toast
-      toast.info("Saved Offline", "Will sync when you're back online");
+      safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
         console.log("[OfflineSync] Created local event:", localId);
@@ -332,7 +332,7 @@ export function useOfflineRsvp() {
 
       await enqueue("RSVP_CHANGE", { eventId, status } as RsvpChangePayload);
 
-      toast.info("Saved Offline", "Will sync when you're back online");
+      safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
         console.log("[OfflineSync] Queued RSVP change:", eventId, status);
@@ -353,7 +353,7 @@ export function useOfflineRsvp() {
       removeLocalRsvp(eventId);
       await enqueue("DELETE_RSVP", { eventId } as DeleteRsvpPayload);
 
-      toast.info("Saved Offline", "Will sync when you're back online");
+      safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
         console.log("[OfflineSync] Queued RSVP delete:", eventId);

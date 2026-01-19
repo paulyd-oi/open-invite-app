@@ -23,7 +23,7 @@ import {
   Plus,
   Shield,
   AlertTriangle,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 

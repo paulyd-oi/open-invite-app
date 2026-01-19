@@ -22,7 +22,7 @@ import {
   Shield,
   Eye,
   EyeOff,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as FileSystem from "expo-file-system";
@@ -31,7 +31,7 @@ import * as Sharing from "expo-sharing";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
 type FriendRequestSetting = "everyone" | "friends_of_friends" | "nobody";
@@ -72,10 +72,10 @@ export default function PrivacySettingsScreen() {
       api.put<{ success: boolean }>("/api/privacy", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["privacySettings"] });
-      toast.success("Settings Updated", "Your privacy settings have been saved.");
+      safeToast.success("Settings Updated", "Your privacy settings have been saved.");
     },
     onError: () => {
-      toast.error("Error", "Failed to update settings. Please try again.");
+      safeToast.error("Error", "Failed to update settings. Please try again.");
     },
   });
 
@@ -105,13 +105,13 @@ export default function PrivacySettingsScreen() {
           dialogTitle: "Export Your Data",
           UTI: "public.json",
         });
-        toast.success("Export Complete", "Your data has been exported successfully.");
+        safeToast.success("Export Complete", "Your data has been exported successfully.");
       } else {
-        toast.info("Export Ready", `Data saved to ${fileName}`);
+        safeToast.info("Export Ready", `Data saved to ${fileName}`);
       }
     } catch (error) {
       console.error("Export error:", error);
-      toast.error("Export Failed", "Unable to export your data. Please try again.");
+      safeToast.error("Export Failed", "Unable to export your data. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -121,13 +121,13 @@ export default function PrivacySettingsScreen() {
   const deleteAccountMutation = useMutation({
     mutationFn: () => api.delete<{ success: boolean }>("/api/privacy/account"),
     onSuccess: async () => {
-      toast.success("Account Deleted", "Your account has been permanently deleted.");
+      safeToast.success("Account Deleted", "Your account has been permanently deleted.");
       // Sign out and redirect to welcome
       await authClient.signOut();
       router.replace("/welcome");
     },
     onError: () => {
-      toast.error("Error", "Failed to delete account. Please try again.");
+      safeToast.error("Error", "Failed to delete account. Please try again.");
     },
   });
 

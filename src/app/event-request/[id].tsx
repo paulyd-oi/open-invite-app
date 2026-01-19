@@ -8,7 +8,7 @@ import {
   Modal,
   TextInput,
 } from "react-native";
-import { toast } from "@/components/Toast";
+import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -23,7 +23,7 @@ import {
   ChevronRight,
   Bell,
   CalendarClock,
-} from "lucide-react-native";
+} from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -93,7 +93,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to respond:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Failed to respond to event request");
+      safeToast.error("Error", "Failed to respond to event request");
     },
   });
 
@@ -108,7 +108,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to cancel:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Failed to cancel event request");
+      safeToast.error("Error", "Failed to cancel event request");
     },
   });
 
@@ -117,7 +117,7 @@ export default function EventRequestDetailScreen() {
     mutationFn: () => api.post<NudgeEventRequestResponse>(`/api/event-requests/${id}/nudge`, {}),
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.success(
+      safeToast.success(
         "Nudge Sent!",
         `Reminder sent to ${data.nudgedCount} pending ${data.nudgedCount === 1 ? "member" : "members"}.`
       );
@@ -125,7 +125,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to nudge:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Failed to send nudge");
+      safeToast.error("Error", "Failed to send nudge");
     },
   });
 
@@ -137,12 +137,12 @@ export default function EventRequestDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowSuggestTimeModal(false);
       setSuggestMessage("");
-      toast.success("Suggestion Sent!", "Your alternative time suggestion has been sent to the host.");
+      safeToast.success("Suggestion Sent!", "Your alternative time suggestion has been sent to the host.");
     },
     onError: (error) => {
       console.error("Failed to suggest time:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.error("Error", "Failed to send suggestion");
+      safeToast.error("Error", "Failed to send suggestion");
     },
   });
 

@@ -21,7 +21,7 @@ import Animated, {
   withSequence,
   withDelay,
 } from "react-native-reanimated";
-import { X, Crown, Sparkles, Check, Zap } from "lucide-react-native";
+import { X, Crown, Sparkles, Check, Zap } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { PRO_FEATURES, type FeatureKey, PRICING } from "@/lib/useSubscription";
@@ -177,7 +177,7 @@ export function UpgradeModal({
                         justifyContent: "center",
                       }}
                     >
-                      <Crown size={32} color="#1a1a2e" strokeWidth={2.5} />
+                      <Crown size={32} color="#1a1a2e" />
                     </LinearGradient>
                   </View>
                 </Animated.View>
@@ -256,7 +256,7 @@ export function UpgradeModal({
                         gap: 8,
                       }}
                     >
-                      <Zap size={20} color="#1a1a2e" fill="#1a1a2e" />
+                      <Zap size={20} color="#1a1a2e" />
                       <Text className="text-[#1a1a2e] font-bold text-lg">
                         Upgrade to Pro
                       </Text>
@@ -345,7 +345,7 @@ export function UpgradePrompt({ feature, compact = false, onUpgrade }: UpgradePr
         <Text className="text-white/60 text-sm mb-3">{featureInfo?.description}</Text>
         <View className="flex-row items-center">
           <Text className="text-amber-400 font-medium">Upgrade to unlock</Text>
-          <Zap size={14} color="#F59E0B" className="ml-1" />
+          <Zap size={14} color="#F59E0B" />
         </View>
       </LinearGradient>
     </Pressable>

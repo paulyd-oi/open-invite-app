@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { X, Star, Sparkles, NotebookPen, Check } from "lucide-react-native";
+import { X, Star, Sparkles, NotebookPen, Check } from "@/ui/icons";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -68,7 +68,6 @@ function StarButton({
       <Star
         size={36}
         color={isFilled ? "#F59E0B" : isDark ? "#3C3C3E" : "#E5E7EB"}
-        fill={isFilled ? "#F59E0B" : "transparent"}
       />
     </AnimatedPressable>
   );

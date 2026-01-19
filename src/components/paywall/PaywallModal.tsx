@@ -9,7 +9,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeInUp, SlideInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { X, Check, Sparkles, Crown } from "lucide-react-native";
+import { X, Check, Sparkles, Crown } from "@/ui/icons";
 import { useRouter } from "expo-router";
 
 import { useTheme } from "@/lib/ThemeContext";
@@ -286,7 +286,7 @@ export function PaywallModal({
                     className="w-6 h-6 rounded-full items-center justify-center mr-3"
                     style={{ backgroundColor: `${themeColor}20` }}
                   >
-                    <Check size={14} color={themeColor} strokeWidth={3} />
+                    <Check size={14} color={themeColor} />
                   </View>
                   <Text
                     className="flex-1 text-base"
