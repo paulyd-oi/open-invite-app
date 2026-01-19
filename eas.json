@@ -8,12 +8,11 @@
       "distribution": "store",
       "autoIncrement": false,
       "node": "18.20.2",
-      "npm": "9.8.1",
-      "installCommand": "npm ci --include=dev",
       "env": {
         "NPM_CONFIG_PACKAGE_MANAGER": "npm",
         "EXPO_USE_NPM": "1",
-        "EXPO_NO_BUN": "1"
+        "EXPO_NO_BUN": "1",
+        "NPM_CONFIG_INCLUDE": "dev"
       },
       "ios": {
         "resourceClass": "m-medium",
@@ -25,4 +24,3 @@
     "production": {}
   }
 }
-
