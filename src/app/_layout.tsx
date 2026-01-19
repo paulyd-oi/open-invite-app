@@ -1,3 +1,6 @@
+// Polyfill TextEncoder/TextDecoder for React Native (required for crypto/auth libs)
+import 'fast-text-encoding';
+
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
@@ -25,6 +28,7 @@ import { AutoSyncProvider } from '@/components/AutoSyncProvider';
 import { setupDeepLinkListener } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
 import { useOfflineSync } from '@/lib/offlineSync';
+import { BACKEND_URL } from '@/lib/config';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -271,33 +275,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="business/[id]"
-          options={{
-            presentation: 'card',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="business-event/[id]"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Business Event',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
-          name="create-business"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Create Business',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
           name="business/[id]/create-event"
           options={{
             presentation: 'card',
@@ -371,6 +348,37 @@ export default function RootLayout() {
 
     // Initialize network monitoring
     initNetworkMonitoring();
+  }, []);
+
+  // Global unhandled promise rejection logger for better error visibility during dev
+  useEffect(() => {
+    const handler = (event: any) => {
+      try {
+        console.error('[global] Unhandled promise rejection:', event?.reason ?? event);
+      } catch (e) {
+        console.error('[global] Unhandled rejection (failed to log):', e);
+      }
+    };
+
+    // Set both modern and legacy hooks where available
+    try {
+      (globalThis as any).onunhandledrejection = handler;
+    } catch (e) {
+      // ignore
+    }
+
+    // Log resolved backend URL for diagnostics
+    if (__DEV__) {
+      console.log('[Config] BACKEND_URL=', BACKEND_URL);
+    }
+
+    return () => {
+      try {
+        (globalThis as any).onunhandledrejection = null;
+      } catch (e) {
+        // ignore
+      }
+    };
   }, []);
 
   // Set up deep link listener
