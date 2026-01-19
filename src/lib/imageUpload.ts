@@ -127,8 +127,9 @@ export async function uploadImage(
       console.log(`[imageUpload] Uploading image: ${fileSizeKB} KB`);
     }
 
-    // Get authentication cookies
-    const cookies = authClient.getCookie();
+    // Get authentication token from SecureStore
+    const { getAuthToken } = await import("./authClient");
+    const token = await getAuthToken();
 
     // Create form data using fetch-blob approach compatible with React Native
     // We need to use FileSystem.uploadAsync for proper multipart/form-data support
@@ -139,7 +140,7 @@ export async function uploadImage(
         httpMethod: "POST",
         uploadType: FileSystem.FileSystemUploadType.MULTIPART,
         fieldName: "image",
-        headers: cookies ? { Cookie: cookies } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       }
     );
 

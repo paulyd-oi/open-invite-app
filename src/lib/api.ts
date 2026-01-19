@@ -9,8 +9,8 @@
 // This ensures fetch works correctly across different platforms (iOS, Android, Web)
 import { fetch } from "expo/fetch";
 
-// Import the authentication client to access user session cookies
-import { authClient } from "./authClient";
+// Import the authentication client to access user auth token
+import { getAuthToken } from "./authClient";
 
 // Import centralized backend URL configuration
 import { BACKEND_URL } from "./config";
@@ -42,12 +42,17 @@ type FetchOptions = {
  */
 const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
   const { method, body } = options;
-  // Step 1: Authentication - Retrieve session cookies from the auth client
-  // These cookies are used to identify the user and maintain their session
-  const headers = new Map<string, string>();
-  const cookies = authClient.getCookie();
-  if (cookies) {
-    headers.set("Cookie", cookies);
+  // Step 1: Authentication - Retrieve auth token from SecureStore
+  // This token is used to identify the user and maintain their session
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {
+    // Always send JSON content type since our API uses JSON
+    "Content-Type": "application/json",
+  };
+  
+  // Add Authorization header if token exists
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   // Step 2: Make the HTTP request
@@ -55,17 +60,11 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     // Construct the full URL by combining the base backend URL with the endpoint path
     const response = await fetch(`${BACKEND_URL}${path}`, {
       method,
-      headers: {
-        // Always send JSON content type since our API uses JSON
-        "Content-Type": "application/json",
-        // Include authentication cookies if available
-        Cookie: cookies,
-      },
+      headers,
       // Stringify the body if present (for POST, PUT, PATCH requests)
       body: body ? JSON.stringify(body) : undefined,
-      // Use "omit" to prevent browser from automatically sending credentials
-      // We manually handle cookies via the Cookie header for more control
-      credentials: "omit",
+      // Use "include" for proper credential handling
+      credentials: "include",
     });
 
     // Step 3: Error handling - Check if the response was successful
@@ -181,17 +180,21 @@ const api = {
    * @param formData - FormData containing the file(s) to upload
    */
   upload: async <T>(path: string, formData: FormData): Promise<T> => {
-    const cookies = authClient.getCookie();
+    const token = await getAuthToken();
+    const headers: Record<string, string> = {};
+    
+    // Add Authorization header if token exists
+    // Don't set Content-Type - let fetch set it with boundary for multipart
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
 
     try {
       const response = await fetch(`${BACKEND_URL}${path}`, {
         method: "POST",
-        headers: {
-          // Don't set Content-Type - let fetch set it with boundary for multipart
-          Cookie: cookies,
-        },
+        headers,
         body: formData,
-        credentials: "omit",
+        credentials: "include",
       });
 
       if (!response.ok) {
