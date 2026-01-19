@@ -275,46 +275,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="business/[id]/create-event"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Create Event',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
-          name="business/[id]/settings"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Business Settings',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
-          name="business/[id]/edit"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Edit Business',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
-          name="business/[id]/team"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Team Members',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
-          }}
-        />
-        <Stack.Screen
           name="subscription"
           options={{
             headerShown: false,
