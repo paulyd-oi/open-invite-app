@@ -631,15 +631,13 @@ export default function WelcomeOnboardingScreen() {
   // Storage key for progress persistence
   const STORAGE_KEY = "onboarding_progress_v2";
 
-  // Step order for navigation
+  // Step order for navigation (fast-path: removed whyOpenInvite and mission to reduce friction)
   const STEP_ORDER: OnboardingStep[] = [
     "welcome",
-    "whyOpenInvite",
     "createAccount",
     "verifyEmail",
     "profileName",
     "profilePhoto",
-    "mission",
   ];
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
@@ -1132,7 +1130,9 @@ export default function WelcomeOnboardingScreen() {
         const fileInfo = await require("expo-file-system").getInfoAsync(profileImage);
         const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
         if (fileInfo.size > MAX_UPLOAD_BYTES) {
-          safeToast.error("Image Too Large", "Image is too large (max 5MB). Please choose a smaller photo.");
+          safeToast.error("Image Too Large", "Image is too large (max 5MB). Try a smaller photo or skip this step.");
+          // Don't block progress - user can skip or try again
+          goToNext();
           return;
         }
 
@@ -1165,7 +1165,8 @@ export default function WelcomeOnboardingScreen() {
         await updateProfileAndSync(queryClient);
       } catch (error) {
         console.log("[Onboarding] Failed to upload photo:", error);
-        safeToast.error("Upload Failed", "Could not upload photo. Please try again.");
+        safeToast.error("Upload Failed", "Could not upload photo. You can add it later from your profile.");
+        // Don't block progress - user can continue without photo
       }
     }
     goToNext();
