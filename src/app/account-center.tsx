@@ -34,6 +34,7 @@ import { setLogoutIntent } from "@/lib/logoutIntent";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import type { GetProfilesResponse, Profile } from "@/shared/contracts";
@@ -182,6 +183,7 @@ export default function AccountCenterScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
@@ -190,6 +192,7 @@ export default function AccountCenterScreen() {
   const { data: profilesData, refetch } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
+    enabled: bootStatus === 'authed',
     staleTime: 1000 * 60 * 5,
   });
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "./api";
 import type {
   Profile,
@@ -47,6 +48,7 @@ const ActiveProfileContext = createContext<ActiveProfileContextType | null>(null
 export function ActiveProfileProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
 
   // Fetch all profiles
   const { data, isLoading, refetch } = useQuery({
@@ -54,7 +56,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
     queryFn: async () => {
       return api.get<GetProfilesResponse>("/api/profile");
     },
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

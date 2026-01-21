@@ -350,6 +350,15 @@ export default function SocialScreen() {
   // Auth gating based on boot status (token validation), not session presence
   const isAuthed = bootStatus === "authed";
 
+  // Redirect non-authed users to appropriate auth screen
+  useEffect(() => {
+    if (bootStatus === 'onboarding') {
+      router.replace('/welcome');
+    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      router.replace('/login');
+    }
+  }, [bootStatus, router]);
+
   // Sync RevenueCat user ID with authentication
   useRevenueCatSync({
     userId: session?.user?.id,
@@ -551,6 +560,13 @@ export default function SocialScreen() {
 
   const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
   const isLoading = feedLoading || myEventsLoading || attendingLoading;
+
+  // Render blank view for non-authed states (redirect useEffect handles routing)
+  if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }} />
+    );
+  }
 
   if (sessionLoading) {
     return (

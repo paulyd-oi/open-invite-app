@@ -159,9 +159,10 @@ function RootLayoutNav() {
         <Stack.Screen
           name="login"
           options={{
-            presentation: 'modal',
-            animation: 'slide_from_bottom',
+            presentation: 'card',
+            animation: 'fade',
             headerShown: false,
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen

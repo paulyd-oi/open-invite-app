@@ -13,6 +13,7 @@ import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { ProfileSwitcher } from "./ProfileSwitcher";
@@ -46,7 +47,8 @@ function NavButton({
   badgeCount,
   onLongPress,
   customImage,
-}: NavButtonProps) {
+  bootStatus,
+}: NavButtonProps & { bootStatus: string }) {
   const router = useRouter();
   const scale = useSharedValue(1);
 
@@ -55,6 +57,22 @@ function NavButton({
   }));
 
   const handlePress = () => {
+    // Auth guard: explicit bootStatus handling (matches BootRouter behavior)
+    if (bootStatus === 'loading') {
+      // Ignore tap during boot - don't redirect, let boot complete
+      return;
+    }
+    if (bootStatus === 'onboarding') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.replace('/welcome');
+      return;
+    }
+    if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.replace('/login');
+      return;
+    }
+
     // Don't navigate if already on this page
     if (isActive) {
       return;
@@ -178,13 +196,14 @@ export default function BottomNavigation() {
   const pathname = usePathname();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
 
   // Fetch friend requests count for notification badge
   const { data: friendRequestsData } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 30000, // Cache for 30 seconds to avoid too many requests
   });
 
@@ -192,7 +211,7 @@ export default function BottomNavigation() {
   const { data: eventRequestsData } = useQuery({
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 30000,
   });
 
@@ -200,7 +219,7 @@ export default function BottomNavigation() {
   const { data: circleUnreadData } = useQuery({
     queryKey: ["circleUnreadCount"],
     queryFn: () => api.get<{ totalUnread: number }>("/api/circles/unread/count"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 30000,
   });
 
@@ -208,7 +227,7 @@ export default function BottomNavigation() {
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 60000, // Cache for 1 minute
   });
 
@@ -271,6 +290,7 @@ export default function BottomNavigation() {
               badgeCount={item.badgeCount}
               onLongPress={item.label === "Profile" && hasMultipleProfiles ? () => setShowProfileSwitcher(true) : undefined}
               customImage={item.label === "Profile" ? profileImage : undefined}
+              bootStatus={bootStatus}
             />
           ))}
         </View>

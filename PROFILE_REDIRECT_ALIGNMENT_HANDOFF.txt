@@ -1,0 +1,329 @@
+================================================================================
+P0 PATCH: PROFILE REDIRECT TARGET ALIGNMENT - HANDOFF PACKET
+Date: 2025-01-21
+Agent: GitHub Copilot (Claude Sonnet 4.5)
+Status: COMPLETE - Ready for Acceptance Testing
+================================================================================
+
+SUMMARY
+-------
+Aligned profile.tsx redirect targets with BootRouter behavior for 
+consistent navigation across the app.
+
+PREVIOUS STATE:
+All non-authed bootStatus values redirected to /welcome:
+- loggedOut → /welcome
+- error → /welcome
+- onboarding → /welcome
+
+NEW STATE:
+Redirect targets now match BootRouter's routing logic:
+- onboarding → /welcome (finish onboarding flow)
+- loggedOut → /login (direct to login screen)
+- error → /login (retry authentication)
+
+RATIONALE:
+BootRouter sends loggedOut/error users to /login for direct auth, while
+onboarding users go to /welcome to complete their profile setup. Profile
+screen should follow the same routing pattern for consistency.
+
+SCOPE: Minimal diff, one file (profile.tsx), no new dependencies.
+
+
+FILES CHANGED
+-------------
+1. src/app/profile.tsx (1 change: redirect logic only)
+
+
+KEY DIFF EXPLAINED
+------------------
+
+CHANGE: Align Redirect Targets with BootRouter
+File: src/app/profile.tsx (lines ~71-79)
+
+BEFORE:
+  // Redirect when not fully authenticated (loggedOut, error, or incomplete onboarding)
+  useEffect(() => {
+    if (bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
+      router.replace("/welcome");
+    }
+  }, [bootStatus, router]);
+
+AFTER:
+  // Redirect to appropriate auth screen based on bootStatus (aligns with BootRouter)
+  useEffect(() => {
+    if (bootStatus === 'onboarding') {
+      router.replace("/welcome");
+    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      router.replace("/login");
+    }
+  }, [bootStatus, router]);
+
+Why This Change:
+- BEFORE: All 3 non-authed states → /welcome (inconsistent with BootRouter)
+- AFTER: Routes match BootRouter's pattern (onboarding → /welcome, others → /login)
+- Clearer separation: onboarding completion vs. authentication retry
+- Better UX: Logged-out users go directly to login instead of onboarding
+- Error recovery: Failed auth goes to login screen, not onboarding
+
+Logic Flow:
+1. If bootStatus === 'onboarding' → /welcome (user needs to finish setup)
+2. Else if bootStatus === 'loggedOut' || 'error' → /login (user needs to auth)
+3. Else (bootStatus === 'authed') → Profile renders normally
+
+
+BOOTROUTER ALIGNMENT
+---------------------
+BootRouter (_layout.tsx) routing behavior:
+
+'loggedOut' → router.replace('/login')
+'error'     → router.replace('/login')
+'onboarding' → router.replace('/welcome')
+'authed'    → router.replace('/') (feed)
+
+Profile routing behavior (NOW ALIGNED):
+
+'loggedOut' → router.replace('/login')
+'error'     → router.replace('/login')
+'onboarding' → router.replace('/welcome')
+'authed'    → render Profile normally
+
+Perfect 1:1 alignment with BootRouter's redirect targets for non-authed states.
+
+
+UNCHANGED BEHAVIOR
+------------------
+Blank Render Guard (PRESERVED):
+  if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }} />
+    );
+  }
+
+This guard remains unchanged - all non-authed states still render blank 
+view to prevent flash of Profile UI before redirect executes.
+
+Auth Gating (PRESERVED):
+- Only 'authed' bootStatus renders Profile screen
+- All queries still gated by enabled: !!session
+- User derivation still uses session?.user with null checks
+- No changes to Profile rendering logic
+
+
+TESTING RESULTS
+---------------
+VALIDATION COMPLETED:
+✓ TypeScript compilation: npx tsc --noEmit --project tsconfig.json
+  Result: No errors (clean compilation)
+
+ACCEPTANCE TESTS (MANUAL - READY):
+
+TEST 1: Logged In (authed) → Profile Tab
+Steps:
+  1. Log in with valid account
+  2. Complete onboarding
+  3. Tap Profile tab in bottom navigation
+Expected Result:
+  Profile screen renders normally
+  Shows user stats, friends, achievements
+  NO redirect
+  NO blank screen (except brief query loading)
+Status: READY FOR MANUAL TEST
+
+TEST 2: Incomplete Onboarding (onboarding) → Profile Tab
+Steps:
+  1. Start new account signup
+  2. Complete email verification but NOT profile setup
+  3. Attempt to navigate to /profile (deep link or bottom nav)
+Expected Result:
+  Immediate redirect to /welcome
+  NO profile content shown
+  User completes onboarding flow
+Status: READY FOR MANUAL TEST
+
+TEST 3: Logged Out (loggedOut) → Profile Tab
+Steps:
+  1. Log out fully (tap "Log Out" in settings)
+  2. Attempt to tap Profile tab OR deep link to /profile
+Expected Result:
+  Immediate redirect to /login (NOT /welcome)
+  NO profile content shown
+  User sees login screen directly
+Status: READY FOR MANUAL TEST
+
+TEST 4: Bootstrap Error (error) → Profile Tab
+Steps:
+  1. Simulate bootstrap error (network disconnect during cold start)
+  2. OR manually trigger error state for testing
+  3. Attempt to navigate to Profile
+Expected Result:
+  Immediate redirect to /login (NOT /welcome)
+  NO profile content shown
+  User can retry authentication
+Status: READY FOR MANUAL TEST (may require dev intervention)
+
+TEST 5: Cold Start (loading → authed)
+Steps:
+  1. Force close app
+  2. Reopen app (logged in)
+  3. Immediately tap Profile tab
+Expected Result:
+  Brief blank view during 'loading' phase
+  Then Profile renders once bootStatus → 'authed'
+  NO redirect
+Status: READY FOR MANUAL TEST
+
+
+RISK ASSESSMENT
+---------------
+REGRESSION RISKS: Very Low
+- Single condition change in one useEffect
+- No state management changes
+- No query/mutation changes
+- No component structure changes
+- Preserves existing blank render guard
+
+EDGE CASES CONSIDERED:
+✓ Onboarding users: Correctly routed to /welcome to complete flow
+✓ Logged-out users: Routed to /login (better UX than /welcome)
+✓ Error users: Routed to /login for retry (clearer than /welcome)
+✓ Authed users: No change (Profile renders normally)
+✓ Loading state: Still renders blank (no redirect during boot)
+
+SECURITY IMPACT: Neutral
+- Same auth gating (all non-authed states blocked)
+- No weakening of existing security checks
+- Redirect targets changed but auth enforcement identical
+
+PERFORMANCE IMPACT: Negligible
+- One if/else-if instead of single OR condition
+- Same number of useEffect re-evaluations
+- No additional renders
+
+USER EXPERIENCE IMPACT: Positive
+- Logged-out users: Direct to login (saves one tap)
+- Error users: Clearer path to retry auth
+- Onboarding users: Still go to /welcome (unchanged)
+- Consistency: Matches BootRouter behavior
+
+
+NOTES
+-----
+WHY /LOGIN FOR LOGGED-OUT USERS:
+Previously, logged-out users were sent to /welcome (onboarding root) 
+which has both "Get Started" and "Log In" buttons. This required an 
+extra tap for returning users. Now they go directly to /login screen,
+matching BootRouter behavior and improving UX.
+
+WHY /LOGIN FOR ERROR USERS:
+Bootstrap error means auth failed (timeout, network, invalid token).
+Sending to /login provides clear path to retry authentication. /welcome
+is for new users or onboarding, not error recovery.
+
+WHY /WELCOME FOR ONBOARDING USERS:
+Users with 'onboarding' status have valid auth but incomplete profile 
+setup. They must complete onboarding flow before accessing app features.
+/welcome is the onboarding entry point with step progression.
+
+ROUTE TARGETS SUMMARY:
+/login   → Login screen (email/password + Apple auth)
+/welcome → Onboarding flow (profile setup, mission, etc.)
+/profile → Profile screen (stats, friends, achievements)
+
+USER FLOWS:
+Logged out → /login → authenticate → /feed
+Bootstrap error → /login → retry auth → /feed
+Onboarding → /welcome → complete steps → /feed
+Authed → /profile → view stats
+
+
+COMPARISON TO PREVIOUS VERSION
+-------------------------------
+PREVIOUS VERSION (PROFILE_AUTH_GATE_EXPANSION_HANDOFF.txt):
+Redirect Logic:
+  if (loggedOut || error || onboarding) → /welcome
+
+Issue: Inconsistent with BootRouter, extra tap for logged-out users
+Status: Functional but UX suboptimal
+
+THIS VERSION:
+Redirect Logic:
+  if (onboarding) → /welcome
+  else if (loggedOut || error) → /login
+
+Issue: None identified
+Status: Aligned with BootRouter, improved UX
+
+
+FOLLOW-UP NEEDED
+----------------
+ACCEPTANCE TESTING:
+Execute all 5 manual tests above before considering complete.
+Focus on Test 3 (logged out) to verify new /login redirect.
+Test 2 (onboarding) ensures /welcome redirect still works.
+
+IF ISSUES FOUND:
+
+SCENARIO: Logged-out users redirected to /welcome instead of /login
+→ Check: useEffect redirect logic matches new version
+→ Verify: bootStatus === 'loggedOut' enters else-if branch
+→ Debug: Add console.log in each redirect branch
+→ Verify: No cached /welcome route interfering
+
+SCENARIO: Onboarding users redirected to /login instead of /welcome
+→ Check: bootStatus === 'onboarding' enters first if branch
+→ Verify: Onboarding status correctly set by bootstrap
+→ Debug: Check bootStatus value at redirect time
+→ Verify: useEffect dependencies include [bootStatus, router]
+
+SCENARIO: Error users stuck in loop
+→ Check: /login screen doesn't fail and trigger new error
+→ Verify: Error state clears after successful login
+→ Debug: Check if error bootStatus persists incorrectly
+→ Verify: Bootstrap re-runs after login attempt
+
+SCENARIO: Redirect loop between Profile and /login
+→ Check: /login route doesn't navigate back to /profile
+→ Verify: After login, bootStatus updates to 'authed'
+→ Debug: Check if login completion triggers bootstrap refresh
+→ Verify: Session state updates properly after login
+
+SCENARIO: TypeScript errors appear
+→ Rerun: npx tsc --noEmit --project tsconfig.json
+→ Check: No typos in route strings ("/login", "/welcome")
+→ Verify: Condition logic syntax correct (if/else-if)
+
+
+ARCHITECTURAL NOTES
+-------------------
+CONSISTENT ROUTING PATTERN:
+With this change, all auth-gated screens should follow BootRouter's 
+redirect pattern:
+
+For protected screens, check bootStatus and redirect:
+- 'onboarding' → /welcome (finish setup)
+- 'loggedOut' → /login (authenticate)
+- 'error' → /login (retry auth)
+- 'authed' → render normally
+
+This establishes a reusable pattern for future protected screens.
+
+BOOTROUTER AS AUTHORITY:
+BootRouter makes the initial routing decision on app start. Individual
+screens enforce the same routing logic for in-app navigation. This 
+creates consistency: user sees same behavior whether they cold start 
+at a route or navigate to it mid-session.
+
+FUTURE CONSIDERATIONS:
+Other protected screens (Events, Groups, Circles, etc.) may benefit 
+from similar bootStatus-based redirect logic. This fix establishes 
+the pattern to follow.
+
+
+ALL CHANGES COMMITTED: NO (awaiting acceptance testing)
+BRANCH: main (working directory)
+PRODUCTION PARITY: Maintained (improved UX, no breaking changes)
+
+
+END OF HANDOFF PACKET
+================================================================================

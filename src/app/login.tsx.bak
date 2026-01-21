@@ -448,6 +448,9 @@ export default function LoginScreen() {
               >
                 Verify Email
               </Text>
+              <Pressable onPress={handleClose} hitSlop={20}>
+                <X size={24} color="rgba(255,255,255,0.5)" />
+              </Pressable>
             </View>
 
             <KeyboardAvoidingView
@@ -666,6 +669,9 @@ export default function LoginScreen() {
               >
                 Reset Password
               </Text>
+              <Pressable onPress={handleClose} hitSlop={20}>
+                <X size={24} color="rgba(255,255,255,0.5)" />
+              </Pressable>
             </View>
 
             <KeyboardAvoidingView
@@ -873,6 +879,9 @@ export default function LoginScreen() {
             >
               Welcome Back
             </Text>
+            <Pressable onPress={handleClose} hitSlop={20}>
+              <X size={24} color="rgba(255,255,255,0.5)" />
+            </Pressable>
           </View>
 
           <KeyboardAvoidingView

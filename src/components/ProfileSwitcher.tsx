@@ -27,6 +27,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { api } from "@/lib/api";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import type { Profile, GetProfilesResponse, SwitchProfileResponse } from "../../shared/contracts";
 
 interface ProfileSwitcherProps {
@@ -37,11 +38,13 @@ interface ProfileSwitcherProps {
 export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { status: bootStatus } = useBootAuthority();
 
   // Fetch profiles directly
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
+    enabled: bootStatus === 'authed',
     staleTime: 1000 * 60 * 5,
   });
 

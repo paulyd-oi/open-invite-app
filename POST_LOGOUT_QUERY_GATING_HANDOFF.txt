@@ -1,0 +1,337 @@
+========================================
+POST-LOGOUT QUERY GATING HANDOFF PACKET
+========================================
+
+OBJECTIVE
+---------
+Eliminate all post-logout unauthenticated fetches by replacing session-based query gating (enabled: !!session) with bootStatus-based gating (enabled: bootStatus === 'authed') across all protected React Query hooks.
+
+WHY THIS MATTERS
+----------------
+Before this change, queries used "enabled: !!session" which is unreliable because:
+1. Session can be null while token is still valid (timing issue during boot)
+2. Session can persist briefly after logout before being cleared
+3. Some queries had NO enabled gate at all (calendar, account-center, ProfileSwitcher)
+
+After logout, these queries would fire, causing:
+- Unnecessary 401/403 errors in backend logs
+- Performance overhead from doomed requests
+- Potential security information leakage in network tab
+- Poor UX (failed requests visible to users with dev tools open)
+
+bootStatus is the CANONICAL auth source. It's always correct:
+- 'loading' during initial boot
+- 'authed' when token is valid and verified
+- 'onboarding' when token valid but profile incomplete
+- 'loggedOut' immediately after resetSession()
+- 'error' if something went wrong
+
+When bootStatus === 'authed', it's safe to query protected endpoints.
+When bootStatus !== 'authed', queries are disabled - no requests fire.
+
+
+FILES CHANGED (7 total)
+-----------------------
+
+1. src/components/BottomNavigation.tsx
+   - Changed 4 queries from "enabled: !!session" to "enabled: bootStatus === 'authed'"
+   - Queries: friendRequests, event-requests, circleUnreadCount, profiles
+   - bootStatus already available via useBootAuthority (no import needed)
+
+2. src/app/calendar.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in component
+   - Changed event-requests query from NO GATE to "enabled: bootStatus === 'authed'"
+   - Removed [CalendarBoot] degraded mode comment (degraded mode violates auth requirements)
+
+3. src/app/account-center.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in component
+   - Changed profiles query from NO GATE to "enabled: bootStatus === 'authed'"
+
+4. src/components/ProfileSwitcher.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in component
+   - Changed profiles query from NO GATE to "enabled: bootStatus === 'authed'"
+
+5. src/app/friends.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in component
+   - Changed friendRequests query from "enabled: !!session" to "enabled: bootStatus === 'authed'"
+
+6. src/app/create.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in component
+   - Changed profiles query from "enabled: !!session" to "enabled: bootStatus === 'authed'"
+
+7. src/lib/activeProfileContext.tsx
+   - Added useBootAuthority import
+   - Extracted bootStatus in provider
+   - Changed profiles query from "enabled: !!session" to "enabled: bootStatus === 'authed'"
+
+
+GREP COMMANDS USED FOR DISCOVERY
+---------------------------------
+
+# Find all protected endpoint references
+rg -i "/api/friends/requests|/api/event-requests|/api/circles/unread|/api/profile"
+
+# Find all useQuery hooks with specific query keys
+rg 'queryKey: \["friendRequests"\]'
+rg 'queryKey: \["event-requests"\]'
+rg 'queryKey: \["circleUnreadCount"\]'
+rg 'queryKey: \["profiles"\]'
+
+# Check for useBootAuthority usage in files
+rg "useBootAuthority" src/app/calendar.tsx
+rg "useBootAuthority" src/app/account-center.tsx
+rg "useBootAuthority" src/components/ProfileSwitcher.tsx
+
+
+KEY DIFFS
+---------
+
+BEFORE (BottomNavigation.tsx):
+  const { data: friendRequestsData } = useQuery({
+    queryKey: ["friendRequests"],
+    queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
+    enabled: !!session,  // ❌ Session-based
+    staleTime: 30000,
+  });
+
+AFTER (BottomNavigation.tsx):
+  const { data: friendRequestsData } = useQuery({
+    queryKey: ["friendRequests"],
+    queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
+    enabled: bootStatus === 'authed',  // ✅ bootStatus-based
+    staleTime: 30000,
+  });
+
+---
+
+BEFORE (calendar.tsx):
+  const { data: eventRequestsData } = useQuery({
+    queryKey: ["event-requests"],
+    queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
+    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
+  });  // ❌ NO GATE - fires unconditionally
+
+AFTER (calendar.tsx):
+  const { data: eventRequestsData } = useQuery({
+    queryKey: ["event-requests"],
+    queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
+    enabled: bootStatus === 'authed',  // ✅ bootStatus-based gate added
+  });
+
+---
+
+BEFORE (account-center.tsx):
+  const { data: profilesData, refetch } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
+    staleTime: 1000 * 60 * 5,
+  });  // ❌ NO GATE - fires unconditionally
+
+AFTER (account-center.tsx):
+  const { data: profilesData, refetch } = useQuery({
+    queryKey: ["profiles"],
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
+    enabled: bootStatus === 'authed',  // ✅ bootStatus-based gate added
+    staleTime: 1000 * 60 * 5,
+  });
+
+
+TYPESCRIPT VALIDATION
+---------------------
+Ran: npx tsc --noEmit --project tsconfig.json
+Result: ✅ No errors
+
+
+RUNTIME EXPECTATIONS
+--------------------
+
+EXPECTED BEHAVIOR AFTER THESE CHANGES:
+
+1. During Cold Start (bootStatus === 'loading'):
+   - React Query queries are disabled
+   - No requests to /api/profile, /api/friends/requests, /api/event-requests, /api/circles/unread/count
+   - Wait for bootStatus to change to 'authed'
+
+2. After Successful Login (bootStatus === 'authed'):
+   - All queries immediately enable
+   - Requests fire to all 4 protected endpoints
+   - Data loads normally into UI (badges, profiles, etc.)
+
+3. During Logout Flow (resetSession() called):
+   - resetSession() clears token and sets bootStatus to 'loggedOut'
+   - React Query immediately disables all queries (enabled: false)
+   - Zero requests fire to protected endpoints after logout
+   - Even if React Query tries to refetch on window focus, enabled: false prevents it
+
+4. After Logout Complete (bootStatus === 'loggedOut'):
+   - User redirected to /login
+   - All queries remain disabled
+   - Network tab shows NO GET requests to protected endpoints
+   - Backend logs show NO 401/403 errors from unauthenticated requests
+
+
+HOW TO VERIFY RUNTIME BEHAVIOR:
+
+1. Open Chrome DevTools Network tab (or React Native Debugger)
+2. Filter for: /api/profile, /api/friends/requests, /api/event-requests, /api/circles/unread
+3. Log in to app
+4. Verify queries fire ONCE after login (status 200)
+5. Tap "Sign Out" in Account Center
+6. Watch Network tab during logout
+7. EXPECTED: Zero new requests to those 4 endpoints after sign out button pressed
+8. VERIFY: No 401/403 errors in network tab or backend logs
+
+
+CONSOLE LOG EXAMPLES:
+
+BEFORE THIS FIX (Session-based gating):
+[POST] /api/logout 200
+[GET] /api/profile 401 (Unauthorized)  ❌ Query fired after logout!
+[GET] /api/friends/requests 401 (Unauthorized)  ❌ Query fired after logout!
+
+AFTER THIS FIX (bootStatus-based gating):
+[POST] /api/logout 200
+(no other requests - queries disabled by bootStatus === 'loggedOut')  ✅
+
+
+IMPLEMENTATION PATTERNS
+-----------------------
+
+If you need to add bootStatus gating to a new query in the future:
+
+1. Import useBootAuthority:
+   import { useBootAuthority } from "@/hooks/useBootAuthority";
+
+2. Extract bootStatus in component:
+   const { status: bootStatus } = useBootAuthority();
+
+3. Add enabled gate to query:
+   const { data } = useQuery({
+     queryKey: ["myProtectedData"],
+     queryFn: () => api.get("/api/protected-endpoint"),
+     enabled: bootStatus === 'authed',  // ← CRITICAL
+   });
+
+NEVER use enabled: !!session for protected endpoints.
+ALWAYS use enabled: bootStatus === 'authed'.
+
+
+RELATED AUTH ARCHITECTURE
+-------------------------
+
+Auth Source Hierarchy (most to least authoritative):
+1. bootStatus from useBootAuthority - CANONICAL, always correct
+2. Session from useSession - can lag or be stale
+3. Token from AsyncStorage - low-level, don't query directly
+
+Boot Flow (simplified):
+1. App starts → bootStatus = 'loading'
+2. authBootstrap() validates token → bootStatus = 'authed' | 'onboarding' | 'loggedOut'
+3. Queries enable when bootStatus === 'authed'
+
+Logout Flow (simplified):
+1. User taps "Sign Out"
+2. resetSession() clears token, sets bootStatus = 'loggedOut'
+3. React Query sees enabled: false, stops all queries
+4. BootRouter redirects to /login
+
+
+TESTING CHECKLIST
+-----------------
+
+Manual Testing:
+☐ Cold start app → verify queries wait for bootStatus === 'authed'
+☐ Log in → verify queries fire after successful login
+☐ Navigate to Calendar → verify event requests load
+☐ Navigate to Account Center → verify profiles load
+☐ Open Profile Switcher → verify profiles load
+☐ Navigate to Friends → verify friend requests load
+☐ Log out → verify zero protected endpoint requests in Network tab
+☐ Check backend logs → verify no 401/403 errors after logout
+
+Automated Testing (if available):
+☐ Unit test: useBootAuthority returns correct status during logout
+☐ Integration test: Queries disabled when bootStatus !== 'authed'
+☐ E2E test: Full logout flow shows zero protected endpoint calls
+
+
+ROLLBACK PLAN
+-------------
+
+If this change causes issues:
+
+1. Revert all 7 files to previous commits
+2. Change enabled gates back to "enabled: !!session"
+3. Re-add NO GATE to calendar.tsx, account-center.tsx, ProfileSwitcher.tsx
+4. Investigate why bootStatus isn't updating correctly during logout
+
+HOWEVER: This is extremely unlikely because:
+- bootStatus is already used throughout the app for routing
+- These changes only affect query gating, not auth logic itself
+- TypeScript validation passed with no errors
+
+
+NEXT STEPS
+----------
+
+1. Commit these changes with message:
+   "Gate protected queries on bootStatus === 'authed' to prevent post-logout fetches"
+
+2. Test logout flow thoroughly:
+   - Log in → log out → check network tab for zero protected requests
+   - Verify no 401/403 errors in backend logs
+
+3. Monitor backend logs after deployment:
+   - Should see significant reduction in 401/403 errors
+   - No legitimate requests should be blocked
+
+4. Consider adding React Query devtools to inspect query state during logout:
+   import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+
+
+AFFECTED ENDPOINTS (No Changes to Backend)
+-------------------------------------------
+
+These endpoints are now properly gated on frontend:
+- GET /api/profile (profiles list)
+- GET /api/friends/requests (friend request counts)
+- GET /api/event-requests (event request counts)
+- GET /api/circles/unread/count (circle unread counts)
+
+Backend remains unchanged. These endpoints still require valid auth token.
+Change is purely frontend: queries now respect bootStatus authority.
+
+
+COMMANDS RUN
+------------
+
+# TypeScript validation
+npx tsc --noEmit --project tsconfig.json  # ✅ Passed
+
+# File edits (via multi_replace_string_in_file and replace_string_in_file)
+# - src/components/BottomNavigation.tsx (4 queries)
+# - src/app/calendar.tsx (1 query + import)
+# - src/app/account-center.tsx (1 query + import)
+# - src/components/ProfileSwitcher.tsx (1 query + import)
+# - src/app/friends.tsx (1 query + import)
+# - src/app/create.tsx (1 query + import)
+# - src/lib/activeProfileContext.tsx (1 query + import)
+
+
+SESSION COMPLETE
+----------------
+
+All 7 files updated successfully.
+All 7 queries now gate on bootStatus === 'authed'.
+TypeScript validation passed.
+Runtime expectations documented.
+Zero post-logout fetches expected.
+
+========================================
+END OF HANDOFF PACKET
+========================================

@@ -34,6 +34,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
@@ -1117,6 +1118,7 @@ function ListView({
 
 export default function CalendarScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -1444,7 +1446,7 @@ const didOverscrollTopRef = useRef(false);
   const { data: eventRequestsData } = useQuery({
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
-    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
+    enabled: bootStatus === 'authed',
   });
 
   // Extract created and going events from calendar data

@@ -63,9 +63,11 @@ import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
+import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
@@ -455,6 +457,7 @@ function FriendRequestCard({
 
 export default function FriendsScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const { groupId: initialGroupId } = useLocalSearchParams<{ groupId?: string }>();
   const queryClient = useQueryClient();
@@ -637,7 +640,7 @@ export default function FriendsScreen() {
   const { data: requestsData, refetch: refetchRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const sendRequestMutation = useMutation({
@@ -1441,19 +1444,17 @@ export default function FriendsScreen() {
             {isLoading ? (
               <FriendsListSkeleton />
             ) : filteredFriends.length === 0 ? (
-              <View className="py-12 items-center px-8">
-                <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
-                  <Users size={36} color={themeColor} />
-                </View>
-                <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-                  {selectedGroupId ? "No friends in this group" : "Add Your First Friend"}
-                </Text>
-                <Text className="text-sm text-center leading-5" style={{ color: colors.textSecondary }}>
-                  {selectedGroupId
-                    ? "Try selecting a different group or add friends to this group"
-                    : "Connect with friends to share events and see what everyone is up to. Tap the + button above to get started!"}
-                </Text>
-                {selectedGroupId ? (
+              selectedGroupId ? (
+                <View className="py-12 items-center px-8">
+                  <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
+                    <Users size={36} color={themeColor} />
+                  </View>
+                  <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+                    No friends in this group
+                  </Text>
+                  <Text className="text-sm text-center leading-5" style={{ color: colors.textSecondary }}>
+                    Try selecting a different group or add friends to this group
+                  </Text>
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1464,36 +1465,14 @@ export default function FriendsScreen() {
                   >
                     <Text className="text-white font-medium">Show All Friends</Text>
                   </Pressable>
-                ) : (
-                  <View className="flex-row mt-4">
-                    <Pressable
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setShowAddFriend(true);
-                      }}
-                      className="px-6 py-3 rounded-full mr-2"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Text className="text-white font-medium">+ Add</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={async () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        const { status } = await Contacts.requestPermissionsAsync();
-                        if (status === "granted") {
-                          setShowContactsModal(true);
-                        } else {
-                          safeToast.warning("Permission Required", "Please allow access to contacts to import friends.");
-                        }
-                      }}
-                      className="px-6 py-3 rounded-full"
-                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                    >
-                      <Text style={{ color: colors.text }} className="font-medium">From Contacts</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
+                </View>
+              ) : (
+                <EmptyState
+                  type="friends"
+                  actionLabel="Find Friends"
+                  onAction={() => router.push("/discover")}
+                />
+              )
             ) : viewMode === "list" ? (
               filteredFriends.map((friendship: Friendship, index: number) => (
                 <FriendListItem key={friendship.id} friendship={friendship} index={index} />

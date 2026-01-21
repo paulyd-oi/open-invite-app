@@ -38,6 +38,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
@@ -270,6 +271,7 @@ const searchPlaces = async (query: string, lat?: number, lon?: number): Promise<
 
 export default function CreateEventScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId } = useLocalSearchParams<{
@@ -289,7 +291,7 @@ export default function CreateEventScreen() {
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 60000,
   });
 

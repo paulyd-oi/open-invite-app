@@ -36,6 +36,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
@@ -66,13 +67,16 @@ export default function ProfileScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const { status: bootStatus } = useBootAuthority();
 
-  // Redirect logged-out users to onboarding
+  // Redirect to appropriate auth screen based on bootStatus (aligns with BootRouter)
   useEffect(() => {
-    if (!session) {
+    if (bootStatus === 'onboarding') {
       router.replace("/welcome");
+    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      router.replace("/login");
     }
-  }, [session, router]);
+  }, [bootStatus, router]);
 
   // Fetch profiles to check if user is in business mode
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
@@ -198,29 +202,10 @@ export default function ProfileScreen() {
     return EVENT_CATEGORIES.find(c => c.value === category) ?? { emoji: "📅", label: "Other", color: "#78909C" };
   };
 
-  if (!session) {
+  // Only render Profile for fully authenticated users ('authed' status)
+  if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
     return (
-      <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-        <View className="flex-1 items-center justify-center px-8">
-          <View className="w-24 h-24 rounded-full items-center justify-center mb-6" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
-            <Text className="text-5xl">👤</Text>
-          </View>
-          <Text className="text-2xl font-bold text-center mb-2" style={{ color: colors.text }}>
-            Your Profile
-          </Text>
-          <Text className="text-center mb-8" style={{ color: colors.textSecondary }}>
-            Sign in to manage your profile
-          </Text>
-          <Pressable
-            onPress={() => router.push("/login")}
-            className="px-8 py-4 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold text-lg">Sign In</Text>
-          </Pressable>
-        </View>
-        <BottomNavigation />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: colors.background }} />
     );
   }
 
