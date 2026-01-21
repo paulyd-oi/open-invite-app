@@ -962,8 +962,14 @@ export default function CircleScreen() {
           </View>
         </Pressable>
 
-        {/* Member Avatars */}
-        <View className="flex-row mr-2">
+        {/* Member Avatars - Tappable to open settings */}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowGroupSettings(true);
+          }}
+          className="flex-row mr-3"
+        >
           {members.slice(0, 3).map((member, i) => (
             <View
               key={member.userId}
@@ -1002,43 +1008,24 @@ export default function CircleScreen() {
               </Text>
             </View>
           )}
-        </View>
-
-        {/* Settings Button */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowGroupSettings(true);
-          }}
-          className="w-10 h-10 rounded-full items-center justify-center mr-2"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          <Settings size={18} color={colors.text} />
-        </Pressable>
-
-        {/* Add Member Button */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowAddMembers(true);
-          }}
-          className="w-10 h-10 rounded-full items-center justify-center mr-2"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          <UserPlus size={18} color={themeColor} />
         </Pressable>
 
         {/* Create Event Button */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.push(`/create?circleId=${id}` as any);
-          }}
-          className="w-10 h-10 rounded-full items-center justify-center"
-          style={{ backgroundColor: themeColor }}
-        >
-          <CalendarPlus size={18} color="#fff" />
-        </Pressable>
+        <View className="items-center">
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push(`/create?circleId=${id}` as any);
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: themeColor }}
+          >
+            <CalendarPlus size={18} color="#fff" />
+          </Pressable>
+          <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
+            Create
+          </Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView
