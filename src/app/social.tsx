@@ -29,7 +29,8 @@ import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
-import { type GetEventsFeedResponse, type GetEventsResponse, type Event } from "@/shared/contracts";
+import { FirstValueNudge, useFirstValueNudgeEligibility, canShowFirstValueNudge } from "@/components/FirstValueNudge";
+import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
   event: Event;
@@ -345,6 +346,7 @@ export default function SocialScreen() {
   const [authBootstrapState, setAuthBootstrapState] = useState<"checking" | "error" | "ready">("checking");
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
+  const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
   const hasBootstrapped = useRef(false);
 
   // Auth gating based on boot status (token validation), not session presence
@@ -493,9 +495,42 @@ export default function SocialScreen() {
     refetchInterval: 30000,
   });
 
+  // Fetch friends for first-value nudge eligibility
+  const {
+    data: friendsData,
+    isLoading: friendsLoading,
+  } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled: isAuthed,
+  });
+
   // Business events feature is disabled (feature flag: businessAccounts = false)
   // Provide empty fallback to prevent network calls
   const businessEventsData = undefined;
+
+  // Check if user is eligible for first-value nudge
+  const isFirstValueNudgeEligible = useFirstValueNudgeEligibility({
+    friendsData,
+    myEventsData,
+    attendingData,
+    bootStatus,
+  });
+
+  // Show first-value nudge if eligible and not loading
+  useEffect(() => {
+    const checkFirstValueNudge = async () => {
+      if (!isAuthed || !isFirstValueNudgeEligible) return;
+      if (feedLoading || myEventsLoading || attendingLoading || friendsLoading) return;
+
+      const canShow = await canShowFirstValueNudge();
+      if (canShow) {
+        setShowFirstValueNudge(true);
+      }
+    };
+
+    checkFirstValueNudge();
+  }, [isAuthed, isFirstValueNudgeEligible, feedLoading, myEventsLoading, attendingLoading, friendsLoading]);
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -741,6 +776,12 @@ export default function SocialScreen() {
 
       {/* Quick Event Floating Button */}
       {session && <QuickEventButton />}
+
+      {/* First-Value Nudge for Brand New Users */}
+      <FirstValueNudge
+        visible={showFirstValueNudge}
+        onClose={() => setShowFirstValueNudge(false)}
+      />
 
       <BottomNavigation />
       </SafeAreaView>
