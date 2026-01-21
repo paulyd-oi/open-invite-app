@@ -2,10 +2,10 @@
 import * as SecureStore from "expo-secure-store";
 import * as React from "react";
 import { BACKEND_URL } from "./config";
-import { SESSION_TOKEN_KEY } from "./authKeys";
+import { AUTH_TOKEN_KEY } from "./authKeys";
 
-// Use canonical token key (single source of truth from authKeys.ts)
-const TOKEN_KEY = SESSION_TOKEN_KEY;
+// Use canonical bearer auth token key (single source of truth from authKeys.ts)
+const TOKEN_KEY = AUTH_TOKEN_KEY;
 
 /**
  * DEV-only trace helper for auth token flow tracing.
@@ -56,7 +56,8 @@ export async function clearAuthToken(): Promise<void> {
 }
 
 /**
- * Minimal session shape used throughout the app.
+ * Session data shape returned from backend after bearer token validation.
+ * Contains user profile information derived from authenticated token.
  * Adjust to match your backend contract when ready.
  */
 export type Session = {

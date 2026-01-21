@@ -1,14 +1,18 @@
 /**
  * Authentication Keys (Single Source of Truth)
  *
- * Canonical storage keys for auth tokens and session data.
+ * Canonical storage keys for bearer auth tokens and cached session data.
  * Used by authClient.ts, authBootstrap.ts, and sessionCache.ts
  * to ensure consistent key usage across all auth operations.
  */
 
-// Main session token key (project-specific)
+// Main bearer auth token key (project-specific)
 const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID || "open-invite";
 export const SESSION_TOKEN_KEY = `${projectId}.session-token`;
+
+// Alias: Preferred semantic name for bearer auth token
+// Points to same storage key as SESSION_TOKEN_KEY for backward compatibility
+export const AUTH_TOKEN_KEY = SESSION_TOKEN_KEY;
 
 /**
  * Legacy token keys from previous implementations.

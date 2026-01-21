@@ -2,15 +2,16 @@
  * Auth Bootstrap
  *
  * Deterministic authentication bootstrap that always ends in one of:
- * - loggedOut (redirect to /welcome)
- * - onboarding (redirect to /welcome with state)
- * - authed (stay on current screen)
+ * - loggedOut (BootRouter redirects to /login)
+ * - onboarding (BootRouter redirects to /welcome)
+ * - authed (BootRouter redirects to / or stays on current screen)
  *
  * Features:
  * - Comprehensive logging at each step
  * - Error handling with no infinite loops
  * - 15s watchdog timer
- * - Clear session state on errors
+ * - Transient errors (429, 5xx, network) use cached session when available
+ * - Auth errors (401, 403) trigger forced logout
  * - Canonical state machine via authState.ts
  */
 
@@ -53,10 +54,18 @@ function log(step: string, data?: any) {
 }
 
 /**
+ * In-flight logout guard to prevent multiple simultaneous logout sequences.
+ * Multiple 401/403 errors can trigger concurrent resetSession calls.
+ */
+let logoutInFlight = false;
+
+/**
  * Reset all session state (for logout and watchdog)
  * 
  * CRITICAL: This function NEVER throws - logout always succeeds locally
  * even if backend is down, offline, or returns 500.
+ * 
+ * GUARD: Only one logout sequence runs at a time (in-flight guard).
  */
 export async function resetSession(options?: { reason?: string; status?: number; endpoint?: string }): Promise<void> {
   const reason = options?.reason || "unknown";
@@ -87,6 +96,16 @@ export async function resetSession(options?: { reason?: string; status?: number;
     log(`⚠️ Non-auth error detected - tokens NOT cleared. Reason: ${reason}, Status: ${status || 'N/A'}`);
     return; // Early exit - no token clearing
   }
+  
+  // IN-FLIGHT GUARD: Prevent concurrent logout sequences
+  if (logoutInFlight) {
+    log(`⏭️ Logout already in progress - skipping duplicate resetSession call (reason=${reason})`);
+    return;
+  }
+  
+  logoutInFlight = true;
+  
+  try {
   
   // LOGOUT INTENT GATE: For user-initiated logouts, require explicit intent flag
   if (isUserInitiated) {
@@ -265,6 +284,10 @@ export async function resetSession(options?: { reason?: string; status?: number;
   }
   
   // NEVER throw - logout always succeeds locally
+  } finally {
+    // Clear in-flight flag so future logouts can proceed
+    logoutInFlight = false;
+  }
 }
 
 /**
@@ -283,6 +306,9 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       const remaining = getRateLimitRemaining();
       log(`⏸️ Skipping bootstrap: rate-limited for ${remaining} more seconds`);
       
+      // Check if token exists (non-destructive check)
+      const tokenExists = await hasAuthToken();
+      
       // Try to use cached session if available
       try {
         const cached = await AsyncStorage.getItem("session_cache_v1");
@@ -295,8 +321,15 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
         log("  ⚠️ Error loading cached session:", e);
       }
       
-      // No cached session - treat as logged out but don't clear anything
-      return { state: "loggedOut", session: null, error: "Rate limited" };
+      // No cached session - if token exists, return authed (transient failure)
+      // Otherwise return loggedOut (no auth state at all)
+      if (tokenExists) {
+        log("  ⚠️ Rate limited with token but no cache - returning authed with null session");
+        return { state: "authed", session: null, error: "Rate limited" };
+      } else {
+        log("  → No token, returning loggedOut");
+        return { state: "loggedOut", session: null, error: "Rate limited" };
+      }
     }
 
     // Step 1: Check for existing session token
@@ -391,26 +424,30 @@ if (session?.user) {
       log(`✅ Bootstrap complete in ${elapsed}ms (forced logout)`);
       return { state: "loggedOut", session: null, error: "Auth error" };
     } else {
-      // Non-auth error (404, 500, network) - try to use cached session
-      log("  → Non-auth error, attempting to use cached session");
+      // Non-auth error (404, 500, network, timeout) - try to use cached session
+      log("  → Non-auth error (transient), attempting to use cached session");
       try {
         const cached = await AsyncStorage.getItem("session_cache_v1");
         if (cached) {
           const cachedSession = JSON.parse(cached);
-          log("  ✓ Using cached session");
+          log("  ✓ Using cached session for transient error");
           session = cachedSession;
           // Continue to onboarding check below
         } else {
-          log("  ⚠️ No cached session available");
+          // Token exists but session fetch failed transiently and no cache
+          // This is a transient failure, NOT an auth failure
+          // Return authed with null session to avoid destructive logout
+          log("  ⚠️ No cached session, but token exists - returning authed (transient failure)");
           const elapsed = Date.now() - startTime;
-          log(`✅ Bootstrap complete in ${elapsed}ms (no session)`);
-          return { state: "loggedOut", session: null, error: sessionError.message };
+          log(`✅ Bootstrap complete in ${elapsed}ms (transient error, no cache)`);
+          return { state: "authed", session: null, error: `Transient error: ${sessionError.message}` };
         }
       } catch (e) {
         log("  ⚠️ Error loading cached session:", e);
+        // Token still exists, return authed to avoid logout on transient cache read error
         const elapsed = Date.now() - startTime;
-        log(`✅ Bootstrap complete in ${elapsed}ms (no session)`);
-        return { state: "loggedOut", session: null, error: sessionError.message };
+        log(`✅ Bootstrap complete in ${elapsed}ms (cache read error)`);
+        return { state: "authed", session: null, error: sessionError.message };
       }
     }
   } else {
