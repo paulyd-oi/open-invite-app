@@ -31,6 +31,7 @@ import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
 import { PostEventRepeatNudge, canShowPostEventRepeatNudge, markPostEventRepeatNudgeCompleted } from "@/components/PostEventRepeatNudge";
+import { SocialMemoryCard } from "@/components/SocialMemoryCard";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
@@ -601,6 +602,67 @@ export default function SocialScreen() {
     checkPostEventRepeatNudge();
   }, [isAuthed, feedLoading, myEventsLoading, attendingLoading, friendsLoading, showFirstValueNudge, myEventsData, attendingData]);
 
+  // Derive social memory from existing data patterns
+  const socialMemory = useMemo(() => {
+    if (bootStatus !== 'authed' || feedLoading || myEventsLoading || attendingLoading || friendsLoading) {
+      return null;
+    }
+
+    const attendingEvents = attendingData?.events || [];
+    const myEvents = myEventsData?.events || [];
+    const friends = friendsData?.friends || [];
+
+    // Pattern 1: Frequent Event Attendance (≥2 events attending)
+    if (attendingEvents.length >= 2) {
+      const eventTypes = attendingEvents.map(e => e.title.toLowerCase());
+      const hasRepeatedTypes = eventTypes.some(type => 
+        eventTypes.filter(t => t.includes(type.split(' ')[0]) || type.includes(t.split(' ')[0])).length > 1
+      );
+      
+      if (hasRepeatedTypes) {
+        return {
+          memory: "You have a pattern of joining events that align with your interests. Your social connections are building around shared experiences.",
+          type: 'events' as const
+        };
+      } else {
+        return {
+          memory: "You're exploring diverse social experiences. Each event you join adds a new dimension to your social identity.",
+          type: 'events' as const
+        };
+      }
+    }
+
+    // Pattern 2: Active Event Hosting (≥2 events created)
+    if (myEvents.length >= 2) {
+      const recentEvents = myEvents.filter(e => 
+        new Date(e.startTime) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      );
+      
+      if (recentEvents.length >= 1) {
+        return {
+          memory: "You're becoming a social catalyst in your community. People look forward to the experiences you create.",
+          type: 'hosting' as const
+        };
+      } else {
+        return {
+          memory: "Your hosting journey is creating lasting memories for others. Each event you organize strengthens your community.",
+          type: 'hosting' as const
+        };
+      }
+    }
+
+    // Pattern 3: Growing Social Network (≥2 friends)
+    if (friends.length >= 2) {
+      return {
+        memory: "Your social circle is growing meaningfully. Each connection represents a shared moment and potential for deeper friendship.",
+        type: 'friends' as const
+      };
+    }
+
+    // No qualifying patterns found
+    return null;
+  }, [bootStatus, feedLoading, myEventsLoading, attendingLoading, friendsLoading, attendingData, myEventsData, friendsData]);
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -785,6 +847,15 @@ export default function SocialScreen() {
           <View className="mx-[-20px]">
             <GettingStartedChecklist />
           </View>
+          {socialMemory && (
+            <SocialMemoryCard
+              memory={socialMemory.memory}
+              type={socialMemory.type}
+              themeColor={themeColor}
+              isDark={isDark}
+              colors={colors}
+            />
+          )}
           <FeedCalendar
             events={calendarEvents}
             businessEvents={undefined}
@@ -819,6 +890,15 @@ export default function SocialScreen() {
             colors={colors}
             userId={session?.user?.id}
           />
+          {socialMemory && (
+            <SocialMemoryCard
+              memory={socialMemory.memory}
+              type={socialMemory.type}
+              themeColor={themeColor}
+              isDark={isDark}
+              colors={colors}
+            />
+          )}
           <EventSection
             title="Today"
             events={groupedEvents.today}
