@@ -48,6 +48,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as ExpoCalendar from "expo-calendar";
 
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
@@ -239,6 +240,7 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -511,8 +513,16 @@ export default function EventDetailScreen() {
       // Use success haptic for "going" (more affirming), light for others
       if (status === "going") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
+        safeToast.success("You're In!", "This event has been added to your calendar.");
+      } else if (status === "interested") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        safeToast.success("Marked as Interested", "We'll keep you posted on updates.");
+      } else if (status === "maybe") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        safeToast.success("Marked as Maybe", "Let us know if your plans change.");
+      } else if (status === "not_going") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        safeToast.success("RSVP Updated", "Maybe next time!");
       }
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
@@ -537,6 +547,15 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
+    // Guard: only allow RSVP when authenticated
+    if (bootStatus !== 'authed') {
+      if (bootStatus === 'onboarding') {
+        router.replace('/welcome');
+      } else {
+        router.replace('/login');
+      }
+      return;
+    }
     // Show confirmation modal when removing RSVP
     if (status === "not_going" && myRsvpStatus && myRsvpStatus !== "not_going") {
       setShowRemoveRsvpConfirm(true);
@@ -1333,7 +1352,7 @@ export default function EventDetailScreen() {
 
                 {/* RSVP Options */}
                 {(!myRsvpStatus || showRsvpOptions) && (
-                  <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                     {/* Going */}
                     <Pressable
                       onPress={() => handleRsvp("going")}
