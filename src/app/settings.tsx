@@ -692,12 +692,12 @@ export default function SettingsScreen() {
       console.log("[Settings] Query cache cleared");
 
       // Navigate to welcome
-      router.replace("/welcome");
+      router.replace("/");
       console.log("[Settings] Navigated to welcome");
     } catch (error) {
       console.error("[Settings] Error during logout:", error);
       // Try to navigate anyway
-      router.replace("/welcome");
+      router.replace("/");
     }
   };
 

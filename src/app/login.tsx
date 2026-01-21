@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -66,6 +67,42 @@ const backendUrl =
     ? vibecodeSandboxUrl
     : RENDER_BACKEND_URL;
 
+// ============ ONBOARDING COMPLETION GATE ============
+// Prevent redirect loop: only navigate to "/" if onboarding is complete
+// Otherwise redirect to "/welcome" to complete onboarding flow
+async function routeAfterAuthSuccess(router: any): Promise<void> {
+  try {
+    // INVARIANT CHECK: User must have token to be authenticated
+    const { hasAuthToken } = await import("@/lib/authClient");
+    const tokenExists = await hasAuthToken();
+    
+    if (__DEV__) {
+      console.log("[Login] authedInvariant", {
+        tokenExists,
+      });
+    }
+    
+    // GUARD: Only redirect if authenticated
+    if (!tokenExists) {
+      console.log("[Login] Not authenticated (no token), staying on login screen");
+      return;
+    }
+
+    // ✅ FIXED: Don't use stale local onboarding flags
+    // Let BootRouter (via authBootstrap) decide the route based on backend /api/onboarding/status
+    // This prevents routing to /welcome when backend says onboarding is complete
+    if (__DEV__) {
+      console.log("[Login] Authenticated, routing to '/' - BootRouter will handle onboarding check");
+    }
+    
+    router.replace("/");
+  } catch (error) {
+    console.error("[Login] Error during post-login routing:", error);
+    // On error, stay on login (fail safe to avoid blocking user with redirects)
+    console.log("[Login] Staying on login screen due to error");
+  }
+}
+
 type AuthView = "login" | "forgotPassword" | "verifyEmail" | "success";
 
 export default function LoginScreen() {
@@ -91,10 +128,10 @@ export default function LoginScreen() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const codeInputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (only if user exists, not phantom cached session)
   useEffect(() => {
-    if (session) {
-      router.replace("/");
+    if (session?.user) {
+      routeAfterAuthSuccess(router);
     }
   }, [session]);
 
@@ -163,7 +200,7 @@ export default function LoginScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAuthView("success");
         setTimeout(() => {
-          router.replace("/");
+          routeAfterAuthSuccess(router);
         }, 1500);
       }
     } catch (error: any) {
@@ -227,7 +264,7 @@ export default function LoginScreen() {
       } else {
         setAuthView("success");
         setTimeout(() => {
-          router.replace("/");
+          routeAfterAuthSuccess(router);
         }, 1500);
       }
     } catch (error: any) {
@@ -1057,7 +1094,7 @@ export default function LoginScreen() {
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.replace("/welcome");
+                      router.replace("/");
                     }}
                     disabled={isLoading}
                   >

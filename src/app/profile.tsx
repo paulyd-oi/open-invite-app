@@ -33,6 +33,8 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
+import { resetSession } from "@/lib/authBootstrap";
+
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
@@ -86,7 +88,7 @@ export default function ProfileScreen() {
   // Fetch profiles to check if user is in business mode
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
     queryKey: ["profiles"],
-    queryFn: () => api.get<GetProfilesResponse>("/api/profiles"),
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: !!session,
   });
 
@@ -124,7 +126,7 @@ export default function ProfileScreen() {
 
   const { data: achievementsData, refetch: refetchAchievements } = useQuery({
     queryKey: ["achievements"],
-    queryFn: () => api.get<GetAchievementsResponse>("/api/achievements"),
+    queryFn: () => api.get<GetAchievementsResponse>("/api/profile/achievements"),
     enabled: !!session,
   });
 
@@ -214,10 +216,18 @@ export default function ProfileScreen() {
     setShowSignOutConfirm(true);
   };
 
-  const confirmSignOut = () => {
+  const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    authClient.signOut();
-    queryClient.clear();
+    try {
+      await resetSession();
+      queryClient.clear();
+      router.replace("/");
+    } catch (error) {
+      console.error("[Profile] Error during logout:", error);
+      // Navigate anyway to ensure user can log out even if backend fails
+      queryClient.clear();
+      router.replace("/");
+    }
   };
 
   const handleDeleteGroup = (group: FriendGroup) => {

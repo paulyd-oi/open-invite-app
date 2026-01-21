@@ -29,6 +29,8 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
+import { resetSession } from "@/lib/authBootstrap";
+
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -186,7 +188,7 @@ export default function AccountCenterScreen() {
   // Fetch profiles
   const { data: profilesData, refetch } = useQuery({
     queryKey: ["profiles"],
-    queryFn: () => api.get<GetProfilesResponse>("/api/profiles"),
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -216,11 +218,18 @@ export default function AccountCenterScreen() {
     setShowSignOutConfirm(true);
   };
 
-  const confirmSignOut = () => {
+  const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    authClient.signOut();
-    queryClient.clear();
-    router.replace("/");
+    try {
+      await resetSession();
+      queryClient.clear();
+      router.replace("/");
+    } catch (error) {
+      console.error("[AccountCenter] Error during logout:", error);
+      // Navigate anyway to ensure user can log out even if backend fails
+      queryClient.clear();
+      router.replace("/");
+    }
   };
 
   if (!session) {
