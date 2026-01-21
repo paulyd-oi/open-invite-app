@@ -2,7 +2,6 @@ import React from "react";
 import { Pressable, Text } from "react-native";
 
 import { authClient } from "@/lib/authClient";
-import { resetSession } from "@/lib/authBootstrap";
 import { useSession } from "@/lib/useSession";
 import { cn } from "@/lib/cn";
 import { useRouter } from "expo-router";
@@ -16,21 +15,15 @@ const LoginButton = () => {
       disabled={isPending}
       onPress={async () => {
         if (session) {
-          try {
-            await resetSession({ reason: "auth_cleanup", endpoint: "LoginButton" });
-            router.replace("/welcome");
-          } catch (error) {
-            console.error("[LoginButton] Error during logout:", error);
-            // Navigate anyway
-            router.replace("/welcome");
-          }
+          // Route to settings for proper logout
+          router.push("/settings");
         } else {
           router.push("/login");
         }
       }}
       className={cn("p-4 rounded-md", session ? "bg-red-500" : "bg-blue-500")}
     >
-      <Text className="text-white">{session ? "Logout" : "Login"}</Text>
+      <Text className="text-white">{session ? "Go to Settings" : "Login"}</Text>
     </Pressable>
   );
 };
