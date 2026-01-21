@@ -870,7 +870,25 @@ export default function SocialScreen() {
             colors={colors}
             userId={session?.user?.id}
           />
-          <EmptyFeed />
+          <View className="py-12 items-center px-8">
+            <Text className="text-5xl mb-4">📅</Text>
+            <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+              No Open Invites yet
+            </Text>
+            <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
+              This feed shows plans your friends are opening up
+            </Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/create");
+              }}
+              className="px-6 py-3 rounded-full"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold">Create an Open Invite</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       ) : (
         <ScrollView

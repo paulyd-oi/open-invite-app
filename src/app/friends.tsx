@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { ShareAppButton } from "@/components/ShareApp";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -1485,11 +1486,18 @@ export default function FriendsScreen() {
                   </Pressable>
                 </View>
               ) : (
-                <EmptyState
-                  type="friends"
-                  actionLabel="Find Friends"
-                  onAction={() => router.push("/discover")}
-                />
+                <View className="py-12 items-center px-8">
+                  <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
+                    <Users size={36} color={themeColor} />
+                  </View>
+                  <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+                    No friends yet
+                  </Text>
+                  <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
+                    Invite friends to see their plans and share yours
+                  </Text>
+                  <ShareAppButton variant="full" />
+                </View>
               )
             ) : viewMode === "list" ? (
               filteredFriends.map((friendship: Friendship, index: number) => (

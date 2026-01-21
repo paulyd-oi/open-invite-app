@@ -2019,10 +2019,10 @@ const didOverscrollTopRef = useRef(false);
           <View className="px-8 items-center">
             <Text className="text-5xl mb-4">📅</Text>
             <Text className="text-xl font-semibold mb-2 text-center" style={{ color: colors.text }}>
-              Nothing planned yet
+              Your calendar is empty
             </Text>
             <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
-              Create something or see what friends are doing
+              Add your first plan to get started
             </Text>
             <Pressable
               onPress={() => {
@@ -2032,22 +2032,7 @@ const didOverscrollTopRef = useRef(false);
               className="px-6 py-3 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
-              <Text className="text-white font-semibold">Create Event</Text>
-            </Pressable>
-            <View className="flex-row items-center mt-6">
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-              <Text className="mx-4 text-sm" style={{ color: colors.textTertiary }}>or</Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-            </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/discover");
-              }}
-              className="mt-6 px-6 py-3 rounded-full"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              <Text className="font-medium" style={{ color: themeColor }}>Explore Discover</Text>
+              <Text className="text-white font-semibold">Add your first plan</Text>
             </Pressable>
           </View>
         </ScrollView>
