@@ -33,9 +33,6 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { resetSession } from "@/lib/authBootstrap";
-import { setLogoutIntent } from "@/lib/logoutIntent";
-
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
@@ -82,7 +79,6 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Confirm modal states
-  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<FriendGroup | null>(null);
 
@@ -214,22 +210,8 @@ export default function ProfileScreen() {
   });
 
   const handleLogout = () => {
-    setShowSignOutConfirm(true);
-  };
-
-  const confirmSignOut = async () => {
-    setShowSignOutConfirm(false);
-    try {
-      setLogoutIntent();
-      await resetSession({ reason: "user_logout", endpoint: "profile" });
-queryClient.clear();
-      router.replace("/");
-    } catch (error) {
-      console.error("[Profile] Error during logout:", error);
-      // Navigate anyway to ensure user can log out even if backend fails
-      queryClient.clear();
-      router.replace("/");
-    }
+    // Route to settings for logout (don't logout from profile)
+    router.push("/settings");
   };
 
   const handleDeleteGroup = (group: FriendGroup) => {
@@ -1180,18 +1162,6 @@ queryClient.clear();
           </View>
         </View>
       </Modal>
-
-      {/* Sign Out Confirm Modal */}
-      <ConfirmModal
-        visible={showSignOutConfirm}
-        title="Sign Out"
-        message="Are you sure you want to sign out?"
-        confirmText="Sign Out"
-        cancelText="Cancel"
-        isDestructive
-        onConfirm={confirmSignOut}
-        onCancel={() => setShowSignOutConfirm(false)}
-      />
 
       {/* Delete Group Confirm Modal */}
       <ConfirmModal

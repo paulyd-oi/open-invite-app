@@ -420,34 +420,36 @@ export default function FeedScreen() {
       console.log("[Logout] begin");
     }
     try {
+      // Standardized logout sequence
       setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "FeedScreen" });
       if (__DEV__) {
         console.log("[Logout] after resetSession");
       }
-    } catch (error) {
-      console.error("[FeedScreen] Error during resetSession:", error);
-    }
 
-    try {
-      await clearSessionCache();
+      // Cancel all pending queries
+      await queryClient.cancelQueries();
       if (__DEV__) {
-        console.log("[Logout] after clearSessionCache");
+        console.log("[Logout] after cancelQueries");
       }
-    } catch (error) {
-      console.error("[FeedScreen] Error during clearSessionCache:", error);
-    }
 
-    try {
+      // Clear React Query cache
       queryClient.clear();
       if (__DEV__) {
         console.log("[Logout] after queryClient.clear");
       }
     } catch (error) {
-      console.error("[FeedScreen] Error during queryClient.clear:", error);
+      console.error("[FeedScreen] Error during logout:", error);
+      // Try to clear cache anyway
+      try {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      } catch (e) {
+        // ignore
+      }
     }
 
-    // Route to login exactly once
+    // Hard transition to login
     if (__DEV__) {
       console.log("[Logout] navigating to /login");
     }

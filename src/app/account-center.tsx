@@ -222,15 +222,25 @@ export default function AccountCenterScreen() {
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
     try {
+      // Standardized logout sequence
       setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "account-center" });
-queryClient.clear();
-      router.replace("/");
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      console.log("[AccountCenter] Session and cache cleared");
+
+      // Hard transition to login
+      router.replace("/login");
     } catch (error) {
       console.error("[AccountCenter] Error during logout:", error);
       // Navigate anyway to ensure user can log out even if backend fails
-      queryClient.clear();
-      router.replace("/");
+      try {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      } catch (e) {
+        // ignore
+      }
+      router.replace("/login");
     }
   };
 

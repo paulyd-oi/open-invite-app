@@ -684,22 +684,26 @@ export default function SettingsScreen() {
       await deactivatePushTokenOnLogout();
       console.log("[Settings] Push token deactivated");
 
-      // Use resetSession to clear all auth state
+      // Standardized logout sequence
       setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "settings" });
-console.log("[Settings] Session reset complete");
-
-      // Clear React Query cache
+      await queryClient.cancelQueries();
       queryClient.clear();
-      console.log("[Settings] Query cache cleared");
+      console.log("[Settings] Session and cache cleared");
 
-      // Navigate to welcome
-      router.replace("/");
-      console.log("[Settings] Navigated to welcome");
+      // Hard transition to login
+      router.replace("/login");
+      console.log("[Settings] Navigated to login");
     } catch (error) {
       console.error("[Settings] Error during logout:", error);
       // Try to navigate anyway
-      router.replace("/");
+      try {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      } catch (e) {
+        // ignore
+      }
+      router.replace("/login");
     }
   };
 
