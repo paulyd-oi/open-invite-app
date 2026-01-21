@@ -1,0 +1,87 @@
+BOTTOM NAV TAB LABEL RENAME - HANDOFF PACKET
+==============================================
+
+SUMMARY
+-------
+Renamed bottom navigation tab #2 label from "Calendar" to "Social" to better reflect that this tab shows the social feed (not the calendar view).
+
+Tab #2 still routes to "/" (social feed) with List icon. Change is label-only, preserves all other properties and Navigation Invariant.
+
+
+FILES CHANGED
+-------------
+src/constants/navigation.ts (MODIFIED - 1 line)
+
+
+BEFORE / AFTER
+--------------
+
+BEFORE (line 60):
+```typescript
+    label: "Calendar",
+```
+
+AFTER (line 60):
+```typescript
+    label: "Social",
+```
+
+FULL CONTEXT (lines 57-65):
+```typescript
+  {
+    key: "calendar",
+    Icon: List,
+    label: "Social",          ← CHANGED: "Calendar" → "Social"
+    href: "/",                ← UNCHANGED
+    isCenter: false,          ← UNCHANGED
+    badgeKey: "eventRequests", ← UNCHANGED
+  },
+```
+
+
+CONFIRMATION - UNCHANGED PROPERTIES
+------------------------------------
+✅ key: "calendar" (UNCHANGED)
+✅ Icon: List (UNCHANGED)
+✅ href: "/" (UNCHANGED)
+✅ isCenter: false (UNCHANGED)
+✅ badgeKey: "eventRequests" (UNCHANGED)
+✅ Tab order: discover → calendar → home → friends → profile (UNCHANGED)
+✅ isCenter: true on home tab (UNCHANGED)
+✅ All other tabs: UNCHANGED
+
+
+VALIDATION
+----------
+✅ TypeScript: Compiles with 0 errors
+✅ No other files modified
+✅ Navigation Invariant preserved
+✅ No route changes
+✅ No icon changes
+✅ No order changes
+✅ Center position unchanged
+
+
+HOW TO TEST
+-----------
+```bash
+npx expo start -c
+# Press 'i' for iOS
+# Verify: Bottom nav shows "Social" tab label (position 2, list icon 📋)
+# Tap "Social" tab → navigates to home feed (/)
+```
+
+
+BEHAVIORAL CHANGE
+------------------
+ONLY: Tab label display changed
+- Before: Shows "Calendar" under list icon
+- After: Shows "Social" under list icon
+- Same functionality, better semantic clarity
+
+
+NEXT STEPS
+----------
+1. ✅ Label rename complete
+2. ⏳ Optional: iOS simulator verification
+3. ⏳ Commit changes

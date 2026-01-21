@@ -25,7 +25,7 @@
  */
 
 import type { LucideIcon } from "@/ui/icons";
-import { Sparkles, Calendar, Home, Users, User } from "@/ui/icons";
+import { Sparkles, Calendar, Home, Users, User, List } from "@/ui/icons";
 
 export interface NavTab {
   /** Unique key for this tab */
@@ -57,17 +57,17 @@ export const BOTTOM_NAV_TABS: readonly NavTab[] = [
   },
   {
     key: "calendar",
-    Icon: Calendar,
-    label: "Calendar",
-    href: "/calendar",
+    Icon: List,
+    label: "Social",
+    href: "/",
     isCenter: false,
     badgeKey: "eventRequests",
   },
   {
     key: "home",
-    Icon: Home,
+    Icon: Calendar,
     label: "Home",
-    href: "/",
+    href: "/calendar",
     isCenter: true, // CENTER POSITION - emphasized with elevation
   },
   {
