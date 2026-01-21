@@ -58,9 +58,17 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
   } catch (error: any) {
     // Enhanced error handling for debugging
     if (__DEV__) {
-      console.log(`[api.ts]: ${method} ${path} - ${error.message || error}`);
-      if (error.status === 401 || error.status === 403) {
-        console.log(`[api.ts auth error]: ${error.status} - Authorization header should be handled by authClient`);
+      // Known optional endpoints - don't log 404s as errors
+      const isKnownOptional = error.status === 404 && (
+        path.includes("/api/entitlements") ||
+        path.includes("/api/businesses/following")
+      );
+      
+      if (!isKnownOptional) {
+        console.log(`[api.ts]: ${method} ${path} - ${error.message || error}`);
+        if (error.status === 401 || error.status === 403) {
+          console.log(`[api.ts auth error]: ${error.status} - Authorization header should be handled by authClient`);
+        }
       }
     }
 

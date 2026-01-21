@@ -103,6 +103,9 @@ export async function performAutoSync(options?: {
     // Check calendar permissions
     const hasPermissions = await hasCalendarPermissions();
     if (!hasPermissions) {
+      if (__DEV__) {
+        console.log("[Calendar] Permission not granted — auto-sync skipped");
+      }
       return {
         success: false,
         synced: false,

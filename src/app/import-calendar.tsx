@@ -495,7 +495,7 @@ export default function ImportCalendarScreen() {
         showsVerticalScrollIndicator={false}
       >
         {!permissionResult || !permissionResult.granted ? (
-          // Permission Request Screen
+          // Permission Request Screen - Optional Feature
           <Animated.View entering={FadeInDown.springify()}>
             <View
               className="rounded-2xl p-6 items-center"
@@ -511,13 +511,13 @@ export default function ImportCalendarScreen() {
                 className="text-xl font-bold text-center mb-2"
                 style={{ color: colors.text }}
               >
-                Access Your Calendars
+                Connect Your Calendar
               </Text>
               <Text
                 className="text-center mb-6"
                 style={{ color: colors.textSecondary }}
               >
-                Allow Open Invite to read your calendars to import and share events with friends.
+                Automatically share your calendar events with friends. You can always add events manually.
               </Text>
 
               {permissionResult && !permissionResult.canAskAgain ? (
@@ -534,21 +534,35 @@ export default function ImportCalendarScreen() {
                     </View>
                   </Pressable>
                   <Text
+                    className="text-xs text-center mb-4"
+                    style={{ color: colors.textTertiary }}
+                  >
+                    Enable in Settings → Open Invite → Calendars
+                  </Text>
+                  <Text
                     className="text-xs text-center"
                     style={{ color: colors.textTertiary }}
                   >
-                    Calendar access was denied. Please enable it in Settings → Open Invite → Calendars
+                    This feature is optional — you can still use Open Invite without it.
                   </Text>
                 </>
               ) : (
                 // Can still request permission
-                <Pressable
-                  onPress={handleRequestPermission}
-                  className="w-full py-4 rounded-xl items-center"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-white font-semibold">Allow Calendar Access</Text>
-                </Pressable>
+                <>
+                  <Pressable
+                    onPress={handleRequestPermission}
+                    className="w-full py-4 rounded-xl items-center mb-3"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <Text className="text-white font-semibold">Enable Calendar Access</Text>
+                  </Pressable>
+                  <Text
+                    className="text-xs text-center"
+                    style={{ color: colors.textTertiary }}
+                  >
+                    Optional — you can still create events manually without calendar access.
+                  </Text>
+                </>
               )}
             </View>
           </Animated.View>

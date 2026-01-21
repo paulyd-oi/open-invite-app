@@ -187,14 +187,17 @@ async function $fetch<T = any>(
         : payload?.message || payload?.error || `Request failed: ${res.status}`;
     
     if (__DEV__) {
+      // Known optional endpoints - treat 404 as non-error
       const isKnown404 = res.status === 404 && (
         url.includes("/api/profile") ||
         url.includes("/api/profiles") ||
-        url.includes("/api/achievements")
+        url.includes("/api/achievements") ||
+        url.includes("/api/entitlements") ||
+        url.includes("/api/businesses/following")
       );
       
       if (isKnown404) {
-        console.warn(`[authClient.$fetch] Known 404 ignored: ${init?.method || 'GET'} ${url}`);
+        console.warn(`[authClient.$fetch] Known optional endpoint 404: ${init?.method || 'GET'} ${url}`);
       } else {
         console.log(`[authClient.$fetch] Error response:`, msg);
       }
