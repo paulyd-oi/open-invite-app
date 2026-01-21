@@ -162,6 +162,20 @@ export function isRateLimitError(error: any): boolean {
 }
 
 /**
+ * Check if a 404 error is from a known, transitional endpoint
+ */
+export function isKnown404Endpoint(error: any): boolean {
+  const url = error?.url || error?.config?.url || "";
+  const knownEndpoints = [
+    "/api/profile",
+    "/api/profiles",
+    "/api/achievements",
+  ];
+  
+  return knownEndpoints.some(endpoint => url.includes(endpoint));
+}
+
+/**
  * Determine if an error should trigger logout
  * Only true auth errors (401/403 from server) should cause logout
  * Network errors, 5xx, timeouts, rate limits, 404s should NOT cause logout
@@ -188,7 +202,11 @@ export function shouldLogoutOnError(error: any): boolean {
 
   // 404 - endpoint doesn't exist on backend, don't logout
   if (status === 404) {
-    if (__DEV__) {
+    if (isKnown404Endpoint(error)) {
+      if (__DEV__) {
+        console.warn("[Network] Known 404 ignored:", error?.url || "unknown endpoint");
+      }
+    } else if (__DEV__) {
       console.log("[Auth] 404 session endpoint ignored (not implemented on backend)");
     }
     return false;

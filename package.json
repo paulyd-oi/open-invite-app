@@ -47,6 +47,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "expo": "~53.0.25",
+    "expo-apple-authentication": "~7.2.4",
     "expo-application": "~6.1.4",
     "expo-asset": "~11.1.7",
     "expo-auth-session": "^6.0.3",

@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { authClient } from "@/lib/authClient";
+import { resetSession } from "@/lib/authBootstrap";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { isRateLimited, getRateLimitRemaining } from "@/lib/rateLimitState";
@@ -312,10 +313,12 @@ export default function LoginWithEmailPassword() {
 
   const handleSignOut = async () => {
     try {
-      await authClient.signOut();
+      await resetSession();
       safeToast.success("Success", "Signed out successfully!");
-    } catch {
-      safeToast.error("Error", "Failed to sign out");
+    } catch (error) {
+      console.error("[LoginWithEmailPassword] Error during logout:", error);
+      // Show success anyway since local logout always succeeds
+      safeToast.success("Success", "Signed out successfully!");
     }
   };
 

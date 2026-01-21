@@ -2,10 +2,19 @@
 import * as SecureStore from "expo-secure-store";
 import * as React from "react";
 import { BACKEND_URL } from "./config";
+import { SESSION_TOKEN_KEY } from "./authKeys";
 
-// Use project-specific token key to match authBootstrap.ts
-const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID || "open-invite";
-const TOKEN_KEY = `${projectId}.session-token`;
+// Use canonical token key (single source of truth from authKeys.ts)
+const TOKEN_KEY = SESSION_TOKEN_KEY;
+
+/**
+ * DEV-only trace helper for auth token flow tracing.
+ * Never logs token content - only booleans, keys, and function names.
+ */
+function authTrace(event: string, data: Record<string, boolean | string | number>): void {
+  if (!__DEV__) return;
+  console.log(`[AUTH_TRACE] ${event}`, data);
+}
 
 // Prefer explicit EXPO_PUBLIC_API_URL, then fall back to the centralized BACKEND_URL
 const API_BASE_URL =
@@ -23,12 +32,19 @@ function joinUrl(base: string, path: string) {
 }
 
 export async function getAuthToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
+  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const tokenExists = !!token;
+  authTrace("getAuthToken:result", { tokenExists, keyUsed: TOKEN_KEY });
+  return token;
 }
 
 export async function hasAuthToken(): Promise<boolean> {
+  authTrace("hasAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
   const token = await getAuthToken();
-  return !!token;
+  const hasToken = !!token;
+  authTrace("hasAuthToken:result", { hasToken, storageType: "SecureStore" });
+  return hasToken;
 }
 
 export async function setAuthToken(token: string): Promise<void> {
@@ -81,11 +97,48 @@ async function $fetch<T = any>(
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
   }
 
+  // Detect pre-existing auth headers/cookies before our logic runs
+  if (__DEV__) {
+    const requestHeaders = init?.headers as Record<string, any> | undefined;
+    const hadAuthorizationHeaderAlready = !!(requestHeaders?.Authorization || requestHeaders?.authorization);
+    const hadCookieHeaderAlready = !!(requestHeaders?.Cookie || requestHeaders?.cookie);
+    
+    let authHeaderSourceGuess: "requestOptions" | "clientDefaults" | "unknown" = "unknown";
+    if (requestHeaders?.Authorization || requestHeaders?.authorization) {
+      authHeaderSourceGuess = "requestOptions";
+    }
+    
+    authTrace("authFetch:preExistingHeaders", {
+      hadAuthorizationHeaderAlready,
+      hadCookieHeaderAlready,
+      authHeaderSourceGuess,
+    });
+  }
+
+  authTrace("authFetch:beforeAttach", { 
+    endpoint: path,
+    method: init?.method || "GET",
+    storageKeyUsed: TOKEN_KEY,
+  });
+
   const token = await getAuthToken();
 
   if (__DEV__ && path.includes('auth')) {
     console.log(`[authClient.$fetch] Token exists: ${!!token}`);
   }
+
+  // Debug log for Bearer token format
+  if (__DEV__ && token) {
+    console.log(`[authClient.$fetch] Auth header uses Bearer: true; tokenLen: ${token.length}`);
+  } else if (__DEV__) {
+    console.log(`[authClient.$fetch] Auth header uses Bearer: false; tokenLen: 0`);
+  }
+
+  authTrace("authFetch:tokenRead", {
+    tokenExists: !!token,
+    readFrom: "SecureStore",
+    keyUsed: TOKEN_KEY,
+  });
 
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -105,6 +158,11 @@ async function $fetch<T = any>(
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
+
+  authTrace("authFetch:afterAttach", {
+    willAttachAuthHeader: !!token,
+    endpoint: path,
+  });
 
   const res = await fetch(url, {
     ...init,
@@ -129,12 +187,23 @@ async function $fetch<T = any>(
         : payload?.message || payload?.error || `Request failed: ${res.status}`;
     
     if (__DEV__) {
-      console.log(`[authClient.$fetch] Error response:`, msg);
+      const isKnown404 = res.status === 404 && (
+        url.includes("/api/profile") ||
+        url.includes("/api/profiles") ||
+        url.includes("/api/achievements")
+      );
+      
+      if (isKnown404) {
+        console.warn(`[authClient.$fetch] Known 404 ignored: ${init?.method || 'GET'} ${url}`);
+      } else {
+        console.log(`[authClient.$fetch] Error response:`, msg);
+      }
     }
     
     const error = new Error(msg) as any;
     error.status = res.status;
     error.response = { status: res.status };
+    error.url = url;
     throw error;
   }
 

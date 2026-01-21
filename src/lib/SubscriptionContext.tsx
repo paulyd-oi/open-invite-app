@@ -57,13 +57,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSubscription = useCallback(async () => {
-    if (!session) {
-      setSubscription(null);
-      setLimits(null);
-      setFeatures(null);
-      setIsLoading(false);
-      return;
-    }
+    // Note: session is optional enrichment - subscription endpoint validates via Bearer token
+    // If session is null but token is valid, subscription fetch will still work
 
     try {
       const data = await api.get<SubscriptionResponse>("/api/subscription");
@@ -74,6 +69,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (__DEV__) {
         console.error("Failed to fetch subscription:", error);
       }
+      // On error, set to free tier defaults
+      setSubscription(null);
+      setLimits(null);
+      setFeatures(null);
     } finally {
       setIsLoading(false);
     }

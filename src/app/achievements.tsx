@@ -216,7 +216,7 @@ export default function AchievementsScreen() {
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["achievements"],
-    queryFn: () => api.get<GetAchievementsResponse>("/api/achievements"),
+    queryFn: () => api.get<GetAchievementsResponse>("/api/profile/achievements"),
     enabled: !!session,
   });
 

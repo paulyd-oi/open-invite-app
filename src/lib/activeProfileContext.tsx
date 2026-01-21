@@ -52,7 +52,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["profiles"],
     queryFn: async () => {
-      return api.get<GetProfilesResponse>("/api/profiles");
+      return api.get<GetProfilesResponse>("/api/profile");
     },
     enabled: !!session,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -61,7 +61,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
   // Switch profile mutation
   const switchMutation = useMutation({
     mutationFn: async (profileId: string | null) => {
-      return api.post<SwitchProfileResponse>("/api/profiles/switch", { profileId });
+      return api.post<SwitchProfileResponse>("/api/profile/switch", { profileId });
     },
     onSuccess: () => {
       // Invalidate and refetch profiles

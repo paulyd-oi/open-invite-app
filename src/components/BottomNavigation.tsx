@@ -206,7 +206,7 @@ export default function BottomNavigation() {
   // Fetch profiles for profile switcher
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
-    queryFn: () => api.get<GetProfilesResponse>("/api/profiles"),
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: !!session,
     staleTime: 60000, // Cache for 1 minute
   });

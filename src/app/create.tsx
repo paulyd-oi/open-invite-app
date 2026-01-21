@@ -288,7 +288,7 @@ export default function CreateEventScreen() {
   // Check active profile to redirect business profiles to business event creation
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
-    queryFn: () => api.get<GetProfilesResponse>("/api/profiles"),
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: !!session,
     staleTime: 60000,
   });

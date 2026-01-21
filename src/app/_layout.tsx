@@ -2,13 +2,13 @@
 import 'fast-text-encoding';
 
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState, usePathname } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
@@ -29,6 +29,7 @@ import { setupDeepLinkListener } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
 import { useOfflineSync } from '@/lib/offlineSync';
 import { BACKEND_URL } from '@/lib/config';
+import { useBootAuthority } from '@/hooks/useBootAuthority';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -44,6 +45,79 @@ function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
   // This hook handles queue replay when coming back online
   useOfflineSync();
   return <>{children}</>;
+}
+
+/**
+ * Boot Router Component
+ * 
+ * Uses the boot authority to make the SINGLE initial routing decision.
+ * While loading, shows splash screen.
+ * Once boot status is known, redirects to appropriate route ONCE.
+ * Does NOT re-route on session/token changes - those are handled by component logic.
+ */
+function BootRouter() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const navigationState = useRootNavigationState();
+  const { status: bootStatus, error: bootError } = useBootAuthority();
+  const hasRoutedRef = useRef(false);
+
+  // Wait for navigation state to be ready before routing
+  useEffect(() => {
+    if (!navigationState?.key) {
+      return; // Navigation not ready yet
+    }
+
+    // Only route once based on boot status
+    if (hasRoutedRef.current) {
+      return;
+    }
+
+    // Still loading - don't route yet
+    if (bootStatus === 'loading') {
+      return;
+    }
+
+    hasRoutedRef.current = true;
+
+    if (__DEV__) {
+      console.log('[BootRouter] Routing based on boot status:', bootStatus, 'current pathname:', pathname);
+    }
+
+    // Guard: if bootStatus indicates logout in progress, always route to /login
+    if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      // Only replace if not already on /login (prevent infinite loop)
+      if (pathname !== '/login') {
+        if (__DEV__) {
+          console.log('[BootRouter] Routing to /login from', pathname);
+        }
+        router.replace('/login');
+      }
+    } else if (bootStatus === 'onboarding') {
+      // Authenticated but onboarding incomplete - send to welcome
+      if (pathname !== '/welcome') {
+        if (__DEV__) {
+          console.log('[BootRouter] Routing to /welcome from', pathname);
+        }
+        router.replace('/welcome');
+      }
+    } else if (bootStatus === 'authed') {
+      // Fully authenticated and onboarded - go to feed (index route)
+      if (pathname !== '/') {
+        if (__DEV__) {
+          console.log('[BootRouter] Routing to / from', pathname);
+        }
+        router.replace('/');
+      }
+    }
+  }, [navigationState?.key, bootStatus, router, pathname]);
+
+  // While loading, show nothing (splash screen handled in RootLayout)
+  if (bootStatus === 'loading') {
+    return null;
+  }
+
+  return null;
 }
 
 function RootLayoutNav() {
@@ -373,6 +447,7 @@ export default function RootLayout() {
                   <View style={{ flex: 1 }}>
                     <NetworkStatusBanner />
                     <ToastContainer />
+                    <BootRouter />
                     <RootLayoutNav />
                   {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
                 </View>

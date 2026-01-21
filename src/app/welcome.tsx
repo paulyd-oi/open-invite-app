@@ -59,9 +59,10 @@ import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
 import { useTheme } from "@/lib/ThemeContext";
-import { authClient } from "@/lib/authClient";
+import { authClient, hasAuthToken } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
+import { SESSION_TOKEN_KEY } from "@/lib/authKeys";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation } from "@/lib/appleSignIn";
@@ -671,6 +672,113 @@ export default function WelcomeOnboardingScreen() {
     }
   }, [backendUrl]);
 
+  // ============ ONBOARDING COMPLETION GATE ============
+  // Prevent redirect loop: only auto-navigate to "/" if authenticated AND onboarding complete
+  useEffect(() => {
+    const checkOnboardingAndRedirect = async () => {
+      try {
+        // Check if user is authenticated (has valid token)
+        const isAuthenticated = await hasAuthToken();
+        
+        if (!isAuthenticated) {
+          // NOT AUTHENTICATED: Redirect to login, not welcome screen
+          console.log("[Welcome] Not authenticated, redirecting to login");
+          router.replace("/login");
+          return;
+        }
+
+        // Fetch backend onboarding status (source of truth)
+        let backendOnboardingCompleted = false;
+        try {
+          const response = await api.get<any>("/api/onboarding/status");
+          
+          // Robust parsing: handle multiple possible response shapes
+          const data = response;
+          backendOnboardingCompleted = !!(
+            data?.completed ?? 
+            data?.onboardingCompleted ?? 
+            data?.onboarded ?? 
+            data?.data?.completed
+          );
+          
+          if (__DEV__) {
+            const responseKeys = data ? Object.keys(data) : [];
+            console.log(
+              `[OnboardingStatus] fetched keys=[${responseKeys.join(', ')}] completed=${backendOnboardingCompleted}`
+            );
+          }
+        } catch (error: any) {
+          if (__DEV__) {
+            console.log(`[OnboardingStatus] fetch failed: ${error.message}`);
+          }
+        }
+
+        // Check local onboarding completion state
+        const onboardingCompleted = await AsyncStorage.getItem("onboarding_completed");
+        const onboardingProgressV2 = await AsyncStorage.getItem("onboarding_progress_v2");
+        const onboardingProgress = await AsyncStorage.getItem("onboarding_progress");
+
+        // If backend says complete, clear local progress flags
+        if (backendOnboardingCompleted) {
+          if (__DEV__) {
+            console.log("[Welcome] Backend confirms onboarding complete; clearing local progress flags");
+          }
+          try {
+            await AsyncStorage.multiRemove([
+              "onboarding_progress_v2",
+              "onboarding_progress",
+            ]);
+            if (onboardingCompleted !== "true") {
+              await AsyncStorage.setItem("onboarding_completed", "true");
+            }
+          } catch (clearError: any) {
+            if (__DEV__) {
+              console.log("[Welcome] Could not clear onboarding flags:", clearError.message);
+            }
+          }
+        }
+
+        // Define onboarding as incomplete if:
+        // - Backend says NOT complete AND
+        // - (completed flag is not "true" OR progressV2/progress exists)
+        const onboardingIncomplete = 
+          !backendOnboardingCompleted && (
+            onboardingCompleted !== "true" || 
+            onboardingProgressV2 !== null || 
+            onboardingProgress !== null
+          );
+
+        if (__DEV__) {
+          console.log("[Welcome] Onboarding gate check:", {
+            isAuthenticated,
+            backendOnboardingCompleted,
+            onboardingCompleted,
+            hasProgressV2: !!onboardingProgressV2,
+            hasProgress: !!onboardingProgress,
+            onboardingIncomplete,
+          });
+        }
+
+        // Only redirect to "/" if authenticated AND onboarding complete
+        if (isAuthenticated && !onboardingIncomplete) {
+          console.log("[Welcome] User authenticated and onboarded, redirecting to feed");
+          router.replace("/");
+        } else if (onboardingIncomplete) {
+          console.log("[Welcome] Onboarding incomplete, staying on welcome screen");
+          // Stay on welcome screen - do not redirect
+        }
+      } catch (error) {
+        console.error("[Welcome] Error checking onboarding state:", error);
+        // On error, stay on welcome screen (fail safe)
+      }
+    };
+
+    // Only run check after fonts and restore are done
+    if (fontsLoaded && !isRestoring) {
+      checkOnboardingAndRedirect();
+    }
+  }, [fontsLoaded, isRestoring, router]);
+
   // ============ PERSISTENCE ============
 
   useEffect(() => {
@@ -836,9 +944,7 @@ export default function WelcomeOnboardingScreen() {
       const token = data.token || data.session?.token;
       if (token) {
         try {
-          const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID;
-const tokenKey = `.session-token`;
-await SecureStore.setItemAsync(tokenKey, token);
+          await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
 if (data.session?.expiresAt) {
             await SecureStore.setItemAsync("session_expires", data.session.expiresAt);
           }
@@ -868,14 +974,32 @@ if (data.session?.expiresAt) {
         return;
       }
 
-      // Log full error for debugging
+      // Extract diagnostic info (code, domain, message) without logging tokens
+      const errorObj = error as any;
+      const diagnostics = {
+        code: errorObj?.code ?? errorObj?.errorCode ?? "UNKNOWN",
+        domain: errorObj?.domain ?? errorObj?.name ?? "UNKNOWN",
+        message: errorObj?.message ?? String(error),
+      };
+
+      // Log diagnostics with console.warn to avoid red overlay in DEV
       if (__DEV__) {
-        console.error("[Apple Auth] Full error:", error);
+        console.warn("[Apple Auth] Sign-in failed:", diagnostics);
       }
 
-      // Use toUserMessage for consistent error formatting
-      const { title, message } = toUserMessage(error);
-      safeToast.error(title, message || "Unable to sign in with Apple. Please try again.");
+      // Check if error message indicates cancellation (belt-and-suspenders)
+      const errorMessage = diagnostics.message.toLowerCase();
+      if (errorMessage.includes("cancel") || errorMessage.includes("abort")) {
+        console.log("[Apple Auth] User cancelled (via message check)");
+        safeToast.info("Sign-in Canceled", "You can try again or sign in with email.");
+        return;
+      }
+
+      // Use warning toast for expected user-flow errors (not fatal)
+      safeToast.warning(
+        "Apple Sign-In Failed",
+        "Please try again, or use email to continue."
+      );
       
     } finally {
       setIsLoading(false);
@@ -1810,6 +1934,40 @@ if (data.session?.expiresAt) {
       style={{ flex: 1 }}
     >
       {renderScreen()}
+      
+      {/* DEV-only: Reset onboarding progress button */}
+      {__DEV__ && (
+        <Pressable
+          onPress={async () => {
+            try {
+              await AsyncStorage.multiRemove([
+                "onboarding_completed",
+                "onboarding_progress_v2",
+                "onboarding_progress",
+              ]);
+              console.log("[DEV] Cleared onboarding progress flags");
+              router.replace("/");
+            } catch (error) {
+              console.error("[DEV] Error clearing onboarding flags:", error);
+            }
+          }}
+          style={{
+            position: "absolute",
+            top: 60,
+            right: 20,
+            backgroundColor: "rgba(255, 0, 0, 0.3)",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: "rgba(255, 0, 0, 0.5)",
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 10, fontFamily: "Sora_600SemiBold" }}>
+            Reset Progress
+          </Text>
+        </Pressable>
+      )}
     </Animated.View>
   );
 }

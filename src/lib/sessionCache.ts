@@ -57,6 +57,22 @@ export async function getSessionCached(config = DEFAULT_CONFIG): Promise<Session
     console.log('[getSessionCached] Called');
   }
 
+  // GUARD: Early exit if no token exists - prevent phantom cached sessions
+  // If we have no auth token, we cannot possibly have a valid session
+  const { hasAuthToken } = await import('./authClient');
+  const tokenExists = await hasAuthToken();
+  
+  if (!tokenExists) {
+    if (__DEV__) {
+      console.log('[getSessionCached] No auth token found, returning null (preventing phantom session)');
+    }
+    // Clear in-memory cache if token is missing
+    cachedSession = null;
+    inFlightPromise = null;
+    lastFetchAt = 0;
+    return null;
+  }
+
   // Check if we're rate limited
   if (isRateLimited && now < rateLimitUntil) {
     const remaining = Math.ceil((rateLimitUntil - now) / 1000);
@@ -129,15 +145,22 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
     // Import authClient locally to avoid circular dependency
     const { authClient } = await import('./authClient');
     
-    const data = await authClient.$fetch<{ session?: Session } | Session>("/api/auth/get-session", {
+    // Call the authoritative /api/auth/session endpoint
+    // Returns 401 if user is null (not authenticated)
+    const data = await authClient.$fetch<{ user: any; session: Session | null }>("/api/auth/session", {
       method: "GET",
     });
 
-    // Support both {session: ...} and raw session responses
-    if (data && typeof data === "object" && "session" in (data as any)) {
-      return ((data as any).session ?? null) as Session;
+    // Parse response: expect { user, session }
+    if (data && typeof data === "object") {
+      if (data.user) {
+        // Authenticated - return session
+        return data.session ?? null;
+      }
+      // If user is null but we got a 200 response, still return session (or null)
+      return data.session ?? null;
     }
-    return (data as Session) ?? null;
+    return null;
     
   } catch (error: any) {
     if (__DEV__) {
@@ -160,18 +183,18 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
       return cachedSession;
     }
 
-    // For other errors, try to return cached session
-    if (!cachedSession) {
-      cachedSession = await loadFromCache();
-    }
-    
-    // Only return null if it's an auth error (401/403)
-    if (error.status === 401 || error.status === 403) {
+    // For 401, user is not authenticated - clear and return null
+    if (error.status === 401) {
       if (__DEV__) {
-        console.log('[getSessionCached] Auth error, clearing session');
+        console.log('[getSessionCached] Auth error 401, clearing session');
       }
       await clearCache();
       return null;
+    }
+
+    // For other errors, try to return cached session
+    if (!cachedSession) {
+      cachedSession = await loadFromCache();
     }
     
     return cachedSession;
@@ -224,15 +247,24 @@ async function saveToCache(session: Session, ttl: number): Promise<void> {
 /**
  * Clear cached session
  */
-async function clearCache(): Promise<void> {
+export async function clearSessionCache(): Promise<void> {
   try {
     await AsyncStorage.removeItem(CACHE_KEY);
     cachedSession = null;
+    inFlightPromise = null;
+    lastFetchAt = 0;
   } catch (error) {
     if (__DEV__) {
-      console.log('[getSessionCached] Error clearing cache:', error);
+      console.log('[clearSessionCache] Error clearing cache:', error);
     }
   }
+}
+
+/**
+ * Internal: Clear cached session (backward compatibility)
+ */
+async function clearCache(): Promise<void> {
+  return clearSessionCache();
 }
 
 /**

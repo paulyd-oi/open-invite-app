@@ -63,6 +63,9 @@ const VIEW_MODES: { id: ViewMode; label: string; icon: typeof List }[] = [
   { id: "list", label: "List", icon: List },
 ];
 
+// Device-level onboarding key (no user ID required)
+const ONBOARDING_SEEN_KEY = "onboarding_seen_v1";
+
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -1124,9 +1127,7 @@ export default function CalendarScreen() {
   // Check if this is the user's first login
   useEffect(() => {
     const checkFirstLogin = async () => {
-      if (!session?.user?.id) return;
-
-      const hasSeenGuide = await AsyncStorage.getItem(`onboarding_seen_${session.user.id}`);
+      const hasSeenGuide = await AsyncStorage.getItem(ONBOARDING_SEEN_KEY);
       if (!hasSeenGuide) {
         // Show the popup after a small delay for smoother UX
         setTimeout(() => {
@@ -1135,19 +1136,15 @@ export default function CalendarScreen() {
       }
     };
     checkFirstLogin();
-  }, [session?.user?.id]);
+  }, []);
 
   const handleDismissGuide = async () => {
-    if (session?.user?.id) {
-      await AsyncStorage.setItem(`onboarding_seen_${session.user.id}`, "true");
-    }
+    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "true");
     setShowFirstLoginGuide(false);
   };
 
   const handleOpenGuide = async () => {
-    if (session?.user?.id) {
-      await AsyncStorage.setItem(`onboarding_seen_${session.user.id}`, "true");
-    }
+    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "true");
     setShowFirstLoginGuide(false);
     router.push("/onboarding");
   };

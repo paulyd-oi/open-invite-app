@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
@@ -24,8 +24,11 @@ import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useRevenueCatSync } from "@/hooks/useRevenueCatSync";
 import { useNotifications } from "@/hooks/useNotifications";
-import { bootstrapAuthWithWatchdog, resetSession } from "@/lib/authBootstrap";
-import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type DiscoverBusinessEventsResponse } from "@/shared/contracts";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { resetSession } from "@/lib/authBootstrap";
+import { clearSessionCache } from "@/lib/sessionCache";
+import { AuthProvider } from "@/lib/AuthContext";
+import { type GetEventsFeedResponse, type GetEventsResponse, type Event } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
   event: Event;
@@ -334,13 +337,19 @@ function VerificationBanner({
 
 export default function FeedScreen() {
   const { data: session, isPending: sessionLoading } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   const [authBootstrapState, setAuthBootstrapState] = useState<"checking" | "error" | "ready">("checking");
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
   const hasBootstrapped = useRef(false);
+  const didRedirectToWelcomeRef = useRef(false);
+
+  // Auth gating based on boot status (token validation), not session presence
+  const isAuthed = bootStatus === "authed";
 
   // Sync RevenueCat user ID with authentication
   useRevenueCatSync({
@@ -377,58 +386,24 @@ export default function FeedScreen() {
   }, []);
 
   // Bootstrap authentication on mount
-  // This runs ONCE per app launch with a 15s watchdog timer
+  // NOTE: Root-level routing based on auth state is now handled by BootRouter in _layout.tsx
+  // This effect only validates that we're in the right place and sets internal UI state.
+  // If we're already viewing FeedScreen, we trust that BootRouter put us here correctly.
   useEffect(() => {
-    const runBootstrap = async () => {
-      // Only run once
-      if (hasBootstrapped.current) {
-        return;
-      }
-      hasBootstrapped.current = true;
+    // Critical: do not run FeedScreen bootstrap while we are on /welcome or /login.
+    // Otherwise FeedScreen can keep bootstrapping in the background.
+    if (pathname === "/welcome" || pathname === "/login") {
+      return;
+    }
 
-      console.log("[FeedScreen] Starting auth bootstrap...");
-
-      try {
-        const result = await bootstrapAuthWithWatchdog();
-
-        console.log("[FeedScreen] Bootstrap result:", result.state);
-
-        if (result.timedOut || result.error) {
-          // Show error UI
-          setAuthBootstrapError({
-            error: result.error,
-            timedOut: result.timedOut,
-          });
-          setAuthBootstrapState("error");
-          return;
-        }
-
-        // Handle bootstrap state
-        switch (result.state) {
-          case "loggedOut":
-            console.log("[FeedScreen] User logged out, redirecting to welcome");
-            router.replace("/welcome");
-            break;
-
-          case "onboarding":
-            console.log("[FeedScreen] Onboarding incomplete, redirecting to welcome");
-            router.replace("/welcome");
-            break;
-
-          case "authed":
-            console.log("[FeedScreen] User authenticated and onboarded");
-            setAuthBootstrapState("ready");
-            break;
-        }
-      } catch (error) {
-        console.error("[FeedScreen] Bootstrap exception:", error);
-        setAuthBootstrapError({ error: String(error) });
-        setAuthBootstrapState("error");
-      }
-    };
-
-    runBootstrap();
-  }, [router]);
+    // GUARD: Only validate if BootRouter has already determined we're authed.
+    // Auth truth source is bootStatus (token validation), not session presence.
+    if (isAuthed) {
+      // bootStatus confirms token is valid
+      console.log("[FeedScreen] Auth confirmed via bootStatus; setting bootstrap state to ready");
+      setAuthBootstrapState("ready");
+    }
+  }, [isAuthed, pathname]);
 
   // Handle retry button
   const handleRetry = useCallback(() => {
@@ -436,26 +411,45 @@ export default function FeedScreen() {
     hasBootstrapped.current = false;
     setAuthBootstrapState("checking");
     setAuthBootstrapError(undefined);
-    // Trigger re-run by changing state
-    setTimeout(() => {
-      window.location.reload?.(); // For web
-    }, 100);
   }, []);
 
   // Handle reset session button
   const handleResetSession = useCallback(async () => {
-    console.log("[FeedScreen] Resetting session...");
-    try {
-      await resetSession();
-      // Clear React Query cache
-      queryClient.clear();
-      // Redirect to welcome
-      router.replace("/welcome");
-    } catch (error) {
-      console.error("[FeedScreen] Error resetting session:", error);
-      // Try to navigate anyway
-      router.replace("/welcome");
+    if (__DEV__) {
+      console.log("[Logout] begin");
     }
+    try {
+      await resetSession({ reason: "user_logout", endpoint: "FeedScreen" });
+      if (__DEV__) {
+        console.log("[Logout] after resetSession");
+      }
+    } catch (error) {
+      console.error("[FeedScreen] Error during resetSession:", error);
+    }
+
+    try {
+      await clearSessionCache();
+      if (__DEV__) {
+        console.log("[Logout] after clearSessionCache");
+      }
+    } catch (error) {
+      console.error("[FeedScreen] Error during clearSessionCache:", error);
+    }
+
+    try {
+      queryClient.clear();
+      if (__DEV__) {
+        console.log("[Logout] after queryClient.clear");
+      }
+    } catch (error) {
+      console.error("[FeedScreen] Error during queryClient.clear:", error);
+    }
+
+    // Route to login exactly once
+    if (__DEV__) {
+      console.log("[Logout] navigating to /login");
+    }
+    router.replace("/login");
   }, [queryClient, router]);
 
   // Fetch friend events (feed)
@@ -467,7 +461,7 @@ export default function FeedScreen() {
   } = useQuery({
     queryKey: ["events", "feed"],
     queryFn: () => api.get<GetEventsFeedResponse>("/api/events/feed"),
-    enabled: !!session,
+    enabled: isAuthed,
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
@@ -480,7 +474,7 @@ export default function FeedScreen() {
   } = useQuery({
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: !!session,
+    enabled: isAuthed,
     refetchInterval: 30000,
   });
 
@@ -493,21 +487,13 @@ export default function FeedScreen() {
   } = useQuery({
     queryKey: ["events", "attending"],
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
-    enabled: !!session,
+    enabled: isAuthed,
     refetchInterval: 30000,
   });
 
-  // Fetch business events for the calendar
-  const {
-    data: businessEventsData,
-    refetch: refetchBusinessEvents,
-    isRefetching: isRefetchingBusinessEvents,
-  } = useQuery({
-    queryKey: ["business-events", "discover"],
-    queryFn: () => api.get<DiscoverBusinessEventsResponse>("/api/business-events/discover"),
-    enabled: !!session,
-    refetchInterval: 60000, // Refresh every minute
-  });
+  // Business events feature is disabled (feature flag: businessAccounts = false)
+  // Provide empty fallback to prevent network calls
+  const businessEventsData = undefined;
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -568,43 +554,48 @@ export default function FeedScreen() {
     refetchFeed();
     refetchMyEvents();
     refetchAttending();
-    refetchBusinessEvents();
   };
 
-  const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending || isRefetchingBusinessEvents;
+  const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
   const isLoading = feedLoading || myEventsLoading || attendingLoading;
 
   if (sessionLoading) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
-        </View>
-        <BottomNavigation />
-      </SafeAreaView>
+      <AuthProvider state="checking">
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+          <View className="flex-1 items-center justify-center">
+            <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+          </View>
+          <BottomNavigation />
+        </SafeAreaView>
+      </AuthProvider>
     );
   }
 
   // Show error UI if bootstrap failed
   if (authBootstrapState === "error") {
     return (
-      <AuthErrorUI
-        error={authBootstrapError?.error}
-        timedOut={authBootstrapError?.timedOut}
-        onRetry={handleRetry}
-        onReset={handleResetSession}
-      />
+      <AuthProvider state="error">
+        <AuthErrorUI
+          error={authBootstrapError?.error}
+          timedOut={authBootstrapError?.timedOut}
+          onRetry={handleRetry}
+          onReset={handleResetSession}
+        />
+      </AuthProvider>
     );
   }
 
   // Show loading while checking auth state
-  if (authBootstrapState === "checking" || !session) {
+  if (authBootstrapState === "checking") {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
-        </View>
-      </SafeAreaView>
+      <AuthProvider state="checking">
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+          <View className="flex-1 items-center justify-center">
+            <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+          </View>
+        </SafeAreaView>
+      </AuthProvider>
     );
   }
 
@@ -615,8 +606,9 @@ export default function FeedScreen() {
     groupedEvents.upcoming.length > 0;
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
+    <AuthProvider state="authed">
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+        <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
         <View>
           <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
           <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>
@@ -655,11 +647,11 @@ export default function FeedScreen() {
           </View>
           <FeedCalendar
             events={calendarEvents}
-            businessEvents={businessEventsData?.events}
+            businessEvents={undefined}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userId={session.user?.id}
+            userId={session?.user?.id}
           />
           <EmptyFeed />
         </ScrollView>
@@ -681,44 +673,44 @@ export default function FeedScreen() {
           </View>
           <FeedCalendar
             events={calendarEvents}
-            businessEvents={businessEventsData?.events}
+            businessEvents={undefined}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userId={session.user?.id}
+            userId={session?.user?.id}
           />
           <EventSection
             title="Today"
             events={groupedEvents.today}
             startIndex={0}
-            userId={session.user?.id}
+            userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userImage={session.user?.image}
-            userName={session.user?.name}
+            userImage={session?.user?.image}
+            userName={session?.user?.name}
           />
           <EventSection
             title="Tomorrow"
             events={groupedEvents.tomorrow}
             startIndex={groupedEvents.today.length}
-            userId={session.user?.id}
+            userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userImage={session.user?.image}
-            userName={session.user?.name}
+            userImage={session?.user?.image}
+            userName={session?.user?.name}
           />
           <EventSection
             title="This Week"
             events={groupedEvents.thisWeek}
             startIndex={groupedEvents.today.length + groupedEvents.tomorrow.length}
-            userId={session.user?.id}
+            userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userImage={session.user?.image}
-            userName={session.user?.name}
+            userImage={session?.user?.image}
+            userName={session?.user?.name}
           />
           <EventSection
             title="Upcoming"
@@ -728,12 +720,12 @@ export default function FeedScreen() {
               groupedEvents.tomorrow.length +
               groupedEvents.thisWeek.length
             }
-            userId={session.user?.id}
+            userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userImage={session.user?.image}
-            userName={session.user?.name}
+            userImage={session?.user?.image}
+            userName={session?.user?.name}
           />
         </ScrollView>
       )}
@@ -742,6 +734,7 @@ export default function FeedScreen() {
       {session && <QuickEventButton />}
 
       <BottomNavigation />
-    </SafeAreaView>
+      </SafeAreaView>
+    </AuthProvider>
   );
 }

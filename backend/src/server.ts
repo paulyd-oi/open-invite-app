@@ -109,6 +109,32 @@ app.use("*", async (c, next) => {
   return next();
 });
 
+// Dedicated session endpoint - returns 401 if user is null (BEFORE wildcard Better Auth handler)
+console.log("🔐 Setting up dedicated /api/auth/session endpoint");
+app.options("/api/auth/session", (c) => c.body(null, 204));
+app.get("/api/auth/session", async (c) => {
+  try {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    
+    console.log(`🔐 [/api/auth/session] Session retrieved:`, {
+      hasUser: !!session?.user,
+      hasSession: !!session?.session,
+    });
+    
+    // INVARIANT: Return 401 if user is falsy (null, undefined, empty)
+    if (!session?.user) {
+      console.log("🔐 [/api/auth/session] No user - returning 401");
+      return c.json({ user: null, session: null }, 401);
+    }
+    
+    // Return session data with 200
+    return c.json({ user: session.user, session: session.session ?? null }, 200);
+  } catch (error: any) {
+    console.error(`🔐 [/api/auth/session] Error:`, error?.message);
+    return c.json({ error: "Failed to get session" }, 500);
+  }
+});
+
 // Better Auth handler with rate limiting
 console.log("🔐 Setting up auth routes at /api/auth/*");
 app.use("/api/auth/*", authRateLimit); // 10 auth attempts per 15 minutes

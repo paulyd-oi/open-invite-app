@@ -41,7 +41,7 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
   // Fetch profiles directly
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
-    queryFn: () => api.get<GetProfilesResponse>("/api/profiles"),
+    queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -51,7 +51,7 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
   // Switch profile mutation
   const switchMutation = useMutation({
     mutationFn: async (profileId: string | null) => {
-      return api.post<SwitchProfileResponse>("/api/profiles/switch", { profileId });
+      return api.post<SwitchProfileResponse>("/api/profile/switch", { profileId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profiles"] });

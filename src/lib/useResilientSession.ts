@@ -210,9 +210,11 @@ export function useResilientSession() {
 }
 
 /**
- * Hook to check if user is authenticated (with offline resilience)
+ * Hook to check if user is authenticated.
+ * 
+ * DEPRECATED: Import useIsAuthenticated from @/lib/AuthContext instead.
+ * This re-export is kept for backwards compatibility only.
+ * 
+ * Auth state is determined by authBootstrap (tokenValid), not session.
  */
-export function useIsAuthenticated(): boolean {
-  const { data: session, isOffline } = useResilientSession();
-  return !!session?.user?.id;
-}
+export { useIsAuthenticated } from "./AuthContext";
