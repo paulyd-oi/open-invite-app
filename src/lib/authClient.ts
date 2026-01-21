@@ -193,8 +193,7 @@ async function $fetch<T = any>(
         url.includes("/api/profile") ||
         url.includes("/api/profiles") ||
         url.includes("/api/achievements") ||
-        url.includes("/api/entitlements") ||
-        url.includes("/api/businesses/following")
+        url.includes("/api/entitlements")
       );
       
       if (isKnown404) {

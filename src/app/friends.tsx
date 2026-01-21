@@ -89,7 +89,6 @@ import {
   type SearchUsersRankedResponse,
   type SearchUserResult,
 } from "@/shared/contracts";
-import { type Business, type BusinessEvent, BUSINESS_CATEGORIES } from "../../shared/contracts";
 import { useNetworkStatus } from "@/lib/networkStatus";
 
 // Mini calendar component for friend cards
@@ -815,15 +814,6 @@ export default function FriendsScreen() {
 
   const groups = groupsData?.groups ?? [];
 
-  // Fetch businesses user follows
-  const { data: followedBusinessesData } = useQuery({
-    queryKey: ["followedBusinesses"],
-    queryFn: () => api.get<{ businesses: Business[] }>("/api/businesses/following"),
-    enabled: !!session,
-  });
-
-  const followedBusinesses = followedBusinessesData?.businesses ?? [];
-
   // Fetch circles (Planning groups)
   const { data: circlesData, refetch: refetchCircles } = useQuery({
     queryKey: ["circles"],
@@ -1512,13 +1502,6 @@ export default function FriendsScreen() {
             )}
           </Animated.View>
         )}
-
-        {/* Businesses You Follow Section - Hidden for now, will be re-enabled in future update */}
-        {/* {followedBusinesses.length > 0 && (
-          <View className="mt-6">
-            ...
-          </View>
-        )} */}
       </ScrollView>
 
       {/* Create Circle Modal */}

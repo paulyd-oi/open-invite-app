@@ -60,8 +60,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     if (__DEV__) {
       // Known optional endpoints - don't log 404s as errors
       const isKnownOptional = error.status === 404 && (
-        path.includes("/api/entitlements") ||
-        path.includes("/api/businesses/following")
+        path.includes("/api/entitlements")
       );
       
       if (!isKnownOptional) {
