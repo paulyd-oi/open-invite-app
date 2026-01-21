@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -66,6 +66,13 @@ export default function ProfileScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Redirect logged-out users to onboarding
+  useEffect(() => {
+    if (!session) {
+      router.replace("/welcome");
+    }
+  }, [session, router]);
 
   // Fetch profiles to check if user is in business mode
   const { data: profilesData, refetch: refetchProfiles } = useQuery({

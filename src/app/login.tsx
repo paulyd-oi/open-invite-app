@@ -1090,7 +1090,7 @@ export default function LoginScreen() {
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.replace("/");
+                      router.replace("/welcome");
                     }}
                     disabled={isLoading}
                   >
