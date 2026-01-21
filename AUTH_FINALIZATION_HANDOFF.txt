@@ -1,0 +1,595 @@
+AUTH FINALIZATION - HANDOFF PACKET
+===================================
+
+SUMMARY
+-------
+Completed final auth hardening after commits 120634d and 814a290:
+
+1. Clarified token key naming without breaking stored key value
+   - Introduced AUTH_TOKEN_KEY alias pointing to same string as SESSION_TOKEN_KEY
+   - Updated authClient to use AUTH_TOKEN_KEY for clearer semantic naming
+   - Comments now reflect "bearer auth token" rather than "session token"
+   - Storage key string unchanged (backward compatible)
+
+2. Hardened authBootstrap transient error handling
+   - 401/403 from /api/auth/session = invalid token -> loggedOut (forced logout)
+   - Transient errors (429, 5xx, network, timeout) = return authed with cached session OR authed with null session
+   - Previously: transient errors without cache -> loggedOut (destructive)
+   - Now: transient errors without cache -> authed with null session (non-destructive, preserves token)
+   - Rate limit handling improved: if token exists but no cache, return authed not loggedOut
+
+3. Added logout in-flight guard
+   - Multiple 401/403 errors could trigger concurrent resetSession calls
+   - Added module-level logoutInFlight flag to prevent duplicate logout sequences
+   - First logout proceeds, subsequent calls skip gracefully
+   - Flag cleared in finally block to allow future logouts
+
+4. Fixed stale comments
+   - authBootstrap.ts header: "loggedOut (redirect to /welcome)" -> "loggedOut (BootRouter redirects to /login)"
+   - Updated comments to reflect transient error resilience
+
+5. Reviewed post-login/onboarding redirects
+   - login.tsx: routes to "/" after success, BootRouter handles onboarding check (optimal)
+   - welcome.tsx: routes to "/" after onboarding complete (explicit user action)
+   - No changes needed - current flow is minimal and correct
+
+
+FILES CHANGED
+-------------
+1. src/lib/authKeys.ts
+   - Added AUTH_TOKEN_KEY alias
+   - Updated comments to reflect bearer token
+
+2. src/lib/authClient.ts
+   - Import AUTH_TOKEN_KEY instead of SESSION_TOKEN_KEY
+   - Updated comments to clarify bearer token vs session data
+
+3. src/lib/authBootstrap.ts
+   - Fixed header comment (loggedOut -> /login not /welcome)
+   - Added logoutInFlight in-flight guard
+   - Improved rate limit fallback (return authed if token exists)
+   - Improved transient error fallback (return authed with null session if token exists)
+   - Added finally block to clear in-flight flag
+
+
+KEY DIFFS
+---------
+
+File: src/lib/authKeys.ts
+Lines 1-15 (token key naming)
+
+BEFORE:
+/**
+ * Authentication Keys (Single Source of Truth)
+ *
+ * Canonical storage keys for auth tokens and session data.
+ * Used by authClient.ts, authBootstrap.ts, and sessionCache.ts
+ * to ensure consistent key usage across all auth operations.
+ */
+
+// Main session token key (project-specific)
+const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID || "open-invite";
+export const SESSION_TOKEN_KEY = `${projectId}.session-token`;
+
+AFTER:
+/**
+ * Authentication Keys (Single Source of Truth)
+ *
+ * Canonical storage keys for bearer auth tokens and cached session data.
+ * Used by authClient.ts, authBootstrap.ts, and sessionCache.ts
+ * to ensure consistent key usage across all auth operations.
+ */
+
+// Main bearer auth token key (project-specific)
+const projectId = process.env.EXPO_PUBLIC_VIBECODE_PROJECT_ID || "open-invite";
+export const SESSION_TOKEN_KEY = `${projectId}.session-token`;
+
+// Alias: Preferred semantic name for bearer auth token
+// Points to same storage key as SESSION_TOKEN_KEY for backward compatibility
+export const AUTH_TOKEN_KEY = SESSION_TOKEN_KEY;
+
+RATIONALE:
+- AUTH_TOKEN_KEY is clearer semantic name (bearer token not session)
+- Points to SAME string as SESSION_TOKEN_KEY (no breaking change)
+- Existing installs continue working (key value unchanged)
+- Reduces confusion between token storage and session data
+
+
+File: src/lib/authClient.ts
+Lines 1-8 (import and alias)
+
+BEFORE:
+import { SESSION_TOKEN_KEY } from "./authKeys";
+
+// Use canonical token key (single source of truth from authKeys.ts)
+const TOKEN_KEY = SESSION_TOKEN_KEY;
+
+AFTER:
+import { AUTH_TOKEN_KEY } from "./authKeys";
+
+// Use canonical bearer auth token key (single source of truth from authKeys.ts)
+const TOKEN_KEY = AUTH_TOKEN_KEY;
+
+RATIONALE:
+- authClient conceptually manages bearer auth tokens, not sessions
+- AUTH_TOKEN_KEY is clearer semantic name
+- Still points to same storage key (backward compatible)
+
+
+File: src/lib/authBootstrap.ts
+Lines 1-16 (header comment)
+
+BEFORE:
+/**
+ * Auth Bootstrap
+ *
+ * Deterministic authentication bootstrap that always ends in one of:
+ * - loggedOut (redirect to /welcome)
+ * - onboarding (redirect to /welcome with state)
+ * - authed (stay on current screen)
+ *
+ * Features:
+ * - Comprehensive logging at each step
+ * - Error handling with no infinite loops
+ * - 15s watchdog timer
+ * - Clear session state on errors
+ * - Canonical state machine via authState.ts
+ */
+
+AFTER:
+/**
+ * Auth Bootstrap
+ *
+ * Deterministic authentication bootstrap that always ends in one of:
+ * - loggedOut (BootRouter redirects to /login)
+ * - onboarding (BootRouter redirects to /welcome)
+ * - authed (BootRouter redirects to / or stays on current screen)
+ *
+ * Features:
+ * - Comprehensive logging at each step
+ * - Error handling with no infinite loops
+ * - 15s watchdog timer
+ * - Transient errors (429, 5xx, network) use cached session when available
+ * - Auth errors (401, 403) trigger forced logout
+ * - Canonical state machine via authState.ts
+ */
+
+RATIONALE:
+- Stale comment said loggedOut -> /welcome (wrong, goes to /login)
+- Clarified that BootRouter handles all routing decisions
+- Added note about transient error resilience
+
+
+File: src/lib/authBootstrap.ts
+Lines 50-110 (logout in-flight guard)
+
+BEFORE:
+function log(step: string, data?: any) {
+  if (__DEV__) {
+    console.log(`[AuthBootstrap] ${step}`, data || "");
+  }
+}
+
+/**
+ * Reset all session state (for logout and watchdog)
+ * 
+ * CRITICAL: This function NEVER throws - logout always succeeds locally
+ * even if backend is down, offline, or returns 500.
+ */
+export async function resetSession(options?: { reason?: string; status?: number; endpoint?: string }): Promise<void> {
+  const reason = options?.reason || "unknown";
+  const status = options?.status;
+  const endpoint = options?.endpoint;
+  
+  // ... rest of function
+
+AFTER:
+function log(step: string, data?: any) {
+  if (__DEV__) {
+    console.log(`[AuthBootstrap] ${step}`, data || "");
+  }
+}
+
+/**
+ * In-flight logout guard to prevent multiple simultaneous logout sequences.
+ * Multiple 401/403 errors can trigger concurrent resetSession calls.
+ */
+let logoutInFlight = false;
+
+/**
+ * Reset all session state (for logout and watchdog)
+ * 
+ * CRITICAL: This function NEVER throws - logout always succeeds locally
+ * even if backend is down, offline, or returns 500.
+ * 
+ * GUARD: Only one logout sequence runs at a time (in-flight guard).
+ */
+export async function resetSession(options?: { reason?: string; status?: number; endpoint?: string }): Promise<void> {
+  const reason = options?.reason || "unknown";
+  const status = options?.status;
+  const endpoint = options?.endpoint;
+  
+  // ... policy checks ...
+  
+  // IN-FLIGHT GUARD: Prevent concurrent logout sequences
+  if (logoutInFlight) {
+    log(`⏭️ Logout already in progress - skipping duplicate resetSession call (reason=${reason})`);
+    return;
+  }
+  
+  logoutInFlight = true;
+  
+  try {
+    // ... logout sequence ...
+  } finally {
+    // Clear in-flight flag so future logouts can proceed
+    logoutInFlight = false;
+  }
+}
+
+RATIONALE:
+- Multiple 401/403 errors (e.g., concurrent API calls) could trigger parallel logouts
+- Parallel logouts = duplicate work, race conditions, confusing logs
+- In-flight guard ensures only one logout sequence runs at a time
+- Subsequent calls skip gracefully with log message
+- finally block ensures flag always cleared (even on errors)
+
+
+File: src/lib/authBootstrap.ts
+Lines 285-310 (rate limit fallback)
+
+BEFORE:
+    // Check if we're rate-limited
+    if (isRateLimited()) {
+      const remaining = getRateLimitRemaining();
+      log(`⏸️ Skipping bootstrap: rate-limited for ${remaining} more seconds`);
+      
+      // Try to use cached session if available
+      try {
+        const cached = await AsyncStorage.getItem("session_cache_v1");
+        if (cached) {
+          const cachedSession = JSON.parse(cached);
+          log("  ✓ Using cached session during rate limit");
+          return { state: "authed", session: cachedSession };
+        }
+      } catch (e) {
+        log("  ⚠️ Error loading cached session:", e);
+      }
+      
+      // No cached session - treat as logged out but don't clear anything
+      return { state: "loggedOut", session: null, error: "Rate limited" };
+    }
+
+AFTER:
+    // Check if we're rate-limited
+    if (isRateLimited()) {
+      const remaining = getRateLimitRemaining();
+      log(`⏸️ Skipping bootstrap: rate-limited for ${remaining} more seconds`);
+      
+      // Check if token exists (non-destructive check)
+      const tokenExists = await hasAuthToken();
+      
+      // Try to use cached session if available
+      try {
+        const cached = await AsyncStorage.getItem("session_cache_v1");
+        if (cached) {
+          const cachedSession = JSON.parse(cached);
+          log("  ✓ Using cached session during rate limit");
+          return { state: "authed", session: cachedSession };
+        }
+      } catch (e) {
+        log("  ⚠️ Error loading cached session:", e);
+      }
+      
+      // No cached session - if token exists, return authed (transient failure)
+      // Otherwise return loggedOut (no auth state at all)
+      if (tokenExists) {
+        log("  ⚠️ Rate limited with token but no cache - returning authed with null session");
+        return { state: "authed", session: null, error: "Rate limited" };
+      } else {
+        log("  → No token, returning loggedOut");
+        return { state: "loggedOut", session: null, error: "Rate limited" };
+      }
+    }
+
+RATIONALE:
+- Rate limiting is a transient error, not auth failure
+- If token exists, user is authenticated even if backend is rate-limited
+- Previously: no cache -> loggedOut (destructive, forces re-login)
+- Now: no cache but token exists -> authed with null session (non-destructive)
+- Only return loggedOut if token doesn't exist (truly not authenticated)
+
+
+File: src/lib/authBootstrap.ts
+Lines 395-420 (transient error fallback)
+
+BEFORE:
+    } else {
+      // Non-auth error (404, 500, network) - try to use cached session
+      log("  → Non-auth error, attempting to use cached session");
+      try {
+        const cached = await AsyncStorage.getItem("session_cache_v1");
+        if (cached) {
+          const cachedSession = JSON.parse(cached);
+          log("  ✓ Using cached session");
+          session = cachedSession;
+          // Continue to onboarding check below
+        } else {
+          log("  ⚠️ No cached session available");
+          const elapsed = Date.now() - startTime;
+          log(`✅ Bootstrap complete in ${elapsed}ms (no session)`);
+          return { state: "loggedOut", session: null, error: sessionError.message };
+        }
+      } catch (e) {
+        log("  ⚠️ Error loading cached session:", e);
+        const elapsed = Date.now() - startTime;
+        log(`✅ Bootstrap complete in ${elapsed}ms (no session)`);
+        return { state: "loggedOut", session: null, error: sessionError.message };
+      }
+    }
+
+AFTER:
+    } else {
+      // Non-auth error (404, 500, network, timeout) - try to use cached session
+      log("  → Non-auth error (transient), attempting to use cached session");
+      try {
+        const cached = await AsyncStorage.getItem("session_cache_v1");
+        if (cached) {
+          const cachedSession = JSON.parse(cached);
+          log("  ✓ Using cached session for transient error");
+          session = cachedSession;
+          // Continue to onboarding check below
+        } else {
+          // Token exists but session fetch failed transiently and no cache
+          // This is a transient failure, NOT an auth failure
+          // Return authed with null session to avoid destructive logout
+          log("  ⚠️ No cached session, but token exists - returning authed (transient failure)");
+          const elapsed = Date.now() - startTime;
+          log(`✅ Bootstrap complete in ${elapsed}ms (transient error, no cache)`);
+          return { state: "authed", session: null, error: `Transient error: ${sessionError.message}` };
+        }
+      } catch (e) {
+        log("  ⚠️ Error loading cached session:", e);
+        // Token still exists, return authed to avoid logout on transient cache read error
+        const elapsed = Date.now() - startTime;
+        log(`✅ Bootstrap complete in ${elapsed}ms (cache read error)`);
+        return { state: "authed", session: null, error: sessionError.message };
+      }
+    }
+
+RATIONALE:
+- Network errors, 500s, timeouts are transient - backend may recover
+- If token exists, user is authenticated even if session fetch fails
+- Previously: no cache -> loggedOut (destructive, loses auth state)
+- Now: no cache but token exists -> authed with null session (non-destructive)
+- Prevents logout on temporary backend issues
+- App can still boot and show cached content or retry
+
+
+COMMANDS RUN + OUTPUT SUMMARY
+------------------------------
+
+1. rg -n 'SecureStore\.setItemAsync' src -S
+   Result: 1 match
+   File: src/lib/authClient.ts line 51
+   Status: CORRECT - Only authClient.ts writes tokens to SecureStore
+
+2. rg -n 'SESSION_TOKEN_KEY' src -S
+   Result: 7 matches
+   Files: src/lib/authKeys.ts (3 hits), src/lib/authBootstrap.ts (3 hits)
+   Status: CORRECT - Only in auth infrastructure, NOT in src/app/
+
+3. rg -n "router\.replace\(\s*['\"]/(login|welcome)" src/app -S
+   Result: 9 matches
+   Files: _layout.tsx (BootRouter: 2 hits), index.tsx (1 logout), account-center.tsx (2 logout), 
+          privacy-settings.tsx (1 logout), settings.tsx (2 logout)
+   Status: CORRECT - Only BootRouter + user-initiated logout handlers
+
+4. npx tsc --noEmit --project tsconfig.frontend.json
+   Result: Clean compilation (no output)
+   Status: PASSED - TypeScript compiles with 0 errors
+
+
+RUNTIME STATUS
+--------------
+NOT YET TESTED ON DEVICE
+
+Changes are structural and compile-clean:
+- TypeScript: PASSED (0 errors)
+- Token naming: Clarified (backward compatible)
+- Transient error handling: Hardened (non-destructive fallback)
+- Logout guard: Added (prevents concurrent logouts)
+- Comments: Fixed (accurate routing documentation)
+
+Next: Runtime testing on iOS simulator
+
+
+TEST PLAN
+---------
+Run on iOS simulator to verify hardened auth behavior:
+
+Scenario 1: Fresh Install
+1. Delete app, reinstall, launch
+2. EXPECTED: BootRouter -> /login, no loops
+3. CHECK LOGS: "[BootRouter] → Routing to /login (no valid token)"
+4. VERIFY: No competing redirects
+
+Scenario 2: Login Success
+1. Complete login flow
+2. EXPECTED: login.tsx -> /, BootRouter may route to /welcome if onboarding incomplete
+3. CHECK LOGS: 
+   - "[Login] Authenticated, routing to '/' - BootRouter will handle onboarding check"
+   - "[BootRouter] → Routing to /welcome (token exists, onboarding incomplete)" OR
+   - "[BootRouter] → Routing to / (fully authenticated)"
+4. VERIFY: Single routing sequence, no loops
+
+Scenario 3: Network Error on Boot
+1. Enable airplane mode
+2. Force-quit app, relaunch
+3. EXPECTED: If token + cache exist, app boots with cached data
+4. EXPECTED: If token exists but no cache, BootRouter -> / with null session (authed state)
+5. CHECK LOGS: "Using cached session for transient error" OR "returning authed (transient failure)"
+6. VERIFY: App does NOT logout, does NOT route to /login
+
+Scenario 4: 401 Auth Error
+1. While logged in, manually corrupt token OR trigger 401 from backend
+2. EXPECTED: resetSession triggered ONCE (in-flight guard prevents duplicates)
+3. EXPECTED: Token cleared, BootRouter -> /login
+4. CHECK LOGS: 
+   - "[AuthBootstrap] → Auth error detected, forcing logout"
+   - Should NOT see multiple "[Logout] begin" (in-flight guard working)
+5. VERIFY: Single logout sequence, no loops
+
+Scenario 5: Rate Limit (429)
+1. Trigger rate limit (multiple rapid requests)
+2. Force-quit app, relaunch while rate-limited
+3. EXPECTED: If token + cache exist, app boots with cache
+4. EXPECTED: If token exists but no cache, BootRouter -> / with null session
+5. CHECK LOGS: "Rate limited with token but no cache - returning authed"
+6. VERIFY: App does NOT logout, does NOT route to /login
+
+Scenario 6: Backend 500 Error
+1. While logged in, trigger 500 error from backend (or mock it)
+2. EXPECTED: Session fetch fails, falls back to cache
+3. EXPECTED: If no cache, returns authed with null session
+4. CHECK LOGS: "Non-auth error (transient), attempting to use cached session"
+5. VERIFY: App does NOT logout, token preserved
+
+Scenario 7: Concurrent 401 Errors
+1. Trigger multiple API calls that all return 401 simultaneously
+2. EXPECTED: First resetSession proceeds, subsequent calls skip
+3. CHECK LOGS: 
+   - One "[Logout] begin"
+   - Multiple "Logout already in progress - skipping duplicate resetSession call"
+4. VERIFY: No duplicate logout sequences
+
+
+RISKS / NOTES
+-------------
+
+1. Null Session State with Valid Token
+   - New behavior: transient errors return authed with session=null
+   - App screens must handle session?.user gracefully (already do)
+   - Screens already use optional chaining for session data
+   - If session is null, screens show loading/empty states (existing behavior)
+
+2. AUTH_TOKEN_KEY Alias
+   - Storage key value unchanged (backward compatible)
+   - SESSION_TOKEN_KEY still exists and works (used by authBootstrap)
+   - Future code should use AUTH_TOKEN_KEY for clarity
+   - No migration needed for existing installs
+
+3. Logout In-Flight Guard
+   - Module-level state (not React state)
+   - Resets to false after logout completes (finally block)
+   - Edge case: If resetSession throws unexpectedly, finally still runs (safe)
+   - Only guards resetSession, not other auth operations
+
+4. Transient Error Classification
+   - 401/403 = auth error -> forced logout
+   - 404/500/timeout/network = transient -> use cache or return authed
+   - 429 = rate limit -> transient
+   - Classification is explicit in code, easy to adjust if needed
+
+5. Boot Behavior Changes
+   - Previously: transient error + no cache = loggedOut (forced re-login)
+   - Now: transient error + no cache = authed with null session (graceful degradation)
+   - This is LESS destructive and better UX for temporary backend issues
+   - Users won't lose auth state on flaky networks or backend hiccups
+
+6. Session Cache Dependency
+   - App relies more heavily on session cache for resilience
+   - Session cache is populated by useSession hook after successful fetch
+   - Cache persistence: AsyncStorage (survives app restarts)
+   - If cache corrupts, falls back to authed with null session (safe)
+
+
+ARCHITECTURE NOTES
+------------------
+
+Token vs Session Distinction:
+- Token: Bearer auth token stored in SecureStore (persistent, secure)
+- Session: User profile data from /api/auth/session validation (transient, cached)
+- Token is proof of auth, session is user data derived from token
+- AUTH_TOKEN_KEY clarifies this distinction
+
+Error Classification:
+- Auth errors (401, 403): Token is invalid/expired -> force logout
+- Transient errors (429, 5xx, network): Backend issue -> preserve token, use cache
+- Deterministic errors (404): Known state -> handle gracefully
+
+Logout Sequence:
+- setLogoutIntent() -> resetSession() -> clear cache -> router.replace('/login')
+- In-flight guard prevents duplicate sequences
+- Always succeeds locally (never throws)
+
+Bootstrap State Machine:
+- loggedOut: No token OR 401/403 from validation -> BootRouter -> /login
+- onboarding: Valid token + onboarding incomplete -> BootRouter -> /welcome
+- authed: Valid token + onboarding complete -> BootRouter -> /
+
+Resilience Pattern:
+- Token check (local, fast)
+- Session validation (network, may fail)
+- On transient failure: use cache if available, else authed with null session
+- On auth failure (401/403): force logout
+- Result: App degrades gracefully instead of forcing re-login
+
+
+COMMIT INFO
+-----------
+Branch: main
+Commit: 46237fe
+Message: fix(auth): harden bootstrap transient errors, add logout in-flight guard, clarify token naming
+Files Changed: 3 (src/lib/authBootstrap.ts, src/lib/authClient.ts, src/lib/authKeys.ts)
+Lines Added: 62
+Lines Removed: 20
+Net Change: +42 lines
+
+
+PREVIOUS COMMITS
+----------------
+Commit: 814a290
+Message: fix(auth): remove competing redirects, enforce BootRouter as single routing authority
+Changes: Removed auto-redirect useEffects from welcome.tsx and login.tsx
+
+Commit: 120634d
+Message: fix(auth): enforce single auth authority - welcome.tsx uses authClient, enhanced BootRouter logging
+Changes: welcome.tsx uses authClient.setAuthToken(), BootRouter debug logs enhanced
+
+
+NEXT STEPS
+----------
+1. Test all 7 scenarios on iOS simulator
+2. Monitor logs for:
+   - "Logout already in progress" (in-flight guard working)
+   - "returning authed (transient failure)" (non-destructive fallback working)
+   - "Using cached session" (resilience working)
+3. Verify no unexpected logouts on:
+   - Network hiccups
+   - Backend 500 errors
+   - Rate limiting
+4. Verify clean logout on:
+   - 401/403 errors
+   - User-initiated logout
+5. Push commits when verified: git push origin main
+
+
+SUMMARY OF AUTH FIXES (ALL 3 COMMITS)
+--------------------------------------
+
+Commit 120634d: Single Auth Authority
+- welcome.tsx uses authClient.setAuthToken() (no direct SecureStore)
+- Enhanced BootRouter debug logging
+
+Commit 814a290: Single Routing Authority
+- Removed competing auto-redirect useEffects
+- BootRouter is only routing authority
+
+Commit 46237fe: Hardening and Finalization
+- Clarified token naming (AUTH_TOKEN_KEY alias)
+- Hardened transient error handling (non-destructive fallback)
+- Added logout in-flight guard
+- Fixed stale comments
+
+Result: Robust, deterministic auth flow with graceful degradation

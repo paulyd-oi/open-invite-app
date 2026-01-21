@@ -16,7 +16,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
   Settings,
-  LogOut,
   Users,
   Plus,
   Trash2,
@@ -209,11 +208,6 @@ export default function ProfileScreen() {
     },
   });
 
-  const handleLogout = () => {
-    // Route to settings for logout (don't logout from profile)
-    router.push("/settings");
-  };
-
   const handleDeleteGroup = (group: FriendGroup) => {
     setGroupToDelete(group);
     setShowDeleteGroupConfirm(true);
@@ -379,25 +373,16 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
       <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
         <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Profile</Text>
-        <View className="flex-row items-center">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/settings");
-            }}
-            className="w-10 h-10 rounded-full items-center justify-center mr-2"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-          >
-            <Settings size={20} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            onPress={handleLogout}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-          >
-            <LogOut size={20} color="#EF4444" />
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/settings");
+          }}
+          className="w-10 h-10 rounded-full items-center justify-center"
+          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+        >
+          <Settings size={20} color={colors.textSecondary} />
+        </Pressable>
       </View>
 
       <ScrollView

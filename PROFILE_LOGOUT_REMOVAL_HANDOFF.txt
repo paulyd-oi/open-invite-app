@@ -1,0 +1,338 @@
+PROFILE LOGOUT REMOVAL - HANDOFF PACKET
+========================================
+
+SUMMARY
+-------
+Removed redundant logout icon from Profile screen header to streamline UX and consolidate logout access to Settings/Account Center only.
+
+Changes made:
+1. Removed LogOut import from profile.tsx
+2. Removed handleLogout function (only routed to /settings anyway)
+3. Removed logout button Pressable from header
+4. Kept Settings gear icon in header (routes to /settings)
+5. Verified logout still accessible via Settings and Account Center
+
+Result: Profile header now shows only Settings gear. Logout remains accessible through Settings → Account Center → Log Out button.
+
+
+FILES CHANGED
+-------------
+1. src/app/profile.tsx
+   - Line 19: Removed LogOut from icon imports
+   - Lines 212-216: Removed handleLogout function
+   - Lines 382-401: Removed logout button from header (kept Settings button)
+
+
+KEY DIFFS
+---------
+
+File: src/app/profile.tsx
+Line 19 (imports)
+
+BEFORE:
+import {
+  Settings,
+  LogOut,
+  Users,
+  Plus,
+
+AFTER:
+import {
+  Settings,
+  Users,
+  Plus,
+
+RATIONALE:
+- LogOut icon no longer used in profile.tsx
+- Keeps imports clean and minimal
+
+
+File: src/app/profile.tsx
+Lines 212-216 (handleLogout function)
+
+BEFORE:
+  const handleLogout = () => {
+    // Route to settings for logout (don't logout from profile)
+    router.push("/settings");
+  };
+
+  const handleDeleteGroup = (group: FriendGroup) => {
+
+AFTER:
+  const handleDeleteGroup = (group: FriendGroup) => {
+
+RATIONALE:
+- Function only routed to /settings (didn't perform logout)
+- No longer needed since logout button removed
+- Simplifies component logic
+
+
+File: src/app/profile.tsx
+Lines 382-401 (header buttons)
+
+BEFORE:
+      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
+        <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Profile</Text>
+        <View className="flex-row items-center">
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/settings");
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center mr-2"
+            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+          >
+            <Settings size={20} color={colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            onPress={handleLogout}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+          >
+            <LogOut size={20} color="#EF4444" />
+          </Pressable>
+        </View>
+      </View>
+
+AFTER:
+      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
+        <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Profile</Text>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push("/settings");
+          }}
+          className="w-10 h-10 rounded-full items-center justify-center"
+          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+        >
+          <Settings size={20} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
+RATIONALE:
+- Removed flex-row container (only one button now)
+- Removed mr-2 margin from Settings button (no longer needed)
+- Settings button now directly positioned in header
+- Logout button completely removed
+- Simpler, cleaner header layout
+
+
+COMMANDS RUN + OUTPUT SUMMARY
+------------------------------
+
+1. rg "LogOut" src/app/profile.tsx
+   Result: No matches (exit code 1)
+   Status: VERIFIED - LogOut completely removed from profile.tsx
+
+2. rg "handleLogout" src/app/profile.tsx
+   Result: No matches (exit code 1)
+   Status: VERIFIED - handleLogout function completely removed
+
+3. rg "LogOut" src/app/settings.tsx src/app/account-center.tsx | head -5
+   Result: 4 matches across both files
+   - account-center.tsx line 24: import LogOut
+   - account-center.tsx line 479: <LogOut size={20} color="#EF4444" />
+   - settings.tsx line 23: import LogOut  
+   - settings.tsx line 1702: <LogOut size={20} color="#EF4444" />
+   Status: VERIFIED - Logout still accessible in Settings and Account Center
+
+4. npx tsc --noEmit --project tsconfig.frontend.json
+   Result: Clean compilation (no output)
+   Status: PASSED - TypeScript compiles with 0 errors
+
+5. git diff src/app/profile.tsx
+   Result: Clean diff showing 3 removals:
+   - LogOut import removed
+   - handleLogout function removed (5 lines)
+   - Logout button removed from header (14 lines)
+   - Settings button simplified (no wrapper, no margin)
+   Status: VERIFIED - All changes as expected
+
+
+RUNTIME STATUS
+--------------
+NOT YET TESTED ON DEVICE
+
+Changes are straightforward UI removal:
+- TypeScript: PASSED (0 errors)
+- No new dependencies or breaking changes
+- Only removed redundant UI element
+- Logout functionality preserved in Settings/Account Center
+
+Next: Runtime testing on iOS simulator
+
+
+TEST PLAN
+---------
+Run on iOS simulator to verify UI changes:
+
+Scenario 1: Profile Header
+1. Navigate to Profile tab
+2. EXPECTED: Header shows only Settings gear icon (top right)
+3. EXPECTED: No logout/sign-out icon visible
+4. VERIFY: Header looks clean and uncluttered
+
+Scenario 2: Settings Access from Profile
+1. On Profile screen, tap Settings gear icon
+2. EXPECTED: Routes to /settings screen
+3. VERIFY: No errors, navigation works smoothly
+
+Scenario 3: Logout from Settings
+1. Go to Settings → Account Center
+2. EXPECTED: See "Log Out" button at bottom
+3. Tap "Log Out"
+4. EXPECTED: Confirmation modal, then logout completes
+5. VERIFY: Logout still fully functional
+
+Scenario 4: Logout from Account Center
+1. Go to Settings → Account Center directly
+2. EXPECTED: See "Log Out" button
+3. Tap "Log Out"
+4. EXPECTED: Logout works correctly
+5. VERIFY: No dependency on removed Profile logout button
+
+
+RISKS / NOTES
+-------------
+
+1. Single Logout Access Point Changed
+   - Previously: Profile header + Settings/Account Center
+   - Now: Settings/Account Center only
+   - Users may look for logout in Profile header briefly
+   - Settings is standard location for logout (better UX)
+
+2. No Functional Changes
+   - Only removed UI element, no logic changes
+   - handleLogout function only routed to /settings anyway
+   - Actual logout logic untouched (in Settings and Account Center)
+
+3. Icon Imports
+   - LogOut removed from profile.tsx imports
+   - Still imported in settings.tsx and account-center.tsx
+   - No risk of breaking other screens
+
+4. Header Layout Simplified
+   - Removed flex-row wrapper (only one button now)
+   - Settings button now directly in header
+   - Cleaner component structure
+
+5. No Auth Flow Impact
+   - This is purely UI change
+   - Auth bootstrap, token management, routing unaffected
+   - Logout sequences in Settings/Account Center unchanged
+
+
+CONTEXT: AUTH SYSTEM HISTORY
+-----------------------------
+This change follows three recent auth improvements (commits 120634d, 814a290, 46237fe):
+
+1. Single Auth Authority: welcome.tsx uses authClient for token storage
+2. Single Routing Authority: BootRouter is sole auth routing decision-maker
+3. Auth Hardening: Transient error handling, logout in-flight guard
+
+Profile logout removal is final UX polish:
+- Reduces redundant logout UI elements
+- Consolidates logout to Settings/Account Center
+- Simplifies Profile screen header
+
+
+VERIFICATION LOCATIONS
+----------------------
+
+Logout remains accessible at:
+1. Settings screen (/settings)
+   - File: src/app/settings.tsx
+   - Line 1698-1704: "Log Out" button at bottom of screen
+   - Imports LogOut icon (line 23)
+   - Calls handleLogout which triggers setLogoutIntent() and resetSession()
+
+2. Account Center (/account-center)
+   - File: src/app/account-center.tsx
+   - Line 471-481: "Log Out" button at bottom of screen
+   - Imports LogOut icon (line 24)
+   - Calls handleLogout which triggers setLogoutIntent() and resetSession()
+
+Both use identical logout sequence:
+- setLogoutIntent() to mark intentional logout
+- resetSession({ reason: "user_logout" }) to clear auth state
+- router.replace("/login") to navigate to login screen
+
+
+COMMIT PREPARATION
+------------------
+
+Suggested commit message:
+```
+fix(profile): remove redundant logout icon from header
+
+Removes logout button from Profile header to streamline UX.
+Logout remains accessible via Settings → Account Center.
+
+Changes:
+- Remove LogOut icon import from profile.tsx
+- Remove handleLogout function (only routed to /settings)
+- Remove logout button Pressable from header
+- Keep Settings gear icon in header
+
+Rationale:
+- Consolidate logout to Settings/Account Center only
+- Reduce redundant UI elements
+- Settings is standard location for account actions
+```
+
+Files to commit:
+- src/app/profile.tsx (3 changes: import, function, header button)
+
+Verification before commit:
+✓ TypeScript passes (0 errors)
+✓ LogOut completely removed from profile.tsx
+✓ Logout still accessible in Settings and Account Center
+✓ No breaking changes
+
+
+NEXT STEPS
+----------
+1. Test on iOS simulator (all 4 scenarios above)
+2. Verify Settings gear works correctly
+3. Verify logout in Settings/Account Center still works
+4. Check header looks clean and balanced
+5. Commit with suggested message above
+6. Push to repo: git push origin main
+
+
+ROLLBACK PLAN
+-------------
+If users complain about missing logout in Profile:
+
+1. Revert this commit: git revert <commit-hash>
+2. OR add back logout button with git cherry-pick
+3. OR add "Log Out" to Profile screen body (below stats)
+
+Original code preserved in git history at commit before this change.
+
+
+FILES TOUCHED
+-------------
+src/app/profile.tsx
+- Removed LogOut import (line 19)
+- Removed handleLogout function (lines 212-216)
+- Removed logout Pressable from header (lines 382-401)
+- Net change: -20 lines
+
+
+RELATED FILES (VERIFIED NO CHANGES NEEDED)
+------------------------------------------
+src/app/settings.tsx - Logout button intact ✓
+src/app/account-center.tsx - Logout button intact ✓
+src/app/_layout.tsx - BootRouter routing intact ✓
+src/lib/authBootstrap.ts - Logout logic intact ✓
+src/ui/icons.tsx - LogOut icon still exported ✓
+
+
+CONCLUSION
+----------
+Clean, minimal change that removes redundant UI element without affecting functionality.
+Logout remains fully accessible through Settings/Account Center as intended.
+No auth flow changes, no breaking changes, no new dependencies.
+
+Ready for testing and commit.

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Pressable, Text, Image } from "react-native";
 import { useRouter, usePathname } from "expo-router";
-import { Calendar, Users, User, Sparkles, Home, type LucideIcon } from "../ui/icons";
+import { type LucideIcon } from "../ui/icons";
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -16,6 +16,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { ProfileSwitcher } from "./ProfileSwitcher";
+import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -223,13 +224,20 @@ export default function BottomNavigation() {
   // Check if user has multiple profiles (show indicator)
   const hasMultipleProfiles = (profilesData?.profiles?.length ?? 0) > 1;
 
-  const navItems: { Icon: LucideIcon; label: string; href: string; isCenter?: boolean; badgeCount?: number }[] = [
-    { Icon: Home, label: "Home", href: "/" },
-    { Icon: Calendar, label: "Calendar", href: "/calendar", badgeCount: pendingEventRequestCount },
-    { Icon: Sparkles, label: "Discover", href: "/discover", isCenter: true },
-    { Icon: Users, label: "Friends", href: "/friends", badgeCount: friendsBadgeCount },
-    { Icon: User, label: "Profile", href: "/profile" },
-  ];
+  // Map badge counts to tabs based on badgeKey
+  const badgeCounts: Record<string, number> = {
+    eventRequests: pendingEventRequestCount,
+    friendRequests: friendsBadgeCount,
+  };
+
+  // Build navItems from canonical source with badge counts
+  const navItems = BOTTOM_NAV_TABS.map(tab => ({
+    ...tab,
+    badgeCount: tab.badgeKey ? badgeCounts[tab.badgeKey] : undefined,
+  }));
+
+  // Dev-only: Assert tab order matches canonical
+  assertTabOrder(navItems);
 
   return (
     <>
@@ -251,7 +259,7 @@ export default function BottomNavigation() {
         <View className="flex-row items-end justify-around px-2 pt-2" style={{ overflow: "visible" }}>
           {navItems.map((item) => (
             <NavButton
-              key={item.href}
+              key={item.key}
               Icon={item.Icon}
               label={item.label}
               href={item.href}
