@@ -42,6 +42,7 @@ import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
+import { getImageSource } from "@/lib/imageSource";
 import {
   type GetGroupsResponse,
   type GetFriendsResponse,
@@ -69,6 +70,9 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const { status: bootStatus } = useBootAuthority();
 
+  // Avatar source with auth headers
+  const [avatarSource, setAvatarSource] = useState<{ uri: string; headers?: { Authorization: string } } | null>(null);
+
   // Redirect to appropriate auth screen based on bootStatus (aligns with BootRouter)
   useEffect(() => {
     if (bootStatus === 'onboarding') {
@@ -92,6 +96,16 @@ export default function ProfileScreen() {
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: !!session,
   });
+
+  // Load avatar source with auth headers
+  useEffect(() => {
+    const loadAvatar = async () => {
+      const { avatarUri } = getProfileDisplay({ profileData, session });
+      const source = await getImageSource(avatarUri);
+      setAvatarSource(source);
+    };
+    loadAvatar();
+  }, [profileData, session]);
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
@@ -247,20 +261,15 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <View className="relative">
                 <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                  {(() => {
-                    const { avatarUri } = getProfileDisplay({ profileData, session });
-                    const resolvedUri = resolveImageUrl(avatarUri);
-                    const initial = getProfileInitial({ profileData, session });
-                    return resolvedUri ? (
-                      <Image source={{ uri: resolvedUri }} className="w-full h-full" />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
-                        <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                          {initial}
-                        </Text>
-                      </View>
-                    );
-                  })()}
+                  {avatarSource ? (
+                    <Image source={avatarSource} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
+                      <Text className="text-2xl font-bold" style={{ color: themeColor }}>
+                        {getProfileInitial({ profileData, session })}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <View className="flex-1 ml-4">

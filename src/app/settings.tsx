@@ -58,6 +58,7 @@ import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
+import { getImageSource } from "@/lib/imageSource";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
 import {
@@ -378,6 +379,9 @@ export default function SettingsScreen() {
   const [hideBirthdays, setHideBirthdays] = useState(false);
   const [omitBirthdayYear, setOmitBirthdayYear] = useState(false);
 
+  // Avatar source with auth headers
+  const [avatarSource, setAvatarSource] = useState<{ uri: string; headers?: { Authorization: string } } | null>(null);
+
   // Work schedule states
   const [showWorkScheduleSection, setShowWorkScheduleSection] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState<{ day: number; type: "start" | "end" } | null>(null);
@@ -479,6 +483,16 @@ export default function SettingsScreen() {
     if (profileData?.user?.phone) {
       setEditPhone(profileData.user.phone);
     }
+  }, [profileData, session]);
+
+  // Load avatar source with auth headers
+  useEffect(() => {
+    const loadAvatar = async () => {
+      const { avatarUri } = getProfileDisplay({ profileData, session });
+      const source = await getImageSource(avatarUri);
+      setAvatarSource(source);
+    };
+    loadAvatar();
   }, [profileData, session]);
 
   const updateProfileMutation = useMutation({
@@ -905,19 +919,15 @@ export default function SettingsScreen() {
               }}
             >
               <View className="w-16 h-16 rounded-full mr-4 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {(() => {
-                  const { avatarUri } = getProfileDisplay({ profileData, session });
-                  const initial = getProfileInitial({ profileData, session });
-                  return avatarUri ? (
-                    <Image source={{ uri: avatarUri }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                      <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                        {initial}
-                      </Text>
-                    </View>
-                  );
-                })()}
+                {avatarSource ? (
+                  <Image source={avatarSource} className="w-full h-full" />
+                ) : (
+                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
+                    <Text style={{ color: themeColor }} className="text-2xl font-bold">
+                      {getProfileInitial({ profileData, session })}
+                    </Text>
+                  </View>
+                )}
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-lg font-semibold">
