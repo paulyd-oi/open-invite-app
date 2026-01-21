@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   Keyboard,
+  Share,
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -698,7 +699,9 @@ export default function CircleScreen() {
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showMembersSheet, setShowMembersSheet] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<string | null>(null);
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
     newMemberName: string;
     existingMemberName: string;
@@ -1471,7 +1474,7 @@ export default function CircleScreen() {
                 <Pressable
                   onPress={() => {
                     setShowGroupSettings(false);
-                    setShowAddMembers(true);
+                    setShowMembersSheet(true);
                   }}
                   style={{
                     flexDirection: "row",
@@ -1484,7 +1487,32 @@ export default function CircleScreen() {
                   <Users size={22} color={colors.text} />
                   <View style={{ flex: 1, marginLeft: 16 }}>
                     <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Members</Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>View and add members</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.textTertiary} />
+                </Pressable>
+
+                {/* Share Group */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Share.share({
+                      message: `Join my group "${circle?.name}" on Open Invite!`,
+                      title: circle?.name,
+                    }).catch(() => {
+                      // User cancelled share
+                    });
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <Users size={22} color={themeColor} />
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Share Group</Text>
                   </View>
                   <ChevronRight size={20} color={colors.textTertiary} />
                 </Pressable>
@@ -1511,6 +1539,203 @@ export default function CircleScreen() {
                   </View>
                 </Pressable>
               </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Members Sheet Modal */}
+      <Modal
+        visible={showMembersSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowMembersSheet(false);
+          setSelectedFriends([]);
+        }}
+      >
+        <Pressable
+          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => {
+            setShowMembersSheet(false);
+            setSelectedFriends([]);
+          }}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                maxHeight: "90%",
+                minHeight: 300,
+              }}
+            >
+              {/* Modal Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.textTertiary,
+                    opacity: 0.4,
+                  }}
+                />
+              </View>
+
+              {/* Modal Header */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                  Members
+                </Text>
+              </View>
+
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}>
+                {/* Members List */}
+                {members.map((member, idx) => {
+                  const isHostOfCircle = circle?.createdById === member.userId;
+                  return (
+                    <View
+                      key={member.userId}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 12,
+                        borderBottomWidth: idx < members.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      {/* Avatar */}
+                      <View
+                        className="w-10 h-10 rounded-full overflow-hidden mr-3"
+                        style={{
+                          backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                        }}
+                      >
+                        {member.user.image ? (
+                          <Image source={{ uri: member.user.image }} className="w-full h-full" />
+                        ) : (
+                          <View
+                            className="w-full h-full items-center justify-center"
+                            style={{ backgroundColor: themeColor + "30" }}
+                          >
+                            <Text className="text-xs font-bold" style={{ color: themeColor }}>
+                              {member.user.name?.[0] ?? "?"}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Name and Host Badge */}
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>
+                            {member.user.name}
+                          </Text>
+                          {isHostOfCircle && (
+                            <View style={{ marginLeft: 8, backgroundColor: themeColor + "20", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                              <Text style={{ fontSize: 11, fontWeight: "600", color: themeColor }}>Host</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* Add Members Section */}
+                <View style={{ marginTop: 16, paddingBottom: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginBottom: 12 }}>Add Members</Text>
+
+                  {availableFriends.length > 0 ? (
+                    <ScrollView
+                      style={{ maxHeight: 300 }}
+                      contentContainerStyle={{ paddingBottom: 8 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {availableFriends.map((friend) => {
+                        const isSelected = selectedFriends.includes(friend.friendId);
+                        return (
+                          <Animated.View
+                            key={friend.friendId}
+                            entering={FadeInDown.springify()}
+                          >
+                            <Pressable
+                              onPress={() => toggleFriendSelection(friend.friendId)}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingVertical: 10,
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.border,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: 5,
+                                  marginRight: 12,
+                                  borderWidth: 2,
+                                  borderColor: isSelected ? themeColor : colors.border,
+                                  backgroundColor: isSelected ? themeColor : "transparent",
+                                }}
+                              >
+                                {isSelected && <Check size={8} color="#fff" style={{ marginTop: -1 }} />}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
+                                  {friend.friend.name}
+                                </Text>
+                              </View>
+                              <View
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 10,
+                                  borderWidth: 2,
+                                  borderColor: colors.border,
+                                  backgroundColor: isSelected ? themeColor : "transparent",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                {isSelected && <Check size={16} color="#fff" />}
+                              </View>
+                            </Pressable>
+                          </Animated.View>
+                        );
+                      })}
+                    </ScrollView>
+                  ) : (
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>No more friends to add</Text>
+                  )}
+                </View>
+              </ScrollView>
+
+              {/* Add Button */}
+              {selectedFriends.length > 0 && (
+                <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  <Pressable
+                    onPress={handleAddMembers}
+                    disabled={selectedFriends.length === 0 || addMembersMutation.isPending}
+                    style={{
+                      backgroundColor: selectedFriends.length > 0 ? themeColor : colors.border,
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: "600", color: selectedFriends.length > 0 ? "#fff" : colors.textTertiary }}>
+                      {addMembersMutation.isPending
+                        ? "Adding..."
+                        : `Add ${selectedFriends.length} Friend${selectedFriends.length > 1 ? "s" : ""}`}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
             </Animated.View>
           </Pressable>
         </Pressable>

@@ -359,6 +359,7 @@ export default function CreateEventScreen() {
   const [sendNotification, setSendNotification] = useState(true);
   const [category, setCategory] = useState<EventCategory | null>(null);
   const [isPrivateCircleEvent, setIsPrivateCircleEvent] = useState(true); // Default to private for circle events
+  const [circleEventMode, setCircleEventMode] = useState<"open_invite" | "set_rsvp">("open_invite"); // Default to Open Invite for lower friction
 
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -1189,55 +1190,63 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(250).springify()}>
             {isCircleEvent ? (
               <>
-                {/* Circle Event Privacy Toggle */}
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Privacy</Text>
+                {/* Group Only Visibility */}
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Group Only</Text>
+                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                  <Text className="text-xs leading-4" style={{ color: colors.textSecondary }}>
+                    Only friends in this group can see the event.
+                  </Text>
+                </View>
+
+                {/* Event Mode Selector */}
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Mode</Text>
                 <View className="flex-row mb-4">
                   <Pressable
                     onPress={() => {
                       Haptics.selectionAsync();
-                      setIsPrivateCircleEvent(true);
+                      setCircleEventMode("set_rsvp");
                     }}
                     className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
                     style={{
-                      backgroundColor: isPrivateCircleEvent ? "#EF444415" : colors.surface,
+                      backgroundColor: circleEventMode === "set_rsvp" ? "#EF444415" : colors.surface,
                       borderWidth: 1,
-                      borderColor: isPrivateCircleEvent ? "#EF444440" : colors.border
+                      borderColor: circleEventMode === "set_rsvp" ? "#EF444440" : colors.border
                     }}
                   >
-                    <Lock size={18} color={isPrivateCircleEvent ? "#EF4444" : colors.textTertiary} />
+                    <Bell size={18} color={circleEventMode === "set_rsvp" ? "#EF4444" : colors.textTertiary} />
                     <Text
                       className="ml-2 font-medium"
-                      style={{ color: isPrivateCircleEvent ? "#EF4444" : colors.textSecondary }}
+                      style={{ color: circleEventMode === "set_rsvp" ? "#EF4444" : colors.textSecondary }}
                     >
-                      Private
+                      Set RSVP
                     </Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {
                       Haptics.selectionAsync();
-                      setIsPrivateCircleEvent(false);
+                      setCircleEventMode("open_invite");
                     }}
                     className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
                     style={{
-                      backgroundColor: !isPrivateCircleEvent ? `${themeColor}15` : colors.surface,
+                      backgroundColor: circleEventMode === "open_invite" ? `${themeColor}15` : colors.surface,
                       borderWidth: 1,
-                      borderColor: !isPrivateCircleEvent ? `${themeColor}40` : colors.border
+                      borderColor: circleEventMode === "open_invite" ? `${themeColor}40` : colors.border
                     }}
                   >
-                    <Lock size={18} color={!isPrivateCircleEvent ? themeColor : colors.textTertiary} />
+                    <Compass size={18} color={circleEventMode === "open_invite" ? themeColor : colors.textTertiary} />
                     <Text
                       className="ml-2 font-medium"
-                      style={{ color: !isPrivateCircleEvent ? themeColor : colors.textSecondary }}
+                      style={{ color: circleEventMode === "open_invite" ? themeColor : colors.textSecondary }}
                     >
-                      Public
+                      Open Invite
                     </Text>
                   </Pressable>
                 </View>
                 <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <Text className="text-xs leading-4" style={{ color: colors.textSecondary }}>
-                    {isPrivateCircleEvent
-                      ? "Only circle members will see this event. Others will see a 'busy' block on your calendar."
-                      : "All your friends will see this event on your calendar."}
+                    {circleEventMode === "set_rsvp"
+                      ? "Everyone in the group will be invited and added as going. They can change their response later."
+                      : "Host is marked as going. Other members can see and choose to join."}
                   </Text>
                 </View>
               </>

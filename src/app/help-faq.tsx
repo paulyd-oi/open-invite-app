@@ -242,7 +242,7 @@ export default function HelpFAQScreen() {
           ],
         },
         {
-          title: "Friend Groups",
+          title: "Groups",
           description: "Organize friends into custom groups for easier event sharing.",
           howItWorks: [
             "Go to Friends tab and find the Groups section",
@@ -690,7 +690,7 @@ export default function HelpFAQScreen() {
           howItWorks: [
             "When creating events, set visibility",
             "All Friends: Everyone in your friend list sees it",
-            "Select Groups: Only chosen friend groups see it",
+            "Select Groups: Only chosen groups see it",
             "Private: Only you and invited attendees",
           ],
         },

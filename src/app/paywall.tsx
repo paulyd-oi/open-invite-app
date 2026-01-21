@@ -55,7 +55,7 @@ const PREMIUM_FEATURES = [
   { text: "Unlimited events", included: true },
   { text: "Smart Notifications", included: true },
   { text: "Priority Support", included: true },
-  { text: "Friend Groups", included: true },
+  { text: "Groups", included: true },
   { text: "Who's Free feature", included: true },
   { text: "Work Schedule sync", included: true },
   { text: "Notes for friends", included: true },

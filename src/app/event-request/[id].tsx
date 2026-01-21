@@ -341,7 +341,7 @@ export default function EventRequestDetailScreen() {
                   Your Response Needed
                 </Text>
                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                  Accept or decline this event request
+                  Accept or decline this proposed event
                 </Text>
               </View>
             </View>
@@ -585,7 +585,7 @@ export default function EventRequestDetailScreen() {
             >
               <Trash2 size={20} color="#EF4444" />
               <Text className="font-semibold ml-2" style={{ color: "#EF4444" }}>
-                {cancelMutation.isPending ? "Cancelling..." : "Cancel Event Request"}
+                {cancelMutation.isPending ? "Cancelling..." : "Cancel Proposed Event"}
               </Text>
             </Pressable>
           </Animated.View>
@@ -869,8 +869,8 @@ export default function EventRequestDetailScreen() {
       {/* Cancel Event Request Confirm Modal */}
       <ConfirmModal
         visible={showCancelConfirm}
-        title="Cancel Event Request"
-        message="Are you sure you want to cancel this event request?"
+        title="Cancel Proposed Event"
+        message="Are you sure you want to cancel this proposed event?"
         confirmText="Cancel Event"
         isDestructive
         onConfirm={confirmCancel}

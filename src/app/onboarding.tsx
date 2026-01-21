@@ -464,10 +464,10 @@ const MockFriendsAvailable = ({ date, isDark, colors }: { date: number; isDark: 
   </View>
 );
 
-// Mock friend groups
+// Mock groups
 const MockFriendGroups = ({ themeColor, isDark, colors }: { themeColor: string; isDark: boolean; colors: typeof LIGHT_COLORS }) => (
   <View className="mx-4 mt-4">
-    <Text className="text-sm mb-3" style={{ color: colors.textTertiary }}>Your Friend Groups</Text>
+    <Text className="text-sm mb-3" style={{ color: colors.textTertiary }}>Your Groups</Text>
     <View className="gap-2">
       <View className="flex-row gap-2">
         <View
@@ -821,7 +821,7 @@ export default function OnboardingScreen() {
       id: "privacy",
       title: "Private Events & Groups",
       subtitle: "Control Who Sees What",
-      description: "Create friend groups to share events with specific people. Perfect for surprise parties, close friend hangouts, or work events!",
+      description: "Create groups to share events with specific people. Perfect for surprise parties, close friend hangouts, or work events!",
       icon: <Shield size={36} color="#fff" />,
       iconBg: "#9B59B6",
       tip: "Only friends you accept can see your calendar",

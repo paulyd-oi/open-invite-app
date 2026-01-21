@@ -256,7 +256,7 @@ export default function CreateEventRequestScreen() {
               </View>
               <View className="flex-1">
                 <Text className="font-semibold" style={{ color: colors.text }}>
-                  Event Request
+                  Propose Event
                 </Text>
                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
                   Invite friends - event is created when everyone accepts
@@ -827,7 +827,7 @@ export default function CreateEventRequestScreen() {
               }}
             >
               <Text className="text-white font-semibold text-lg">
-                {createMutation.isPending ? "Sending Invites..." : "Send Event Request"}
+                {createMutation.isPending ? "Sending Invites..." : "Propose Event"}
               </Text>
             </Pressable>
             <Text className="text-center text-xs mt-2" style={{ color: colors.textTertiary }}>

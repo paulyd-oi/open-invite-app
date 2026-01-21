@@ -120,7 +120,7 @@ export function useSubscription() {
 // Premium feature names for display
 export const PREMIUM_FEATURE_NAMES: Record<keyof SubscriptionFeatures, string> = {
   unlimitedFriends: "Unlimited Friends",
-  friendGroups: "Friend Groups",
+  friendGroups: "Groups",
   whosFree: "Who's Free",
   workSchedule: "Work Schedule",
   friendNotes: "Notes to Remember",
