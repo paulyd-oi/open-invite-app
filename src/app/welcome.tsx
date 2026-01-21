@@ -62,7 +62,6 @@ import { useTheme } from "@/lib/ThemeContext";
 import { authClient, hasAuthToken } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
-import { SESSION_TOKEN_KEY } from "@/lib/authKeys";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation } from "@/lib/appleSignIn";
@@ -673,111 +672,9 @@ export default function WelcomeOnboardingScreen() {
   }, [backendUrl]);
 
   // ============ ONBOARDING COMPLETION GATE ============
-  // Prevent redirect loop: only auto-navigate to "/" if authenticated AND onboarding complete
-  useEffect(() => {
-    const checkOnboardingAndRedirect = async () => {
-      try {
-        // Check if user is authenticated (has valid token)
-        const isAuthenticated = await hasAuthToken();
-        
-        if (!isAuthenticated) {
-          // NOT AUTHENTICATED: Redirect to login, not welcome screen
-          console.log("[Welcome] Not authenticated, redirecting to login");
-          router.replace("/login");
-          return;
-        }
-
-        // Fetch backend onboarding status (source of truth)
-        let backendOnboardingCompleted = false;
-        try {
-          const response = await api.get<any>("/api/onboarding/status");
-          
-          // Robust parsing: handle multiple possible response shapes
-          const data = response;
-          backendOnboardingCompleted = !!(
-            data?.completed ?? 
-            data?.onboardingCompleted ?? 
-            data?.onboarded ?? 
-            data?.data?.completed
-          );
-          
-          if (__DEV__) {
-            const responseKeys = data ? Object.keys(data) : [];
-            console.log(
-              `[OnboardingStatus] fetched keys=[${responseKeys.join(', ')}] completed=${backendOnboardingCompleted}`
-            );
-          }
-        } catch (error: any) {
-          if (__DEV__) {
-            console.log(`[OnboardingStatus] fetch failed: ${error.message}`);
-          }
-        }
-
-        // Check local onboarding completion state
-        const onboardingCompleted = await AsyncStorage.getItem("onboarding_completed");
-        const onboardingProgressV2 = await AsyncStorage.getItem("onboarding_progress_v2");
-        const onboardingProgress = await AsyncStorage.getItem("onboarding_progress");
-
-        // If backend says complete, clear local progress flags
-        if (backendOnboardingCompleted) {
-          if (__DEV__) {
-            console.log("[Welcome] Backend confirms onboarding complete; clearing local progress flags");
-          }
-          try {
-            await AsyncStorage.multiRemove([
-              "onboarding_progress_v2",
-              "onboarding_progress",
-            ]);
-            if (onboardingCompleted !== "true") {
-              await AsyncStorage.setItem("onboarding_completed", "true");
-            }
-          } catch (clearError: any) {
-            if (__DEV__) {
-              console.log("[Welcome] Could not clear onboarding flags:", clearError.message);
-            }
-          }
-        }
-
-        // Define onboarding as incomplete if:
-        // - Backend says NOT complete AND
-        // - (completed flag is not "true" OR progressV2/progress exists)
-        const onboardingIncomplete = 
-          !backendOnboardingCompleted && (
-            onboardingCompleted !== "true" || 
-            onboardingProgressV2 !== null || 
-            onboardingProgress !== null
-          );
-
-        if (__DEV__) {
-          console.log("[Welcome] Onboarding gate check:", {
-            isAuthenticated,
-            backendOnboardingCompleted,
-            onboardingCompleted,
-            hasProgressV2: !!onboardingProgressV2,
-            hasProgress: !!onboardingProgress,
-            onboardingIncomplete,
-          });
-        }
-
-        // Only redirect to "/" if authenticated AND onboarding complete
-        if (isAuthenticated && !onboardingIncomplete) {
-          console.log("[Welcome] User authenticated and onboarded, redirecting to feed");
-          router.replace("/");
-        } else if (onboardingIncomplete) {
-          console.log("[Welcome] Onboarding incomplete, staying on welcome screen");
-          // Stay on welcome screen - do not redirect
-        }
-      } catch (error) {
-        console.error("[Welcome] Error checking onboarding state:", error);
-        // On error, stay on welcome screen (fail safe)
-      }
-    };
-
-    // Only run check after fonts and restore are done
-    if (fontsLoaded && !isRestoring) {
-      checkOnboardingAndRedirect();
-    }
-  }, [fontsLoaded, isRestoring, router]);
+  // NOTE: Removed auto-redirect logic - BootRouter is the single routing authority.
+  // BootRouter will handle routing based on bootStatus (token + onboarding state).
+  // welcome.tsx should ONLY handle onboarding flow UI, not auth routing decisions.
 
   // ============ PERSISTENCE ============
 

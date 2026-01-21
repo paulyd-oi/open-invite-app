@@ -128,12 +128,8 @@ export default function LoginScreen() {
   const [codeError, setCodeError] = useState<string | null>(null);
   const codeInputRefs = useRef<(TextInput | null)[]>([]);
 
-  // Redirect if already logged in (only if user exists, not phantom cached session)
-  useEffect(() => {
-    if (session?.user) {
-      routeAfterAuthSuccess(router);
-    }
-  }, [session]);
+  // NOTE: Removed auto-redirect based on session.user - BootRouter handles all auth routing.
+  // login.tsx should only redirect after explicit login success, not on mount.
 
   // Handle code input change
   const handleCodeChange = (index: number, value: string) => {

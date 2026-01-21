@@ -133,7 +133,7 @@ export default function PrivacySettingsScreen() {
         console.error("[PrivacySettings] Error during logout after delete:", error);
         // Continue to navigate anyway
       }
-      router.replace("/");
+      router.replace("/login");
     },
     onError: () => {
       safeToast.error("Error", "Failed to delete account. Please try again.");
