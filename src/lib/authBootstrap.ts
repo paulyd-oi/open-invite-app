@@ -23,6 +23,7 @@ import { isNetworkError, shouldLogoutOnError, isRateLimitError } from "./network
 import { isRateLimited, getRateLimitRemaining, setRateLimited, clearRateLimit } from "./rateLimitState";
 import { deriveAuthState, assertAuthInvariants, type AuthState } from "./authState";
 import { SESSION_TOKEN_KEY, LEGACY_TOKEN_KEYS, SESSION_CACHE_KEY } from "./authKeys";
+import { consumeLogoutIntent } from "./logoutIntent";
 
 /**
  * DEV-only trace helper for auth token flow tracing.
@@ -86,6 +87,29 @@ export async function resetSession(options?: { reason?: string; status?: number;
     return; // Early exit - no token clearing
   }
   
+  // LOGOUT INTENT GATE: For user-initiated logouts, require explicit intent flag
+  if (isUserInitiated) {
+    const hasIntent = consumeLogoutIntent();
+    if (!hasIntent) {
+      // User logout WITHOUT intent flag - this is suspicious (possible automatic trigger)
+      console.error(
+        `[HARD_RESET_BLOCKED] reason=${reason} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset} - Missing logout intent flag!`
+      );
+      log(`🚫 BLOCKED: User logout called without intent flag. This should only happen from explicit user action.`);
+      
+      // Perform soft reset only (clear caches but preserve token)
+      log(`Performing soft reset: clearing session cache and query cache only`);
+      try {
+        await clearSessionCache();
+        await AsyncStorage.removeItem(SESSION_CACHE_KEY);
+      } catch (e) {
+        log("  ⚠️ Error during soft reset:", e);
+      }
+      
+      return; // Early exit - no token clearing
+    }
+  }
+  
   // Log HARD_RESET with full context (only when actually clearing tokens)
   console.log(
     `[HARD_RESET] reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
@@ -97,10 +121,16 @@ export async function resetSession(options?: { reason?: string; status?: number;
   // Step 1: Sign out from Better Auth (BEST-EFFORT ONLY - never blocks logout)
   log("Step 1/5: Signing out from Better Auth (best-effort)");
   try {
-    await authClient.signOut();
-    log("  ✓ Signed out from Better Auth");
-  } catch (e) {
-    log("  ⚠️ Better Auth signOut error (continuing anyway):", e);
+    const result = await authClient.signOut();
+    if (result.ok) {
+      log("  ✓ Signed out from Better Auth");
+    } else {
+      const errorStatus = (result.error as any)?.status || 'unknown';
+      log(`  ⚠️ [SignOut] non-2xx status=${errorStatus} (continuing with local signout)`);
+    }
+  } catch (e: any) {
+    const errorStatus = e?.status || 'unknown';
+    log(`  ⚠️ [SignOut] error status=${errorStatus} (continuing with local signout):`, e);
     // Backend failure does NOT block logout - continue with local cleanup
   }
 

@@ -55,6 +55,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
@@ -684,6 +685,7 @@ export default function SettingsScreen() {
       console.log("[Settings] Push token deactivated");
 
       // Use resetSession to clear all auth state
+      setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "settings" });
 console.log("[Settings] Session reset complete");
 

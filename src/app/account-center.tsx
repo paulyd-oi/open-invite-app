@@ -30,6 +30,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
@@ -221,6 +222,7 @@ export default function AccountCenterScreen() {
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
     try {
+      setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "account-center" });
 queryClient.clear();
       router.replace("/");

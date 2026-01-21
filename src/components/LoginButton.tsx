@@ -3,6 +3,7 @@ import { Pressable, Text } from "react-native";
 
 import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 import { useSession } from "@/lib/useSession";
 import { cn } from "@/lib/cn";
 import { useRouter } from "expo-router";
@@ -17,6 +18,7 @@ const LoginButton = () => {
       onPress={async () => {
         if (session) {
           try {
+            setLogoutIntent();
             await resetSession({ reason: "user_logout", endpoint: "LoginButton" });
             router.replace("/welcome");
           } catch (error) {

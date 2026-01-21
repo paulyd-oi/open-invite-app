@@ -26,6 +26,7 @@ import { useRevenueCatSync } from "@/hooks/useRevenueCatSync";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event } from "@/shared/contracts";
@@ -419,6 +420,7 @@ export default function FeedScreen() {
       console.log("[Logout] begin");
     }
     try {
+      setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "FeedScreen" });
       if (__DEV__) {
         console.log("[Logout] after resetSession");

@@ -29,6 +29,7 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
@@ -126,6 +127,7 @@ export default function PrivacySettingsScreen() {
       safeToast.success("Account Deleted", "Your account has been permanently deleted.");
       // Sign out and redirect to welcome
       try {
+        setLogoutIntent();
         await resetSession({ reason: "account_deletion", endpoint: "privacy-settings" });
       } catch (error) {
         console.error("[PrivacySettings] Error during logout after delete:", error);

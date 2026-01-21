@@ -34,6 +34,7 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
@@ -219,6 +220,7 @@ export default function ProfileScreen() {
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
     try {
+      setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "profile" });
 queryClient.clear();
       router.replace("/");

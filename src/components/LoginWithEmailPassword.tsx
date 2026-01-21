@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 
 import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
+import { setLogoutIntent } from "@/lib/logoutIntent";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { isRateLimited, getRateLimitRemaining } from "@/lib/rateLimitState";
@@ -313,6 +314,7 @@ export default function LoginWithEmailPassword() {
 
   const handleSignOut = async () => {
     try {
+      setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "LoginWithEmailPassword" });
 safeToast.success("Success", "Signed out successfully!");
     } catch (error) {
