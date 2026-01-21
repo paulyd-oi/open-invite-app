@@ -1122,13 +1122,6 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
-  // [CalendarBoot] Add instrumentation at top of component
-  const lastHasSessionRef = useRef<boolean | null>(null);
-
-  if (__DEV__) {
-    console.log("[CalendarBoot] Component render", { hasSession: !!session });
-  }
-
   // Get local events created while offline
   const localEvents = useLocalEvents();
 
@@ -1177,8 +1170,7 @@ export default function CalendarScreen() {
   const overscrolledTopRef = useRef(false);
   const overscrolledBottomRef = useRef(false);
   
-  const lastHasSessionLogRef = useRef<null | boolean>(null);
-const didOverscrollTopRef = useRef(false);
+  const didOverscrollTopRef = useRef(false);
   const didOverscrollBottomRef = useRef(false);
   const SCROLL_THRESHOLD = 80; // Threshold for overscroll to trigger month change
 
@@ -1204,40 +1196,9 @@ const didOverscrollTopRef = useRef(false);
   // Unified height system - one continuous value that determines both view mode and multiplier
   // Range: 40 (compact min) -> 64 (stacked) -> 80 (details) -> 160 (details max)
   const [initialHeightLoaded, setInitialHeightLoaded] = useState(false);
-  const unifiedHeight = useSharedValue(BASE_HEIGHTS.stacked); // Start at stacked
+  const unifiedHeight = useSharedValue(BASE_HEIGHTS.stacked);
   const baseUnifiedHeight = useSharedValue(BASE_HEIGHTS.stacked);
   const [displayUnifiedHeight, setDisplayUnifiedHeight] = useState(BASE_HEIGHTS.stacked);
-
-  // [CalendarBoot] Degraded mode timeout system
-  const [isInDegradedMode, setIsInDegradedMode] = useState(false);
-  const degradedModeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    // If session is missing, set timeout for degraded mode
-    if (!session) {
-      if (__DEV__) {
-        console.log("[CalendarBoot] Session missing, starting degraded mode timeout");
-      }
-      degradedModeTimeoutRef.current = setTimeout(() => {
-        if (__DEV__) {
-          console.log("[CalendarBoot] Degraded mode timeout triggered (2500ms)");
-        }
-        setIsInDegradedMode(true);
-      }, 2500);
-
-      return () => {
-        if (degradedModeTimeoutRef.current) {
-          clearTimeout(degradedModeTimeoutRef.current);
-        }
-      };
-    } else {
-      // Session loaded, cancel degraded mode
-      if (degradedModeTimeoutRef.current) {
-        clearTimeout(degradedModeTimeoutRef.current);
-      }
-      setIsInDegradedMode(false);
-    }
-  }, [session]);
 
   // Load saved calendar view height on mount
   useEffect(() => {
@@ -1373,7 +1334,7 @@ const didOverscrollTopRef = useRef(false);
       api.get<GetCalendarEventsResponse>(
         `/api/events/calendar-events?start=${encodeURIComponent(visibleDateRange.start)}&end=${encodeURIComponent(visibleDateRange.end)}`
       ),
-    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
+    enabled: bootStatus === 'authed',
     refetchOnMount: true,
     staleTime: 0, // Always consider data stale to ensure fresh data on navigation
   });
@@ -1382,7 +1343,7 @@ const didOverscrollTopRef = useRef(false);
   const { data: birthdaysData } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
-    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
+    enabled: bootStatus === 'authed',
   });
 
   // QueryClient for invalidating queries
@@ -1890,10 +1851,8 @@ const didOverscrollTopRef = useRef(false);
     }
   };
 
-  if (!session && !isInDegradedMode) {
-    if (__DEV__) {
-      console.log("[CalendarBoot] Rendering loading state - session not available yet");
-    }
+  // Show loading while bootstrap is in progress or not authed
+  if (bootStatus !== 'authed') {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
@@ -1906,25 +1865,9 @@ const didOverscrollTopRef = useRef(false);
     );
   }
 
-  // [CalendarBoot] If in degraded mode, render calendar shell with banner
-  if (isInDegradedMode && !session) {
-    if (__DEV__) {
-      console.log("[CalendarBoot] Rendering in degraded mode - session timeout exceeded");
-    }
-    // Continue to calendar render below - render UI anyway with placeholder data
-  }
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        {/* [CalendarBoot] Show banner in degraded mode */}
-        {isInDegradedMode && !session && (
-          <View className="bg-yellow-100 px-4 py-2 border-b" style={{ borderColor: colors.border }}>
-            <Text className="text-sm font-semibold text-yellow-800">
-              Still loading your profile—some info may be missing
-            </Text>
-          </View>
-        )}
         <View className="px-5 pt-2 pb-2">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">

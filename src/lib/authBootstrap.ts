@@ -36,7 +36,7 @@ function authTrace(event: string, data: Record<string, boolean | string | number
 }
 
 // Bootstrap states
-export type AuthBootstrapState = "loggedOut" | "onboarding" | "authed";
+export type AuthBootstrapState = "loggedOut" | "onboarding" | "authed" | "degraded";
 
 // Bootstrap result
 export interface AuthBootstrapResult {
@@ -311,7 +311,7 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       
       // Try to use cached session if available
       try {
-        const cached = await AsyncStorage.getItem("session_cache_v1");
+        const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
         if (cached) {
           const cachedSession = JSON.parse(cached);
           log("  ✓ Using cached session during rate limit");
@@ -337,49 +337,93 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
     const tokenExists = await hasAuthToken();
     log(`  Token exists: ${tokenExists}`);
 
-    // Step 2: Validate token by calling a protected endpoint
-    log("Step 2/4: Validating token with protected endpoint");
+    // Step 2: Validate token with /api/profile (status-code-based with 3s timeout)
+    log("Step 2/4: Validating token with /api/profile (status-code)");
     let session: any = null;
     let sessionError: any = null;
     let tokenValid = false;
     
     if (tokenExists) {
-      // Use /api/auth/session as the authoritative auth endpoint
-      // This endpoint returns 401 if user is null (session.user falsy)
+      // Call /api/profile with 3s timeout - use authClient.$fetch for status code access
       try {
-        // Import api locally to avoid circular dependency
-        const { api } = await import('./api');
+        log("  Calling /api/profile with 3s timeout");
         
-        log("  Calling /api/auth/session to validate auth");
-        const response = await api.get<{ user: any; session: any }>('/api/auth/session');
+        // Create timeout promise
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            const err: any = new Error('Request timeout');
+            err.isTimeout = true;
+            reject(err);
+          }, 3000);
+        });
         
-        if (response && response.user) {
-          log("  ✓ Authentication valid - session has user");
-          tokenValid = true;
-          session = response;
-          sessionError = null;
-        } else {
-          log("  ⚠️ /api/auth/session returned no user");
-          sessionError = new Error('No user in session');
-          tokenValid = false;
-        }
+        // Race between API call and timeout
+        const response = await Promise.race([
+          authClient.$fetch<any>('/api/profile'),
+          timeoutPromise
+        ]);
+        
+        // 200 response = authenticated
+        log("  ✓ Authentication valid (200 from /api/profile)");
+        tokenValid = true;
+        session = response;
+        sessionError = null;
         
       } catch (error: any) {
         sessionError = error;
-        const status = error?.status || error?.response?.status || 'unknown';
-        log(`  ❌ /api/auth/session error (${status}):`, error.message);
-        tokenValid = false;
+        const status = error?.status || error?.response?.status;
+        const isTimeout = error?.isTimeout === true;
         
-        // If 401, token is invalid/expired - clear it
-        if (status === 401 || error.status === 401) {
-          log("  → Clearing invalid token (401 from /api/auth/session)");
-          await clearAuthToken();
-          await AsyncStorage.removeItem("session_cache_v1");
-          authTrace("authBootstrap:token_invalid", { reason: "401_from_session_endpoint" });
-          return { state: "loggedOut", session: null, error: "Invalid token (401)" };
+        if (isTimeout) {
+          log("  ⏱️ /api/profile timeout (3s)");
+        } else {
+          log(`  ❌ /api/profile error (${status || 'unknown'}):`, error.message);
         }
         
-        // For other errors (500, network), let them fall through to unknown/retry logic below
+        tokenValid = false;
+        
+        // STATUS-CODE BASED DECISION:
+        // 401/403 = auth failure → logout + return loggedOut
+        if (status === 401 || status === 403) {
+          log(`  → Auth failure (${status}) - calling resetSession`);
+          try {
+            await resetSession({ reason: "auth_error", status: status, endpoint: "/api/profile" });
+          } catch (e) {
+            log("  ⚠️ Error during resetSession:", e);
+          }
+          authTrace("authBootstrap:auth_failure", { status });
+          return { state: "loggedOut", session: null, error: `Auth failure (${status})` };
+        }
+        
+        // Network error or timeout → return degraded (DO NOT logout)
+        if (isTimeout || isNetworkError(error)) {
+          log("  → Network/timeout error - returning degraded state");
+          return { state: "degraded", session: null, error: "Network timeout or unreachable" };
+        }
+        
+        // 429/5xx → transient error, try cached session
+        if (status === 429 || (status >= 500 && status < 600)) {
+          log(`  → Transient error (${status}) - attempting cached session`);
+          try {
+            const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
+            if (cached) {
+              const cachedSession = JSON.parse(cached);
+              log("    ✓ Using cached session");
+              session = cachedSession;
+              tokenValid = true;
+              sessionError = null;
+              // Continue to Step 3
+            } else {
+              log("    → No cache - returning degraded");
+              return { state: "degraded", session: null, error: `Transient error (${status})` };
+            }
+          } catch (e) {
+            log("    ⚠️ Cache read error:", e);
+            return { state: "degraded", session: null, error: "Cache error" };
+          }
+        }
+        
+        // Unknown error - fall through
       }
     } else {
       log("  → No token to validate");
@@ -400,7 +444,7 @@ if (!tokenValid) {
 log("  → Token valid, user is authenticated");
 
 if (session?.user) {
-  log(`  ✓ Session info available for user: ${session.user.email || session.user.id}`);
+  log("  ✓ Session info available (user present)");
 } else {
   // Session is null - check WHY it's null
   // Only reset if we got a 401 (handled above) or session fetch succeeded but user is missing
@@ -415,7 +459,7 @@ if (session?.user) {
     if (errorStatus === 401 || errorStatus === 403) {
       log("  → Auth error detected, forcing logout");
       try {
-        await resetSession({ reason: "auth_error", status: errorStatus, endpoint: "/api/auth/session" });
+        await resetSession({ reason: "auth_error", status: errorStatus, endpoint: "/api/profile" });
       } catch (e) {
         log("  ⚠️ Error during forced logout:", e);
       }
@@ -427,7 +471,7 @@ if (session?.user) {
       // Non-auth error (404, 500, network, timeout) - try to use cached session
       log("  → Non-auth error (transient), attempting to use cached session");
       try {
-        const cached = await AsyncStorage.getItem("session_cache_v1");
+        const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
         if (cached) {
           const cachedSession = JSON.parse(cached);
           log("  ✓ Using cached session for transient error");
@@ -455,7 +499,7 @@ if (session?.user) {
     log("  ⚠️ Session is null with no error - unexpected state");
     const elapsed = Date.now() - startTime;
     log(`✅ Bootstrap complete in ${elapsed}ms (unexpected state)`);
-    return { state: "loggedOut", session: null, error: "Session null without error" };
+    return { state: tokenExists ? "degraded" : "loggedOut", session: null, error: "Session null without error" };
   }
 }
 
@@ -598,7 +642,7 @@ if (session?.user) {
     
     // For transient errors, try to use cached session if available
     try {
-      const cached = await AsyncStorage.getItem("session_cache_v1");
+      const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
       if (cached) {
         const cachedSession = JSON.parse(cached);
         log("  ✓ Using cached session due to transient error");

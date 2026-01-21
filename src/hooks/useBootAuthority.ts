@@ -1,65 +1,110 @@
 /**
  * Boot Authority Hook
  * 
- * Centralizes auth bootstrap state management for root-level routing decisions.
- * Single source of truth for: "are we loading?", "authed?", "onboarding?", "logged out?"
+ * Singleton auth bootstrap state management. Bootstrap runs ONCE per app launch.
+ * All components subscribe to the shared module-level state.
  * 
- * This hook should be used ONCE at the root level (_layout.tsx) to determine
- * which screen to show initially. It prevents competing redirects from multiple
- * auth checks (token, session cache, session.user, etc).
+ * Bootstrap only re-runs when:
+ * - Explicit retry() call
+ * - Token state changes (logout/login)
+ * - App relaunches
  * 
- * Deduplicates concurrent bootstrap calls via in-flight promise.
+ * Multiple useBootAuthority() calls do NOT trigger multiple bootstraps.
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { bootstrapAuthWithWatchdog } from '@/lib/authBootstrap';
 
-export type BootStatus = 'loading' | 'authed' | 'onboarding' | 'loggedOut' | 'error';
+export type BootStatus = 'loading' | 'authed' | 'onboarding' | 'loggedOut' | 'error' | 'degraded';
 
 interface UseBootAuthorityResult {
   status: BootStatus;
   error?: string;
+  retry: () => void;
 }
 
-// Module-level in-flight promise to deduplicate concurrent bootstrap calls
+// ========== SINGLETON STATE ==========
+// Module-level state shared across all hook instances
+let globalStatus: BootStatus = 'loading';
+let globalError: string | undefined = undefined;
+let hasBootstrappedOnce = false;
 let inFlightBootstrap: Promise<Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>> | null = null;
 
+// Subscribers for state updates
+const subscribers = new Set<(status: BootStatus, error?: string) => void>();
+
+function notifySubscribers() {
+  subscribers.forEach(callback => callback(globalStatus, globalError));
+}
+
+function setGlobalState(status: BootStatus, error?: string) {
+  globalStatus = status;
+  globalError = error;
+  notifySubscribers();
+}
+// =====================================
+
 export function useBootAuthority(): UseBootAuthorityResult {
-  const [status, setStatus] = useState<BootStatus>('loading');
-  const [error, setError] = useState<string | undefined>();
+  const [status, setStatus] = useState<BootStatus>(globalStatus);
+  const [error, setError] = useState<string | undefined>(globalError);
   const hasRunRef = useRef(false);
 
+  // Subscribe to global state updates
   useEffect(() => {
-    // Prevent double-run in strict mode
+    const callback = (newStatus: BootStatus, newError?: string) => {
+      setStatus(newStatus);
+      setError(newError);
+    };
+    
+    subscribers.add(callback);
+    
+    // Sync with current global state immediately
+    setStatus(globalStatus);
+    setError(globalError);
+    
+    return () => {
+      subscribers.delete(callback);
+    };
+  }, []);
+
+  // Bootstrap ONCE per app launch (singleton)
+  useEffect(() => {
+    // If already bootstrapped, skip
+    if (hasBootstrappedOnce) {
+      if (__DEV__) {
+        console.log('[BootAuthority] Bootstrap already ran - skipping');
+      }
+      return;
+    }
+
+    // If bootstrap in flight, skip
+    if (inFlightBootstrap) {
+      if (__DEV__) {
+        console.log('[BootAuthority] Bootstrap already in flight - skipping');
+      }
+      return;
+    }
+
+    // Prevent duplicate runs from concurrent mounts
     if (hasRunRef.current) {
       return;
     }
     hasRunRef.current = true;
 
+    if (__DEV__) {
+      console.log('[BootAuthority] Starting bootstrap...');
+    }
+
     const runBootstrap = async () => {
       try {
-        // Deduplicate: if another bootstrap is in-flight, reuse it
-        if (inFlightBootstrap) {
-          if (__DEV__) {
-            console.log('[BootAuthority] Using in-flight bootstrap');
-          }
-          const result = await inFlightBootstrap;
-          mapBootstrapResultToStatus(result, setStatus, setError);
-          return;
-        }
-
-        if (__DEV__) {
-          console.log('[BootAuthority] Starting bootstrap...');
-        }
-        
-        // Start new in-flight bootstrap
         inFlightBootstrap = bootstrapAuthWithWatchdog();
         const result = await inFlightBootstrap;
-        mapBootstrapResultToStatus(result, setStatus, setError);
+        mapBootstrapResultToGlobalStatus(result);
+        hasBootstrappedOnce = true;
       } catch (err) {
-        console.error('[BootAuthority] Unexpected error:', err);
-        setStatus('error');
-        setError(err instanceof Error ? err.message : String(err));
+        console.error('[BootAuthority] Bootstrap error:', err);
+        setGlobalState('error', err instanceof Error ? err.message : String(err));
+        hasBootstrappedOnce = true;
       } finally {
         inFlightBootstrap = null;
       }
@@ -68,14 +113,44 @@ export function useBootAuthority(): UseBootAuthorityResult {
     runBootstrap();
   }, []);
 
-  return { status, error };
+  // Explicit retry - resets singleton and re-runs bootstrap
+  const retry = () => {
+    if (globalStatus === 'degraded' || globalStatus === 'error') {
+      if (__DEV__) {
+        console.log('[BootAuthority] Explicit retry - resetting singleton...');
+      }
+      
+      // Reset singleton state
+      hasBootstrappedOnce = false;
+      inFlightBootstrap = null;
+      hasRunRef.current = false;
+      setGlobalState('loading');
+      
+      // Re-run bootstrap
+      const runBootstrap = async () => {
+        try {
+          inFlightBootstrap = bootstrapAuthWithWatchdog();
+          const result = await inFlightBootstrap;
+          mapBootstrapResultToGlobalStatus(result);
+          hasBootstrappedOnce = true;
+        } catch (err) {
+          console.error('[BootAuthority] Retry error:', err);
+          setGlobalState('error', err instanceof Error ? err.message : String(err));
+          hasBootstrappedOnce = true;
+        } finally {
+          inFlightBootstrap = null;
+        }
+      };
+      runBootstrap();
+    }
+  };
+
+  return { status, error, retry };
 }
 
-// Helper to map bootstrap result to UI status
-function mapBootstrapResultToStatus(
-  result: Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>,
-  setStatus: (status: BootStatus) => void,
-  setError: (error: string | undefined) => void
+// Helper to map bootstrap result to global status (singleton)
+function mapBootstrapResultToGlobalStatus(
+  result: Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>
 ) {
   if (__DEV__) {
     console.log('[BootAuthority] Bootstrap complete:', result.state);
@@ -83,32 +158,42 @@ function mapBootstrapResultToStatus(
 
   if (result.timedOut) {
     console.error('[BootAuthority] Bootstrap timed out');
-    setStatus('error');
-    setError('Bootstrap timeout');
+    setGlobalState('error', 'Bootstrap timeout');
     return;
   }
 
-  if (result.error) {
+  if (result.error && result.state !== 'degraded') {
     console.error('[BootAuthority] Bootstrap error:', result.error);
-    setStatus('error');
-    setError(result.error);
+    setGlobalState('error', result.error);
     return;
   }
 
   // Map bootstrap state to boot status
   switch (result.state) {
     case 'loggedOut':
-      setStatus('loggedOut');
+      setGlobalState('loggedOut');
       break;
     case 'onboarding':
-      setStatus('onboarding');
+      setGlobalState('onboarding');
       break;
     case 'authed':
-      setStatus('authed');
+      setGlobalState('authed');
+      break;
+    case 'degraded':
+      setGlobalState('degraded', result.error);
       break;
     default:
       console.warn('[BootAuthority] Unknown bootstrap state:', result.state);
-      setStatus('error');
-      setError('Unknown bootstrap state');
+      setGlobalState('error', 'Unknown bootstrap state');
   }
+}
+
+// Export for logout flow to reset singleton
+export function resetBootAuthority() {
+  if (__DEV__) {
+    console.log('[BootAuthority] Resetting singleton for logout...');
+  }
+  hasBootstrappedOnce = false;
+  inFlightBootstrap = null;
+  setGlobalState('loading');
 }

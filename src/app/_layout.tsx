@@ -59,7 +59,7 @@ function BootRouter() {
   const router = useRouter();
   const pathname = usePathname();
   const navigationState = useRootNavigationState();
-  const { status: bootStatus, error: bootError } = useBootAuthority();
+  const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
 
   // Wait for navigation state to be ready before routing
@@ -96,6 +96,15 @@ function BootRouter() {
         }
         router.replace('/login');
       }
+    } else if (bootStatus === 'degraded') {
+      // Network/timeout error - do NOT route, stay on current screen
+      // User can retry by relaunching app or via retry() if exposed
+      if (__DEV__) {
+        console.log('[BootRouter] → Degraded state (network/timeout) - not routing');
+      }
+      // Do NOT set hasRoutedRef.current - allow retry to re-run routing
+      hasRoutedRef.current = false;
+      return; // Exit early, don't mark as routed
     } else if (bootStatus === 'onboarding') {
       // Authenticated but onboarding incomplete - send to welcome
       if (pathname !== '/welcome') {
@@ -115,8 +124,8 @@ function BootRouter() {
     }
   }, [navigationState?.key, bootStatus, router, pathname]);
 
-  // While loading, show nothing (splash screen handled in RootLayout)
-  if (bootStatus === 'loading') {
+  // While loading or degraded, show nothing (splash screen handled in RootLayout)
+  if (bootStatus === 'loading' || bootStatus === 'degraded') {
     return null;
   }
 
