@@ -50,7 +50,6 @@ import {
   type Friendship,
   type GetEventsResponse,
   type GetProfileStatsResponse,
-  type GetAchievementsResponse,
   EVENT_CATEGORIES,
   TIER_COLORS,
 } from "../../shared/contracts";
@@ -111,12 +110,6 @@ export default function ProfileScreen() {
     enabled: !!session,
   });
 
-  const { data: achievementsData, refetch: refetchAchievements } = useQuery({
-    queryKey: ["achievements"],
-    queryFn: () => api.get<GetAchievementsResponse>("/api/profile/achievements"),
-    enabled: !!session,
-  });
-
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -128,7 +121,6 @@ export default function ProfileScreen() {
         refetchFriends(),
         refetchEvents(),
         refetchStats(),
-        refetchAchievements(),
         // Also invalidate session to get updated user image
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ]);
@@ -137,7 +129,7 @@ export default function ProfileScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refetchProfiles, refetchProfile, refetchFriends, refetchEvents, refetchStats, refetchAchievements, queryClient]);
+  }, [refetchProfiles, refetchProfile, refetchFriends, refetchEvents, refetchStats, queryClient]);
 
   const friends = (friendsData?.friends ?? []).filter(f => f.friend != null);
   const eventsCount = eventsData?.events?.length ?? 0;
@@ -147,13 +139,6 @@ export default function ProfileScreen() {
   // Stats data
   const stats = statsData?.stats;
   const topFriends = statsData?.topFriends ?? [];
-
-  // Get achievements from the new achievements endpoint
-  const achievements = achievementsData?.achievements ?? [];
-  const unlockedAchievements = achievements.filter(a => a.unlocked);
-  const lockedAchievements = achievements.filter(a => !a.unlocked);
-  const selectedBadgeId = achievementsData?.selectedBadgeId ?? null;
-  const selectedBadge = selectedBadgeId ? achievements.find(a => a.id === selectedBadgeId) : null;
 
   // Build monthly recap data
   const now = new Date();
@@ -269,23 +254,6 @@ export default function ProfileScreen() {
                     </View>
                   )}
                 </View>
-                {/* Selected Badge */}
-                {selectedBadge && (
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/achievements");
-                    }}
-                    className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full items-center justify-center"
-                    style={{
-                      backgroundColor: selectedBadge.tierColor,
-                      borderWidth: 2,
-                      borderColor: colors.surface,
-                    }}
-                  >
-                    <Text className="text-sm">{selectedBadge.emoji}</Text>
-                  </Pressable>
-                )}
               </View>
               <View className="flex-1 ml-4">
                 <View className="flex-row items-center">
@@ -475,7 +443,7 @@ export default function ProfileScreen() {
                 </Text>
                 <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FFD70020" }}>
                   <Text className="text-xs font-medium" style={{ color: "#FFD700" }}>
-                    {unlockedAchievements.length}/{achievements.length}
+                    Coming Soon
                   </Text>
                 </View>
               </View>
@@ -485,48 +453,9 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View className="rounded-xl p-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              {achievements.length === 0 ? (
-                <Text className="text-center py-4" style={{ color: colors.textTertiary }}>
-                  Start hosting events to unlock achievements!
-                </Text>
-              ) : (
-                <View>
-                  {/* Top row: first 4-5 achievements */}
-                  <View className="flex-row flex-wrap">
-                    {achievements.slice(0, 5).map((achievement) => (
-                      <View
-                        key={achievement.id}
-                        className="items-center mb-2 mr-3"
-                        style={{ opacity: achievement.unlocked ? 1 : 0.4 }}
-                      >
-                        <View
-                          className="w-11 h-11 rounded-full items-center justify-center"
-                          style={{
-                            backgroundColor: achievement.unlocked ? achievement.tierColor + "30" : colors.surface,
-                            borderWidth: achievement.unlocked ? 2 : 1,
-                            borderColor: achievement.unlocked ? achievement.tierColor : colors.border,
-                          }}
-                        >
-                          <Text className="text-lg">{achievement.emoji}</Text>
-                        </View>
-                      </View>
-                    ))}
-                    {achievements.length > 5 && (
-                      <View className="w-11 h-11 rounded-full items-center justify-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                        <Text className="text-xs font-medium" style={{ color: colors.textTertiary }}>
-                          +{achievements.length - 5}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {/* Tip */}
-                  <View className="mt-3 pt-3 border-t flex-row items-center" style={{ borderTopColor: colors.border }}>
-                    <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                      Tap to select a badge for your profile
-                    </Text>
-                  </View>
-                </View>
-              )}
+              <Text className="text-center py-4" style={{ color: colors.textTertiary }}>
+                Coming Soon
+              </Text>
             </View>
           </Pressable>
         </Animated.View>
