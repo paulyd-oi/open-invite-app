@@ -61,24 +61,37 @@ export async function resetSession(options?: { reason?: string; status?: number;
   const reason = options?.reason || "unknown";
   const status = options?.status;
   const endpoint = options?.endpoint;
+  
   // DEV guardrail: if we ever reset without an explicit reason, print a stack trace.
-  // This does not change production behavior.
   if (__DEV__ && reason === "unknown") {
     console.warn("[resetSession] CALLED WITHOUT REASON — add reason+endpoint at callsite");
     console.trace("[resetSession] stack");
   }
 
-  
   // Capture token state BEFORE clearing for logging
   const tokenExistedBeforeReset = await hasAuthToken();
   
-  log(`🔄 Resetting all session state... Reason: ${reason}${status ? ` (${status})` : ""}${endpoint ? ` from ${endpoint}` : ""}`);
+  // POLICY: Only clear tokens on true auth failures or explicit user actions
+  // Auth errors (401/403) trigger hard reset. Other errors are logged but tokens remain.
+  const isUserInitiated = reason === "user_logout" || reason === "account_deletion";
+  const isAuthFailure = reason === "auth_error" && (status === 401 || status === 403);
+  const shouldClearTokens = isUserInitiated || isAuthFailure;
   
-  // Log HARD_RESET with full context for debugging reset loops
+  if (!shouldClearTokens) {
+    // Non-auth error (404, 500, network, etc.) - log warning but DO NOT clear tokens
+    console.warn(
+      `[AUTH_WARN] Skipping token clear - non-auth error: reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
+    );
+    log(`⚠️ Non-auth error detected - tokens NOT cleared. Reason: ${reason}, Status: ${status || 'N/A'}`);
+    return; // Early exit - no token clearing
+  }
+  
+  // Log HARD_RESET with full context (only when actually clearing tokens)
   console.log(
     `[HARD_RESET] reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
   );
   
+  log(`🔄 Resetting all session state... Reason: ${reason}${status ? ` (${status})` : ""}${endpoint ? ` from ${endpoint}` : ""}`);
   authTrace("resetSession:begin", { action: "logout_start" });
 
   // Step 1: Sign out from Better Auth (BEST-EFFORT ONLY - never blocks logout)
