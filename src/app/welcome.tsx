@@ -1330,33 +1330,16 @@ export default function WelcomeOnboardingScreen() {
                 {/* Apple Sign In Button - Only show if available on device */}
                 {Platform.OS === "ios" && isAppleSignInReady && (
                   <Animated.View entering={FadeInUp.delay(100).springify()} className="mb-2">
-                    <Pressable
+                    <AppleAuthentication.AppleAuthenticationButton
+                      buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                      cornerRadius={16}
+                      style={{
+                        width: "100%",
+                        height: 56,
+                      }}
                       onPress={handleAppleSignIn}
-                      disabled={!isAppleSignInReady || isLoading}
-                      style={[
-                        {
-                          backgroundColor: "#fff",
-                          borderRadius: 16,
-                          height: 56,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                        },
-                        (!isAppleSignInReady || isLoading) && { opacity: 0.6 }
-                      ]}
-                    >
-                      <Text style={{ fontSize: 20 }}>🍎</Text>
-                      <Text
-                        style={{
-                          color: "#000",
-                          fontSize: 17,
-                          fontFamily: "Sora_600SemiBold",
-                        }}
-                      >
-                        Continue with Apple
-                      </Text>
-                    </Pressable>
+                    />
                   </Animated.View>
                 )}
 
