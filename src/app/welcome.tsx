@@ -940,16 +940,15 @@ export default function WelcomeOnboardingScreen() {
 
       console.log("[Apple Auth] Backend verified successfully");
 
-      // Store session token securely (not in AsyncStorage!)
+      // Store session token via authClient (single authority for token storage)
       const token = data.token || data.session?.token;
       if (token) {
         try {
-          await SecureStore.setItemAsync(SESSION_TOKEN_KEY, token);
-if (data.session?.expiresAt) {
-            await SecureStore.setItemAsync("session_expires", data.session.expiresAt);
-          }
+          const { setAuthToken } = await import("@/lib/authClient");
+          await setAuthToken(token);
+          console.log("[Apple Auth] Token stored via authClient");
         } catch (storeError) {
-          console.error("[Apple Auth] SecureStore write failed:", storeError);
+          console.error("[Apple Auth] Token storage failed:", storeError);
           // Continue anyway - session will work for this app session
         }
       }

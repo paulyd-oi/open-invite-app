@@ -81,7 +81,10 @@ function BootRouter() {
     hasRoutedRef.current = true;
 
     if (__DEV__) {
-      console.log('[BootRouter] Routing based on boot status:', bootStatus, 'current pathname:', pathname);
+      console.log(
+        '[BootRouter] Routing decision:',
+        JSON.stringify({ bootStatus, currentPath: pathname, error: bootError || 'none' }, null, 2)
+      );
     }
 
     // Guard: if bootStatus indicates logout in progress, always route to /login
@@ -89,7 +92,7 @@ function BootRouter() {
       // Only replace if not already on /login (prevent infinite loop)
       if (pathname !== '/login') {
         if (__DEV__) {
-          console.log('[BootRouter] Routing to /login from', pathname);
+          console.log('[BootRouter] → Routing to /login (no valid token)');
         }
         router.replace('/login');
       }
@@ -97,7 +100,7 @@ function BootRouter() {
       // Authenticated but onboarding incomplete - send to welcome
       if (pathname !== '/welcome') {
         if (__DEV__) {
-          console.log('[BootRouter] Routing to /welcome from', pathname);
+          console.log('[BootRouter] → Routing to /welcome (token exists, onboarding incomplete)');
         }
         router.replace('/welcome');
       }
@@ -105,7 +108,7 @@ function BootRouter() {
       // Fully authenticated and onboarded - go to feed (index route)
       if (pathname !== '/') {
         if (__DEV__) {
-          console.log('[BootRouter] Routing to / from', pathname);
+          console.log('[BootRouter] → Routing to / (fully authenticated)');
         }
         router.replace('/');
       }
