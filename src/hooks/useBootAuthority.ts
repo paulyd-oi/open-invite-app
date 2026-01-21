@@ -197,3 +197,29 @@ export function resetBootAuthority() {
   inFlightBootstrap = null;
   setGlobalState('loading');
 }
+
+// Export for post-login flow to force immediate re-bootstrap
+export async function rebootstrapAfterLogin(): Promise<void> {
+  if (__DEV__) {
+    console.log('[BootAuthority] Post-login rebootstrap - resetting singleton and running bootstrap...');
+  }
+  
+  // Reset singleton state
+  hasBootstrappedOnce = false;
+  inFlightBootstrap = null;
+  setGlobalState('loading');
+  
+  // Immediately run bootstrap
+  try {
+    inFlightBootstrap = bootstrapAuthWithWatchdog();
+    const result = await inFlightBootstrap;
+    mapBootstrapResultToGlobalStatus(result);
+    hasBootstrappedOnce = true;
+  } catch (err) {
+    console.error('[BootAuthority] Post-login bootstrap error:', err);
+    setGlobalState('error', err instanceof Error ? err.message : String(err));
+    hasBootstrappedOnce = true;
+  } finally {
+    inFlightBootstrap = null;
+  }
+}

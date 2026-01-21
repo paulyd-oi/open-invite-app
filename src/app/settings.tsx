@@ -757,6 +757,11 @@ export default function SettingsScreen() {
       queryClient.clear();
       console.log("[Settings] Session and cache cleared");
 
+      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
+      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+      resetBootAuthority();
+      console.log("[Settings] Boot authority reset");
+
       // Hard transition to login
       router.replace("/login");
       console.log("[Settings] Navigated to login");
@@ -766,6 +771,8 @@ export default function SettingsScreen() {
       try {
         await queryClient.cancelQueries();
         queryClient.clear();
+        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+        resetBootAuthority();
       } catch (e) {
         // ignore
       }

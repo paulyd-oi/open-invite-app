@@ -442,12 +442,21 @@ export default function SocialScreen() {
       if (__DEV__) {
         console.log("[Logout] after queryClient.clear");
       }
+
+      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
+      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+      resetBootAuthority();
+      if (__DEV__) {
+        console.log("[Logout] Boot authority reset");
+      }
     } catch (error) {
       console.error("[SocialScreen] Error during logout:", error);
       // Try to clear cache anyway
       try {
         await queryClient.cancelQueries();
         queryClient.clear();
+        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+        resetBootAuthority();
       } catch (e) {
         // ignore
       }

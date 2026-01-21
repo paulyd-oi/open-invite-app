@@ -232,6 +232,11 @@ export default function AccountCenterScreen() {
       queryClient.clear();
       console.log("[AccountCenter] Session and cache cleared");
 
+      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
+      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+      resetBootAuthority();
+      console.log("[AccountCenter] Boot authority reset");
+
       // Hard transition to login
       router.replace("/login");
     } catch (error) {
@@ -240,6 +245,8 @@ export default function AccountCenterScreen() {
       try {
         await queryClient.cancelQueries();
         queryClient.clear();
+        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
+        resetBootAuthority();
       } catch (e) {
         // ignore
       }

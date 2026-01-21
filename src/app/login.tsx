@@ -88,6 +88,15 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
       return;
     }
 
+    // ✅ CRITICAL: Force bootstrap re-run after login token saved
+    // Singleton bootstrap won't re-run automatically - must explicitly trigger it
+    // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
+    const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
+    if (__DEV__) {
+      console.log("[Login] Forcing bootstrap re-run after login...");
+    }
+    await rebootstrapAfterLogin();
+
     // ✅ FIXED: Don't use stale local onboarding flags
     // Let BootRouter (via authBootstrap) decide the route based on backend /api/onboarding/status
     // This prevents routing to /welcome when backend says onboarding is complete
