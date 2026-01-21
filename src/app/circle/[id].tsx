@@ -1068,18 +1068,55 @@ export default function CircleScreen() {
         </Pressable>
 
         {/* Mini Calendar */}
-        {showCalendar && circle.memberEvents && (
-          <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
-            <MiniCalendar
-              memberEvents={circle.memberEvents}
-              members={members}
-              themeColor={themeColor}
-              colors={colors}
-              isDark={isDark}
-              circleId={id!}
-            />
-          </Animated.View>
-        )}
+        {showCalendar && circle.memberEvents && (() => {
+          const totalEvents = circle.memberEvents.reduce((sum, m) => sum + m.events.length, 0);
+          
+          if (totalEvents === 0) {
+            return (
+              <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3 pb-4">
+                <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface }}>
+                  <View
+                    className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: colors.surfaceElevated }}
+                  >
+                    <Calendar size={24} color={colors.textTertiary} />
+                  </View>
+                  <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
+                    Nothing planned yet
+                  </Text>
+                  <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
+                    Create the first event for this group
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      router.push({
+                        pathname: "/create",
+                        params: { circleId: id },
+                      } as any);
+                    }}
+                    className="px-5 py-2.5 rounded-full"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <Text className="text-white text-sm font-semibold">Create Event</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            );
+          }
+          
+          return (
+            <Animated.View entering={FadeInDown.duration(200)} className="px-4 pt-3">
+              <MiniCalendar
+                memberEvents={circle.memberEvents}
+                members={members}
+                themeColor={themeColor}
+                colors={colors}
+                isDark={isDark}
+                circleId={id!}
+              />
+            </Animated.View>
+          );
+        })()}
 
         {/* Messages List */}
         <FlatList

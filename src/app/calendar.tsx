@@ -1061,13 +1061,15 @@ function ListView({
     return (
       <View className="px-5 py-10 items-center">
         <Text className="text-4xl mb-3">📅</Text>
-        <Text style={{ color: colors.textTertiary }}>No events this month</Text>
+        <Text className="font-medium mb-1" style={{ color: colors.text }}>Nothing this month</Text>
+        <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>Try a different month or create something</Text>
         <Pressable
           onPress={() => router.push("/create")}
-          className="flex-row items-center mt-3"
+          className="flex-row items-center px-4 py-2 rounded-full"
+          style={{ backgroundColor: themeColor }}
         >
-          <Plus size={16} color={themeColor} />
-          <Text className="font-medium ml-1" style={{ color: themeColor }}>
+          <Plus size={16} color="#fff" />
+          <Text className="font-semibold ml-1" style={{ color: "#fff" }}>
             Create Event
           </Text>
         </Pressable>
@@ -1181,8 +1183,8 @@ const didOverscrollTopRef = useRef(false);
   // Month/year ref for deterministic updates without closure issues
   const monthYearRef = useRef({ month: today.getMonth(), year: today.getFullYear() });
   // Timer refs for cleanup
-  const resetTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const unlockTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync monthYearRef with state
   useEffect(() => {
@@ -1206,7 +1208,7 @@ const didOverscrollTopRef = useRef(false);
 
   // [CalendarBoot] Degraded mode timeout system
   const [isInDegradedMode, setIsInDegradedMode] = useState(false);
-  const degradedModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const degradedModeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // If session is missing, set timeout for degraded mode
@@ -2005,31 +2007,74 @@ const didOverscrollTopRef = useRef(false);
         </View>
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        onScrollEndDrag={handleScrollEndDrag}
-        onMomentumScrollEnd={handleMomentumEnd}
-        scrollEventThrottle={16}
-        bounces={true}
-        alwaysBounceVertical={true}
-      >
-        {/* Previous month indicator - shown when scrolling up */}
-        {showPrevMonthIndicator && (
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            className="items-center py-3 -mt-2"
-          >
-            <Text className="text-sm font-medium" style={{ color: themeColor }}>
-              {prevMonthName}
+      {/* Global Empty State - When user has no events at all */}
+      {!isListView && myEvents.length === 0 && goingEvents.length === 0 && localEvents.length === 0 && eventRequests.length === 0 ? (
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100, flex: 1, justifyContent: "center" }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="px-8 items-center">
+            <Text className="text-5xl mb-4">📅</Text>
+            <Text className="text-xl font-semibold mb-2 text-center" style={{ color: colors.text }}>
+              Nothing planned yet
             </Text>
-          </Animated.View>
-        )}
+            <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
+              Create something or see what friends are doing
+            </Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/create");
+              }}
+              className="px-6 py-3 rounded-full"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold">Create Event</Text>
+            </Pressable>
+            <View className="flex-row items-center mt-6">
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              <Text className="mx-4 text-sm" style={{ color: colors.textTertiary }}>or</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+            </View>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/discover");
+              }}
+              className="mt-6 px-6 py-3 rounded-full"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text className="font-medium" style={{ color: themeColor }}>Explore Discover</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      ) : (
+        <ScrollView
+          ref={scrollViewRef}
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumEnd}
+          scrollEventThrottle={16}
+          bounces={true}
+          alwaysBounceVertical={true}
+        >
+          {/* Previous month indicator - shown when scrolling up */}
+          {showPrevMonthIndicator && (
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              className="items-center py-3 -mt-2"
+            >
+              <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                {prevMonthName}
+              </Text>
+            </Animated.View>
+          )}
 
-        {isListView ? (
+          {isListView ? (
           <ListView
             events={allEvents}
             currentMonth={currentMonth}
@@ -2343,8 +2388,10 @@ const didOverscrollTopRef = useRef(false);
             </Text>
           </Animated.View>
         )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
+      {/* Bottom Navigation */}
       <BottomNavigation />
 
       {/* First Login Guide Modal */}

@@ -130,7 +130,7 @@ export default function CirclesScreen() {
                 No Groups Yet
               </Text>
               <Text className="text-center mb-6 px-8" style={{ color: colors.textSecondary }}>
-                Create a group to plan events with friends
+                Groups help you plan with the same people
               </Text>
               <Pressable onPress={handleCreateCircle} className="px-6 py-3 rounded-full" style={{ backgroundColor: themeColor }}>
                 <Text className="text-white font-semibold">Create Your First Group</Text>

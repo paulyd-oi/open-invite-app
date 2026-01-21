@@ -507,8 +507,13 @@ export default function EventDetailScreen() {
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => api.post(`/api/events/${id}/rsvp`, { status }),
-    onSuccess: () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSuccess: (_, status) => {
+      // Use success haptic for "going" (more affirming), light for others
+      if (status === "going") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
       // Invalidate calendar events so RSVP "going" events appear immediately
@@ -1282,40 +1287,47 @@ export default function EventDetailScreen() {
               <View className="mb-4">
                 {/* Current RSVP status display */}
                 {myRsvpStatus && (
-                  <View
-                    className="rounded-2xl p-4 mb-3 flex-row items-center justify-between"
-                    style={{
-                      backgroundColor: myRsvpStatus === "going" ? "#22C55E15" :
-                                       myRsvpStatus === "interested" ? "#EC489915" :
-                                       myRsvpStatus === "maybe" ? "#F59E0B15" : colors.surface,
-                      borderWidth: 1,
-                      borderColor: myRsvpStatus === "going" ? "#22C55E" :
-                                   myRsvpStatus === "interested" ? "#EC4899" :
-                                   myRsvpStatus === "maybe" ? "#F59E0B" : colors.border,
-                    }}
-                  >
-                    <View className="flex-row items-center">
-                      {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
-                      {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
-                      {myRsvpStatus === "maybe" && <Clock size={20} color="#F59E0B" />}
-                      {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
-                      <Text className="font-semibold ml-2" style={{
-                        color: myRsvpStatus === "going" ? "#22C55E" :
-                               myRsvpStatus === "interested" ? "#EC4899" :
-                               myRsvpStatus === "maybe" ? "#F59E0B" : colors.textSecondary
-                      }}>
-                        {myRsvpStatus === "going" ? "Going" :
-                         myRsvpStatus === "interested" ? "Interested" :
-                         myRsvpStatus === "maybe" ? "Maybe" : "Not Going"}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => setShowRsvpOptions(!showRsvpOptions)}
-                      className="px-3 py-1.5 rounded-full"
-                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  <View className="mb-3">
+                    <View
+                      className="rounded-2xl p-4 flex-row items-center justify-between"
+                      style={{
+                        backgroundColor: myRsvpStatus === "going" ? "#22C55E15" :
+                                         myRsvpStatus === "interested" ? "#EC489915" :
+                                         myRsvpStatus === "maybe" ? "#F59E0B15" : colors.surface,
+                        borderWidth: 1,
+                        borderColor: myRsvpStatus === "going" ? "#22C55E" :
+                                     myRsvpStatus === "interested" ? "#EC4899" :
+                                     myRsvpStatus === "maybe" ? "#F59E0B" : colors.border,
+                      }}
                     >
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>Change</Text>
-                    </Pressable>
+                      <View className="flex-row items-center">
+                        {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
+                        {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
+                        {myRsvpStatus === "maybe" && <Clock size={20} color="#F59E0B" />}
+                        {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
+                        <Text className="font-semibold ml-2" style={{
+                          color: myRsvpStatus === "going" ? "#22C55E" :
+                                 myRsvpStatus === "interested" ? "#EC4899" :
+                                 myRsvpStatus === "maybe" ? "#F59E0B" : colors.textSecondary
+                        }}>
+                          {myRsvpStatus === "going" ? "You're In" :
+                           myRsvpStatus === "interested" ? "Interested" :
+                           myRsvpStatus === "maybe" ? "Maybe" : "Not Going"}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => setShowRsvpOptions(!showRsvpOptions)}
+                        className="px-3 py-1.5 rounded-full"
+                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                      >
+                        <Text className="text-sm" style={{ color: colors.textSecondary }}>Change</Text>
+                      </Pressable>
+                    </View>
+                    {myRsvpStatus === "going" && (
+                      <Text className="text-xs mt-2 px-4" style={{ color: colors.textSecondary }}>
+                        On your calendar · You can change this anytime
+                      </Text>
+                    )}
                   </View>
                 )}
 
@@ -1333,8 +1345,8 @@ export default function EventDetailScreen() {
                         <Check size={20} color="#22C55E" />
                       </View>
                       <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>Going</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>I'll be there!</Text>
+                        <Text className="font-semibold" style={{ color: colors.text }}>You're In</Text>
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Added to your calendar</Text>
                       </View>
                       {myRsvpStatus === "going" && <Check size={18} color={themeColor} />}
                     </Pressable>

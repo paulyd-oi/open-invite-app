@@ -69,6 +69,7 @@ import { deactivatePushTokenOnLogout } from "@/lib/pushTokenManager";
 import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
+import { uploadImage } from "@/lib/imageUpload";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -628,7 +629,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     // First validate handle if it was changed
     const normalizedEditHandle = normalizeHandle(editHandle);
     const currentHandle = profileData?.profile?.handle ?? "";
@@ -644,30 +645,56 @@ export default function SettingsScreen() {
 
     setHandleError(null);
 
-    const updates: { displayName?: string; name?: string; avatarUrl?: string; calendarBio?: string; handle?: string } = {};
-    const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
-    if (editName.trim() && editName !== currentDisplayName) {
-      // Save as displayName for new API, fallback to name for compatibility
-      updates.displayName = editName.trim();
-      updates.name = editName.trim(); // For backward compatibility
-    }
-    if (editImage && editImage !== session?.user?.image) {
-      updates.avatarUrl = editImage;
-    }
-    // Always include calendarBio if it changed from the stored value
-    const currentCalendarBio = profileData?.profile?.calendarBio ?? "";
-    if (editCalendarBio !== currentCalendarBio) {
-      updates.calendarBio = editCalendarBio;
-    }
-    // Include handle if it changed
-    if (normalizedEditHandle !== currentHandleNormalized) {
-      updates.handle = normalizedEditHandle;
-    }
-    if (Object.keys(updates).length > 0) {
-      if (__DEV__) console.log("[EditProfile] Save payload:", updates);
-      updateProfileMutation.mutate(updates);
-    } else {
-      setShowEditProfile(false);
+    try {
+      const updates: { name?: string; avatarUrl?: string; calendarBio?: string; handle?: string } = {};
+      const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
+      
+      // Handle name change
+      if (editName.trim() && editName !== currentDisplayName) {
+        updates.name = editName.trim();
+      }
+      
+      // Handle image change - upload if it's a local file URI
+      if (editImage && editImage !== session?.user?.image) {
+        if (editImage.startsWith("file://")) {
+          // Local file - need to upload first
+          try {
+            if (__DEV__) console.log("[EditProfile] Uploading profile photo...");
+            const uploadResponse = await uploadImage(editImage, true);
+            updates.avatarUrl = uploadResponse.url;
+            if (__DEV__) console.log("[EditProfile] Photo uploaded:", uploadResponse.url);
+          } catch (uploadError) {
+            logError("Profile Photo Upload", uploadError);
+            safeToast.error("Upload Failed", "Failed to upload profile photo. Please try again.");
+            return; // Stop save if upload fails
+          }
+        } else {
+          // Already a URL - just use it
+          updates.avatarUrl = editImage;
+        }
+      }
+      
+      // Always include calendarBio if it changed from the stored value
+      const currentCalendarBio = profileData?.profile?.calendarBio ?? "";
+      if (editCalendarBio !== currentCalendarBio) {
+        updates.calendarBio = editCalendarBio;
+      }
+      
+      // Include handle if it changed
+      if (normalizedEditHandle !== currentHandleNormalized) {
+        updates.handle = normalizedEditHandle;
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        if (__DEV__) console.log("[EditProfile] Save payload:", updates);
+        updateProfileMutation.mutate(updates);
+      } else {
+        setShowEditProfile(false);
+      }
+    } catch (error) {
+      logError("EditProfile Save", error);
+      const { title, message } = toUserMessage(error);
+      safeToast.error(title, message || "Failed to save profile");
     }
   };
 
