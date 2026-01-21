@@ -30,6 +30,7 @@ import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
+import { PostEventRepeatNudge, canShowPostEventRepeatNudge, markPostEventRepeatNudgeCompleted } from "@/components/PostEventRepeatNudge";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
@@ -347,6 +348,8 @@ export default function SocialScreen() {
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
+  const [showPostEventRepeatNudge, setShowPostEventRepeatNudge] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const hasBootstrapped = useRef(false);
 
   // Auth gating based on boot status (token validation), not session presence
@@ -537,6 +540,67 @@ export default function SocialScreen() {
     checkFirstValueNudge();
   }, [isAuthed, isFirstValueNudgeEligible, feedLoading, myEventsLoading, attendingLoading, friendsLoading]);
 
+  // Show post-event repeat nudge for ended events
+  useEffect(() => {
+    const checkPostEventRepeatNudge = async () => {
+      if (!isAuthed) return;
+      if (feedLoading || myEventsLoading || attendingLoading || friendsLoading) return;
+      if (showFirstValueNudge) return; // Don't show if first-value nudge is active
+
+      const now = Date.now();
+      const eligibleEvents: { event: Event; type: 'hosted' | 'attended' }[] = [];
+
+      // Check hosted events
+      const myEvents = myEventsData?.events ?? [];
+      myEvents.forEach(event => {
+        if (event.endTime) {
+          const endTime = new Date(event.endTime).getTime();
+          const timeSinceEnd = now - endTime;
+          const thirtyMinutes = 30 * 60 * 1000;
+          const twentyFourHours = 24 * 60 * 60 * 1000;
+          
+          if (timeSinceEnd >= thirtyMinutes && timeSinceEnd <= twentyFourHours) {
+            eligibleEvents.push({ event, type: 'hosted' });
+          }
+        }
+      });
+
+      // Check attended events
+      const attendedEvents = attendingData?.events ?? [];
+      attendedEvents.forEach(event => {
+        if (event.endTime) {
+          const endTime = new Date(event.endTime).getTime();
+          const timeSinceEnd = now - endTime;
+          const thirtyMinutes = 30 * 60 * 1000;
+          const twentyFourHours = 24 * 60 * 60 * 1000;
+          
+          if (timeSinceEnd >= thirtyMinutes && timeSinceEnd <= twentyFourHours) {
+            eligibleEvents.push({ event, type: 'attended' });
+          }
+        }
+      });
+
+      // Find the most recent eligible event
+      if (eligibleEvents.length > 0) {
+        const sortedEvents = eligibleEvents.sort((a, b) => {
+          const aEnd = new Date(a.event.endTime!).getTime();
+          const bEnd = new Date(b.event.endTime!).getTime();
+          return bEnd - aEnd; // Most recent first
+        });
+
+        const mostRecentEvent = sortedEvents[0];
+        const canShow = await canShowPostEventRepeatNudge(mostRecentEvent.event.id);
+        
+        if (canShow) {
+          setSelectedEventId(mostRecentEvent.event.id);
+          setShowPostEventRepeatNudge(true);
+        }
+      }
+    };
+
+    checkPostEventRepeatNudge();
+  }, [isAuthed, feedLoading, myEventsLoading, attendingLoading, friendsLoading, showFirstValueNudge, myEventsData, attendingData]);
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -596,6 +660,33 @@ export default function SocialScreen() {
     refetchFeed();
     refetchMyEvents();
     refetchAttending();
+  };
+
+  // Post-event repeat nudge handlers
+  const handlePostEventRepeatNudgePrimary = async () => {
+    if (selectedEventId) {
+      await markPostEventRepeatNudgeCompleted(selectedEventId);
+    }
+    setShowPostEventRepeatNudge(false);
+    setSelectedEventId(null);
+    router.push("/create");
+  };
+
+  const handlePostEventRepeatNudgeSecondary = async () => {
+    if (selectedEventId) {
+      await markPostEventRepeatNudgeCompleted(selectedEventId);
+    }
+    setShowPostEventRepeatNudge(false);
+    setSelectedEventId(null);
+    router.push("/social");
+  };
+
+  const handlePostEventRepeatNudgeDismiss = async () => {
+    if (selectedEventId) {
+      await markPostEventRepeatNudgeCompleted(selectedEventId);
+    }
+    setShowPostEventRepeatNudge(false);
+    setSelectedEventId(null);
   };
 
   const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
@@ -788,6 +879,14 @@ export default function SocialScreen() {
         onClose={() => setShowFirstValueNudge(false)}
         onPrimary={() => router.push("/discover")}
         onSecondary={() => router.push("/create")}
+      />
+
+      {/* Post-Event Repeat Nudge for Habit Formation */}
+      <PostEventRepeatNudge
+        visible={showPostEventRepeatNudge}
+        onPrimary={handlePostEventRepeatNudgePrimary}
+        onSecondary={handlePostEventRepeatNudgeSecondary}
+        onDismiss={handlePostEventRepeatNudgeDismiss}
       />
 
       <BottomNavigation />
