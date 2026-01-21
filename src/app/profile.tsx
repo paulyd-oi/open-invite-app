@@ -219,8 +219,8 @@ export default function ProfileScreen() {
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
     try {
-      await resetSession();
-      queryClient.clear();
+      await resetSession({ reason: "user_logout", endpoint: "profile" });
+queryClient.clear();
       router.replace("/");
     } catch (error) {
       console.error("[Profile] Error during logout:", error);

@@ -684,8 +684,8 @@ export default function SettingsScreen() {
       console.log("[Settings] Push token deactivated");
 
       // Use resetSession to clear all auth state
-      await resetSession();
-      console.log("[Settings] Session reset complete");
+      await resetSession({ reason: "user_logout", endpoint: "settings" });
+console.log("[Settings] Session reset complete");
 
       // Clear React Query cache
       queryClient.clear();

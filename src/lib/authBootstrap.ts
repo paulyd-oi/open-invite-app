@@ -61,6 +61,13 @@ export async function resetSession(options?: { reason?: string; status?: number;
   const reason = options?.reason || "unknown";
   const status = options?.status;
   const endpoint = options?.endpoint;
+  // DEV guardrail: if we ever reset without an explicit reason, print a stack trace.
+  // This does not change production behavior.
+  if (__DEV__ && reason === "unknown") {
+    console.warn("[resetSession] CALLED WITHOUT REASON — add reason+endpoint at callsite");
+    console.trace("[resetSession] stack");
+  }
+
   
   log(`🔄 Resetting all session state... Reason: ${reason}${status ? ` (${status})` : ""}${endpoint ? ` from ${endpoint}` : ""}`);
   authTrace("resetSession:begin", { action: "logout_start" });

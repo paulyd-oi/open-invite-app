@@ -221,8 +221,8 @@ export default function AccountCenterScreen() {
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
     try {
-      await resetSession();
-      queryClient.clear();
+      await resetSession({ reason: "user_logout", endpoint: "account-center" });
+queryClient.clear();
       router.replace("/");
     } catch (error) {
       console.error("[AccountCenter] Error during logout:", error);

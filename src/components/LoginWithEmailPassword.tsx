@@ -313,8 +313,8 @@ export default function LoginWithEmailPassword() {
 
   const handleSignOut = async () => {
     try {
-      await resetSession();
-      safeToast.success("Success", "Signed out successfully!");
+      await resetSession({ reason: "user_logout", endpoint: "LoginWithEmailPassword" });
+safeToast.success("Success", "Signed out successfully!");
     } catch (error) {
       console.error("[LoginWithEmailPassword] Error during logout:", error);
       // Show success anyway since local logout always succeeds
