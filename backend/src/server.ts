@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 
 // Import rate limiting middleware
 import { globalRateLimit, authRateLimit } from "./middleware/rateLimit";
+import { bearerAuth } from "./middleware/bearerAuth";
 
 console.log("=== Starting Server v2.8 ===");
 
@@ -96,7 +97,7 @@ app.use(
 // Global rate limiting - 200 requests per minute per client
 app.use("*", globalRateLimit);
 
-// Authentication middleware
+// Authentication middleware - handles both Better Auth session and Bearer tokens
 app.use("*", async (c, next) => {
   try {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -109,16 +110,46 @@ app.use("*", async (c, next) => {
   return next();
 });
 
+// Bearer token auth middleware (after session middleware so context is set up)
+app.use("*", bearerAuth);
+
 // Dedicated session endpoint - returns 401 if user is null (BEFORE wildcard Better Auth handler)
+// Accepts both Better Auth session cookies AND JWT Bearer tokens
 console.log("🔐 Setting up dedicated /api/auth/session endpoint");
 app.options("/api/auth/session", (c) => c.body(null, 204));
 app.get("/api/auth/session", async (c) => {
   try {
+    // First, try Bearer token (JWT)
+    const bearerUserId = c.get("bearerUserId");
+    const bearerEmail = c.get("bearerEmail");
+    
+    if (bearerUserId && bearerEmail) {
+      console.log(`🔐 [/api/auth/session] Bearer token valid for user: ${bearerUserId}`);
+      // Look up user from database using JWT claims
+      const user = await db.user.findUnique({ where: { id: bearerUserId } });
+      if (user) {
+        return c.json(
+          {
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            },
+            session: null,
+          },
+          200
+        );
+      }
+    }
+    
+    // Fall back to Better Auth session (cookies)
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     
     console.log(`🔐 [/api/auth/session] Session retrieved:`, {
       hasUser: !!session?.user,
       hasSession: !!session?.session,
+      viaBearerToken: !!bearerUserId,
     });
     
     // INVARIANT: Return 401 if user is falsy (null, undefined, empty)
@@ -158,6 +189,10 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 });
 
 // Mount ALL routers (must match index.ts)
+// Custom auth routes (JWT token generation)
+import { customAuthRouter } from "./routes/customAuth";
+app.route("/api/custom-auth", customAuthRouter);
+
 app.route("/api/upload", uploadRouter);
 app.route("/api/sample", sampleRouter);
 app.route("/api/events", eventsRouter);
@@ -169,7 +204,7 @@ app.route("/api/places", placesRouter);
 app.route("/api/blocked", blockedRouter);
 app.route("/api/birthdays", birthdaysRouter);
 app.route("/api/work-schedule", workScheduleRouter);
-app.route("/api/friends", friendNotesRouter); // Friend notes also mounted under /api/friends
+app.route("/api/friends", friendNotesRouter);
 app.route("/api/subscription", subscriptionRouter);
 app.route("/api/onboarding", onboardingRouter);
 app.route("/api/referral", referralRouter);
