@@ -57,6 +57,7 @@ import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { updateProfileAndSync } from "@/lib/profileSync";
+import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
 import {
@@ -358,8 +359,8 @@ export default function SettingsScreen() {
   const [showRemovePhoneConfirm, setShowRemovePhoneConfirm] = useState(false);
 
   // Profile editing states
-  const [editName, setEditName] = useState(session?.user?.displayName ?? session?.user?.name ?? "");
-  const [editImage, setEditImage] = useState(session?.user?.image ?? "");
+  const [editName, setEditName] = useState("");
+  const [editImage, setEditImage] = useState("");
   const [editCalendarBio, setEditCalendarBio] = useState("");
   const [editHandle, setEditHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
@@ -467,19 +468,43 @@ export default function SettingsScreen() {
           setEditHandle(handle);
         }
       }
+      // Use shared helper for consistent precedence
+      const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
+      setEditName(displayName);
+      setEditImage(avatarUri || "");
+      // Sync calendarBio
+      setEditCalendarBio(profileData.profile.calendarBio || "");
     }
     // Sync phone from user data
     if (profileData?.user?.phone) {
       setEditPhone(profileData.user.phone);
     }
-  }, [profileData]);
+  }, [profileData, session]);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: { name?: string; avatarUrl?: string; calendarBio?: string; phone?: string | null; handle?: string }) =>
       api.put<UpdateProfileResponse>("/api/profile", data),
-    onSuccess: async () => {
-      if (__DEV__) console.log("[EditProfile] Save success");
+    onSuccess: async (response, variables) => {
+      if (__DEV__) console.log("[EditProfile] Save success", response);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Update cache immediately with response + variables to ensure both profile and user are patched
+      queryClient.setQueryData(["profile"], (old: any) => ({
+        ...old,
+        profile: {
+          ...old?.profile,
+          ...response.profile,
+          // Backend stores name on user, not profile - patch it here for consistent reads
+          name: variables?.name ?? old?.profile?.name,
+          avatarUrl: response.profile?.avatarUrl ?? variables?.avatarUrl ?? old?.profile?.avatarUrl,
+        },
+        user: {
+          ...old?.user,
+          name: variables?.name ?? old?.user?.name,
+          image: variables?.avatarUrl ?? old?.user?.image,
+        },
+      }));
+      
       // Use centralized sync helper to refresh both Better Auth session and React Query cache
       await updateProfileAndSync(queryClient);
       // Also refetch userProfile for any profile views
@@ -863,8 +888,10 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setEditName(user?.name ?? "");
-                setEditImage(user?.image ?? "");
+                // Use shared helper for consistent precedence
+                const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
+                setEditName(displayName);
+                setEditImage(avatarUri || "");
                 setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
                 setShowEditProfile(true);
               }}
@@ -878,19 +905,23 @@ export default function SettingsScreen() {
               }}
             >
               <View className="w-16 h-16 rounded-full mr-4 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {user?.image ? (
-                  <Image source={{ uri: user.image }} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                    <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                      {user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  </View>
-                )}
+                {(() => {
+                  const { avatarUri } = getProfileDisplay({ profileData, session });
+                  const initial = getProfileInitial({ profileData, session });
+                  return avatarUri ? (
+                    <Image source={{ uri: avatarUri }} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
+                      <Text style={{ color: themeColor }} className="text-2xl font-bold">
+                        {initial}
+                      </Text>
+                    </View>
+                  );
+                })()}
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-lg font-semibold">
-                  {user?.name ?? "Add your name"}
+                  {getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
                 </Text>
                 <Text style={{ color: colors.textSecondary }} className="text-sm">Tap to edit profile</Text>
               </View>

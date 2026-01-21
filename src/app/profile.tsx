@@ -41,6 +41,7 @@ import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { resolveImageUrl } from "@/lib/imageUrl";
+import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import {
   type GetGroupsResponse,
   type GetFriendsResponse,
@@ -197,11 +198,13 @@ export default function ProfileScreen() {
   // Derive user safely - user may be null/undefined in some auth states
   const user = session?.user ?? null;
 
-  // Get display name with proper fallback chain - displayName should be primary
-  const displayName = user?.displayName?.trim()
-    || user?.name?.trim()
-    || ((user as any)?.email ? (user as any).email.split('@')[0] : null)
-    || "Account";
+  // Use shared helper for consistent precedence across app
+  const { displayName } = getProfileDisplay({
+    profileData,
+    session,
+    fallbackName: "Account",
+    includeEmailPrefix: true,
+  });
 
   // Get handle for secondary display (Instagram-style)
   const userHandle = user?.handle || profileData?.profile?.handle;
@@ -244,15 +247,20 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               <View className="relative">
                 <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                  {resolveImageUrl((user as any)?.image) ? (
-                    <Image source={{ uri: resolveImageUrl((user as any)?.image)! }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
-                      <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                        {user?.name?.[0] ?? (user as any)?.email?.[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    </View>
-                  )}
+                  {(() => {
+                    const { avatarUri } = getProfileDisplay({ profileData, session });
+                    const resolvedUri = resolveImageUrl(avatarUri);
+                    const initial = getProfileInitial({ profileData, session });
+                    return resolvedUri ? (
+                      <Image source={{ uri: resolvedUri }} className="w-full h-full" />
+                    ) : (
+                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
+                        <Text className="text-2xl font-bold" style={{ color: themeColor }}>
+                          {initial}
+                        </Text>
+                      </View>
+                    );
+                  })()}
                 </View>
               </View>
               <View className="flex-1 ml-4">
