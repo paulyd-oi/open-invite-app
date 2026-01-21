@@ -868,65 +868,76 @@ export default function CreateEventScreen() {
 
           {/* Date & Time */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Start</Text>
-            <View className="flex-row mb-3">
-              <Pressable
-                onPress={() => setShowDatePicker(true)}
-                className="flex-1 rounded-xl p-4 mr-2 flex-row items-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Calendar size={18} color={themeColor} />
-                <Text style={{ color: colors.text }} className="ml-2">
-                  {startDate.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowTimePicker(true)}
-                className="flex-1 rounded-xl p-4 flex-row items-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Clock size={18} color="#4ECDC4" />
-                <Text style={{ color: colors.text }} className="ml-2">
-                  {startDate.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">When</Text>
+            <View 
+              className="rounded-xl p-4 mb-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              {/* Start Row */}
+              <View className="flex-row items-center justify-between mb-3">
+                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
+                <View className="flex-row flex-1">
+                  <Pressable
+                    onPress={() => setShowDatePicker(true)}
+                    className="flex-1 rounded-lg p-2 mr-2 flex-row items-center justify-center"
+                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
+                  >
+                    <Calendar size={14} color={themeColor} />
+                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
+                      {startDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setShowTimePicker(true)}
+                    className="flex-1 rounded-lg p-2 flex-row items-center justify-center"
+                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
+                  >
+                    <Clock size={14} color="#4ECDC4" />
+                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
+                      {startDate.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
 
-            {/* End Date & Time */}
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">End</Text>
-            <View className="flex-row mb-4">
-              <Pressable
-                onPress={() => setShowEndDatePicker(true)}
-                className="flex-1 rounded-xl p-4 mr-2 flex-row items-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Calendar size={18} color={themeColor} />
-                <Text style={{ color: colors.text }} className="ml-2">
-                  {endDate.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setShowEndTimePicker(true)}
-                className="flex-1 rounded-xl p-4 flex-row items-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Clock size={18} color="#4ECDC4" />
-                <Text style={{ color: colors.text }} className="ml-2">
-                  {endDate.toLocaleTimeString("en-US", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </Text>
-              </Pressable>
+              {/* End Row */}
+              <View className="flex-row items-center justify-between">
+                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
+                <View className="flex-row flex-1">
+                  <Pressable
+                    onPress={() => setShowEndDatePicker(true)}
+                    className="flex-1 rounded-lg p-2 mr-2 flex-row items-center justify-center"
+                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
+                  >
+                    <Calendar size={14} color={themeColor} />
+                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
+                      {endDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setShowEndTimePicker(true)}
+                    className="flex-1 rounded-lg p-2 flex-row items-center justify-center"
+                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
+                  >
+                    <Clock size={14} color="#4ECDC4" />
+                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
+                      {endDate.toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
 
             {showDatePicker && (
