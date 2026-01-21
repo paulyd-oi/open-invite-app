@@ -1114,13 +1114,13 @@ function ListView({
 }
 
 export default function CalendarScreen() {
-  const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: session } = useSession();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
   // [CalendarBoot] Add instrumentation at top of component
   if (__DEV__) {
-    console.log("[CalendarBoot] Component render", { sessionLoading, hasSession: !!session });
+    console.log("[CalendarBoot] Component render", { hasSession: !!session });
   }
 
   // Get local events created while offline
@@ -1168,7 +1168,30 @@ export default function CalendarScreen() {
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const isChangingMonth = useRef(false);
   const lastScrollY = useRef(0);
+  const overscrolledTopRef = useRef(false);
+  const overscrolledBottomRef = useRef(false);
+  const didOverscrollTopRef = useRef(false);
+  const didOverscrollBottomRef = useRef(false);
   const SCROLL_THRESHOLD = 80; // Threshold for overscroll to trigger month change
+
+  // Month/year ref for deterministic updates without closure issues
+  const monthYearRef = useRef({ month: today.getMonth(), year: today.getFullYear() });
+  // Timer refs for cleanup
+  const resetTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const unlockTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync monthYearRef with state
+  useEffect(() => {
+    monthYearRef.current = { month: currentMonth, year: currentYear };
+  }, [currentMonth, currentYear]);
+
+  // Clear month timers on unmount
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+    };
+  }, []);
 
   // Unified height system - one continuous value that determines both view mode and multiplier
   // Range: 40 (compact min) -> 64 (stacked) -> 80 (details) -> 160 (details max)
@@ -1182,10 +1205,10 @@ export default function CalendarScreen() {
   const degradedModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // If session is missing or loading, set timeout for degraded mode
-    if (sessionLoading || !session) {
+    // If session is missing, set timeout for degraded mode
+    if (!session) {
       if (__DEV__) {
-        console.log("[CalendarBoot] Session missing/loading, starting degraded mode timeout");
+        console.log("[CalendarBoot] Session missing, starting degraded mode timeout");
       }
       degradedModeTimeoutRef.current = setTimeout(() => {
         if (__DEV__) {
@@ -1206,7 +1229,7 @@ export default function CalendarScreen() {
       }
       setIsInDegradedMode(false);
     }
-  }, [session, sessionLoading]);
+  }, [session]);
 
   // Load saved calendar view height on mount
   useEffect(() => {
@@ -1635,23 +1658,29 @@ export default function CalendarScreen() {
 
   const goToPrevMonth = useCallback(() => {
     Haptics.selectionAsync();
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
+    const ref = monthYearRef.current;
+    const newMonth = ref.month === 0 ? 11 : ref.month - 1;
+    const newYear = ref.month === 0 ? ref.year - 1 : ref.year;
+    if (__DEV__) {
+      console.log("[CalendarGesture] TRIGGER prev", { from: `${ref.month}/${ref.year}`, to: `${newMonth}/${newYear}` });
     }
-  }, [currentMonth, currentYear]);
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
+    setSelectedDate(new Date(newYear, newMonth, 1));
+  }, []);
 
   const goToNextMonth = useCallback(() => {
     Haptics.selectionAsync();
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
+    const ref = monthYearRef.current;
+    const newMonth = ref.month === 11 ? 0 : ref.month + 1;
+    const newYear = ref.month === 11 ? ref.year + 1 : ref.year;
+    if (__DEV__) {
+      console.log("[CalendarGesture] TRIGGER next", { from: `${ref.month}/${ref.year}`, to: `${newMonth}/${newYear}` });
     }
-  }, [currentMonth, currentYear]);
+    setCurrentMonth(newMonth);
+    setCurrentYear(newYear);
+    setSelectedDate(new Date(newYear, newMonth, 1));
+  }, []);
 
   const goToToday = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1667,26 +1696,53 @@ export default function CalendarScreen() {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const offsetY = contentOffset.y;
     const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height);
+    const canScrollDown = maxScroll > 10;
+
+    // Compute current overscroll state
+    const overscrolledTopNow = offsetY < -SCROLL_THRESHOLD;
+    const overscrolledBottomNow = canScrollDown
+      ? offsetY > maxScroll + SCROLL_THRESHOLD
+      : offsetY > SCROLL_THRESHOLD;
+
+    // Update live refs for visual indicators
+    overscrolledTopRef.current = overscrolledTopNow;
+    overscrolledBottomRef.current = overscrolledBottomNow;
+
+    // Latch: if overscroll happens during this drag, remember it
+    if (overscrolledTopNow) {
+      didOverscrollTopRef.current = true;
+    }
+    if (overscrolledBottomNow) {
+      didOverscrollBottomRef.current = true;
+    }
 
     // Track scroll position
     lastScrollY.current = offsetY;
 
-    // Check for overscroll at top (negative offset) - need significant overscroll
-    if (offsetY < -SCROLL_THRESHOLD) {
+    // Update visual indicators
+    if (overscrolledTopNow) {
       setShowPrevMonthIndicator(true);
     } else {
       setShowPrevMonthIndicator(false);
     }
 
-    // Check for overscroll at bottom (or if content fits on screen, check for any downward overscroll)
-    const canScrollDown = maxScroll > 10; // Has scrollable content
-    if (canScrollDown && offsetY > maxScroll + SCROLL_THRESHOLD) {
-      setShowNextMonthIndicator(true);
-    } else if (!canScrollDown && offsetY > SCROLL_THRESHOLD) {
-      // Content fits on screen - trigger on downward pull
+    if (overscrolledBottomNow) {
       setShowNextMonthIndicator(true);
     } else {
       setShowNextMonthIndicator(false);
+    }
+
+    if (__DEV__) {
+      console.log("[CalendarGesture] scroll", {
+        offsetY: Math.round(offsetY),
+        maxScroll: Math.round(maxScroll),
+        canScrollDown,
+        threshold: SCROLL_THRESHOLD,
+        overscrolledTopNow,
+        overscrolledBottomNow,
+        didOverscrollTop: didOverscrollTopRef.current,
+        didOverscrollBottom: didOverscrollBottomRef.current,
+      });
     }
   }, [SCROLL_THRESHOLD]);
 
@@ -1697,43 +1753,79 @@ export default function CalendarScreen() {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const offsetY = contentOffset.y;
     const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height);
+    const canScrollDown = maxScroll > 10;
 
-    // Trigger previous month - must be significantly overscrolled at top
-    if (offsetY < -SCROLL_THRESHOLD) {
+    if (__DEV__) {
+      console.log("[CalendarGesture] endDrag snapshot", {
+        offsetY: Math.round(offsetY),
+        maxScroll: Math.round(maxScroll),
+        canScrollDown,
+        threshold: SCROLL_THRESHOLD,
+        overscrolledTopLive: overscrolledTopRef.current,
+        overscrolledBottomLive: overscrolledBottomRef.current,
+        didOverscrollTop: didOverscrollTopRef.current,
+        didOverscrollBottom: didOverscrollBottomRef.current,
+      });
+    }
+
+    // Check latched refs to determine if we should trigger month change
+    if (didOverscrollTopRef.current) {
       isChangingMonth.current = true;
       setShowPrevMonthIndicator(false);
+      
+      // Reset all refs
+      didOverscrollTopRef.current = false;
+      didOverscrollBottomRef.current = false;
+      overscrolledTopRef.current = false;
+      overscrolledBottomRef.current = false;
+      
       goToPrevMonth();
-      // Reset scroll position and state
-      setTimeout(() => {
+
+      // Reset scroll position after state update
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => {
         scrollViewRef.current?.scrollTo({ y: 0, animated: false });
         lastScrollY.current = 0;
       }, 50);
-      setTimeout(() => {
+
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+      unlockTimerRef.current = setTimeout(() => {
         isChangingMonth.current = false;
       }, 600);
       return;
     }
 
-    // Trigger next month - check for overscroll at bottom
-    const canScrollDown = maxScroll > 10;
-    const shouldTriggerNext = canScrollDown
-      ? offsetY > maxScroll + SCROLL_THRESHOLD
-      : offsetY > SCROLL_THRESHOLD;
-
-    if (shouldTriggerNext) {
+    if (didOverscrollBottomRef.current) {
       isChangingMonth.current = true;
       setShowNextMonthIndicator(false);
+      
+      // Reset all refs
+      didOverscrollTopRef.current = false;
+      didOverscrollBottomRef.current = false;
+      overscrolledTopRef.current = false;
+      overscrolledBottomRef.current = false;
+      
       goToNextMonth();
-      // Reset scroll position and state
-      setTimeout(() => {
+
+      // Reset scroll position after state update
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => {
         scrollViewRef.current?.scrollTo({ y: 0, animated: false });
         lastScrollY.current = 0;
       }, 50);
-      setTimeout(() => {
+
+      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
+      unlockTimerRef.current = setTimeout(() => {
         isChangingMonth.current = false;
       }, 600);
       return;
     }
+
+    // Always reset all refs even if no trigger
+    didOverscrollTopRef.current = false;
+    didOverscrollBottomRef.current = false;
+    overscrolledTopRef.current = false;
+    overscrolledBottomRef.current = false;
   }, [SCROLL_THRESHOLD, goToPrevMonth, goToNextMonth]);
 
   // Clear indicators when momentum scroll ends (bounce back)
@@ -1919,6 +2011,7 @@ export default function CalendarScreen() {
         onMomentumScrollEnd={handleMomentumEnd}
         scrollEventThrottle={16}
         bounces={true}
+        alwaysBounceVertical={true}
       >
         {/* Previous month indicator - shown when scrolling up */}
         {showPrevMonthIndicator && (
@@ -2227,36 +2320,6 @@ export default function CalendarScreen() {
                 )}
               </View>
             )}
-
-            {/* Create Event Request CTA when no requests */}
-            {eventRequests.length === 0 && (
-              <View className="px-5 mt-6">
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/create-event-request" as any);
-                  }}
-                  className="rounded-xl p-4 flex-row items-center"
-                  style={{ backgroundColor: `${themeColor}10`, borderWidth: 1, borderColor: `${themeColor}30` }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: `${themeColor}20` }}
-                  >
-                    <Send size={20} color={themeColor} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-semibold" style={{ color: themeColor }}>
-                      Send Event Request
-                    </Text>
-                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                      Invite friends to an event - it's created when everyone accepts
-                    </Text>
-                  </View>
-                </Pressable>
-              </View>
-            )}
-
             {/* Upcoming Birthdays Section - Collapsible */}
             <UpcomingBirthdaysSection
               upcomingBirthdays={upcomingBirthdays}
