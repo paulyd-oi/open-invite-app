@@ -369,6 +369,31 @@ if (session?.user) {
   }
 }
 
+
+    // DEV-only: Call auth-snapshot endpoint to log auth header state
+    if (__DEV__ && process.env.EXPO_PUBLIC_DEBUG_AUTH_SNAPSHOT === "1") {
+      try {
+        log("[DEBUG] Calling /api/_debug/auth-snapshot");
+        const snapshotResponse = await authClient.$fetch<any>(
+          "/api/_debug/auth-snapshot",
+          { method: "GET" }
+        );
+        
+        if (snapshotResponse) {
+          const { hasAuthorizationHeader, authorizationScheme, hasCookieHeader, requestId, timestamp } = snapshotResponse;
+          console.log(
+            `[AUTH_SNAPSHOT] hasAuth=${hasAuthorizationHeader} scheme=${authorizationScheme} hasCookie=${hasCookieHeader} requestId=${requestId} xRequestId=${snapshotResponse.xRequestId || 'N/A'}`
+          );
+        }
+      } catch (err: any) {
+        // Non-fatal: log but don't block bootstrap
+        const status = err?.status || 'unknown';
+        if (__DEV__) {
+          log(`[DEBUG] auth-snapshot call failed (${status}): ${err?.message}`);
+        }
+      }
+    }
+
     // Step 4: Check onboarding status and derive canonical state
     log("Step 4/4: Checking onboarding status");
     
