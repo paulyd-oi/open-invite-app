@@ -69,7 +69,16 @@ export async function resetSession(options?: { reason?: string; status?: number;
   }
 
   
+  // Capture token state BEFORE clearing for logging
+  const tokenExistedBeforeReset = await hasAuthToken();
+  
   log(`🔄 Resetting all session state... Reason: ${reason}${status ? ` (${status})` : ""}${endpoint ? ` from ${endpoint}` : ""}`);
+  
+  // Log HARD_RESET with full context for debugging reset loops
+  console.log(
+    `[HARD_RESET] reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
+  );
+  
   authTrace("resetSession:begin", { action: "logout_start" });
 
   // Step 1: Sign out from Better Auth (BEST-EFFORT ONLY - never blocks logout)
