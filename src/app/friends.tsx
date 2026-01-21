@@ -1306,10 +1306,10 @@ export default function FriendsScreen() {
                     <Plus size={24} color="#9333EA" />
                   </View>
                   <Text className="font-medium text-center" style={{ color: colors.text }}>
-                    Create a Circle
+                    Create a Group
                   </Text>
                   <Text className="text-xs text-center mt-1" style={{ color: colors.textSecondary }}>
-                    Group chat with calendar overlay to plan events together
+                    Plan events with friends in a group chat
                   </Text>
                 </Pressable>
               ) : (

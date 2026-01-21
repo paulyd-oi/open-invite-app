@@ -195,7 +195,7 @@ export default function EventRequestDetailScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen
           options={{
-            title: "Event Request",
+            title: "Proposed Event",
             headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.text,
           }}
@@ -212,7 +212,7 @@ export default function EventRequestDetailScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen
           options={{
-            title: "Event Request",
+            title: "Proposed Event",
             headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.text,
           }}
@@ -229,7 +229,7 @@ export default function EventRequestDetailScreen() {
       <View className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen
           options={{
-            title: "Event Request",
+            title: "Proposed Event",
             headerStyle: { backgroundColor: colors.background },
             headerTintColor: colors.text,
           }}
@@ -237,7 +237,7 @@ export default function EventRequestDetailScreen() {
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-4xl mb-4">😕</Text>
           <Text className="text-center" style={{ color: colors.textSecondary }}>
-            Event request not found or you don't have access
+            Proposed event not found or you don't have access
           </Text>
           <Pressable
             onPress={() => router.back()}
@@ -264,7 +264,7 @@ export default function EventRequestDetailScreen() {
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <Stack.Screen
         options={{
-          title: eventRequest.status === "confirmed" ? "Event Confirmed" : "Event Request",
+          title: eventRequest.status === "confirmed" ? "Event Confirmed" : "Proposed Event",
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
         }}

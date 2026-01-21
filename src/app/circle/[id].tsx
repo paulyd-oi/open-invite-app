@@ -697,6 +697,7 @@ export default function CircleScreen() {
   const [showCalendar, setShowCalendar] = useState(true);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [showAddMembers, setShowAddMembers] = useState(false);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
     newMemberName: string;
@@ -999,6 +1000,18 @@ export default function CircleScreen() {
             </View>
           )}
         </View>
+
+        {/* Settings Button */}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setShowGroupSettings(true);
+          }}
+          className="w-10 h-10 rounded-full items-center justify-center mr-2"
+          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+        >
+          <Settings size={18} color={colors.text} />
+        </Pressable>
 
         {/* Add Member Button */}
         <Pressable
@@ -1387,6 +1400,115 @@ export default function CircleScreen() {
                   <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
                     Got it!
                   </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Group Settings Modal */}
+      <Modal
+        visible={showGroupSettings}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGroupSettings(false)}
+      >
+        <Pressable
+          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowGroupSettings(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingBottom: 40,
+              }}
+            >
+              {/* Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View style={{ width: 40, height: 4, backgroundColor: colors.textTertiary, borderRadius: 2, opacity: 0.4 }} />
+              </View>
+
+              {/* Header */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
+                  Group Settings
+                </Text>
+              </View>
+
+              {/* Group Info */}
+              <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", alignItems: "center" }}>
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: `${themeColor}20`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 16,
+                  }}
+                >
+                  <Text style={{ fontSize: 28 }}>{circle?.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                    {circle?.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+                    {members.length} member{members.length !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Settings Options */}
+              <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+                {/* Members List */}
+                <Pressable
+                  onPress={() => {
+                    setShowGroupSettings(false);
+                    setShowAddMembers(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <Users size={22} color={colors.text} />
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Members</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>View and add members</Text>
+                  </View>
+                  <ChevronRight size={20} color={colors.textTertiary} />
+                </Pressable>
+
+                {/* Leave Group */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    setShowGroupSettings(false);
+                    // Navigate back and let the delete happen from friends screen
+                    router.back();
+                    safeToast.info("Leave Group", "To leave this group, swipe left on it in your Friends tab.");
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 16,
+                  }}
+                >
+                  <X size={22} color="#FF3B30" />
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30" }}>Leave Group</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>Remove yourself from this group</Text>
+                  </View>
                 </Pressable>
               </View>
             </Animated.View>

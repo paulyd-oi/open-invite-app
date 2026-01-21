@@ -494,10 +494,10 @@ export default function NotificationSettingsScreen() {
           </Section>
         </Animated.View>
 
-        {/* Event Requests Section */}
+        {/* Proposed Events Section */}
         <Animated.View entering={FadeInDown.delay(150).springify()}>
           <Section
-            title="Event Requests"
+            title="Proposed Events"
             icon={<MessageCircle size={20} color="#9B59B6" />}
             iconColor="#9B59B6"
             expanded={expandedSections.includes("requests")}
@@ -508,7 +508,7 @@ export default function NotificationSettingsScreen() {
             <ToggleItem
               icon={<MessageCircle size={18} color="#9B59B6" />}
               title="New Invitations"
-              description="When invited to event requests"
+              description="When invited to proposed events"
               value={preferences.eventRequestInvites}
               onValueChange={(v) => updatePreference("eventRequestInvites", v)}
               disabled={!masterEnabled}
@@ -518,7 +518,7 @@ export default function NotificationSettingsScreen() {
             <ToggleItem
               icon={<CheckCircle size={18} color="#27AE60" />}
               title="Member Responses"
-              description="When members respond to your requests"
+              description="When members respond to your proposals"
               value={preferences.eventRequestResponses}
               onValueChange={(v) => updatePreference("eventRequestResponses", v)}
               disabled={!masterEnabled}
@@ -528,7 +528,7 @@ export default function NotificationSettingsScreen() {
             <ToggleItem
               icon={<Sparkles size={18} color="#FFD700" />}
               title="Event Confirmed"
-              description="When an event request is confirmed"
+              description="When a proposed event is confirmed"
               value={preferences.eventRequestConfirmed}
               onValueChange={(v) => updatePreference("eventRequestConfirmed", v)}
               disabled={!masterEnabled}

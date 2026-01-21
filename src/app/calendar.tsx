@@ -2053,14 +2053,14 @@ export default function CalendarScreen() {
               )}
             </View>
 
-            {/* Event Requests Section */}
+            {/* Proposed Events Section (formerly Event Requests) */}
             {eventRequests.length > 0 && (
               <View className="px-5 mt-6">
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
                     <Send size={18} color={themeColor} />
                     <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                      Event Requests
+                      Proposed Events
                     </Text>
                     {pendingEventRequestCount > 0 && (
                       <View
@@ -2083,11 +2083,10 @@ export default function CalendarScreen() {
                   >
                     <Plus size={14} color={themeColor} />
                     <Text className="text-sm font-medium ml-1" style={{ color: themeColor }}>
-                      New
+                      Propose
                     </Text>
                   </Pressable>
                 </View>
-
                 {eventRequests.slice(0, 5).map((request, idx) => {
                   const startDate = new Date(request.startTime);
                   const isCreator = request.creatorId === session?.user?.id;

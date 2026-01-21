@@ -156,16 +156,16 @@ export const PRO_FEATURES: Record<FeatureKey, { title: string; description: stri
     description: "See friend availability up to 90 days ahead",
   },
   unlimited_circles: {
-    title: "Unlimited Circles",
+    title: "Unlimited Groups",
     description: "Create unlimited planning groups",
   },
   unlimited_circle_members: {
-    title: "Unlimited Circle Members",
-    description: "Add unlimited friends to each circle",
+    title: "Unlimited Group Members",
+    description: "Add unlimited friends to each group",
   },
   circle_insights: {
-    title: "Circle Insights",
-    description: "See activity and engagement analytics for your circles",
+    title: "Group Insights",
+    description: "See activity and engagement analytics for your groups",
   },
   unlimited_friend_notes: {
     title: "Unlimited Friend Notes",

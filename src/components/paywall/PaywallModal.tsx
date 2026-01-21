@@ -85,19 +85,19 @@ const PAYWALL_COPY: Record<
     secondaryCta: "Not now",
   },
   CIRCLES_LIMIT: {
-    title: "More circles with Pro",
-    subtitle: "Free supports up to 2 circles.",
+    title: "More groups with Pro",
+    subtitle: "Free supports up to 2 groups.",
     bullets: [
-      "Unlimited circles",
+      "Unlimited groups",
       "Better planning for each group",
-      "Circle insights",
+      "Group insights",
     ],
     primaryCta: "Upgrade to Pro",
     secondaryCta: "Not now",
   },
   CIRCLE_MEMBERS_LIMIT: {
-    title: "Bigger circles with Pro",
-    subtitle: "Free supports up to 15 members per circle.",
+    title: "Bigger groups with Pro",
+    subtitle: "Free supports up to 15 members per group.",
     bullets: [
       "Unlimited members",
       "Better RSVP coordination",
@@ -111,7 +111,7 @@ const PAYWALL_COPY: Record<
     subtitle: "See who you're connecting with and build consistency.",
     bullets: [
       "Top friends analytics",
-      "Circle insights",
+      "Group insights",
       "Full achievements",
     ],
     primaryCta: "Unlock Pro",

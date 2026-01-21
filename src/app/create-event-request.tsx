@@ -214,7 +214,7 @@ export default function CreateEventRequestScreen() {
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Create Event Request" }} />
+        <Stack.Screen options={{ title: "Propose Event" }} />
         <View className="flex-1 items-center justify-center">
           <Text style={{ color: colors.textSecondary }}>Please sign in</Text>
         </View>
@@ -226,7 +226,7 @@ export default function CreateEventRequestScreen() {
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
       <Stack.Screen
         options={{
-          title: "Create Event Request",
+          title: "Propose Event",
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
         }}

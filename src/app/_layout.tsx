@@ -257,7 +257,7 @@ function RootLayoutNav() {
           options={{
             presentation: 'card',
             headerShown: true,
-            headerTitle: 'Event Request',
+            headerTitle: 'Propose Event',
             headerStyle: { backgroundColor: '#FFF9F5' },
             headerTintColor: '#1A1A2E',
           }}
@@ -267,7 +267,7 @@ function RootLayoutNav() {
           options={{
             presentation: 'card',
             headerShown: true,
-            headerTitle: 'Event Request',
+            headerTitle: 'Proposed Event',
             headerStyle: { backgroundColor: '#FFF9F5' },
             headerTintColor: '#1A1A2E',
           }}

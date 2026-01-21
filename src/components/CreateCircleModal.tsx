@@ -115,7 +115,7 @@ export function CreateCircleModal({
                 <X size={20} color={colors.text} />
               </Pressable>
               <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                New Circle
+                New Group
               </Text>
               <Pressable
                 onPress={handleCreate}
@@ -137,7 +137,7 @@ export function CreateCircleModal({
               {/* Circle Name */}
               <View className="mt-4">
                 <Text className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
-                  Circle Name
+                  Group Name
                 </Text>
                 <View className="flex-row items-center">
                   {/* Emoji Picker */}

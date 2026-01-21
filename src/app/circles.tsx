@@ -98,10 +98,10 @@ export default function CirclesScreen() {
           <View className="flex-row items-center justify-between">
             <View>
               <Text className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
-                Circles
+                Groups
               </Text>
               <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                Your friend groups
+                Plan events together
               </Text>
             </View>
             <Pressable
@@ -118,7 +118,7 @@ export default function CirclesScreen() {
           {isLoading ? (
             <View className="py-12">
               <Text className="text-center" style={{ color: colors.textTertiary }}>
-                Loading circles...
+                Loading groups...
               </Text>
             </View>
           ) : circles.length === 0 ? (
@@ -127,13 +127,13 @@ export default function CirclesScreen() {
                 <Users size={32} color={colors.textTertiary} />
               </View>
               <Text className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
-                No Circles Yet
+                No Groups Yet
               </Text>
               <Text className="text-center mb-6 px-8" style={{ color: colors.textSecondary }}>
-                Create a circle to organize your friends and share events with specific groups
+                Create a group to plan events with friends
               </Text>
               <Pressable onPress={handleCreateCircle} className="px-6 py-3 rounded-full" style={{ backgroundColor: themeColor }}>
-                <Text className="text-white font-semibold">Create Your First Circle</Text>
+                <Text className="text-white font-semibold">Create Your First Group</Text>
               </Pressable>
             </View>
           ) : (
