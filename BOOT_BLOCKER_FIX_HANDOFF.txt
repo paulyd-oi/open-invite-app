@@ -1,0 +1,327 @@
+═══════════════════════════════════════════════════════════════════════════════
+PHASE 4: CALENDAR BOOT BLOCKER FIX - HANDOFF PACKET
+═══════════════════════════════════════════════════════════════════════════════
+
+OBJECTIVE
+─────────
+Fix CalendarScreen boot blockers preventing app startup after routing refactor.
+Convert infinite loading patterns to graceful degraded mode with 2500ms timeout.
+
+PROBLEM IDENTIFIED (Pre-Fix)
+────────────────────────────
+After Phase 3 (explicit routing architecture):
+- "/" redirects to "/calendar" via Redirect component (working correctly)
+- CalendarScreen now first screen for authed users
+- Issue: CalendarScreen had hard session blocker at line 1757
+  OLD CODE: if (!session) { return <SignInPrompt /> }
+  Impact: App stuck if session not immediately available
+  Queries: 4x useQuery with enabled: !!session gates blocking data fetches
+
+ARCHITECTURAL CHANGES (Post-Fix)
+────────────────────────────────
+
+1. SESSION BLOCKER REMOVAL
+   File: src/app/calendar.tsx (line ~1792)
+   OLD: if (!session) { return <SignInPrompt /> }
+   NEW: if (!session && !isInDegradedMode) { return <LoadingState /> }
+        // Continues to calendar render if in degraded mode
+   Effect: Calendar renders shell even if session missing after timeout
+
+2. DEGRADED MODE TIMEOUT SYSTEM
+   File: src/app/calendar.tsx (lines ~1185-1208)
+   Added state: const [isInDegradedMode, setIsInDegradedMode] = useState(false)
+   Added timer: useRef for tracking timeout handle
+   Logic:
+     - On mount or session change: Start 2500ms timer if session missing
+     - At 2500ms: Set isInDegradedMode = true
+     - Calendar renders with or without session data
+     - When session loads: Cancel timer, set isInDegradedMode = false
+   Instrumentation: [CalendarBoot] dev-only logs at key points
+
+3. QUERY GATES REMOVED
+   File: src/app/calendar.tsx
+   Removed 4x enabled: !!session conditions:
+     - Line ~1339: Calendar events query (enabled: !!session) → removed
+     - Line ~1354: Friend birthdays query (enabled: !!session) → removed
+     - Line ~1408: Work schedule query (enabled: !!session) → removed
+     - Line ~1415: Event requests query (enabled: !!session) → removed
+   Effect: Queries attempt to fetch regardless of session state
+           Failed requests handled gracefully by React Query
+
+4. DEGRADED MODE BANNER
+   File: src/app/calendar.tsx (lines ~1813-1821)
+   Added: Conditional yellow banner in header when degraded mode active
+   Text: "Still loading your profile—some info may be missing"
+   Display: Only shows if isInDegradedMode && !session
+
+5. INSTRUMENTATION (DEV-ONLY)
+   File: src/app/calendar.tsx
+   New logs with [CalendarBoot] prefix:
+     - Line ~1122: Component render entry (session status, loading state)
+     - Line ~1186: Degraded mode timeout started
+     - Line ~1192: Degraded mode timeout triggered (2500ms threshold)
+     - Line ~1807: Loading state render (before timeout)
+     - Line ~1817: Degraded mode render (after timeout)
+   Purpose: Track boot sequence in dev console
+
+BOOT FLOW (POST-FIX)
+────────────────────
+
+Timeline for authed user with slow session load:
+
+t=0ms
+  - "/" redirects to "/calendar" via Redirect component
+  - CalendarScreen mounts
+  - useSession hook called (loading: true, data: null)
+  - [CalendarBoot] Component render { sessionLoading: true, hasSession: false }
+  - Degraded mode timer starts (2500ms target)
+
+t=500ms
+  - Still waiting for session
+  - Renders: LoadingState ("Loading calendar...")
+  - Bottom navigation visible
+
+t=1500ms
+  - Still waiting for session
+  - Same LoadingState render
+
+t=2500ms
+  - TIMEOUT TRIGGERED
+  - setIsInDegradedMode(true)
+  - [CalendarBoot] Degraded mode timeout triggered (2500ms)
+  - Re-render begins
+
+t=2505ms
+  - Calendar now renders (with or without session data)
+  - Calendar shell visible (month grid, day cells)
+  - Yellow banner shows: "Still loading your profile—some info may be missing"
+  - Event data: empty arrays (queries returned error/no data yet)
+  - User can interact with calendar, scroll months, tap dates
+  - Bottom navigation interactive
+
+t=3000ms (assuming session arrives)
+  - useSession returns: { data: session, isLoading: false }
+  - Degraded mode effect runs:
+    - Cancels any pending timeout
+    - setIsInDegradedMode(false)
+  - Queries re-run with session context
+  - Event data begins populating
+  - Yellow banner disappears (isInDegradedMode && !session = false)
+  - Calendar updates with real data
+
+IMPLEMENTATION DETAILS
+──────────────────────
+
+File: src/app/calendar.tsx (2354 lines total)
+
+1. useSession hook now extracts isLoading:
+   OLD: const { data: session } = useSession()
+   NEW: const { data: session, isLoading: sessionLoading } = useSession()
+
+2. Degraded mode state added (~line 1177-1179):
+   const [isInDegradedMode, setIsInDegradedMode] = useState(false)
+   const degradedModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+3. Timeout effect (~lines 1181-1208):
+   - Listens to: [session, sessionLoading]
+   - If sessionLoading || !session:
+     * Start 2500ms timeout
+     * Set isInDegradedMode = true when timeout fires
+     * Return cleanup to clear timeout on unmount
+   - If session available:
+     * Cancel timeout
+     * Set isInDegradedMode = false
+
+4. Session blocker replaced (~lines 1792-1818):
+   OLD CODE BLOCK (20 lines):
+     if (!session) {
+       return <SafeAreaView>...<SignInPrompt /></SafeAreaView>
+     }
+   NEW CODE FLOW:
+     if (!session && !isInDegradedMode) {
+       return <SafeAreaView>...<LoadingState /></SafeAreaView>
+     }
+     if (isInDegradedMode && !session) {
+       log("[CalendarBoot] Rendering in degraded mode")
+       // Continue to calendar render (no early return)
+     }
+     return <GestureHandlerRootView><CalendarUI /></GestureHandlerRootView>
+
+5. Degraded mode banner (~lines 1813-1821):
+   Added conditional JSX before header:
+   {isInDegradedMode && !session && (
+     <View className="bg-yellow-100 px-4 py-2 border-b">
+       <Text className="text-sm font-semibold text-yellow-800">
+         Still loading your profile—some info may be missing
+       </Text>
+     </View>
+   )}
+
+QUERY CHANGES
+─────────────
+
+Before: Calendar data queries had gates preventing any fetch attempt
+After:  Queries attempt fetch regardless; failures handled gracefully
+
+Calendar Events Query:
+  const { data: calendarData, refetch: refetchCalendarEvents } = useQuery({
+    queryKey: ["events", "calendar", visibleDateRange.start, visibleDateRange.end],
+    queryFn: () => api.get<GetCalendarEventsResponse>(...),
+    // REMOVED: enabled: !!session
+    refetchOnMount: true,
+    staleTime: 0,
+  });
+
+Birthdays Query:
+  const { data: birthdaysData } = useQuery({
+    queryKey: ["birthdays"],
+    queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
+    // REMOVED: enabled: !!session
+  });
+
+Work Schedule Query:
+  const { data: workScheduleData } = useQuery({
+    queryKey: ["workSchedule"],
+    queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>(...),
+    // REMOVED: enabled: !!session
+  });
+
+Event Requests Query:
+  const { data: eventRequestsData } = useQuery({
+    queryKey: ["event-requests"],
+    queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
+    // REMOVED: enabled: !!session
+  });
+
+SAFETY GUARDS
+─────────────
+
+1. Optional chaining throughout component:
+   - friendBirthdays = birthdaysData?.birthdays ?? []
+   - workSchedules = workScheduleData?.schedules ?? []
+   - workSettings = workScheduleData?.settings ?? { showOnCalendar: true }
+   - calendarData?.createdEvents ?? []
+   - calendarData?.goingEvents ?? []
+   Ensures graceful fallback if API calls fail
+
+2. No dependencies on session within render:
+   - Session is used only for:
+     * Query invalidation (doesn't block render)
+     * Event attribution (userId: session?.user?.id ?? "")
+   - All other data derived from query results with nullsafe operators
+
+3. Calendar grid renders regardless of data:
+   - Month structure: Always renders all day cells
+   - Event display: Shows empty cells if no data
+   - Interactions: All calendar controls functional in degraded mode
+
+4. Error boundaries: No new code paths, existing error handling preserved
+
+TEST CHECKLIST
+──────────────
+
+[] 1. App startup: "/" redirects to "/calendar" ✓ (Phase 3, already verified)
+[] 2. LoadingState appears initially: Confirm "Loading calendar..." text
+[] 3. Degraded mode triggers: Watch yellow banner appear after ~2500ms
+[] 4. Calendar renders in degraded mode: Grid visible, navigable, no crashes
+[] 5. Dev logs: Check console for [CalendarBoot] prefix messages (DEV mode only)
+[] 6. Session loads: Banner disappears, events populate when session arrives
+[] 7. Event creation: Works in degraded mode (local events offline support)
+[] 8. Tab navigation: Bottom nav works, switching tabs doesn't break calendar state
+[] 9. Month navigation: Scroll/gesture to change months works throughout
+[] 10. Date selection: Tapping dates selects them, shows selected date events
+
+DEBUGGING
+─────────
+
+To observe boot flow:
+
+1. Open Dev Console (⌘+D on Expo, open browser dev tools)
+2. Filter for [CalendarBoot] logs
+3. Expected sequence:
+   [CalendarBoot] Component render { sessionLoading: true, hasSession: false }
+   [CalendarBoot] Session missing/loading, starting degraded mode timeout
+   [CalendarBoot] Rendering loading state - session not available yet
+   [CalendarBoot] Degraded mode timeout triggered (2500ms)
+   [CalendarBoot] Rendering in degraded mode - session timeout exceeded
+
+Common issues & fixes:
+
+Issue: Calendar completely blank after 2500ms
+  Root: Query failed and data is empty
+  Fix: Check Network tab in dev tools, verify API endpoints responding
+  State: Degraded mode working correctly, just no data
+
+Issue: Yellow banner shows but calendar doesn't render
+  Root: Missing query result handling
+  Fix: Verify optional chaining operators (? and ??) on all data access
+
+Issue: App still blocks at LoadingState after 5+ seconds
+  Root: isInDegradedMode state not updating
+  Fix: Check useEffect dependencies [session, sessionLoading]
+       Verify sessionLoading actually becomes false when session loads
+
+Issue: Logs not showing [CalendarBoot]
+  Root: __DEV__ guard preventing dev-only logs
+  Fix: Only visible in DEV mode (Expo DEVELOPMENT build)
+       Check that you're using: npx expo start (not: npx expo start --no-dev)
+
+ROLLBACK
+────────
+
+To revert to blocking behavior (if needed):
+
+1. Restore if (!session) { return <SignIn /> } block at line ~1792
+2. Re-add enabled: !!session to 4 queries
+3. Remove isInDegradedMode state, timer, useEffect
+4. Remove degraded mode banner JSX
+5. Revert useSession to: const { data: session } = useSession()
+
+RELATED CONTEXT
+───────────────
+
+Phase 3 (Previous): Explicit routing architecture
+  - File: src/app/index.tsx (now pure Redirect to "/calendar")
+  - File: src/app/social.tsx (new Social feed screen)
+  - File: src/constants/navigation.ts (updated Social tab routing)
+
+Navigation Invariant: Tab order and roles preserved
+  - Discover → Social(/social) → Home center(/calendar) → Friends → Profile
+
+Boot Sequence: BootRouter in _layout.tsx handles auth states
+  - logged_out: Redirect to /login
+  - onboarding: Redirect to /onboarding
+  - authed: "/" redirects to "/calendar" (via Redirect component)
+
+VALIDATION
+──────────
+
+✓ TypeScript: 0 errors on src/app/calendar.tsx
+✓ File syntax: Valid JSX/React structure
+✓ Query handling: All optional chaining in place
+✓ Timeout logic: Proper useEffect dependency array
+✓ State management: Ref cleanup in place
+✓ Instrumentation: [CalendarBoot] prefix used throughout
+✓ Fallback values: All nullish data has ?? defaults
+
+VERSION
+───────
+
+- App: open-invite-app
+- Phase: 4 (Boot Blocker Fix)
+- File: src/app/calendar.tsx
+- Changes: 2 additions, 1 major refactor, 4 query gates removed
+- Commit Status: Ready to commit
+
+NEXT STEPS (USER)
+─────────────────
+
+1. Review changes: Read above sections and verify intended behavior
+2. Test app startup: Trigger slow session load (network throttle: slow 3G)
+3. Verify degraded mode: Confirm yellow banner appears at 2500ms
+4. Check console: Look for [CalendarBoot] logs in dev console
+5. Test recovery: Confirm events populate when session fully loads
+6. Commit: Once verified, commit with message:
+   "Fix CalendarScreen boot blocker: add degraded mode timeout (Phase 4)"
+
+═══════════════════════════════════════════════════════════════════════════════

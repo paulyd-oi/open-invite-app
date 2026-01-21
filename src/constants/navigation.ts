@@ -56,10 +56,10 @@ export const BOTTOM_NAV_TABS: readonly NavTab[] = [
     isCenter: false,
   },
   {
-    key: "calendar",
+    key: "social",
     Icon: List,
     label: "Social",
-    href: "/",
+    href: "/social",
     isCenter: false,
     badgeKey: "eventRequests",
   },

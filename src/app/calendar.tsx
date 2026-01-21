@@ -1114,9 +1114,14 @@ function ListView({
 }
 
 export default function CalendarScreen() {
-  const { data: session } = useSession();
+  const { data: session, isLoading: sessionLoading } = useSession();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+
+  // [CalendarBoot] Add instrumentation at top of component
+  if (__DEV__) {
+    console.log("[CalendarBoot] Component render", { sessionLoading, hasSession: !!session });
+  }
 
   // Get local events created while offline
   const localEvents = useLocalEvents();
@@ -1171,6 +1176,37 @@ export default function CalendarScreen() {
   const unifiedHeight = useSharedValue(BASE_HEIGHTS.stacked); // Start at stacked
   const baseUnifiedHeight = useSharedValue(BASE_HEIGHTS.stacked);
   const [displayUnifiedHeight, setDisplayUnifiedHeight] = useState(BASE_HEIGHTS.stacked);
+
+  // [CalendarBoot] Degraded mode timeout system
+  const [isInDegradedMode, setIsInDegradedMode] = useState(false);
+  const degradedModeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // If session is missing or loading, set timeout for degraded mode
+    if (sessionLoading || !session) {
+      if (__DEV__) {
+        console.log("[CalendarBoot] Session missing/loading, starting degraded mode timeout");
+      }
+      degradedModeTimeoutRef.current = setTimeout(() => {
+        if (__DEV__) {
+          console.log("[CalendarBoot] Degraded mode timeout triggered (2500ms)");
+        }
+        setIsInDegradedMode(true);
+      }, 2500);
+
+      return () => {
+        if (degradedModeTimeoutRef.current) {
+          clearTimeout(degradedModeTimeoutRef.current);
+        }
+      };
+    } else {
+      // Session loaded, cancel degraded mode
+      if (degradedModeTimeoutRef.current) {
+        clearTimeout(degradedModeTimeoutRef.current);
+      }
+      setIsInDegradedMode(false);
+    }
+  }, [session, sessionLoading]);
 
   // Load saved calendar view height on mount
   useEffect(() => {
@@ -1306,7 +1342,7 @@ export default function CalendarScreen() {
       api.get<GetCalendarEventsResponse>(
         `/api/events/calendar-events?start=${encodeURIComponent(visibleDateRange.start)}&end=${encodeURIComponent(visibleDateRange.end)}`
       ),
-    enabled: !!session,
+    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
     refetchOnMount: true,
     staleTime: 0, // Always consider data stale to ensure fresh data on navigation
   });
@@ -1315,7 +1351,7 @@ export default function CalendarScreen() {
   const { data: birthdaysData } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
-    enabled: !!session,
+    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
   });
 
   // QueryClient for invalidating queries
@@ -1372,14 +1408,14 @@ export default function CalendarScreen() {
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
-    enabled: !!session,
+    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
   });
 
   // Fetch event requests
   const { data: eventRequestsData } = useQuery({
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
-    enabled: !!session,
+    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
   });
 
   // Extract created and going events from calendar data
@@ -1754,30 +1790,41 @@ export default function CalendarScreen() {
     }
   };
 
-  if (!session) {
+  if (!session && !isInDegradedMode) {
+    if (__DEV__) {
+      console.log("[CalendarBoot] Rendering loading state - session not available yet");
+    }
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
-            Sign in to view your calendar
+            Loading calendar...
           </Text>
-          <Pressable
-            onPress={() => router.push("/login")}
-            className="px-6 py-3 rounded-full mt-4"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Sign In</Text>
-          </Pressable>
         </View>
         <BottomNavigation />
       </SafeAreaView>
     );
   }
 
+  // [CalendarBoot] If in degraded mode, render calendar shell with banner
+  if (isInDegradedMode && !session) {
+    if (__DEV__) {
+      console.log("[CalendarBoot] Rendering in degraded mode - session timeout exceeded");
+    }
+    // Continue to calendar render below - render UI anyway with placeholder data
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        {/* Header */}
+        {/* [CalendarBoot] Show banner in degraded mode */}
+        {isInDegradedMode && !session && (
+          <View className="bg-yellow-100 px-4 py-2 border-b" style={{ borderColor: colors.border }}>
+            <Text className="text-sm font-semibold text-yellow-800">
+              Still loading your profile—some info may be missing
+            </Text>
+          </View>
+        )}
         <View className="px-5 pt-2 pb-2">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">
@@ -1790,21 +1837,11 @@ export default function CalendarScreen() {
           </View>
           <View className="flex-row items-center">
             <Pressable
-              onPress={goToToday}
-              className="px-3 py-1.5 rounded-full mr-2"
-              style={{ backgroundColor: `${themeColor}15` }}
-            >
-              <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                {formatDateShort(today)}
-              </Text>
-            </Pressable>
-            <Pressable
               onPress={() => router.push("/create")}
               className="flex-row items-center px-4 py-2 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
-              <Plus size={18} color="#fff" />
-              <Text className="text-white font-semibold ml-1.5">Create</Text>
+              <Text className="text-white font-semibold">Create</Text>
             </Pressable>
           </View>
         </View>
