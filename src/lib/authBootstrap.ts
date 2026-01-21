@@ -75,8 +75,9 @@ export async function resetSession(options?: { reason?: string; status?: number;
   // POLICY: Only clear tokens on true auth failures or explicit user actions
   // Auth errors (401/403) trigger hard reset. Other errors are logged but tokens remain.
   const isUserInitiated = reason === "user_logout" || reason === "account_deletion";
+  const isAuthCleanup = reason === "auth_cleanup"; // Login screen cleanup - no intent required
   const isAuthFailure = reason === "auth_error" && (status === 401 || status === 403);
-  const shouldClearTokens = isUserInitiated || isAuthFailure;
+  const shouldClearTokens = isUserInitiated || isAuthCleanup || isAuthFailure;
   
   if (!shouldClearTokens) {
     // Non-auth error (404, 500, network, etc.) - log warning but DO NOT clear tokens
