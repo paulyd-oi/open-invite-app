@@ -1119,6 +1119,8 @@ export default function CalendarScreen() {
   const { themeColor, isDark, colors } = useTheme();
 
   // [CalendarBoot] Add instrumentation at top of component
+  const lastHasSessionRef = useRef<boolean | null>(null);
+
   if (__DEV__) {
     console.log("[CalendarBoot] Component render", { hasSession: !!session });
   }
@@ -1170,7 +1172,9 @@ export default function CalendarScreen() {
   const lastScrollY = useRef(0);
   const overscrolledTopRef = useRef(false);
   const overscrolledBottomRef = useRef(false);
-  const didOverscrollTopRef = useRef(false);
+  
+  const lastHasSessionLogRef = useRef<null | boolean>(null);
+const didOverscrollTopRef = useRef(false);
   const didOverscrollBottomRef = useRef(false);
   const SCROLL_THRESHOLD = 80; // Threshold for overscroll to trigger month change
 
@@ -1662,7 +1666,7 @@ export default function CalendarScreen() {
     const newMonth = ref.month === 0 ? 11 : ref.month - 1;
     const newYear = ref.month === 0 ? ref.year - 1 : ref.year;
     if (__DEV__) {
-      console.log("[CalendarGesture] TRIGGER prev", { from: `${ref.month}/${ref.year}`, to: `${newMonth}/${newYear}` });
+      console.log("[CalendarGesture] TRIGGER prev", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
@@ -1675,7 +1679,7 @@ export default function CalendarScreen() {
     const newMonth = ref.month === 11 ? 0 : ref.month + 1;
     const newYear = ref.month === 11 ? ref.year + 1 : ref.year;
     if (__DEV__) {
-      console.log("[CalendarGesture] TRIGGER next", { from: `${ref.month}/${ref.year}`, to: `${newMonth}/${newYear}` });
+      console.log("[CalendarGesture] TRIGGER next", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
