@@ -66,6 +66,7 @@ import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
+import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
@@ -500,6 +501,7 @@ export default function FriendsScreen() {
 
   // Add to groups modal state (shown after accepting friend request)
   const [showAddToGroupsModal, setShowAddToGroupsModal] = useState(false);
+  const [showSecondOrderSocialNudge, setShowSecondOrderSocialNudge] = useState(false);
   const [newlyAcceptedFriend, setNewlyAcceptedFriend] = useState<{
     friendshipId: string;
     friendName: string;
@@ -666,7 +668,7 @@ export default function FriendsScreen() {
   const acceptRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put<{ success: boolean; friendshipId?: string; friend?: { id: string; name: string | null; image: string | null } }>(`/api/friends/request/${requestId}`, { status: "accepted" }),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refetch();
       refetchRequests();
@@ -683,6 +685,14 @@ export default function FriendsScreen() {
         });
         setSelectedGroupIds([]);
         setShowAddToGroupsModal(true);
+      }
+
+      // Check if we should show second order social nudge
+      if (bootStatus === 'authed') {
+        const canShow = await canShowSecondOrderSocialNudge();
+        if (canShow) {
+          setShowSecondOrderSocialNudge(true);
+        }
       }
     },
   });
@@ -716,6 +726,24 @@ export default function FriendsScreen() {
       safeToast.error("Error", "Failed to add friend to some groups");
     },
   });
+
+  // Second order social nudge handlers
+  const handleSecondOrderNudgePrimary = async () => {
+    await markSecondOrderSocialNudgeCompleted();
+    setShowSecondOrderSocialNudge(false);
+    router.push("/social");
+  };
+
+  const handleSecondOrderNudgeSecondary = async () => {
+    await markSecondOrderSocialNudgeCompleted();
+    setShowSecondOrderSocialNudge(false);
+    router.push("/create");
+  };
+
+  const handleSecondOrderNudgeDismiss = async () => {
+    await markSecondOrderSocialNudgeCompleted();
+    setShowSecondOrderSocialNudge(false);
+  };
 
   const loadContacts = async () => {
     setContactsLoading(true);
@@ -2166,6 +2194,13 @@ export default function FriendsScreen() {
           setShowDeleteGroupConfirm(false);
         }}
         onCancel={() => setShowDeleteGroupConfirm(false)}
+      />
+
+      <SecondOrderSocialNudge
+        visible={showSecondOrderSocialNudge}
+        onPrimary={handleSecondOrderNudgePrimary}
+        onSecondary={handleSecondOrderNudgeSecondary}
+        onDismiss={handleSecondOrderNudgeDismiss}
       />
 
       <BottomNavigation />

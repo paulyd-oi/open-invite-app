@@ -66,6 +66,7 @@ import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
 import { EventCategoryBadge } from "@/components/EventCategoryPicker";
 import { EventSummaryModal } from "@/components/EventSummaryModal";
+import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
 // MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
@@ -261,6 +262,7 @@ export default function EventDetailScreen() {
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
+  const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -509,7 +511,7 @@ export default function EventDetailScreen() {
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => api.post(`/api/events/${id}/rsvp`, { status }),
-    onSuccess: (_, status) => {
+    onSuccess: async (_, status) => {
       // Use success haptic for "going" (more affirming), light for others
       if (status === "going") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -529,6 +531,14 @@ export default function EventDetailScreen() {
       // Invalidate calendar events so RSVP "going" events appear immediately
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
       setShowRsvpOptions(false);
+      
+      // Check if we should show first RSVP nudge
+      if (bootStatus === 'authed') {
+        const canShow = await canShowFirstRsvpNudge();
+        if (canShow) {
+          setShowFirstRsvpNudge(true);
+        }
+      }
     },
     onError: () => {
       safeToast.error("Failed to update RSVP. Please try again.");
@@ -622,6 +632,24 @@ export default function EventDetailScreen() {
     }
     setShowDeleteCommentConfirm(false);
     setCommentToDelete(null);
+  };
+
+  // First RSVP nudge handlers
+  const handleFirstRsvpNudgePrimary = async () => {
+    await markFirstRsvpNudgeCompleted();
+    setShowFirstRsvpNudge(false);
+    router.push("/discover");
+  };
+
+  const handleFirstRsvpNudgeSecondary = async () => {
+    await markFirstRsvpNudgeCompleted();
+    setShowFirstRsvpNudge(false);
+    router.push("/create");
+  };
+
+  const handleFirstRsvpNudgeDismiss = async () => {
+    await markFirstRsvpNudgeCompleted();
+    setShowFirstRsvpNudge(false);
   };
 
   // Format relative time
@@ -1815,6 +1843,13 @@ export default function EventDetailScreen() {
         isDestructive
         onConfirm={confirmRemoveRsvp}
         onCancel={() => setShowRemoveRsvpConfirm(false)}
+      />
+
+      <FirstRsvpNudge
+        visible={showFirstRsvpNudge}
+        onPrimary={handleFirstRsvpNudgePrimary}
+        onSecondary={handleFirstRsvpNudgeSecondary}
+        onDismiss={handleFirstRsvpNudgeDismiss}
       />
     </SafeAreaView>
   );
