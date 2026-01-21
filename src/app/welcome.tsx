@@ -773,6 +773,11 @@ export default function WelcomeOnboardingScreen() {
     api.post("/api/onboarding/complete", {}).catch(() => {});
 
     await clearProgress();
+    
+    if (__DEV__) {
+      console.log("[Onboarding] Onboarding complete, replacing to / - BootRouter will confirm auth state");
+    }
+    
     // Navigate to main feed
     router.replace("/");
   };
@@ -1209,7 +1214,7 @@ export default function WelcomeOnboardingScreen() {
 
               <Animated.View entering={FadeInUp.delay(400).springify()}>
                 <PrimaryButton title="Get Started" onPress={goToNext} />
-                <SecondaryButton title="Log In" onPress={() => router.push("/login")} underline />
+                <SecondaryButton title="Log In" onPress={() => router.replace("/login")} underline />
               </Animated.View>
             </View>
           </OnboardingLayout>
@@ -1274,7 +1279,7 @@ export default function WelcomeOnboardingScreen() {
 
               <Animated.View entering={FadeInUp.delay(400).springify()} className="mt-8">
                 <PrimaryButton title="Continue" onPress={goToNext} />
-                <SecondaryButton title="Skip" onPress={() => router.push("/login")} />
+                <SecondaryButton title="Skip" onPress={() => router.replace("/login")} />
               </Animated.View>
             </View>
           </OnboardingLayout>

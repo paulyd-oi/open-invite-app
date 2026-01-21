@@ -92,7 +92,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // Let BootRouter (via authBootstrap) decide the route based on backend /api/onboarding/status
     // This prevents routing to /welcome when backend says onboarding is complete
     if (__DEV__) {
-      console.log("[Login] Authenticated, routing to '/' - BootRouter will handle onboarding check");
+      console.log("[Login] Login success, replacing to / - BootRouter will handle onboarding check");
     }
     
     router.replace("/");
