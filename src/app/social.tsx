@@ -827,6 +827,19 @@ export default function SocialScreen() {
         </View>
       </View>
 
+      {/* Micro Social Proof Line */}
+      {!isLoading && allEvents.length > 0 && (
+        <View className="px-5 pb-3">
+          <Text
+            style={{ color: colors.textSecondary }}
+            className="text-sm"
+            accessibilityLabel={`${allEvents.length} ${allEvents.length === 1 ? 'plan' : 'plans'} happening soon`}
+          >
+            {allEvents.length} {allEvents.length === 1 ? 'plan' : 'plans'} happening soon
+          </Text>
+        </View>
+      )}
+
       {/* Verification banner for users who deferred email verification */}
       {showVerificationBanner && (
         <VerificationBanner
