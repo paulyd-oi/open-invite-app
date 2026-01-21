@@ -817,13 +817,6 @@ export default function SocialScreen() {
         </View>
         <View className="flex-row items-center">
           <ShareAppButton variant="icon" />
-          <Pressable
-            onPress={() => router.push("/calendar")}
-            className="w-10 h-10 rounded-full items-center justify-center ml-2"
-            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-          >
-            <Calendar size={20} color={themeColor} />
-          </Pressable>
         </View>
       </View>
 
