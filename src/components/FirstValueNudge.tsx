@@ -10,8 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeInUp, SlideInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Users, Calendar, X } from "@/ui/icons";
-import { useRouter } from "expo-router";
+import { Users, Calendar } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 
 // Storage key for nudge state
@@ -51,7 +50,7 @@ export async function canShowFirstValueNudge(): Promise<boolean> {
 /**
  * Mark nudge as completed (never show again)
  */
-async function markNudgeCompleted(): Promise<void> {
+export async function markFirstValueNudgeCompleted(): Promise<void> {
   try {
     const state: NudgeState = { completed: true };
     await AsyncStorage.setItem(NUDGE_STORAGE_KEY, JSON.stringify(state));
@@ -63,7 +62,7 @@ async function markNudgeCompleted(): Promise<void> {
 /**
  * Mark nudge as dismissed for cooldown period
  */
-async function markNudgeDismissed(): Promise<void> {
+export async function markFirstValueNudgeDismissed(): Promise<void> {
   try {
     const state: NudgeState = { lastShownAt: Date.now() };
     await AsyncStorage.setItem(NUDGE_STORAGE_KEY, JSON.stringify(state));
@@ -75,42 +74,43 @@ async function markNudgeDismissed(): Promise<void> {
 interface FirstValueNudgeProps {
   visible: boolean;
   onClose: () => void;
+  onPrimary: () => void;
+  onSecondary: () => void;
 }
 
-export function FirstValueNudge({ visible, onClose }: FirstValueNudgeProps) {
+export function FirstValueNudge({ visible, onClose, onPrimary, onSecondary }: FirstValueNudgeProps) {
   const { themeColor, colors } = useTheme();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFindFriends = async () => {
+  const handlePrimary = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    await markNudgeCompleted();
+    await markFirstValueNudgeCompleted();
     onClose();
-    router.push("/discover");
+    onPrimary();
   };
 
-  const handleCreateEvent = async () => {
+  const handleSecondary = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    await markNudgeCompleted();
+    await markFirstValueNudgeCompleted();
     onClose();
-    router.push("/create");
+    onSecondary();
   };
 
-  const handleDismiss = async () => {
+  const handleNotNow = async () => {
     if (isLoading) return;
     
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    await markNudgeDismissed();
+    await markFirstValueNudgeDismissed();
     onClose();
   };
 
@@ -185,7 +185,7 @@ export function FirstValueNudge({ visible, onClose }: FirstValueNudgeProps) {
           >
             {/* Primary CTA - Find Friends */}
             <Pressable
-              onPress={handleFindFriends}
+              onPress={handlePrimary}
               disabled={isLoading}
               className="rounded-2xl p-4 flex-row items-center"
               style={{
@@ -206,7 +206,7 @@ export function FirstValueNudge({ visible, onClose }: FirstValueNudgeProps) {
 
             {/* Secondary CTA - Create Event */}
             <Pressable
-              onPress={handleCreateEvent}
+              onPress={handleSecondary}
               disabled={isLoading}
               className="rounded-2xl p-4 flex-row items-center"
               style={{
@@ -234,7 +234,7 @@ export function FirstValueNudge({ visible, onClose }: FirstValueNudgeProps) {
           {/* Dismiss Button */}
           <Animated.View entering={FadeInUp.delay(400).springify()}>
             <Pressable
-              onPress={handleDismiss}
+              onPress={handleNotNow}
               disabled={isLoading}
               className="mt-4 py-3 items-center"
               style={{ opacity: isLoading ? 0.7 : 1 }}
@@ -251,30 +251,4 @@ export function FirstValueNudge({ visible, onClose }: FirstValueNudgeProps) {
       </View>
     </Modal>
   );
-}
-
-/**
- * Hook to determine if user is eligible for first-value nudge
- * Based on having no friends, no created events, no attending events
- */
-export function useFirstValueNudgeEligibility({
-  friendsData,
-  myEventsData,
-  attendingData,
-  bootStatus,
-}: {
-  friendsData?: { friends: any[] } | null;
-  myEventsData?: { events: any[] } | null;  
-  attendingData?: { events: any[] } | null;
-  bootStatus: string;
-}) {
-  // Only eligible if authed
-  if (bootStatus !== 'authed') return false;
-  
-  // Check if user has zero social connections and events
-  const hasFriends = (friendsData?.friends?.length ?? 0) > 0;
-  const hasCreatedEvents = (myEventsData?.events?.length ?? 0) > 0;
-  const hasAttendingEvents = (attendingData?.events?.length ?? 0) > 0;
-  
-  return !hasFriends && !hasCreatedEvents && !hasAttendingEvents;
 }

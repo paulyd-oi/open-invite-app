@@ -29,7 +29,7 @@ import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
-import { FirstValueNudge, useFirstValueNudgeEligibility, canShowFirstValueNudge } from "@/components/FirstValueNudge";
+import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
@@ -510,12 +510,17 @@ export default function SocialScreen() {
   const businessEventsData = undefined;
 
   // Check if user is eligible for first-value nudge
-  const isFirstValueNudgeEligible = useFirstValueNudgeEligibility({
-    friendsData,
-    myEventsData,
-    attendingData,
-    bootStatus,
-  });
+  const isFirstValueNudgeEligible = (() => {
+    // Only eligible if authed
+    if (bootStatus !== 'authed') return false;
+    
+    // Check if user has zero social connections and events
+    const hasFriends = (friendsData?.friends?.length ?? 0) > 0;
+    const hasCreatedEvents = (myEventsData?.events?.length ?? 0) > 0;
+    const hasAttendingEvents = (attendingData?.events?.length ?? 0) > 0;
+    
+    return !hasFriends && !hasCreatedEvents && !hasAttendingEvents;
+  })();
 
   // Show first-value nudge if eligible and not loading
   useEffect(() => {
@@ -781,6 +786,8 @@ export default function SocialScreen() {
       <FirstValueNudge
         visible={showFirstValueNudge}
         onClose={() => setShowFirstValueNudge(false)}
+        onPrimary={() => router.push("/discover")}
+        onSecondary={() => router.push("/create")}
       />
 
       <BottomNavigation />
