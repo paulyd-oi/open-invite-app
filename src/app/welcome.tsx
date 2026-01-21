@@ -1072,10 +1072,28 @@ export default function WelcomeOnboardingScreen() {
     if (displayName.trim()) {
       try {
         console.log("[Onboarding] Saving display name:", displayName.trim());
-        await api.post("/api/profile", { name: displayName.trim() });
+        // Use PUT (not POST) to match Settings flow - send displayName for future-proofing
+        const response = await api.put<{ success: boolean; profile: any }>("/api/profile", { 
+          name: displayName.trim(),
+          displayName: displayName.trim() // Dual-write for consistency
+        });
         console.log("[Onboarding] Display name saved successfully");
 
-        // Immediately sync session and profile cache
+        // Update profile cache immediately - patch both profile.name AND user.name defensively
+        queryClient.setQueryData(["profile"], (old: any) => ({
+          ...old,
+          profile: {
+            ...old?.profile,
+            ...response.profile,
+            name: response.profile?.name ?? displayName.trim(),
+          },
+          user: {
+            ...old?.user,
+            name: displayName.trim(),
+          },
+        }));
+        // Then invalidate to refetch and sync session
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
         await updateProfileAndSync(queryClient);
       } catch (error) {
         console.log("[Onboarding] Failed to save name:", error);
@@ -1156,12 +1174,26 @@ export default function WelcomeOnboardingScreen() {
         const uploadData = await uploadResponse.json();
         console.log("[Onboarding] Image uploaded successfully:", uploadData.url);
 
-        // Save the avatar URL to profile
+        // Save the avatar URL to profile using PUT (not POST)
         console.log("[Onboarding] Saving avatar URL to profile...");
-        await api.post("/api/profile", { avatarUrl: uploadData.url });
+        const response = await api.put<{ success: boolean; profile: any }>("/api/profile", { avatarUrl: uploadData.url });
         console.log("[Onboarding] Avatar URL saved to profile");
 
-        // Immediately sync session and profile cache
+        // Update profile cache immediately - patch profile.avatarUrl
+        queryClient.setQueryData(["profile"], (old: any) => ({
+          ...old,
+          profile: {
+            ...old?.profile,
+            ...response.profile,
+            avatarUrl: response.profile?.avatarUrl ?? uploadData.url,
+          },
+          user: {
+            ...old?.user,
+            image: uploadData.url,
+          },
+        }));
+        // Then invalidate to refetch and sync session
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
         await updateProfileAndSync(queryClient);
       } catch (error) {
         console.log("[Onboarding] Failed to upload photo:", error);
