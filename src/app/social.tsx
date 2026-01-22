@@ -10,7 +10,6 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import BottomNavigation from "@/components/BottomNavigation";
-import { GettingStartedChecklist } from "@/components/GettingStartedChecklist";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
@@ -859,9 +858,6 @@ export default function SocialScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          <View className="mx-[-20px]">
-            <GettingStartedChecklist />
-          </View>
           {socialMemory && (
             <SocialMemoryCard
               memory={socialMemory.memory}
@@ -912,9 +908,6 @@ export default function SocialScreen() {
             />
           }
         >
-          <View className="mx-[-20px]">
-            <GettingStartedChecklist />
-          </View>
           <FeedCalendar
             events={calendarEvents}
             businessEvents={undefined}
