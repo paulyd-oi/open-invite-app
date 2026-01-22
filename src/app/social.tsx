@@ -762,10 +762,16 @@ export default function SocialScreen() {
   const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
   const isLoading = feedLoading || myEventsLoading || attendingLoading;
 
-  // Render blank view for non-authed states (redirect useEffect handles routing)
+  // Render loading state for non-authed states (redirect useEffect handles routing)
+  // Keep BottomNavigation visible for escape route
   if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }} />
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
     );
   }
 

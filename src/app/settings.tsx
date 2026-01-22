@@ -125,6 +125,7 @@ function ReferralCounterSection({
   const [isApplyingCode, setIsApplyingCode] = useState(false);
   const [showReferrerInput, setShowReferrerInput] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: referralStats, isLoading } = useQuery({
     queryKey: ["referralStats"],
@@ -258,7 +259,7 @@ function ReferralCounterSection({
       </View>
 
       {/* Reward Status */}
-      <Text style={{ color: colors.textTertiary }} className="text-xs text-center mb-4">
+      <Text style={{ color: colors.textTertiary }} className="text-xs text-center mb-3">
         {successfulCount >= 20
           ? "You've earned Lifetime FREE! No more payments needed."
           : successfulCount >= 10
@@ -267,6 +268,19 @@ function ReferralCounterSection({
           ? `${10 - successfulCount} more friends to unlock 1 year FREE`
           : `${3 - successfulCount} more friends to unlock 1 month FREE`}
       </Text>
+
+      {/* View Details Link */}
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push("/referrals");
+        }}
+        className="py-2 items-center mb-2"
+      >
+        <Text className="text-sm font-medium" style={{ color: themeColor }}>
+          View Referrals & Rewards →
+        </Text>
+      </Pressable>
 
       {/* ENTER REFERRER CODE SECTION */}
       {!hasReferrer && (
@@ -880,7 +894,14 @@ export default function SettingsScreen() {
           <Text style={{ color: colors.text }} className="text-xl font-sora-bold">Settings</Text>
         </View>
         <View className="flex-1 items-center justify-center px-8">
-          <Text style={{ color: colors.textSecondary }}>Please sign in to access settings</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-base mb-4">Please sign in to access settings</Text>
+          <Pressable
+            onPress={() => router.push("/login")}
+            className="px-6 py-3 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white font-semibold">Sign In</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );

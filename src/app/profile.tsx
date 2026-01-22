@@ -35,8 +35,10 @@ import * as Haptics from "expo-haptics";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
+import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
@@ -68,7 +70,20 @@ export default function ProfileScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const { status: bootStatus } = useBootAuthority();
+  const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
+
+  // Timeout for graceful degraded mode when loading takes too long
+  const isBootLoading = bootStatus === 'loading';
+  const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, { timeout: 3000 });
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  // Handle retry from timeout UI
+  const handleRetry = useCallback(() => {
+    setIsRetrying(true);
+    resetTimeout();
+    retryBootstrap();
+    setTimeout(() => setIsRetrying(false), 1500);
+  }, [resetTimeout, retryBootstrap]);
 
   // Avatar source with auth headers
   const [avatarSource, setAvatarSource] = useState<{ uri: string; headers?: { Authorization: string } } | null>(null);
@@ -204,8 +219,26 @@ export default function ProfileScreen() {
 
   // Only render Profile for fully authenticated users ('authed' status)
   if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
+    // If loading has timed out, show user-friendly timeout UI with escape routes
+    if (isTimedOut || bootStatus === 'error') {
+      return (
+        <LoadingTimeoutUI
+          context="profile"
+          onRetry={handleRetry}
+          isRetrying={isRetrying}
+          showBottomNav={true}
+        />
+      );
+    }
+
+    // Still within timeout window - show minimal loading state with navigation
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textSecondary }}>Loading profile...</Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
     );
   }
 
