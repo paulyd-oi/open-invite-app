@@ -1,49 +1,55 @@
 MANDATORY HANDOFF PACKET
 
 SUMMARY
-Implemented platform Admin Console UI visible only to platform admins. Admin refers to platform admin, NOT host tooling. Added server-authoritative gating with fail-safe error handling.
+Implemented Admin Badge Management UI within the existing Admin Console. Platform admins can now grant and revoke badges for any user. Added user selection capability to search results and comprehensive badge management interface with proper error handling and loading states.
 
 FILES CHANGED
-- src/lib/adminApi.ts - Admin API helper with checkAdminStatus() and searchUsers()
-- src/app/admin.tsx - Admin console screen at /admin route with hard gate protection
-- src/app/settings.tsx - Added conditional admin entry (only visible when adminStatus.isAdmin is true)
+- src/lib/adminApi.ts - Extended with badge management functions listBadges, getUserBadges, grantUserBadge, revokeUserBadge
+- src/app/admin.tsx - Added user selection and badge management UI sections
 - docs/HANDOFF_PACKET.md - This handoff documentation
 
 KEY DIFFS
-- adminApi.ts exports checkAdminStatus() returning { isAdmin: boolean } with fail-safe error handling
-- adminApi.ts exports searchUsers(q) returning { users: UserSearchResult[] } with auth error handling  
-- admin.tsx implements hard gate: redirects to /settings if not admin, renders null during redirect
-- admin.tsx shows backend URL, app version, and user search with results display
-- settings.tsx shows "Admin Console" entry only when adminStatus?.isAdmin is true
-- All admin functionality uses existing authClient pattern for bearer token attachment
+- adminApi.ts: Added 4 new badge management functions using existing authClient pattern with fail-safe error handling
+- adminApi.ts: Added BadgeDef, GrantedBadge, and response type interfaces for badge management
+- admin.tsx: Made user search results selectable with visual feedback when user is selected
+- admin.tsx: Added User Detail section showing selected user info (name, username, email, ID)
+- admin.tsx: Added Badges section with list of all available badges showing granted/not granted status
+- admin.tsx: Added grant/revoke toggle buttons with loading states and optimistic UI updates
+- admin.tsx: Added proper error handling for auth failures (401/403 redirects) and network errors
+- Preserved existing admin gating behavior - non-admins still redirected to settings
 
 RUNTIME STATUS
 TypeScript: PASS
-App compiles without errors and admin features are properly gated
+App compiles without errors and admin badge features work with proper server-authoritative gating
 
 TEST PLAN
-1. Launch app and navigate to Settings
-2. Verify no "Admin Console" entry appears (assumes current user is not admin)
-3. Backend should return { isAdmin: true } from /api/admin/me for admin testing
-4. If admin: verify "Admin Console" entry appears under ADMIN section in Settings
-5. If admin: tap entry to open /admin screen successfully  
-6. If admin: verify admin console shows backend URL and user search functionality
-7. If not admin: verify attempting to access /admin redirects to /settings
-8. Test user search functionality with various queries
+1. Login as admin user (backend returns isAdmin: true from /api/admin/me)
+2. Navigate Settings → Admin Console (entry should be visible)
+3. Search for a user and verify search results appear
+4. Tap on a user in search results to select them
+5. Verify selected user shows in User Detail section with name, email, ID
+6. Verify Badges section loads and displays all available badges
+7. For each badge, verify it shows Granted or Not granted status correctly
+8. Tap Grant button on an ungranted badge, verify it switches to Granted with Revoke button
+9. Tap Revoke button on a granted badge, verify it switches to Not granted with Grant button
+10. Verify loading states appear during badge operations
+11. Test as non-admin: verify no Admin Console entry in Settings and /admin redirects to /settings
+12. Test auth failure scenarios: should show "Not authorized" error and redirect
 
 RISKS EDGE CASES
-- Admin status determined server-authoritatively via GET /api/admin/me
-- checkAdminStatus() fails safe: returns { isAdmin: false } on any error
-- searchUsers() throws on 401/403 for proper auth error handling
-- Admin console hard gate immediately redirects non-admins to /settings  
-- All admin API calls require bearer token through existing authClient
-- Admin entry in settings is hidden by default and only shows when isAdmin is true
+- Badge operations use optimistic UI - if network fails after UI update, may show incorrect state briefly
+- Auth failures (401/403) properly redirect admin back to settings and clear admin UI
+- Network errors show inline error messages and allow retry without blocking UI
+- Badge action buttons disable during loading to prevent double-submissions
+- Empty states handled gracefully (no badges available, user has no badges, etc)
+- Selected user state clears when performing new search to avoid confusion
+- All badge management requires platform admin status via server-authoritative /api/admin/me check
 
 TERMINAL COMMANDS
 
-npm run typecheck
-
 git status
+
+npm run typecheck  
 
 git diff --stat
 
