@@ -55,3 +55,9 @@ bun.lock
 
 # local handoff notes
 *_HANDOFF.txt
+
+# local handoff notes
+CIRCLE_CHAT_PUSH_HANDOFF.md
+REFERRALS_REWARDS_HANDOFF.md
+UI_REVISIONS_IMPLEMENTATION_HANDOFF.md
+UX_NO_DEAD_ENDS_HANDOFF.md
