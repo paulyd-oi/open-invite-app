@@ -49,8 +49,8 @@ export default function AdminConsole() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
-      const results = await searchUsers(searchQuery);
-      setSearchResults(results);
+      const response = await searchUsers(searchQuery);
+      setSearchResults(response.users);
     } catch (error) {
       setSearchResults([]);
     } finally {
@@ -58,17 +58,21 @@ export default function AdminConsole() {
     }
   };
 
-  // Show loading state during admin check
+  // Show loading state during admin check or render null when redirecting
   if (adminLoading || !adminStatus?.isAdmin) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }} className="text-base">
-            {adminLoading ? "Checking permissions..." : "Access denied"}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
+    if (adminLoading) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View className="flex-1 items-center justify-center">
+            <Text style={{ color: colors.textSecondary }} className="text-base">
+              Checking permissions...
+            </Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+    // Redirecting - render null
+    return null;
   }
 
   return (
