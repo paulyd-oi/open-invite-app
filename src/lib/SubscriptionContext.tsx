@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { api } from "./api";
 import { useSession } from "./useSession";
 import {
@@ -8,7 +8,8 @@ import {
   purchasePackage,
   restorePurchases,
 } from "./revenuecatClient";
-import type { PurchasesPackage } from "react-native-purchases";
+import type { PurchasesPackage, PurchasesOfferings } from "react-native-purchases";
+import Purchases from "react-native-purchases";
 
 interface SubscriptionFeatures {
   unlimitedFriends: boolean;
@@ -41,22 +42,26 @@ interface SubscriptionContextType {
   canUseFeature: (feature: keyof SubscriptionFeatures) => boolean;
   purchase: (packageOrProduct: PurchasesPackage) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
   restore: () => Promise<{ ok: boolean; error?: string }>;
-  getOfferings: () => Promise<{ ok: boolean; data?: any; error?: string }>;
-  selectDefaultPackage: () => Promise<PurchasesPackage | null>;
+  getOfferings: () => Propreferred?: "yearly" | "monthly") => Promise<PurchasesPackage | null>;
+  openPaywall: (options?: { source?: string; preferred?: "yearly" | "monthly" }) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
+  offerings: PurchasesOfferings | null;
+  offeringsStatus: "idle" | "loading" | "ready" | "error"
   openPaywall: () => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
-  subscription: null,
-  limits: null,
+  features: null,
+  isPremium: false,
+  isLoading: true,
+  refresh: async () => {},
+  canUseFeature: () => true,
   purchase: async () => ({ ok: false, error: "Not initialized" }),
   restore: async () => ({ ok: false, error: "Not initialized" }),
   getOfferings: async () => ({ ok: false, error: "Not initialized" }),
   selectDefaultPackage: async () => null,
   openPaywall: async () => ({ ok: false, error: "Not initialized" }),
-  features: null,
-  isPremium: false,
-  isLoading: true,
+  offerings: null,
+  offeringsStatus: "idle"
   refresh: async () => {},
   canUseFeature: () => true,
 });
@@ -74,6 +79,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [features, setFeatures] = useState<SubscriptionFeatures | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
+  const [offeringsStatus, setOfferingsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const listenerRegistered = useRef(false);
 
   const fetchSubscription = useCallback(async () => {
     // Note: session is optional enrichment - subscription endpoint validates via Bearer token
@@ -113,9 +121,60 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, [session]);
 
+  // Register customerInfo update listener
+  useEffect(() => {
+    if (!isRevenueCatEnabled() || listenerRegistered.current) {
+      return;
+    }
+
+    try {
+      const listener = Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+        if (__DEV__) {
+          console.log("[SubscriptionContext] CustomerInfo updated:", !!customerInfo.entitlements?.active?.premium);
+        }
+        const hasPremium = !!customerInfo.entitlements?.active?.premium;
+        setIsPremium(hasPremium);
+        // Optionally refresh full subscription data
+        fetchSubscription();
+      });
+
+      listenerRegistered.current = true;
+
+      return () => {
+        listener.remove();
+        listenerRegistered.current = false;
+      };
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[SubscriptionContext] Failed to register listener:", error);
+      }
+    }
+  }, [fetchSubscription]);
+
   useEffect(() => {
     fetchSubscription();
   }, [fetchSubscription]);
+
+  // Load offerings
+  useEffect(() => {
+    const loadOfferings = async () => {
+      if (!isRevenueCatEnabled() || offeringsStatus !== "idle") {
+        return;
+      }
+
+      setOfferingsStatus("loading");
+      const result = await getOfferings();
+
+      if (result.ok) {
+        setOfferings(result.data);
+        setOfferingsStatus("ready");
+      } else {
+        setOfferingsStatus("error");
+      }
+    };
+
+    loadOfferings();
+  }, [offeringsStatus]);
 
   const canUseFeature = useCallback(
     (feature: keyof SubscriptionFeatures): boolean => {
@@ -131,16 +190,30 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return { ok: false, error: "RevenueCat not configured" };
     }
 
-    const result = await purchasePackage(packageOrProduct);
+    try {
+      const result = await purchasePackage(packageOrProduct);
 
-    if (result.ok) {
-      // Refresh subscription state
-      await fetchSubscription();
-      return { ok: true };
-    } else {
-      const errorMsg = typeof result.error === "string" ? result.error : "Purchase failed";
-      const isCancelled = errorMsg.toLowerCase().includes("cancel");
-      return { ok: false, cancelled: isCancelled, error: errorMsg };
+      if (result.ok) {
+        // Force refresh subscription state
+        await fetchSubscription();
+        return { ok: true as const };
+      } else {
+        // Handle SDK errors
+        const error = result.error;
+        if (typeof error === "object" && error !== null && "message" in error) {
+          const message = (error as any).message?.toLowerCase() || "";
+          if (message.includes("cancel") || message.includes("user cancelled")) {
+            return { ok: false as const, cancelled: true };
+          }
+        }
+        const errorMsg = typeof error === "string" ? error : "Purchase failed";
+        return { ok: false as const, error: errorMsg };
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[SubscriptionContext] Purchase error:", error);
+      }
+      return { ok: false as const, error: "Purchase failed" };
     }
   }, [fetchSubscription]);
 
@@ -150,15 +223,22 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return { ok: false, error: "RevenueCat not configured" };
     }
 
-    const result = await restorePurchases();
+    try {
+      const result = await restorePurchases();
 
-    if (result.ok) {
-      // Refresh subscription state
-      await fetchSubscription();
-      return { ok: true };
-    } else {
-      const errorMsg = typeof result.error === "string" ? result.error : "Restore failed";
-      return { ok: false, error: errorMsg };
+      if (result.ok) {
+        // Force refresh subscription state
+        await fetchSubscription();
+        return { ok: true as const };
+      } else {
+        const errorMsg = typeof result.error === "string" ? result.error : "Restore failed";
+        return { ok: false as const, error: errorMsg };
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[SubscriptionContext] Restore error:", error);
+      }
+      return { ok: false as const, error: "Restore failed" };
     }
   }, [fetchSubscription]);
 
@@ -168,26 +248,69 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return { ok: false, error: "RevenueCat not configured" };
     }
 
+    // Return cached offerings if available
+    if (offerings) {
+      return { ok: true, data: offerings };
+    }
+
+    // Otherwise fetch fresh
     const result = await getOfferings();
 
     if (result.ok) {
+      setOfferings(result.data);
+      setOfferingsStatus("ready");
       return { ok: true, data: result.data };
     } else {
+      setOfferingsStatus("error");
       return { ok: false, error: "Failed to load offerings" };
+    }
+  }, [offerings]);
+
+  // Retry loading offerings (for error recovery)
+  const retryOfferings = useCallback(async () => {
+    setOfferingsStatus("loading");
+    const result = await getOfferings();
+
+    if (result.ok) {
+      setOfferings(result.data);
+      setOfferingsStatus("ready");
+    } else {
+      setOfferingsStatus("error");
     }
   }, []);
 
-  // Select default package (prefer annual)
-  const selectDefaultPackage = useCallback(async (): Promise<PurchasesPackage | null> => {
+  // Select default package (prefer annual or user preference)
+  const selectDefaultPackage = useCallback(async (preferred?: "yearly" | "monthly"): Promise<PurchasesPackage | null> => {
     if (!isRevenueCatEnabled()) {
       return null;
     }
 
-    const result = await getOfferings();
+    // Use cached offerings if available
+    let currentOfferings = offerings;
 
-    if (result.ok && result.data.current) {
-      const packages = result.data.current.availablePackages;
-      // Prefer annual, then monthly, then any
+    // If not cached, fetch
+    if (!currentOfferings) {
+      const result = await getOfferings();
+      if (result.ok && result.data.current) {
+        currentOfferings = result.data;
+        setOfferings(currentOfferings);
+        setOfferingsStatus("ready");
+      }
+    }
+
+    if (currentOfferings?.current) {
+      const packages = currentOfferings.current.availablePackages;
+
+      // If user has preference, try that first
+      if (preferred === "yearly") {
+        const annual = packages.find((p) => p.identifier === "$rc_annual");
+        if (annual) return annual;
+      } else if (preferred === "monthly") {
+        const monthly = packages.find((p) => p.identifier === "$rc_monthly");
+        if (monthly) return monthly;
+      }
+
+      // Default preference: annual > monthly > any
       const annual = packages.find((p) => p.identifier === "$rc_annual");
       if (annual) return annual;
 
@@ -198,14 +321,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     return null;
-  }, []);
+  }, [offerings]);
 
-  // Open paywall - trigger purchase flow directly
-  const openPaywall = useCallback(async () => {
-    const packageToPurchase = await selectDefaultPackage();
+  // Open paywall - trigger purchase flow directly with options
+  const openPaywall = useCallback(async (options?: { source?: string; preferred?: "yearly" | "monthly" }) => {
+    const packageToPurchase = await selectDefaultPackage(options?.preferred);
 
     if (!packageToPurchase) {
-      return { ok: false, error: "No packages available" };
+      return { ok: false as const, error: "No packages available" };
     }
 
     return await purchase(packageToPurchase);
@@ -226,6 +349,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         getOfferings: getOfferingsWrapper,
         selectDefaultPackage,
         openPaywall,
+        offerings,
+        offeringsStatus,
       }}
     >
       {children}
