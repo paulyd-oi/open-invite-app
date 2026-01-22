@@ -27,6 +27,7 @@ type SessionData = {
     handle?: string | null;
     image?: string | null;
     email?: string | null;
+    emailVerified?: boolean | null;
   };
 } | null;
 

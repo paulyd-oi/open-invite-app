@@ -68,6 +68,7 @@ export type Session = {
     handle?: string | null;
     image?: string | null;
     email?: string | null;
+    emailVerified?: boolean | null;
   };
 } | null;
 
@@ -298,12 +299,41 @@ export const authClient = {
       try {
         const data = await $fetch('/api/auth/sign-in/email', { method: 'POST', body: opts });
         
-        // Check if response contains a token and save it
-        if (data && typeof data === 'object' && 'token' in data) {
-          if (__DEV__) {
-            console.log('[authClient.signIn] Received token, saving to SecureStore');
+        // Extract and save token with detailed diagnostics
+        let tokenValue: string | null = null;
+        
+        if (data && typeof data === 'object') {
+          if ('token' in data) {
+            const tokenField = (data as any).token;
+            
+            if (typeof tokenField === 'string') {
+              tokenValue = tokenField;
+              if (__DEV__) {
+                console.log('[authClient.signIn] Token is string', { tokenLen: tokenField.length });
+              }
+            } else if (typeof tokenField === 'object' && tokenField !== null) {
+              if (__DEV__) {
+                console.log('[authClient.signIn] Token is object', { keys: Object.keys(tokenField) });
+              }
+              // Try to extract nested token
+              if ('token' in tokenField && typeof tokenField.token === 'string') {
+                tokenValue = tokenField.token;
+              } else if ('value' in tokenField && typeof tokenField.value === 'string') {
+                tokenValue = tokenField.value;
+              }
+            } else if (__DEV__) {
+              console.log('[authClient.signIn] Token type:', typeof tokenField);
+            }
           }
-          await setAuthToken(data.token as string);
+          
+          if (tokenValue) {
+            await setAuthToken(tokenValue);
+            if (__DEV__) {
+              console.log('[authClient.signIn] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
+            }
+          } else if (__DEV__) {
+            console.log('[authClient.signIn] No token found in response', { topKeys: Object.keys(data) });
+          }
         }
         
         return { data } as any;
@@ -318,12 +348,42 @@ export const authClient = {
       try {
         const data = await $fetch('/api/auth/sign-up/email', { method: 'POST', body: opts });
         
-        // Check if response contains a token and save it
-        if (data && typeof data === 'object' && 'token' in data) {
-          if (__DEV__) {
-            console.log('[authClient.signUp] Received token, saving to SecureStore');
+        // Extract and save token with detailed diagnostics
+        let tokenValue: string | null = null;
+        
+        if (data && typeof data === 'object') {
+          // Check if token exists and extract it
+          if ('token' in data) {
+            const tokenField = (data as any).token;
+            
+            if (typeof tokenField === 'string') {
+              tokenValue = tokenField;
+              if (__DEV__) {
+                console.log('[authClient.signUp] Token is string', { tokenLen: tokenField.length });
+              }
+            } else if (typeof tokenField === 'object' && tokenField !== null) {
+              if (__DEV__) {
+                console.log('[authClient.signUp] Token is object', { keys: Object.keys(tokenField) });
+              }
+              // Try to extract nested token
+              if ('token' in tokenField && typeof tokenField.token === 'string') {
+                tokenValue = tokenField.token;
+              } else if ('value' in tokenField && typeof tokenField.value === 'string') {
+                tokenValue = tokenField.value;
+              }
+            } else if (__DEV__) {
+              console.log('[authClient.signUp] Token type:', typeof tokenField);
+            }
           }
-          await setAuthToken(data.token as string);
+          
+          if (tokenValue) {
+            await setAuthToken(tokenValue);
+            if (__DEV__) {
+              console.log('[authClient.signUp] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
+            }
+          } else if (__DEV__) {
+            console.log('[authClient.signUp] No token found in response', { topKeys: Object.keys(data) });
+          }
         }
         
         return { data } as any;

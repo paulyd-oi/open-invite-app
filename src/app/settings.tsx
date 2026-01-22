@@ -44,6 +44,7 @@ import {
   Users,
   Sparkles,
   Copy,
+  Mail,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -1169,6 +1170,47 @@ export default function SettingsScreen() {
                 </View>
               </View>
             )}
+          </View>
+        </Animated.View>
+
+        {/* Account Section */}
+        <Animated.View entering={FadeInDown.delay(120).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ACCOUNT</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            <SettingItem
+              icon={<Mail size={20} color={session?.user?.emailVerified ? "#10B981" : "#F59E0B"} />}
+              title="Email verification"
+              subtitle={
+                session?.user?.emailVerified 
+                  ? "Verified" 
+                  : "Not verified • Verify your email to help keep your account secure."
+              }
+              isDark={isDark}
+              onPress={() => {
+                if (!session?.user?.emailVerified) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/verify-email");
+                }
+              }}
+              rightElement={
+                session?.user?.emailVerified ? (
+                  <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#10B98120" }}>
+                    <Text style={{ color: "#10B981" }} className="text-xs font-medium">Verified</Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push("/verify-email");
+                    }}
+                    className="px-3 py-1.5 rounded-lg"
+                    style={{ backgroundColor: `${themeColor}20` }}
+                  >
+                    <Text style={{ color: themeColor }} className="text-sm font-medium">Verify now</Text>
+                  </Pressable>
+                )
+              }
+            />
           </View>
         </Animated.View>
 
