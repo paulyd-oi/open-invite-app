@@ -46,12 +46,21 @@ import { toUserMessage, logError } from "@/lib/errors";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
 import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
+import { SoftLimitModal } from "@/components/SoftLimitModal";
+import { useSubscription } from "@/lib/SubscriptionContext";
+import {
+  MAX_ACTIVE_EVENTS_FREE,
+  getActiveEventCount,
+  hasShownActiveEventsPrompt,
+  markActiveEventsPromptShown,
+} from "@/lib/softLimits";
 import {
   type CreateEventRequest,
   type CreateEventResponse,
   type GetGroupsResponse,
   type FriendGroup,
   type GetProfilesResponse,
+  type GetEventsResponse,
 } from "@/shared/contracts";
 import { EventCategoryPicker, type EventCategory } from "@/components/EventCategoryPicker";
 import { SuggestedTimesPicker } from "@/components/SuggestedTimesPicker";
@@ -367,9 +376,11 @@ export default function CreateEventScreen() {
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
   const [showNotificationNudge, setShowNotificationNudge] = useState(false);
+  const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
+  const { isPremium, openPaywall } = useSubscription();
 
   // Check for pending ICS import on mount
   useEffect(() => {
@@ -455,6 +466,16 @@ export default function CreateEventScreen() {
 
   const groups = groupsData?.groups ?? [];
 
+  // Fetch my events for active event counting (soft-limit check)
+  const { data: myEventsData } = useQuery({
+    queryKey: ["events", "mine"],
+    queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
+    enabled: !!session && !isPremium,
+  });
+
+  const myEvents = myEventsData?.events ?? [];
+  const activeEventCount = getActiveEventCount(myEvents);
+
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
       api.post<CreateEventResponse>("/api/events", data),
@@ -534,6 +555,14 @@ export default function CreateEventScreen() {
       return;
     }
 
+    // Soft-limit check: Show upgrade prompt for free users hitting active events limit
+    if (!isPremium && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      markActiveEventsPromptShown();
+      setShowSoftLimitModal(true);
+      return;
+    }
+
     // Check entitlements before creating
     const isRecurring = frequency !== "once";
     const check = canCreateEvent(entitlements, isRecurring);
@@ -560,6 +589,22 @@ export default function CreateEventScreen() {
       recurrence: isRecurring ? frequency : undefined,
       sendNotification,
     });
+  };
+
+  // Handle soft-limit modal upgrade action
+  const handleSoftLimitUpgrade = async () => {
+    setShowSoftLimitModal(false);
+    // Try to open paywall directly, or route to subscription page as fallback
+    const result = await openPaywall();
+    if (!result.ok && result.error) {
+      // If openPaywall fails, route to subscription page
+      router.push("/subscription?source=soft_limit_active_events");
+    }
+  };
+
+  const handleSoftLimitDismiss = () => {
+    setShowSoftLimitModal(false);
+    // User can continue creating the event after dismissing
   };
 
   const toggleGroup = (groupId: string) => {
@@ -1433,6 +1478,15 @@ export default function CreateEventScreen() {
       <NotificationNudgeModal
         visible={showNotificationNudge}
         onClose={() => setShowNotificationNudge(false)}
+      />
+
+      {/* Soft-Limit Modal */}
+      <SoftLimitModal
+        visible={showSoftLimitModal}
+        onUpgrade={handleSoftLimitUpgrade}
+        onDismiss={handleSoftLimitDismiss}
+        title="You're organizing a lot"
+        description="Premium removes limits and adds smart reminders."
       />
     </SafeAreaView>
   );

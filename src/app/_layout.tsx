@@ -30,6 +30,8 @@ import { initNetworkMonitoring } from '@/lib/networkStatus';
 import { useOfflineSync } from '@/lib/offlineSync';
 import { BACKEND_URL } from '@/lib/config';
 import { useBootAuthority } from '@/hooks/useBootAuthority';
+import { useReferralClaim } from '@/hooks/useReferralClaim';
+import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -61,6 +63,12 @@ function BootRouter() {
   const navigationState = useRootNavigationState();
   const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
+
+  // Claim any pending referral code once authed (one-shot, never blocks UI)
+  useReferralClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
+
+  // Fetch entitlements once authed (one-shot, never blocks UI)
+  useEntitlementsSync({ bootStatus });
 
   // Wait for navigation state to be ready before routing
   useEffect(() => {

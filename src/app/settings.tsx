@@ -74,6 +74,7 @@ import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
+import { useEntitlements, useRefreshEntitlements, isPro } from "@/lib/entitlements";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -478,6 +479,25 @@ export default function SettingsScreen() {
     enabled: !!session,
     retry: false,
   });
+
+  // Entitlements for premium status display
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
+  const refreshEntitlements = useRefreshEntitlements();
+  const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
+  const userIsPremium = isPro(entitlements);
+
+  const handleRefreshEntitlements = async () => {
+    setIsRefreshingEntitlements(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await refreshEntitlements();
+      safeToast.success("Updated", "Premium status refreshed");
+    } catch (error) {
+      safeToast.error("Error", "Failed to refresh status");
+    } finally {
+      setIsRefreshingEntitlements(false);
+    }
+  };
 
   // Sync birthday state from profile data
   useEffect(() => {
@@ -1770,6 +1790,88 @@ export default function SettingsScreen() {
                 router.push("/privacy-settings");
               }}
             />
+          </View>
+        </Animated.View>
+
+        {/* Premium Status Section */}
+        <Animated.View entering={FadeInDown.delay(245).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PREMIUM STATUS</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            {/* Current Status */}
+            <View className="p-4" style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}>
+              <View className="flex-row items-center">
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: userIsPremium ? "#FFD70020" : isDark ? "#2C2C2E" : "#F9FAFB" }}
+                >
+                  <Crown size={20} color={userIsPremium ? "#FFD700" : colors.textSecondary} />
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.text }} className="text-base font-medium">
+                    {userIsPremium ? "Premium Member" : "Free Plan"}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">
+                    {userIsPremium 
+                      ? `Plan: ${entitlements?.plan || "PRO"}`
+                      : "Upgrade to unlock all features"
+                    }
+                  </Text>
+                </View>
+                {userIsPremium && (
+                  <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#10B98120" }}>
+                    <Text style={{ color: "#10B981" }} className="text-xs font-medium">Active</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Upgrade CTA (only show for free users) */}
+            {!userIsPremium && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/paywall");
+                }}
+                className="flex-row items-center p-4"
+                style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: `${themeColor}20` }}
+                >
+                  <Sparkles size={20} color={themeColor} />
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.text }} className="text-base font-medium">Upgrade to Premium</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited friends & events</Text>
+                </View>
+                <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
+                  <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>
+                </View>
+              </Pressable>
+            )}
+
+            {/* Refresh Status Button */}
+            <Pressable
+              onPress={handleRefreshEntitlements}
+              disabled={isRefreshingEntitlements || entitlementsLoading}
+              className="flex-row items-center p-4"
+            >
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+              >
+                <RotateCcw size={20} color={colors.textSecondary} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="text-base font-medium">
+                  {isRefreshingEntitlements ? "Refreshing..." : "Refresh Premium Status"}
+                </Text>
+                <Text style={{ color: colors.textSecondary }} className="text-sm">
+                  Sync your subscription status
+                </Text>
+              </View>
+            </Pressable>
           </View>
         </Animated.View>
 

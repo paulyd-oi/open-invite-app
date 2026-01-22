@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   ChevronLeft,
   Crown,
@@ -88,6 +88,7 @@ export default function SubscriptionScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   const subscription = useSubscription();
+  const { source } = useLocalSearchParams<{ source?: string }>();
 
   const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
   const [promoCode, setPromoCode] = useState("");
@@ -271,6 +272,34 @@ export default function SubscriptionScreen() {
   };
 
   const statusContent = getStatusContent();
+
+  // Get source-aware messaging
+  const getSourceCopy = () => {
+    switch (source) {
+      case "soft_limit_active_events":
+        return {
+          headline: "Premium for organizers",
+          subhead: "Unlimited active events and smarter reminders.",
+        };
+      case "poll_attempt":
+        return {
+          headline: "Unlock event polls",
+          subhead: "Get instant RSVP commitments with premium polls.",
+        };
+      case "insights_attempt":
+        return {
+          headline: "Premium insights",
+          subhead: "See who you hang out with most and when.",
+        };
+      default:
+        return {
+          headline: "Pro is for organizers",
+          subhead: "Designed for the people who bring friends together. Friends can always join and participate for free.",
+        };
+    }
+  };
+
+  const sourceCopy = getSourceCopy();
 
   // Grouped comparison features
   const featureCategories: FeatureCategory[] = [
@@ -458,11 +487,11 @@ export default function SubscriptionScreen() {
               <View className="flex-row items-center mb-2">
                 <Crown size={18} color={themeColor} />
                 <Text style={{ color: colors.text }} className="ml-2 font-semibold">
-                  Pro is for organizers
+                  {sourceCopy.headline}
                 </Text>
               </View>
               <Text style={{ color: colors.textSecondary }} className="text-sm leading-5">
-                Designed for the people who bring friends together. Friends can always join and participate for free.
+                {sourceCopy.subhead}
               </Text>
             </View>
           </Animated.View>

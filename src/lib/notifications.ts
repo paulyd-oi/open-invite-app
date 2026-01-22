@@ -113,6 +113,40 @@ export async function getStoredPushToken(): Promise<string | null> {
 }
 
 /**
+ * Get current notification permission status without requesting
+ * Returns: 'granted' | 'denied' | 'undetermined'
+ */
+export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch (error) {
+    console.log('[Push] Error checking permission status:', error);
+    return 'undetermined';
+  }
+}
+
+/**
+ * Request notification permissions
+ * Returns true if granted
+ */
+export async function requestNotificationPermission(): Promise<boolean> {
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    
+    if (existingStatus === 'granted') {
+      return true;
+    }
+    
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === 'granted';
+  } catch (error) {
+    console.log('[Push] Error requesting permission:', error);
+    return false;
+  }
+}
+
+/**
  * Schedule a local notification
  */
 export async function scheduleLocalNotification({

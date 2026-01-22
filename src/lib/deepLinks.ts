@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseICS, isValidICSContent } from './icsParser';
+import { handleReferralUrl } from './referral';
 
 // Backend URL for generating shareable links (Render production)
 export const BACKEND_URL = 'https://open-invite-api.onrender.com';
@@ -246,8 +247,9 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'invite':
       if (parsed.code) {
-        // Navigate to calendar with referral code stored
-        // The app will handle applying the referral after signup
+        // Store referral code for later claim after signup/login
+        await handleReferralUrl(url);
+        // Navigate to calendar (or welcome if not logged in, handled by nav guards)
         router.push('/calendar');
         return true;
       }

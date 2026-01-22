@@ -225,8 +225,12 @@ export default function ReferralsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
+      // Include both the deep link for auto-capture and plain code for manual entry
+      const deepLink = `openinvite://?ref=${stats.referralCode}`;
+      const message = `Join me on Open Invite! Use my code ${stats.referralCode} or tap ${deepLink}`;
+      
       await Share.share({
-        message: `Join me on Open Invite! Use my code ${stats.referralCode} when you sign up. Download: ${stats.shareLink}`,
+        message,
         title: "Invite friends to Open Invite",
       });
     } catch (error) {

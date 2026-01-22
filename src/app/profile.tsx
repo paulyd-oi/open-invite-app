@@ -28,6 +28,7 @@ import {
   Star,
   Heart,
   ChevronRight,
+  Crown,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -45,6 +46,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
+import { useEntitlements, isPro } from "@/lib/entitlements";
 import {
   type GetGroupsResponse,
   type GetFriendsResponse,
@@ -71,6 +73,10 @@ export default function ProfileScreen() {
   const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
+
+  // Entitlements for premium badge
+  const { data: entitlements } = useEntitlements();
+  const userIsPremium = isPro(entitlements);
 
   // Timeout for graceful degraded mode when loading takes too long
   const isBootLoading = bootStatus === 'loading';
@@ -288,9 +294,16 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* Profile Card */}
+        {/* Profile Card - Premium users get gold border */}
         <Animated.View entering={FadeInDown.delay(0).springify()}>
-          <View className="rounded-2xl p-5 border mb-4" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
+          <View 
+            className="rounded-2xl p-5 border mb-4" 
+            style={{ 
+              backgroundColor: colors.surface, 
+              borderColor: userIsPremium ? "#FFD700" : colors.border,
+              borderWidth: userIsPremium ? 2 : 1,
+            }}
+          >
             <View className="flex-row items-center">
               <View className="relative">
                 <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
@@ -304,12 +317,27 @@ export default function ProfileScreen() {
                     </View>
                   )}
                 </View>
+                {/* Premium badge on avatar */}
+                {userIsPremium && (
+                  <View 
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
+                    style={{ backgroundColor: "#FFD700" }}
+                  >
+                    <Crown size={12} color="#FFFFFF" />
+                  </View>
+                )}
               </View>
               <View className="flex-1 ml-4">
                 <View className="flex-row items-center">
                   <Text className="text-xl font-sora-bold" style={{ color: colors.text }}>
                     {displayName}
                   </Text>
+                  {/* Premium badge next to name */}
+                  {userIsPremium && (
+                    <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FFD70020" }}>
+                      <Text className="text-xs font-semibold" style={{ color: "#B8860B" }}>PRO</Text>
+                    </View>
+                  )}
                 </View>
                 {userHandle && (
                   <Text className="text-sm" style={{ color: colors.textSecondary }}>
@@ -508,6 +536,83 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </Pressable>
+        </Animated.View>
+
+        {/* Social Insights - Premium Feature */}
+        <Animated.View entering={FadeInDown.delay(225).springify()} className="mb-4">
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-row items-center">
+              <Flame size={16} color="#FF6B4A" />
+              <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
+                Social Insights
+              </Text>
+              {!userIsPremium && (
+                <View className="ml-2 px-2 py-0.5 rounded-full flex-row items-center" style={{ backgroundColor: "#FFD70020" }}>
+                  <Crown size={10} color="#B8860B" />
+                  <Text className="text-xs font-medium ml-1" style={{ color: "#B8860B" }}>PRO</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <View 
+            className="rounded-xl p-4 border" 
+            style={{ 
+              backgroundColor: colors.surface, 
+              borderColor: userIsPremium ? colors.border : "#FFD70040",
+              borderWidth: userIsPremium ? 1 : 1.5,
+            }}
+          >
+            {userIsPremium ? (
+              // Unlocked content for premium users
+              <View>
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="font-medium" style={{ color: colors.text }}>Activity Score</Text>
+                  <Text className="text-lg font-bold" style={{ color: themeColor }}>
+                    {Math.min(100, (stats?.hostedCount ?? 0) * 10 + (stats?.attendedCount ?? 0) * 5)}
+                  </Text>
+                </View>
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="font-medium" style={{ color: colors.text }}>Social Reach</Text>
+                  <Text className="text-lg font-bold" style={{ color: "#4ECDC4" }}>
+                    {friendsCount * 2 + (stats?.hostedCount ?? 0)}
+                  </Text>
+                </View>
+                <View className="flex-row items-center justify-between">
+                  <Text className="font-medium" style={{ color: colors.text }}>Host Ratio</Text>
+                  <Text className="text-lg font-bold" style={{ color: "#FF6B4A" }}>
+                    {stats?.hostedCount && stats?.attendedCount 
+                      ? Math.round((stats.hostedCount / (stats.hostedCount + stats.attendedCount)) * 100) 
+                      : 0}%
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              // Locked content for free users
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/paywall");
+                }}
+                className="items-center py-4"
+              >
+                <View 
+                  className="w-12 h-12 rounded-full items-center justify-center mb-3"
+                  style={{ backgroundColor: "#FFD70020" }}
+                >
+                  <Crown size={24} color="#FFD700" />
+                </View>
+                <Text className="font-semibold mb-1" style={{ color: colors.text }}>
+                  Unlock Social Insights
+                </Text>
+                <Text className="text-sm text-center mb-3" style={{ color: colors.textSecondary }}>
+                  See your activity score, social reach, and hosting patterns
+                </Text>
+                <View className="px-4 py-2 rounded-full" style={{ backgroundColor: themeColor }}>
+                  <Text className="text-white font-medium text-sm">Upgrade to Pro</Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
         </Animated.View>
 
         {/* Quick Stats Row */}
