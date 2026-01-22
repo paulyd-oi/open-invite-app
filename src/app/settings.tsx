@@ -73,6 +73,7 @@ import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
+import { checkAdminStatus } from "@/lib/adminApi";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -454,6 +455,14 @@ export default function SettingsScreen() {
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: !!session,
+  });
+
+  // Check admin status (fail safe - returns isAdmin: false on any error)
+  const { data: adminStatus } = useQuery({
+    queryKey: ["adminStatus"],
+    queryFn: checkAdminStatus,
+    enabled: !!session,
+    retry: false,
   });
 
   // Sync birthday state from profile data
@@ -1779,6 +1788,25 @@ export default function SettingsScreen() {
             />
           </View>
         </Animated.View>
+
+        {/* Admin Section - Only visible to admins */}
+        {adminStatus?.isAdmin && (
+          <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
+            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+              <SettingItem
+                icon={<Shield size={20} color="#10B981" />}
+                title="Admin Console"
+                subtitle="Platform administration tools"
+                isDark={isDark}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/admin");
+                }}
+              />
+            </View>
+          </Animated.View>
+        )}
 
         {/* Legal Section */}
         <Animated.View entering={FadeInDown.delay(275).springify()} className="mx-4 mt-6">

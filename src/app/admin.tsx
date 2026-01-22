@@ -1,0 +1,228 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  TextInput,
+  Platform,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
+import { ChevronLeft, Search, Shield } from "@/ui/icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+
+import { checkAdminStatus, searchUsers, type UserSearchResult } from "@/lib/adminApi";
+import { useTheme } from "@/lib/ThemeContext";
+import { BACKEND_URL } from "@/lib/config";
+
+export default function AdminConsole() {
+  const router = useRouter();
+  const { isDark, colors, themeColor } = useTheme();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Check admin status and redirect if not admin
+  const { data: adminStatus, isLoading: adminLoading } = useQuery({
+    queryKey: ["adminStatus"],
+    queryFn: checkAdminStatus,
+    retry: false,
+  });
+
+  // Redirect non-admins back to settings
+  React.useEffect(() => {
+    if (!adminLoading && adminStatus && !adminStatus.isAdmin) {
+      if (__DEV__) {
+        console.log("[Admin] Access denied - redirecting to settings");
+      }
+      router.replace("/settings");
+    }
+  }, [adminStatus, adminLoading, router]);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || isSearching) return;
+
+    setIsSearching(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      const results = await searchUsers(searchQuery);
+      setSearchResults(results);
+    } catch (error) {
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Show loading state during admin check
+  if (adminLoading || !adminStatus?.isAdmin) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textSecondary }} className="text-base">
+            {adminLoading ? "Checking permissions..." : "Access denied"}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <Animated.View
+          entering={FadeInDown.delay(100).springify()}
+          className="flex-row items-center justify-between px-4 py-2"
+        >
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <ChevronLeft size={20} color={colors.text} />
+          </Pressable>
+
+          <Text
+            style={{ color: colors.text }}
+            className="text-xl font-semibold tracking-tight"
+          >
+            Admin Console
+          </Text>
+
+          <View className="w-10 h-10" />
+        </Animated.View>
+
+        {/* Overview Section */}
+        <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">OVERVIEW</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl p-4">
+            <View className="flex-row items-center mb-3">
+              <Shield size={20} color="#10B981" />
+              <Text className="ml-2 text-base font-medium" style={{ color: colors.text }}>
+                Platform Admin
+              </Text>
+            </View>
+            
+            <View className="space-y-2">
+              <View className="flex-row justify-between">
+                <Text style={{ color: colors.textSecondary }} className="text-sm">Backend URL</Text>
+                <Text style={{ color: colors.text }} className="text-sm font-mono">{BACKEND_URL}</Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text style={{ color: colors.textSecondary }} className="text-sm">App Version</Text>
+                <Text style={{ color: colors.text }} className="text-sm">1.0.0</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* User Lookup Section */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">USER LOOKUP</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            <View className="p-4">
+              <View className="flex-row space-x-2">
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search by name, username, or email..."
+                  placeholderTextColor={colors.textTertiary}
+                  className="flex-1 px-3 py-2 rounded-lg text-base"
+                  style={{ 
+                    backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
+                    color: colors.text,
+                    borderWidth: 1,
+                    borderColor: isDark ? "#38383A" : "#E5E7EB",
+                  }}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+                <Pressable
+                  onPress={handleSearch}
+                  disabled={isSearching || !searchQuery.trim()}
+                  className="px-4 py-2 rounded-lg flex-row items-center justify-center"
+                  style={{ 
+                    backgroundColor: themeColor,
+                    opacity: (isSearching || !searchQuery.trim()) ? 0.5 : 1,
+                  }}
+                >
+                  <Search size={16} color="white" />
+                  <Text className="ml-1 text-white font-medium">
+                    {isSearching ? "..." : "Search"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <View>
+                <View className="px-4 py-2 border-t" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                  <Text style={{ color: colors.textSecondary }} className="text-xs font-medium">
+                    {searchResults.length} RESULT{searchResults.length !== 1 ? "S" : ""}
+                  </Text>
+                </View>
+                {searchResults.map((user, index) => (
+                  <View
+                    key={user.id}
+                    className="px-4 py-3 border-t"
+                    style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}
+                  >
+                    <Text style={{ color: colors.text }} className="font-medium">
+                      {user.name || "No name"}
+                    </Text>
+                    {user.username && (
+                      <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
+                        @{user.username}
+                      </Text>
+                    )}
+                    {user.email && (
+                      <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
+                        {user.email}
+                      </Text>
+                    )}
+                    {user.createdAt && (
+                      <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                        Created: {new Date(user.createdAt).toLocaleDateString()}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {searchResults.length === 0 && searchQuery && !isSearching && (
+              <View className="px-4 py-6 border-t" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                <Text style={{ color: colors.textSecondary }} className="text-center">
+                  No users found for "{searchQuery}"
+                </Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* Admin Endpoints Status */}
+        <Animated.View entering={FadeInDown.delay(250).springify()} className="mx-4 mt-6 mb-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">STATUS</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl p-4">
+            <Text style={{ color: "#10B981" }} className="text-sm font-medium">
+              ✓ Admin endpoints available
+            </Text>
+            <Text style={{ color: colors.textSecondary }} className="text-xs mt-1">
+              Connected to {BACKEND_URL}
+            </Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
