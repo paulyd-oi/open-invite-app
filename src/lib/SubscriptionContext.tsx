@@ -42,14 +42,15 @@ interface SubscriptionContextType {
   canUseFeature: (feature: keyof SubscriptionFeatures) => boolean;
   purchase: (packageOrProduct: PurchasesPackage) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
   restore: () => Promise<{ ok: boolean; error?: string }>;
-  getOfferings: () => Propreferred?: "yearly" | "monthly") => Promise<PurchasesPackage | null>;
+  getOfferings: () => Promise<PurchasesOfferings | null>;
   openPaywall: (options?: { source?: string; preferred?: "yearly" | "monthly" }) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
   offerings: PurchasesOfferings | null;
-  offeringsStatus: "idle" | "loading" | "ready" | "error"
-  openPaywall: () => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
+  offeringsStatus: "idle" | "loading" | "ready" | "error";
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType>({
+  subscription: null,
+  limits: null,
   features: null,
   isPremium: false,
   isLoading: true,
@@ -57,13 +58,10 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   canUseFeature: () => true,
   purchase: async () => ({ ok: false, error: "Not initialized" }),
   restore: async () => ({ ok: false, error: "Not initialized" }),
-  getOfferings: async () => ({ ok: false, error: "Not initialized" }),
-  selectDefaultPackage: async () => null,
+  getOfferings: async () => null,
   openPaywall: async () => ({ ok: false, error: "Not initialized" }),
   offerings: null,
-  offeringsStatus: "idle"
-  refresh: async () => {},
-  canUseFeature: () => true,
+  offeringsStatus: "idle",
 });
 
 interface SubscriptionResponse {
@@ -128,7 +126,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      const listener = Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+      const listenerCallback = (customerInfo: any) => {
         if (__DEV__) {
           console.log("[SubscriptionContext] CustomerInfo updated:", !!customerInfo.entitlements?.active?.premium);
         }
@@ -136,12 +134,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         setIsPremium(hasPremium);
         // Optionally refresh full subscription data
         fetchSubscription();
-      });
+      };
 
+      Purchases.addCustomerInfoUpdateListener(listenerCallback);
       listenerRegistered.current = true;
 
       return () => {
-        listener.remove();
+        Purchases.removeCustomerInfoUpdateListener(listenerCallback);
         listenerRegistered.current = false;
       };
     } catch (error) {
@@ -243,14 +242,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [fetchSubscription]);
 
   // Get offerings wrapper
-  const getOfferingsWrapper = useCallback(async () => {
+  const getOfferingsWrapper = useCallback(async (): Promise<PurchasesOfferings | null> => {
     if (!isRevenueCatEnabled()) {
-      return { ok: false, error: "RevenueCat not configured" };
+      return null;
     }
 
     // Return cached offerings if available
     if (offerings) {
-      return { ok: true, data: offerings };
+      return offerings;
     }
 
     // Otherwise fetch fresh
@@ -259,10 +258,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (result.ok) {
       setOfferings(result.data);
       setOfferingsStatus("ready");
-      return { ok: true, data: result.data };
+      return result.data;
     } else {
       setOfferingsStatus("error");
-      return { ok: false, error: "Failed to load offerings" };
+      return null;
     }
   }, [offerings]);
 
@@ -347,7 +346,6 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         purchase,
         restore,
         getOfferings: getOfferingsWrapper,
-        selectDefaultPackage,
         openPaywall,
         offerings,
         offeringsStatus,

@@ -283,13 +283,23 @@ export default function SubscriptionScreen() {
         };
       case "poll_attempt":
         return {
-          headline: "Unlock event polls",
+          headline: "Decide faster with polls",
           subhead: "Get instant RSVP commitments with premium polls.",
         };
-      case "insights_attempt":
+      case "nudge_attempt":
         return {
-          headline: "Premium insights",
-          subhead: "See who you hang out with most and when.",
+          headline: "Increase attendance with nudges",
+          subhead: "Send smart reminders to boost turnout.",
+        };
+      case "templates_attempt":
+        return {
+          headline: "Save time with templates",
+          subhead: "Duplicate events and reuse successful setups.",
+        };
+      case "settings":
+        return {
+          headline: "Premium for organizers",
+          subhead: "Unlock all features and remove limits.",
         };
       default:
         return {

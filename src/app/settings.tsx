@@ -75,6 +75,7 @@ import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshEntitlements, isPro } from "@/lib/entitlements";
+import { useSubscription } from "@/lib/SubscriptionContext";
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -418,43 +419,6 @@ export default function SettingsScreen() {
     showOnCalendar: boolean;
   }
 
-  // Subscription state
-  const [isPremium, setIsPremium] = useState(false);
-  const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
-
-  // Check premium status on mount
-  useEffect(() => {
-    const checkPremiumStatus = async () => {
-      if (!isRevenueCatEnabled()) return;
-      const result = await hasEntitlement("premium");
-      if (result.ok) {
-        setIsPremium(result.data);
-      }
-    };
-    checkPremiumStatus();
-  }, []);
-
-  const handleRestorePurchases = async () => {
-    setIsRestoringPurchases(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const result = await restorePurchases();
-    if (result.ok) {
-      const entitlementResult = await hasEntitlement("premium");
-      if (entitlementResult.ok && entitlementResult.data) {
-        setIsPremium(true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        safeToast.success("Restored!", "Your premium subscription has been restored.");
-      } else {
-        safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
-      }
-    } else {
-      safeToast.error("Error", "Failed to restore purchases. Please try again.");
-    }
-
-    setIsRestoringPurchases(false);
-  };
-
   // Fetch work schedule
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
@@ -483,19 +447,41 @@ export default function SettingsScreen() {
   // Entitlements for premium status display
   const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
   const refreshEntitlements = useRefreshEntitlements();
+  const subscription = useSubscription();
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
+  const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
   const userIsPremium = isPro(entitlements);
 
   const handleRefreshEntitlements = async () => {
     setIsRefreshingEntitlements(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await refreshEntitlements();
+      await subscription.refresh();
       safeToast.success("Updated", "Premium status refreshed");
     } catch (error) {
       safeToast.error("Error", "Failed to refresh status");
     } finally {
       setIsRefreshingEntitlements(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    setIsRestoringPurchases(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const result = await subscription.restore();
+    setIsRestoringPurchases(false);
+
+    if (result.ok) {
+      const hasPremium = subscription.isPremium;
+      if (hasPremium) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        safeToast.success("Restored!", "Your subscription has been restored.");
+      } else {
+        safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
+      }
+    } else {
+      safeToast.error("Error", result.error || "Failed to restore purchases. Please try again.");
     }
   };
 
@@ -1477,10 +1463,10 @@ export default function SettingsScreen() {
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-base font-medium">Subscription</Text>
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {isPremium ? "Manage your plan" : "Upgrade to Premium"}
+                  {userIsPremium ? "Manage your plan" : "Upgrade to Premium"}
                 </Text>
               </View>
-              {isPremium && (
+              {userIsPremium && (
                 <View className="px-2 py-1 rounded-full mr-2" style={{ backgroundColor: "#10B98120" }}>
                   <Text style={{ color: "#10B981" }} className="text-xs font-medium">Active</Text>
                 </View>
@@ -1795,10 +1781,17 @@ export default function SettingsScreen() {
 
         {/* Premium Status Section */}
         <Animated.View entering={FadeInDown.delay(245).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PREMIUM STATUS</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PREMIUM</Text>
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
             {/* Current Status */}
-            <View className="p-4" style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/subscription?source=settings");
+              }}
+              className="p-4"
+              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+            >
               <View className="flex-row items-center">
                 <View
                   className="w-10 h-10 rounded-full items-center justify-center mr-3"
@@ -1807,30 +1800,25 @@ export default function SettingsScreen() {
                   <Crown size={20} color={userIsPremium ? "#FFD700" : colors.textSecondary} />
                 </View>
                 <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-base font-medium">
-                    {userIsPremium ? "Premium Member" : "Free Plan"}
-                  </Text>
+                  <Text style={{ color: colors.text }} className="text-base font-medium">Plan</Text>
                   <Text style={{ color: colors.textSecondary }} className="text-sm">
-                    {userIsPremium 
-                      ? `Plan: ${entitlements?.plan || "PRO"}`
-                      : "Upgrade to unlock all features"
-                    }
+                    {userIsPremium ? "Active" : "Free"}
                   </Text>
                 </View>
-                {userIsPremium && (
-                  <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#10B98120" }}>
-                    <Text style={{ color: "#10B981" }} className="text-xs font-medium">Active</Text>
-                  </View>
-                )}
+                <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
               </View>
-            </View>
+            </Pressable>
 
             {/* Upgrade CTA (only show for free users) */}
             {!userIsPremium && (
               <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/paywall");
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  const result = await subscription.openPaywall({ source: "settings", preferred: "yearly" });
+                  if (!result.ok && result.error && !result.cancelled) {
+                    // Fallback to subscription page
+                    router.push("/subscription?source=settings");
+                  }
                 }}
                 className="flex-row items-center p-4"
                 style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
@@ -1843,13 +1831,36 @@ export default function SettingsScreen() {
                 </View>
                 <View className="flex-1">
                   <Text style={{ color: colors.text }} className="text-base font-medium">Upgrade to Premium</Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited friends & events</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited features</Text>
                 </View>
                 <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>
                 </View>
               </Pressable>
             )}
+
+            {/* Restore Purchases */}
+            <Pressable
+              onPress={handleRestorePurchases}
+              disabled={isRestoringPurchases}
+              className="flex-row items-center p-4"
+              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+            >
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+              >
+                <RotateCcw size={20} color={colors.textSecondary} />
+              </View>
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="text-base font-medium">
+                  {isRestoringPurchases ? "Restoring..." : "Restore Purchases"}
+                </Text>
+                <Text style={{ color: colors.textSecondary }} className="text-sm">
+                  Recover previous purchases
+                </Text>
+              </View>
+            </Pressable>
 
             {/* Refresh Status Button */}
             <Pressable
