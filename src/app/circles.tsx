@@ -106,10 +106,10 @@ export default function CirclesScreen() {
             </View>
             <Pressable
               onPress={handleCreateCircle}
-              className="w-12 h-12 rounded-full items-center justify-center"
+              className="flex-row items-center px-4 py-2 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
-              <Plus size={24} color="#fff" />
+              <Text className="text-white font-semibold">Create</Text>
             </Pressable>
           </View>
         </View>

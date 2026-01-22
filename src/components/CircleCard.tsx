@@ -74,6 +74,12 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
       isSwipingRight.value = false;
     });
 
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(600) // 600ms for long press
+    .onEnd(() => {
+      runOnJS(triggerPin)();
+    });
+
   const animatedCardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
@@ -127,7 +133,7 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
       </View>
 
       {/* Card */}
-      <GestureDetector gesture={panGesture}>
+      <GestureDetector gesture={Gesture.Simultaneous(panGesture, longPressGesture)}>
         <Animated.View style={animatedCardStyle}>
           <Pressable
             onPress={handlePress}

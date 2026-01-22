@@ -4,6 +4,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, X, Check, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
+
+// Define the MoreHorizontal icon inline using Ionicons
+import { Ionicons } from "@expo/vector-icons";
+const MoreHorizontal: React.FC<{ size?: number; color?: string }> = ({ size = 24, color }) => (
+  <Ionicons name="ellipsis-horizontal" size={size} color={color as any} />
+);
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -457,6 +463,16 @@ export default function FriendDetailScreen() {
         options={{
           title: friend?.name ?? "Friend",
           headerStyle: { backgroundColor: colors.background },
+          headerRight: () => (
+            <Pressable
+              onPress={handleUnfriend}
+              className="w-8 h-8 rounded-full items-center justify-center mr-1"
+              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MoreHorizontal size={18} color={colors.textSecondary} />
+            </Pressable>
+          ),
         }}
       />
 
@@ -539,17 +555,6 @@ export default function FriendDetailScreen() {
                   Not set yet
                 </Text>
               )}
-
-              {/* Unfriend Button */}
-              <Pressable
-                onPress={handleUnfriend}
-                className="mt-4 px-4 py-2 rounded-full"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-              >
-                <Text className="text-sm font-medium" style={{ color: "#EF4444" }}>
-                  Unfriend
-                </Text>
-              </Pressable>
             </View>
           </Animated.View>
         )}

@@ -105,6 +105,15 @@ export function useNotifications() {
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         } else if (type === "join_request" || type === "join_accepted") {
           queryClient.invalidateQueries({ queryKey: ["events"] });
+        } else if (type === "circle_message") {
+          // Refresh circles to update unread counts
+          queryClient.invalidateQueries({ queryKey: ["circles"] });
+          // If we have the circleId, also refresh that specific circle's messages
+          const circleId = notification.request.content.data?.circleId;
+          if (circleId) {
+            queryClient.invalidateQueries({ queryKey: ["circle", circleId] });
+            queryClient.invalidateQueries({ queryKey: ["circle-messages", circleId] });
+          }
         }
       }
     );
@@ -116,6 +125,7 @@ export function useNotifications() {
         const type = data?.type;
         const eventId = data?.eventId;
         const friendId = data?.friendId;
+        const circleId = data?.circleId;
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -130,6 +140,8 @@ export function useNotifications() {
           router.push(`/friend/${friendId}` as any);
         } else if ((type === "join_request" || type === "join_accepted") && eventId) {
           router.push(`/event/${eventId}` as any);
+        } else if (type === "circle_message" && circleId) {
+          router.push(`/circle/${circleId}` as any);
         }
       }
     );
