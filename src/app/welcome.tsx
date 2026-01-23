@@ -38,6 +38,7 @@ import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
 import { authClient, hasAuthToken, setAuthToken } from "@/lib/authClient";
+import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
@@ -508,7 +509,7 @@ export default function WelcomeOnboardingScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -524,10 +525,15 @@ export default function WelcomeOnboardingScreen() {
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
     
-    // Check token before upload
-    const hasToken = await hasAuthToken();
-    if (!hasToken) {
-      console.log("[Onboarding] No token for photo upload, skipping");
+    // Check session (cookie auth) before upload - skip if no session (best effort)
+    try {
+      const sessionResult = await getSessionCached();
+      if (!sessionResult?.user?.id) {
+        console.log("[Onboarding] No session for photo upload, skipping");
+        return;
+      }
+    } catch {
+      console.log("[Onboarding] Session check failed for photo upload, skipping");
       return;
     }
 
@@ -608,10 +614,16 @@ export default function WelcomeOnboardingScreen() {
       return;
     }
 
-    // Check token
-    const hasToken = await hasAuthToken();
-    if (!hasToken) {
-      console.log("[Onboarding] No auth token, redirecting to login");
+    // Check session (cookie auth) instead of SecureStore token
+    try {
+      const sessionResult = await getSessionCached();
+      if (!sessionResult?.user?.id) {
+        console.log("[Onboarding] No valid session, redirecting to login");
+        router.replace("/login");
+        return;
+      }
+    } catch (sessionErr) {
+      console.log("[Onboarding] Session check failed, redirecting to login");
       router.replace("/login");
       return;
     }

@@ -1816,7 +1816,7 @@ export default function SettingsScreen() {
                 <View className="flex-1">
                   <Text style={{ color: colors.text }} className="text-base font-medium">Plan</Text>
                   <Text style={{ color: colors.textSecondary }} className="text-sm">
-                    {userIsPremium ? "Active" : "Free"}
+                    {entitlementsLoading ? "Loading..." : userIsPremium ? "Active" : "Free"}
                   </Text>
                 </View>
                 <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>

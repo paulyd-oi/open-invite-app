@@ -365,21 +365,32 @@ export default function SocialScreen() {
   // Initialize push notifications - registers token and sets up listeners
   useNotifications();
 
-  // Check verification deferred status
+  // Check verification deferred status - only show if session user is NOT verified
   useEffect(() => {
     const checkVerificationStatus = async () => {
       try {
+        // First check if user is already verified via session - if so, never show banner
+        if (session?.user?.emailVerified === true) {
+          setShowVerificationBanner(false);
+          return;
+        }
+        // Only show banner if explicitly deferred AND not dismissed AND not verified
         const deferred = await AsyncStorage.getItem("verification_deferred");
         const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
-        if (deferred === "true" && dismissed !== "true") {
+        if (deferred === "true" && dismissed !== "true" && session?.user?.emailVerified === false) {
           setShowVerificationBanner(true);
+        } else {
+          setShowVerificationBanner(false);
         }
       } catch (error) {
         // Ignore errors
       }
     };
-    checkVerificationStatus();
-  }, []);
+    // Only run once session is loaded (not pending)
+    if (!sessionLoading) {
+      checkVerificationStatus();
+    }
+  }, [session, sessionLoading]);
 
   const handleDismissBanner = useCallback(async () => {
     setShowVerificationBanner(false);
