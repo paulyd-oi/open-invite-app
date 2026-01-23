@@ -1,11 +1,16 @@
 // src/lib/authClient.ts
 import * as SecureStore from "expo-secure-store";
 import * as React from "react";
+import { createAuthClient } from "better-auth/react";
+import { expoClient } from "@better-auth/expo/client";
 import { BACKEND_URL } from "./config";
 import { AUTH_TOKEN_KEY } from "./authKeys";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
+
+// Storage prefix consistent with app scheme
+const STORAGE_PREFIX = "open-invite";
 
 /**
  * DEV-only trace helper for auth token flow tracing.
@@ -30,6 +35,24 @@ function joinUrl(base: string, path: string) {
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${b}${p}`;
 }
+
+/**
+ * Better Auth client configured with Expo plugin for cookie/session persistence.
+ * The expoClient plugin handles:
+ * - Storing session cookies in SecureStore
+ * - Attaching cookies to requests automatically
+ * - Deep link handling for OAuth flows
+ */
+const betterAuthClient = createAuthClient({
+  baseURL: API_BASE_URL,
+  plugins: [
+    expoClient({
+      scheme: "vibecode", // Must match app.json scheme
+      storagePrefix: STORAGE_PREFIX,
+      storage: SecureStore,
+    }),
+  ],
+});
 
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
@@ -80,9 +103,10 @@ export type UseSessionResult = {
 };
 
 /**
- * $fetch: compatible helper used by Better Auth client patterns.
- * - Adds Authorization if token exists
- * - Uses Render API base URL
+ * $fetch: Uses Better Auth client's $fetch which has expoClient cookie handling.
+ * This ensures cookies are properly stored and attached in React Native.
+ * CRITICAL: React Native doesn't support cookies natively like browsers.
+ * The expoClient plugin stores cookies in SecureStore and attaches them to requests.
  */
 async function $fetch<T = any>(
   path: string,
@@ -91,7 +115,6 @@ async function $fetch<T = any>(
   const url = joinUrl(API_BASE_URL, path);
 
   if (!API_BASE_URL) {
-    // Fail "soft" so the app can still boot/log out cleanly
     throw new Error("API base URL missing. Set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_VIBECODE_BACKEND_URL.");
   }
 
@@ -99,129 +122,73 @@ async function $fetch<T = any>(
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
   }
 
-  // Detect pre-existing auth headers/cookies before our logic runs
-  if (__DEV__) {
-    const requestHeaders = init?.headers as Record<string, any> | undefined;
-    const hadAuthorizationHeaderAlready = !!(requestHeaders?.Authorization || requestHeaders?.authorization);
-    const hadCookieHeaderAlready = !!(requestHeaders?.Cookie || requestHeaders?.cookie);
-    
-    let authHeaderSourceGuess: "requestOptions" | "clientDefaults" | "unknown" = "unknown";
-    if (requestHeaders?.Authorization || requestHeaders?.authorization) {
-      authHeaderSourceGuess = "requestOptions";
-    }
-    
-    authTrace("authFetch:preExistingHeaders", {
-      hadAuthorizationHeaderAlready,
-      hadCookieHeaderAlready,
-      authHeaderSourceGuess,
-    });
-  }
-
-  authTrace("authFetch:beforeAttach", { 
+  authTrace("authFetch:beforeRequest", { 
     endpoint: path,
     method: init?.method || "GET",
-    storageKeyUsed: TOKEN_KEY,
+    usingExpoClient: true,
   });
 
-  const token = await getAuthToken();
-
-  if (__DEV__ && path.includes('auth')) {
-    console.log(`[authClient.$fetch] Token exists: ${!!token}`);
-  }
-
-  // Debug log for Bearer token format
-  if (__DEV__ && token) {
-    console.log(`[authClient.$fetch] Auth header uses Bearer: true; tokenLen: ${token.length}`);
-  } else if (__DEV__) {
-    console.log(`[authClient.$fetch] Auth header uses Bearer: false; tokenLen: 0`);
-  }
-
-  authTrace("authFetch:tokenRead", {
-    tokenExists: !!token,
-    readFrom: "SecureStore",
-    keyUsed: TOKEN_KEY,
-  });
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...(init?.headers as any),
-  };
-
-  // If body is an object, send JSON  
-  let body = init?.body;
-  if (body && typeof body === "object" && !(body instanceof FormData)) {
-    headers["Content-Type"] = headers["Content-Type"] || "application/json";
-    body = JSON.stringify(body);
-  } else if ((init?.method === 'POST' || init?.method === 'PUT' || init?.method === 'PATCH') && !body) {
-    // For POST/PUT/PATCH without body, still set Content-Type to prevent 415 errors
-    headers["Content-Type"] = headers["Content-Type"] || "application/json";
-  }
-
-  // NOTE: With Better Auth, authentication is handled via cookies (Set-Cookie header).
-  // The credentials: "include" option below ensures cookies are sent with requests.
-  // We keep token logic for backward compatibility but cookies are primary auth mechanism.
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  authTrace("authFetch:afterAttach", {
-    willAttachAuthHeader: !!token,
-    usingCookieAuth: true,
-    endpoint: path,
-  });
-
-  const res = await fetch(url, {
-    ...init,
-    headers,
-    body,
-    // CRITICAL: Better Auth uses cookies for auth. This ensures cookies are sent/received.
-    credentials: "include",
-  });
-
-  if (__DEV__) {
-    console.log(`[authClient.$fetch] Response status: ${res.status}`);
-  }
-
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-
-  if (!res.ok) {
-    const payload = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : payload?.message || payload?.error || `Request failed: ${res.status}`;
+  try {
+    // Use Better Auth's $fetch which has the expoClient plugin for cookie handling
+    // This automatically reads/stores cookies from SecureStore
+    const result = await betterAuthClient.$fetch<T>(url, {
+      method: init?.method || "GET",
+      body: init?.body,
+      headers: init?.headers as Record<string, string>,
+    });
     
     if (__DEV__) {
-      // Known optional endpoints - treat 404 as non-error
-      const isKnown404 = res.status === 404 && (
-        url.includes("/api/profile") ||
-        url.includes("/api/profiles") ||
-        url.includes("/api/achievements") ||
-        url.includes("/api/entitlements")
+      console.log(`[authClient.$fetch] Success for ${path}`);
+      authTrace("authFetch:success", { endpoint: path, usingExpoClient: true });
+    }
+    
+    // Better Auth $fetch returns { data, error } format for some endpoints
+    if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
+      const error = (result as any).error;
+      const err = new Error(error.message || 'Request failed') as any;
+      err.status = error.status;
+      err.response = { status: error.status };
+      throw err;
+    }
+    
+    // Return data if wrapped, otherwise return result directly
+    if (result && typeof result === 'object' && 'data' in result) {
+      return (result as any).data as T;
+    }
+    
+    return result as T;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[authClient.$fetch] Error for ${path}:`, error.message || error);
+      
+      // Known optional endpoints - treat 404 as non-error in logs
+      const isKnown404 = error.status === 404 && (
+        path.includes("/api/profile") ||
+        path.includes("/api/profiles") ||
+        path.includes("/api/achievements") ||
+        path.includes("/api/entitlements")
       );
       
       if (isKnown404) {
         console.warn(`[authClient.$fetch] Known optional endpoint 404: ${init?.method || 'GET'} ${url}`);
-      } else {
-        console.log(`[authClient.$fetch] Error response:`, msg);
       }
     }
     
-    const error = new Error(msg) as any;
-    error.status = res.status;
-    error.response = { status: res.status };
-    error.url = url;
-    throw error;
+    // Re-throw with consistent error shape
+    const err = new Error(error.message || 'Request failed') as any;
+    err.status = error.status || error.response?.status;
+    err.response = { status: err.status };
+    err.url = url;
+    throw err;
   }
-
-  return (isJson ? await res.json() : await res.text()) as T;
 }
 
 // Log resolved API base URL in development for easier debugging
 if (__DEV__) {
   try {
     console.log("[authClient] Resolved API_BASE_URL:", API_BASE_URL);
+    console.log("[authClient] Using Better Auth expoClient with storagePrefix:", STORAGE_PREFIX);
+    console.log("[authClient] Cookie storage: SecureStore (via @better-auth/expo)");
   } catch (e) {
     // ignore
   }
@@ -287,117 +254,82 @@ export const authClient = {
 
     return { data, isPending, error, refetch };
   },
-  // Sign in / sign up shims for email/password flows
+  // Sign out - uses Better Auth client
   async signOut() {
     try {
-      await $fetch('/api/auth/sign-out', { method: 'POST' });
+      await betterAuthClient.signOut();
       await clearAuthToken();
+      // Also clear Better Auth's stored cookies
+      try {
+        await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_cookie`);
+        await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_session`);
+      } catch {
+        // Ignore - keys may not exist
+      }
       return { ok: true };
     } catch (e) {
+      // Still clear local state even if server call fails
+      await clearAuthToken();
       return { ok: false, error: e } as any;
     }
   },
 
+  // Sign in - uses Better Auth client with expoClient for cookie handling
   signIn: {
     async email(opts: { email: string; password: string }) {
       try {
-        const data = await $fetch('/api/auth/sign-in/email', { method: 'POST', body: opts });
+        const result = await betterAuthClient.signIn.email(opts);
         
-        // Extract and save token with detailed diagnostics
-        let tokenValue: string | null = null;
-        
-        if (data && typeof data === 'object') {
-          if ('token' in data) {
-            const tokenField = (data as any).token;
-            
-            if (typeof tokenField === 'string') {
-              tokenValue = tokenField;
-              if (__DEV__) {
-                console.log('[authClient.signIn] Token is string', { tokenLen: tokenField.length });
-              }
-            } else if (typeof tokenField === 'object' && tokenField !== null) {
-              if (__DEV__) {
-                console.log('[authClient.signIn] Token is object', { keys: Object.keys(tokenField) });
-              }
-              // Try to extract nested token
-              if ('token' in tokenField && typeof tokenField.token === 'string') {
-                tokenValue = tokenField.token;
-              } else if ('value' in tokenField && typeof tokenField.value === 'string') {
-                tokenValue = tokenField.value;
-              }
-            } else if (__DEV__) {
-              console.log('[authClient.signIn] Token type:', typeof tokenField);
-            }
-          }
-          
-          if (tokenValue) {
-            await setAuthToken(tokenValue);
-            if (__DEV__) {
-              console.log('[authClient.signIn] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
-            }
-          } else if (__DEV__) {
-            // NOTE: Better Auth uses cookies for auth. Token in response body is optional.
-            // The Set-Cookie header from the response establishes the session.
-            console.log('[authClient.signIn] No token in response body (expected with cookie auth)', { topKeys: Object.keys(data) });
-          }
+        if (__DEV__) {
+          console.log('[authClient.signIn] Result:', { 
+            hasData: !!result.data, 
+            hasError: !!result.error,
+            hasUser: !!result.data?.user 
+          });
+          authTrace("signIn:complete", { hasUser: !!result.data?.user, success: !result.error });
         }
         
-        // Success! Auth cookie was set by Set-Cookie header. Token in body is optional.
-        return { data } as any;
+        if (result.error) {
+          return { error: { message: result.error.message || 'Sign in failed' } } as any;
+        }
+        
+        // Better Auth expoClient handles cookie storage automatically
+        // No need to manually extract/store token - cookies are managed by expoClient
+        return { data: result.data } as any;
       } catch (e: any) {
+        if (__DEV__) {
+          console.log('[authClient.signIn] Exception:', e.message);
+        }
         return { error: { message: e?.message || String(e) } } as any;
       }
     },
   },
 
+  // Sign up - uses Better Auth client with expoClient for cookie handling
   signUp: {
     async email(opts: { email: string; password: string; name?: string }) {
       try {
-        const data = await $fetch('/api/auth/sign-up/email', { method: 'POST', body: opts });
+        const result = await betterAuthClient.signUp.email(opts);
         
-        // Extract and save token with detailed diagnostics
-        let tokenValue: string | null = null;
-        
-        if (data && typeof data === 'object') {
-          // Check if token exists and extract it
-          if ('token' in data) {
-            const tokenField = (data as any).token;
-            
-            if (typeof tokenField === 'string') {
-              tokenValue = tokenField;
-              if (__DEV__) {
-                console.log('[authClient.signUp] Token is string', { tokenLen: tokenField.length });
-              }
-            } else if (typeof tokenField === 'object' && tokenField !== null) {
-              if (__DEV__) {
-                console.log('[authClient.signUp] Token is object', { keys: Object.keys(tokenField) });
-              }
-              // Try to extract nested token
-              if ('token' in tokenField && typeof tokenField.token === 'string') {
-                tokenValue = tokenField.token;
-              } else if ('value' in tokenField && typeof tokenField.value === 'string') {
-                tokenValue = tokenField.value;
-              }
-            } else if (__DEV__) {
-              console.log('[authClient.signUp] Token type:', typeof tokenField);
-            }
-          }
-          
-          if (tokenValue) {
-            await setAuthToken(tokenValue);
-            if (__DEV__) {
-              console.log('[authClient.signUp] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
-            }
-          } else if (__DEV__) {
-            // NOTE: Better Auth uses cookies for auth. Token in response body is optional.
-            // The Set-Cookie header from the response establishes the session.
-            console.log('[authClient.signUp] No token in response body (expected with cookie auth)', { topKeys: Object.keys(data) });
-          }
+        if (__DEV__) {
+          console.log('[authClient.signUp] Result:', { 
+            hasData: !!result.data, 
+            hasError: !!result.error,
+            hasUser: !!result.data?.user 
+          });
+          authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
         }
         
-        // Success! Auth cookie was set by Set-Cookie header. Token in body is optional.
-        return { data } as any;
+        if (result.error) {
+          return { error: { message: result.error.message || 'Sign up failed' } } as any;
+        }
+        
+        // Better Auth expoClient handles cookie storage automatically
+        return { data: result.data } as any;
       } catch (e: any) {
+        if (__DEV__) {
+          console.log('[authClient.signUp] Exception:', e.message);
+        }
         return { error: { message: e?.message || String(e) } } as any;
       }
     },
