@@ -1043,25 +1043,27 @@ export default function CreateEventScreen() {
             )}
 
             {showTimePicker && (
-              <View className="rounded-xl mb-4 overflow-hidden p-2" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <DateTimePicker
-                  value={startDate}
-                  mode="time"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
-                  textColor={isDark ? "#FFFFFF" : "#000000"}
-                  themeVariant={isDark ? "dark" : "light"}
-                  onChange={(event, date) => {
-                    if (Platform.OS === "android") {
-                      setShowTimePicker(false);
-                    }
-                    if (date) setStartDate(date);
-                  }}
-                />
+              <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="py-2">
+                  <DateTimePicker
+                    value={startDate}
+                    mode="time"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    textColor={isDark ? "#FFFFFF" : "#000000"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(event, date) => {
+                      if (Platform.OS === "android") {
+                        setShowTimePicker(false);
+                      }
+                      if (date) setStartDate(date);
+                    }}
+                  />
+                </View>
                 {Platform.OS === "ios" && (
                   <Pressable
                     onPress={() => setShowTimePicker(false)}
-                    className="py-2 items-center mt-2"
-                    style={{ backgroundColor: themeColor, borderRadius: 8 }}
+                    className="py-2 items-center"
+                    style={{ backgroundColor: themeColor, borderRadius: 8, marginHorizontal: 8, marginBottom: 8 }}
                   >
                     <Text className="text-white font-semibold">Done</Text>
                   </Pressable>

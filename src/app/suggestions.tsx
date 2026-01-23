@@ -185,12 +185,9 @@ function SuggestionCard({
             }}
           >
             {isPending ? (
-              <Animated.View
-                entering={FadeIn}
-                style={{ transform: [{ rotate: "0deg" }] }}
-              >
+              <View>
                 <Loader2 size={18} color="#fff" />
-              </Animated.View>
+              </View>
             ) : isSuccess ? (
               <Check size={18} color="#fff" />
             ) : (

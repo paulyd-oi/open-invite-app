@@ -1419,7 +1419,7 @@ export default function EventDetailScreen() {
                       </View>
                       <View className="flex-1">
                         <Text className="font-semibold" style={{ color: colors.text }}>Interested</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Looks fun, keep me posted</Text>
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Save for later (not on calendar)</Text>
                       </View>
                       {myRsvpStatus === "interested" && <Check size={18} color={themeColor} />}
                     </Pressable>
@@ -1436,7 +1436,7 @@ export default function EventDetailScreen() {
                       </View>
                       <View className="flex-1">
                         <Text className="font-semibold" style={{ color: colors.text }}>Maybe</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Not sure yet</Text>
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Deciding (not on calendar)</Text>
                       </View>
                       {myRsvpStatus === "maybe" && <Check size={18} color={themeColor} />}
                     </Pressable>
