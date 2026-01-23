@@ -709,7 +709,7 @@ export default function WelcomeOnboardingScreen() {
           </Text>
 
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            See what friends are up to.{"\n"}Share your plans.{"\n"}No more group texts.
+            See what friends are up to.{"\n"}Share plans in seconds.{"\n"}Stay in sync, effortlessly.
           </Text>
         </Animated.View>
 
