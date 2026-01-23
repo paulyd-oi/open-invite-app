@@ -104,6 +104,16 @@ export default function BadgesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={themeColor} />
         }
       >
+        {/* Explanation Copy */}
+        <View className="px-4 pt-4 pb-2">
+          <Text className="text-base font-semibold text-center" style={{ color: colors.text }}>
+            Badges reflect how you show up in the community.
+          </Text>
+          <Text className="text-sm mt-1 text-center" style={{ color: colors.textSecondary }}>
+            Earn them by hosting, showing up, and inviting others.
+          </Text>
+        </View>
+
         {isLoading ? (
           <View className="flex-1 items-center justify-center py-20">
             <ActivityIndicator size="large" color={themeColor} />
@@ -279,6 +289,13 @@ export default function BadgesScreen() {
                 ))}
               </View>
             )}
+
+            {/* Badge Catalog Footer */}
+            <View className="mt-6 pt-4 border-t" style={{ borderTopColor: colors.border }}>
+              <Text className="text-xs text-center" style={{ color: colors.textTertiary }}>
+                Showing all {badges.length} available badges
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>
