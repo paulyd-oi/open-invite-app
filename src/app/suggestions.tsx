@@ -8,6 +8,7 @@ import {
   FlatList,
   Share,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +18,6 @@ import {
   ChevronLeft,
   Users,
   Check,
-  Loader2,
   Share2,
   Info,
   X,
@@ -172,28 +172,31 @@ function SuggestionCard({
           </View>
 
           {/* Add Friend Button */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              onAddFriend();
-            }}
-            disabled={isPending || isSuccess}
-            className="w-10 h-10 rounded-full items-center justify-center"
+          <View
             style={{
-              backgroundColor: isSuccess ? "#4CAF50" : themeColor,
               opacity: isPending ? 0.7 : 1,
             }}
           >
-            {isPending ? (
-              <View>
-                <Loader2 size={18} color="#fff" />
-              </View>
-            ) : isSuccess ? (
-              <Check size={18} color="#fff" />
-            ) : (
-              <UserPlus size={18} color="#fff" />
-            )}
-          </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onAddFriend();
+              }}
+              disabled={isPending || isSuccess}
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: isSuccess ? "#4CAF50" : themeColor,
+              }}
+            >
+              {isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : isSuccess ? (
+                <Check size={18} color="#fff" />
+              ) : (
+                <UserPlus size={18} color="#fff" />
+              )}
+            </Pressable>
+          </View>
         </View>
       </Pressable>
     </Animated.View>
