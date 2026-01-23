@@ -1987,109 +1987,7 @@ export default function CalendarScreen() {
       </View>
 
       {/* Global Empty State - When user has no events at all */}
-      {!isListView && shouldShowEmptyPrompt ? (
-        <View style={{ position: 'relative', flex: 1 }}>
-          <ScrollView
-            ref={scrollViewRef}
-            className="flex-1"
-            contentContainerStyle={{ paddingBottom: 100 }}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            onScrollEndDrag={handleScrollEndDrag}
-            onMomentumScrollEnd={handleMomentumEnd}
-            scrollEventThrottle={16}
-            bounces={true}
-            alwaysBounceVertical={true}
-          >
-            {/* Calendar Grid - keep visible even when empty */}
-            <GestureDetector gesture={pinchGesture}>
-              <Animated.View className="px-3">
-                {/* Day Labels */}
-                <View className="flex-row mb-1">
-                  {DAYS.map((day, idx) => (
-                    <View key={idx} className="flex-1 items-center py-2">
-                      <Text
-                        className="text-xs font-medium"
-                        style={{ color: idx === 0 || idx === 6 ? colors.textTertiary : colors.textSecondary }}
-                      >
-                        {day}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Calendar Grid with Week Separators */}
-                <View>
-                  {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIndex) => (
-                    <View key={weekIndex}>
-                      {/* Week separator line (not before first week) */}
-                      {weekIndex > 0 && (
-                        <View
-                          style={{
-                            height: 1,
-                            backgroundColor: colors.border,
-                            opacity: 0.4,
-                            marginHorizontal: 4,
-                          }}
-                        />
-                      )}
-                      {/* Week row */}
-                      <View className="flex-row">
-                        {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => {
-                          const index = weekIndex * 7 + dayIndex;
-                          return (
-                            <View key={index} style={{ width: "14.28%" }}>
-                              {renderCell(day, index)}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </Animated.View>
-            </GestureDetector>
-          </ScrollView>
-          
-          {/* Empty state overlay - positioned over calendar */}
-          <View 
-            style={{
-              position: 'absolute',
-              top: '25%',
-              left: 20,
-              right: 20,
-              alignItems: 'center',
-              backgroundColor: colors.surface,
-              borderRadius: 16,
-              padding: 24,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <Text className="text-5xl mb-4">📅</Text>
-            <Text className="text-xl font-semibold mb-2 text-center" style={{ color: colors.text }}>
-              Your calendar is empty
-            </Text>
-            <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
-              Add your first plan to get started
-            </Text>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push("/create");
-              }}
-              className="px-6 py-3 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Add your first plan</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : (
-        <ScrollView
+      <ScrollView
           ref={scrollViewRef}
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -2428,7 +2326,6 @@ export default function CalendarScreen() {
           </Animated.View>
         )}
         </ScrollView>
-      )}
 
       {/* Bottom Navigation */}
       <BottomNavigation />
