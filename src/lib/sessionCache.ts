@@ -20,6 +20,10 @@ export interface Session {
     bio?: string;
     emailVerified?: boolean;
   } | null;
+  /** Session-level userId from Better Auth session object */
+  sessionUserId?: string | null;
+  /** Computed: user.id ?? session.userId ?? null - use this for auth checks */
+  effectiveUserId?: string | null;
 }
 
 interface CachedSessionData {
@@ -135,18 +139,37 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
     
     // Call the authoritative /api/auth/session endpoint
     // Returns 401 if user is null (not authenticated)
-    const data = await authClient.$fetch<{ user: any; session: Session | null }>("/api/auth/session", {
+    const data = await authClient.$fetch<{ user: any; session: any }>("/api/auth/session", {
       method: "GET",
     });
 
     // Parse response: expect { user, session }
     if (data && typeof data === "object") {
-      if (data.user) {
-        // Authenticated - return session
-        return data.session ?? null;
+      // Extract session-level userId (Better Auth stores userId on session object)
+      const sessionUserId = data.session?.userId ?? null;
+      const userId = data.user?.id ?? null;
+      
+      // Compute effectiveUserId: prefer user.id, fallback to session.userId
+      const effectiveUserId = userId ?? sessionUserId ?? null;
+      
+      if (__DEV__) {
+        console.log(`[getSessionCached] Parsed session - userId: ${userId}, sessionUserId: ${sessionUserId}, effectiveUserId: ${effectiveUserId}`);
       }
-      // If user is null but we got a 200 response, still return session (or null)
-      return data.session ?? null;
+      
+      // Build unified session object with effectiveUserId
+      const session: Session = {
+        user: data.user ?? null,
+        sessionUserId,
+        effectiveUserId,
+      };
+      
+      // Return session if we have any form of userId
+      if (effectiveUserId) {
+        return session;
+      }
+      
+      // No userId anywhere - not authenticated
+      return null;
     }
     return null;
     

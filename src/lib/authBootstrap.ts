@@ -400,12 +400,14 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
           const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
           if (cached) {
             const cachedSession = JSON.parse(cached);
-            if (cachedSession?.user?.id) {
-              log("    ✓ Using cached session");
+            // Use effectiveUserId for unified auth check
+            const effectiveUserId = cachedSession?.effectiveUserId ?? cachedSession?.user?.id ?? null;
+            if (effectiveUserId) {
+              log(`    ✓ Using cached session (effectiveUserId: ${effectiveUserId})`);
               hasValidSession = true;
               session = cachedSession;
             } else {
-              log("    → Cached session has no user.id - returning degraded");
+              log("    → Cached session has no effectiveUserId - returning degraded");
               return { state: "degraded", session: null, error: "Network timeout or unreachable" };
             }
           } else {
@@ -425,12 +427,14 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
           const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
           if (cached) {
             const cachedSession = JSON.parse(cached);
-            if (cachedSession?.user?.id) {
-              log("    ✓ Using cached session");
+            // Use effectiveUserId for unified auth check
+            const effectiveUserId = cachedSession?.effectiveUserId ?? cachedSession?.user?.id ?? null;
+            if (effectiveUserId) {
+              log(`    ✓ Using cached session (effectiveUserId: ${effectiveUserId})`);
               hasValidSession = true;
               session = cachedSession;
             } else {
-              log("    → Cached session has no user.id - returning degraded");
+              log("    → Cached session has no effectiveUserId - returning degraded");
               return { state: "degraded", session: null, error: `Transient error (${status})` };
             }
           } else {

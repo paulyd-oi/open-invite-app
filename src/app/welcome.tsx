@@ -525,13 +525,15 @@ export default function WelcomeOnboardingScreen() {
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
     
-    // Check session (cookie auth) before upload - skip if no session (best effort)
+    // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
     try {
       const sessionResult = await getSessionCached();
-      if (!sessionResult?.user?.id) {
-        console.log("[Onboarding] No session for photo upload, skipping");
+      const effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
+      if (!effectiveUserId) {
+        console.log("[Onboarding] No effectiveUserId for photo upload, skipping");
         return;
       }
+      console.log(`[Onboarding] Photo upload authorized - effectiveUserId: ${effectiveUserId}`);
     } catch {
       console.log("[Onboarding] Session check failed for photo upload, skipping");
       return;
@@ -615,16 +617,16 @@ export default function WelcomeOnboardingScreen() {
     }
 
     // Check session (cookie auth) instead of SecureStore token
-    // Auth is determined ONLY by /api/auth/session returning session.user with an id
+    // Auth is determined by effectiveUserId (user.id ?? session.userId)
     try {
       const sessionResult = await getSessionCached();
-      const hasSessionUser = !!(sessionResult?.user?.id);
+      const effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       
       // Debug log for session state (required by task spec)
-      console.log(`[Onboarding] session user present: ${hasSessionUser}`);
+      console.log(`[Onboarding] effectiveUserId present: ${!!effectiveUserId}`);
       
-      if (!hasSessionUser) {
-        console.log("[Onboarding] No valid session (user.id missing), redirecting to login");
+      if (!effectiveUserId) {
+        console.log("[Onboarding] No valid session (effectiveUserId missing), redirecting to login");
         router.replace("/login");
         return;
       }

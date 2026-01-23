@@ -168,7 +168,9 @@ async function $fetch<T = any>(
       const hasSession = !!sessionData;
       const hasUser = !!(sessionData?.user);
       const userId = sessionData?.user?.id || null;
-      console.log(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null} }`);
+      const sessionUserId = sessionData?.session?.userId || null;
+      const effectiveUserId = userId ?? sessionUserId ?? null;
+      console.log(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
     }
     
     if (__DEV__) {
