@@ -615,15 +615,22 @@ export default function WelcomeOnboardingScreen() {
     }
 
     // Check session (cookie auth) instead of SecureStore token
+    // Auth is determined ONLY by /api/auth/session returning session.user with an id
     try {
       const sessionResult = await getSessionCached();
-      if (!sessionResult?.user?.id) {
-        console.log("[Onboarding] No valid session, redirecting to login");
+      const hasSessionUser = !!(sessionResult?.user?.id);
+      
+      // Debug log for session state (required by task spec)
+      console.log(`[Onboarding] session user present: ${hasSessionUser}`);
+      
+      if (!hasSessionUser) {
+        console.log("[Onboarding] No valid session (user.id missing), redirecting to login");
         router.replace("/login");
         return;
       }
-    } catch (sessionErr) {
-      console.log("[Onboarding] Session check failed, redirecting to login");
+    } catch (sessionErr: any) {
+      const status = sessionErr?.status || 'unknown';
+      console.log(`[Onboarding] Session check failed (status: ${status}), redirecting to login`);
       router.replace("/login");
       return;
     }

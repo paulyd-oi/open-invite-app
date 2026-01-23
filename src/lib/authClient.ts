@@ -309,7 +309,13 @@ export const authClient = {
   signUp: {
     async email(opts: { email: string; password: string; name?: string }) {
       try {
-        const result = await betterAuthClient.signUp.email(opts);
+        // Better Auth requires name to be a string, not undefined
+        const signUpOpts = {
+          email: opts.email,
+          password: opts.password,
+          name: opts.name || '', // Ensure name is always a string
+        };
+        const result = await betterAuthClient.signUp.email(signUpOpts);
         
         if (__DEV__) {
           console.log('[authClient.signUp] Result:', { 
