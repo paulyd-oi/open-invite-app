@@ -6,10 +6,15 @@ import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import type { EventSubscription } from "expo-modules-core";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+
+// Throttle token registration to once per 24 hours
+const TOKEN_REGISTRATION_KEY = "push_token_last_registered";
+const TOKEN_REGISTRATION_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export function useNotifications() {
   const { data: session } = useSession();
@@ -22,24 +27,78 @@ export function useNotifications() {
   const lastPermissionStatus = useRef<string | null>(null);
 
   /**
+   * Check if token registration is throttled
+   */
+  const isRegistrationThrottled = useCallback(async (): Promise<boolean> => {
+    try {
+      const lastRegistered = await AsyncStorage.getItem(TOKEN_REGISTRATION_KEY);
+      if (!lastRegistered) return false;
+      
+      const elapsed = Date.now() - parseInt(lastRegistered, 10);
+      return elapsed < TOKEN_REGISTRATION_THROTTLE_MS;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /**
+   * Mark token as registered (for throttling)
+   */
+  const markTokenRegistered = useCallback(async () => {
+    try {
+      await AsyncStorage.setItem(TOKEN_REGISTRATION_KEY, Date.now().toString());
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  /**
    * Check and register token if permission is granted
    * Called on mount and when app returns to foreground
+   * Throttled to once per 24 hours (backend upserts, so repeated calls are safe but wasteful)
    */
-  const checkAndRegisterToken = useCallback(async () => {
+  const checkAndRegisterToken = useCallback(async (forceRegister = false) => {
     if (!session?.user) return;
 
     try {
       const { status } = await Notifications.getPermissionsAsync();
+      const permissionChanged = status !== lastPermissionStatus.current;
+      const wasGranted = lastPermissionStatus.current === "granted";
 
-      // Only process if permission status changed or we haven't registered yet
-      if (status === "granted" && (lastPermissionStatus.current !== "granted" || !expoPushToken)) {
-        console.log("[useNotifications] Permission granted, registering token");
+      // Handle permission revocation
+      if (status !== "granted" && wasGranted) {
+        if (__DEV__) {
+          console.log("[useNotifications] Permission revoked");
+        }
+        await api.post("/api/notifications/status", {
+          pushPermissionStatus: "denied",
+        });
+        lastPermissionStatus.current = status;
+        return;
+      }
+
+      // Handle permission granted
+      if (status === "granted") {
+        // Check throttle unless permission just changed or force register
+        const throttled = !forceRegister && !permissionChanged && await isRegistrationThrottled();
+        
+        if (throttled) {
+          if (__DEV__) {
+            console.log("[useNotifications] Token registration throttled (24h)");
+          }
+          lastPermissionStatus.current = status;
+          return;
+        }
+
+        if (__DEV__) {
+          console.log("[useNotifications] Registering push token");
+        }
 
         const token = await registerForPushNotificationsAsync();
         if (token) {
           setExpoPushToken(token);
 
-          // Send token to backend
+          // Send token to backend (backend upserts)
           await api.post("/api/notifications/register-token", {
             token,
             platform: "expo",
@@ -50,34 +109,37 @@ export function useNotifications() {
             pushPermissionStatus: "granted",
           });
 
-          console.log("[useNotifications] Token registered successfully");
+          // Mark as registered for throttling
+          await markTokenRegistered();
+
+          if (__DEV__) {
+            console.log("[useNotifications] Token registered successfully");
+          }
         }
-      } else if (status !== "granted" && lastPermissionStatus.current === "granted") {
-        // Permission was revoked
-        console.log("[useNotifications] Permission revoked");
-        await api.post("/api/notifications/status", {
-          pushPermissionStatus: "denied",
-        });
       }
 
       lastPermissionStatus.current = status;
     } catch (error) {
-      console.error("[useNotifications] Error checking/registering token:", error);
+      if (__DEV__) {
+        console.error("[useNotifications] Error checking/registering token:", error);
+      }
     }
-  }, [session?.user, expoPushToken]);
+  }, [session?.user, isRegistrationThrottled, markTokenRegistered]);
 
   // Initial registration and AppState listener for foreground permission re-check
   useEffect(() => {
     if (!session?.user) return;
 
-    // Initial check
-    checkAndRegisterToken();
+    // Initial check (force register on first mount to ensure token is sent)
+    checkAndRegisterToken(true);
 
-    // Re-check permission when app comes to foreground
+    // Re-check permission when app comes to foreground (throttled)
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active") {
-        console.log("[useNotifications] App became active, checking permission");
-        checkAndRegisterToken();
+        if (__DEV__) {
+          console.log("[useNotifications] App became active, checking permission");
+        }
+        checkAndRegisterToken(); // Will be throttled by isRegistrationThrottled
       }
     };
 
