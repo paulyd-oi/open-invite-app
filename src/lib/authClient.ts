@@ -5,6 +5,12 @@ import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import { BACKEND_URL } from "./config";
 import { AUTH_TOKEN_KEY } from "./authKeys";
+import {
+  getSessionCookie,
+  setSessionCookie,
+  clearSessionCookie,
+  SESSION_COOKIE_KEY,
+} from "./sessionCookie";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
@@ -109,10 +115,9 @@ export type UseSessionResult = {
 };
 
 /**
- * $fetch: Uses Better Auth client's $fetch which has expoClient cookie handling.
- * This ensures cookies are properly stored and attached in React Native.
- * CRITICAL: React Native doesn't support cookies natively like browsers.
- * The expoClient plugin stores cookies in SecureStore and attaches them to requests.
+ * $fetch: Uses Better Auth client's $fetch with EXPLICIT cookie attachment.
+ * React Native doesn't support cookies natively like browsers.
+ * We explicitly store the session cookie and attach it to every request.
  */
 async function $fetch<T = any>(
   path: string,
@@ -124,38 +129,50 @@ async function $fetch<T = any>(
     throw new Error("API base URL missing. Set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_VIBECODE_BACKEND_URL.");
   }
 
+  // Get explicitly stored session cookie
+  const storedCookie = await getSessionCookie();
+  const hasCookie = !!storedCookie;
+
   if (__DEV__) {
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
-    // Log cookie state (not cookie content - just existence)
-    const cookieKey = `${STORAGE_PREFIX}_cookie`;
-    const storedCookie = SecureStore.getItem(cookieKey);
-    const hasCookie = !!(storedCookie && storedCookie !== '{}');
-    console.log(`[authClient.$fetch] Cookie stored: ${hasCookie}`);
+    console.log(`[authClient.$fetch] Explicit cookie stored: ${hasCookie}`);
   }
 
   authTrace("authFetch:beforeRequest", { 
     endpoint: path,
     method: init?.method || "GET",
-    usingExpoClient: true,
+    hasExplicitCookie: hasCookie,
   });
 
+  // Merge headers: attach stored cookie explicitly
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> || {}),
+  };
+  
+  if (storedCookie) {
+    headers["Cookie"] = storedCookie;
+  }
+
   try {
-    // Use Better Auth's $fetch which has the expoClient plugin for cookie handling
-    // This automatically reads/stores cookies from SecureStore
+    // Use Better Auth's $fetch with explicit cookie header
     const result = await betterAuthClient.$fetch<T>(url, {
       method: init?.method || "GET",
       body: init?.body,
-      headers: init?.headers as Record<string, string>,
+      headers,
     });
+    
+    // Log SESSION_SHAPE for /api/auth/session only (per spec)
+    if (path === "/api/auth/session" || path.endsWith("/api/auth/session")) {
+      const sessionData = result as any;
+      const hasSession = !!sessionData;
+      const hasUser = !!(sessionData?.user);
+      const userId = sessionData?.user?.id || null;
+      console.log(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null} }`);
+    }
     
     if (__DEV__) {
       console.log(`[authClient.$fetch] Success for ${path}`);
-      // Log cookie state AFTER request to see if Set-Cookie was stored
-      const cookieKey = `${STORAGE_PREFIX}_cookie`;
-      const storedCookie = SecureStore.getItem(cookieKey);
-      const hasCookie = !!(storedCookie && storedCookie !== '{}');
-      console.log(`[authClient.$fetch] Cookie after request: ${hasCookie}`);
-      authTrace("authFetch:success", { endpoint: path, usingExpoClient: true, hasCookieAfter: hasCookie });
+      authTrace("authFetch:success", { endpoint: path, hadCookie: hasCookie });
     }
     
     // Better Auth $fetch returns { data, error } format for some endpoints
@@ -223,6 +240,99 @@ async function fetchSession(): Promise<Session> {
 }
 
 /**
+ * Capture cookie from Better Auth's expo storage and store explicitly.
+ * Better Auth expoClient stores cookies under "{storagePrefix}_cookie" key.
+ * We read from there and copy to our explicit storage for deterministic attachment.
+ */
+async function captureAndStoreCookie(): Promise<void> {
+  try {
+    // Read from Better Auth's expo storage key
+    const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
+    const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
+    
+    if (__DEV__) {
+      console.log('[captureAndStoreCookie] Better Auth cookie key:', betterAuthCookieKey);
+      console.log('[captureAndStoreCookie] Raw cookie exists:', !!rawCookie);
+    }
+    
+    if (rawCookie && rawCookie !== '{}') {
+      // Better Auth may store as JSON object or raw string
+      let cookieValue: string | null = null;
+      
+      try {
+        // Try parsing as JSON (Better Auth format)
+        const parsed = JSON.parse(rawCookie);
+        // Look for the session token in various formats
+        if (typeof parsed === 'object') {
+          // Format: { "__Secure-better-auth.session_token": "value" }
+          const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
+          if (sessionKey && parsed[sessionKey]) {
+            cookieValue = `${sessionKey}=${parsed[sessionKey]}`;
+          }
+        }
+      } catch {
+        // Not JSON, might be raw cookie string
+        if (rawCookie.includes('session_token')) {
+          cookieValue = rawCookie;
+        }
+      }
+      
+      if (cookieValue) {
+        await setSessionCookie(cookieValue);
+        if (__DEV__) {
+          console.log('[captureAndStoreCookie] Cookie captured and stored explicitly');
+        }
+      } else if (__DEV__) {
+        console.log('[captureAndStoreCookie] Could not extract session token from Better Auth storage');
+      }
+    } else if (__DEV__) {
+      console.log('[captureAndStoreCookie] No Better Auth cookie found to capture');
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.log('[captureAndStoreCookie] Error capturing cookie:', error);
+    }
+    // Don't throw - cookie capture is best-effort
+  }
+}
+
+/**
+ * Verify session is valid after sign-in/sign-up by calling /api/auth/session.
+ * Logs SESSION_SHAPE to confirm userId is present.
+ */
+async function verifySessionAfterAuth(context: string): Promise<void> {
+  try {
+    if (__DEV__) {
+      console.log(`[verifySessionAfterAuth] Verifying session after ${context}...`);
+    }
+    
+    // Small delay to ensure cookie is propagated
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Call session endpoint - this will log SESSION_SHAPE
+    const sessionData = await $fetch<{ user: any; session: any }>('/api/auth/session', {
+      method: 'GET',
+    });
+    
+    const userId = sessionData?.user?.id || null;
+    
+    if (__DEV__) {
+      console.log(`[verifySessionAfterAuth] ${context} - userId: ${userId ? `"${userId}"` : 'null'}`);
+      if (userId) {
+        console.log(`[verifySessionAfterAuth] ✓ Session verified successfully`);
+      } else {
+        console.warn(`[verifySessionAfterAuth] ⚠ Session verification returned no userId`);
+      }
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.log(`[verifySessionAfterAuth] Error verifying session after ${context}:`, error);
+    }
+    // Don't throw - verification is for logging/debugging
+  }
+}
+
+/**
  * Exported authClient shim with the surfaces your code is calling:
  * - getToken/setToken
  * - $fetch
@@ -275,7 +385,9 @@ export const authClient = {
     try {
       await betterAuthClient.signOut();
       await clearAuthToken();
-      // Also clear Better Auth's stored cookies
+      // Clear explicit session cookie
+      await clearSessionCookie();
+      // Also clear Better Auth's stored cookies (legacy)
       try {
         await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_cookie`);
         await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_session`);
@@ -286,11 +398,12 @@ export const authClient = {
     } catch (e) {
       // Still clear local state even if server call fails
       await clearAuthToken();
+      await clearSessionCookie();
       return { ok: false, error: e } as any;
     }
   },
 
-  // Sign in - uses Better Auth client with expoClient for cookie handling
+  // Sign in - uses Better Auth client with explicit cookie capture
   signIn: {
     async email(opts: { email: string; password: string }) {
       try {
@@ -309,8 +422,12 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign in failed' } } as any;
         }
         
-        // Better Auth expoClient handles cookie storage automatically
-        // No need to manually extract/store token - cookies are managed by expoClient
+        // Capture cookie from Better Auth's expo storage (if accessible)
+        await captureAndStoreCookie();
+        
+        // Verify session is valid by calling /api/auth/session
+        await verifySessionAfterAuth('signIn');
+        
         return { data: result.data } as any;
       } catch (e: any) {
         if (__DEV__) {
@@ -321,7 +438,7 @@ export const authClient = {
     },
   },
 
-  // Sign up - uses Better Auth client with expoClient for cookie handling
+  // Sign up - uses Better Auth client with explicit cookie capture
   signUp: {
     async email(opts: { email: string; password: string; name?: string }) {
       try {
@@ -346,7 +463,12 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
         
-        // Better Auth expoClient handles cookie storage automatically
+        // Capture cookie from Better Auth's expo storage (if accessible)
+        await captureAndStoreCookie();
+        
+        // Verify session is valid by calling /api/auth/session
+        await verifySessionAfterAuth('signUp');
+        
         return { data: result.data } as any;
       } catch (e: any) {
         if (__DEV__) {

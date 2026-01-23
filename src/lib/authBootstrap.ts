@@ -20,6 +20,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { authClient, hasAuthToken, clearAuthToken } from "./authClient";
 import { getSessionCached, clearSessionCache } from "./sessionCache";
+import { clearSessionCookie, SESSION_COOKIE_KEY } from "./sessionCookie";
 import { isNetworkError, shouldLogoutOnError, isRateLimitError } from "./networkStatus";
 import { isRateLimited, getRateLimitRemaining, setRateLimited, clearRateLimit } from "./rateLimitState";
 import { deriveAuthState, assertAuthInvariants, type AuthState } from "./authState";
@@ -183,7 +184,9 @@ export async function resetSession(options?: { reason?: string; status?: number;
         }
       }
     }
-    log("  ✓ Cleared SecureStore tokens (all legacy keys)");
+    // Also clear explicit session cookie
+    await clearSessionCookie();
+    log("  ✓ Cleared SecureStore tokens (all legacy keys + session cookie)");
   }
 
   // Step 3: Clear AsyncStorage session cache and onboarding state (ALWAYS succeeds)
