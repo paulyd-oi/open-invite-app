@@ -37,6 +37,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
+import { BadgePill } from "@/components/BadgePill";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
@@ -346,22 +347,14 @@ export default function ProfileScreen() {
                     @{userHandle}
                   </Text>
                 )}
-                {/* User Badges */}
-                {profileData?.badges && profileData.badges.length > 0 && (
-                  <View className="flex-row flex-wrap gap-1.5 mt-2">
-                    {profileData.badges.map((badge) => (
-                      <Pressable
-                        onPress={() => setSelectedBadge(badge)}
-                        key={badge.achievementId}
-                        className="px-2 py-1 rounded-full flex-row items-center"
-                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-                      >
-                        <Text className="text-xs">{badge.emoji}</Text>
-                        <Text className="text-xs font-medium ml-1" style={{ color: colors.text }}>
-                          {badge.name}
-                        </Text>
-                      </Pressable>
-                    ))}
+                {/* Featured Badge */}
+                {profileData?.featuredBadge && (
+                  <View className="mt-2">
+                    <BadgePill
+                      name={profileData.featuredBadge.name}
+                      tierColor={profileData.featuredBadge.tierColor}
+                      variant="medium"
+                    />
                   </View>
                 )}
                 <View className="flex-row items-center mt-1">
@@ -525,7 +518,7 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
-        {/* Achievements */}
+        {/* Badges */}
         <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
           <Pressable
             onPress={() => {
@@ -533,27 +526,17 @@ export default function ProfileScreen() {
               router.push("/achievements");
             }}
           >
-            <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Trophy size={16} color="#FFD700" />
                 <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
-                  Achievements
+                  Badges
                 </Text>
-                <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FFD70020" }}>
-                  <Text className="text-xs font-medium" style={{ color: "#FFD700" }}>
-                    Coming Soon
-                  </Text>
-                </View>
               </View>
               <View className="flex-row items-center">
                 <Text className="text-sm mr-1" style={{ color: themeColor }}>View All</Text>
                 <ChevronRight size={16} color={themeColor} />
               </View>
-            </View>
-            <View className="rounded-xl p-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <Text className="text-center py-4" style={{ color: colors.textTertiary }}>
-                Coming Soon
-              </Text>
             </View>
           </Pressable>
         </Animated.View>

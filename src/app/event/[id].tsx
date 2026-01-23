@@ -55,7 +55,7 @@ import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { BadgeRow } from "@/components/BadgeRow";
+import { BadgePill } from "@/components/BadgePill";
 import {
   type GetEventsResponse,
   type Event,
@@ -807,10 +807,18 @@ export default function EventDetailScreen() {
                     <Text className="font-semibold" style={{ color: colors.text }}>
                       {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
                     </Text>
+                    {/* Featured Badge */}
+                    {event.user?.featuredBadge && (
+                      <View className="mt-1">
+                        <BadgePill
+                          name={event.user.featuredBadge.name}
+                          tierColor={event.user.featuredBadge.tierColor}
+                          variant="small"
+                        />
+                      </View>
+                    )}
                   </View>
                 </View>
-                {/* TODO: Add badges when event.user includes achievement badges */}
-                <BadgeRow badges={undefined} />
               </View>
             )}
 

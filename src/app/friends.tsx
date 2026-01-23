@@ -66,7 +66,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
-import { BadgeRow } from "@/components/BadgeRow";
+import { BadgePill } from "@/components/BadgePill";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
@@ -257,8 +257,16 @@ function FriendCard({ friendship, index }: { friendship: Friendship; index: numb
                 )}
               </View>
             )}
-            {/* TODO: Add badges when friend profile data includes achievement badges */}
-            <BadgeRow badges={undefined} />
+            {/* Featured Badge */}
+            {friend.featuredBadge && (
+              <View className="mt-1.5">
+                <BadgePill
+                  name={friend.featuredBadge.name}
+                  tierColor={friend.featuredBadge.tierColor}
+                  variant="small"
+                />
+              </View>
+            )}
           </View>
           <ChevronRight size={20} color={colors.textTertiary} style={{ marginTop: 2 }} />
         </View>

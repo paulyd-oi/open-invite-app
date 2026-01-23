@@ -70,6 +70,12 @@ export const eventSchema = z.object({
     name: z.string().nullable(),
     email: z.string().nullable(),
     image: z.string().nullable(),
+    featuredBadge: z.object({
+      badgeKey: z.string(),
+      name: z.string(),
+      description: z.string(),
+      tierColor: z.string(),
+    }).nullable().optional(),
   }).optional(),
   groupVisibility: z.array(z.object({
     groupId: z.string(),
@@ -269,6 +275,12 @@ export const friendUserSchema = z.object({
     bio: z.string().nullable(),
     calendarBio: z.string().nullable(),
     avatarUrl: z.string().nullable(),
+  }).nullable().optional(),
+  featuredBadge: z.object({
+    badgeKey: z.string(),
+    name: z.string(),
+    description: z.string(),
+    tierColor: z.string(),
   }).nullable().optional(),
 });
 export type FriendUser = z.infer<typeof friendUserSchema>;
@@ -509,6 +521,12 @@ export const getProfileResponseSchema = z.object({
     tierColor: z.string(),
     grantedAt: z.string(),
   })),
+  featuredBadge: z.object({
+    badgeKey: z.string(),
+    name: z.string(),
+    description: z.string(),
+    tierColor: z.string(),
+  }).nullable().optional(),
 });
 export type GetProfileResponse = z.infer<typeof getProfileResponseSchema>;
 
