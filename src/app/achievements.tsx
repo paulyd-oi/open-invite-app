@@ -37,10 +37,18 @@ interface BadgeCatalogResponse {
 
 // Helper to convert hex color to rgba with opacity
 function hexToRgba(hex: string, opacity: number): string {
+  // Validate hex format (#RRGGBB)
+  if (!hex || typeof hex !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+    return "rgba(255, 255, 255, 0.12)";
+  }
+  
+  // Clamp opacity to [0, 1]
+  const clampedOpacity = Math.max(0, Math.min(1, opacity));
+  
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  return `rgba(${r}, ${g}, ${b}, ${clampedOpacity})`;
 }
 
 export default function BadgesScreen() {
