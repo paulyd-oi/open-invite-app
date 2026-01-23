@@ -32,13 +32,13 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import BottomNavigation from "@/components/BottomNavigation";
 
-interface Suggestion {
-  friend: { id: string; name: string | null; image: string | null };
-  friendshipId: string;
-  groups: Array<{ id: string; name: string; color: string }>;
-  hangoutCount: number;
-  lastHangout: string | null;
-  daysSinceHangout: number;
+// Response from GET /api/friends/reconnect
+interface ReconnectFriend {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  lastHangoutAt: string | null;
+  daysSinceHangout: number | null;
 }
 
 interface Streak {
@@ -97,9 +97,9 @@ export default function DiscoverScreen() {
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [dismissedFriendIds, setDismissedFriendIds] = useState<Set<string>>(new Set());
 
-  const { data: suggestionsData, isLoading: loadingSuggestions, refetch: refetchSuggestions } = useQuery({
-    queryKey: ["suggestions"],
-    queryFn: () => api.get<{ suggestions: Suggestion[] }>("/api/events/suggestions"),
+  const { data: reconnectData, isLoading: loadingReconnect, refetch: refetchReconnect } = useQuery({
+    queryKey: ["reconnect"],
+    queryFn: () => api.get<{ friends: ReconnectFriend[] }>("/api/friends/reconnect"),
     enabled: !!session,
   });
 
@@ -191,14 +191,13 @@ export default function DiscoverScreen() {
     }
   }, [session?.user?.id]);
 
-  // Filter out items where friend is undefined to prevent crashes
-  // Also filter out dismissed friends and limit to 15 tiles
-  const rawSuggestions = (suggestionsData?.suggestions ?? []).filter(s => s.friend != null);
-  const suggestions = useMemo(() => {
-    return rawSuggestions
-      .filter(s => !dismissedFriendIds.has(s.friend.id))
+  // Filter out dismissed friends and limit to 15 tiles
+  const rawReconnectFriends = reconnectData?.friends ?? [];
+  const reconnectFriends = useMemo(() => {
+    return rawReconnectFriends
+      .filter(f => !dismissedFriendIds.has(f.id))
       .slice(0, 15);
-  }, [rawSuggestions, dismissedFriendIds]);
+  }, [rawReconnectFriends, dismissedFriendIds]);
   
   const streaks = (streaksData?.streaks ?? []).filter(s => s.friend != null);
   const templates = templatesData?.templates ?? [];
@@ -235,7 +234,7 @@ export default function DiscoverScreen() {
   }, [feedData?.events, myEventsData?.events]);
 
   const handleRefresh = () => {
-    if (friendsTab === "suggestions") refetchSuggestions();
+    if (friendsTab === "suggestions") refetchReconnect();
     else if (friendsTab === "streaks") refetchStreaks();
     else refetchPopular();
   };
@@ -256,7 +255,7 @@ export default function DiscoverScreen() {
     router.push(`/create?template=${template.id}&emoji=${encodeURIComponent(template.emoji)}&title=${encodeURIComponent(template.name)}&duration=${template.duration}` as any);
   };
 
-  const isLoading = friendsTab === "suggestions" ? loadingSuggestions : friendsTab === "streaks" ? loadingStreaks : loadingPopular;
+  const isLoading = friendsTab === "suggestions" ? loadingReconnect : friendsTab === "streaks" ? loadingStreaks : loadingPopular;
 
   if (!session) {
     return (
@@ -353,7 +352,7 @@ export default function DiscoverScreen() {
               </View>
             </Animated.View>
 
-            {suggestions.length === 0 ? (
+            {reconnectFriends.length === 0 ? (
               <View
                 className="rounded-xl p-8 items-center"
                 style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
@@ -367,9 +366,9 @@ export default function DiscoverScreen() {
                 </Text>
               </View>
             ) : (
-              suggestions.map((item, index) => (
+              reconnectFriends.map((friend, index) => (
                 <Animated.View
-                  key={item.friendshipId}
+                  key={friend.id}
                   entering={FadeInDown.delay(index * 50).springify()}
                   className="mb-3"
                 >
@@ -379,56 +378,41 @@ export default function DiscoverScreen() {
                   >
                     <View className="flex-row items-center">
                       <Pressable
-                        onPress={() => handleFriendPress(item.friendshipId)}
+                        onPress={() => router.push(`/profile/${friend.id}` as any)}
                         className="flex-row items-center flex-1"
                       >
                         <View
                           className="w-14 h-14 rounded-full overflow-hidden mr-4"
                           style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
                         >
-                          {item.friend?.image ? (
-                            <Image source={{ uri: item.friend.image }} className="w-full h-full" />
+                          {friend.avatarUrl ? (
+                            <Image source={{ uri: friend.avatarUrl }} className="w-full h-full" />
                           ) : (
                             <View
                               className="w-full h-full items-center justify-center"
                               style={{ backgroundColor: themeColor + "30" }}
                             >
                               <Text className="text-xl font-bold" style={{ color: themeColor }}>
-                                {item.friend?.name?.[0] ?? "?"}
+                                {friend.displayName?.[0] ?? "?"}
                               </Text>
                             </View>
                           )}
                         </View>
                         <View className="flex-1">
                           <Text className="font-semibold text-base" style={{ color: colors.text }}>
-                            {item.friend?.name ?? "Unknown"}
+                            {friend.displayName ?? "Unknown"}
                           </Text>
                           <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                            {item.lastHangout
-                              ? `Last event: ${new Date(item.lastHangout).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                            {friend.lastHangoutAt
+                              ? `Last event: ${new Date(friend.lastHangoutAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                               : "No events yet"}
                           </Text>
-                          {item.groups.length > 0 && (
-                            <View className="flex-row mt-2">
-                              {item.groups.slice(0, 2).map((group) => (
-                                <View
-                                  key={group.id}
-                                  className="px-2 py-0.5 rounded-full mr-1"
-                                  style={{ backgroundColor: group.color + "20" }}
-                                >
-                                  <Text className="text-xs" style={{ color: group.color }}>
-                                    {group.name}
-                                  </Text>
-                                </View>
-                              ))}
-                            </View>
-                          )}
                         </View>
                         <ChevronRight size={20} color={colors.textTertiary} />
                       </Pressable>
                       {/* Dismiss button */}
                       <Pressable
-                        onPress={() => handleDismissFriend(item.friend.id)}
+                        onPress={() => handleDismissFriend(friend.id)}
                         hitSlop={12}
                         className="ml-2 p-1"
                         style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
