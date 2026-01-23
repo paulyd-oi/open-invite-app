@@ -9,6 +9,7 @@ import {
   getSessionCookie,
   setSessionCookie,
   clearSessionCookie,
+  setExplicitCookiePair,
   SESSION_COOKIE_KEY,
 } from "./sessionCookie";
 
@@ -413,7 +414,8 @@ export const authClient = {
           console.log('[authClient.signIn] Result:', { 
             hasData: !!result.data, 
             hasError: !!result.error,
-            hasUser: !!result.data?.user 
+            hasUser: !!result.data?.user,
+            hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
           });
           authTrace("signIn:complete", { hasUser: !!result.data?.user, success: !result.error });
         }
@@ -422,8 +424,17 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign in failed' } } as any;
         }
         
-        // Capture cookie from Better Auth's expo storage (if accessible)
-        await captureAndStoreCookie();
+        // Check for backend-provided mobileSessionToken (preferred method)
+        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        if (mobileSessionToken && typeof mobileSessionToken === 'string') {
+          if (__DEV__) {
+            console.log('[authClient.signIn] mobileSessionToken received');
+          }
+          await setExplicitCookiePair(mobileSessionToken);
+        } else {
+          // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
+          await captureAndStoreCookie();
+        }
         
         // Verify session is valid by calling /api/auth/session
         await verifySessionAfterAuth('signIn');
@@ -454,7 +465,8 @@ export const authClient = {
           console.log('[authClient.signUp] Result:', { 
             hasData: !!result.data, 
             hasError: !!result.error,
-            hasUser: !!result.data?.user 
+            hasUser: !!result.data?.user,
+            hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
           });
           authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
         }
@@ -463,8 +475,17 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
         
-        // Capture cookie from Better Auth's expo storage (if accessible)
-        await captureAndStoreCookie();
+        // Check for backend-provided mobileSessionToken (preferred method)
+        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        if (mobileSessionToken && typeof mobileSessionToken === 'string') {
+          if (__DEV__) {
+            console.log('[authClient.signUp] mobileSessionToken received');
+          }
+          await setExplicitCookiePair(mobileSessionToken);
+        } else {
+          // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
+          await captureAndStoreCookie();
+        }
         
         // Verify session is valid by calling /api/auth/session
         await verifySessionAfterAuth('signUp');

@@ -116,3 +116,34 @@ export async function getSessionTokenValue(): Promise<string | null> {
   const match = cookie.match(/=(.+)$/);
   return match ? match[1] : null;
 }
+
+/**
+ * Set explicit cookie pair from backend-provided mobileSessionToken.
+ * This is the preferred method for storing the session token deterministically.
+ * @param tokenValue The raw session token value from backend's mobileSessionToken field
+ */
+export async function setExplicitCookiePair(tokenValue: string): Promise<void> {
+  if (!tokenValue) {
+    if (__DEV__) {
+      console.log("[sessionCookie] setExplicitCookiePair called with empty token");
+    }
+    return;
+  }
+  
+  // Format as full cookie pair
+  const fullCookie = `${COOKIE_NAME}=${tokenValue}`;
+  
+  try {
+    await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
+    
+    if (__DEV__) {
+      console.log("[sessionCookie] Explicit cookie pair stored successfully");
+      console.log("[sessionCookie] Explicit cookie stored: true");
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.log("[sessionCookie] Error setting explicit cookie pair:", error);
+    }
+    throw error;
+  }
+}
