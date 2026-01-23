@@ -188,18 +188,53 @@ eventsRouter.get("/feed", async (c) => {
   return c.json({ events: events.map(serializeEvent) });
 });
 
-// GET /api/events/attending - Get events user is attending (joined friend events)
+// GET /api/events/attending - Get events user is attending (RSVP "going" events)
 eventsRouter.get("/attending", async (c) => {
   const user = c.get("user");
   if (!user) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  // Get all friend events where user has an accepted join request
+  // Get events where user has RSVP status = "going" (not their own events)
+  const goingRsvps = await db.event_interest.findMany({
+    where: {
+      userId: user.id,
+      status: "going",
+      event: {
+        userId: { not: user.id }, // Exclude own events
+      },
+    },
+    include: {
+      event: {
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+          event_group_visibility: {
+            include: {
+              friend_group: { select: { id: true, name: true, color: true } },
+            },
+          },
+          event_join_request: {
+            include: {
+              user: { select: { id: true, name: true, image: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const goingEvents = goingRsvps
+    .map((rsvp) => rsvp.event)
+    .filter((event) => event !== null);
+
+  // Also get events where user has an accepted join request (legacy system, backwards compatibility)
   const joinRequests = await db.event_join_request.findMany({
     where: {
       userId: user.id,
       status: "accepted",
+      event: {
+        userId: { not: user.id },
+      },
     },
     include: {
       event: {
@@ -221,14 +256,18 @@ eventsRouter.get("/attending", async (c) => {
     },
   });
 
-  const friendEvents = joinRequests
+  const joinedEvents = joinRequests
     .map((jr) => jr.event)
     .filter((event) => event !== null);
 
-  // Return friend events only (no business events)
-  const allEvents = friendEvents.map(serializeEvent);
+  // Merge goingEvents and joinedEvents, removing duplicates
+  const goingEventIds = new Set(goingEvents.map((e) => e.id));
+  const allAttendingEvents = [
+    ...goingEvents,
+    ...joinedEvents.filter((e) => !goingEventIds.has(e.id)),
+  ];
 
-  return c.json({ events: allEvents });
+  return c.json({ events: allAttendingEvents.map(serializeEvent) });
 });
 
 // ============================================

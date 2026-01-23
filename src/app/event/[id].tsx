@@ -523,6 +523,8 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
       // Invalidate calendar events so RSVP "going" events appear immediately
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      // Invalidate attending events so Social tab updates immediately
+      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
       setShowRsvpOptions(false);
       
       // Check if we should show first RSVP nudge
@@ -546,6 +548,8 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
       // Invalidate calendar events so removed RSVP updates calendar immediately
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      // Invalidate attending events so Social tab updates immediately
+      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
     },
   });
 
