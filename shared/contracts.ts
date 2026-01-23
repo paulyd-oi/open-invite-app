@@ -503,6 +503,7 @@ export const getProfileResponseSchema = z.object({
   badges: z.array(z.object({
     achievementId: z.string(),
     name: z.string(),
+    description: z.string().nullable(),
     emoji: z.string(),
     tier: z.string(),
     tierColor: z.string(),

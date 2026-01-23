@@ -93,6 +93,8 @@ export default function ProfileScreen() {
 
   // Avatar source with auth headers
   const [avatarSource, setAvatarSource] = useState<{ uri: string; headers?: { Authorization: string } } | null>(null);
+  const [selectedBadge, setSelectedBadge] = useState<{ achievementId: string; name: string; description: string | null; emoji: string; tier: string; tierColor: string; grantedAt: string } | null>(null);
+
 
   // Redirect to appropriate auth screen based on bootStatus (aligns with BootRouter)
   useEffect(() => {
@@ -348,7 +350,8 @@ export default function ProfileScreen() {
                 {profileData?.badges && profileData.badges.length > 0 && (
                   <View className="flex-row flex-wrap gap-1.5 mt-2">
                     {profileData.badges.map((badge) => (
-                      <View
+                      <Pressable
+                        onPress={() => setSelectedBadge(badge)}
                         key={badge.achievementId}
                         className="px-2 py-1 rounded-full flex-row items-center"
                         style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
@@ -357,7 +360,7 @@ export default function ProfileScreen() {
                         <Text className="text-xs font-medium ml-1" style={{ color: colors.text }}>
                           {badge.name}
                         </Text>
-                      </View>
+                      </Pressable>
                     ))}
                   </View>
                 )}
@@ -651,6 +654,53 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </Animated.View>
+
+        {/* Badge Details Modal */}
+        <Modal
+          visible={selectedBadge !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedBadge(null)}
+        >
+          <Pressable
+            className="flex-1 bg-black/50 items-center justify-center"
+            onPress={() => setSelectedBadge(null)}
+          >
+            <Pressable
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 mx-6 w-80 max-w-full"
+              onPress={(e) => e.stopPropagation()}
+              style={{ backgroundColor: colors.surface }}
+            >
+              <Pressable
+                className="absolute top-4 right-4 w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+                onPress={() => setSelectedBadge(null)}
+              >
+                <X size={16} color={colors.textSecondary} />
+              </Pressable>
+              {selectedBadge && (
+                <View className="items-center">
+                  <Text className="text-5xl mb-3">{selectedBadge.emoji}</Text>
+                  <Text className="text-xl font-sora-bold text-center mb-2" style={{ color: colors.text }}>
+                    {selectedBadge.name}
+                  </Text>
+                  <View
+                    className="px-3 py-1 rounded-full mb-4"
+                    style={{ backgroundColor: selectedBadge.tierColor + "20" }}
+                  >
+                    <Text className="text-xs font-semibold" style={{ color: selectedBadge.tierColor }}>
+                      {selectedBadge.tier}
+                    </Text>
+                  </View>
+                  <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
+                    {selectedBadge.description || "A special achievement badge."}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
+
       </ScrollView>
 
       {/* Monthly Recap Modal */}
