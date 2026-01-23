@@ -1,29 +1,33 @@
 ================================================================================
-HANDOFF PACKET: P0 Stop-Ship Fixes (Frontend Pass 1)
+HANDOFF PACKET: P1 Fixes (Frontend Pass 2)
 ================================================================================
 Generated: 2026-01-23
-Session: Frontend P0 bug fixes for release
+Session: Frontend P1 bug fixes
 ================================================================================
 
 SUMMARY
 -------
-Fixed 3 critical stop-ship issues in the Open Invite frontend:
+Fixed 3 P1 issues in the Open Invite frontend:
 
-1. ONBOARDING PHOTO UPLOAD CRASH + AUTH REDIRECT
-   - Replaced deprecated ImagePicker.MediaTypeOptions.Images with ["images"]
-   - Changed token check from SecureStore (hasAuthToken) to session-based (getSessionCached)
-   - Onboarding now proceeds if cookie session is valid, even without SecureStore token
-   - Upload errors handled gracefully without crash or redirect
+1. #7 - GET STARTED GUIDE FIRST-LOGIN ONLY
+   - Changed from device-level key (onboarding_seen_v1) to user-specific key (guide_seen::<userId>)
+   - Guide only auto-opens if user has valid session AND hasn't seen it before
+   - Long-time users will NEVER see guide popup again
+   - "Maybe later" dismiss marks user as seen (no repeat spam)
+   - Settings > Get Started Guide still works for manual access
 
-2. FALSE "VERIFY YOUR EMAIL" BANNER
-   - Banner now checks session.user.emailVerified === false before showing
-   - If user is verified (emailVerified === true), banner never renders
-   - Waits for session to load before checking (no flash of incorrect state)
+2. #9 - ADMIN CONSOLE BADGES UI RESTORED
+   - Added visible "BADGES" section in Admin Console overview
+   - Shows "Manage User Badges" tile with Award icon
+   - Provides clear instructions: "Search for a user below to grant or revoke badges"
+   - Badge grant/revoke functionality works after selecting a user
 
-3. PREMIUM USER SHOWN AS "FREE"
-   - Plan row now shows "Loading..." while entitlements are being fetched
-   - Prevents false "Free" display that flashes before premium status loads
-   - Upgrade CTA still properly gated (only shows for non-premium users)
+3. #13 - CREATE EVENT USES CIRCLES (NOT LEGACY GROUPS)
+   - Changed create.tsx query from /api/groups to /api/circles
+   - Changed edit/[id].tsx query from /api/groups to /api/circles
+   - Updated UI labels: "Groups" → "Circles"
+   - Updated empty state text: "No circles yet. Create circles from Friends tab!"
+   - Circle items display emoji instead of color-coded Users icon
 
 
 REPO CONFIRMATION
@@ -36,102 +40,92 @@ Status: Clean after commit
 
 FILES CHANGED
 -------------
-1. src/app/welcome.tsx
-   - Added import for getSessionCached from @/lib/sessionCache
-   - Changed MediaTypeOptions.Images to ["images"] (line ~512)
-   - Changed handleSlide3Continue session check from hasAuthToken to getSessionCached
-   - Changed uploadPhotoInBackground session check from hasAuthToken to getSessionCached
+1. src/app/calendar.tsx
+   - Changed ONBOARDING_SEEN_KEY to GUIDE_SEEN_KEY_PREFIX with user-specific format
+   - Updated checkFirstLogin effect to require session.user.id
+   - Updated handleDismissGuide and handleOpenGuide to use user-specific key
 
-2. src/app/social.tsx
-   - Updated checkVerificationStatus effect to check session.user.emailVerified
-   - Added sessionLoading dependency to avoid flash of incorrect state
-   - Banner only shows when emailVerified === false AND deferred === true
+2. src/app/admin.tsx
+   - Added Award import from @/ui/icons
+   - Added BADGES section between OVERVIEW and USER LOOKUP
+   - Shows "Manage User Badges" tile with instructions
 
-3. src/app/settings.tsx
-   - Plan row status now shows "Loading..." when entitlementsLoading is true
-   - Prevents false "Free" from displaying during entitlements fetch
+3. src/app/create.tsx
+   - Changed imports: GetGroupsResponse → GetCirclesResponse, FriendGroup → Circle
+   - Changed query: /api/groups → /api/circles
+   - Updated UI labels and rendering for Circle objects
 
-4. eas.json
-   - Added development-simulator build profile (unrelated to P0 fixes)
+4. src/app/event/edit/[id].tsx
+   - Same changes as create.tsx for consistency
+   - "Groups" button label → "Circles"
 
 
 KEY DIFFS
 ---------
 
-A. welcome.tsx - MediaTypeOptions fix (line ~512):
+A. calendar.tsx - Guide key change:
 BEFORE:
-  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+  const ONBOARDING_SEEN_KEY = "onboarding_seen_v1";
 
 AFTER:
-  mediaTypes: ["images"],
+  const GUIDE_SEEN_KEY_PREFIX = "guide_seen::";
+  // Usage: `${GUIDE_SEEN_KEY_PREFIX}${userId}`
 
 
-B. welcome.tsx - Session check for Continue (lines ~529-540):
-BEFORE:
-  const hasToken = await hasAuthToken();
-  if (!hasToken) {
-    console.log("[Onboarding] No auth token, redirecting to login");
-    router.replace("/login");
-    return;
-  }
-
-AFTER:
-  try {
-    const sessionResult = await getSessionCached();
-    if (!sessionResult?.user?.id) {
-      console.log("[Onboarding] No valid session, redirecting to login");
-      router.replace("/login");
-      return;
-    }
-  } catch (sessionErr) {
-    console.log("[Onboarding] Session check failed, redirecting to login");
-    router.replace("/login");
-    return;
-  }
-
-
-C. social.tsx - Verification banner gating (lines ~369-392):
+B. calendar.tsx - First login check:
 BEFORE:
   useEffect(() => {
-    const checkVerificationStatus = async () => {
-      const deferred = await AsyncStorage.getItem("verification_deferred");
-      const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
-      if (deferred === "true" && dismissed !== "true") {
-        setShowVerificationBanner(true);
+    const checkFirstLogin = async () => {
+      const hasSeenGuide = await AsyncStorage.getItem(ONBOARDING_SEEN_KEY);
+      if (!hasSeenGuide) {
+        setTimeout(() => setShowFirstLoginGuide(true), 500);
       }
     };
-    checkVerificationStatus();
+    checkFirstLogin();
   }, []);
 
 AFTER:
   useEffect(() => {
-    const checkVerificationStatus = async () => {
-      // First check if user is already verified via session - if so, never show banner
-      if (session?.user?.emailVerified === true) {
-        setShowVerificationBanner(false);
-        return;
-      }
-      // Only show banner if explicitly deferred AND not dismissed AND not verified
-      const deferred = await AsyncStorage.getItem("verification_deferred");
-      const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
-      if (deferred === "true" && dismissed !== "true" && session?.user?.emailVerified === false) {
-        setShowVerificationBanner(true);
-      } else {
-        setShowVerificationBanner(false);
+    const checkFirstLogin = async () => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      
+      const guideSeenKey = `${GUIDE_SEEN_KEY_PREFIX}${userId}`;
+      const hasSeenGuide = await AsyncStorage.getItem(guideSeenKey);
+      if (!hasSeenGuide) {
+        setTimeout(() => setShowFirstLoginGuide(true), 500);
       }
     };
-    if (!sessionLoading) {
-      checkVerificationStatus();
-    }
-  }, [session, sessionLoading]);
+    checkFirstLogin();
+  }, [session?.user?.id]);
 
 
-D. settings.tsx - Plan status loading state (lines ~1817-1821):
+C. admin.tsx - Badges section (NEW):
+  {/* Badges Management Section */}
+  <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-6">
+    <Text style={{ color: colors.textSecondary }}>BADGES</Text>
+    <View style={{ backgroundColor: colors.surface }}>
+      <Award size={20} color={themeColor} />
+      <Text>Manage User Badges</Text>
+      <Text>Search for a user below to grant or revoke badges</Text>
+    </View>
+  </Animated.View>
+
+
+D. create.tsx & edit/[id].tsx - Circles query:
 BEFORE:
-  {userIsPremium ? "Active" : "Free"}
+  const { data: groupsData } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
+  });
+  const groups = groupsData?.groups ?? [];
 
 AFTER:
-  {entitlementsLoading ? "Loading..." : userIsPremium ? "Active" : "Free"}
+  const { data: circlesData } = useQuery({
+    queryKey: ["circles"],
+    queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
+  });
+  const circles = circlesData?.circles ?? [];
 
 
 TEST RESULTS
@@ -142,45 +136,43 @@ Result: PASSED (no errors)
 
 MANUAL TEST PLAN
 ----------------
-1. FRESH ONBOARDING TEST:
-   - Create new account
-   - Reach profile setup screen (Slide 3)
-   - Add photo (optional) - should not crash
-   - Tap Continue - should not redirect to login if session exists
-   - Verify logs show session check, not token check
+1. GUIDE FIRST-LOGIN TEST:
+   ✓ Existing user login → Guide does NOT auto-popup
+   ✓ New user (or clear guide_seen::<userId> key) → Guide pops once
+   ✓ Dismiss guide → Never shows again for that user
+   ✓ Settings > Get Started Guide → Still accessible manually
 
-2. EMAIL VERIFICATION BANNER TEST:
-   - Log in with verified account
-   - Navigate to Social screen
-   - Confirm: No "Verify your email" banner appears
-   - (If testing unverified account: banner should appear only if deferred)
+2. ADMIN CONSOLE BADGES TEST:
+   ✓ Log in as Platform Admin
+   ✓ Go to Settings > Admin Console
+   ✓ Confirm "BADGES" section visible between OVERVIEW and USER LOOKUP
+   ✓ Search for user → Select → Badge management appears
 
-3. PREMIUM STATUS TEST:
-   - Log in with Lifetime Pro account
-   - Navigate to Settings
-   - Plan row should show "Loading..." briefly, then "Active"
-   - Should NOT flash "Free" at any point
-   - "Upgrade to Premium" row should be hidden
+3. CREATE EVENT CIRCLES TEST:
+   ✓ Create Event → Visibility section shows "Circles" option
+   ✓ Select "Circles" → Shows list from /api/circles (not /api/groups)
+   ✓ Circle items show emoji, not color icon
+   ✓ Edit Event → Same behavior
 
 
 COMMIT + PUSH
 -------------
-Commit: abf9508
-Message: "fix(p0): onboarding photo crash + email verify + premium gating"
+Commit: 68f0497
+Message: "fix(p1): guide gating + admin badges + circles in create-event"
 Push: YES (to origin/main)
-Files: 4 changed, 54 insertions(+), 14 deletions(-)
+Files: 4 changed, 82 insertions(+), 46 deletions(-)
 
 
 RISKS / FOLLOW-UPS
 ------------------
-1. eas.json change included (development-simulator profile) - unrelated to P0 fixes
-   but was already modified in working tree. Low risk.
+1. Existing users who saw guide before (device-level key) will see it ONCE more
+   with the new user-specific key. This is acceptable - ensures fresh clean slate.
 
-2. Photo upload still best-effort (no retry mechanism). If upload fails, user
-   continues without avatar but can add later from profile. Acceptable for P0.
+2. The internal visibility value "specific_groups" is kept for backend compatibility.
+   Only UI labels changed to "Circles". Future refactor could rename this constant.
 
-3. Session check uses getSessionCached which may return stale session in edge cases.
-   Cookie session is still source of truth; this is improvement over hard token requirement.
+3. Edit event screen loads existing groupVisibility[] from event. If old events
+   had legacy group IDs, they may not match new circle IDs. Backend handles this.
 
 
 END OF HANDOFF PACKET
