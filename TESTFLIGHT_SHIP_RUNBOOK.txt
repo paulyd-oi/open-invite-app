@@ -1,0 +1,160 @@
+================================================================================
+HANDOFF PACKET — TESTFLIGHT SHIP RUNBOOK
+================================================================================
+
+SUMMARY
+-------
+TestFlight readiness verified. All production configuration is correct.
+No code changes required. Ready to build and ship.
+
+PRECHECK
+--------
+pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
+remote: https://github.com/paulyd-oi/open-invite-app.git (CORRECT)
+branch: main (CORRECT)
+status: 11 modified files, 1 untracked (uncommitted stability fixes)
+typecheck: PASSES (no errors)
+
+git log --oneline -5:
+13da5be feat(badges): add instructional empty state
+934803f feat(badges): badges page, featured badge selection
+4c6eba6 feat(ui): prepare badge row rendering
+ae006d0 feat(profile): badge chip details modal
+d1574dd feat(profile): display user badges
+
+PRODUCTION CONFIG CHECK
+-----------------------
+
+1. RevenueCat keys: PASS
+   - Location: src/lib/revenuecatClient.ts lines 34-45
+   - Logic: __DEV__ ? testKey : (iOS ? appleKey : googleKey)
+   - TestFlight/Production uses EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY
+   - Test key ONLY used when __DEV__ === true
+   - Keys stored in EAS Secrets (not in eas.json or .env files)
+
+2. Backend URL: PASS
+   - Production: https://open-invite-api.onrender.com
+   - Configured in eas.json for both development and production profiles
+   - Fallback in src/lib/config.ts also points to production Render URL
+   - No localhost or staging URLs in production config
+
+3. Dev logging: PASS (with note)
+   - All critical paths have __DEV__ guards on console.log
+   - Files verified: api.ts, sessionCache.ts, entitlementsApi.ts, imageSource.ts
+   - One intentional exception: RevenueCat ERROR logs (line 104) are not gated
+     This is intentional for debugging IAP issues in production
+   - safeToast.ts properly guards toast logs with __DEV__
+
+EAS BUILD COMMANDS
+------------------
+
+STEP 1: Commit pending changes
+  git add -A
+  git commit -m "fix(frontend): QueryClient defaults, polling guards, login nav, entitlements refresh"
+
+STEP 2: Push to main
+  git push origin main
+
+STEP 3: Build for TestFlight
+  eas build --platform ios --profile production
+
+STEP 4: Submit to TestFlight (after build completes)
+  eas submit --platform ios --latest
+
+ALTERNATIVE: Build and submit in one command
+  eas build --platform ios --profile production --auto-submit
+
+PHYSICAL DEVICE SMOKE CHECKLIST
+-------------------------------
+
+Test on physical iPhone with TestFlight build. DO NOT use simulator.
+
+[ ] 1. FRESH INSTALL / FIRST LAUNCH
+    Action: Delete existing app, install from TestFlight
+    Expected: App opens to login screen, splash dismisses cleanly
+    FAIL if: Crash on launch, splash stuck, white screen
+
+[ ] 2. LOGIN FLOW
+    Action: Sign in with valid account (Apple Sign In or Email)
+    Expected: Navigate to home calendar (or onboarding if new user)
+    FAIL if: Auth loop, stuck on loading, "please sign in" screen flash
+
+[ ] 3. NAVIGATION - ALL TABS
+    Action: Tap each bottom nav (Discover, Social, Calendar, Friends, Profile)
+    Expected: All tabs load without crash
+    FAIL if: Any tab crashes, blank screen, missing content
+
+[ ] 4. POLLING BEHAVIOR
+    Action: Stay on Social Feed 1 min, then background app for 30 sec
+    Expected: Feed refreshes while active, NO requests when backgrounded
+    FAIL if: App crashes on background, battery drain (check Activity Monitor)
+
+[ ] 5. FOREGROUND REFRESH
+    Action: Background app 11+ minutes, then return
+    Expected: Single entitlements refresh (no spam)
+    FAIL if: Multiple rapid API calls, crash on foreground
+
+[ ] 6. PAYWALL - FREE USER
+    Action: Settings > Upgrade to Pro (or tap any premium feature)
+    Expected: Paywall loads, prices display correctly
+    FAIL if: "RevenueCat not configured" error, crash, blank paywall
+
+[ ] 7. RESTORE PURCHASES - NO PRIOR
+    Action: Tap "Restore Purchases" on paywall (account with no purchases)
+    Expected: Toast "No Purchases Found"
+    FAIL if: Crash, infinite loading, wrong error message
+
+[ ] 8. PURCHASE FLOW (SANDBOX)
+    Action: Select yearly, complete sandbox purchase
+    Expected: Success modal, isPremium becomes true, features unlock
+    FAIL if: Purchase fails, entitlements don't update, crash
+
+[ ] 9. BACK NAVIGATION
+    Action: Log out, observe redirect
+    Expected: router.replace takes you to /login, back gesture does nothing
+    FAIL if: Back swipe returns to authenticated screen
+
+[ ] 10. CIRCLE CHAT
+    Action: Open circle chat, send message, background app
+    Expected: Messages poll every 10s active, stop when backgrounded
+    FAIL if: Crash, messages not sending, battery drain
+
+GO / NO-GO
+----------
+
+Ship Blockers Found: NONE
+
+Recommendation: GO
+
+Rationale: All production configuration is verified correct. RevenueCat key 
+selection uses __DEV__ guard (production-safe). Backend URL points to Render. 
+All critical console.log statements are __DEV__ guarded. Uncommitted changes 
+are stability fixes that improve ship quality. Ready to commit, build, and 
+submit to TestFlight.
+
+CHANGES (if any)
+----------------
+NONE - This was a verification-only pass.
+
+Uncommitted changes from prior sessions (ready to commit):
+- src/app/_layout.tsx (QueryClient config, entitlements hooks)
+- src/app/activity.tsx (router.replace)
+- src/app/circle/[id].tsx (refetchIntervalInBackground)
+- src/app/create.tsx (router.replace)
+- src/app/friends.tsx (router.replace)
+- src/app/paywall.tsx (premium infrastructure)
+- src/app/settings.tsx (router.replace, premium UI)
+- src/app/social.tsx (polling guards, removed duplicate hook)
+- src/app/suggestions.tsx (router.replace)
+- src/components/BottomNavigation.tsx (badge staleTime)
+- src/components/LoginButton.tsx (router.replace)
+- src/hooks/useEntitlementsForegroundRefresh.ts (NEW FILE)
+
+diff stat: 11 files changed, 64 insertions(+), 16 deletions(-)
+typecheck: PASSES
+commit hash: NOT YET COMMITTED
+pushed: NO
+
+================================================================================
+END HANDOFF PACKET
+================================================================================

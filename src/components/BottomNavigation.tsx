@@ -204,7 +204,7 @@ export default function BottomNavigation() {
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
     enabled: bootStatus === 'authed',
-    staleTime: 30000, // Cache for 30 seconds to avoid too many requests
+    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
   // Fetch event requests count for calendar badge
@@ -212,7 +212,7 @@ export default function BottomNavigation() {
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
     enabled: bootStatus === 'authed',
-    staleTime: 30000,
+    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
   // Fetch circle unread count for friends badge
@@ -220,7 +220,7 @@ export default function BottomNavigation() {
     queryKey: ["circleUnreadCount"],
     queryFn: () => api.get<{ totalUnread: number }>("/api/circles/unread/count"),
     enabled: bootStatus === 'authed',
-    staleTime: 30000,
+    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
   // Fetch profiles for profile switcher

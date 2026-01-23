@@ -745,6 +745,7 @@ export default function CircleScreen() {
     queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
     enabled: !!session && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
+    refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
 
   // Fetch friends list for adding members

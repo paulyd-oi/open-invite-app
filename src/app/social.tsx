@@ -21,7 +21,6 @@ import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
-import { useRevenueCatSync } from "@/hooks/useRevenueCatSync";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { resetSession } from "@/lib/authBootstrap";
@@ -364,11 +363,7 @@ export default function SocialScreen() {
     }
   }, [bootStatus, router]);
 
-  // Sync RevenueCat user ID with authentication
-  useRevenueCatSync({
-    userId: session?.user?.id,
-    isLoggedIn: !!session,
-  });
+  // NOTE: useRevenueCatSync is called in _layout.tsx BootRouter (single global call)
 
   // Initialize push notifications - registers token and sets up listeners
   useNotifications();
@@ -479,6 +474,7 @@ export default function SocialScreen() {
     queryFn: () => api.get<GetEventsFeedResponse>("/api/events/feed"),
     enabled: isAuthed,
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+    refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
 
   // Also fetch user's own events
@@ -492,6 +488,7 @@ export default function SocialScreen() {
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthed,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
 
   // Fetch events user is attending
@@ -505,6 +502,7 @@ export default function SocialScreen() {
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
     enabled: isAuthed,
     refetchInterval: 30000,
+    refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
 
   // Fetch friends for first-value nudge eligibility

@@ -32,6 +32,9 @@ import { BACKEND_URL } from '@/lib/config';
 import { useBootAuthority } from '@/hooks/useBootAuthority';
 import { useReferralClaim } from '@/hooks/useReferralClaim';
 import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
+import { useRevenueCatSync } from '@/hooks/useRevenueCatSync';
+import { useEntitlementsForegroundRefresh } from '@/hooks/useEntitlementsForegroundRefresh';
+import { useSession } from '@/lib/useSession';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -40,7 +43,27 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 ExpoSplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Don't retry on auth errors (401/403) or not found (404)
+      retry: (failureCount, error: any) => {
+        const status = error?.status ?? error?.response?.status;
+        if (status === 401 || status === 403 || status === 404) return false;
+        return failureCount < 1;
+      },
+      // Default stale time to reduce re-fetches
+      staleTime: 30000,
+      // Prevent aggressive refetching that can cause loops
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: false,
+    },
+  },
+});
 
 // Component that handles offline sync (must be inside QueryClientProvider)
 function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
@@ -63,12 +86,27 @@ function BootRouter() {
   const navigationState = useRootNavigationState();
   const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
+  
+  // Get session data for RevenueCat sync
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
+  // Sync RevenueCat user ID with backend auth (one-shot per login/logout)
+  useRevenueCatSync({
+    userId,
+    isLoggedIn: bootStatus === 'authed' || bootStatus === 'onboarding',
+  });
 
   // Claim any pending referral code once authed (one-shot, never blocks UI)
   useReferralClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
 
   // Fetch entitlements once authed (one-shot, never blocks UI)
   useEntitlementsSync({ bootStatus });
+
+  // Refresh entitlements on foreground (with 10min throttle)
+  useEntitlementsForegroundRefresh({
+    isLoggedIn: bootStatus === 'authed' || bootStatus === 'onboarding',
+  });
 
   // Wait for navigation state to be ready before routing
   useEffect(() => {

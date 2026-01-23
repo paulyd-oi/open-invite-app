@@ -271,7 +271,7 @@ export default function SuggestionsScreen() {
             Discover people you might know based on mutual friends.
           </Text>
           <Pressable
-            onPress={() => router.push("/login")}
+            onPress={() => router.replace("/login")}
             className="px-6 py-3 rounded-full"
             style={{ backgroundColor: themeColor }}
           >

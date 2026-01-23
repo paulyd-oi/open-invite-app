@@ -27,6 +27,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { useRefreshEntitlements } from "@/lib/entitlements";
 import {
   isRevenueCatEnabled,
   getOfferings,
@@ -64,6 +65,7 @@ const PREMIUM_FEATURES = [
 export default function PaywallScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const refreshEntitlements = useRefreshEntitlements();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -140,6 +142,9 @@ export default function PaywallScreen() {
     const result = await restorePurchases();
 
     if (result.ok) {
+      // Refresh entitlements from backend after restore
+      await refreshEntitlements();
+
       const entitlementResult = await hasEntitlement("premium");
 
       if (entitlementResult.ok && entitlementResult.data) {

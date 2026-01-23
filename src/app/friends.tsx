@@ -964,7 +964,7 @@ export default function FriendsScreen() {
             Sign in to see your friends
           </Text>
           <Pressable
-            onPress={() => router.push("/login")}
+            onPress={() => router.replace("/login")}
             className="px-6 py-3 rounded-full mt-4"
             style={{ backgroundColor: themeColor }}
           >

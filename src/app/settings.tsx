@@ -470,6 +470,12 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const result = await subscription.restore();
+    
+    // Refresh entitlements from backend after restore
+    if (result.ok) {
+      await refreshEntitlements();
+    }
+    
     setIsRestoringPurchases(false);
 
     if (result.ok) {
@@ -902,7 +908,7 @@ export default function SettingsScreen() {
         <View className="flex-1 items-center justify-center px-8">
           <Text style={{ color: colors.textSecondary }} className="text-base mb-4">Please sign in to access settings</Text>
           <Pressable
-            onPress={() => router.push("/login")}
+            onPress={() => router.replace("/login")}
             className="px-6 py-3 rounded-full"
             style={{ backgroundColor: themeColor }}
           >

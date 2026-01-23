@@ -219,7 +219,7 @@ export default function ActivityScreen() {
             Stay updated with friend requests, event invites, and more.
           </Text>
           <Pressable
-            onPress={() => router.push("/login")}
+            onPress={() => router.replace("/login")}
             className="px-6 py-3 rounded-full"
             style={{ backgroundColor: themeColor }}
           >

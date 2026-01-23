@@ -624,7 +624,7 @@ export default function CreateEventScreen() {
             Sign in to create events
           </Text>
           <Pressable
-            onPress={() => router.push("/login")}
+            onPress={() => router.replace("/login")}
             className="px-6 py-3 rounded-full mt-4"
             style={{ backgroundColor: themeColor }}
           >

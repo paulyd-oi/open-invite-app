@@ -18,7 +18,7 @@ const LoginButton = () => {
           // Route to settings for proper logout
           router.push("/settings");
         } else {
-          router.push("/login");
+          router.replace("/login");
         }
       }}
       className={cn("p-4 rounded-md", session ? "bg-red-500" : "bg-blue-500")}
