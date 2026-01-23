@@ -157,12 +157,16 @@ async function $fetch<T = any>(
     headers["Content-Type"] = headers["Content-Type"] || "application/json";
   }
 
+  // NOTE: With Better Auth, authentication is handled via cookies (Set-Cookie header).
+  // The credentials: "include" option below ensures cookies are sent with requests.
+  // We keep token logic for backward compatibility but cookies are primary auth mechanism.
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
   authTrace("authFetch:afterAttach", {
     willAttachAuthHeader: !!token,
+    usingCookieAuth: true,
     endpoint: path,
   });
 
@@ -170,8 +174,8 @@ async function $fetch<T = any>(
     ...init,
     headers,
     body,
-    // If your backend uses cookies, keep this as include. If not, it’s still safe.
-    credentials: "include" as any,
+    // CRITICAL: Better Auth uses cookies for auth. This ensures cookies are sent/received.
+    credentials: "include",
   });
 
   if (__DEV__) {
@@ -332,10 +336,13 @@ export const authClient = {
               console.log('[authClient.signIn] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
             }
           } else if (__DEV__) {
-            console.log('[authClient.signIn] No token found in response', { topKeys: Object.keys(data) });
+            // NOTE: Better Auth uses cookies for auth. Token in response body is optional.
+            // The Set-Cookie header from the response establishes the session.
+            console.log('[authClient.signIn] No token in response body (expected with cookie auth)', { topKeys: Object.keys(data) });
           }
         }
         
+        // Success! Auth cookie was set by Set-Cookie header. Token in body is optional.
         return { data } as any;
       } catch (e: any) {
         return { error: { message: e?.message || String(e) } } as any;
@@ -382,10 +389,13 @@ export const authClient = {
               console.log('[authClient.signUp] Stored token to SecureStore', { tokenLen: tokenValue.length, keyUsed: TOKEN_KEY });
             }
           } else if (__DEV__) {
-            console.log('[authClient.signUp] No token found in response', { topKeys: Object.keys(data) });
+            // NOTE: Better Auth uses cookies for auth. Token in response body is optional.
+            // The Set-Cookie header from the response establishes the session.
+            console.log('[authClient.signUp] No token in response body (expected with cookie auth)', { topKeys: Object.keys(data) });
           }
         }
         
+        // Success! Auth cookie was set by Set-Cookie header. Token in body is optional.
         return { data } as any;
       } catch (e: any) {
         return { error: { message: e?.message || String(e) } } as any;

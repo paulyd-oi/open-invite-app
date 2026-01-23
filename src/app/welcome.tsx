@@ -380,7 +380,8 @@ export default function WelcomeOnboardingScreen() {
         }
       }
 
-      // Extract and store token
+      // NOTE: With Better Auth, authentication is via cookies (Set-Cookie header).
+      // Token in response body is optional. If present, store for backward compat.
       let tokenValue: string | null = null;
       if (result && typeof result === 'object') {
         if (typeof result.token === 'string') {
@@ -393,25 +394,18 @@ export default function WelcomeOnboardingScreen() {
       if (tokenValue) {
         await setAuthToken(tokenValue);
         console.log("[Auth] token stored, tokenExists: true");
-        
-        // Verify token was stored
-        const hasToken = await hasAuthToken();
-        if (!hasToken) {
-          setErrorBanner("Failed to save auth token. Please try again.");
-          return;
-        }
-
-        // Pre-populate name from result if available
-        if (result.user?.name) {
-          setDisplayName(result.user.name);
-        }
-
-        // Advance to Slide 3
-        setCurrentSlide(3);
       } else {
-        console.log("[Auth] No token in response:", Object.keys(result || {}));
-        setErrorBanner("Authentication succeeded but no token received. Please try again.");
+        // No token in body is expected with cookie auth - cookie was set via Set-Cookie header
+        console.log("[Auth] No token in response body (cookie auth mode)", Object.keys(result || {}));
       }
+
+      // Success! Auth cookie was set. Pre-populate name if available.
+      if (result?.user?.name) {
+        setDisplayName(result.user.name);
+      }
+
+      // Advance to Slide 3
+      setCurrentSlide(3);
     } catch (error: any) {
       console.error("[Onboarding] Auth error:", error?.message || error);
       setErrorBanner(error?.message || "Authentication failed. Please try again.");
@@ -444,10 +438,11 @@ export default function WelcomeOnboardingScreen() {
         throw new Error("No identity token received from Apple");
       }
 
-      // Send to backend
+      // Send to backend - use credentials: "include" so Set-Cookie is persisted
       const response = await fetch(`${BACKEND_URL}/api/auth/apple`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           identityToken: credential.identityToken,
           user: {
@@ -466,34 +461,29 @@ export default function WelcomeOnboardingScreen() {
         throw new Error(data.error || "Apple authentication failed");
       }
 
-      // Store token
+      // Cookie-based auth: Set-Cookie header from backend establishes session.
+      // Token in response body is optional (for backward compat with SecureStore).
       const tokenValue = data.token || data.session?.token;
       if (tokenValue) {
         await setAuthToken(tokenValue);
-        console.log("[Auth] token stored, tokenExists: true");
-        
-        const hasToken = await hasAuthToken();
-        if (!hasToken) {
-          setErrorBanner("Failed to save auth token. Please try again.");
-          return;
-        }
-
-        // Pre-populate name from Apple
-        if (credential.fullName?.givenName) {
-          const fullName = [
-            credential.fullName.givenName,
-            credential.fullName.familyName,
-          ].filter(Boolean).join(" ");
-          setDisplayName(fullName);
-        } else if (data.user?.name) {
-          setDisplayName(data.user.name);
-        }
-
-        // Advance to Slide 3
-        setCurrentSlide(3);
+        console.log("[Auth] Apple: token stored (optional), tokenExists: true");
       } else {
-        setErrorBanner("Authentication succeeded but no token received.");
+        console.log("[Auth] Apple: no token in response (cookie auth mode)");
       }
+
+      // Pre-populate name from Apple
+      if (credential.fullName?.givenName) {
+        const fullName = [
+          credential.fullName.givenName,
+          credential.fullName.familyName,
+        ].filter(Boolean).join(" ");
+        setDisplayName(fullName);
+      } else if (data.user?.name) {
+        setDisplayName(data.user.name);
+      }
+
+      // Advance to Slide 3 - auth succeeded (cookie is set)
+      setCurrentSlide(3);
     } catch (error: any) {
       if (isAppleAuthCancellation(error)) {
         console.log("[Apple Auth] User cancelled");

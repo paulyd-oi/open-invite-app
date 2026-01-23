@@ -182,6 +182,7 @@ export default function LoginWithEmailPassword() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           email: email.toLowerCase(),
           code: codeToVerify,
@@ -250,6 +251,7 @@ export default function LoginWithEmailPassword() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           email: email.toLowerCase(),
           name,
@@ -290,6 +292,7 @@ export default function LoginWithEmailPassword() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           email,
           redirectTo: "/reset-password",

@@ -72,23 +72,15 @@ const backendUrl =
 // Otherwise redirect to "/welcome" to complete onboarding flow
 async function routeAfterAuthSuccess(router: any): Promise<void> {
   try {
-    // INVARIANT CHECK: User must have token to be authenticated
-    const { hasAuthToken } = await import("@/lib/authClient");
-    const tokenExists = await hasAuthToken();
+    // Cookie-based auth: Session is established via Set-Cookie header.
+    // Token in SecureStore is optional (backward compat) - don't gate on it.
+    // Instead, we trust that signIn.email() succeeded and proceed to bootstrap.
     
     if (__DEV__) {
-      console.log("[Login] authedInvariant", {
-        tokenExists,
-      });
-    }
-    
-    // GUARD: Only redirect if authenticated
-    if (!tokenExists) {
-      console.log("[Login] Not authenticated (no token), staying on login screen");
-      return;
+      console.log("[Login] Auth success, proceeding with cookie-based session");
     }
 
-    // ✅ CRITICAL: Force bootstrap re-run after login token saved
+    // ✅ CRITICAL: Force bootstrap re-run after login
     // Singleton bootstrap won't re-run automatically - must explicitly trigger it
     // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
     const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
@@ -236,6 +228,7 @@ export default function LoginScreen() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             email: email.toLowerCase(),
             code: codeToVerify,
@@ -293,6 +286,7 @@ export default function LoginScreen() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             email: email.toLowerCase(),
           }),
@@ -329,6 +323,7 @@ export default function LoginScreen() {
       const response = await fetch(`${backendUrl}/api/auth/forget-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email,
           redirectTo: "/reset-password",

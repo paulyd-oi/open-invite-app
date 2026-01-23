@@ -57,21 +57,9 @@ export async function getSessionCached(config = DEFAULT_CONFIG): Promise<Session
     console.log('[getSessionCached] Called');
   }
 
-  // GUARD: Early exit if no token exists - prevent phantom cached sessions
-  // If we have no auth token, we cannot possibly have a valid session
-  const { hasAuthToken } = await import('./authClient');
-  const tokenExists = await hasAuthToken();
-  
-  if (!tokenExists) {
-    if (__DEV__) {
-      console.log('[getSessionCached] No auth token found, returning null (preventing phantom session)');
-    }
-    // Clear in-memory cache if token is missing
-    cachedSession = null;
-    inFlightPromise = null;
-    lastFetchAt = 0;
-    return null;
-  }
+  // NOTE: With Better Auth, authentication is handled via cookies (credentials: "include").
+  // We no longer require a SecureStore token to fetch session - the cookie IS the auth.
+  // If no valid cookie exists, the /api/auth/session endpoint will return 401.
 
   // Check if we're rate limited
   if (isRateLimited && now < rateLimitUntil) {
