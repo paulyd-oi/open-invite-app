@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getPendingReferralCode, clearPendingReferralCode } from '@/lib/referral';
 import { claimReferral, type ClaimErrorCode } from '@/lib/referralsApi';
 
@@ -31,6 +32,7 @@ interface UseReferralClaimOptions {
  */
 export function useReferralClaim({ bootStatus, isOnboardingComplete }: UseReferralClaimOptions) {
   const hasAttemptedRef = useRef(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Guard: Only run once per app launch
@@ -67,9 +69,12 @@ export function useReferralClaim({ bootStatus, isOnboardingComplete }: UseReferr
         const result = await claimReferral(pendingCode);
 
         if (result.success) {
-          // Success - clear pending code
-          console.log('[useReferralClaim] Successfully claimed referral code');
+          // Success - clear pending code and invalidate referral stats
+          if (__DEV__) {
+            console.log('[useReferralClaim] Successfully claimed referral code');
+          }
           await clearPendingReferralCode();
+          queryClient.invalidateQueries({ queryKey: ['referralStats'] });
           return;
         }
 
@@ -83,23 +88,29 @@ export function useReferralClaim({ bootStatus, isOnboardingComplete }: UseReferr
         ];
 
         if (result.errorCode && clearableErrors.includes(result.errorCode)) {
-          console.log(`[useReferralClaim] Clearing code due to: ${result.errorCode}`);
+          if (__DEV__) {
+            console.log(`[useReferralClaim] Clearing code due to: ${result.errorCode}`);
+          }
           await clearPendingReferralCode();
           return;
         }
 
         // Unknown error - log but still clear (to prevent retry loops)
-        console.log('[useReferralClaim] Unknown error, clearing code:', result.message);
+        if (__DEV__) {
+          console.log('[useReferralClaim] Unknown error, clearing code:', result.message);
+        }
         await clearPendingReferralCode();
 
       } catch (error) {
         // Unexpected error - log once and clear to prevent loops
-        console.error('[useReferralClaim] Unexpected error during claim:', error);
+        if (__DEV__) {
+          console.error('[useReferralClaim] Unexpected error during claim:', error);
+        }
         await clearPendingReferralCode();
       }
     };
 
     // Run async claim without blocking
     attemptClaim();
-  }, [bootStatus, isOnboardingComplete]);
+  }, [bootStatus, isOnboardingComplete, queryClient]);
 }

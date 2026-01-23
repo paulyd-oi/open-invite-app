@@ -8,23 +8,13 @@
 import { api } from './api';
 
 /**
- * Response from GET /api/referrals/me
- */
-export interface MyReferralResponse {
-  referralCode: string;
-  stats: {
-    invited: number;
-    claimed: number;
-    rewarded: number;
-  };
-}
-
-/**
- * Response from POST /api/referrals/claim
+ * Response from POST /api/referral/apply
  */
 export interface ClaimReferralResponse {
-  ok: boolean;
-  message?: string;
+  success?: boolean;
+  referrerName?: string;
+  welcomeBonus?: string;
+  error?: string;
 }
 
 /**
@@ -38,23 +28,10 @@ export type ClaimErrorCode =
   | 'UNKNOWN';
 
 /**
- * Get current user's referral info (code + stats)
- * GET /api/referrals/me
- */
-export async function getMyReferral(): Promise<MyReferralResponse | null> {
-  try {
-    return await api.get<MyReferralResponse>('/api/referrals/me');
-  } catch (error) {
-    console.log('[ReferralsApi] getMyReferral error:', error);
-    return null;
-  }
-}
-
-/**
  * Claim a referral code
- * POST /api/referrals/claim
+ * POST /api/referral/apply
  * 
- * Returns { ok: true } on success
+ * Returns { success: true, referrerName, welcomeBonus } on success
  * Returns error with code on failure (SELF_REFERRAL, INVALID_CODE, ALREADY_CLAIMED)
  */
 export async function claimReferral(code: string): Promise<{
@@ -63,31 +40,41 @@ export async function claimReferral(code: string): Promise<{
   message?: string;
 }> {
   try {
-    const response = await api.post<ClaimReferralResponse>('/api/referrals/claim', { code });
+    const response = await api.post<ClaimReferralResponse>('/api/referral/apply', { referralCode: code });
     
-    if (response?.ok) {
+    if (response?.success || response?.referrerName) {
       return { success: true };
     }
     
     return { success: false, errorCode: 'UNKNOWN', message: 'Unexpected response' };
   } catch (error: any) {
     // Parse error response for specific error codes
-    const errorMessage = error?.message || '';
+    // Backend returns { error: "message" } format
+    const errorMessage = error?.message || error?.body?.error || '';
     const errorBody = error?.body || {};
     
     let errorCode: ClaimErrorCode = 'UNKNOWN';
     
-    if (errorMessage.includes('SELF_REFERRAL') || errorBody.code === 'SELF_REFERRAL') {
+    // Check for self-referral
+    if (errorMessage.toLowerCase().includes('your own') || errorBody.code === 'SELF_REFERRAL') {
       errorCode = 'SELF_REFERRAL';
-    } else if (errorMessage.includes('INVALID_CODE') || errorBody.code === 'INVALID_CODE') {
+    } 
+    // Check for invalid code
+    else if (errorMessage.toLowerCase().includes('invalid') || errorBody.code === 'INVALID_CODE') {
       errorCode = 'INVALID_CODE';
-    } else if (errorMessage.includes('ALREADY_CLAIMED') || errorBody.code === 'ALREADY_CLAIMED') {
+    } 
+    // Check for already claimed
+    else if (errorMessage.toLowerCase().includes('already') || errorBody.code === 'ALREADY_CLAIMED') {
       errorCode = 'ALREADY_CLAIMED';
-    } else if (errorMessage.includes('EXPIRED') || errorBody.code === 'EXPIRED_CODE') {
+    } 
+    // Check for expired
+    else if (errorMessage.toLowerCase().includes('expired') || errorBody.code === 'EXPIRED_CODE') {
       errorCode = 'EXPIRED_CODE';
     }
     
-    console.log('[ReferralsApi] claimReferral error:', errorCode, errorMessage);
+    if (__DEV__) {
+      console.log('[ReferralsApi] claimReferral error:', errorCode, errorMessage);
+    }
     
     return {
       success: false,
