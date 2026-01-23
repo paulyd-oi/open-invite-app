@@ -37,8 +37,8 @@ import {
   type GetEventsResponse,
   type UpdateEventRequest,
   type UpdateEventResponse,
-  type GetGroupsResponse,
-  type FriendGroup,
+  type GetCirclesResponse,
+  type Circle,
   type DeleteEventResponse,
 } from "@/shared/contracts";
 
@@ -107,13 +107,13 @@ export default function EditEventScreen() {
     }
   }, [event, isLoaded]);
 
-  const { data: groupsData } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
+  const { data: circlesData } = useQuery({
+    queryKey: ["circles"],
+    queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: !!session,
   });
 
-  const groups = groupsData?.groups ?? [];
+  const circles = circlesData?.circles ?? [];
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateEventRequest) =>
@@ -472,7 +472,7 @@ export default function EditEventScreen() {
                   className="ml-2 font-medium"
                   style={{ color: visibility === "specific_groups" ? "#4ECDC4" : colors.textSecondary }}
                 >
-                  Groups
+                  Circles
                 </Text>
               </Pressable>
               <Pressable
@@ -498,30 +498,30 @@ export default function EditEventScreen() {
               </Pressable>
             </View>
 
-            {/* Group Selection */}
+            {/* Circle Selection */}
             {visibility === "specific_groups" && (
               <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Groups</Text>
-                {groups.length === 0 ? (
+                <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Circles</Text>
+                {circles.length === 0 ? (
                   <Text style={{ color: colors.textTertiary }} className="text-center py-4">
-                    No groups yet. Create groups in your profile!
+                    No circles yet. Create circles from Friends tab!
                   </Text>
                 ) : (
-                  groups.map((group: FriendGroup) => (
+                  circles.map((circle: Circle) => (
                     <Pressable
-                      key={group.id}
-                      onPress={() => toggleGroup(group.id)}
+                      key={circle.id}
+                      onPress={() => toggleGroup(circle.id)}
                       className="flex-row items-center p-3 rounded-lg mb-2"
-                      style={{ backgroundColor: selectedGroupIds.includes(group.id) ? `${themeColor}15` : colors.surfaceElevated }}
+                      style={{ backgroundColor: selectedGroupIds.includes(circle.id) ? `${themeColor}15` : colors.surfaceElevated }}
                     >
                       <View
                         className="w-8 h-8 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: group.color + "20" }}
+                        style={{ backgroundColor: `${themeColor}20` }}
                       >
-                        <Users size={16} color={group.color} />
+                        <Text className="text-base">{circle.emoji}</Text>
                       </View>
-                      <Text className="flex-1 font-medium" style={{ color: colors.text }}>{group.name}</Text>
-                      {selectedGroupIds.includes(group.id) && (
+                      <Text className="flex-1 font-medium" style={{ color: colors.text }}>{circle.name}</Text>
+                      {selectedGroupIds.includes(circle.id) && (
                         <Check size={20} color={themeColor} />
                       )}
                     </Pressable>

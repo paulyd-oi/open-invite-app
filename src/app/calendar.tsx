@@ -66,8 +66,8 @@ const VIEW_MODES: { id: ViewMode; label: string; icon: typeof List }[] = [
   { id: "list", label: "List", icon: List },
 ];
 
-// Device-level onboarding key (no user ID required)
-const ONBOARDING_SEEN_KEY = "onboarding_seen_v1";
+// User-specific guide key - ensures long-time users never see guide again
+const GUIDE_SEEN_KEY_PREFIX = "guide_seen::";
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -1144,10 +1144,15 @@ export default function CalendarScreen() {
   // First login guide popup
   const [showFirstLoginGuide, setShowFirstLoginGuide] = useState(false);
 
-  // Check if this is the user's first login
+  // Check if this is the user's first login (per-user key)
   useEffect(() => {
     const checkFirstLogin = async () => {
-      const hasSeenGuide = await AsyncStorage.getItem(ONBOARDING_SEEN_KEY);
+      // Must have a valid user ID to check/set guide seen status
+      const userId = session?.user?.id;
+      if (!userId) return;
+      
+      const guideSeenKey = `${GUIDE_SEEN_KEY_PREFIX}${userId}`;
+      const hasSeenGuide = await AsyncStorage.getItem(guideSeenKey);
       if (!hasSeenGuide) {
         // Show the popup after a small delay for smoother UX
         setTimeout(() => {
@@ -1156,15 +1161,21 @@ export default function CalendarScreen() {
       }
     };
     checkFirstLogin();
-  }, []);
+  }, [session?.user?.id]);
 
   const handleDismissGuide = async () => {
-    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "true");
+    const userId = session?.user?.id;
+    if (userId) {
+      await AsyncStorage.setItem(`${GUIDE_SEEN_KEY_PREFIX}${userId}`, "true");
+    }
     setShowFirstLoginGuide(false);
   };
 
   const handleOpenGuide = async () => {
-    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, "true");
+    const userId = session?.user?.id;
+    if (userId) {
+      await AsyncStorage.setItem(`${GUIDE_SEEN_KEY_PREFIX}${userId}`, "true");
+    }
     setShowFirstLoginGuide(false);
     router.push("/onboarding");
   };

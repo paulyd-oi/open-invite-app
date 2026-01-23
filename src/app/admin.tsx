@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Search, Shield } from "@/ui/icons";
+import { ChevronLeft, Search, Shield, Award } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -195,6 +195,31 @@ export default function AdminConsole() {
               <View className="flex-row justify-between">
                 <Text style={{ color: colors.textSecondary }} className="text-sm">App Version</Text>
                 <Text style={{ color: colors.text }} className="text-sm">1.0.0</Text>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Badges Management Section */}
+        <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">BADGES</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            <View className="p-4">
+              <View className="flex-row items-center">
+                <View 
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: `${themeColor}20` }}
+                >
+                  <Award size={20} color={themeColor} />
+                </View>
+                <View className="flex-1">
+                  <Text style={{ color: colors.text }} className="text-base font-medium">
+                    Manage User Badges
+                  </Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
+                    Search for a user below to grant or revoke badges
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
