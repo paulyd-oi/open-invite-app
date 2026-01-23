@@ -316,7 +316,7 @@ export default function SuggestionsScreen() {
       
       // Prefer using shareLink if available
       if (referralStats?.shareLink) {
-        message = `Join me on Open Invite! ${referralStats.shareLink}`;
+        message = `I'm using Open Invite to stay connected in real life — join me: ${referralStats.shareLink}`;
       } else if (referralStats?.referralCode) {
         // Fallback to constructing deep link if shareLink is not available
         const deepLink = `openinvite://?ref=${referralStats.referralCode}`;
