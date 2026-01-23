@@ -55,6 +55,7 @@ import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { BadgeRow } from "@/components/BadgeRow";
 import {
   type GetEventsResponse,
   type Event,
@@ -788,24 +789,28 @@ export default function EventDetailScreen() {
 
             {/* Host Info */}
             {event.user && (
-              <View className="flex-row items-center py-3 border-t" style={{ borderColor: colors.border }}>
-                <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                  {event.user?.image ? (
-                    <Image source={{ uri: event.user?.image }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                      <Text className="text-sm font-semibold" style={{ color: themeColor }}>
-                        {event.user?.name?.[0] ?? "?"}
-                      </Text>
-                    </View>
-                  )}
+              <View className="border-t" style={{ borderColor: colors.border }}>
+                <View className="flex-row items-center py-3">
+                  <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                    {event.user?.image ? (
+                      <Image source={{ uri: event.user?.image }} className="w-full h-full" />
+                    ) : (
+                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
+                        <Text className="text-sm font-semibold" style={{ color: themeColor }}>
+                          {event.user?.name?.[0] ?? "?"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
+                    <Text className="font-semibold" style={{ color: colors.text }}>
+                      {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
+                    </Text>
+                  </View>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
-                  <Text className="font-semibold" style={{ color: colors.text }}>
-                    {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
-                  </Text>
-                </View>
+                {/* TODO: Add badges when event.user includes achievement badges */}
+                <BadgeRow badges={undefined} />
               </View>
             )}
 

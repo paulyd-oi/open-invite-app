@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 
 import { type Circle } from "@/shared/contracts";
 import { useTheme } from "@/lib/ThemeContext";
+import { BadgeRow } from "@/components/BadgeRow";
 
 interface CircleCardProps {
   circle: Circle;
@@ -187,6 +188,8 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
                 {members.length} member{members.length !== 1 ? "s" : ""}
                 {(circle.messageCount ?? 0) > 0 && ` · ${circle.messageCount} messages`}
               </Text>
+              {/* TODO: Add badges when circle member data includes achievement badges */}
+              <BadgeRow badges={undefined} />
             </View>
 
             {/* Right Side - Member Avatars arranged in a circle */}
