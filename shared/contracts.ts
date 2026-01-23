@@ -500,6 +500,14 @@ export const getProfileResponseSchema = z.object({
       avatarUrl: z.string().nullable(),
     }).nullable().optional(),
   }).nullable(),
+  badges: z.array(z.object({
+    achievementId: z.string(),
+    name: z.string(),
+    emoji: z.string(),
+    tier: z.string(),
+    tierColor: z.string(),
+    grantedAt: z.string(),
+  })),
 });
 export type GetProfileResponse = z.infer<typeof getProfileResponseSchema>;
 

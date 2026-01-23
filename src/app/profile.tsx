@@ -344,6 +344,23 @@ export default function ProfileScreen() {
                     @{userHandle}
                   </Text>
                 )}
+                {/* User Badges */}
+                {profileData?.badges && profileData.badges.length > 0 && (
+                  <View className="flex-row flex-wrap gap-1.5 mt-2">
+                    {profileData.badges.map((badge) => (
+                      <View
+                        key={badge.achievementId}
+                        className="px-2 py-1 rounded-full flex-row items-center"
+                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+                      >
+                        <Text className="text-xs">{badge.emoji}</Text>
+                        <Text className="text-xs font-medium ml-1" style={{ color: colors.text }}>
+                          {badge.name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
                 <View className="flex-row items-center mt-1">
                   <Calendar size={14} color={colors.textSecondary} />
                   <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>
