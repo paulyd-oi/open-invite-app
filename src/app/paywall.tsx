@@ -28,6 +28,7 @@ import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useRefreshEntitlements } from "@/lib/entitlements";
+import { useSubscription } from "@/lib/SubscriptionContext";
 import {
   isRevenueCatEnabled,
   getOfferings,
@@ -66,6 +67,7 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const refreshEntitlements = useRefreshEntitlements();
+  const { isPremium, refresh: refreshSubscription } = useSubscription();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -87,6 +89,19 @@ export default function PaywallScreen() {
   useEffect(() => {
     loadOfferings();
   }, []);
+
+  // Redirect premium users back - they shouldn't see paywall
+  useEffect(() => {
+    if (isPremium && !isLoading) {
+      console.log("[Paywall] Premium user detected, redirecting back");
+      router.back();
+    }
+  }, [isPremium, isLoading, router]);
+
+  // Refresh subscription status on mount to ensure fresh premium check
+  useEffect(() => {
+    refreshSubscription();
+  }, [refreshSubscription]);
 
   const loadOfferings = async () => {
     setIsLoading(true);
@@ -234,8 +249,13 @@ export default function PaywallScreen() {
       >
         {/* Close button */}
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            console.log("[Paywall] X button pressed");
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.back();
+          }}
           className="absolute top-14 right-5 w-8 h-8 rounded-full bg-white/20 items-center justify-center"
+          style={{ zIndex: 10 }}
         >
           <X size={20} color="#fff" />
         </Pressable>
