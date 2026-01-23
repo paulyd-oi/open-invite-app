@@ -157,6 +157,13 @@ export default function BadgesScreen() {
               </View>
             )}
 
+            {/* Instructional text when no featured badge */}
+            {!featuredBadge && (
+              <Text className="text-sm mb-4 px-1" style={{ color: colors.textSecondary, opacity: 0.6 }}>
+                Choose one badge to feature on your profile.
+              </Text>
+            )}
+
             {/* Unlocked Badges */}
             {unlockedBadges.length > 0 && (
               <View className="mb-6">
