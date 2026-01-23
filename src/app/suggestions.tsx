@@ -312,22 +312,21 @@ export default function SuggestionsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
-      const referralCode = referralStats?.referralCode;
-      if (referralCode) {
-        const deepLink = `openinvite://?ref=${referralCode}`;
-        const message = `Join me on Open Invite! Use my code ${referralCode} or tap ${deepLink}`;
-        
-        await Share.share({
-          message,
-          title: "Invite friends to Open Invite",
-        });
-      } else {
-        // Fallback if no referral code
-        await Share.share({
-          message: "Join me on Open Invite — a social calendar to plan and share events.",
-          title: "Invite friends to Open Invite",
-        });
+      let message = "Join me on Open Invite — a social calendar to plan and share events.";
+      
+      // Prefer using shareLink if available
+      if (referralStats?.shareLink) {
+        message = `Join me on Open Invite! ${referralStats.shareLink}`;
+      } else if (referralStats?.referralCode) {
+        // Fallback to constructing deep link if shareLink is not available
+        const deepLink = `openinvite://?ref=${referralStats.referralCode}`;
+        message = `Join me on Open Invite! Use my code ${referralStats.referralCode} or tap ${deepLink}`;
       }
+      
+      await Share.share({
+        message,
+        title: "Invite friends to Open Invite",
+      });
     } catch (error) {
       console.error("Error sharing:", error);
     }
@@ -461,7 +460,7 @@ export default function SuggestionsScreen() {
             
             <View className="mb-3">
               <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
-                • We suggest people based on your mutual connections and activity.
+                • We suggest people based on your connections.
               </Text>
             </View>
             
