@@ -54,6 +54,12 @@ const betterAuthClient = createAuthClient({
   ],
 });
 
+// DEV: Log cookie storage key for debugging
+if (__DEV__) {
+  const cookieKey = `${STORAGE_PREFIX}_cookie`;
+  console.log(`[authClient] Cookie storage key: ${cookieKey}`);
+}
+
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
   const token = await SecureStore.getItemAsync(TOKEN_KEY);
@@ -120,6 +126,11 @@ async function $fetch<T = any>(
 
   if (__DEV__) {
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
+    // Log cookie state (not cookie content - just existence)
+    const cookieKey = `${STORAGE_PREFIX}_cookie`;
+    const storedCookie = SecureStore.getItem(cookieKey);
+    const hasCookie = !!(storedCookie && storedCookie !== '{}');
+    console.log(`[authClient.$fetch] Cookie stored: ${hasCookie}`);
   }
 
   authTrace("authFetch:beforeRequest", { 
@@ -139,7 +150,12 @@ async function $fetch<T = any>(
     
     if (__DEV__) {
       console.log(`[authClient.$fetch] Success for ${path}`);
-      authTrace("authFetch:success", { endpoint: path, usingExpoClient: true });
+      // Log cookie state AFTER request to see if Set-Cookie was stored
+      const cookieKey = `${STORAGE_PREFIX}_cookie`;
+      const storedCookie = SecureStore.getItem(cookieKey);
+      const hasCookie = !!(storedCookie && storedCookie !== '{}');
+      console.log(`[authClient.$fetch] Cookie after request: ${hasCookie}`);
+      authTrace("authFetch:success", { endpoint: path, usingExpoClient: true, hasCookieAfter: hasCookie });
     }
     
     // Better Auth $fetch returns { data, error } format for some endpoints
