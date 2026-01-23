@@ -15,16 +15,24 @@ export default function GlobalErrorBoundary({ error, retry }: Props) {
   const handleRestart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     try {
-      // Prefer retry() if it works for the thrown boundary; otherwise route home.
+      // Prefer retry() if it works for the thrown boundary
       retry?.();
     } catch {}
-    // Always provide an escape hatch
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)");
+    // Escape hatch: go back or go home
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
+
+  const handleGoHome = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    router.replace("/(tabs)");
   };
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: 20, justifyContent: "center" }}>
+    <View style={{ flex: 1, paddingHorizontal: 20, justifyContent: "center", backgroundColor: colors.background }}>
       <Text style={{ fontSize: 22, fontWeight: "700", color: colors.text, textAlign: "center" }}>
         Something went wrong
       </Text>
@@ -38,32 +46,29 @@ export default function GlobalErrorBoundary({ error, retry }: Props) {
           lineHeight: 20,
         }}
       >
-        Try restarting this screen. If it keeps happening, fully close and reopen the app.
+        Try restarting the app.
       </Text>
 
       <Pressable
         onPress={handleRestart}
         style={{
-          marginTop: 18,
+          marginTop: 24,
           alignSelf: "center",
-          paddingHorizontal: 18,
-          paddingVertical: 12,
+          paddingHorizontal: 24,
+          paddingVertical: 14,
           borderRadius: 999,
           backgroundColor: themeColor,
         }}
       >
-        <Text style={{ color: "#fff", fontWeight: "700" }}>Restart</Text>
+        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Restart</Text>
       </Pressable>
 
       <Pressable
-        onPress={() => {
-          // Keep “Details” hidden behind a long-press-like pattern:
-          // normal tap does nothing
-        }}
-        style={{ marginTop: 14, alignSelf: "center" }}
+        onPress={handleGoHome}
+        style={{ marginTop: 16, alignSelf: "center", paddingVertical: 8 }}
       >
-        <Text style={{ color: colors.textTertiary, fontSize: 12, textAlign: "center" }}>
-          Error captured
+        <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>
+          Go to Home
         </Text>
       </Pressable>
 
