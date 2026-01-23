@@ -54,6 +54,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
+import { guardEmailVerification } from "@/lib/emailVerification";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { BadgePill } from "@/components/BadgePill";
 import {
@@ -561,6 +562,10 @@ export default function EventDetailScreen() {
       } else {
         router.replace('/login');
       }
+      return;
+    }
+    // Guard: require email verification
+    if (!guardEmailVerification(session)) {
       return;
     }
     // Show confirmation modal when removing RSVP

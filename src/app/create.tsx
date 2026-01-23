@@ -43,6 +43,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
+import { guardEmailVerification } from "@/lib/emailVerification";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
 import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
@@ -542,6 +543,11 @@ export default function CreateEventScreen() {
   };
 
   const handleCreate = () => {
+    // Gate: require email verification
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+
     if (!title.trim()) {
       safeToast.warning("Missing Title", "Please enter a title for your event.");
       return;

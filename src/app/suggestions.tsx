@@ -34,6 +34,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
 import {
@@ -305,6 +306,10 @@ export default function SuggestionsScreen() {
   }, [refetch]);
 
   const handleAddFriend = (suggestion: FriendSuggestion) => {
+    // Guard: require email verification
+    if (!guardEmailVerification(session)) {
+      return;
+    }
     sendRequestMutation.mutate(suggestion.user.id);
   };
 

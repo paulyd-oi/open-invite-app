@@ -74,6 +74,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
+import { guardEmailVerification } from "@/lib/emailVerification";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import {
@@ -792,6 +793,11 @@ export default function FriendsScreen() {
   };
 
   const handleInviteContact = (contact: Contacts.Contact) => {
+    // Guard: require email verification
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+
     const email = contact.emails?.[0]?.email;
     const phone = contact.phoneNumbers?.[0]?.number;
 
@@ -803,6 +809,23 @@ export default function FriendsScreen() {
       sendRequestMutation.mutate({ phone });
     } else {
       safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
+    }
+  };
+
+  const handleDirectFriendRequest = () => {
+    // Guard: require email verification
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+
+    if (searchEmail.trim()) {
+      // Check if it looks like a phone number (mostly digits)
+      const cleaned = searchEmail.trim().replace(/[^\d]/g, '');
+      if (cleaned.length >= 7 && cleaned.length === searchEmail.trim().replace(/[\s\-\(\)]/g, '').length) {
+        sendRequestMutation.mutate({ phone: searchEmail.trim() });
+      } else {
+        sendRequestMutation.mutate({ email: searchEmail.trim() });
+      }
     }
   };
 
@@ -1092,17 +1115,7 @@ export default function FriendsScreen() {
                   />
                 </View>
                 <Pressable
-                  onPress={() => {
-                    if (searchEmail.trim()) {
-                      // Check if it looks like a phone number (mostly digits)
-                      const cleaned = searchEmail.trim().replace(/[^\d]/g, '');
-                      if (cleaned.length >= 7 && cleaned.length === searchEmail.trim().replace(/[\s\-\(\)]/g, '').length) {
-                        sendRequestMutation.mutate({ phone: searchEmail.trim() });
-                      } else {
-                        sendRequestMutation.mutate({ email: searchEmail.trim() });
-                      }
-                    }
-                  }}
+                  onPress={handleDirectFriendRequest}
                   disabled={sendRequestMutation.isPending}
                   className="px-4 py-3 rounded-lg"
                   style={{ backgroundColor: themeColor }}
