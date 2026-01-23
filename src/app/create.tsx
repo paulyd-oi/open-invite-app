@@ -282,13 +282,14 @@ export default function CreateEventScreen() {
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId } = useLocalSearchParams<{
+  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam } = useLocalSearchParams<{
     date?: string;
     template?: string;
     emoji?: string;
     title?: string;
     duration?: string;
     circleId?: string;
+    visibility?: string;
   }>();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -358,9 +359,13 @@ export default function CreateEventScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [visibility, setVisibility] = useState<"all_friends" | "specific_groups" | "circle_only">(
-    isCircleEvent ? "circle_only" : "all_friends"
-  );
+  const [visibility, setVisibility] = useState<"all_friends" | "specific_groups" | "circle_only">(() => {
+    // If visibility param provided, use it (for circle events)
+    if (visibilityParam === "open_invite") return "all_friends";
+    if (visibilityParam === "circle_only") return "circle_only";
+    // Default: circle_only for circle events, all_friends otherwise
+    return isCircleEvent ? "circle_only" : "all_friends";
+  });
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [frequency, setFrequency] = useState<"once" | "weekly" | "monthly">("once");
@@ -985,39 +990,10 @@ export default function CreateEventScreen() {
 
             {showDatePicker && (
               <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                {/* Month and Day picker - main picker */}
-                <View className="flex-row items-center justify-center px-4 pt-3">
-                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">
-                    {startDate.getFullYear()}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      // Toggle to show year adjustment
-                      const newDate = new Date(startDate);
-                      newDate.setFullYear(newDate.getFullYear() - 1);
-                      setStartDate(newDate);
-                    }}
-                    className="ml-2 px-2 py-1 rounded"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: colors.textTertiary }} className="text-xs">-1</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      const newDate = new Date(startDate);
-                      newDate.setFullYear(newDate.getFullYear() + 1);
-                      setStartDate(newDate);
-                    }}
-                    className="ml-1 px-2 py-1 rounded"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: colors.textTertiary }} className="text-xs">+1</Text>
-                  </Pressable>
-                </View>
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1026,7 +1002,7 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1045,7 +1021,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1054,7 +1030,7 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1071,40 +1047,10 @@ export default function CreateEventScreen() {
             {/* End Date Picker */}
             {showEndDatePicker && (
               <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                {/* Month and Day picker - main picker */}
-                <View className="flex-row items-center justify-center px-4 pt-3">
-                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">
-                    {endDate.getFullYear()}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      const newDate = new Date(endDate);
-                      newDate.setFullYear(newDate.getFullYear() - 1);
-                      setEndDate(newDate);
-                      setUserModifiedEndTime(true);
-                    }}
-                    className="ml-2 px-2 py-1 rounded"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: colors.textTertiary }} className="text-xs">-1</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      const newDate = new Date(endDate);
-                      newDate.setFullYear(newDate.getFullYear() + 1);
-                      setEndDate(newDate);
-                      setUserModifiedEndTime(true);
-                    }}
-                    className="ml-1 px-2 py-1 rounded"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: colors.textTertiary }} className="text-xs">+1</Text>
-                  </Pressable>
-                </View>
                 <DateTimePicker
                   value={endDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1116,7 +1062,7 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1136,7 +1082,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={endDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1148,7 +1094,7 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable

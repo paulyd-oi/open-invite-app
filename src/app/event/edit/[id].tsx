@@ -377,7 +377,7 @@ export default function EditEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -386,7 +386,7 @@ export default function EditEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -405,7 +405,7 @@ export default function EditEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -414,7 +414,7 @@ export default function EditEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={{ height: 150 }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
