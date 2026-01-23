@@ -250,9 +250,12 @@ export default function PaywallScreen() {
         {/* Close button */}
         <Pressable
           onPress={() => {
-            console.log("[Paywall] X button pressed");
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
           }}
           className="absolute top-14 right-5 w-8 h-8 rounded-full bg-white/20 items-center justify-center"
           style={{ zIndex: 10 }}
