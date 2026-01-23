@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useTheme } from "@/lib/themeContext.tsx";
+import { useTheme } from "@/lib/ThemeContext";
 
 type Props = {
   error: Error;
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export default function GlobalErrorBoundary({ error, retry }: Props) {
-  const { colors } = useTheme();
+  const { colors, themeColor } = useTheme();
 
   const handleRestart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -49,7 +49,7 @@ export default function GlobalErrorBoundary({ error, retry }: Props) {
           paddingHorizontal: 18,
           paddingVertical: 12,
           borderRadius: 999,
-          backgroundColor: colors.primary,
+          backgroundColor: themeColor,
         }}
       >
         <Text style={{ color: "#fff", fontWeight: "700" }}>Restart</Text>
