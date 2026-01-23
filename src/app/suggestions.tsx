@@ -6,6 +6,8 @@ import {
   Image,
   RefreshControl,
   FlatList,
+  Share,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +18,9 @@ import {
   Users,
   Check,
   Loader2,
+  Share2,
+  Info,
+  X,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -198,9 +203,54 @@ function SuggestionCard({
   );
 }
 
-// Empty State Component
-function EmptyState() {
-  return <EnhancedEmptyState type="suggestions" />;
+// Empty State Component with Invite CTA
+function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => void }) {
+  const { colors, themeColor } = useTheme();
+  
+  return (
+    <View className="flex-1 items-center justify-center px-6 py-12">
+      <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: themeColor + "15" }}>
+        <Users size={40} color={themeColor} />
+      </View>
+      
+      <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+        People you may know
+      </Text>
+      
+      <Text className="text-center text-sm leading-5 mb-1" style={{ color: colors.textSecondary }}>
+        Suggestions appear as more friends join Open Invite.
+      </Text>
+      
+      <Text className="text-center text-sm leading-5 mb-6" style={{ color: colors.textSecondary }}>
+        Invite a few people to kickstart your network.
+      </Text>
+      
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onInvite();
+        }}
+        className="px-6 py-3 rounded-full flex-row items-center mb-3"
+        style={{ backgroundColor: themeColor }}
+      >
+        <Share2 size={18} color="#fff" />
+        <Text className="text-white font-semibold ml-2">Invite friends</Text>
+      </Pressable>
+      
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          onInfo();
+        }}
+        className="flex-row items-center"
+      >
+        <Info size={14} color={colors.textTertiary} />
+        <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>
+          How suggestions work
+        </Text>
+      </Pressable>
+    </View>
+  );
 }
 
 export default function SuggestionsScreen() {
@@ -210,6 +260,14 @@ export default function SuggestionsScreen() {
   const { data: session, isPending: sessionLoading } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
+  const [showInfoModal, setShowInfoModal] = useState(false);
+
+  // Fetch referral stats for sharing
+  const { data: referralStats } = useQuery({
+    queryKey: ["referralStats"],
+    queryFn: () => api.get<{ referralCode: string; shareLink: string }>("/api/referral/stats"),
+    enabled: !!session,
+  });
 
   // Fetch friend suggestions
   const {
@@ -248,6 +306,31 @@ export default function SuggestionsScreen() {
 
   const handleAddFriend = (suggestion: FriendSuggestion) => {
     sendRequestMutation.mutate(suggestion.user.id);
+  };
+
+  const handleInviteFriends = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      const referralCode = referralStats?.referralCode;
+      if (referralCode) {
+        const deepLink = `openinvite://?ref=${referralCode}`;
+        const message = `Join me on Open Invite! Use my code ${referralCode} or tap ${deepLink}`;
+        
+        await Share.share({
+          message,
+          title: "Invite friends to Open Invite",
+        });
+      } else {
+        // Fallback if no referral code
+        await Share.share({
+          message: "Join me on Open Invite — a social calendar to plan and share events.",
+          title: "Invite friends to Open Invite",
+        });
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
   };
 
   // Show login prompt if not authenticated
@@ -329,7 +412,13 @@ export default function SuggestionsScreen() {
           paddingBottom: 100,
           flexGrow: suggestions.length === 0 ? 1 : undefined,
         }}
-        ListEmptyComponent={isLoading ? <SuggestionsSkeleton /> : <EmptyState />}
+        ListEmptyComponent={
+          isLoading ? (
+            <SuggestionsSkeleton />
+          ) : (
+            <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
+          )
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -339,6 +428,51 @@ export default function SuggestionsScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center px-6"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowInfoModal(false)}
+        >
+          <Pressable
+            className="rounded-2xl p-6 w-full max-w-sm"
+            style={{ backgroundColor: colors.surface }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                How suggestions work
+              </Text>
+              <Pressable
+                onPress={() => setShowInfoModal(false)}
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.border }}
+              >
+                <X size={16} color={colors.text} />
+              </Pressable>
+            </View>
+            
+            <View className="mb-3">
+              <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
+                • We suggest people based on your mutual connections and activity.
+              </Text>
+            </View>
+            
+            <View>
+              <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
+                • The list improves as your network grows.
+              </Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
