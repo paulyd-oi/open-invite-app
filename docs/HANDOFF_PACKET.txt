@@ -1,29 +1,29 @@
 ================================================================================
-HANDOFF PACKET: Global Safe Error Screen Implementation
+HANDOFF PACKET: P0 Stop-Ship Fixes (Frontend Pass 1)
 ================================================================================
 Generated: 2026-01-23
-Session: Frontend polish and error handling improvements
+Session: Frontend P0 bug fixes for release
 ================================================================================
 
 SUMMARY
 -------
-Implemented a global Safe Error Screen pattern for Expo Router that handles 
-uncaught render errors with a calm, branded fallback UI. The screen provides 
-two escape hatches: a primary "Restart" button that attempts recovery via 
-retry + smart navigation, and a secondary "Go to Home" button that always 
-routes to the home tab. Updated to use concise messaging, improved button 
-styling, proper background theming, and guaranteed navigation escape even 
-when router history is broken.
+Fixed 3 critical stop-ship issues in the Open Invite frontend:
 
-Key improvements:
-- Added handleGoHome function for explicit home navigation
-- Updated handleRestart with clearer escape hatch logic
-- Simplified messaging: "Try restarting the app."
-- Added background color theming (colors.background)
-- Enhanced button spacing and sizing (24px padding, 16px font)
-- Replaced non-functional "Error captured" with actionable "Go to Home"
-- Maintained dev-only stack trace display
-- Verified ThemeContext import casing consistency
+1. ONBOARDING PHOTO UPLOAD CRASH + AUTH REDIRECT
+   - Replaced deprecated ImagePicker.MediaTypeOptions.Images with ["images"]
+   - Changed token check from SecureStore (hasAuthToken) to session-based (getSessionCached)
+   - Onboarding now proceeds if cookie session is valid, even without SecureStore token
+   - Upload errors handled gracefully without crash or redirect
+
+2. FALSE "VERIFY YOUR EMAIL" BANNER
+   - Banner now checks session.user.emailVerified === false before showing
+   - If user is verified (emailVerified === true), banner never renders
+   - Waits for session to load before checking (no flash of incorrect state)
+
+3. PREMIUM USER SHOWN AS "FREE"
+   - Plan row now shows "Loading..." while entitlements are being fetched
+   - Prevents false "Free" display that flashes before premium status loads
+   - Upgrade CTA still properly gated (only shows for non-premium users)
 
 
 REPO CONFIRMATION
@@ -31,256 +31,156 @@ REPO CONFIRMATION
 Path: /Users/paulsmbp/Documents/GitHub/open-invite-app
 Remote: https://github.com/paulyd-oi/open-invite-app.git
 Branch: main
-Status: Clean (no uncommitted changes)
-
-Last 5 commits:
-c76fb18 (HEAD -> main, origin/main) fix: global safe error screen + restart escape hatch
-6bcfc07 fix: normalize ThemeContext casing
-9e51f93 fix: normalize ThemeContext casing
-7158dd6 chore(debug): add health check screen
-edfa5f7 fix: critical icon compliance + harden Reanimated warning (suggestions.tsx)
+Status: Clean after commit
 
 
 FILES CHANGED
 -------------
-src/app/_error.tsx (22 insertions, 17 deletions)
-  - Added handleGoHome function for direct home navigation
-  - Updated handleRestart with clearer logic and expanded formatting
-  - Changed subtext from verbose to concise
-  - Added backgroundColor: colors.background to root View
-  - Improved button spacing: marginTop 24px (was 18px)
-  - Increased button padding: 24px horizontal, 14px vertical (was 18/12)
-  - Increased button font size: 16px (was default)
-  - Replaced "Error captured" placeholder with functional "Go to Home" button
+1. src/app/welcome.tsx
+   - Added import for getSessionCached from @/lib/sessionCache
+   - Changed MediaTypeOptions.Images to ["images"] (line ~512)
+   - Changed handleSlide3Continue session check from hasAuthToken to getSessionCached
+   - Changed uploadPhotoInBackground session check from hasAuthToken to getSessionCached
+
+2. src/app/social.tsx
+   - Updated checkVerificationStatus effect to check session.user.emailVerified
+   - Added sessionLoading dependency to avoid flash of incorrect state
+   - Banner only shows when emailVerified === false AND deferred === true
+
+3. src/app/settings.tsx
+   - Plan row status now shows "Loading..." when entitlementsLoading is true
+   - Prevents false "Free" from displaying during entitlements fetch
+
+4. eas.json
+   - Added development-simulator build profile (unrelated to P0 fixes)
 
 
 KEY DIFFS
 ---------
 
-A. Handler Functions (Lines 15-32)
+A. welcome.tsx - MediaTypeOptions fix (line ~512):
 BEFORE:
-  const handleRestart = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    try {
-      retry?.();
-    } catch {}
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)");
-  };
+  mediaTypes: ImagePicker.MediaTypeOptions.Images,
 
 AFTER:
-  const handleRestart = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    try {
-      retry?.();
-    } catch {}
-    // Escape hatch: go back or go home
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(tabs)");
+  mediaTypes: ["images"],
+
+
+B. welcome.tsx - Session check for Continue (lines ~529-540):
+BEFORE:
+  const hasToken = await hasAuthToken();
+  if (!hasToken) {
+    console.log("[Onboarding] No auth token, redirecting to login");
+    router.replace("/login");
+    return;
+  }
+
+AFTER:
+  try {
+    const sessionResult = await getSessionCached();
+    if (!sessionResult?.user?.id) {
+      console.log("[Onboarding] No valid session, redirecting to login");
+      router.replace("/login");
+      return;
     }
-  };
+  } catch (sessionErr) {
+    console.log("[Onboarding] Session check failed, redirecting to login");
+    router.replace("/login");
+    return;
+  }
 
-  const handleGoHome = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.replace("/(tabs)");
-  };
 
-
-B. Root View Background (Line 34)
+C. social.tsx - Verification banner gating (lines ~369-392):
 BEFORE:
-  <View style={{ flex: 1, paddingHorizontal: 20, justifyContent: "center" }}>
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      const deferred = await AsyncStorage.getItem("verification_deferred");
+      const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
+      if (deferred === "true" && dismissed !== "true") {
+        setShowVerificationBanner(true);
+      }
+    };
+    checkVerificationStatus();
+  }, []);
 
 AFTER:
-  <View style={{ flex: 1, paddingHorizontal: 20, justifyContent: "center", backgroundColor: colors.background }}>
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      // First check if user is already verified via session - if so, never show banner
+      if (session?.user?.emailVerified === true) {
+        setShowVerificationBanner(false);
+        return;
+      }
+      // Only show banner if explicitly deferred AND not dismissed AND not verified
+      const deferred = await AsyncStorage.getItem("verification_deferred");
+      const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
+      if (deferred === "true" && dismissed !== "true" && session?.user?.emailVerified === false) {
+        setShowVerificationBanner(true);
+      } else {
+        setShowVerificationBanner(false);
+      }
+    };
+    if (!sessionLoading) {
+      checkVerificationStatus();
+    }
+  }, [session, sessionLoading]);
 
 
-C. Messaging (Lines 40-49)
+D. settings.tsx - Plan status loading state (lines ~1817-1821):
 BEFORE:
-  Try restarting this screen. If it keeps happening, fully close and reopen the app.
+  {userIsPremium ? "Active" : "Free"}
 
 AFTER:
-  Try restarting the app.
+  {entitlementsLoading ? "Loading..." : userIsPremium ? "Active" : "Free"}
 
 
-D. Primary Button (Lines 51-64)
-BEFORE:
-  <Pressable
-    onPress={handleRestart}
-    style={{
-      marginTop: 18,
-      alignSelf: "center",
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      borderRadius: 999,
-      backgroundColor: themeColor,
-    }}
-  >
-    <Text style={{ color: "#fff", fontWeight: "700" }}>Restart</Text>
-  </Pressable>
-
-AFTER:
-  <Pressable
-    onPress={handleRestart}
-    style={{
-      marginTop: 24,
-      alignSelf: "center",
-      paddingHorizontal: 24,
-      paddingVertical: 14,
-      borderRadius: 999,
-      backgroundColor: themeColor,
-    }}
-  >
-    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Restart</Text>
-  </Pressable>
-
-
-E. Secondary Button (Lines 66-73)
-BEFORE:
-  <Pressable
-    onPress={() => {
-      // Keep "Details" hidden behind a long-press-like pattern:
-      // normal tap does nothing
-    }}
-    style={{ marginTop: 14, alignSelf: "center" }}
-  >
-    <Text style={{ color: colors.textTertiary, fontSize: 12, textAlign: "center" }}>
-      Error captured
-    </Text>
-  </Pressable>
-
-AFTER:
-  <Pressable
-    onPress={handleGoHome}
-    style={{ marginTop: 16, alignSelf: "center", paddingVertical: 8 }}
-  >
-    <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>
-      Go to Home
-    </Text>
-  </Pressable>
-
-
-TYPECHECK RESULT
-----------------
+TEST RESULTS
+------------
 Command: npm run typecheck
-Output: 
-> template-app-53@1.0.0 typecheck
-> tsc -p tsconfig.frontend.json --noEmit
-
 Result: PASSED (no errors)
 
 
-THEMECONTEXT VERIFICATION
---------------------------
-Command: grep -R 'from "@/lib/themeContext' -n src || echo "No lowercase imports"
-Result: No lowercase themeContext imports found
-Status: All imports use canonical casing @/lib/ThemeContext
+MANUAL TEST PLAN
+----------------
+1. FRESH ONBOARDING TEST:
+   - Create new account
+   - Reach profile setup screen (Slide 3)
+   - Add photo (optional) - should not crash
+   - Tap Continue - should not redirect to login if session exists
+   - Verify logs show session check, not token check
+
+2. EMAIL VERIFICATION BANNER TEST:
+   - Log in with verified account
+   - Navigate to Social screen
+   - Confirm: No "Verify your email" banner appears
+   - (If testing unverified account: banner should appear only if deferred)
+
+3. PREMIUM STATUS TEST:
+   - Log in with Lifetime Pro account
+   - Navigate to Settings
+   - Plan row should show "Loading..." briefly, then "Active"
+   - Should NOT flash "Free" at any point
+   - "Upgrade to Premium" row should be hidden
 
 
-COMMIT + PUSH CONFIRMATION
----------------------------
-Commit: c76fb18
-Author: paulyd-oi
-Date: Fri Jan 23 08:57:52 2026 -0800
-Message: fix: global safe error screen + restart escape hatch
-Files: 1 changed, 22 insertions(+), 17 deletions(-)
-Branch: main -> origin/main
-Status: PUSHED
+COMMIT + PUSH
+-------------
+Commit: abf9508
+Message: "fix(p0): onboarding photo crash + email verify + premium gating"
+Push: YES (to origin/main)
+Files: 4 changed, 54 insertions(+), 14 deletions(-)
 
 
-NEXT MANUAL TEST STEPS
------------------------
+RISKS / FOLLOW-UPS
+------------------
+1. eas.json change included (development-simulator profile) - unrelated to P0 fixes
+   but was already modified in working tree. Low risk.
 
-TEST 1: Force Runtime Error
-1. Open any screen file (e.g., src/app/(tabs)/index.tsx)
-2. Add this temporarily at the top of the component function:
-   throw new Error("Test error boundary");
-3. Save and reload the app
-4. Verify error screen appears with:
-   - Headline: "Something went wrong" (22px, bold, themed text color)
-   - Subtext: "Try restarting the app." (14px, secondary color)
-   - Primary button: "Restart" (themed color, 24px padding, 16px font)
-   - Secondary button: "Go to Home" (text-only, 14px, secondary color)
-   - Background: Properly themed (dark or light mode)
-5. Test Restart button:
-   - Tap and verify haptic feedback
-   - Should attempt retry, then navigate back or to home
-6. Test Go to Home button:
-   - Tap and verify haptic feedback
-   - Should always navigate to /(tabs) home
-7. In DEV mode: Verify stack trace appears at bottom (small, Menlo font)
-8. Remove test error and confirm app recovers
+2. Photo upload still best-effort (no retry mechanism). If upload fails, user
+   continues without avatar but can add later from profile. Acceptable for P0.
 
-
-TEST 2: Navigation State Testing
-1. Navigate to a deep screen stack (e.g., Settings > Edit Profile)
-2. Force error at that screen
-3. Tap "Restart" -> should go back one level
-4. Navigate to root tab
-5. Force error at root
-6. Tap "Restart" -> should go to home (no back history available)
-7. From any error state, tap "Go to Home" -> always routes to home tab
-
-
-TEST 3: Production Behavior
-1. Build production/preview bundle
-2. Force error
-3. Verify:
-   - Stack trace is hidden (not visible to user)
-   - Error details not exposed
-   - Clean, calm recovery UX
-   - Both buttons functional
-
-
-ERROR HANDLING FLOW
---------------------
-1. Component throws uncaught error
-2. Expo Router catches via _error.tsx
-3. GlobalErrorBoundary renders with props: { error, retry }
-4. User sees branded error screen
-5. User action:
-   Option A - Tap "Restart":
-     - Calls retry() to attempt component re-render
-     - If router.canGoBack() exists -> router.back()
-     - Else -> router.replace("/(tabs)")
-   Option B - Tap "Go to Home":
-     - Always router.replace("/(tabs)")
-6. User recovers to functional screen
-
-
-ESCAPE HATCH GUARANTEE
------------------------
-- Primary handler attempts smart recovery (retry + back navigation)
-- Secondary handler always provides direct route to home
-- Even if navigation history is corrupted, user can reach home tab
-- No dead ends: both buttons always functional
-- Graceful degradation in all scenarios
-
-
-TECH ADHERENCE CHECKLIST
--------------------------
-[X] Expo + React Native + Expo Router only
-[X] No new dependencies
-[X] Minimal diff (22 insertions, 17 deletions)
-[X] Navigation architecture preserved
-[X] ThemeContext import casing verified (canonical @/lib/ThemeContext)
-[X] No console spam in production (dev-only stack trace)
-[X] Works on iOS + Android
-[X] No references to colors.primary (uses themeColor)
-[X] Background color properly themed
-[X] Haptic feedback on all interactions
-
-
-IMPLEMENTATION NOTES
---------------------
-- File: src/app/_error.tsx is the canonical Expo Router error boundary
-- No additional routing layers added
-- Error screen is global and catches all uncaught render errors
-- Dev mode shows stack trace for debugging (hidden in production)
-- Button styling follows app design system (rounded, themed, proper spacing)
-- Messaging is user-friendly and action-oriented
-- Both escape hatches tested and verified functional
+3. Session check uses getSessionCached which may return stale session in edge cases.
+   Cookie session is still source of truth; this is improvement over hard token requirement.
 
 
 END OF HANDOFF PACKET
