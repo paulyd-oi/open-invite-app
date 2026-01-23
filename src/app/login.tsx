@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
+  useColorScheme,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeToast } from "@/lib/safeToast";
@@ -52,12 +53,56 @@ import { useSession } from "@/lib/useSession";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Same styling as onboarding
-const ACCENT_COLOR = "#E85D4C";
-const ACCENT_LIGHT = "#FF8A7A";
-const BACKGROUND_DARK = "#0D0D0D";
-const SURFACE_COLOR = "rgba(255,255,255,0.08)";
-const SURFACE_LIGHT = "rgba(255,255,255,0.12)";
+// ============ THEME HELPERS (MATCH ONBOARDING PATTERN) ============
+interface LoginTheme {
+  background: string;
+  surface: string;
+  surfaceBorder: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  accent: string;
+  accentLight: string;
+  inputBg: string;
+  inputBorder: string;
+  iconColor: string;
+  gradientTop: string;
+}
+
+const lightTheme: LoginTheme = {
+  background: "#FAFAFA",
+  surface: "#FFFFFF",
+  surfaceBorder: "rgba(0,0,0,0.08)",
+  text: "#1A1A1A",
+  textSecondary: "#666666",
+  textTertiary: "#999999",
+  accent: "#E85D4C",
+  accentLight: "#FF8A7A",
+  inputBg: "#FFFFFF",
+  inputBorder: "rgba(0,0,0,0.12)",
+  iconColor: "rgba(0,0,0,0.4)",
+  gradientTop: "#FFF5F3",
+};
+
+const darkTheme: LoginTheme = {
+  background: "#121218",
+  surface: "rgba(255,255,255,0.06)",
+  surfaceBorder: "rgba(255,255,255,0.08)",
+  text: "#FFFFFF",
+  textSecondary: "rgba(255,255,255,0.65)",
+  textTertiary: "rgba(255,255,255,0.4)",
+  accent: "#E85D4C",
+  accentLight: "#FF8A7A",
+  inputBg: "rgba(255,255,255,0.06)",
+  inputBorder: "rgba(255,255,255,0.12)",
+  iconColor: "rgba(255,255,255,0.4)",
+  gradientTop: "#1A1A2E",
+};
+
+function useLoginTheme(): LoginTheme {
+  const scheme = useColorScheme();
+  return scheme === "dark" ? darkTheme : lightTheme;
+}
 
 // Backend URL
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
@@ -109,6 +154,7 @@ type AuthView = "login" | "forgotPassword" | "verifyEmail" | "success";
 export default function LoginScreen() {
   const router = useRouter();
   const { data: session } = useSession();
+  const theme = useLoginTheme();
 
   const [fontsLoaded] = useFonts({
     Sora_400Regular,
@@ -349,12 +395,12 @@ export default function LoginScreen() {
       <View
         style={{
           flex: 1,
-          backgroundColor: BACKGROUND_DARK,
+          backgroundColor: theme.background,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator color={ACCENT_COLOR} size="large" />
+        <ActivityIndicator color={theme.accent} size="large" />
       </View>
     );
   }
@@ -362,9 +408,9 @@ export default function LoginScreen() {
   // Success View
   if (authView === "success") {
     return (
-      <View style={{ flex: 1, backgroundColor: BACKGROUND_DARK }}>
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
         <LinearGradient
-          colors={["#1A1A2E", BACKGROUND_DARK]}
+          colors={[theme.gradientTop, theme.background]}
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
           <Animated.View
@@ -388,7 +434,7 @@ export default function LoginScreen() {
               style={{
                 fontFamily: "Sora_700Bold",
                 fontSize: 28,
-                color: "#fff",
+                color: theme.text,
                 marginBottom: 8,
               }}
             >
@@ -398,7 +444,7 @@ export default function LoginScreen() {
               style={{
                 fontFamily: "Sora_400Regular",
                 fontSize: 16,
-                color: "rgba(255,255,255,0.6)",
+                color: theme.textSecondary,
               }}
             >
               Redirecting you now...
@@ -412,9 +458,9 @@ export default function LoginScreen() {
   // Verification View
   if (authView === "verifyEmail") {
     return (
-      <View style={{ flex: 1, backgroundColor: BACKGROUND_DARK }}>
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
         <LinearGradient
-          colors={["#1A1A2E", BACKGROUND_DARK]}
+          colors={[theme.gradientTop, theme.background]}
           style={{ flex: 1 }}
         >
           <SafeAreaView style={{ flex: 1 }}>
@@ -441,13 +487,13 @@ export default function LoginScreen() {
                   padding: 8,
                 })}
               >
-                <ArrowLeft size={24} color="#fff" />
+                <ArrowLeft size={24} color={theme.text} />
               </Pressable>
               <Text
                 style={{
                   fontFamily: "Sora_600SemiBold",
                   fontSize: 18,
-                  color: "#fff",
+                  color: theme.text,
                 }}
               >
                 Verify Email
@@ -475,20 +521,20 @@ export default function LoginScreen() {
                       width: 80,
                       height: 80,
                       borderRadius: 40,
-                      backgroundColor: `${ACCENT_COLOR}20`,
+                      backgroundColor: `${theme.accent}20`,
                       justifyContent: "center",
                       alignItems: "center",
                       marginBottom: 24,
                     }}
                   >
-                    <ShieldCheck size={40} color={ACCENT_COLOR} />
+                    <ShieldCheck size={40} color={theme.accent} />
                   </View>
 
                   <Text
                     style={{
                       fontFamily: "Sora_700Bold",
                       fontSize: 24,
-                      color: "#fff",
+                      color: theme.text,
                       textAlign: "center",
                       marginBottom: 8,
                     }}
@@ -499,13 +545,13 @@ export default function LoginScreen() {
                     style={{
                       fontFamily: "Sora_400Regular",
                       fontSize: 14,
-                      color: "rgba(255,255,255,0.6)",
+                      color: theme.textSecondary,
                       textAlign: "center",
                       marginBottom: 32,
                     }}
                   >
                     We sent a 5-digit code to{"\n"}
-                    <Text style={{ color: "#fff", fontWeight: "600" }}>
+                    <Text style={{ color: theme.text, fontWeight: "600" }}>
                       {email}
                     </Text>
                   </Text>
@@ -537,17 +583,17 @@ export default function LoginScreen() {
                           width: 56,
                           height: 64,
                           borderRadius: 14,
-                          backgroundColor: SURFACE_COLOR,
+                          backgroundColor: theme.inputBg,
                           borderWidth: 2,
                           borderColor: codeError
                             ? "#EF4444"
                             : verificationCode[index]
-                            ? ACCENT_COLOR
-                            : "rgba(255,255,255,0.1)",
+                            ? theme.accent
+                            : theme.inputBorder,
                           textAlign: "center",
                           fontSize: 24,
                           fontFamily: "Sora_700Bold",
-                          color: "#fff",
+                          color: theme.text,
                         }}
                         editable={!isVerifying}
                       />
@@ -583,7 +629,7 @@ export default function LoginScreen() {
                       colors={
                         isVerifying || verificationCode.join("").length !== 5
                           ? ["#4B5563", "#374151"]
-                          : [ACCENT_LIGHT, ACCENT_COLOR]
+                          : [theme.accentLight, theme.accent]
                       }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -618,7 +664,7 @@ export default function LoginScreen() {
                       style={{
                         fontFamily: "Sora_600SemiBold",
                         fontSize: 14,
-                        color: ACCENT_COLOR,
+                        color: theme.accent,
                       }}
                     >
                       {isLoading ? "Sending..." : "Resend Code"}
@@ -636,9 +682,9 @@ export default function LoginScreen() {
   // Forgot Password View
   if (authView === "forgotPassword") {
     return (
-      <View style={{ flex: 1, backgroundColor: BACKGROUND_DARK }}>
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
         <LinearGradient
-          colors={["#1A1A2E", BACKGROUND_DARK]}
+          colors={[theme.gradientTop, theme.background]}
           style={{ flex: 1 }}
         >
           <SafeAreaView style={{ flex: 1 }}>
@@ -659,13 +705,13 @@ export default function LoginScreen() {
                 }}
                 hitSlop={20}
               >
-                <ArrowLeft size={24} color="#fff" />
+                <ArrowLeft size={24} color={theme.text} />
               </Pressable>
               <Text
                 style={{
                   fontFamily: "Sora_600SemiBold",
                   fontSize: 18,
-                  color: "#fff",
+                  color: theme.text,
                 }}
               >
                 Reset Password
@@ -693,13 +739,13 @@ export default function LoginScreen() {
                       width: 80,
                       height: 80,
                       borderRadius: 40,
-                      backgroundColor: `${ACCENT_COLOR}20`,
+                      backgroundColor: `${theme.accent}20`,
                       justifyContent: "center",
                       alignItems: "center",
                       marginBottom: 24,
                     }}
                   >
-                    <Mail size={40} color={ACCENT_COLOR} />
+                    <Mail size={40} color={theme.accent} />
                   </View>
 
                   {resetEmailSent ? (
@@ -708,7 +754,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_700Bold",
                           fontSize: 24,
-                          color: "#fff",
+                          color: theme.text,
                           textAlign: "center",
                           marginBottom: 8,
                         }}
@@ -719,14 +765,14 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_400Regular",
                           fontSize: 14,
-                          color: "rgba(255,255,255,0.6)",
+                          color: theme.textSecondary,
                           textAlign: "center",
                           marginBottom: 32,
                           lineHeight: 22,
                         }}
                       >
                         We've sent a password reset link to{"\n"}
-                        <Text style={{ color: "#fff", fontWeight: "600" }}>
+                        <Text style={{ color: theme.text, fontWeight: "600" }}>
                           {email}
                         </Text>
                       </Text>
@@ -739,7 +785,7 @@ export default function LoginScreen() {
                           style={{
                             fontFamily: "Sora_600SemiBold",
                             fontSize: 14,
-                            color: ACCENT_COLOR,
+                            color: theme.accent,
                           }}
                         >
                           Try another email
@@ -752,7 +798,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_700Bold",
                           fontSize: 24,
-                          color: "#fff",
+                          color: theme.text,
                           textAlign: "center",
                           marginBottom: 8,
                         }}
@@ -763,7 +809,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_400Regular",
                           fontSize: 14,
-                          color: "rgba(255,255,255,0.6)",
+                          color: theme.textSecondary,
                           textAlign: "center",
                           marginBottom: 32,
                         }}
@@ -775,22 +821,22 @@ export default function LoginScreen() {
                       <View
                         style={{
                           width: "100%",
-                          backgroundColor: SURFACE_COLOR,
+                          backgroundColor: theme.inputBg,
                           borderRadius: 14,
                           borderWidth: 1,
-                          borderColor: "rgba(255,255,255,0.1)",
+                          borderColor: theme.inputBorder,
                           flexDirection: "row",
                           alignItems: "center",
                           paddingHorizontal: 16,
                           marginBottom: 24,
                         }}
                       >
-                        <Mail size={20} color="rgba(255,255,255,0.4)" />
+                        <Mail size={20} color={theme.iconColor} />
                         <TextInput
                           value={email}
                           onChangeText={setEmail}
                           placeholder="Email address"
-                          placeholderTextColor="rgba(255,255,255,0.3)"
+                          placeholderTextColor={theme.textTertiary}
                           keyboardType="email-address"
                           autoCapitalize="none"
                           autoCorrect={false}
@@ -798,7 +844,7 @@ export default function LoginScreen() {
                             flex: 1,
                             paddingVertical: 18,
                             paddingHorizontal: 12,
-                            color: "#fff",
+                            color: theme.text,
                             fontSize: 16,
                             fontFamily: "Sora_400Regular",
                           }}
@@ -816,7 +862,7 @@ export default function LoginScreen() {
                           colors={
                             isLoading
                               ? ["#4B5563", "#374151"]
-                              : [ACCENT_LIGHT, ACCENT_COLOR]
+                              : [theme.accentLight, theme.accent]
                           }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
@@ -854,8 +900,8 @@ export default function LoginScreen() {
 
   // Main Login View
   return (
-    <View style={{ flex: 1, backgroundColor: BACKGROUND_DARK }}>
-      <LinearGradient colors={["#1A1A2E", BACKGROUND_DARK]} style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <LinearGradient colors={[theme.gradientTop, theme.background]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header */}
           <View
@@ -872,7 +918,7 @@ export default function LoginScreen() {
               style={{
                 fontFamily: "Sora_600SemiBold",
                 fontSize: 18,
-                color: "#fff",
+                color: theme.text,
               }}
             >
               Welcome Back
@@ -899,12 +945,12 @@ export default function LoginScreen() {
                       width: 80,
                       height: 80,
                       borderRadius: 40,
-                      backgroundColor: `${ACCENT_COLOR}20`,
+                      backgroundColor: `${theme.accent}20`,
                       justifyContent: "center",
                       alignItems: "center",
                     }}
                   >
-                    <Sparkles size={40} color={ACCENT_COLOR} />
+                    <Sparkles size={40} color={theme.accent} />
                   </View>
                 </View>
 
@@ -912,7 +958,7 @@ export default function LoginScreen() {
                   style={{
                     fontFamily: "Sora_700Bold",
                     fontSize: 28,
-                    color: "#fff",
+                    color: theme.text,
                     textAlign: "center",
                     marginBottom: 8,
                   }}
@@ -923,7 +969,7 @@ export default function LoginScreen() {
                   style={{
                     fontFamily: "Sora_400Regular",
                     fontSize: 14,
-                    color: "rgba(255,255,255,0.6)",
+                    color: theme.textSecondary,
                     textAlign: "center",
                     marginBottom: 32,
                   }}
@@ -935,22 +981,22 @@ export default function LoginScreen() {
                 <Animated.View
                   entering={FadeInUp.delay(100).springify()}
                   style={{
-                    backgroundColor: SURFACE_COLOR,
+                    backgroundColor: theme.inputBg,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: theme.inputBorder,
                     flexDirection: "row",
                     alignItems: "center",
                     paddingHorizontal: 16,
                     marginBottom: 16,
                   }}
                 >
-                  <Mail size={20} color="rgba(255,255,255,0.4)" />
+                  <Mail size={20} color={theme.iconColor} />
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
                     placeholder="Email address"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={theme.textTertiary}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -958,7 +1004,7 @@ export default function LoginScreen() {
                       flex: 1,
                       paddingVertical: 18,
                       paddingHorizontal: 12,
-                      color: "#fff",
+                      color: theme.text,
                       fontSize: 16,
                       fontFamily: "Sora_400Regular",
                     }}
@@ -970,28 +1016,28 @@ export default function LoginScreen() {
                 <Animated.View
                   entering={FadeInUp.delay(200).springify()}
                   style={{
-                    backgroundColor: SURFACE_COLOR,
+                    backgroundColor: theme.inputBg,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: theme.inputBorder,
                     flexDirection: "row",
                     alignItems: "center",
                     paddingHorizontal: 16,
                     marginBottom: 12,
                   }}
                 >
-                  <Lock size={20} color="rgba(255,255,255,0.4)" />
+                  <Lock size={20} color={theme.iconColor} />
                   <TextInput
                     value={password}
                     onChangeText={setPassword}
                     placeholder="Password"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    placeholderTextColor={theme.textTertiary}
                     secureTextEntry={!showPassword}
                     style={{
                       flex: 1,
                       paddingVertical: 18,
                       paddingHorizontal: 12,
-                      color: "#fff",
+                      color: theme.text,
                       fontSize: 16,
                       fontFamily: "Sora_400Regular",
                     }}
@@ -1002,9 +1048,9 @@ export default function LoginScreen() {
                     hitSlop={10}
                   >
                     {showPassword ? (
-                      <EyeOff size={20} color="rgba(255,255,255,0.4)" />
+                      <EyeOff size={20} color={theme.iconColor} />
                     ) : (
-                      <Eye size={20} color="rgba(255,255,255,0.4)" />
+                      <Eye size={20} color={theme.iconColor} />
                     )}
                   </Pressable>
                 </Animated.View>
@@ -1022,7 +1068,7 @@ export default function LoginScreen() {
                       style={{
                         fontFamily: "Sora_600SemiBold",
                         fontSize: 13,
-                        color: ACCENT_COLOR,
+                        color: theme.accent,
                       }}
                     >
                       Forgot password?
@@ -1041,7 +1087,7 @@ export default function LoginScreen() {
                       colors={
                         isLoading
                           ? ["#4B5563", "#374151"]
-                          : [ACCENT_LIGHT, ACCENT_COLOR]
+                          : [theme.accentLight, theme.accent]
                       }
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -1049,7 +1095,7 @@ export default function LoginScreen() {
                         paddingVertical: 18,
                         borderRadius: 16,
                         alignItems: "center",
-                        shadowColor: ACCENT_COLOR,
+                        shadowColor: theme.accent,
                         shadowOffset: { width: 0, height: 8 },
                         shadowOpacity: 0.3,
                         shadowRadius: 16,
@@ -1088,14 +1134,14 @@ export default function LoginScreen() {
                       style={{
                         fontFamily: "Sora_400Regular",
                         fontSize: 14,
-                        color: "rgba(255,255,255,0.6)",
+                        color: theme.textSecondary,
                       }}
                     >
                       Don't have an account?{" "}
                       <Text
                         style={{
                           fontFamily: "Sora_600SemiBold",
-                          color: ACCENT_COLOR,
+                          color: theme.accent,
                         }}
                       >
                         Sign Up

@@ -367,7 +367,7 @@ export default function WelcomeOnboardingScreen() {
       try {
         result = await authClient.$fetch('/api/auth/sign-up/email', {
           method: 'POST',
-          body: { email: email.trim(), password, name: "User" },
+          body: { email: email.trim(), password, name: "" },
         });
       } catch (e: any) {
         // If account exists, try sign-in
@@ -877,7 +877,7 @@ export default function WelcomeOnboardingScreen() {
                 setDisplayName(text);
                 setNameError(null);
               }}
-              placeholder="Display Name"
+              placeholder="Full Name"
               autoCapitalize="words"
               error={nameError || undefined}
               theme={theme}
@@ -891,7 +891,7 @@ export default function WelcomeOnboardingScreen() {
                     setHandle(text.replace(/^@/, ""));
                     setHandleError(null);
                   }}
-                  placeholder="handle"
+                  placeholder="Unique handle"
                   placeholderTextColor={theme.textTertiary}
                   autoCapitalize="none"
                   autoCorrect={false}

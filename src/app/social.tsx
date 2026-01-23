@@ -346,6 +346,7 @@ export default function SocialScreen() {
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
+  const [insightDismissed, setInsightDismissed] = useState(false);
   const hasBootstrapped = useRef(false);
 
   // Auth gating based on boot status (token validation), not session presence
@@ -400,6 +401,45 @@ export default function SocialScreen() {
       // Ignore
     }
   }, []);
+
+  // Check insight card dismissal status (14-day cooldown)
+  useEffect(() => {
+    const checkInsightDismissal = async () => {
+      try {
+        const userId = session?.user?.id;
+        if (!userId) return;
+        const dismissedUntil = await AsyncStorage.getItem(`feed_insight_dismissed_until::${userId}`);
+        if (dismissedUntil) {
+          const until = parseInt(dismissedUntil, 10);
+          if (Date.now() < until) {
+            setInsightDismissed(true);
+          } else {
+            // Expired, clear it
+            await AsyncStorage.removeItem(`feed_insight_dismissed_until::${userId}`);
+            setInsightDismissed(false);
+          }
+        }
+      } catch (error) {
+        // Ignore
+      }
+    };
+    if (session?.user?.id) {
+      checkInsightDismissal();
+    }
+  }, [session?.user?.id]);
+
+  const handleDismissInsight = useCallback(async () => {
+    setInsightDismissed(true);
+    try {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      // 14-day cooldown
+      const until = Date.now() + 14 * 24 * 60 * 60 * 1000;
+      await AsyncStorage.setItem(`feed_insight_dismissed_until::${userId}`, until.toString());
+    } catch (error) {
+      // Ignore
+    }
+  }, [session?.user?.id]);
 
   // Bootstrap authentication on mount
   useEffect(() => {
@@ -782,13 +822,14 @@ export default function SocialScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {socialMemory && (
+          {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
               type={socialMemory.type}
               themeColor={themeColor}
               isDark={isDark}
               colors={colors}
+              onDismiss={handleDismissInsight}
             />
           )}
           <FeedCalendar
@@ -840,13 +881,14 @@ export default function SocialScreen() {
             colors={colors}
             userId={session?.user?.id}
           />
-          {socialMemory && (
+          {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
               type={socialMemory.type}
               themeColor={themeColor}
               isDark={isDark}
               colors={colors}
+              onDismiss={handleDismissInsight}
             />
           )}
           <EventSection

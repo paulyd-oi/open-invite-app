@@ -1,7 +1,7 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { Heart, Users, Calendar } from "@/ui/icons";
+import { Heart, Users, Calendar, X } from "@/ui/icons";
 import { DARK_COLORS } from "@/lib/ThemeContext";
 
 interface SocialMemoryCardProps {
@@ -10,9 +10,10 @@ interface SocialMemoryCardProps {
   themeColor: string;
   isDark: boolean;
   colors: typeof DARK_COLORS;
+  onDismiss?: () => void;
 }
 
-export function SocialMemoryCard({ memory, type, themeColor, isDark, colors }: SocialMemoryCardProps) {
+export function SocialMemoryCard({ memory, type, themeColor, isDark, colors, onDismiss }: SocialMemoryCardProps) {
   const getIcon = () => {
     switch (type) {
       case 'friends':
@@ -53,6 +54,18 @@ export function SocialMemoryCard({ memory, type, themeColor, isDark, colors }: S
               {memory}
             </Text>
           </View>
+          {onDismiss && (
+            <Pressable
+              onPress={onDismiss}
+              hitSlop={12}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.5 : 1,
+                padding: 4,
+              })}
+            >
+              <X size={16} color={colors.textTertiary} />
+            </Pressable>
+          )}
         </View>
       </View>
     </Animated.View>
