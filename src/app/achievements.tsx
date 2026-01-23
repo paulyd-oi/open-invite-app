@@ -35,6 +35,14 @@ interface BadgeCatalogResponse {
   badges: BadgeCatalogItem[];
 }
 
+// Helper to convert hex color to rgba with opacity
+function hexToRgba(hex: string, opacity: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 export default function BadgesScreen() {
   const router = useRouter();
   const { colors, themeColor } = useTheme();
@@ -146,9 +154,20 @@ export default function BadgesScreen() {
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 mr-3">
-                      <Text className="text-lg font-bold mb-1" style={{ color: featuredBadge.tierColor }}>
-                        {featuredBadge.name}
-                      </Text>
+                      <View
+                        style={{
+                          alignSelf: "flex-start",
+                          paddingHorizontal: 12,
+                          paddingVertical: 5,
+                          borderRadius: 999,
+                          backgroundColor: hexToRgba(featuredBadge.tierColor, 0.15),
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={{ color: featuredBadge.tierColor, fontWeight: "600", fontSize: 16 }}>
+                          {featuredBadge.name}
+                        </Text>
+                      </View>
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         {featuredBadge.description}
                       </Text>
@@ -196,10 +215,21 @@ export default function BadgesScreen() {
                     >
                       <View className="flex-row items-center justify-between mb-2">
                         <View className="flex-1 mr-3">
-                          <View className="flex-row items-center mb-1">
-                            <Text className="text-base font-bold mr-2" style={{ color: badge.tierColor }}>
-                              {badge.name}
-                            </Text>
+                          <View className="flex-row items-center mb-2">
+                            <View
+                              style={{
+                                alignSelf: "flex-start",
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 999,
+                                backgroundColor: hexToRgba(badge.tierColor, 0.15),
+                                marginRight: 8,
+                              }}
+                            >
+                              <Text style={{ color: badge.tierColor, fontWeight: "600", fontSize: 14 }}>
+                                {badge.name}
+                              </Text>
+                            </View>
                             {badge.featured && (
                               <View
                                 className="px-2 py-0.5 rounded-full"
@@ -260,9 +290,20 @@ export default function BadgesScreen() {
                     >
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1 mr-3">
-                          <Text className="text-base font-bold mb-1" style={{ color: colors.textSecondary }}>
-                            {badge.name}
-                          </Text>
+                          <View
+                            style={{
+                              alignSelf: "flex-start",
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 999,
+                              backgroundColor: hexToRgba(badge.tierColor, 0.15),
+                              marginBottom: 8,
+                            }}
+                          >
+                            <Text style={{ color: badge.tierColor, fontWeight: "600", fontSize: 14 }}>
+                              {badge.name}
+                            </Text>
+                          </View>
                           <Text className="text-sm mb-2" style={{ color: colors.textTertiary }}>
                             {badge.description}
                           </Text>
@@ -327,9 +368,20 @@ export default function BadgesScreen() {
                 <X size={16} color={colors.text} />
               </Pressable>
             </View>
-            <Text className="text-2xl font-bold mb-2" style={{ color: selectedBadge?.tierColor ?? colors.text }}>
-              {selectedBadge?.name}
-            </Text>
+            <View
+              style={{
+                alignSelf: "flex-start",
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: hexToRgba(selectedBadge?.tierColor ?? themeColor, 0.15),
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ color: selectedBadge?.tierColor ?? colors.text, fontWeight: "600", fontSize: 20 }}>
+                {selectedBadge?.name}
+              </Text>
+            </View>
             <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
               {selectedBadge?.description}
             </Text>
