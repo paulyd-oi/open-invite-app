@@ -513,19 +513,11 @@ export default function EventDetailScreen() {
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => api.post(`/api/events/${id}/rsvp`, { status }),
     onSuccess: async (_, status) => {
-      // Use success haptic for "going" (more affirming), light for others
+      // Haptic feedback only - no intrusive toast popups
       if (status === "going") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        safeToast.success("You're In!", "This event has been added to your calendar.");
-      } else if (status === "interested") {
+      } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        safeToast.success("Marked as Interested", "We'll keep you posted on updates.");
-      } else if (status === "maybe") {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        safeToast.success("Marked as Maybe", "Let us know if your plans change.");
-      } else if (status === "not_going") {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        safeToast.success("RSVP Updated", "Maybe next time!");
       }
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });

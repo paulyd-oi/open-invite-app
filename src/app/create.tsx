@@ -1043,11 +1043,11 @@ export default function CreateEventScreen() {
             )}
 
             {showTimePicker && (
-              <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-xl mb-4 overflow-hidden p-2" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <DateTimePicker
                   value={startDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1056,13 +1056,12 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={{ height: 150 }}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
                     onPress={() => setShowTimePicker(false)}
-                    className="py-3 items-center"
-                    style={{ backgroundColor: themeColor }}
+                    className="py-2 items-center mt-2"
+                    style={{ backgroundColor: themeColor, borderRadius: 8 }}
                   >
                     <Text className="text-white font-semibold">Done</Text>
                   </Pressable>
@@ -1134,11 +1133,11 @@ export default function CreateEventScreen() {
 
             {/* End Time Picker */}
             {showEndTimePicker && (
-              <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-xl mb-4 overflow-hidden p-2" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <DateTimePicker
                   value={endDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1150,13 +1149,12 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
-                  style={{ height: 150 }}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
                     onPress={() => setShowEndTimePicker(false)}
-                    className="py-3 items-center"
-                    style={{ backgroundColor: themeColor }}
+                    className="py-2 items-center mt-2"
+                    style={{ backgroundColor: themeColor, borderRadius: 8 }}
                   >
                     <Text className="text-white font-semibold">Done</Text>
                   </Pressable>

@@ -23,7 +23,6 @@ import {
   X,
   Check,
   Calendar,
-  Flame,
   Trophy,
   Star,
   Heart,
@@ -541,82 +540,7 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Social Insights - Premium Feature */}
-        <Animated.View entering={FadeInDown.delay(225).springify()} className="mb-4">
-          <View className="flex-row items-center justify-between mb-2">
-            <View className="flex-row items-center">
-              <Flame size={16} color="#FF6B4A" />
-              <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
-                Social Insights
-              </Text>
-              {!userIsPremium && (
-                <View className="ml-2 px-2 py-0.5 rounded-full flex-row items-center" style={{ backgroundColor: "#FFD70020" }}>
-                  <Crown size={10} color="#B8860B" />
-                  <Text className="text-xs font-medium ml-1" style={{ color: "#B8860B" }}>PRO</Text>
-                </View>
-              )}
-            </View>
-          </View>
-          <View 
-            className="rounded-xl p-4 border" 
-            style={{ 
-              backgroundColor: colors.surface, 
-              borderColor: userIsPremium ? colors.border : "#FFD70040",
-              borderWidth: userIsPremium ? 1 : 1.5,
-            }}
-          >
-            {userIsPremium ? (
-              // Unlocked content for premium users
-              <View>
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="font-medium" style={{ color: colors.text }}>Activity Score</Text>
-                  <Text className="text-lg font-bold" style={{ color: themeColor }}>
-                    {Math.min(100, (stats?.hostedCount ?? 0) * 10 + (stats?.attendedCount ?? 0) * 5)}
-                  </Text>
-                </View>
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="font-medium" style={{ color: colors.text }}>Social Reach</Text>
-                  <Text className="text-lg font-bold" style={{ color: "#4ECDC4" }}>
-                    {friendsCount * 2 + (stats?.hostedCount ?? 0)}
-                  </Text>
-                </View>
-                <View className="flex-row items-center justify-between">
-                  <Text className="font-medium" style={{ color: colors.text }}>Host Ratio</Text>
-                  <Text className="text-lg font-bold" style={{ color: "#FF6B4A" }}>
-                    {stats?.hostedCount && stats?.attendedCount 
-                      ? Math.round((stats.hostedCount / (stats.hostedCount + stats.attendedCount)) * 100) 
-                      : 0}%
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              // Locked content for free users
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/paywall");
-                }}
-                className="items-center py-4"
-              >
-                <View 
-                  className="w-12 h-12 rounded-full items-center justify-center mb-3"
-                  style={{ backgroundColor: "#FFD70020" }}
-                >
-                  <Crown size={24} color="#FFD700" />
-                </View>
-                <Text className="font-semibold mb-1" style={{ color: colors.text }}>
-                  Unlock Social Insights
-                </Text>
-                <Text className="text-sm text-center mb-3" style={{ color: colors.textSecondary }}>
-                  See your activity score, social reach, and hosting patterns
-                </Text>
-                <View className="px-4 py-2 rounded-full" style={{ backgroundColor: themeColor }}>
-                  <Text className="text-white font-medium text-sm">Upgrade to Pro</Text>
-                </View>
-              </Pressable>
-            )}
-          </View>
-        </Animated.View>
+        {/* Social Insights - Hidden for now (will be enabled in future release) */}
 
         {/* Quick Stats Row */}
         <Animated.View entering={FadeInDown.delay(250).springify()} className="mb-4">
