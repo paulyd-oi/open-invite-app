@@ -1823,8 +1823,8 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
 
-            {/* Upgrade CTA (only show for free users) */}
-            {!userIsPremium && (
+            {/* Upgrade CTA (only show for free users, hidden while loading to prevent flash) */}
+            {!entitlementsLoading && !userIsPremium && (
               <Pressable
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

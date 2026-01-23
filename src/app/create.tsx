@@ -62,7 +62,6 @@ import {
   type GetProfilesResponse,
   type GetEventsResponse,
 } from "@/shared/contracts";
-import { EventCategoryPicker, type EventCategory } from "@/components/EventCategoryPicker";
 import { SuggestedTimesPicker } from "@/components/SuggestedTimesPicker";
 import { getPendingIcsImport } from "@/lib/deepLinks";
 
@@ -368,7 +367,6 @@ export default function CreateEventScreen() {
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [customEmojiInput, setCustomEmojiInput] = useState("");
   const [sendNotification, setSendNotification] = useState(true);
-  const [category, setCategory] = useState<EventCategory | null>(null);
   const [isPrivateCircleEvent, setIsPrivateCircleEvent] = useState(true); // Default to private for circle events
   const [circleEventMode, setCircleEventMode] = useState<"open_invite" | "set_rsvp">("open_invite"); // Default to Open Invite for lower friction
 
@@ -1044,26 +1042,25 @@ export default function CreateEventScreen() {
 
             {showTimePicker && (
               <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <View className="py-2">
-                  <DateTimePicker
-                    value={startDate}
-                    mode="time"
-                    display={Platform.OS === "ios" ? "compact" : "default"}
-                    textColor={isDark ? "#FFFFFF" : "#000000"}
-                    themeVariant={isDark ? "dark" : "light"}
-                    onChange={(event, date) => {
-                      if (Platform.OS === "android") {
-                        setShowTimePicker(false);
-                      }
-                      if (date) setStartDate(date);
-                    }}
-                  />
-                </View>
+                <DateTimePicker
+                  value={startDate}
+                  mode="time"
+                  display="spinner"
+                  textColor={isDark ? "#FFFFFF" : "#000000"}
+                  themeVariant={isDark ? "dark" : "light"}
+                  onChange={(event, date) => {
+                    if (Platform.OS === "android") {
+                      setShowTimePicker(false);
+                    }
+                    if (date) setStartDate(date);
+                  }}
+                  style={{ height: 150 }}
+                />
                 {Platform.OS === "ios" && (
                   <Pressable
                     onPress={() => setShowTimePicker(false)}
-                    className="py-2 items-center"
-                    style={{ backgroundColor: themeColor, borderRadius: 8, marginHorizontal: 8, marginBottom: 8 }}
+                    className="py-3 items-center"
+                    style={{ backgroundColor: themeColor }}
                   >
                     <Text className="text-white font-semibold">Done</Text>
                   </Pressable>
@@ -1135,11 +1132,11 @@ export default function CreateEventScreen() {
 
             {/* End Time Picker */}
             {showEndTimePicker && (
-              <View className="rounded-xl mb-4 overflow-hidden p-2" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-xl mb-4 overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <DateTimePicker
                   value={endDate}
                   mode="time"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  display="spinner"
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1151,12 +1148,13 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
+                  style={{ height: 150 }}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
                     onPress={() => setShowEndTimePicker(false)}
-                    className="py-2 items-center mt-2"
-                    style={{ backgroundColor: themeColor, borderRadius: 8 }}
+                    className="py-3 items-center"
+                    style={{ backgroundColor: themeColor }}
                   >
                     <Text className="text-white font-semibold">Done</Text>
                   </Pressable>
@@ -1218,17 +1216,6 @@ export default function CreateEventScreen() {
                 </Text>
               </View>
             )}
-          </Animated.View>
-
-          {/* Category */}
-          <Animated.View entering={FadeInDown.delay(235).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Category (Optional)</Text>
-            <View className="mb-4">
-              <EventCategoryPicker
-                selectedCategory={category}
-                onCategoryChange={setCategory}
-              />
-            </View>
           </Animated.View>
 
           {/* Suggested Times */}
