@@ -12,6 +12,7 @@ import {
   setExplicitCookiePair,
   SESSION_COOKIE_KEY,
 } from "./sessionCookie";
+import { debugDumpBetterAuthCookieOnce } from "./debugCookie";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
@@ -65,6 +66,7 @@ const betterAuthClient = createAuthClient({
 if (__DEV__) {
   const cookieKey = `${STORAGE_PREFIX}_cookie`;
   console.log(`[authClient] Cookie storage key: ${cookieKey}`);
+  void debugDumpBetterAuthCookieOnce();
 }
 
 export async function getAuthToken(): Promise<string | null> {
