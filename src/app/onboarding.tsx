@@ -56,6 +56,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -906,6 +907,8 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
     }
+    // Request bootstrap to re-run once when calendar mounts (prevents stale state bounce)
+    requestBootstrapRefreshOnce();
     router.replace("/calendar");
   };
 
