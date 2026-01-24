@@ -1,51 +1,55 @@
-HANDOFF PACKET - Auth Race Fix + Upload Image Public
+HANDOFF PACKET - Entitlements Gating + MiniCalendar Fix + Logout Invariants
 ================================================================================
 
 SUMMARY
 -------
-1. Fixed authed queries firing during logout/loading (401 spam)
-2. Fixed /uploads/ images blocked by legacy bearer token check
-3. All authed queries now gated on `bootStatus === 'authed'`
+1. useEntitlements hook now accepts `enabled` parameter for bootStatus gating
+2. MiniCalendar gating changed from `!!session` to `bootStatus === 'authed'`
+3. Logout key deletion consolidated with enumerated keys + [LOGOUT_INVARIANT] log
 
 PRECHECK
 --------
 pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
 branch: main
 remote: https://github.com/paulyd-oi/open-invite-app.git
-status: clean after push
+status: modified (pending commit)
 
 ROOT CAUSE
 ----------
-1. AUTH RACE: Queries used `enabled: !!session` but cached session persists
-   briefly after logout. Queries fired while bootStatus was 'loading'/'loggedOut'
-   causing 401 spam.
+1. ENTITLEMENTS: useEntitlements() had no `enabled` gating option, causing
+   fetch during logout/loading when caller couldn't gate it.
 
-2. UPLOAD BLOCKING: imageSource.ts treated all backend URLs as protected,
-   requiring bearer token. But /uploads/ is PUBLIC on backend (200 without auth).
-   Result: avatar images failed to render after logout.
+2. MINICALENDAR: Component gated on `!!session` but session may persist in
+   cache after logout → 401 spam during transition.
+
+3. LOGOUT AUDIT: Key deletion was scattered across multiple log lines with
+   no consolidated audit trail for debugging account switch issues.
 
 CHANGES
 -------
 Files changed:
-- src/lib/imageSource.ts - /uploads/ paths now treated as public
-- src/app/profile.tsx - All queries gated on bootStatus === 'authed'
-- src/app/settings.tsx - Added useBootAuthority, gated queries
-- src/app/friends.tsx - Friends/groups/circles queries gated
-- src/app/calendar.tsx - workSchedule query gated
+- src/lib/entitlements.ts - Added optional `{ enabled?: boolean }` param
+- src/app/friends.tsx - MiniCalendar accepts bootStatus prop, FriendCard/FriendListItem pass it
+- src/lib/authBootstrap.ts - Enumerated SECURESTORE_AUTH_KEYS, ASYNCSTORAGE_AUTH_KEYS, single [LOGOUT_INVARIANT] log
 - docs/STATE_OF_THE_APP.md - Updated
-- docs/FINDINGS_LOG.md - Added two new findings
+- docs/FINDINGS_LOG.md - Added three new findings
 
 KEY DIFFS
 ---------
-imageSource.ts requiresAuth():
-  // /uploads/ paths are PUBLIC - no auth required
-  if (trimmed.startsWith("/uploads/") || trimmed.includes("/uploads/")) {
-    return false;
-  }
+entitlements.ts useEntitlements():
+  BEFORE: useEntitlements() { useQuery({ enabled: true, ... }) }
+  AFTER:  useEntitlements(options?: { enabled?: boolean }) { useQuery({ enabled: options?.enabled ?? true, ... }) }
 
-All query files:
-  BEFORE: enabled: !!session
-  AFTER:  enabled: bootStatus === 'authed'
+friends.tsx MiniCalendar:
+  BEFORE: enabled: !!session && !!friendshipId
+  AFTER:  enabled: bootStatus === 'authed' && !!friendshipId
+
+authBootstrap.ts resetSession():
+  NEW: SECURESTORE_AUTH_KEYS = [...all known keys...]
+  NEW: ASYNCSTORAGE_AUTH_KEYS = [...all known keys...]
+  NEW: console.log("[LOGOUT_INVARIANT]", JSON.stringify({
+         keysDeleted, keysFailed, verifyCleared, verifyRemaining, success
+       }))
 
 TESTING
 -------
@@ -55,40 +59,32 @@ Commands run:
 
 MANUAL TEST PLAN
 ----------------
-A) Fresh install / clear app storage
-B) Create brand-new account (email signup)
-   - Confirm /api/auth/session returns 200 right after signup
-   - Confirm onboarding continues, app lands in authed state
-C) Logout
-   - Confirm app routes to /login
-   - Confirm NO protected endpoint 401 spam (only bootstrap /api/auth/session 401 OK)
-D) Login as DIFFERENT user
-   - Confirm UI shows correct user, no prior user data
-   - Confirm avatar renders without "token required" logs
+A) Logout scenario:
+   - Tap logout
+   - Observe console for single [LOGOUT_INVARIANT] log
+   - Verify keysDeleted includes all auth keys
+   - Verify keysFailed is empty
+   - Verify success: true
+
+B) Account switch scenario:
+   - Logout from account A
+   - Login to account B
+   - Confirm no 401 spam during transition
+   - Confirm no data contamination (account A data showing for B)
 
 GIT STATUS
 ----------
 Commit: PENDING
 Push: PENDING
 
-VERIFICATION
-------------
-Manual checks needed:
-A) Fresh install / clear app storage
-B) Create new account via email signup
-   - Confirm logs show refreshExplicitCookie success
-   - Confirm /api/auth/session returns 200 immediately after signup
-   - Confirm onboarding continues (no bounce to login)
-C) Logout then login existing account still works
-D) Switch accounts: logout → login different account works
-
 STATE UPDATE
 ------------
 STATE_OF_THE_APP updated: YES
 FINDINGS_LOG updated: YES
-INVARIANTS changed: NO
+INVARIANTS changed: YES (added [LOGOUT_INVARIANT])
 
-GIT
----
-Commit: PENDING
-Pushed: PENDING
+NEXT AGENT
+----------
+- Commit and push these changes
+- Test logout flow manually and verify [LOGOUT_INVARIANT] JSON appears
+- If any keysFailed entries appear in log, investigate why deletion failed

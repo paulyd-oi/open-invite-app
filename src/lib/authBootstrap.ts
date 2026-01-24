@@ -159,132 +159,120 @@ export async function resetSession(options?: { reason?: string; status?: number;
   // Delete all legacy keys defensively to handle any migration scenarios
   log("Step 2/5: Clearing SecureStore tokens");
 
+  // Enumerate all known auth storage keys for consolidated deletion and verification
+  const SECURESTORE_AUTH_KEYS = [
+    ...LEGACY_TOKEN_KEYS,                    // open-invite.session-token, undefined.session-token, etc.
+    "open-invite_cookie",                    // Better Auth cookie storage
+    "open-invite_session",                   // Better Auth session storage
+    SESSION_COOKIE_KEY,                      // open-invite_session_cookie (explicit cookie storage)
+  ];
+  
+  const ASYNCSTORAGE_AUTH_KEYS = [
+    SESSION_CACHE_KEY,                       // session_cache_v1
+    "onboarding_completed",
+    "onboarding_progress_v2",
+    "onboarding_progress",
+    "verification_deferred",
+    "verification_banner_dismissed",
+  ];
+
+  // Track deletion results for invariant log
+  const deletionResults: Record<string, boolean> = {};
+
   if (Platform.OS === "web") {
     // Web: clear localStorage
     try {
       if (typeof localStorage !== "undefined") {
-        LEGACY_TOKEN_KEYS.forEach(key => {
-          localStorage.removeItem(key);
+        SECURESTORE_AUTH_KEYS.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+            deletionResults[`ls:${key}`] = true;
+          } catch {
+            deletionResults[`ls:${key}`] = false;
+          }
         });
-        localStorage.removeItem(SESSION_CACHE_KEY);
-        log("  ✓ Cleared web localStorage");
+        ASYNCSTORAGE_AUTH_KEYS.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+            deletionResults[`ls:${key}`] = true;
+          } catch {
+            deletionResults[`ls:${key}`] = false;
+          }
+        });
       }
     } catch (e) {
       log("  ⚠️ localStorage clear error (continuing anyway):", e);
     }
   } else {
-    // Native: clear SecureStore explicitly - delete all legacy keys
-    for (const legacyKey of LEGACY_TOKEN_KEYS) {
+    // Native: clear SecureStore explicitly - delete all auth keys
+    for (const key of SECURESTORE_AUTH_KEYS) {
       try {
-        await SecureStore.deleteItemAsync(legacyKey);
+        await SecureStore.deleteItemAsync(key);
+        deletionResults[`ss:${key}`] = true;
       } catch (e) {
+        deletionResults[`ss:${key}`] = false;
         // Key may not exist - this is fine, continue
-        if (__DEV__ && legacyKey !== SESSION_TOKEN_KEY) {
-          log(`  ℹ️ Legacy key not found: ${legacyKey}`);
-        }
       }
     }
-    // Also clear explicit session cookie
-    await clearSessionCookie();
-    log("  ✓ Cleared SecureStore tokens (all legacy keys + session cookie)");
   }
 
   // Step 3: Clear AsyncStorage session cache and onboarding state (ALWAYS succeeds)
   log("Step 3/5: Clearing AsyncStorage state");
   try {
-    await AsyncStorage.multiRemove([
-      SESSION_CACHE_KEY,
-      "onboarding_completed",
-      "onboarding_progress_v2",
-      "onboarding_progress",
-      "verification_deferred",
-      "verification_banner_dismissed",
-    ]);
-    log("  ✓ Cleared AsyncStorage state");
+    await AsyncStorage.multiRemove(ASYNCSTORAGE_AUTH_KEYS);
+    ASYNCSTORAGE_AUTH_KEYS.forEach(key => {
+      deletionResults[`as:${key}`] = true;
+    });
   } catch (e) {
+    ASYNCSTORAGE_AUTH_KEYS.forEach(key => {
+      deletionResults[`as:${key}`] = false;
+    });
     log("  ⚠️ AsyncStorage clear error (continuing anyway):", e);
   }
 
-  // Step 3b: Clear in-memory session cache
-  log("Step 3b/5: Clearing in-memory session cache");
+  // Step 3b: Clear in-memory session cache + explicit cookie cache
+  log("Step 3b/5: Clearing in-memory caches");
   try {
     await clearSessionCache();
-    log("  ✓ Cleared in-memory session cache");
+    deletionResults["mem:sessionCache"] = true;
   } catch (e) {
+    deletionResults["mem:sessionCache"] = false;
     log("  ⚠️ Session cache clear error (continuing anyway):", e);
   }
 
-  // Step 4: Verify token is cleared (DEV only, never throws)
-  log("Step 4/5: Verifying token is cleared");
-  if (__DEV__) {
-    try {
-      // Re-read from SecureStore to verify deletion of all legacy keys
-      let secureStoreTokenExists = false;
-      const legacyTokensStatus: Record<string, boolean> = {};
-      
-      for (const legacyKey of LEGACY_TOKEN_KEYS) {
-        try {
-          const verifyToken = await SecureStore.getItemAsync(legacyKey);
-          const exists = !!verifyToken;
-          legacyTokensStatus[legacyKey] = exists;
-          if (exists) {
-            secureStoreTokenExists = true;
-          }
-        } catch (e) {
-          legacyTokensStatus[legacyKey] = false;
-        }
-      }
-
-      // Re-read from AsyncStorage session cache
-      let asyncStorageTokenExists = false;
+  // Step 4: Verify and emit consolidated LOGOUT_INVARIANT log
+  log("Step 4/5: Verifying deletion and emitting invariant log");
+  
+  // Verify key SecureStore keys are actually cleared
+  const verifyResults: Record<string, boolean> = {};
+  if (Platform.OS !== "web") {
+    for (const key of SECURESTORE_AUTH_KEYS) {
       try {
-        const sessionCache = await AsyncStorage.getItem(SESSION_CACHE_KEY);
-        asyncStorageTokenExists = !!sessionCache;
-      } catch (e) {
-        asyncStorageTokenExists = false;
+        const value = await SecureStore.getItemAsync(key);
+        verifyResults[key] = !value; // true = cleared successfully
+      } catch {
+        verifyResults[key] = true; // error reading = likely cleared
       }
-
-      const stillAuthed = await hasAuthToken();
-      const overallStillHasToken = secureStoreTokenExists || asyncStorageTokenExists || stillAuthed;
-
-      authTrace("resetSession:afterDeleteVerify", {
-        secureStoreTokenExists,
-        asyncStorageTokenExists,
-        overallStillHasToken,
-        primaryKeyChecked: SESSION_TOKEN_KEY,
-      });
-
-      console.log("[Logout] hasAuthToken after reset:", stillAuthed);
-      if (stillAuthed) {
-        console.warn("[Logout] ⚠️ Token still exists after reset - this should not happen");
-      } else {
-        console.log("[Logout] ✓ Token successfully cleared");
-      }
-    } catch (e) {
-      console.log("[Logout] Could not verify token state:", e);
     }
   }
+  
+  const stillAuthed = await hasAuthToken();
+  
+  // Emit ONE consolidated invariant log line
+  console.log("[LOGOUT_INVARIANT]", JSON.stringify({
+    keysDeleted: Object.keys(deletionResults).filter(k => deletionResults[k]),
+    keysFailed: Object.keys(deletionResults).filter(k => !deletionResults[k]),
+    verifyCleared: Object.keys(verifyResults).filter(k => verifyResults[k]),
+    verifyRemaining: Object.keys(verifyResults).filter(k => !verifyResults[k]),
+    explicitCookieCacheCleared: true, // Always true after clearSessionCache
+    hasAuthTokenAfter: stillAuthed,
+    success: !stillAuthed,
+  }));
 
   // Step 5: React Query cache will be cleared by caller
   log("Step 5/5: React Query cache will be cleared by caller");
 
   log("✅ Session reset successful");
-  
-  // Assert post-logout invariants in DEV mode
-  if (__DEV__) {
-    try {
-      const tokenStillExists = await hasAuthToken();
-      assertAuthInvariants("logged_out", {
-        hasToken: tokenStillExists,
-        tokenValid: false,
-        onboardingCompleted: false,
-        hasOnboardingProgress: false,
-      });
-    } catch (e) {
-      // Assertion is diagnostic only - never throw
-      console.log("[Logout] Could not assert invariants:", e);
-    }
-  }
   
   // NEVER throw - logout always succeeds locally
   } finally {

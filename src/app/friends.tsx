@@ -95,14 +95,13 @@ import {
 import { useNetworkStatus } from "@/lib/networkStatus";
 
 // Mini calendar component for friend cards
-function MiniCalendar({ friendshipId }: { friendshipId: string }) {
+function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; bootStatus: string }) {
   const { themeColor, isDark, colors } = useTheme();
-  const { data: session } = useSession();
 
   const { data } = useQuery({
     queryKey: ["friendEvents", friendshipId],
     queryFn: () => api.get<GetFriendEventsResponse>(`/api/friends/${friendshipId}/events`),
-    enabled: !!session && !!friendshipId,
+    enabled: bootStatus === 'authed' && !!friendshipId,
     staleTime: 60000, // Cache for 1 minute to avoid too many requests
   });
 
@@ -191,7 +190,7 @@ function MiniCalendar({ friendshipId }: { friendshipId: string }) {
 }
 
 
-function FriendCard({ friendship, index }: { friendship: Friendship; index: number }) {
+function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship; index: number; bootStatus: string }) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
@@ -273,14 +272,14 @@ function FriendCard({ friendship, index }: { friendship: Friendship; index: numb
         </View>
 
         {/* Mini Calendar */}
-        <MiniCalendar friendshipId={friendship.id} />
+        <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
       </Pressable>
     </Animated.View>
   );
 }
 
 // Collapsible List Item for "list" view mode
-function FriendListItem({ friendship, index }: { friendship: Friendship; index: number }) {
+function FriendListItem({ friendship, index, bootStatus }: { friendship: Friendship; index: number; bootStatus: string }) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
@@ -379,7 +378,7 @@ function FriendListItem({ friendship, index }: { friendship: Friendship; index: 
         {/* Expandable calendar section */}
         <Animated.View style={calendarStyle}>
           <View className="px-3 pb-3">
-            <MiniCalendar friendshipId={friendship.id} />
+            <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
           </View>
         </Animated.View>
       </View>
@@ -1525,11 +1524,11 @@ export default function FriendsScreen() {
               )
             ) : viewMode === "list" ? (
               filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendListItem key={friendship.id} friendship={friendship} index={index} />
+                <FriendListItem key={friendship.id} friendship={friendship} index={index} bootStatus={bootStatus} />
               ))
             ) : (
               filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendCard key={friendship.id} friendship={friendship} index={index} />
+                <FriendCard key={friendship.id} friendship={friendship} index={index} bootStatus={bootStatus} />
               ))
             )}
           </Animated.View>

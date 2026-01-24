@@ -221,8 +221,11 @@ export function trackAnalytics(
 
 /**
  * Hook to fetch user entitlements with caching
+ * @param options.enabled - If false, prevents network fetch (defaults to true)
  */
-export function useEntitlements() {
+export function useEntitlements(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  
   return useQuery({
     queryKey: ["entitlements"],
     queryFn: async () => {
@@ -238,6 +241,7 @@ export function useEntitlements() {
         throw error;
       }
     },
+    enabled, // Gate network fetch on bootStatus via caller
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
     // Use cached data as placeholder while fetching

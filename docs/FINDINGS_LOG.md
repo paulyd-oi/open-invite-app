@@ -88,3 +88,43 @@ Updated authClient request layer to match Better Auth expo transport behavior ex
 ### Action Taken:
 - Modified requiresAuth() in imageSource.ts to return false for /uploads/ paths
 - /uploads/ URLs now treated as public, rendered without Authorization header
+
+---
+
+### Date: 2026-01-24
+### Finding: useEntitlements hook needs enabled gating to prevent 401 during logout/loading
+### Proof:
+- Hook called useQuery without `enabled` gating on bootStatus
+- During logout, fetch fires while session is invalid → 401 error
+### Impact: Spurious 401 errors in console, confusing debug output
+### Action Taken:
+- Added optional `{ enabled?: boolean }` parameter to useEntitlements hook
+- Preserves placeholderData behavior so entitlements always have a value
+
+---
+
+### Date: 2026-01-24
+### Finding: MiniCalendar gated on !!session instead of bootStatus === 'authed'
+### Proof:
+- MiniCalendar component used `enabled: !!session && !!friendshipId`
+- After logout, session may still be in React Query cache momentarily
+- Caused calendar data fetches to fire during logout transition
+### Impact: Same 401 race condition as other queries
+### Action Taken:
+- Changed MiniCalendar to accept `bootStatus: string` prop
+- Changed enabled to `bootStatus === 'authed' && !!friendshipId`
+- Updated FriendCard and FriendListItem to pass bootStatus prop
+
+---
+
+### Date: 2026-01-24
+### Finding: Logout key deletion had scattered logs, no audit trail
+### Proof:
+- Multiple console.log statements during logout
+- No consolidated list of which keys were deleted/failed
+- Difficult to verify clean logout in production logs
+### Impact: Debugging account switch issues required reading many log lines
+### Action Taken:
+- Added SECURESTORE_AUTH_KEYS and ASYNCSTORAGE_AUTH_KEYS arrays
+- Track deletion success/failure per key
+- Emit single [LOGOUT_INVARIANT] JSON log with keysDeleted, keysFailed, verifyCleared, verifyRemaining, success
