@@ -1,0 +1,18 @@
+Operate under these repo documents as source of truth:
+- docs/INVARIANTS.md (hard rules)
+- docs/STATE_OF_THE_APP.md (current reality)
+- docs/FINDINGS_LOG.md (proven discoveries)
+
+Constraints:
+- Minimal diff only
+- No refactors
+- No new dependencies
+- Preserve navigation architecture
+- Preserve icon immutables
+
+Completion requirements:
+- Update docs/STATE_OF_THE_APP.md
+- If new discoveries, append to docs/FINDINGS_LOG.md using the template
+- Write the final HANDOFF to docs/HANDOFF_PACKET_LATEST.txt
+- Run scripts/ai/verify_frontend.sh
+- Commit and push

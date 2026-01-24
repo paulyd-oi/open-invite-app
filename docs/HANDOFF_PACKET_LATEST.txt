@@ -1,0 +1,46 @@
+HANDOFF PACKET
+================================================================================
+
+SUMMARY
+-------
+- <fill>
+
+PRECHECK
+--------
+pwd:
+branch:
+remote:
+status:
+
+ROOT CAUSE
+----------
+<fill>
+
+CHANGES
+-------
+Files changed:
+- <fill>
+
+Key diffs:
+- <fill>
+
+TESTING
+-------
+Commands run:
+- <fill>
+
+VERIFICATION
+------------
+Manual checks:
+- <fill>
+
+STATE UPDATE
+------------
+STATE_OF_THE_APP updated: YES/NO
+FINDINGS_LOG updated: YES/NO
+INVARIANTS changed: YES/NO
+
+GIT
+---
+Commit:
+Pushed:
