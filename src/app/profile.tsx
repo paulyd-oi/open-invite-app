@@ -106,10 +106,11 @@ export default function ProfileScreen() {
   }, [bootStatus, router]);
 
   // Fetch profiles to check if user is in business mode
+  // Gate on bootStatus to prevent queries firing during logout/loading
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const activeProfile = profilesData?.activeProfile;
@@ -117,7 +118,7 @@ export default function ProfileScreen() {
   const { data: profileData, refetch: refetchProfile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Load avatar source with auth headers
@@ -133,19 +134,19 @@ export default function ProfileScreen() {
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: eventsData, refetch: refetchEvents } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: statsData, refetch: refetchStats } = useQuery({
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Pull to refresh handler

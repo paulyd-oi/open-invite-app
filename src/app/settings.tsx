@@ -53,6 +53,7 @@ import * as Clipboard from "expo-clipboard";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
@@ -365,6 +366,7 @@ function ReferralCounterSection({
 
 export default function SettingsScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, setThemeColor, themeColorName, themeMode, setThemeMode, isDark, colors } = useTheme();
@@ -420,27 +422,30 @@ export default function SettingsScreen() {
   }
 
   // Fetch work schedule
+  // Gate on bootStatus to prevent queries during logout
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const workSchedules = workScheduleData?.schedules ?? [];
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
 
   // Fetch current profile to get calendarBio
+  // Gate on bootStatus to prevent queries during logout
   const { data: profileData } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Check admin status (fail safe - returns isAdmin: false on any error)
+  // Gate on bootStatus to prevent queries during logout
   const { data: adminStatus } = useQuery({
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     retry: false,
   });
 

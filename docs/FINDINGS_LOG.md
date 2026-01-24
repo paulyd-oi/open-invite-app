@@ -61,3 +61,30 @@ Updated authClient request layer to match Better Auth expo transport behavior ex
 - Changed welcome.tsx to use authClient.signUp.email() and authClient.signIn.email()
 - Added session verification check before advancing to next onboarding step
 - Error now shown to user if session fails (no auto-redirect to login)
+
+---
+
+### Date: 2026-01-24
+### Finding: Authed queries firing during logout/loading cause 401 storm
+### Proof:
+- Queries in profile.tsx, settings.tsx, friends.tsx used `enabled: !!session`
+- After logout, cached session still exists momentarily
+- Queries fire with stale session while bootStatus is 'loading' or 'loggedOut'
+- Backend returns 401 for each → 401 spam in logs
+### Impact: Race conditions during logout/login transitions, poor UX, confusing logs
+### Action Taken:
+- Changed all authed queries to use `enabled: bootStatus === 'authed'`
+- Files fixed: calendar.tsx, profile.tsx, settings.tsx, friends.tsx
+
+---
+
+### Date: 2026-01-24
+### Finding: /uploads/ images blocked by legacy bearer token check
+### Proof:
+- imageSource.ts logged: "Protected URL requires token but none available: .../uploads/...jpg"
+- Backend actually serves /uploads/ paths as 200 without authentication
+- Frontend was unnecessarily blocking image render
+### Impact: Avatar images failed to render after logout or when no token cached
+### Action Taken:
+- Modified requiresAuth() in imageSource.ts to return false for /uploads/ paths
+- /uploads/ URLs now treated as public, rendered without Authorization header

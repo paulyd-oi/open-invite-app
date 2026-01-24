@@ -1,62 +1,75 @@
-HANDOFF PACKET - Signup Cookie Session Fix
+HANDOFF PACKET - Auth Race Fix + Upload Image Public
 ================================================================================
 
 SUMMARY
 -------
-- Fixed email signup not establishing Better Auth cookie session
-- welcome.tsx was using raw $fetch to /api/auth/sign-up/email
-- This bypassed authClient.signUp.email() which has cookie establishment logic
-- Now uses proper authClient methods + verifies session before proceeding
+1. Fixed authed queries firing during logout/loading (401 spam)
+2. Fixed /uploads/ images blocked by legacy bearer token check
+3. All authed queries now gated on `bootStatus === 'authed'`
 
 PRECHECK
 --------
 pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
 branch: main
 remote: https://github.com/paulyd-oi/open-invite-app.git
-status: modified files pending commit
+status: clean after push
 
 ROOT CAUSE
 ----------
-welcome.tsx handleEmailAuth() used raw authClient.$fetch('/api/auth/sign-up/email')
-which does NOT call:
-- captureAndStoreCookie()
-- refreshExplicitCookie() 
-- verifySessionAfterAuth()
+1. AUTH RACE: Queries used `enabled: !!session` but cached session persists
+   briefly after logout. Queries fired while bootStatus was 'loading'/'loggedOut'
+   causing 401 spam.
 
-The authClient.signUp.email() method already has all this logic built in.
-Signup returned 200 but cookie was never stored in SecureStore, so next
-/api/auth/session returned 401 and onboarding bounced to login.
+2. UPLOAD BLOCKING: imageSource.ts treated all backend URLs as protected,
+   requiring bearer token. But /uploads/ is PUBLIC on backend (200 without auth).
+   Result: avatar images failed to render after logout.
 
 CHANGES
 -------
 Files changed:
-- src/app/welcome.tsx - Use authClient.signUp/signIn.email() instead of raw $fetch
-- docs/STATE_OF_THE_APP.md - Updated with signup fix status
-- docs/FINDINGS_LOG.md - Added finding about signup bypassing cookie establishment
+- src/lib/imageSource.ts - /uploads/ paths now treated as public
+- src/app/profile.tsx - All queries gated on bootStatus === 'authed'
+- src/app/settings.tsx - Added useBootAuthority, gated queries
+- src/app/friends.tsx - Friends/groups/circles queries gated
+- src/app/calendar.tsx - workSchedule query gated
+- docs/STATE_OF_THE_APP.md - Updated
+- docs/FINDINGS_LOG.md - Added two new findings
 
-Key diffs in welcome.tsx handleEmailAuth():
-BEFORE:
-  result = await authClient.$fetch('/api/auth/sign-up/email', {...})
-  result = await authClient.$fetch('/api/auth/sign-in/email', {...})
-  // No cookie establishment, just token storage
-  setCurrentSlide(3)
-
-AFTER:
-  result = await authClient.signUp.email({...})
-  result = await authClient.signIn.email({...})
-  // Verify session established before proceeding
-  const session = await getSessionCached()
-  if (!session?.user?.id) {
-    setErrorBanner("Session could not be established. Please try again.");
-    return;
+KEY DIFFS
+---------
+imageSource.ts requiresAuth():
+  // /uploads/ paths are PUBLIC - no auth required
+  if (trimmed.startsWith("/uploads/") || trimmed.includes("/uploads/")) {
+    return false;
   }
-  setCurrentSlide(3)
+
+All query files:
+  BEFORE: enabled: !!session
+  AFTER:  enabled: bootStatus === 'authed'
 
 TESTING
 -------
 Commands run:
 - npm run typecheck: PASSED
-- scripts/ai/verify_frontend.sh: PENDING
+- scripts/ai/verify_frontend.sh: PASSED
+
+MANUAL TEST PLAN
+----------------
+A) Fresh install / clear app storage
+B) Create brand-new account (email signup)
+   - Confirm /api/auth/session returns 200 right after signup
+   - Confirm onboarding continues, app lands in authed state
+C) Logout
+   - Confirm app routes to /login
+   - Confirm NO protected endpoint 401 spam (only bootstrap /api/auth/session 401 OK)
+D) Login as DIFFERENT user
+   - Confirm UI shows correct user, no prior user data
+   - Confirm avatar renders without "token required" logs
+
+GIT STATUS
+----------
+Commit: PENDING
+Push: PENDING
 
 VERIFICATION
 ------------

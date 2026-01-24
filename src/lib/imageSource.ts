@@ -17,19 +17,34 @@ import { resolveImageUrl } from "./imageUrl";
  * Check if a URL requires authentication headers
  *
  * Returns true if URL points to our backend API (protected endpoints)
+ * Returns false for /uploads/ paths which are served publicly
  */
 function requiresAuth(url: string | null | undefined): boolean {
   if (!url) return false;
 
   const trimmed = url.trim();
   
+  // /uploads/ paths are PUBLIC - no auth required
+  // Backend serves these directly without authentication
+  if (trimmed.startsWith("/uploads/") || trimmed.includes("/uploads/")) {
+    return false;
+  }
+
   // Check if URL contains our backend domain
   if (trimmed.includes("open-invite-api.onrender.com")) {
+    // Even on backend domain, /uploads/ is public
+    if (trimmed.includes("/uploads/")) {
+      return false;
+    }
     return true;
   }
 
   // Check if URL contains localhost (dev environment)
   if (trimmed.includes("localhost") || trimmed.includes("127.0.0.1")) {
+    // Even on localhost, /uploads/ is public
+    if (trimmed.includes("/uploads/")) {
+      return false;
+    }
     return true;
   }
 

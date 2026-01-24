@@ -648,7 +648,7 @@ export default function FriendsScreen() {
   const { data: friendsData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: requestsData, refetch: refetchRequests } = useQuery({
@@ -844,7 +844,7 @@ export default function FriendsScreen() {
   const { data: groupsData } = useQuery({
     queryKey: ["groups"],
     queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const groups = groupsData?.groups ?? [];
@@ -853,7 +853,7 @@ export default function FriendsScreen() {
   const { data: circlesData, refetch: refetchCircles } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const circles = circlesData?.circles ?? [];
@@ -862,7 +862,7 @@ export default function FriendsScreen() {
   const { data: pinnedData } = useQuery({
     queryKey: ["pinnedFriendships"],
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Update local state when pinned data loads

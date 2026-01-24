@@ -1427,7 +1427,8 @@ export default function CalendarScreen() {
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
-    // [CalendarBoot] Remove enabled gate to allow fetch attempt in degraded mode
+    // Gate on bootStatus to prevent queries during logout
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch event requests
