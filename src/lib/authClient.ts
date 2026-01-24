@@ -156,10 +156,12 @@ async function $fetch<T = any>(
 
   try {
     // Use Better Auth's $fetch with explicit cookie header
+    // CRITICAL: credentials: "include" required for React Native to send cookies
     const result = await betterAuthClient.$fetch<T>(url, {
       method: init?.method || "GET",
       body: init?.body,
       headers,
+      credentials: "include",
     });
     
     // Log SESSION_SHAPE for /api/auth/session only (per spec)

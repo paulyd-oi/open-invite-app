@@ -580,6 +580,7 @@ export default function WelcomeOnboardingScreen() {
       const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/image`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!uploadResponse.ok) {
