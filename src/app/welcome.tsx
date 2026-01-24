@@ -736,8 +736,8 @@ export default function WelcomeOnboardingScreen() {
     // Notify backend (fire and forget)
     api.post("/api/onboarding/complete", {}).catch(() => {});
 
-    // Navigate to home (calendar) - use replace to prevent back nav
-    router.replace("/home");
+    // Navigate to calendar - use replace to prevent back nav
+    router.replace("/calendar");
   };
 
   // ============ RENDER SLIDES ============
