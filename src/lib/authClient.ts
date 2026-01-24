@@ -155,12 +155,21 @@ async function $fetch<T = any>(
   }
 
   try {
+    // Prepare request body: serialize objects to JSON, pass FormData/strings as-is
+    let finalBody: any = init?.body;
+    const finalHeaders = { ...headers };
+    
+    if (init?.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
+      finalBody = JSON.stringify(init.body);
+      finalHeaders['Content-Type'] = 'application/json';
+    }
+    
     // Use Better Auth's $fetch with explicit cookie header
     // CRITICAL: credentials: "include" required for React Native to send cookies
     const result = await betterAuthClient.$fetch<T>(url, {
       method: init?.method || "GET",
-      body: init?.body,
-      headers,
+      body: finalBody,
+      headers: finalHeaders,
       credentials: "include",
     });
     

@@ -49,10 +49,10 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
 
   try {
     // Use authClient.$fetch for all requests - this handles authentication automatically
-    // IMPORTANT: Pass body as object via 'json' option, NOT stringified via 'body'
+    // IMPORTANT: Pass body directly, authClient handles JSON serialization
     const response = await authClient.$fetch(path, {
       method,
-      json: body,
+      body: body,
     } as any);
 
     return response as T;
