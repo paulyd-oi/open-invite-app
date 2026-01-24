@@ -30,6 +30,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Response from GET /api/friends/reconnect
@@ -90,6 +91,7 @@ const RECONNECT_DISMISS_DAYS = 14;
 
 export default function DiscoverScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -100,27 +102,27 @@ export default function DiscoverScreen() {
   const { data: reconnectData, isLoading: loadingReconnect, refetch: refetchReconnect } = useQuery({
     queryKey: ["reconnect"],
     queryFn: () => api.get<{ friends: ReconnectFriend[] }>("/api/friends/reconnect"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: streaksData, isLoading: loadingStreaks, refetch: refetchStreaks } = useQuery({
     queryKey: ["streaks"],
     queryFn: () => api.get<{ streaks: Streak[] }>("/api/events/streaks"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch feed data for popular events (friends' events)
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
     queryKey: ["events", "feed"],
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch user's own events to include in popular tab
   const { data: myEventsData, isLoading: loadingMyEvents, refetch: refetchMyEvents } = useQuery({
     queryKey: ["events", "my-events"],
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const loadingPopular = loadingFeed || loadingMyEvents;
@@ -132,7 +134,7 @@ export default function DiscoverScreen() {
   const { data: templatesData } = useQuery({
     queryKey: ["templates"],
     queryFn: () => api.get<{ templates: EventTemplate[] }>("/api/events/templates"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Load dismissed friend IDs on mount (check cooldown expiry)

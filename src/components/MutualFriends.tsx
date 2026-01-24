@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 
 // Define types locally to avoid import issues
@@ -31,6 +32,7 @@ interface MutualFriendsProps {
 export function MutualFriends({ userId, userName }: MutualFriendsProps) {
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
 
   const isOwnProfile = userId === session?.user?.id;
@@ -39,7 +41,7 @@ export function MutualFriends({ userId, userName }: MutualFriendsProps) {
   const { data: mutualData, isLoading } = useQuery({
     queryKey: ["friends", userId, "mutual"],
     queryFn: () => api.get<GetMutualFriendsResponse>(`/api/friends/${userId}/mutual`),
-    enabled: !!session && !!userId,
+    enabled: bootStatus === "authed" && !!userId,
   });
 
   const mutualFriends = mutualData?.mutualFriends ?? [];

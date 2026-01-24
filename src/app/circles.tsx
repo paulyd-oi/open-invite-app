@@ -18,6 +18,7 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
@@ -26,6 +27,7 @@ export default function CirclesScreen() {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [showCreateCircle, setShowCreateCircle] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,13 +37,13 @@ export default function CirclesScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const circles = data?.circles ?? [];

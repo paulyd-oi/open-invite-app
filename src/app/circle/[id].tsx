@@ -43,6 +43,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, type PaywallContext } from "@/lib/entitlements";
 import { formatDateTimeRange } from "@/lib/eventTime";
@@ -689,6 +690,7 @@ function MessageBubble({
 export default function CircleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -744,7 +746,7 @@ export default function CircleScreen() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["circle", id],
     queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
@@ -753,7 +755,7 @@ export default function CircleScreen() {
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session && showAddMembers,
+    enabled: bootStatus === 'authed' && showAddMembers,
   });
 
   const sendMessageMutation = useMutation({

@@ -465,7 +465,7 @@ export default function CreateEventScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const circles = circlesData?.circles ?? [];
@@ -474,7 +474,7 @@ export default function CreateEventScreen() {
   const { data: myEventsData } = useQuery({
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
-    enabled: !!session && !isPremium,
+    enabled: bootStatus === 'authed' && !isPremium,
   });
 
   const myEvents = myEventsData?.events ?? [];

@@ -31,6 +31,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { Confetti } from "@/components/Confetti";
 import {
   type GetEventRequestResponse,
@@ -43,6 +44,7 @@ import {
 export default function EventRequestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -66,7 +68,7 @@ export default function EventRequestDetailScreen() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["event-request", id],
     queryFn: () => api.get<GetEventRequestResponse>(`/api/event-requests/${id}`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   const eventRequest = data?.eventRequest;

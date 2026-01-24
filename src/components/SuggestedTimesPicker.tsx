@@ -16,6 +16,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 
 // Define types locally to avoid import issues
@@ -62,6 +63,7 @@ export function SuggestedTimesPicker({
 }: SuggestedTimesPickerProps) {
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const [showModal, setShowModal] = useState(false);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>(initialFriendIds ?? []);
   const [startDate, setStartDate] = useState(new Date());
@@ -77,7 +79,7 @@ export function SuggestedTimesPicker({
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === "authed",
   });
 
   const friends = friendsData?.friends ?? [];

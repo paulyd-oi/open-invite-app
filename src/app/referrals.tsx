@@ -19,6 +19,7 @@ import * as Clipboard from "expo-clipboard";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 
@@ -189,19 +190,20 @@ export default function ReferralsScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["referralStats"],
     queryFn: () => api.get<ReferralStatsResponse>("/api/referral/stats"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ["referralHistory"],
     queryFn: () => api.get<ReferralHistoryResponse>("/api/referral/history"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const handleRefresh = async () => {

@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import type { DARK_COLORS } from "@/lib/ThemeContext";
 
 interface Suggestion {
@@ -33,12 +34,13 @@ export function ReconnectReminder({
   maxDisplay = 3,
 }: ReconnectReminderProps) {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
 
   const { data: suggestionsData } = useQuery({
     queryKey: ["suggestions"],
     queryFn: () => api.get<{ suggestions: Suggestion[] }>("/api/events/suggestions"),
-    enabled: !!session,
+    enabled: bootStatus === "authed",
     staleTime: 60000, // Cache for 1 minute
   });
 

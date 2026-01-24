@@ -639,7 +639,7 @@ export default function FriendsScreen() {
       );
       return response;
     },
-    enabled: !!session && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
+    enabled: bootStatus === 'authed' && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
     staleTime: 30000, // Cache for 30 seconds
     gcTime: 60000, // Keep in cache for 1 minute
   });

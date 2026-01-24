@@ -30,6 +30,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { safeToast } from "@/lib/safeToast";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 interface ReferralStats {
   referralCode: string;
@@ -54,11 +55,12 @@ export default function InviteScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
 
   const { data: stats, isLoading } = useQuery<ReferralStats>({
     queryKey: ["referralStats"],
     queryFn: () => api.get<ReferralStats>("/api/referral/stats"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const handleShare = async () => {

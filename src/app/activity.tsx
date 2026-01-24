@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
 
@@ -148,13 +149,14 @@ export default function ActivityScreen() {
   const queryClient = useQueryClient();
   const { themeColor, colors } = useTheme();
   const { data: session, isPending: sessionLoading } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch notifications
   const { data: notificationsData, isLoading, refetch } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get<GetNotificationsResponse>("/api/notifications"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 30000,
   });
 

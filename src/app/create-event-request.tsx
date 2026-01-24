@@ -33,6 +33,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import {
   type GetFriendsResponse,
   type Friendship,
@@ -45,6 +46,7 @@ const EMOJI_OPTIONS = ["📅", "🏃", "🎬", "🎮", "💃", "🍽️", "☕",
 
 export default function CreateEventRequestScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { date } = useLocalSearchParams<{ date?: string }>();
@@ -91,7 +93,7 @@ export default function CreateEventRequestScreen() {
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const friends = friendsData?.friends ?? [];

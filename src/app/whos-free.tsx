@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 
@@ -56,7 +57,7 @@ function WeekAvailabilityCalendar({
   onDatePress: (date: string) => void;
   currentDate: Date;
 }) {
-  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Get the week's dates
@@ -88,7 +89,7 @@ function WeekAvailabilityCalendar({
         `/api/events/friends-availability?${params.toString()}`
       );
     },
-    enabled: !!session && friendIds.length > 0,
+    enabled: bootStatus === 'authed' && friendIds.length > 0,
   });
 
   const availability = availabilityData?.availability ?? {};
@@ -223,6 +224,7 @@ function WeekAvailabilityCalendar({
 export default function WhosFreeScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
@@ -252,7 +254,7 @@ export default function WhosFreeScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<{ circles: Circle[] }>("/api/circles"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
   const circles = circlesData?.circles ?? [];
 
@@ -272,7 +274,7 @@ export default function WhosFreeScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["whos-free", selectedDate],
     queryFn: () => api.get<WhosFreResponse>(`/api/events/whos-free?date=${selectedDate}`),
-    enabled: !!session && !!selectedDate,
+    enabled: bootStatus === 'authed' && !!selectedDate,
   });
 
   const freeFriends = data?.freeFriends ?? [];

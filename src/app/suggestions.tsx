@@ -34,6 +34,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
@@ -259,6 +260,7 @@ export default function SuggestionsScreen() {
   const queryClient = useQueryClient();
   const { themeColor, colors } = useTheme();
   const { data: session, isPending: sessionLoading } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -267,7 +269,7 @@ export default function SuggestionsScreen() {
   const { data: referralStats } = useQuery({
     queryKey: ["referralStats"],
     queryFn: () => api.get<{ referralCode: string; shareLink: string }>("/api/referral/stats"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch friend suggestions
@@ -279,7 +281,7 @@ export default function SuggestionsScreen() {
     queryKey: ["friendSuggestions"],
     queryFn: () =>
       api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
     staleTime: 60000, // Cache for 1 minute
   });
 

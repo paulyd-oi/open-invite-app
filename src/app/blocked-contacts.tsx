@@ -30,6 +30,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import {
   type GetBlockedContactsResponse,
   type BlockContactResponse,
@@ -43,6 +44,7 @@ type BlockMode = "user" | "email" | "phone";
 
 export default function BlockedContactsScreen() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -58,7 +60,7 @@ export default function BlockedContactsScreen() {
   const { data: blockedData, isLoading } = useQuery({
     queryKey: ["blocked-contacts"],
     queryFn: () => api.get<GetBlockedContactsResponse>("/api/blocked"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Search users to block
@@ -66,7 +68,7 @@ export default function BlockedContactsScreen() {
     queryKey: ["block-search", searchQuery],
     queryFn: () =>
       api.post<SearchToBlockResponse>("/api/blocked/search", { query: searchQuery }),
-    enabled: !!session && searchQuery.length >= 2 && blockMode === "user",
+    enabled: bootStatus === 'authed' && searchQuery.length >= 2 && blockMode === "user",
   });
 
   // Block mutation

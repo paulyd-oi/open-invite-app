@@ -19,6 +19,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 interface BadgeCatalogItem {
   badgeKey: string;
@@ -55,6 +56,7 @@ export default function BadgesScreen() {
   const router = useRouter();
   const { colors, themeColor } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState<BadgeCatalogItem | null>(null);
@@ -62,7 +64,7 @@ export default function BadgesScreen() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["badgesCatalog"],
     queryFn: () => api.get<BadgeCatalogResponse>("/api/badges/catalog"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const setFeaturedMutation = useMutation({

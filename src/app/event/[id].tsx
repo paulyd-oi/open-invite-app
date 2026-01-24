@@ -402,27 +402,27 @@ export default function EventDetailScreen() {
   const { data: singleEventData, isLoading: isLoadingEvent } = useQuery({
     queryKey: ["events", "single", id],
     queryFn: () => api.get<{ event: Event }>(`/api/events/${id}`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   // Fallback: Also fetch from lists in case the single endpoint fails
   const { data: myEventsData } = useQuery({
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: !!session && !singleEventData?.event,
+    enabled: bootStatus === 'authed' && !singleEventData?.event,
   });
 
   const { data: feedData } = useQuery({
     queryKey: ["events", "feed"],
     queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
-    enabled: !!session && !singleEventData?.event,
+    enabled: bootStatus === 'authed' && !singleEventData?.event,
   });
 
   // Fetch comments
   const { data: commentsData, isLoading: isLoadingComments } = useQuery({
     queryKey: ["events", id, "comments"],
     queryFn: () => api.get<GetEventCommentsResponse>(`/api/events/${id}/comments`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   const comments = commentsData?.comments ?? [];
@@ -495,14 +495,14 @@ export default function EventDetailScreen() {
   const { data: interestsData } = useQuery({
     queryKey: ["events", id, "interests"],
     queryFn: () => api.get<{ event_interest: Array<{ id: string; userId: string; user: { id: string; name: string | null; image: string | null }; status: string; createdAt: string }> }>(`/api/events/${id}/interests`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
     queryKey: ["events", id, "rsvp"],
     queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   const interests = interestsData?.event_interest ?? [];

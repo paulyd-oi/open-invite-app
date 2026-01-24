@@ -31,6 +31,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
@@ -65,6 +66,7 @@ const EMOJI_OPTIONS = [
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -86,7 +88,7 @@ export default function EditEventScreen() {
   const { data: myEventsData } = useQuery({
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const event = myEventsData?.events.find((e) => e.id === id);
@@ -110,7 +112,7 @@ export default function EditEventScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   const circles = circlesData?.circles ?? [];

@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge } from "@/shared/contracts";
@@ -261,6 +262,7 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
 export default function FriendDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -271,28 +273,28 @@ export default function FriendDetailScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friendEvents", id],
     queryFn: () => api.get<GetFriendEventsResponse>(`/api/friends/${id}/events`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   // Fetch friends data to get group memberships for this friendship
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch all groups
   const { data: groupsData, refetch: refetchGroups } = useQuery({
     queryKey: ["groups"],
     queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch notes for this friend
   const { data: notesData, refetch: refetchNotes } = useQuery({
     queryKey: ["friendNotes", id],
     queryFn: () => api.get<{ notes: FriendNote[] }>(`/api/friends/${id}/notes`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   // Fetch the friend's userId from the friendship to get their badge
@@ -302,7 +304,7 @@ export default function FriendDetailScreen() {
   const { data: badgeData } = useQuery({
     queryKey: ["userBadge", friendUserId],
     queryFn: () => api.get<{ badge: ProfileBadge | null }>(`/api/achievements/user/${friendUserId}/badge`),
-    enabled: !!session && !!friendUserId,
+    enabled: bootStatus === 'authed' && !!friendUserId,
   });
 
   const friendBadge = badgeData?.badge;

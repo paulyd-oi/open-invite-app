@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
@@ -62,6 +63,7 @@ export function EventPhotoGallery({
 }: EventPhotoGalleryProps) {
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showGalleryModal, setShowGalleryModal] = useState(false);
@@ -78,7 +80,7 @@ export function EventPhotoGallery({
   const { data: photosData, isLoading } = useQuery({
     queryKey: ["events", eventId, "photos"],
     queryFn: () => api.get<GetEventPhotosResponse>(`/api/events/${eventId}/photos`),
-    enabled: !!session && !!eventId,
+    enabled: bootStatus === "authed" && !!eventId,
   });
 
   const photos = photosData?.photos ?? [];

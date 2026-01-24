@@ -10,6 +10,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { type FriendUser, type GetGroupsResponse, type ProfileBadge, type Event } from "@/shared/contracts";
 
 // Minimal Calendar Component (no events visible for privacy)
@@ -350,6 +351,7 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -367,21 +369,21 @@ export default function UserProfileScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["userProfile", id],
     queryFn: () => api.get<{ user: FriendUser; isFriend: boolean; friendshipId: string | null; hasPendingRequest: boolean; incomingRequestId: string | null }>(`/api/profile/${id}/profile`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   // Fetch groups for add-to-groups modal
   const { data: groupsData } = useQuery({
     queryKey: ["groups"],
     queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: !!session,
+    enabled: bootStatus === 'authed',
   });
 
   // Fetch user's badge
   const { data: badgeData } = useQuery({
     queryKey: ["userBadge", id],
     queryFn: () => api.get<{ badge: ProfileBadge | null }>(`/api/achievements/user/${id}/badge`),
-    enabled: !!session && !!id,
+    enabled: bootStatus === 'authed' && !!id,
   });
 
   const userBadge = badgeData?.badge;
@@ -390,7 +392,7 @@ export default function UserProfileScreen() {
   const { data: friendEventsData } = useQuery({
     queryKey: ["friendEvents", data?.friendshipId],
     queryFn: () => api.get<{ events: Event[]; friend: FriendUser }>(`/api/friends/${data?.friendshipId}`),
-    enabled: !!session && !!data?.friendshipId && data.isFriend,
+    enabled: bootStatus === 'authed' && !!data?.friendshipId && data.isFriend,
   });
 
   const friendEvents = friendEventsData?.events ?? [];
