@@ -593,21 +593,9 @@ export default function WelcomeOnboardingScreen() {
       if (!isMountedRef.current) return;
       setAvatarUrl(normalizedUrl);
 
-      // Try to save to profile (best-effort)
-      try {
-        const backendAvatarUrl = toBackendAvatarUrl(normalizedUrl);
-        console.log("[Onboarding] avatarUrl send", { raw: normalizedUrl, backendAvatarUrl });
-        if (!backendAvatarUrl) {
-          console.log("[Onboarding] No valid backend avatarUrl, skipping profile PUT");
-          safeToast.info("Photo uploaded", "You can save it later from your profile.");
-        } else {
-          await api.put("/api/profile", { avatarUrl: backendAvatarUrl });
-          console.log("[Onboarding] Avatar URL saved to profile");
-        }
-      } catch (saveError) {
-        console.log("[Onboarding] Could not save avatar to profile:", saveError);
-        safeToast.info("Photo uploaded", "You can save it later from your profile.");
-      }
+      // Photo uploaded - defer profile save to Continue step when handle is available
+      console.log("[Onboarding] Photo uploaded, stored in state. Will save with profile on Continue.");
+      safeToast.success("Photo uploaded", "It will be saved with your profile.");
     } catch (error) {
       console.log("[Onboarding] Photo upload failed:", error);
       if (isMountedRef.current) {
@@ -674,24 +662,24 @@ export default function WelcomeOnboardingScreen() {
     setIsLoading(true);
 
     try {
-      // Save profile with name, handle, and optionally avatarUrl
-      // CRITICAL: Only include avatarUrl if it's a non-empty string; never send null
-      const profileData: { name: string; handle: string; avatarUrl?: string } = {
-        name: trimmedName,
-        handle: trimmedHandle,
+      // Build payload: backend only accepts { handle, avatarUrl? }
+      // IMPORTANT: Do NOT send 'name' - backend rejects unknown fields
+      const cleanedHandle = trimmedHandle.toLowerCase(); // Normalize: lowercase
+      const payload: { handle: string; avatarUrl?: string } = {
+        handle: cleanedHandle,
       };
 
-      // Only add avatarUrl if it's a valid non-empty string (backend rejects null)
+      // Only add avatarUrl if it's a valid backend-relative path
       if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
         const backendAvatarUrl = toBackendAvatarUrl(avatarUrl);
-        console.log("[Onboarding] avatarUrl send", { raw: avatarUrl, backendAvatarUrl });
         if (backendAvatarUrl) {
-          profileData.avatarUrl = backendAvatarUrl;
+          payload.avatarUrl = backendAvatarUrl;
         }
       }
 
-      console.log("[Onboarding] Saving profile...", { hasAvatarUrl: !!profileData.avatarUrl, avatarUrl: profileData.avatarUrl });
-      const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", profileData);
+      console.log("[Onboarding] /api/profile payload keys", Object.keys(payload));
+      console.log("[Onboarding] /api/profile payload", payload);
+      const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", payload);
       console.log("[Onboarding] Profile saved successfully");
 
       // Update React Query cache
@@ -700,8 +688,7 @@ export default function WelcomeOnboardingScreen() {
         profile: {
           ...old?.profile,
           ...response.profile,
-          name: trimmedName,
-          handle: trimmedHandle,
+          handle: cleanedHandle,
           avatarUrl: avatarUrl || old?.profile?.avatarUrl,
         },
       }));
