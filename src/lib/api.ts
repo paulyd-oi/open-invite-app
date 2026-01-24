@@ -70,13 +70,12 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
         }
       }
       
-      // Detailed error logging for /api/profile to debug failures
+      // Detailed error logging for /api/profile to debug validation failures
       if (path.includes("/api/profile")) {
-        const status = error.status || error.response?.status || 'unknown';
-        const responseText = error.body || error.responseText || error.data || error.message || 'no response body';
         console.error(`[api.ts] /api/profile ERROR DETAILS:`);
-        console.error(`  status: ${status}`);
-        console.error(`  responseText: ${typeof responseText === 'object' ? JSON.stringify(responseText) : responseText}`);
+        console.error(`  status: ${error.status}`);
+        console.error(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
+        console.error(`  message: ${error.message}`);
       }
     }
 

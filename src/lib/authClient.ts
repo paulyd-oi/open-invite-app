@@ -194,11 +194,20 @@ async function $fetch<T = any>(
     
     return result as T;
   } catch (error: any) {
+    // Build rich error details from Better Auth / ofetch error shapes
+    const details = {
+      status: error?.response?.status ?? error?.status ?? null,
+      message: error?.message ?? String(error),
+      data: error?.data ?? error?.response?._data ?? null,
+      endpoint: path,
+      method: init?.method || "GET",
+    };
+
     if (__DEV__) {
-      console.log(`[authClient.$fetch] Error for ${path}:`, error.message || error);
+      console.log(`[authClient.$fetch] Error for ${path}:`, details.message);
       
       // Known optional endpoints - treat 404 as non-error in logs
-      const isKnown404 = error.status === 404 && (
+      const isKnown404 = details.status === 404 && (
         path.includes("/api/profile") ||
         path.includes("/api/profiles") ||
         path.includes("/api/achievements") ||
@@ -206,25 +215,26 @@ async function $fetch<T = any>(
       );
       
       if (isKnown404) {
-        console.warn(`[authClient.$fetch] Known optional endpoint 404: ${init?.method || 'GET'} ${url}`);
+        console.warn(`[authClient.$fetch] Known optional endpoint 404: ${details.method} ${url}`);
       }
       
-      // Detailed error logging for /api/profile to debug failures
+      // Detailed error logging for /api/profile to debug validation failures
       if (path.includes("/api/profile")) {
-        const status = error.status || error.response?.status || 'unknown';
-        const responseText = error.body || error.responseText || error.data || error.message || 'no response body';
         console.error(`[authClient.$fetch] /api/profile ERROR DETAILS:`);
-        console.error(`  status: ${status}`);
-        console.error(`  responseText: ${typeof responseText === 'object' ? JSON.stringify(responseText) : responseText}`);
+        console.error(`  status: ${details.status}`);
+        console.error(`  data: ${typeof details.data === 'object' ? JSON.stringify(details.data, null, 2) : details.data || 'none'}`);
+        console.error(`  message: ${details.message}`);
       }
     }
     
-    // Re-throw with consistent error shape
-    const err = new Error(error.message || 'Request failed') as any;
-    err.status = error.status || error.response?.status;
-    err.response = { status: err.status };
-    err.url = url;
-    throw err;
+    // Re-throw with rich error shape so callers can display validation details
+    const e2 = new Error(details.message || 'Request failed') as any;
+    e2.status = details.status;
+    e2.data = details.data;
+    e2.endpoint = path;
+    e2.method = details.method;
+    e2.response = { status: details.status }; // Backward compat
+    throw e2;
   }
 }
 

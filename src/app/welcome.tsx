@@ -676,9 +676,18 @@ export default function WelcomeOnboardingScreen() {
     } catch (error: any) {
       console.error("[Onboarding] Profile save failed:", error?.message || error);
       
+      // Extract true backend validation reason if available
+      const validationReason = error?.data?.error?.fields?.[0]?.reason;
+      const backendMessage = error?.data?.message || error?.data?.error?.message;
+      
       // Check for specific errors
       if (error?.message?.toLowerCase().includes("handle") && error?.message?.toLowerCase().includes("taken")) {
         setHandleError("This handle is already taken");
+      } else if (validationReason) {
+        // Show the first validation field reason (e.g., "avatarUrl must be a string")
+        setErrorBanner(validationReason);
+      } else if (backendMessage) {
+        setErrorBanner(backendMessage);
       } else {
         setErrorBanner("Couldn't save profile. Please try again.");
       }
