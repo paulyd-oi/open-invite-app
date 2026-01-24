@@ -137,6 +137,10 @@ async function $fetch<T = any>(
   if (__DEV__) {
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
     console.log(`[authClient.$fetch] Explicit cookie stored: ${hasCookie}`);
+    if (hasCookie && storedCookie) {
+      const cookieName = storedCookie.split('=')[0];
+      console.log(`[authClient.$fetch] Cookie name: ${cookieName}`);
+    }
   }
 
   authTrace("authFetch:beforeRequest", { 
@@ -286,37 +290,75 @@ async function captureAndStoreCookie(): Promise<void> {
     if (__DEV__) {
       console.log('[captureAndStoreCookie] Better Auth cookie key:', betterAuthCookieKey);
       console.log('[captureAndStoreCookie] Raw cookie exists:', !!rawCookie);
+      if (rawCookie) {
+        console.log('[captureAndStoreCookie] Raw cookie type:', typeof rawCookie);
+        console.log('[captureAndStoreCookie] Raw cookie preview:', rawCookie.substring(0, 80));
+      }
     }
     
     if (rawCookie && rawCookie !== '{}') {
-      // Better Auth may store as JSON object or raw string
+      // Target cookie name
+      const targetCookieName = '__Secure-better-auth.session_token';
       let cookieValue: string | null = null;
       
       try {
         // Try parsing as JSON (Better Auth format)
         const parsed = JSON.parse(rawCookie);
-        // Look for the session token in various formats
+        if (__DEV__) {
+          console.log('[captureAndStoreCookie] Parsed JSON keys:', Object.keys(parsed));
+        }
+        
         if (typeof parsed === 'object') {
-          // Format: { "__Secure-better-auth.session_token": "value" }
-          const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
-          if (sessionKey && parsed[sessionKey]) {
-            cookieValue = `${sessionKey}=${parsed[sessionKey]}`;
+          // Look for the exact session token key
+          if (parsed[targetCookieName]) {
+            // Extract just the value (strip any attributes after ";")
+            const rawValue = parsed[targetCookieName];
+            const cleanValue = rawValue.split(';')[0].trim();
+            cookieValue = `${targetCookieName}=${cleanValue}`;
+            if (__DEV__) {
+              console.log('[captureAndStoreCookie] Found target cookie, extracted name=value pair');
+            }
+          } else {
+            // Fallback: look for any key containing session_token
+            const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
+            if (sessionKey && parsed[sessionKey]) {
+              const rawValue = parsed[sessionKey];
+              const cleanValue = rawValue.split(';')[0].trim();
+              cookieValue = `${sessionKey}=${cleanValue}`;
+              if (__DEV__) {
+                console.log('[captureAndStoreCookie] Found fallback session key:', sessionKey);
+              }
+            }
           }
         }
       } catch {
-        // Not JSON, might be raw cookie string
-        if (rawCookie.includes('session_token')) {
-          cookieValue = rawCookie;
+        // Not JSON, might be raw cookie string (Set-Cookie format)
+        if (rawCookie.includes(targetCookieName)) {
+          // Parse Set-Cookie format: "__Secure-better-auth.session_token=VALUE; Path=/; ..."
+          const match = rawCookie.match(new RegExp(`${targetCookieName}=([^;]+)`));
+          if (match && match[1]) {
+            cookieValue = `${targetCookieName}=${match[1]}`;
+            if (__DEV__) {
+              console.log('[captureAndStoreCookie] Extracted from raw Set-Cookie format');
+            }
+          }
         }
       }
       
       if (cookieValue) {
+        // Verify format: should be "name=value" without attributes
+        if (cookieValue.includes(';')) {
+          cookieValue = cookieValue.split(';')[0].trim();
+        }
         await setSessionCookie(cookieValue);
         if (__DEV__) {
+          const cookieName = cookieValue.split('=')[0];
           console.log('[captureAndStoreCookie] Cookie captured and stored explicitly');
+          console.log('[captureAndStoreCookie] Stored cookie name:', cookieName);
         }
       } else if (__DEV__) {
         console.log('[captureAndStoreCookie] Could not extract session token from Better Auth storage');
+        console.log('[captureAndStoreCookie] Available keys/format did not match expected pattern');
       }
     } else if (__DEV__) {
       console.log('[captureAndStoreCookie] No Better Auth cookie found to capture');
