@@ -29,7 +29,7 @@ let globalStatus: BootStatus = 'loading';
 let globalError: string | undefined = undefined;
 let hasBootstrappedOnce = false;
 let inFlightBootstrap: Promise<Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>> | null = null;
-let forceNextRun = false; // One-time flag to force bootstrap refresh
+let refreshRequestId = 0; // Counter incremented to request forced bootstrap refresh
 
 // Subscribers for state updates
 const subscribers = new Set<(status: BootStatus, error?: string) => void>();
@@ -49,6 +49,7 @@ export function useBootAuthority(): UseBootAuthorityResult {
   const [status, setStatus] = useState<BootStatus>(globalStatus);
   const [error, setError] = useState<string | undefined>(globalError);
   const hasRunRef = useRef(false);
+  const lastSeenRequestIdRef = useRef(0);
 
   // Subscribe to global state updates
   useEffect(() => {
@@ -70,20 +71,22 @@ export function useBootAuthority(): UseBootAuthorityResult {
 
   // Bootstrap ONCE per app launch (singleton)
   useEffect(() => {
-    // If already bootstrapped and no force refresh requested, skip
-    if (hasBootstrappedOnce && !forceNextRun) {
+    // Check if a refresh was requested (counter changed)
+    const refreshRequested = refreshRequestId > lastSeenRequestIdRef.current;
+
+    // If already bootstrapped and no refresh requested, skip
+    if (hasBootstrappedOnce && !refreshRequested) {
       if (__DEV__) {
         console.log('[BootAuthority] Bootstrap already ran - skipping');
       }
       return;
     }
 
-    // Consume the force flag immediately
-    if (forceNextRun) {
+    // If refresh requested, allow re-run
+    if (refreshRequested) {
       if (__DEV__) {
-        console.log('[BootAuthority] Force refresh requested - resetting for one-time re-run');
+        console.log('[BootAuthority] Refresh requested (id=' + refreshRequestId + ') - allowing re-run');
       }
-      forceNextRun = false;
       hasBootstrappedOnce = false;
     }
 
@@ -111,10 +114,12 @@ export function useBootAuthority(): UseBootAuthorityResult {
         const result = await inFlightBootstrap;
         mapBootstrapResultToGlobalStatus(result);
         hasBootstrappedOnce = true;
+        lastSeenRequestIdRef.current = refreshRequestId;
       } catch (err) {
         console.error('[BootAuthority] Bootstrap error:', err);
         setGlobalState('error', err instanceof Error ? err.message : String(err));
         hasBootstrappedOnce = true;
+        lastSeenRequestIdRef.current = refreshRequestId;
       } finally {
         inFlightBootstrap = null;
       }
@@ -236,8 +241,13 @@ export async function rebootstrapAfterLogin(): Promise<void> {
 
 // Export for onboarding completion to request one-time bootstrap refresh
 export function requestBootstrapRefreshOnce(): void {
+  refreshRequestId++;
   if (__DEV__) {
-    console.log('[BootAuthority] Requesting one-time bootstrap refresh...');
+    console.log('[BootAuthority] Requesting bootstrap refresh (id=' + refreshRequestId + ')');
   }
-  forceNextRun = true;
+}
+
+// Export getter for refresh request ID (for waiting logic)
+export function getBootstrapRefreshRequestId(): number {
+  return refreshRequestId;
 }

@@ -56,7 +56,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
-import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
+import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -642,7 +642,9 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const queryClient = useQueryClient();
+  const { status: bootStatus } = useBootAuthority();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [pendingCalendarRoute, setPendingCalendarRoute] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [showFriendsAvailable, setShowFriendsAvailable] = useState(false);
@@ -907,15 +909,30 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
     }
-    // Request bootstrap to re-run once when calendar mounts (prevents stale state bounce)
+    // Request bootstrap refresh and wait for it to complete before routing
     requestBootstrapRefreshOnce();
-    router.replace("/calendar");
+    setPendingCalendarRoute(true);
   };
 
   const skipOnboarding = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     completeOnboarding();
   };
+
+  // Wait for bootstrap refresh to complete before routing to calendar
+  useEffect(() => {
+    if (!pendingCalendarRoute) return;
+
+    if (bootStatus === 'authed') {
+      console.log('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
+      setPendingCalendarRoute(false);
+      router.replace('/calendar');
+    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      console.log('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
+      setPendingCalendarRoute(false);
+      router.replace('/login');
+    }
+  }, [pendingCalendarRoute, bootStatus, router]);
 
   // Render mock UI for each step
   const renderMockUI = () => {
@@ -1356,6 +1373,36 @@ export default function OnboardingScreen() {
         return null;
     }
   };
+
+  // Show "Finishing setup..." screen while waiting for bootstrap refresh
+  if (pendingCalendarRoute) {
+    return (
+      <View className="flex-1" style={{ backgroundColor: colors.background }}>
+        <LinearGradient
+          colors={isDark
+            ? [`${themeColor}50`, `${themeColor}20`, colors.background, colors.background]
+            : [`${themeColor}30`, `${themeColor}10`, colors.background, colors.background]
+          }
+          locations={[0, 0.2, 0.5, 1]}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+        <SafeAreaView className="flex-1 items-center justify-center px-8">
+          <View
+            className="w-20 h-20 rounded-full items-center justify-center mb-6"
+            style={{ backgroundColor: `${themeColor}40` }}
+          >
+            <Sparkles size={40} color={themeColor} />
+          </View>
+          <Text className="text-2xl font-bold text-center mb-2" style={{ color: colors.text }}>
+            Finishing setup...
+          </Text>
+          <Text className="text-base text-center" style={{ color: colors.textSecondary }}>
+            Getting everything ready for you
+          </Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
