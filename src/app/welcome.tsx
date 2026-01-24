@@ -107,6 +107,26 @@ function normalizeAvatarUrl(url: string): string {
   return url;
 }
 
+/**
+ * Converts an absolute avatar URL to relative path for backend PUT /api/profile.
+ * Backend expects relative paths like /uploads/xyz.jpg, not absolute URLs.
+ */
+function toBackendAvatarUrl(url: string | null | undefined): string | undefined {
+  if (!url || typeof url !== "string" || url.trim().length === 0) {
+    return undefined;
+  }
+  // If URL starts with backend URL, strip it to get relative path
+  if (url.startsWith(BACKEND_URL)) {
+    return url.slice(BACKEND_URL.length); // e.g., "/uploads/xyz.jpg"
+  }
+  // If already relative, keep as-is
+  if (url.startsWith("/")) {
+    return url;
+  }
+  // Otherwise return as-is (external URL)
+  return url;
+}
+
 // ============ SLIDE TYPES ============
 type OnboardingSlide = 1 | 2 | 3 | 4;
 
@@ -568,7 +588,9 @@ export default function WelcomeOnboardingScreen() {
 
       // Try to save to profile (best-effort)
       try {
-        await api.put("/api/profile", { avatarUrl: normalizedUrl });
+        const backendUrl = toBackendAvatarUrl(normalizedUrl);
+        console.log("[Onboarding] avatarUrl payload", { isAbsolute: normalizedUrl.startsWith("http"), startsWithSlash: backendUrl?.startsWith("/"), sample: backendUrl?.substring(0, 40) });
+        await api.put("/api/profile", { avatarUrl: backendUrl });
         console.log("[Onboarding] Avatar URL saved to profile");
       } catch (saveError) {
         console.log("[Onboarding] Could not save avatar to profile:", saveError);
@@ -649,7 +671,11 @@ export default function WelcomeOnboardingScreen() {
 
       // Only add avatarUrl if it's a valid non-empty string (backend rejects null)
       if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
-        profileData.avatarUrl = avatarUrl;
+        const backendUrl = toBackendAvatarUrl(avatarUrl);
+        console.log("[Onboarding] avatarUrl payload", { isAbsolute: avatarUrl.startsWith("http"), startsWithSlash: backendUrl?.startsWith("/"), sample: backendUrl?.substring(0, 40) });
+        if (backendUrl) {
+          profileData.avatarUrl = backendUrl;
+        }
       }
 
       console.log("[Onboarding] Saving profile...", { hasAvatarUrl: !!profileData.avatarUrl });
