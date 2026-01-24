@@ -1,46 +1,54 @@
-HANDOFF PACKET
+HANDOFF PACKET - Better Auth Cookie Header Fix (React Native)
 ================================================================================
 
 SUMMARY
 -------
-- <fill>
+- Fixed /api/auth/session 401 errors in React Native by matching Better Auth expo client's cookie transport pattern
+- React Native's fetch silently drops uppercase 'Cookie' header - must use lowercase 'cookie'
 
 PRECHECK
 --------
-pwd:
-branch:
-remote:
-status:
+pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
+branch: main
+remote: https://github.com/paulyd-oi/open-invite-app.git
+status: modified files pending commit
 
 ROOT CAUSE
 ----------
-<fill>
+React Native's fetch implementation silently drops the uppercase 'Cookie' header.
+Better Auth expo client uses lowercase 'cookie' header + credentials:'omit' + expo-origin header.
+Our $fetch wrapper was using uppercase 'Cookie' and credentials:'include'.
 
 CHANGES
 -------
 Files changed:
-- <fill>
+- src/lib/authClient.ts - Fixed cookie transport to match Better Auth expo pattern
+- docs/STATE_OF_THE_APP.md - Updated with current status
+- docs/FINDINGS_LOG.md - Added discovery about React Native Cookie header
 
 Key diffs:
-- <fill>
+- Changed 'Cookie' → 'cookie' (lowercase)
+- Changed credentials from 'include' → 'omit'
+- Added 'expo-origin' and 'x-skip-oauth-proxy' headers
+- Cookie format now includes leading semicolon-space: "; name=value"
 
 TESTING
 -------
 Commands run:
-- <fill>
+- npm run typecheck: PASSED
 
 VERIFICATION
 ------------
 Manual checks:
-- <fill>
+- Runtime testing needed: login → check /api/auth/session returns 200 → calendar loads
 
 STATE UPDATE
 ------------
-STATE_OF_THE_APP updated: YES/NO
-FINDINGS_LOG updated: YES/NO
-INVARIANTS changed: YES/NO
+STATE_OF_THE_APP updated: YES
+FINDINGS_LOG updated: YES
+INVARIANTS changed: NO
 
 GIT
 ---
-Commit:
-Pushed:
+Commit: PENDING - "fix(auth): use lowercase cookie header + credentials omit for RN"
+Pushed: PENDING

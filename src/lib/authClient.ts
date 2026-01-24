@@ -19,6 +19,7 @@ const TOKEN_KEY = AUTH_TOKEN_KEY;
 
 // Storage prefix consistent with app scheme
 const STORAGE_PREFIX = "open-invite";
+const EXPO_SCHEME = "vibecode"; // Must match app.json scheme
 
 // Module-level cache for Better Auth cookie token (avoids reading SecureStore on every request)
 let explicitCookieValue: string | null = null;
@@ -162,13 +163,20 @@ async function $fetch<T = any>(
     const finalHeaders = new Headers(init?.headers as HeadersInit | undefined);
     
     // CRITICAL: Attach session cookie header explicitly
-    // Better Auth's $fetch may not pass Cookie header correctly in React Native
+    // Better Auth expo uses LOWERCASE 'cookie' header with credentials: 'omit'
+    // React Native drops uppercase 'Cookie' header silently
     if (explicitCookieValue) {
-      finalHeaders.set("Cookie", explicitCookieValue);
+      // Better Auth expo format: "; name=value" (leading semicolon-space)
+      finalHeaders.set("cookie", `; ${explicitCookieValue}`);
       if (__DEV__) {
-        console.log(`[authClient.$fetch] Cookie header SET`);
+        console.log(`[authClient.$fetch] cookie header SET (lowercase)`);
       }
     }
+    
+    // Add expo-origin header like Better Auth expo client does
+    const expoOrigin = `${EXPO_SCHEME}://`;
+    finalHeaders.set("expo-origin", expoOrigin);
+    finalHeaders.set("x-skip-oauth-proxy", "true");
     
     if (init?.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
       finalBody = JSON.stringify(init.body);
@@ -176,11 +184,12 @@ async function $fetch<T = any>(
     }
     
     // Use native fetch with explicit cookie header (more reliable in React Native)
+    // credentials: 'omit' is required - Better Auth expo handles cookies manually
     const response = await fetch(url, {
       method: init?.method || "GET",
       body: finalBody,
       headers: finalHeaders,
-      credentials: "include",
+      credentials: "omit",
     });
     
     // Log response status for every request (helps debug auth issues)
