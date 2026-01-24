@@ -1448,7 +1448,8 @@ export default function CalendarScreen() {
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
   // Determine empty state logic (fixed bug: account for loading states)
-  const isDataSettled = !isLoadingCalendar && !isRefetchingCalendar && !isLoadingBirthdays && bootStatus === 'authed';
+  // Note: isRefetchingCalendar intentionally excluded – refetch should not reset empty state
+  const isDataSettled = !isLoadingCalendar && !isLoadingBirthdays && bootStatus === 'authed';
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
 

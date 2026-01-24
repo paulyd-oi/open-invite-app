@@ -900,6 +900,9 @@ export default function OnboardingScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
       await api.post("/api/onboarding/complete", {});
+      // Invalidate session + onboarding status so calendar/bootstrap refetches fresh state
+      await queryClient.invalidateQueries({ queryKey: ["session"] });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
     }
