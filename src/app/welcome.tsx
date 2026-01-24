@@ -108,23 +108,30 @@ function normalizeAvatarUrl(url: string): string {
 }
 
 /**
- * Converts an absolute avatar URL to relative path for backend PUT /api/profile.
+ * Converts any avatar URL to backend-relative path for PUT /api/profile.
  * Backend expects relative paths like /uploads/xyz.jpg, not absolute URLs.
+ * Extracts /uploads/... portion from any URL that contains it.
  */
 function toBackendAvatarUrl(url: string | null | undefined): string | undefined {
   if (!url || typeof url !== "string" || url.trim().length === 0) {
     return undefined;
   }
-  // If URL starts with backend URL, strip it to get relative path
-  if (url.startsWith(BACKEND_URL)) {
-    return url.slice(BACKEND_URL.length); // e.g., "/uploads/xyz.jpg"
+  // If URL contains "/uploads/", extract from there (handles absolute URLs)
+  const uploadsIndex = url.indexOf("/uploads/");
+  if (uploadsIndex !== -1) {
+    return url.slice(uploadsIndex); // e.g., "/uploads/xyz.jpg"
   }
-  // If already relative, keep as-is
+  // If URL starts with backend URL, strip it
+  if (url.startsWith(BACKEND_URL)) {
+    const relative = url.slice(BACKEND_URL.length);
+    return relative.startsWith("/") ? relative : "/" + relative;
+  }
+  // If already relative and starts with "/", keep as-is
   if (url.startsWith("/")) {
     return url;
   }
-  // Otherwise return as-is (external URL)
-  return url;
+  // Otherwise, this is not a backend-relative URL - return undefined to skip
+  return undefined;
 }
 
 // ============ SLIDE TYPES ============
@@ -588,10 +595,15 @@ export default function WelcomeOnboardingScreen() {
 
       // Try to save to profile (best-effort)
       try {
-        const backendUrl = toBackendAvatarUrl(normalizedUrl);
-        console.log("[Onboarding] avatarUrl payload", { isAbsolute: normalizedUrl.startsWith("http"), startsWithSlash: backendUrl?.startsWith("/"), sample: backendUrl?.substring(0, 40) });
-        await api.put("/api/profile", { avatarUrl: backendUrl });
-        console.log("[Onboarding] Avatar URL saved to profile");
+        const backendAvatarUrl = toBackendAvatarUrl(normalizedUrl);
+        console.log("[Onboarding] avatarUrl send", { raw: normalizedUrl, backendAvatarUrl });
+        if (!backendAvatarUrl) {
+          console.log("[Onboarding] No valid backend avatarUrl, skipping profile PUT");
+          safeToast.info("Photo uploaded", "You can save it later from your profile.");
+        } else {
+          await api.put("/api/profile", { avatarUrl: backendAvatarUrl });
+          console.log("[Onboarding] Avatar URL saved to profile");
+        }
       } catch (saveError) {
         console.log("[Onboarding] Could not save avatar to profile:", saveError);
         safeToast.info("Photo uploaded", "You can save it later from your profile.");
@@ -671,14 +683,14 @@ export default function WelcomeOnboardingScreen() {
 
       // Only add avatarUrl if it's a valid non-empty string (backend rejects null)
       if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
-        const backendUrl = toBackendAvatarUrl(avatarUrl);
-        console.log("[Onboarding] avatarUrl payload", { isAbsolute: avatarUrl.startsWith("http"), startsWithSlash: backendUrl?.startsWith("/"), sample: backendUrl?.substring(0, 40) });
-        if (backendUrl) {
-          profileData.avatarUrl = backendUrl;
+        const backendAvatarUrl = toBackendAvatarUrl(avatarUrl);
+        console.log("[Onboarding] avatarUrl send", { raw: avatarUrl, backendAvatarUrl });
+        if (backendAvatarUrl) {
+          profileData.avatarUrl = backendAvatarUrl;
         }
       }
 
-      console.log("[Onboarding] Saving profile...", { hasAvatarUrl: !!profileData.avatarUrl });
+      console.log("[Onboarding] Saving profile...", { hasAvatarUrl: !!profileData.avatarUrl, avatarUrl: profileData.avatarUrl });
       const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", profileData);
       console.log("[Onboarding] Profile saved successfully");
 
