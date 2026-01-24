@@ -389,47 +389,50 @@ export default function WelcomeOnboardingScreen() {
     setErrorBanner(null);
 
     try {
-      // Try sign-up first, fall back to sign-in if account exists
+      // Use proper authClient methods which handle cookie establishment:
+      // captureAndStoreCookie() -> refreshExplicitCookie() -> verifySessionAfterAuth()
       let result: any;
-      try {
-        result = await authClient.$fetch('/api/auth/sign-up/email', {
-          method: 'POST',
-          body: { email: email.trim(), password, name: "" },
+      let isNewAccount = false;
+      
+      // Try sign-up first
+      result = await authClient.signUp.email({
+        email: email.trim(),
+        password,
+        name: "",
+      });
+      
+      // If sign-up returns error about existing account, try sign-in
+      if (result.error?.message?.toLowerCase().includes("exist")) {
+        console.log("[Onboarding] Account exists, attempting sign-in...");
+        result = await authClient.signIn.email({
+          email: email.trim(),
+          password,
         });
-      } catch (e: any) {
-        // If account exists, try sign-in
-        if (e?.message?.toLowerCase().includes("exist")) {
-          result = await authClient.$fetch('/api/auth/sign-in/email', {
-            method: 'POST',
-            body: { email: email.trim(), password },
-          });
-        } else {
-          throw e;
-        }
+      } else if (!result.error) {
+        isNewAccount = true;
+      }
+      
+      // Check for errors after both attempts
+      if (result.error) {
+        throw new Error(result.error.message || "Authentication failed");
       }
 
-      // NOTE: With Better Auth, authentication is via cookies (Set-Cookie header).
-      // Token in response body is optional. If present, store for backward compat.
-      let tokenValue: string | null = null;
-      if (result && typeof result === 'object') {
-        if (typeof result.token === 'string') {
-          tokenValue = result.token;
-        } else if (result.token && typeof result.token === 'object') {
-          tokenValue = result.token.token || result.token.value;
-        }
+      // Cookie session is now established by authClient.signUp/signIn methods.
+      // Verify we actually have a valid session before proceeding.
+      const session = await getSessionCached();
+      const userId = session?.user?.id;
+      
+      if (!userId) {
+        console.error("[Onboarding] Session verification failed - no userId after auth");
+        setErrorBanner("Session could not be established. Please try again.");
+        return;
       }
+      
+      console.log("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
 
-      if (tokenValue) {
-        await setAuthToken(tokenValue);
-        console.log("[Auth] token stored, tokenExists: true");
-      } else {
-        // No token in body is expected with cookie auth - cookie was set via Set-Cookie header
-        console.log("[Auth] No token in response body (cookie auth mode)", Object.keys(result || {}));
-      }
-
-      // Success! Auth cookie was set. Pre-populate name if available.
-      if (result?.user?.name) {
-        setDisplayName(result.user.name);
+      // Pre-populate name if available from result
+      if (result.data?.user?.name) {
+        setDisplayName(result.data.user.name);
       }
 
       // Advance to Slide 3

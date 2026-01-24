@@ -2,15 +2,20 @@
 
 ## Stable
 - Onboarding flow with bootstrap refresh mechanism
-- Login/signup with Better Auth
+- Login with Better Auth (cookie session established)
+- Signup with Better Auth (cookie session now established - was broken)
 - Cookie storage in SecureStore (open-invite_cookie key)
 
 ## Unstable / Regressions
-- /api/auth/session 401 - Fixed: React Native drops uppercase Cookie header; now using lowercase 'cookie' + credentials:'omit' + expo-origin header (matching Better Auth expo client pattern)
+- None currently known
+
+## Fixed This Session
+- /api/auth/session 401 after signup - Fixed: welcome.tsx was using raw $fetch instead of authClient.signUp.email() which handles cookie establishment
+- Previously fixed: React Native drops uppercase Cookie header; now using lowercase 'cookie' + credentials:'omit' + expo-origin header
 
 ## Next Priority
-- Verify session fetch works after sign-in on device
-- Confirm Calendar loads without logout loop
+- Verify full signup->onboarding flow on device
+- Confirm Calendar loads without logout loop after new account creation
 
 ## Last Verified
-- 2026-01-24: Typecheck passes, cookie header fix deployed
+- 2026-01-24: Typecheck passes, signup cookie fix deployed

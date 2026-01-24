@@ -1,10 +1,12 @@
-HANDOFF PACKET - Better Auth Cookie Header Fix (React Native)
+HANDOFF PACKET - Signup Cookie Session Fix
 ================================================================================
 
 SUMMARY
 -------
-- Fixed /api/auth/session 401 errors in React Native by matching Better Auth expo client's cookie transport pattern
-- React Native's fetch silently drops uppercase 'Cookie' header - must use lowercase 'cookie'
+- Fixed email signup not establishing Better Auth cookie session
+- welcome.tsx was using raw $fetch to /api/auth/sign-up/email
+- This bypassed authClient.signUp.email() which has cookie establishment logic
+- Now uses proper authClient methods + verifies session before proceeding
 
 PRECHECK
 --------
@@ -15,32 +17,57 @@ status: modified files pending commit
 
 ROOT CAUSE
 ----------
-React Native's fetch implementation silently drops the uppercase 'Cookie' header.
-Better Auth expo client uses lowercase 'cookie' header + credentials:'omit' + expo-origin header.
-Our $fetch wrapper was using uppercase 'Cookie' and credentials:'include'.
+welcome.tsx handleEmailAuth() used raw authClient.$fetch('/api/auth/sign-up/email')
+which does NOT call:
+- captureAndStoreCookie()
+- refreshExplicitCookie() 
+- verifySessionAfterAuth()
+
+The authClient.signUp.email() method already has all this logic built in.
+Signup returned 200 but cookie was never stored in SecureStore, so next
+/api/auth/session returned 401 and onboarding bounced to login.
 
 CHANGES
 -------
 Files changed:
-- src/lib/authClient.ts - Fixed cookie transport to match Better Auth expo pattern
-- docs/STATE_OF_THE_APP.md - Updated with current status
-- docs/FINDINGS_LOG.md - Added discovery about React Native Cookie header
+- src/app/welcome.tsx - Use authClient.signUp/signIn.email() instead of raw $fetch
+- docs/STATE_OF_THE_APP.md - Updated with signup fix status
+- docs/FINDINGS_LOG.md - Added finding about signup bypassing cookie establishment
 
-Key diffs:
-- Changed 'Cookie' → 'cookie' (lowercase)
-- Changed credentials from 'include' → 'omit'
-- Added 'expo-origin' and 'x-skip-oauth-proxy' headers
-- Cookie format now includes leading semicolon-space: "; name=value"
+Key diffs in welcome.tsx handleEmailAuth():
+BEFORE:
+  result = await authClient.$fetch('/api/auth/sign-up/email', {...})
+  result = await authClient.$fetch('/api/auth/sign-in/email', {...})
+  // No cookie establishment, just token storage
+  setCurrentSlide(3)
+
+AFTER:
+  result = await authClient.signUp.email({...})
+  result = await authClient.signIn.email({...})
+  // Verify session established before proceeding
+  const session = await getSessionCached()
+  if (!session?.user?.id) {
+    setErrorBanner("Session could not be established. Please try again.");
+    return;
+  }
+  setCurrentSlide(3)
 
 TESTING
 -------
 Commands run:
 - npm run typecheck: PASSED
+- scripts/ai/verify_frontend.sh: PENDING
 
 VERIFICATION
 ------------
-Manual checks:
-- Runtime testing needed: login → check /api/auth/session returns 200 → calendar loads
+Manual checks needed:
+A) Fresh install / clear app storage
+B) Create new account via email signup
+   - Confirm logs show refreshExplicitCookie success
+   - Confirm /api/auth/session returns 200 immediately after signup
+   - Confirm onboarding continues (no bounce to login)
+C) Logout then login existing account still works
+D) Switch accounts: logout → login different account works
 
 STATE UPDATE
 ------------
@@ -50,5 +77,5 @@ INVARIANTS changed: NO
 
 GIT
 ---
-Commit: PENDING - "fix(auth): use lowercase cookie header + credentials omit for RN"
+Commit: PENDING
 Pushed: PENDING
