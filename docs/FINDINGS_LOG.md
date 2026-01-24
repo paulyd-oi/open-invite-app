@@ -1,16 +1,13 @@
 # Findings Log — Frontend
 
+## Auth Contract (Canonical)
+
+- Authenticated API calls must use the Better Auth session cookie: `__Secure-better-auth.session_token`.
+- In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
+- Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
+
+
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
-
----
-
-## Template
-
-### Date:
-### Finding:
-### Proof:
-### Impact:
-### Action Taken:
 
 ---
 
@@ -29,23 +26,7 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Changed credentials from 'include' to 'omit'
 - Added expo-origin and x-skip-oauth-proxy headers
 - Cookie format now matches Better Auth expo: "; name=value"
-## 2026-01-24
 
-### Finding: React Native fetch drops uppercase `Cookie` headers — Better Auth cookies must be sent using lowercase `cookie`.
-
-### Proof:
-- SecureStore contained valid `__Secure-better-auth.session_token`
-- Header was being set as `Cookie:` but backend always returned 401
-- Switching to lowercase `cookie:` immediately allowed `/api/auth/session` to return 200
-
-### Impact:
-All manual cookie forwarding in Expo/React Native must follow Better Auth expo client’s exact header pattern:
-- lowercase `cookie`
-- `credentials: "omit"`
-- include `expo-origin` + `x-skip-oauth-proxy`
-
-### Action Taken:
-Updated authClient request layer to match Better Auth expo transport behavior exactly.
 
 ---
 

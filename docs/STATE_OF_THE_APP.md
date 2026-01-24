@@ -32,4 +32,6 @@
 - Verify avatar images render without token errors
 
 ## Last Verified
-- 2026-01-24: Typecheck passes, entitlements gating + logout invariants deployed
+- 2026-01-24: Typecheck PASS, scripts/ai/verify_frontend.sh PASS
+- Git: Pushed to main @ ef1b93c
+
