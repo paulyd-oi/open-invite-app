@@ -149,33 +149,45 @@ async function $fetch<T = any>(
     hasExplicitCookie: hasCookie,
   });
 
-  // Merge headers: attach stored cookie explicitly
-  const headers: Record<string, string> = {
-    ...(init?.headers as Record<string, string> || {}),
-  };
-  
-  if (storedCookie) {
-    headers["Cookie"] = storedCookie;
-  }
-
   try {
     // Prepare request body: serialize objects to JSON, pass FormData/strings as-is
     let finalBody: any = init?.body;
-    const finalHeaders = { ...headers };
+    const finalHeaders = new Headers(init?.headers as HeadersInit | undefined);
+    
+    // CRITICAL: Attach session cookie header explicitly
+    // Better Auth's $fetch may not pass Cookie header correctly in React Native
+    if (storedCookie) {
+      finalHeaders.set("Cookie", storedCookie);
+      if (__DEV__) {
+        console.log(`[authClient.$fetch] Cookie header SET`);
+      }
+    }
     
     if (init?.body && typeof init.body === 'object' && !(init.body instanceof FormData)) {
       finalBody = JSON.stringify(init.body);
-      finalHeaders['Content-Type'] = 'application/json';
+      finalHeaders.set('Content-Type', 'application/json');
     }
     
-    // Use Better Auth's $fetch with explicit cookie header
-    // CRITICAL: credentials: "include" required for React Native to send cookies
-    const result = await betterAuthClient.$fetch<T>(url, {
+    // Use native fetch with explicit cookie header (more reliable in React Native)
+    const response = await fetch(url, {
       method: init?.method || "GET",
       body: finalBody,
       headers: finalHeaders,
       credentials: "include",
     });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      let errorData: any = null;
+      try { errorData = JSON.parse(errorText); } catch {}
+      const err = new Error(errorData?.message || errorData?.error?.message || `Request failed: ${response.status}`) as any;
+      err.status = response.status;
+      err.response = { status: response.status, _data: errorData };
+      err.data = errorData;
+      throw err;
+    }
+    
+    const result = await response.json().catch(() => ({})) as T;
     
     // Log SESSION_SHAPE for /api/auth/session only (per spec)
     if (path === "/api/auth/session" || path.endsWith("/api/auth/session")) {
