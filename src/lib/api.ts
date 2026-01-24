@@ -69,6 +69,15 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
           console.log(`[api.ts auth error]: ${error.status} - Authorization header should be handled by authClient`);
         }
       }
+      
+      // Detailed error logging for /api/profile to debug failures
+      if (path.includes("/api/profile")) {
+        const status = error.status || error.response?.status || 'unknown';
+        const responseText = error.body || error.responseText || error.data || error.message || 'no response body';
+        console.error(`[api.ts] /api/profile ERROR DETAILS:`);
+        console.error(`  status: ${status}`);
+        console.error(`  responseText: ${typeof responseText === 'object' ? JSON.stringify(responseText) : responseText}`);
+      }
     }
 
     // Special case: Treat 404 on GET requests as empty state (not an error)

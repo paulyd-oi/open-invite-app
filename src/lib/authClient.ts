@@ -208,6 +208,15 @@ async function $fetch<T = any>(
       if (isKnown404) {
         console.warn(`[authClient.$fetch] Known optional endpoint 404: ${init?.method || 'GET'} ${url}`);
       }
+      
+      // Detailed error logging for /api/profile to debug failures
+      if (path.includes("/api/profile")) {
+        const status = error.status || error.response?.status || 'unknown';
+        const responseText = error.body || error.responseText || error.data || error.message || 'no response body';
+        console.error(`[authClient.$fetch] /api/profile ERROR DETAILS:`);
+        console.error(`  status: ${status}`);
+        console.error(`  responseText: ${typeof responseText === 'object' ? JSON.stringify(responseText) : responseText}`);
+      }
     }
     
     // Re-throw with consistent error shape
