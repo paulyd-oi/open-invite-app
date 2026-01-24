@@ -334,7 +334,7 @@ async function captureAndStoreCookie(): Promise<void> {
           if (parsed[targetCookieName]) {
             // Extract just the value (strip any attributes after ";")
             const rawValue = parsed[targetCookieName];
-            const cleanValue = rawValue.split(';')[0].trim();
+            const cleanValue = rawValue.split(';')[0].split(',')[0].trim();
             cookieValue = `${targetCookieName}=${cleanValue}`;
             if (__DEV__) {
               console.log('[captureAndStoreCookie] Found target cookie, extracted name=value pair');
@@ -344,7 +344,7 @@ async function captureAndStoreCookie(): Promise<void> {
             const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
             if (sessionKey && parsed[sessionKey]) {
               const rawValue = parsed[sessionKey];
-              const cleanValue = rawValue.split(';')[0].trim();
+              const cleanValue = rawValue.split(';')[0].split(',')[0].trim();
               cookieValue = `${sessionKey}=${cleanValue}`;
               if (__DEV__) {
                 console.log('[captureAndStoreCookie] Found fallback session key:', sessionKey);
@@ -358,7 +358,7 @@ async function captureAndStoreCookie(): Promise<void> {
           // Parse Set-Cookie format: "__Secure-better-auth.session_token=VALUE; Path=/; ..."
           const match = rawCookie.match(new RegExp(`${targetCookieName}=([^;]+)`));
           if (match && match[1]) {
-            cookieValue = `${targetCookieName}=${match[1]}`;
+            const cleanedMatch = match[1].split(",")[0].trim(); cookieValue = `${targetCookieName}=${cleanedMatch}`;
             if (__DEV__) {
               console.log('[captureAndStoreCookie] Extracted from raw Set-Cookie format');
             }
@@ -370,6 +370,10 @@ async function captureAndStoreCookie(): Promise<void> {
         // Verify format: should be "name=value" without attributes
         if (cookieValue.includes(';')) {
           cookieValue = cookieValue.split(';')[0].trim();
+        }
+        // Final safety: strip anything after a comma (extra cookies)
+        if (cookieValue.includes(',')) {
+          cookieValue = cookieValue.split(',')[0].trim();
         }
         await setSessionCookie(cookieValue);
         if (__DEV__) {
