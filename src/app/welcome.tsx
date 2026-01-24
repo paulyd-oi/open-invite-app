@@ -641,16 +641,18 @@ export default function WelcomeOnboardingScreen() {
 
     try {
       // Save profile with name, handle, and optionally avatarUrl
+      // CRITICAL: Only include avatarUrl if it's a non-empty string; never send null
       const profileData: { name: string; handle: string; avatarUrl?: string } = {
         name: trimmedName,
         handle: trimmedHandle,
       };
 
-      if (avatarUrl) {
+      // Only add avatarUrl if it's a valid non-empty string (backend rejects null)
+      if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
         profileData.avatarUrl = avatarUrl;
       }
 
-      console.log("[Onboarding] Saving profile...");
+      console.log("[Onboarding] Saving profile...", { hasAvatarUrl: !!profileData.avatarUrl });
       const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", profileData);
       console.log("[Onboarding] Profile saved successfully");
 
