@@ -20,6 +20,9 @@ const TOKEN_KEY = AUTH_TOKEN_KEY;
 // Storage prefix consistent with app scheme
 const STORAGE_PREFIX = "open-invite";
 
+// Module-level cache for Better Auth cookie token (avoids reading SecureStore on every request)
+let explicitCookieValue: string | null = null;
+
 /**
  * DEV-only trace helper for auth token flow tracing.
  * Never logs token content - only booleans, keys, and function names.
@@ -68,6 +71,9 @@ if (__DEV__) {
   console.log(`[authClient] Cookie storage key: ${cookieKey}`);
   void debugDumpBetterAuthCookieOnce();
 }
+
+// Initialize cookie cache on module load
+void refreshExplicitCookie();
 
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
@@ -132,15 +138,14 @@ async function $fetch<T = any>(
     throw new Error("API base URL missing. Set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_VIBECODE_BACKEND_URL.");
   }
 
-  // Get explicitly stored session cookie
-  const storedCookie = await getSessionCookie();
-  const hasCookie = !!storedCookie;
+  // Use cached Better Auth cookie (refreshed after signIn)
+  const hasCookie = !!explicitCookieValue;
 
   if (__DEV__) {
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
-    console.log(`[authClient.$fetch] Explicit cookie stored: ${hasCookie}`);
-    if (hasCookie && storedCookie) {
-      const cookieName = storedCookie.split('=')[0];
+    console.log(`[authClient.$fetch] Explicit cookie cached: ${hasCookie}`);
+    if (hasCookie && explicitCookieValue) {
+      const cookieName = explicitCookieValue.split('=')[0];
       console.log(`[authClient.$fetch] Cookie name: ${cookieName}`);
     }
   }
@@ -158,8 +163,8 @@ async function $fetch<T = any>(
     
     // CRITICAL: Attach session cookie header explicitly
     // Better Auth's $fetch may not pass Cookie header correctly in React Native
-    if (storedCookie) {
-      finalHeaders.set("Cookie", storedCookie);
+    if (explicitCookieValue) {
+      finalHeaders.set("Cookie", explicitCookieValue);
       if (__DEV__) {
         console.log(`[authClient.$fetch] Cookie header SET`);
       }
@@ -304,6 +309,59 @@ async function fetchSession(): Promise<Session> {
  * Better Auth expoClient stores cookies under "{storagePrefix}_cookie" key.
  * We read from there and copy to our explicit storage for deterministic attachment.
  */
+/**
+ * Refresh the explicit cookie cache from Better Auth's SecureStore.
+ * Call this after signIn/signUp to ensure subsequent requests include the cookie.
+ */
+export async function refreshExplicitCookie(): Promise<void> {
+  try {
+    const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
+    const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
+    
+    if (__DEV__) {
+      console.log('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
+      console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
+    }
+    
+    if (!rawCookie || rawCookie === '{}') {
+      explicitCookieValue = null;
+      if (__DEV__) {
+        console.log('[refreshExplicitCookie] No cookie found - cache cleared');
+      }
+      return;
+    }
+    
+    // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
+    try {
+      const parsed = JSON.parse(rawCookie);
+      const targetCookieName = '__Secure-better-auth.session_token';
+      
+      if (parsed[targetCookieName]?.value) {
+        const token = parsed[targetCookieName].value;
+        explicitCookieValue = `${targetCookieName}=${token}`;
+        if (__DEV__) {
+          console.log('[refreshExplicitCookie] Cookie cached successfully');
+        }
+      } else {
+        explicitCookieValue = null;
+        if (__DEV__) {
+          console.log('[refreshExplicitCookie] Cookie format unexpected:', Object.keys(parsed));
+        }
+      }
+    } catch (parseError) {
+      explicitCookieValue = null;
+      if (__DEV__) {
+        console.log('[refreshExplicitCookie] Failed to parse cookie JSON:', parseError);
+      }
+    }
+  } catch (error) {
+    explicitCookieValue = null;
+    if (__DEV__) {
+      console.log('[refreshExplicitCookie] Error:', error);
+    }
+  }
+}
+
 async function captureAndStoreCookie(): Promise<void> {
   try {
     // Read from Better Auth's expo storage key
@@ -501,7 +559,11 @@ export const authClient = {
       // Still clear local state even if server call fails
       await clearAuthToken();
       await clearSessionCookie();
+      explicitCookieValue = null;
       return { ok: false, error: e } as any;
+    } finally {
+      // Always clear cookie cache on signOut
+      explicitCookieValue = null;
     }
   },
 
@@ -536,6 +598,9 @@ export const authClient = {
           // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
         }
+        
+        // Refresh cookie cache so subsequent requests include the cookie
+        await refreshExplicitCookie();
         
         // Verify session is valid by calling /api/auth/session
         await verifySessionAfterAuth('signIn');
@@ -587,8 +652,9 @@ export const authClient = {
           // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
         }
-        
-        // Verify session is valid by calling /api/auth/session
+                // Refresh cookie cache so subsequent requests include the cookie
+        await refreshExplicitCookie();
+                // Verify session is valid by calling /api/auth/session
         await verifySessionAfterAuth('signUp');
         
         return { data: result.data } as any;
