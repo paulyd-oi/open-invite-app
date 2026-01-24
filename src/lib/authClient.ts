@@ -176,10 +176,19 @@ async function $fetch<T = any>(
       credentials: "include",
     });
     
+    // Log response status for every request (helps debug auth issues)
+    if (__DEV__) {
+      console.log(`[authClient.$fetch] Response status for ${path}: ${response.status}`);
+    }
+    
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
+      // Read raw text once for both logging and parsing
+      const rawText = await response.text().catch(() => '');
+      if (__DEV__) {
+        console.log(`[authClient.$fetch] Non-OK ${response.status} raw body preview: ${rawText.slice(0, 120)}`);
+      }
       let errorData: any = null;
-      try { errorData = JSON.parse(errorText); } catch {}
+      try { errorData = JSON.parse(rawText); } catch {}
       const err = new Error(errorData?.message || errorData?.error?.message || `Request failed: ${response.status}`) as any;
       err.status = response.status;
       err.response = { status: response.status, _data: errorData };
