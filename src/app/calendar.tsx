@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { View, Text, ScrollView, Pressable, type NativeScrollEvent, type NativeSyntheticEvent, Modal, Share, Linking, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1355,7 +1355,7 @@ export default function CalendarScreen() {
   }, [currentYear, currentMonth]);
 
   // Fetch calendar events (created + going events) for the visible range
-  const { data: calendarData, refetch: refetchCalendarEvents, isLoading: isLoadingCalendar, isRefetching: isRefetchingCalendar } = useQuery({
+  const { data: calendarData, refetch: refetchCalendarEvents, isLoading: isLoadingCalendar, isRefetching: isRefetchingCalendar, isError: isCalendarError } = useQuery({
     queryKey: ["events", "calendar", visibleDateRange.start, visibleDateRange.end],
     queryFn: () =>
       api.get<GetCalendarEventsResponse>(
@@ -1367,7 +1367,7 @@ export default function CalendarScreen() {
   });
 
   // Fetch friend birthdays
-  const { data: birthdaysData, isLoading: isLoadingBirthdays } = useQuery({
+  const { data: birthdaysData, isLoading: isLoadingBirthdays, isError: isBirthdaysError } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
     enabled: bootStatus === 'authed',
@@ -1451,6 +1451,33 @@ export default function CalendarScreen() {
   const isDataSettled = !isLoadingCalendar && !isRefetchingCalendar && !isLoadingBirthdays && bootStatus === 'authed';
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
+
+  // Aggregate error state for any critical query
+  const hasQueryError = isCalendarError || isBirthdaysError;
+
+  // Debug logs for gating query states (helps diagnose stuck loading states)
+  useEffect(() => {
+    console.log("[CalendarScreen] Query states:", {
+      bootStatus,
+      isLoadingCalendar,
+      isRefetchingCalendar,
+      isLoadingBirthdays,
+      isCalendarError,
+      isBirthdaysError,
+      isDataSettled,
+      hasQueryError,
+    });
+  }, [bootStatus, isLoadingCalendar, isRefetchingCalendar, isLoadingBirthdays, isCalendarError, isBirthdaysError, isDataSettled, hasQueryError]);
+
+  // Refetch calendar when screen gains focus (ensures fresh data after navigation)
+  useFocusEffect(
+    useCallback(() => {
+      if (bootStatus === 'authed') {
+        console.log("[CalendarScreen] Screen focused, refetching calendar events");
+        refetchCalendarEvents();
+      }
+    }, [bootStatus, refetchCalendarEvents])
+  );
 
   // Convert birthdays to pseudo-events for the calendar
   const birthdayEvents = useMemo(() => {
@@ -1904,6 +1931,33 @@ export default function CalendarScreen() {
           <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
             Loading calendar...
           </Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
+    );
+  }
+
+  // Show error UI if queries failed (isCalendarError or isBirthdaysError)
+  if (hasQueryError) {
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+        <View className="flex-1 items-center justify-center px-8">
+          <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
+            Failed to load calendar
+          </Text>
+          <Text className="text-base text-center mb-6" style={{ color: colors.textSecondary }}>
+            Something went wrong fetching your events.
+          </Text>
+          <Pressable
+            onPress={() => {
+              console.log("[CalendarScreen] Retry button pressed, refetching...");
+              refetchCalendarEvents();
+            }}
+            className="px-6 py-3 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white font-semibold">Retry</Text>
+          </Pressable>
         </View>
         <BottomNavigation />
       </SafeAreaView>
