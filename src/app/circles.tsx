@@ -129,7 +129,7 @@ export default function CirclesScreen() {
           {isLoading ? (
             <View className="py-12">
               <Text className="text-center" style={{ color: colors.textTertiary }}>
-                Loading groups...
+                Syncing your circles…
               </Text>
             </View>
           ) : circles.length === 0 ? (

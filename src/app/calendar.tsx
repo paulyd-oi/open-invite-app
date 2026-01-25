@@ -1938,8 +1938,8 @@ export default function CalendarScreen() {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
-            Loading calendar...
+          <Text className="text-base" style={{ color: colors.textTertiary }}>
+            Syncing your calendar…
           </Text>
         </View>
         <BottomNavigation />

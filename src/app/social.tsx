@@ -733,7 +733,7 @@ export default function SocialScreen() {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+          <Text style={{ color: colors.textTertiary }}>Syncing your feed…</Text>
         </View>
         <BottomNavigation />
       </SafeAreaView>
@@ -745,7 +745,7 @@ export default function SocialScreen() {
       <AuthProvider state="checking">
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
           <View className="flex-1 items-center justify-center">
-            <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+            <Text style={{ color: colors.textTertiary }}>Syncing your feed…</Text>
           </View>
           <BottomNavigation />
         </SafeAreaView>
