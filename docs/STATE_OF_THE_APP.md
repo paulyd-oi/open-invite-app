@@ -16,6 +16,7 @@
 - None currently known
 
 ## Fixed This Session
+- Calendar empty state: Added "Invite a friend" CTA with native share sheet
 - First-session guidance: Added `src/lib/firstSessionGuidance.ts` with 30-minute time window
 - Empty states updated: calendar.tsx, circles.tsx, social.tsx show inline guidance text
 - Guidance completion: create.tsx marks `create_invite`, circles.tsx marks `join_circle`

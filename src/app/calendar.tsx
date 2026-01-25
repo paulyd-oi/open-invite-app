@@ -14,6 +14,7 @@ import {
   Layers,
   AlignJustify,
   Users,
+  UserPlus,
   Send,
   Check,
   X,
@@ -2200,10 +2201,30 @@ export default function CalendarScreen() {
                   <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
                   {guidanceLoaded && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
                     <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
-                      Your calendar comes alive once friends start inviting you.
+                      Plans start when someone joins you.
                     </Text>
                   )}
-                  <View className="flex-row items-center mt-3 gap-4">
+                  {guidanceLoaded && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                    <Pressable
+                      onPress={async () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        try {
+                          await Share.share({
+                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/app/open-invite",
+                            url: "https://apps.apple.com/app/open-invite",
+                          });
+                        } catch (error) {
+                          console.error("Error sharing:", error);
+                        }
+                      }}
+                      className="flex-row items-center px-5 py-2.5 rounded-full mb-3"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      <UserPlus size={16} color="#FFFFFF" />
+                      <Text className="font-semibold ml-2 text-white">Invite a friend</Text>
+                    </Pressable>
+                  )}
+                  <View className="flex-row items-center mt-1 gap-4">
                     <Pressable
                       onPress={() => router.push(`/create?date=${selectedDate.toISOString()}`)}
                       className="flex-row items-center"
