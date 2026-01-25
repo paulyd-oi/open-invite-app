@@ -10,16 +10,20 @@
 - useEntitlements hook accepts enabled parameter for gating
 - MiniCalendar gated on bootStatus (not !!session)
 - Logout invariant log: single [LOGOUT_INVARIANT] JSON emitted with full key audit
+- First-session inline guidance: time-gated (30 min) empty-state hints
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- First-session guidance: Added `src/lib/firstSessionGuidance.ts` with 30-minute time window
+- Empty states updated: calendar.tsx, circles.tsx, social.tsx show inline guidance text
+- Guidance completion: create.tsx marks `create_invite`, circles.tsx marks `join_circle`
+
+## Previously Fixed
 - useEntitlements: Added optional `enabled` param to gate fetch on bootStatus
 - MiniCalendar: Changed gating from `!!session` to `bootStatus === 'authed'`
 - Logout key deletion: Enumerated SECURESTORE_AUTH_KEYS and ASYNCSTORAGE_AUTH_KEYS with consolidated [LOGOUT_INVARIANT] log
-
-## Previously Fixed
 - Auth state races: Authed queries (profile, friends, circles, events, workSchedule) now gated on `bootStatus === 'authed'`
 - Upload image blocking: /uploads/ URLs now treated as public (no bearer token required)
 - Query gating across: calendar.tsx, profile.tsx, settings.tsx, friends.tsx
@@ -27,11 +31,9 @@
 - React Native drops uppercase Cookie header; now using lowercase 'cookie'
 
 ## Next Priority
-- Manual testing: logout -> verify [LOGOUT_INVARIANT] log shows all keys deleted
-- Manual testing: switch accounts -> no data contamination
-- Verify avatar images render without token errors
+- Manual testing: verify first-session guidance shows only within 30 minutes
+- Manual testing: verify guidance disappears after user creates invite/circle
 
 ## Last Verified
 - 2026-01-24: Typecheck PASS, scripts/ai/verify_frontend.sh PASS
-- Git: Pushed to main @ ef1b93c
 

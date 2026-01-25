@@ -49,6 +49,7 @@ import { NotificationNudgeModal } from "@/components/notifications/NotificationN
 import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
+import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
 import {
   MAX_ACTIVE_EVENTS_FREE,
   getActiveEventCount,
@@ -487,6 +488,8 @@ export default function CreateEventScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Track for rate app prompt
       trackEventCreated();
+      // Mark guidance complete - user has created their first invite
+      markGuidanceComplete("create_invite");
       // Invalidate all event-related queries to refresh calendar and feed
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", "mine"] });

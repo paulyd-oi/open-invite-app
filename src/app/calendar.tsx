@@ -41,6 +41,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -1128,6 +1129,12 @@ export default function CalendarScreen() {
   const isBootLoading = bootStatus === 'loading';
   const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, { timeout: 3000 });
   const [isRetrying, setIsRetrying] = useState(false);
+  const [guidanceLoaded, setGuidanceLoaded] = useState(false);
+
+  // Load first-session guidance state on mount
+  useEffect(() => {
+    loadGuidanceState().then(() => setGuidanceLoaded(true));
+  }, []);
 
   // Handle retry from timeout UI
   const handleRetry = useCallback(() => {
@@ -2190,7 +2197,12 @@ export default function CalendarScreen() {
                   className="rounded-2xl p-6 items-center"
                   style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                 >
-                  <Text style={{ color: colors.textTertiary }}>No events on this day</Text>
+                  <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
+                  {guidanceLoaded && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                    <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
+                      Your calendar comes alive once friends start inviting you.
+                    </Text>
+                  )}
                   <View className="flex-row items-center mt-3 gap-4">
                     <Pressable
                       onPress={() => router.push(`/create?date=${selectedDate.toISOString()}`)}
@@ -2198,7 +2210,7 @@ export default function CalendarScreen() {
                     >
                       <Plus size={16} color={themeColor} />
                       <Text className="font-medium ml-1" style={{ color: themeColor }}>
-                        Create Event
+                        Create an Invite
                       </Text>
                     </Pressable>
                     <View style={{ width: 1, height: 16, backgroundColor: colors.border }} />

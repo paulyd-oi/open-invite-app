@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 
 export default function CirclesScreen() {
@@ -32,7 +33,13 @@ export default function CirclesScreen() {
   const [showCreateCircle, setShowCreateCircle] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext | null>(null);
+  const [guidanceLoaded, setGuidanceLoaded] = useState(false);
   const entitlements = useEntitlements();
+
+  // Load guidance state on mount
+  useEffect(() => {
+    loadGuidanceState().then(() => setGuidanceLoaded(true));
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["circles"],
@@ -55,6 +62,8 @@ export default function CirclesScreen() {
     onSuccess: (response: { circle: Circle }) => {
       queryClient.invalidateQueries({ queryKey: ["circles"] });
       setShowCreateCircle(false);
+      // Mark guidance complete - user has created their first circle
+      markGuidanceComplete("join_circle");
       router.push(`/circle/${response.circle.id}` as any);
     },
     onError: (error: any) => {
@@ -129,13 +138,15 @@ export default function CirclesScreen() {
                 <Users size={32} color={colors.textTertiary} />
               </View>
               <Text className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
-                No Groups Yet
+                No circles yet
               </Text>
-              <Text className="text-center mb-6 px-8" style={{ color: colors.textSecondary }}>
-                Groups help you plan with the same people
-              </Text>
+              {guidanceLoaded && shouldShowEmptyGuidanceSync("join_circle") && (
+                <Text className="text-center mb-4 px-8" style={{ color: colors.textSecondary }}>
+                  Circles are private groups where invites stay inside.
+                </Text>
+              )}
               <Pressable onPress={handleCreateCircle} className="px-6 py-3 rounded-full" style={{ backgroundColor: themeColor }}>
-                <Text className="text-white font-semibold">Create Your First Group</Text>
+                <Text className="text-white font-semibold">Create Circle</Text>
               </Pressable>
             </View>
           ) : (

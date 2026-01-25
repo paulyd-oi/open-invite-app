@@ -29,6 +29,7 @@ import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
 import { SocialMemoryCard } from "@/components/SocialMemoryCard";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
@@ -347,10 +348,16 @@ export default function SocialScreen() {
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
+  const [guidanceLoaded, setGuidanceLoaded] = useState(false);
   const hasBootstrapped = useRef(false);
 
   // Auth gating based on boot status (token validation), not session presence
   const isAuthed = bootStatus === "authed";
+
+  // Load guidance state on mount
+  useEffect(() => {
+    loadGuidanceState().then(() => setGuidanceLoaded(true));
+  }, []);
 
   // Redirect non-authed users to appropriate auth screen
   useEffect(() => {
@@ -843,11 +850,13 @@ export default function SocialScreen() {
           <View className="py-12 items-center px-8">
             <Text className="text-5xl mb-4">📅</Text>
             <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-              No Open Invites yet
+              Nothing new yet
             </Text>
-            <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
-              This feed shows plans your friends are opening up
-            </Text>
+            {guidanceLoaded && shouldShowEmptyGuidanceSync("view_feed") && (
+              <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
+                When friends RSVP or create invites, it shows up here.
+              </Text>
+            )}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -856,7 +865,7 @@ export default function SocialScreen() {
               className="px-6 py-3 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
-              <Text className="text-white font-semibold">Create an Open Invite</Text>
+              <Text className="text-white font-semibold">Create an Invite</Text>
             </Pressable>
           </View>
         </ScrollView>

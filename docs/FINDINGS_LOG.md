@@ -109,3 +109,19 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Added SECURESTORE_AUTH_KEYS and ASYNCSTORAGE_AUTH_KEYS arrays
 - Track deletion success/failure per key
 - Emit single [LOGOUT_INVARIANT] JSON log with keysDeleted, keysFailed, verifyCleared, verifyRemaining, success
+
+---
+
+### Date: 2026-01-24
+### Finding: First-session guidance needed time-gating to avoid permanent prompts
+### Proof:
+- Empty states showed guidance text unconditionally
+- Long-time users would see "tutorial-like" text forever
+- Need to differentiate new user onboarding from established user empty state
+### Impact: Unnecessary friction for experienced users
+### Action Taken:
+- Created src/lib/firstSessionGuidance.ts with 30-minute time window
+- Stores `openinvite.firstOpenAt` timestamp in SecureStore
+- Tracks completion per action: `openinvite.guidance.completed.<key>`
+- Inline guidance only shows when: empty state + <30min since first open + action not completed
+- Action keys: create_invite, join_circle, view_feed
