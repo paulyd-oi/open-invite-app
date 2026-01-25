@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "174",
+      "buildNumber": "175",
       "usesAppleSignIn": true,
       "jsEngine": "jsc",
       "infoPlist": {
