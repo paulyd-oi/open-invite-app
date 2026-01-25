@@ -95,7 +95,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to respond:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to respond to event request");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -110,7 +110,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to cancel:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to cancel event request");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -127,7 +127,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to nudge:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to send nudge");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -144,7 +144,7 @@ export default function EventRequestDetailScreen() {
     onError: (error) => {
       console.error("Failed to suggest time:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to send suggestion");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 

@@ -11,11 +11,13 @@
 - MiniCalendar gated on bootStatus (not !!session)
 - Logout invariant log: single [LOGOUT_INVARIANT] JSON emitted with full key audit
 - First-session inline guidance: time-gated (30 min) empty-state hints
+- Human-friendly error toasts: no raw codes, calm microcopy across all screens
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- Error message UX: Humanized all user-facing error toasts with calm, non-alarming copy
 - Calendar empty state: Added "Invite a friend" CTA with native share sheet
 - First-session guidance: Added `src/lib/firstSessionGuidance.ts` with 30-minute time window
 - Empty states updated: calendar.tsx, circles.tsx, social.tsx show inline guidance text

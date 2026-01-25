@@ -163,7 +163,7 @@ export default function ImportCalendarScreen() {
       setSelectedEvents(new Set());
     },
     onError: (error: Error) => {
-      safeToast.error(error.message || "Failed to sync events");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -369,7 +369,7 @@ export default function ImportCalendarScreen() {
       setSyncResult(null);
     } catch (error) {
       console.error("Failed to load events:", error);
-      safeToast.error("Failed to load calendar events");
+      safeToast.error("Oops", "Couldn't refresh right now. Try again in a moment.");
     } finally {
       setIsLoadingEvents(false);
     }

@@ -128,7 +128,7 @@ export default function EditEventScreen() {
       router.back();
     },
     onError: (error) => {
-      safeToast.error("Error", "Failed to update event. Please try again.");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
       console.error(error);
     },
   });
@@ -143,7 +143,7 @@ export default function EditEventScreen() {
       router.replace("/calendar");
     },
     onError: () => {
-      safeToast.error("Error", "Failed to delete event. Please try again.");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 

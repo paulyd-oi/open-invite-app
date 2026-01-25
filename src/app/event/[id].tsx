@@ -192,7 +192,7 @@ const addToDeviceCalendar = async (event: { title: string; description?: string 
       showToast.warning("Permission Required", "Calendar access is required. Please enable it in Settings.");
       Linking.openSettings();
     } else {
-      showToast.error("Error", `Failed to add event: ${error?.message || "Unknown error"}`);
+      showToast.error("Oops", "That didn't go through. Please try again.");
     }
   }
 };
@@ -368,11 +368,11 @@ export default function EventDetailScreen() {
         }
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        safeToast.error("Sync Failed", result.error ?? "Could not sync to calendar");
+        safeToast.error("Sync Failed", "That didn't go through. Please try again.");
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Sync Failed", error?.message ?? "An error occurred");
+      safeToast.error("Sync Failed", "That didn't go through. Please try again.");
     } finally {
       setIsSyncing(false);
     }
@@ -451,7 +451,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to join event");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -475,7 +475,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to post comment");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -487,7 +487,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to delete comment");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -537,7 +537,7 @@ export default function EventDetailScreen() {
       }
     },
     onError: () => {
-      safeToast.error("Failed to update RSVP. Please try again.");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -606,7 +606,7 @@ export default function EventDetailScreen() {
         setCommentImage(uploadResponse.url);
       } catch (error) {
         console.error("Image upload failed:", error);
-        safeToast.error("Upload Failed", "Could not upload image. Please try again.");
+        safeToast.error("Oops", "That didn't go through. Please try again.");
       } finally {
         setIsUploadingImage(false);
       }

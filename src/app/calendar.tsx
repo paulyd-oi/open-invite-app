@@ -247,7 +247,7 @@ const addEventToDeviceCalendar = async (event: Event) => {
     );
   } catch (error: any) {
     console.error("Error adding to calendar:", error);
-    safeToast.error("Error", "Failed to add event to calendar.");
+    safeToast.error("Oops", "That didn't go through. Please try again.");
   }
 };
 
@@ -1392,7 +1392,7 @@ export default function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to delete event");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -1406,7 +1406,7 @@ export default function CalendarScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to update event color");
+      safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });
 
@@ -1953,10 +1953,10 @@ export default function CalendarScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
-            Failed to load calendar
+            Couldn't load your calendar
           </Text>
           <Text className="text-base text-center mb-6" style={{ color: colors.textSecondary }}>
-            Something went wrong fetching your events.
+            Couldn't refresh right now. Try again in a moment.
           </Text>
           <Pressable
             onPress={() => {

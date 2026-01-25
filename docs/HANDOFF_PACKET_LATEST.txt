@@ -1,90 +1,73 @@
-HANDOFF PACKET - Entitlements Gating + MiniCalendar Fix + Logout Invariants
-================================================================================
+HANDOFF PACKET — Error Message UX Humanization
+===============================================
 
 SUMMARY
 -------
-1. useEntitlements hook now accepts `enabled` parameter for bootStatus gating
-2. MiniCalendar gating changed from `!!session` to `bootStatus === 'authed'`
-3. Logout key deletion consolidated with enumerated keys + [LOGOUT_INVARIANT] log
+Replaced harsh, developer-style error messages with calm, human-friendly microcopy.
+No raw error codes (401/500), no "Something went wrong", no error.message leaks.
+Text-only changes — no new components, no new error handling architecture.
 
-PRECHECK
---------
-pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
-branch: main
-remote: https://github.com/paulyd-oi/open-invite-app.git
-status: modified (pending commit)
+FILES CHANGED
+-------------
+1. src/app/calendar.tsx
+2. src/app/event/[id].tsx
+3. src/app/event/edit/[id].tsx
+4. src/app/event-request/[id].tsx
+5. src/app/import-calendar.tsx
+6. docs/STATE_OF_THE_APP.md
 
-ROOT CAUSE
-----------
-1. ENTITLEMENTS: useEntitlements() had no `enabled` gating option, causing
-   fetch during logout/loading when caller couldn't gate it.
+ERROR COPY REPLACEMENTS (before → after)
+-----------------------------------------
 
-2. MINICALENDAR: Component gated on `!!session` but session may persist in
-   cache after logout → 401 spam during transition.
+calendar.tsx:
+- "Error" / "Failed to add event to calendar." → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to delete event" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to update event color" → "Oops" / "That didn't go through. Please try again."
+- "Failed to load calendar" / "Something went wrong fetching your events." → "Couldn't load your calendar" / "Couldn't refresh right now. Try again in a moment."
 
-3. LOGOUT AUDIT: Key deletion was scattered across multiple log lines with
-   no consolidated audit trail for debugging account switch issues.
+event/[id].tsx:
+- "Error" / `Failed to add event: ${error?.message || "Unknown error"}` → "Oops" / "That didn't go through. Please try again."
+- "Sync Failed" / result.error ?? "Could not sync to calendar" → "Sync Failed" / "That didn't go through. Please try again."
+- "Sync Failed" / error?.message ?? "An error occurred" → "Sync Failed" / "That didn't go through. Please try again."
+- "Error" / "Failed to join event" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to post comment" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to delete comment" → "Oops" / "That didn't go through. Please try again."
+- "Failed to update RSVP. Please try again." → "Oops" / "That didn't go through. Please try again."
+- "Upload Failed" / "Could not upload image. Please try again." → "Oops" / "That didn't go through. Please try again."
 
-CHANGES
--------
-Files changed:
-- src/lib/entitlements.ts - Added optional `{ enabled?: boolean }` param
-- src/app/friends.tsx - MiniCalendar accepts bootStatus prop, FriendCard/FriendListItem pass it
-- src/lib/authBootstrap.ts - Enumerated SECURESTORE_AUTH_KEYS, ASYNCSTORAGE_AUTH_KEYS, single [LOGOUT_INVARIANT] log
-- docs/STATE_OF_THE_APP.md - Updated
-- docs/FINDINGS_LOG.md - Added three new findings
+event/edit/[id].tsx:
+- "Error" / "Failed to update event. Please try again." → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to delete event. Please try again." → "Oops" / "That didn't go through. Please try again."
 
-KEY DIFFS
----------
-entitlements.ts useEntitlements():
-  BEFORE: useEntitlements() { useQuery({ enabled: true, ... }) }
-  AFTER:  useEntitlements(options?: { enabled?: boolean }) { useQuery({ enabled: options?.enabled ?? true, ... }) }
+event-request/[id].tsx:
+- "Error" / "Failed to respond to event request" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to cancel event request" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to send nudge" → "Oops" / "That didn't go through. Please try again."
+- "Error" / "Failed to send suggestion" → "Oops" / "That didn't go through. Please try again."
 
-friends.tsx MiniCalendar:
-  BEFORE: enabled: !!session && !!friendshipId
-  AFTER:  enabled: bootStatus === 'authed' && !!friendshipId
+import-calendar.tsx:
+- error.message || "Failed to sync events" → "Oops" / "That didn't go through. Please try again."
+- "Failed to load calendar events" → "Oops" / "Couldn't refresh right now. Try again in a moment."
 
-authBootstrap.ts resetSession():
-  NEW: SECURESTORE_AUTH_KEYS = [...all known keys...]
-  NEW: ASYNCSTORAGE_AUTH_KEYS = [...all known keys...]
-  NEW: console.log("[LOGOUT_INVARIANT]", JSON.stringify({
-         keysDeleted, keysFailed, verifyCleared, verifyRemaining, success
-       }))
+HOW TO TEST (manual error scenarios)
+------------------------------------
+1. Airplane mode test: Enable airplane mode, try to RSVP to an event → should see "Oops / That didn't go through. Please try again."
+2. Network error on calendar: Kill backend, go to calendar tab → should see "Couldn't load your calendar / Couldn't refresh right now. Try again in a moment."
+3. Comment post failure: Try posting comment with network off → should see "Oops / That didn't go through. Please try again."
+4. Calendar sync failure: Try syncing event to device calendar with network off → should see "Sync Failed / That didn't go through. Please try again."
 
-TESTING
--------
-Commands run:
-- npm run typecheck: PASSED
-- scripts/ai/verify_frontend.sh: PASSED
+VERIFY RESULTS
+--------------
+✅ npm run typecheck — PASS
+✅ bash scripts/ai/verify_frontend.sh — PASS
 
-MANUAL TEST PLAN
-----------------
-A) Logout scenario:
-   - Tap logout
-   - Observe console for single [LOGOUT_INVARIANT] log
-   - Verify keysDeleted includes all auth keys
-   - Verify keysFailed is empty
-   - Verify success: true
+COMMIT HASH
+-----------
+2f07cbf
 
-B) Account switch scenario:
-   - Logout from account A
-   - Login to account B
-   - Confirm no 401 spam during transition
-   - Confirm no data contamination (account A data showing for B)
-
-GIT STATUS
-----------
-Commit: ef1b93c
-Push: YES (main -> main)
-
-STATE UPDATE
-------------
-STATE_OF_THE_APP updated: YES
-FINDINGS_LOG updated: YES
-INVARIANTS changed: YES (added [LOGOUT_INVARIANT])
-
-NEXT AGENT
-----------
-- Commit and push these changes
-- Test logout flow manually and verify [LOGOUT_INVARIANT] JSON appears
-- If any keysFailed entries appear in log, investigate why deletion failed
+STANDARDS APPLIED
+-----------------
+- Network / refresh failure: "Couldn't refresh right now. Try again in a moment."
+- Action failed (generic): "That didn't go through. Please try again."
+- No raw server errors exposed to users
+- No harsh "Error" titles — replaced with "Oops" or contextual titles
