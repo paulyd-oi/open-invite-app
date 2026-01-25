@@ -1,65 +1,67 @@
-HANDOFF PACKET — UX Polish: Birthday Navigation + Dark Header + Bio + 14-Day Count
-==================================================================================
+HANDOFF PACKET — Circle Description UI (Host-Only Edit)
+================================================================================
 
 SUMMARY
 -------
-Four UX improvements from TestFlight inventory:
-1. Birthday cards in calendar now navigate to User Profile on tap
-2. Friend Profile header text visible in dark mode (headerTintColor/headerTitleStyle)
-3. Friend Profile shows bio field when present (in addition to calendarBio)
-4. Social feed count changed from "X plans happening soon" to "X plans in next 14 days"
+Added description field to circles with display on cards and editable in Group Settings.
+Host-only editing enforced via frontend UI gating and backend 403 handling.
 
-FILES CHANGED
--------------
-1. src/app/calendar.tsx — Birthday card tap navigation to /user/[id]
-2. src/app/friend/[id].tsx — Dark mode header + bio display
-3. src/app/social.tsx — 14-day plans count filter
-4. docs/STATE_OF_THE_APP.md — Updated session fixes
+PRECHECK
+--------
+✅ pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
+✅ remote: https://github.com/paulyd-oi/open-invite-app.git
+✅ branch: main
+✅ status: clean
 
-WHAT CHANGED (per file)
------------------------
+CHANGES
+-------
+1. shared/contracts.ts — Added `description: z.string().nullable().optional()` to circleSchema
+2. src/components/CircleCard.tsx — Display description under name (max 2 lines, muted text)
+3. src/app/circle/[id].tsx — Group Settings description section with host-only edit
 
-calendar.tsx:
-- UpcomingBirthdaysSection: Added useRouter hook
-- Birthday cards: Changed from View to Pressable
-- Tap handler: Navigates to /user/{friendId} (not own birthday)
-- Visual affordance: ChevronRight added for navigable items
+KEY DIFFS
+---------
+contracts.ts:
+  + description: z.string().nullable().optional(),
 
-friend/[id].tsx:
-- Stack.Screen options: Added headerTintColor={colors.text}
-- Stack.Screen options: Added headerTitleStyle={{ color: colors.text }}
-- Profile card: Added {friend.Profile?.bio} display after handle, before calendarBio section
+CircleCard.tsx:
+  + {circle.description && (
+  +   <Text ... numberOfLines={2}>{circle.description}</Text>
+  + )}
+  + Changed member count from "text-sm" to "text-xs" to make room for description
 
-social.tsx:
-- New memo: plansIn14Days — filters allEvents to next 14 days
-- Micro Social Proof Line: Changed from allEvents.length to plansIn14Days
-- Copy changed: "X plans happening soon" → "X plans in the next 14 days"
+circle/[id].tsx:
+  + const [editingDescription, setEditingDescription] = useState(false);
+  + const [descriptionText, setDescriptionText] = useState("");
+  + const isHost = circle?.createdById === session?.user?.id;
+  + updateCircleMutation with PUT /api/circles/:id
+  + Description section in Group Settings modal with:
+    - Read mode: shows description or "No description"
+    - Edit mode (host only): TextInput with 160 char limit + Save/Cancel
+    - 403 error handling with friendly toast
 
-HOW TO VERIFY
--------------
-1. Calendar → Upcoming Birthdays section → Tap friend's birthday → Should open User Profile
-2. Friends → Tap friend → Friend Profile → Toggle to dark mode → Header title should be visible
-3. Friend Profile → If friend has bio set, should display above "My calendar looks like..."
-4. Social tab → See "X plans in the next 14 days" (only counts events within 14 days)
+TEST PLAN (TestFlight steps)
+----------------------------
+1. Friends tab → Planning section → Verify circle cards show description if set
+2. Tap circle → Tap member avatars → Group Settings
+3. Verify description section shows:
+   - If host: "Tap Edit to add a description" or existing description + Edit button
+   - If member: "No description" or existing description (no Edit button)
+4. As host: Tap Edit → Enter description (up to 160 chars) → Save
+5. Verify toast "Description updated" appears
+6. Verify description shows on card and in settings
+7. As host: Clear description → Save → Verify clears to "No description"
+8. As member: Open settings → Verify no Edit button visible
 
-VERIFY RESULTS
---------------
-npm run typecheck — PASS
-No TypeScript errors in modified files
+RISKS / FOLLOWUPS
+-----------------
+- Backend must return description field (confirmed live)
+- Backend enforces 403 for non-host updates
+- No emoji picker for description (text only)
 
-IMPLEMENTATION NOTES
---------------------
-- Birthday cards navigate to /user/[id] (User Profile) not /friend/[id] (Friend Profile)
-  because the birthday API returns userId, not friendshipId. User Profile supports
-  friend request functionality if not yet friends.
-- Own birthday ("My Birthday") is not tappable (disabled)
-- 14-day filter uses Date math: now + 14 * 24 * 60 * 60 * 1000
-
-NEXT STEPS
-----------
-- Consider adding friendshipId to /api/birthdays response for direct Friend Profile navigation
-- TestFlight validation of all 4 fixes
-- Used only className spacing utilities (mt-X, mb-X, pt-X, pb-X)
-- No new colors, shadows, or animations added
-- Event detail (src/app/event/[id].tsx) already had good spacing — no changes needed
+PUSH STATUS
+-----------
+✅ Commit: bb5b2ea
+✅ Pushed to origin/main
+================================================================================
 
