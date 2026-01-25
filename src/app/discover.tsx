@@ -6,7 +6,6 @@ import {
   Pressable,
   Image,
   RefreshControl,
-  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -70,15 +69,6 @@ interface PopularEvent {
   }>;
 }
 
-interface EventTemplate {
-  id: string;
-  name: string;
-  emoji: string;
-  duration: number;
-  description: string | null;
-  isDefault: boolean;
-}
-
 type FriendsTab = "suggestions" | "popular" | "top_friends";
 
 // 14-day dismiss cooldown for reconnect tiles
@@ -91,7 +81,6 @@ export default function DiscoverScreen() {
   const { themeColor, isDark, colors } = useTheme();
 
   const [friendsTab, setFriendsTab] = useState<FriendsTab>("popular");
-  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [dismissedFriendIds, setDismissedFriendIds] = useState<Set<string>>(new Set());
 
   const { data: reconnectData, isLoading: loadingReconnect, refetch: refetchReconnect } = useQuery({
@@ -126,12 +115,6 @@ export default function DiscoverScreen() {
     refetchFeed();
     refetchMyEvents();
   };
-
-  const { data: templatesData } = useQuery({
-    queryKey: ["templates"],
-    queryFn: () => api.get<{ templates: EventTemplate[] }>("/api/events/templates"),
-    enabled: bootStatus === 'authed',
-  });
 
   // Load dismissed friend IDs on mount (check cooldown expiry)
   useEffect(() => {
@@ -198,7 +181,6 @@ export default function DiscoverScreen() {
   }, [rawReconnectFriends, dismissedFriendIds]);
   
   const topFriends = topFriendsData?.topFriends ?? [];
-  const templates = templatesData?.templates ?? [];
 
   // Filter and sort popular events:
   // - Combine friends' events (feed) with user's own events
@@ -247,12 +229,6 @@ export default function DiscoverScreen() {
     router.push(`/event/${eventId}` as any);
   };
 
-  const handleTemplatePress = (template: EventTemplate) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowTemplatesModal(false);
-    router.push(`/create?template=${template.id}&emoji=${encodeURIComponent(template.emoji)}&title=${encodeURIComponent(template.name)}&duration=${template.duration}` as any);
-  };
-
   const isLoading = friendsTab === "suggestions" ? loadingReconnect : friendsTab === "top_friends" ? loadingTopFriends : loadingPopular;
 
   if (!session) {
@@ -280,13 +256,13 @@ export default function DiscoverScreen() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowTemplatesModal(true);
+              router.push("/create");
             }}
             className="flex-row items-center px-4 py-2 rounded-full"
             style={{ backgroundColor: themeColor }}
           >
             <Plus size={16} color="#fff" />
-            <Text className="text-white font-semibold ml-1.5">Quick Event</Text>
+            <Text className="text-white font-semibold ml-1.5">Create</Text>
           </Pressable>
         </View>
 
@@ -636,78 +612,6 @@ export default function DiscoverScreen() {
           </>
         )}
       </ScrollView>
-
-      {/* Quick Event Templates Modal */}
-      <Modal
-        visible={showTemplatesModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowTemplatesModal(false)}
-      >
-        <Pressable
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowTemplatesModal(false)}
-        >
-          <Pressable onPress={() => {}}>
-            <View
-              className="rounded-t-3xl"
-              style={{ backgroundColor: colors.surface, maxHeight: "80%" }}
-            >
-              {/* Handle */}
-              <View className="items-center pt-3 pb-2">
-                <View className="w-10 h-1 rounded-full" style={{ backgroundColor: colors.border }} />
-              </View>
-
-              {/* Header */}
-              <View className="flex-row items-center justify-between px-5 pb-4">
-                <Text className="text-xl font-bold" style={{ color: colors.text }}>
-                  Quick Event
-                </Text>
-                <Pressable onPress={() => setShowTemplatesModal(false)}>
-                  <X size={24} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Templates Grid */}
-              <ScrollView className="px-5 pb-8" showsVerticalScrollIndicator={false}>
-                <View className="flex-row flex-wrap justify-between">
-                  {templates.map((template) => (
-                    <Pressable
-                      key={template.id}
-                      onPress={() => handleTemplatePress(template)}
-                      className="w-[48%] rounded-xl p-4 mb-3 items-center"
-                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-                    >
-                      <Text className="text-3xl mb-2">{template.emoji}</Text>
-                      <Text className="font-semibold" style={{ color: colors.text }}>
-                        {template.name}
-                      </Text>
-                      <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-                        {template.duration} min
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Custom Event Button */}
-                <Pressable
-                  onPress={() => {
-                    setShowTemplatesModal(false);
-                    router.push("/create");
-                  }}
-                  className="mt-2 py-4 rounded-xl border"
-                  style={{ borderColor: colors.border }}
-                >
-                  <Text className="text-center font-semibold" style={{ color: themeColor }}>
-                    Create Custom Event
-                  </Text>
-                </Pressable>
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <BottomNavigation />
     </SafeAreaView>
