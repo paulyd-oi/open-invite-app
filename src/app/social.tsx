@@ -654,7 +654,7 @@ export default function SocialScreen() {
     // Pattern 3: Growing Social Network (≥2 friends)
     if (friends.length >= 2) {
       return {
-        memory: "Your social circle is growing meaningfully. Each connection represents a shared moment and potential for deeper friendship.",
+        memory: "Your social network is growing meaningfully. Each connection represents a shared moment and potential for deeper friendship.",
         type: 'friends' as const
       };
     }

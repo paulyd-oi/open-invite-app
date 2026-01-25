@@ -474,7 +474,7 @@ export default function EditEventScreen() {
                   className="ml-2 font-medium"
                   style={{ color: visibility === "specific_groups" ? "#4ECDC4" : colors.textSecondary }}
                 >
-                  Circles
+                  Groups
                 </Text>
               </Pressable>
               <Pressable
@@ -500,13 +500,13 @@ export default function EditEventScreen() {
               </Pressable>
             </View>
 
-            {/* Circle Selection */}
+            {/* Group Selection */}
             {visibility === "specific_groups" && (
               <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Circles</Text>
+                <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Groups</Text>
                 {circles.length === 0 ? (
                   <Text style={{ color: colors.textTertiary }} className="text-center py-4">
-                    No circles yet. Create circles from Friends tab!
+                    No groups yet. Create groups from Friends tab!
                   </Text>
                 ) : (
                   circles.map((circle: Circle) => (

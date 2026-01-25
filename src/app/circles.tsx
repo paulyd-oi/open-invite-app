@@ -129,7 +129,7 @@ export default function CirclesScreen() {
           {isLoading ? (
             <View className="py-12">
               <Text className="text-center" style={{ color: colors.textTertiary }}>
-                Syncing your circles…
+                Syncing your groups…
               </Text>
             </View>
           ) : circles.length === 0 ? (
@@ -138,15 +138,15 @@ export default function CirclesScreen() {
                 <Users size={32} color={colors.textTertiary} />
               </View>
               <Text className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
-                No circles yet
+                No groups yet
               </Text>
               {guidanceLoaded && shouldShowEmptyGuidanceSync("join_circle") && (
                 <Text className="text-center mb-4 px-8" style={{ color: colors.textSecondary }}>
-                  Circles keep invites simple and private.
+                  Groups keep invites simple and private.
                 </Text>
               )}
               <Pressable onPress={handleCreateCircle} className="px-6 py-3 rounded-full" style={{ backgroundColor: themeColor }}>
-                <Text className="text-white font-semibold">Create your first circle</Text>
+                <Text className="text-white font-semibold">Create your first group</Text>
               </Pressable>
             </View>
           ) : (

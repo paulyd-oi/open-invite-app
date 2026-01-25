@@ -282,7 +282,7 @@ export function CreateCircleModal({
                     <View className="py-8 items-center">
                       <Users size={32} color={colors.textTertiary} />
                       <Text className="mt-2 text-center" style={{ color: colors.textSecondary }}>
-                        {searchQuery ? "No friends found" : "Add friends to create a circle"}
+                        {searchQuery ? "No friends found" : "Add friends to create a group"}
                       </Text>
                     </View>
                   )}
