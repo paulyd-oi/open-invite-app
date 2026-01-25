@@ -261,8 +261,7 @@ export default function DiscoverScreen() {
             className="flex-row items-center px-4 py-2 rounded-full"
             style={{ backgroundColor: themeColor }}
           >
-            <Plus size={16} color="#fff" />
-            <Text className="text-white font-semibold ml-1.5">Create</Text>
+            <Text className="text-white font-semibold">Create</Text>
           </Pressable>
         </View>
 
@@ -569,7 +568,7 @@ export default function DiscoverScreen() {
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/user/${friend.id}`);
+                      router.push(`/friend/${friend.id}`);
                     }}
                     className="rounded-xl p-4"
                     style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}

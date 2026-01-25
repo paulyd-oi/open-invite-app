@@ -817,8 +817,7 @@ export default function SocialScreen() {
             className="flex-row items-center px-4 py-2 rounded-full ml-2"
             style={{ backgroundColor: themeColor }}
           >
-            <Plus size={18} color="#FFFFFF" />
-            <Text className="text-white font-sora-semibold ml-1.5">Create</Text>
+            <Text className="text-white font-sora-semibold">Create</Text>
           </Pressable>
         </View>
       </View>
