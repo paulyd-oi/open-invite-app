@@ -237,10 +237,14 @@ export function QuickEventButton() {
 
                   {/* Back button */}
                   <Pressable
-                    onPress={() => setSelectedTemplate(null)}
-                    className="py-3 mt-2"
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedTemplate(null);
+                    }}
+                    className="py-4 mt-2 rounded-xl"
+                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
                   >
-                    <Text className="text-center font-medium" style={{ color: colors.textSecondary }}>
+                    <Text className="text-center font-semibold" style={{ color: colors.textSecondary }}>
                       ← Choose different activity
                     </Text>
                   </Pressable>

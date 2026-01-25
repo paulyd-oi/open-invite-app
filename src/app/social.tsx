@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "expo-router";
-import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users } from "@/ui/icons";
+import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
 import * as Haptics from "expo-haptics";
@@ -808,6 +808,16 @@ export default function SocialScreen() {
           <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>
         </View>
         <View className="flex-row items-center">
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/create");
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center mr-2"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Plus size={22} color="#FFFFFF" />
+          </Pressable>
           <ShareAppButton variant="icon" />
         </View>
       </View>

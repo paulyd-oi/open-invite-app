@@ -708,10 +708,13 @@ export default function CreateEventScreen() {
                     <TextInput
                       value={customEmojiInput}
                       onChangeText={(text) => {
-                        // Only keep the last emoji character entered
-                        const emojis = [...text].filter((char) => {
-                          const codePoint = char.codePointAt(0) || 0;
-                          return codePoint > 127;
+                        // Use segmenter to properly handle multi-codepoint emojis (like ✝️, 🙏, flags, etc.)
+                        const segments = [...new Intl.Segmenter().segment(text)].map(s => s.segment);
+                        // Filter to only emoji (non-ASCII graphemes that aren't just whitespace)
+                        const emojis = segments.filter((segment) => {
+                          // Check if this grapheme is likely an emoji (not basic ASCII)
+                          const firstCode = segment.codePointAt(0) || 0;
+                          return firstCode > 127 && segment.trim().length > 0;
                         });
                         if (emojis.length > 0) {
                           const lastEmoji = emojis[emojis.length - 1];
@@ -1008,7 +1011,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  display="spinner"
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1017,7 +1020,6 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1036,7 +1038,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="time"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  display="spinner"
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1045,7 +1047,6 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
-                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1065,7 +1066,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={endDate}
                   mode="date"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  display="spinner"
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1077,7 +1078,6 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
-                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1097,7 +1097,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={endDate}
                   mode="time"
-                  display={Platform.OS === "ios" ? "compact" : "default"}
+                  display="spinner"
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1109,7 +1109,6 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
-                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1404,22 +1403,42 @@ export default function CreateEventScreen() {
                   Haptics.selectionAsync();
                   setHasCapacity(value);
                   if (!value) setCapacityInput("");
+                  else if (!capacityInput) setCapacityInput("6");
                 }}
                 trackColor={{ false: colors.separator, true: `${themeColor}80` }}
                 thumbColor={hasCapacity ? themeColor : colors.textTertiary}
               />
             </View>
             {hasCapacity && (
-              <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <TextInput
-                  value={capacityInput}
-                  onChangeText={(text) => setCapacityInput(text.replace(/[^0-9]/g, ""))}
-                  placeholder="e.g. 6"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="number-pad"
-                  className="text-base"
-                  style={{ color: colors.text }}
-                />
+              <View className="rounded-xl p-3 mb-4 flex-row items-center justify-between" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ color: colors.textSecondary }} className="text-sm">Max guests</Text>
+                <View className="flex-row items-center">
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      const current = parseInt(capacityInput) || 2;
+                      if (current > 2) setCapacityInput(String(current - 1));
+                    }}
+                    className="w-10 h-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: colors.background }}
+                  >
+                    <Text style={{ color: parseInt(capacityInput || "2") <= 2 ? colors.textTertiary : colors.text }} className="text-xl font-medium">−</Text>
+                  </Pressable>
+                  <Text style={{ color: colors.text }} className="text-lg font-semibold mx-4 min-w-[32px] text-center">
+                    {capacityInput || "2"}
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      const current = parseInt(capacityInput) || 2;
+                      if (current < 100) setCapacityInput(String(current + 1));
+                    }}
+                    className="w-10 h-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: colors.background }}
+                  >
+                    <Text style={{ color: parseInt(capacityInput || "2") >= 100 ? colors.textTertiary : themeColor }} className="text-xl font-medium">+</Text>
+                  </Pressable>
+                </View>
               </View>
             )}
           </Animated.View>

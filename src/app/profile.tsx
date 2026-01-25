@@ -474,50 +474,6 @@ export default function ProfileScreen() {
           </Animated.View>
         )}
 
-        {/* Top 3 Friends */}
-        {topFriends.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(150).springify()} className="mb-4">
-            <View className="flex-row items-center mb-2">
-              <Heart size={16} color="#FF6B6B" />
-              <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
-                Top Friends
-              </Text>
-            </View>
-            <View className="rounded-xl p-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              {topFriends.map((friend, index) => (
-                <View
-                  key={friend.id}
-                  className={`flex-row items-center ${index < topFriends.length - 1 ? "mb-3 pb-3 border-b" : ""}`}
-                  style={{ borderBottomColor: colors.border }}
-                >
-                  <View className="w-8 h-8 rounded-full items-center justify-center mr-3" style={{ backgroundColor: index === 0 ? "#FFD70030" : index === 1 ? "#C0C0C030" : "#CD7F3230" }}>
-                    <Text className="text-lg">{index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}</Text>
-                  </View>
-                  <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                    {friend.image ? (
-                      <Image source={{ uri: friend.image }} className="w-full h-full" />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
-                        <Text style={{ color: themeColor }} className="text-sm font-medium">
-                          {friend.name?.[0] ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-semibold" style={{ color: colors.text }}>
-                      {friend.name ?? "Unknown"}
-                    </Text>
-                    <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                      {friend.eventsCount} events together
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
         {/* Badges */}
         <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
           <Pressable

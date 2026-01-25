@@ -1620,13 +1620,19 @@ export default function CircleScreen() {
                 </Text>
               </View>
 
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
                 {/* Members List */}
                 {members.map((member, idx) => {
                   const isHostOfCircle = circle?.createdById === member.userId;
                   return (
-                    <View
+                    <Pressable
                       key={member.userId}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setShowMembersSheet(false);
+                        setSelectedFriends([]);
+                        router.push(`/user/${member.userId}`);
+                      }}
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
@@ -1669,7 +1675,10 @@ export default function CircleScreen() {
                           )}
                         </View>
                       </View>
-                    </View>
+                      
+                      {/* Chevron indicator */}
+                      <ChevronRight size={18} color={colors.textTertiary} />
+                    </Pressable>
                   );
                 })}
 

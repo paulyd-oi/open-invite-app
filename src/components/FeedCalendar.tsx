@@ -580,16 +580,19 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
                   <View className="items-center py-8">
                     <Text className="text-4xl mb-3">📅</Text>
                     <Text className="text-base" style={{ color: colors.textSecondary }}>No events on this day</Text>
-                    <Pressable
-                      onPress={() => {
-                        setShowDayModal(false);
-                        router.push(`/create?date=${selectedDate?.toISOString()}`);
-                      }}
-                      className="flex-row items-center mt-4 px-5 py-3 rounded-full"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Text className="text-white font-semibold">Create Event</Text>
-                    </Pressable>
+                    {/* Only show Create Event button for today and future dates */}
+                    {selectedDate && selectedDate >= new Date(new Date().setHours(0, 0, 0, 0)) && (
+                      <Pressable
+                        onPress={() => {
+                          setShowDayModal(false);
+                          router.push(`/create?date=${selectedDate?.toISOString()}`);
+                        }}
+                        className="flex-row items-center mt-4 px-5 py-3 rounded-full"
+                        style={{ backgroundColor: themeColor }}
+                      >
+                        <Text className="text-white font-semibold">Create Event</Text>
+                      </Pressable>
+                    )}
                   </View>
                 ) : (
                   selectedDateEvents.map((event, idx) => (

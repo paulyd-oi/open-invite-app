@@ -395,7 +395,13 @@ export default function UserProfileScreen() {
     enabled: bootStatus === 'authed' && !!data?.friendshipId && data.isFriend,
   });
 
-  const friendEvents = friendEventsData?.events ?? [];
+  // Filter to only show today + future events (exclude past)
+  const friendEvents = useMemo(() => {
+    const events = friendEventsData?.events ?? [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return events.filter(event => new Date(event.startTime) >= today);
+  }, [friendEventsData?.events]);
 
   const groups = groupsData?.groups ?? [];
 

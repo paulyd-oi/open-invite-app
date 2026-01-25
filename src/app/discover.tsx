@@ -14,7 +14,6 @@ import { useRouter, Stack } from "expo-router";
 import {
   MapPin,
   Users,
-  Flame,
   Heart,
   ChevronRight,
   Clock,
@@ -22,6 +21,7 @@ import {
   Plus,
   X,
   TrendingUp,
+  Star,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -40,15 +40,6 @@ interface ReconnectFriend {
   avatarUrl: string | null;
   lastHangoutAt: string | null;
   daysSinceHangout: number | null;
-}
-
-interface Streak {
-  friend: { id: string; name: string | null; image: string | null };
-  friendshipId: string;
-  totalHangouts: number;
-  lastHangout: string | null;
-  currentStreak: number;
-  longestStreak: number;
 }
 
 interface NearbyEvent {
@@ -88,7 +79,7 @@ interface EventTemplate {
   isDefault: boolean;
 }
 
-type FriendsTab = "suggestions" | "popular" | "streaks";
+type FriendsTab = "suggestions" | "popular" | "top_friends";
 
 // 14-day dismiss cooldown for reconnect tiles
 const RECONNECT_DISMISS_DAYS = 14;
@@ -109,9 +100,10 @@ export default function DiscoverScreen() {
     enabled: bootStatus === 'authed',
   });
 
-  const { data: streaksData, isLoading: loadingStreaks, refetch: refetchStreaks } = useQuery({
-    queryKey: ["streaks"],
-    queryFn: () => api.get<{ streaks: Streak[] }>("/api/events/streaks"),
+  // Fetch profile stats for top friends
+  const { data: topFriendsData, isLoading: loadingTopFriends, refetch: refetchTopFriends } = useQuery({
+    queryKey: ["profile-stats"],
+    queryFn: () => api.get<{ topFriends: Array<{ id: string; name: string | null; image: string | null; eventsCount: number }> }>("/api/profile/stats"),
     enabled: bootStatus === 'authed',
   });
 
@@ -205,7 +197,7 @@ export default function DiscoverScreen() {
       .slice(0, 15);
   }, [rawReconnectFriends, dismissedFriendIds]);
   
-  const streaks = (streaksData?.streaks ?? []).filter(s => s.friend != null);
+  const topFriends = topFriendsData?.topFriends ?? [];
   const templates = templatesData?.templates ?? [];
 
   // Filter and sort popular events:
@@ -241,7 +233,7 @@ export default function DiscoverScreen() {
 
   const handleRefresh = () => {
     if (friendsTab === "suggestions") refetchReconnect();
-    else if (friendsTab === "streaks") refetchStreaks();
+    else if (friendsTab === "top_friends") refetchTopFriends();
     else refetchPopular();
   };
 
@@ -261,7 +253,7 @@ export default function DiscoverScreen() {
     router.push(`/create?template=${template.id}&emoji=${encodeURIComponent(template.emoji)}&title=${encodeURIComponent(template.name)}&duration=${template.duration}` as any);
   };
 
-  const isLoading = friendsTab === "suggestions" ? loadingReconnect : friendsTab === "streaks" ? loadingStreaks : loadingPopular;
+  const isLoading = friendsTab === "suggestions" ? loadingReconnect : friendsTab === "top_friends" ? loadingTopFriends : loadingPopular;
 
   if (!session) {
     return (
@@ -303,7 +295,7 @@ export default function DiscoverScreen() {
           {[
             { id: "suggestions", label: "Reconnect", icon: Heart },
             { id: "popular", label: "Popular", icon: TrendingUp },
-            { id: "streaks", label: "Streaks", icon: Flame },
+            { id: "top_friends", label: "Top Friends", icon: Star },
           ].map((tab) => {
             const isActive = friendsTab === tab.id;
             const Icon = tab.icon;
@@ -567,87 +559,76 @@ export default function DiscoverScreen() {
             )}
           </>
         ) : (
-          /* Hangout Streaks */
+          /* Top Friends */
           <>
             <Animated.View entering={FadeInDown.springify()} className="mb-4">
               <View className="flex-row items-center mb-1">
-                <Flame size={16} color="#F97316" />
+                <Star size={16} color="#FFD700" />
                 <Text className="font-medium ml-2" style={{ color: colors.textSecondary }}>
-                  Keep the momentum going
+                  Friends you hang out with most
                 </Text>
               </View>
             </Animated.View>
 
-            {streaks.length === 0 ? (
+            {topFriends.length === 0 ? (
               <View
                 className="rounded-xl p-8 items-center"
                 style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
               >
-                <Flame size={40} color={colors.textTertiary} />
+                <Star size={40} color={colors.textTertiary} />
                 <Text className="mt-4 text-center font-semibold" style={{ color: colors.text }}>
-                  No streaks yet
+                  No top friends yet
                 </Text>
                 <Text className="mt-2 text-center" style={{ color: colors.textSecondary }}>
-                  Start hanging out with friends to build streaks!
+                  Attend events with friends to see who you hang out with most!
                 </Text>
               </View>
             ) : (
-              streaks.map((item, index) => (
+              topFriends.map((friend, index) => (
                 <Animated.View
-                  key={item.friendshipId}
+                  key={friend.id}
                   entering={FadeInDown.delay(index * 50).springify()}
                   className="mb-3"
                 >
                   <Pressable
-                    onPress={() => handleFriendPress(item.friendshipId)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/user/${friend.id}`);
+                    }}
                     className="rounded-xl p-4"
                     style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
                   >
                     <View className="flex-row items-center">
+                      <View className="w-8 h-8 rounded-full items-center justify-center mr-3" style={{ backgroundColor: index === 0 ? "#FFD70030" : index === 1 ? "#C0C0C030" : index === 2 ? "#CD7F3230" : `${themeColor}20` }}>
+                        <Text className="text-lg">{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`}</Text>
+                      </View>
                       <View
                         className="w-14 h-14 rounded-full overflow-hidden mr-4"
                         style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
                       >
-                        {item.friend?.image ? (
-                          <Image source={{ uri: item.friend.image }} className="w-full h-full" />
+                        {friend.image ? (
+                          <Image source={{ uri: friend.image }} className="w-full h-full" />
                         ) : (
                           <View
                             className="w-full h-full items-center justify-center"
                             style={{ backgroundColor: themeColor + "30" }}
                           >
                             <Text className="text-xl font-bold" style={{ color: themeColor }}>
-                              {item.friend?.name?.[0] ?? "?"}
+                              {friend.name?.[0] ?? "?"}
                             </Text>
                           </View>
                         )}
                       </View>
                       <View className="flex-1">
                         <Text className="font-semibold text-base" style={{ color: colors.text }}>
-                          {item.friend?.name ?? "Unknown"}
+                          {friend.name ?? "Unknown"}
                         </Text>
                         <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                          {item.totalHangouts} hangouts total
+                          {friend.eventsCount} events together
                         </Text>
                       </View>
-                      <View className="items-end">
-                        <View className="flex-row items-center">
-                          <Flame size={18} color="#F97316" />
-                          <Text className="text-xl font-bold ml-1" style={{ color: "#F97316" }}>
-                            {item.currentStreak}
-                          </Text>
-                        </View>
-                        <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                          week streak
-                        </Text>
-                      </View>
+                      <ChevronRight size={20} color={colors.textTertiary} />
                     </View>
-                    {item.longestStreak > item.currentStreak && (
-                      <View className="mt-2 pt-2 border-t" style={{ borderColor: colors.border }}>
-                        <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                          Best streak: {item.longestStreak} weeks
-                        </Text>
-                      </View>
-                    )}
                   </Pressable>
                 </Animated.View>
               ))
