@@ -705,6 +705,8 @@ export default function CircleScreen() {
   const [showMembersSheet, setShowMembersSheet] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<string | null>(null);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionText, setDescriptionText] = useState("");
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
     newMemberName: string;
     existingMemberName: string;
@@ -805,6 +807,27 @@ export default function CircleScreen() {
     },
   });
 
+  // Update circle mutation (for description editing)
+  const updateCircleMutation = useMutation({
+    mutationFn: (updates: { description?: string }) =>
+      api.put<{ circle: Circle }>(`/api/circles/${id}`, updates),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Saved", "Description updated");
+      queryClient.invalidateQueries({ queryKey: ["circle", id] });
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      setEditingDescription(false);
+    },
+    onError: (error: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (error?.status === 403) {
+        safeToast.error("Not Allowed", "Only the host can edit this.");
+      } else {
+        safeToast.error("Error", "Failed to update. Please try again.");
+      }
+    },
+  });
+
   // Mark as read when component mounts or when id changes
   useEffect(() => {
     if (session && id) {
@@ -813,6 +836,7 @@ export default function CircleScreen() {
   }, [session, id]);
 
   const circle = data?.circle;
+  const isHost = circle?.createdById === session?.user?.id;
 
   // Check if new members need friend suggestions
   const checkFriendSuggestions = (newMemberIds: string[]) => {
@@ -1494,6 +1518,77 @@ export default function CircleScreen() {
                     {members.length} member{members.length !== 1 ? "s" : ""}
                   </Text>
                 </View>
+              </View>
+
+              {/* Description Section */}
+              <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.textSecondary }}>Description</Text>
+                  {isHost && !editingDescription && (
+                    <Pressable
+                      onPress={() => {
+                        setDescriptionText(circle?.description ?? "");
+                        setEditingDescription(true);
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: "500", color: themeColor }}>Edit</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {editingDescription && isHost ? (
+                  <View>
+                    <TextInput
+                      value={descriptionText}
+                      onChangeText={(text) => setDescriptionText(text.slice(0, 160))}
+                      placeholder="Add a group description..."
+                      placeholderTextColor={colors.textTertiary}
+                      multiline
+                      maxLength={160}
+                      style={{
+                        backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                        borderRadius: 12,
+                        padding: 12,
+                        color: colors.text,
+                        fontSize: 15,
+                        minHeight: 60,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                      <Text style={{ fontSize: 12, color: colors.textTertiary }}>{descriptionText.length}/160</Text>
+                      <View style={{ flexDirection: "row" }}>
+                        <Pressable
+                          onPress={() => setEditingDescription(false)}
+                          style={{ paddingHorizontal: 16, paddingVertical: 8, marginRight: 8 }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary }}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => {
+                            const newDescription = descriptionText.trim() || undefined;
+                            updateCircleMutation.mutate({ description: newDescription ?? "" });
+                          }}
+                          disabled={updateCircleMutation.isPending}
+                          style={{
+                            backgroundColor: themeColor,
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            opacity: updateCircleMutation.isPending ? 0.5 : 1,
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
+                            {updateCircleMutation.isPending ? "Saving..." : "Save"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={{ fontSize: 15, color: circle?.description ? colors.text : colors.textTertiary, fontStyle: circle?.description ? "normal" : "italic" }}>
+                    {circle?.description ?? (isHost ? "Tap Edit to add a description" : "No description")}
+                  </Text>
+                )}
               </View>
 
               {/* Settings Options */}

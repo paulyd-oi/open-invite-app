@@ -183,7 +183,16 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
               <Text className="text-base font-semibold" style={{ color: colors.text }}>
                 {circle.name}
               </Text>
-              <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
+              {circle.description && (
+                <Text
+                  className="text-sm mt-0.5"
+                  style={{ color: colors.textSecondary }}
+                  numberOfLines={2}
+                >
+                  {circle.description}
+                </Text>
+              )}
+              <Text className="text-xs mt-0.5" style={{ color: colors.textTertiary }}>
                 {members.length} member{members.length !== 1 ? "s" : ""}
                 {(circle.messageCount ?? 0) > 0 && ` · ${circle.messageCount} messages`}
               </Text>
