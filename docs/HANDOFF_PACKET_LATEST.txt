@@ -1,53 +1,54 @@
-HANDOFF PACKET — Instant Feedback on Primary Actions
-=====================================================
+HANDOFF PACKET — Spacing and Divider Polish
+============================================
 
 SUMMARY
 -------
-Added instant tap feedback on primary actions so the app feels responsive and trustworthy.
-No new UI surfaces, no new flows — only localized changes to action buttons.
-Uses existing mutation.isPending flags with visible indicators.
+Increased perceived quality by adding breathing room between major sections.
+No new components, no navigation changes, no behavior changes.
+Minimal diff — only padding/margin adjustments.
 
 FILES CHANGED
 -------------
-1. src/app/event/[id].tsx — RSVP inline "Updating…" indicator
-2. src/components/CreateCircleModal.tsx — ActivityIndicator when creating
+1. src/app/calendar.tsx
+2. src/app/social.tsx
+3. src/app/circles.tsx
+4. docs/STATE_OF_THE_APP.md
 
-ACTION-BY-ACTION BEHAVIOR (before → after)
-------------------------------------------
+WHAT VISUALLY CHANGED (per screen)
+----------------------------------
 
-A) RSVP on Event Detail (src/app/event/[id].tsx)
-   BEFORE: Buttons disabled with 0.6 opacity when pending, no text indicator
-   AFTER:  Buttons disabled + inline "Updating…" banner with ActivityIndicator at top of RSVP options
+Calendar (src/app/calendar.tsx):
+- Selected Date Events section: mt-4 to mt-6, mb-3 to mb-4 (more breathing room after calendar grid)
+- Event list date headers: mt-4 to mt-5, mb-2 to mb-3 (more space between date groups)
 
-B) Create Circle (src/components/CreateCircleModal.tsx)
-   BEFORE: Check icon button disabled when pending, no visual change
-   AFTER:  Check icon replaced with ActivityIndicator spinner, button opacity reduced to 0.7
+Social Feed (src/app/social.tsx):
+- Page header: pt-2 pb-4 to pt-4 pb-5 (less crowded top area)
+- Event sections: mb-4 to mb-6 (more separation between time groups)
+- Section titles: mb-3 to mb-4 (breathing room before first card)
 
-C) Create Invite (src/app/create.tsx)
-   ✅ ALREADY HAD: "Creating..." text on button when pending
+Circles (src/app/circles.tsx):
+- Page header: pb-4 to pb-6 (more space before content area)
 
-D) Edit Event (src/app/event/edit/[id].tsx)
-   ✅ ALREADY HAD: "Saving..." on save button, "Deleting..." on delete button
-
-HOW TO TEST (manual)
---------------------
-1. RSVP: Go to any event detail → tap "You're In" → see "Updating…" banner appear with spinner
-2. Create Circle: Open circles tab → tap Create → fill form → tap checkmark → see spinner replace checkmark
-3. Create Event: Go to create screen → fill form → tap "Create Open Invite" → see "Creating..." text
-4. Edit Event: Go to edit screen → make change → tap Save → see "Saving..." text
+HOW TO SPOT CHECK (manual)
+--------------------------
+1. Open Calendar tab - verify more space between calendar and "Selected Date Events" title
+2. Open Social tab - verify header doesn't feel cramped at top
+3. Open Social tab - verify "Today", "Tomorrow", etc. sections have breathing room
+4. Open Circles tab - verify header has comfortable spacing to first circle card
 
 VERIFY RESULTS
 --------------
-✅ npm run typecheck — PASS
-✅ bash scripts/ai/verify_frontend.sh — PASS
+npm run typecheck — PASS
+bash scripts/ai/verify_frontend.sh — PASS
 
 COMMIT HASH
 -----------
-73f5285
+0f15c95
 
 IMPLEMENTATION NOTES
 --------------------
-- Used existing rsvpMutation.isPending and createCircleMutation.isPending flags
-- No new state variables introduced
-- ActivityIndicator already imported in event/[id].tsx, added to CreateCircleModal.tsx
-- Haptics remain unchanged (already present)
+- No double dividers found — existing patterns are clean
+- Used only className spacing utilities (mt-X, mb-X, pt-X, pb-X)
+- No new colors, shadows, or animations added
+- Event detail (src/app/event/[id].tsx) already had good spacing — no changes needed
+

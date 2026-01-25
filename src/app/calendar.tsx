@@ -1086,7 +1086,7 @@ function ListView({
     <View className="px-5">
       {eventsByDate.map(({ date, events: dateEvents }, idx) => (
         <Animated.View key={date.toISOString()} entering={FadeInDown.delay(idx * 50)}>
-          <View className="flex-row items-center mb-2 mt-4">
+          <View className="flex-row items-center mb-3 mt-5">
             <View
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
               style={{ backgroundColor: `${themeColor}15` }}
@@ -2157,8 +2157,8 @@ export default function CalendarScreen() {
             </GestureDetector>
 
             {/* Selected Date Events */}
-            <View className="px-5 mt-4">
-              <View className="flex-row items-center justify-between mb-3">
+            <View className="px-5 mt-6">
+              <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-lg font-semibold" style={{ color: colors.text }}>
                   {selectedDate.toLocaleDateString("en-US", {
                     weekday: "long",

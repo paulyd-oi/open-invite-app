@@ -242,8 +242,8 @@ function EventSection({
   if (events.length === 0) return null;
 
   return (
-    <View className="mb-4">
-      <Text style={{ color: colors.text }} className="text-lg font-sora-semibold mb-3">{title}</Text>
+    <View className="mb-6">
+      <Text style={{ color: colors.text }} className="text-lg font-sora-semibold mb-4">{title}</Text>
       {events.map((event, index) => (
         <EventCard
           key={event.id}
@@ -789,7 +789,7 @@ export default function SocialScreen() {
   return (
     <AuthProvider state="authed">
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
+        <View className="px-5 pt-4 pb-5 flex-row items-center justify-between">
         <View>
           <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
           <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>

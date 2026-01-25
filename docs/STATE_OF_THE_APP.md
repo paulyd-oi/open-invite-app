@@ -13,11 +13,13 @@
 - First-session inline guidance: time-gated (30 min) empty-state hints
 - Human-friendly error toasts: no raw codes, calm microcopy across all screens
 - Instant feedback on primary actions: RSVP, Create Circle, Create/Edit Event
+- Spacing polish: breathing room between sections, header spacing, list spacing
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- Spacing polish: increased vertical breathing room on calendar, social feed, circles screens
 - Instant feedback on primary actions: RSVP shows "Updating…", Create Circle shows ActivityIndicator
 - Error message UX: Humanized all user-facing error toasts with calm, non-alarming copy
 - Calendar empty state: Added "Invite a friend" CTA with native share sheet
