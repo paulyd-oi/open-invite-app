@@ -808,17 +808,18 @@ export default function SocialScreen() {
           <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>
         </View>
         <View className="flex-row items-center">
+          <ShareAppButton variant="icon" />
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/create");
             }}
-            className="w-10 h-10 rounded-full items-center justify-center mr-2"
+            className="flex-row items-center px-4 py-2 rounded-full ml-2"
             style={{ backgroundColor: themeColor }}
           >
-            <Plus size={22} color="#FFFFFF" />
+            <Plus size={18} color="#FFFFFF" />
+            <Text className="text-white font-sora-semibold ml-1.5">Create</Text>
           </Pressable>
-          <ShareAppButton variant="icon" />
         </View>
       </View>
 

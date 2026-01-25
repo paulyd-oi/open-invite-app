@@ -1011,7 +1011,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1020,6 +1020,7 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1038,7 +1039,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={startDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1047,6 +1048,7 @@ export default function CreateEventScreen() {
                     }
                     if (date) setStartDate(date);
                   }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1066,7 +1068,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={endDate}
                   mode="date"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1078,6 +1080,7 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
@@ -1097,7 +1100,7 @@ export default function CreateEventScreen() {
                 <DateTimePicker
                   value={endDate}
                   mode="time"
-                  display="spinner"
+                  display={Platform.OS === "ios" ? "compact" : "default"}
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, date) => {
@@ -1109,6 +1112,7 @@ export default function CreateEventScreen() {
                       setUserModifiedEndTime(true);
                     }
                   }}
+                  style={Platform.OS === "ios" ? { alignSelf: "center" } : undefined}
                 />
                 {Platform.OS === "ios" && (
                   <Pressable
