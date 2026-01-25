@@ -23,6 +23,12 @@
 - None currently known
 
 ## Fixed This Session
+- Birthday card navigation: Upcoming birthdays on calendar now tap to open User Profile
+- Dark mode Friend Profile header: Added headerTintColor and headerTitleStyle for contrast
+- Friend Profile bio display: Shows bio field when present (in addition to calendarBio)
+- Social feed 14-day count: "X plans in the next 14 days" instead of all events
+
+## Previously Fixed
 - Apple Sign-In error handling: added decodeAppleAuthError() for user-friendly messages
 - Apple Sign-In AUTH_TRACE: detailed logging of credential validation and backend response
 - Onboarding session checks: removed auto-redirect to /login on transient errors

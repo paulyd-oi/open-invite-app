@@ -1,53 +1,64 @@
-HANDOFF PACKET — Spacing and Divider Polish
-============================================
+HANDOFF PACKET — UX Polish: Birthday Navigation + Dark Header + Bio + 14-Day Count
+==================================================================================
 
 SUMMARY
 -------
-Increased perceived quality by adding breathing room between major sections.
-No new components, no navigation changes, no behavior changes.
-Minimal diff — only padding/margin adjustments.
+Four UX improvements from TestFlight inventory:
+1. Birthday cards in calendar now navigate to User Profile on tap
+2. Friend Profile header text visible in dark mode (headerTintColor/headerTitleStyle)
+3. Friend Profile shows bio field when present (in addition to calendarBio)
+4. Social feed count changed from "X plans happening soon" to "X plans in next 14 days"
 
 FILES CHANGED
 -------------
-1. src/app/calendar.tsx
-2. src/app/social.tsx
-3. src/app/circles.tsx
-4. docs/STATE_OF_THE_APP.md
+1. src/app/calendar.tsx — Birthday card tap navigation to /user/[id]
+2. src/app/friend/[id].tsx — Dark mode header + bio display
+3. src/app/social.tsx — 14-day plans count filter
+4. docs/STATE_OF_THE_APP.md — Updated session fixes
 
-WHAT VISUALLY CHANGED (per screen)
-----------------------------------
+WHAT CHANGED (per file)
+-----------------------
 
-Calendar (src/app/calendar.tsx):
-- Selected Date Events section: mt-4 to mt-6, mb-3 to mb-4 (more breathing room after calendar grid)
-- Event list date headers: mt-4 to mt-5, mb-2 to mb-3 (more space between date groups)
+calendar.tsx:
+- UpcomingBirthdaysSection: Added useRouter hook
+- Birthday cards: Changed from View to Pressable
+- Tap handler: Navigates to /user/{friendId} (not own birthday)
+- Visual affordance: ChevronRight added for navigable items
 
-Social Feed (src/app/social.tsx):
-- Page header: pt-2 pb-4 to pt-4 pb-5 (less crowded top area)
-- Event sections: mb-4 to mb-6 (more separation between time groups)
-- Section titles: mb-3 to mb-4 (breathing room before first card)
+friend/[id].tsx:
+- Stack.Screen options: Added headerTintColor={colors.text}
+- Stack.Screen options: Added headerTitleStyle={{ color: colors.text }}
+- Profile card: Added {friend.Profile?.bio} display after handle, before calendarBio section
 
-Circles (src/app/circles.tsx):
-- Page header: pb-4 to pb-6 (more space before content area)
+social.tsx:
+- New memo: plansIn14Days — filters allEvents to next 14 days
+- Micro Social Proof Line: Changed from allEvents.length to plansIn14Days
+- Copy changed: "X plans happening soon" → "X plans in the next 14 days"
 
-HOW TO SPOT CHECK (manual)
---------------------------
-1. Open Calendar tab - verify more space between calendar and "Selected Date Events" title
-2. Open Social tab - verify header doesn't feel cramped at top
-3. Open Social tab - verify "Today", "Tomorrow", etc. sections have breathing room
-4. Open Circles tab - verify header has comfortable spacing to first circle card
+HOW TO VERIFY
+-------------
+1. Calendar → Upcoming Birthdays section → Tap friend's birthday → Should open User Profile
+2. Friends → Tap friend → Friend Profile → Toggle to dark mode → Header title should be visible
+3. Friend Profile → If friend has bio set, should display above "My calendar looks like..."
+4. Social tab → See "X plans in the next 14 days" (only counts events within 14 days)
 
 VERIFY RESULTS
 --------------
 npm run typecheck — PASS
-bash scripts/ai/verify_frontend.sh — PASS
-
-COMMIT HASH
------------
-0f15c95
+No TypeScript errors in modified files
 
 IMPLEMENTATION NOTES
 --------------------
-- No double dividers found — existing patterns are clean
+- Birthday cards navigate to /user/[id] (User Profile) not /friend/[id] (Friend Profile)
+  because the birthday API returns userId, not friendshipId. User Profile supports
+  friend request functionality if not yet friends.
+- Own birthday ("My Birthday") is not tappable (disabled)
+- 14-day filter uses Date math: now + 14 * 24 * 60 * 60 * 1000
+
+NEXT STEPS
+----------
+- Consider adding friendshipId to /api/birthdays response for direct Friend Profile navigation
+- TestFlight validation of all 4 fixes
 - Used only className spacing utilities (mt-X, mb-X, pt-X, pb-X)
 - No new colors, shadows, or animations added
 - Event detail (src/app/event/[id].tsx) already had good spacing — no changes needed

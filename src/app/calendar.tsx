@@ -898,7 +898,7 @@ function UpcomingBirthdaysSection({
   colors,
 }: {
   upcomingBirthdays: Array<{
-    id: string;
+    id: string; // This is the friend's userId
     name: string | null;
     image: string | null;
     birthday: string;
@@ -910,6 +910,7 @@ function UpcomingBirthdaysSection({
   }>;
   colors: typeof DARK_COLORS;
 }) {
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (upcomingBirthdays.length === 0) {
@@ -954,10 +955,19 @@ function UpcomingBirthdaysSection({
             {upcomingBirthdays.map((bday, idx) => {
               const isToday = bday.daysUntil === 0;
               const isTomorrow = bday.daysUntil === 1;
+              const canNavigate = !bday.isOwnBirthday;
 
               return (
-                <View
+                <Pressable
                   key={bday.id}
+                  onPress={() => {
+                    if (canNavigate) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      // Navigate to user profile using friend's userId
+                      router.push(`/user/${bday.id}` as any);
+                    }
+                  }}
+                  disabled={!canNavigate}
                   className="flex-row items-center p-3"
                   style={{
                     borderTopWidth: idx > 0 ? 1 : 0,
@@ -985,28 +995,33 @@ function UpcomingBirthdaysSection({
                     </Text>
                   </View>
 
-                  {/* Days until */}
-                  <View className="items-end">
-                    {isToday ? (
-                      <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B4" }}>
-                        <Text className="text-xs font-bold text-white">TODAY!</Text>
-                      </View>
-                    ) : isTomorrow ? (
-                      <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B430" }}>
-                        <Text className="text-xs font-semibold" style={{ color: "#FF69B4" }}>Tomorrow</Text>
-                      </View>
-                    ) : (
-                      <View className="items-end">
-                        <Text className="text-sm font-semibold" style={{ color: "#FF69B4" }}>
-                          {bday.nextBirthday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </Text>
-                        <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                          in {bday.daysUntil} days
-                        </Text>
-                      </View>
+                  {/* Days until + chevron for navigable */}
+                  <View className="flex-row items-center">
+                    <View className="items-end">
+                      {isToday ? (
+                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B4" }}>
+                          <Text className="text-xs font-bold text-white">TODAY!</Text>
+                        </View>
+                      ) : isTomorrow ? (
+                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B430" }}>
+                          <Text className="text-xs font-semibold" style={{ color: "#FF69B4" }}>Tomorrow</Text>
+                        </View>
+                      ) : (
+                        <View className="items-end">
+                          <Text className="text-sm font-semibold" style={{ color: "#FF69B4" }}>
+                            {bday.nextBirthday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </Text>
+                          <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                            in {bday.daysUntil} days
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {canNavigate && (
+                      <ChevronRight size={16} color={colors.textTertiary} style={{ marginLeft: 8 }} />
                     )}
                   </View>
-                </View>
+                </Pressable>
               );
             })}
           </View>

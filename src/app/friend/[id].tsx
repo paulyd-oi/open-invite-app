@@ -465,6 +465,8 @@ export default function FriendDetailScreen() {
         options={{
           title: friend?.name ?? "Friend",
           headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { color: colors.text },
           headerRight: () => (
             <Pressable
               onPress={handleUnfriend}
@@ -540,6 +542,12 @@ export default function FriendDetailScreen() {
               {friend.Profile?.handle && (
                 <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                   @{friend.Profile.handle}
+                </Text>
+              )}
+              {/* Bio (if present) */}
+              {friend.Profile?.bio && (
+                <Text className="text-sm mt-2 text-center px-4" style={{ color: colors.text }}>
+                  {friend.Profile.bio}
                 </Text>
               )}
               <View className="flex-row items-center mt-2">
