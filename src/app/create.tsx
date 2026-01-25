@@ -8,7 +8,6 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
-  Modal,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -359,7 +358,6 @@ export default function CreateEventScreen() {
     return new Date(initial.getTime() + 60 * 60 * 1000); // Default: start + 1 hour
   });
   const [userModifiedEndTime, setUserModifiedEndTime] = useState(false); // Track if user manually changed end time
-  const [activePicker, setActivePicker] = useState<null | "startDate" | "startTime" | "endDate" | "endTime">(null);
   const [visibility, setVisibility] = useState<"all_friends" | "specific_groups" | "circle_only">(() => {
     // If visibility param provided, use it (for circle events)
     if (visibilityParam === "open_invite") return "all_friends";
@@ -940,119 +938,55 @@ export default function CreateEventScreen() {
               {/* Start Row */}
               <View className="flex-row items-center justify-between mb-3">
                 <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
-                <View className="flex-row flex-1">
-                  <Pressable
-                    onPress={() => setActivePicker("startDate")}
-                    className="flex-1 rounded-lg p-2 mr-2 flex-row items-center justify-center"
-                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
-                  >
-                    <Calendar size={14} color={themeColor} />
-                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
-                      {startDate.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setActivePicker("startTime")}
-                    className="flex-1 rounded-lg p-2 flex-row items-center justify-center"
-                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
-                  >
-                    <Clock size={14} color="#4ECDC4" />
-                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
-                      {startDate.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </Text>
-                  </Pressable>
+                <View className="flex-row flex-1 items-center justify-end">
+                  <DateTimePicker
+                    value={startDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => date && setStartDate(date)}
+                  />
+                  <DateTimePicker
+                    value={startDate}
+                    mode="time"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => date && setStartDate(date)}
+                  />
                 </View>
               </View>
 
               {/* End Row */}
               <View className="flex-row items-center justify-between">
                 <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
-                <View className="flex-row flex-1">
-                  <Pressable
-                    onPress={() => setActivePicker("endDate")}
-                    className="flex-1 rounded-lg p-2 mr-2 flex-row items-center justify-center"
-                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
-                  >
-                    <Calendar size={14} color={themeColor} />
-                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
-                      {endDate.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setActivePicker("endTime")}
-                    className="flex-1 rounded-lg p-2 flex-row items-center justify-center"
-                    style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
-                  >
-                    <Clock size={14} color="#4ECDC4" />
-                    <Text style={{ color: colors.text }} className="ml-1 text-sm font-medium">
-                      {endDate.toLocaleTimeString("en-US", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-
-            {/* Date/Time Picker Modal */}
-            <Modal
-              visible={activePicker !== null}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setActivePicker(null)}
-            >
-              <Pressable
-                className="flex-1"
-                style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-                onPress={() => setActivePicker(null)}
-              />
-              <View
-                className="rounded-t-3xl pb-8"
-                style={{ backgroundColor: colors.surface }}
-              >
-                <View className="items-center py-3">
-                  <View className="w-10 h-1 rounded-full" style={{ backgroundColor: colors.border }} />
-                </View>
-                <DateTimePicker
-                  value={activePicker?.includes("end") ? endDate : startDate}
-                  mode={activePicker?.includes("Date") ? "date" : "time"}
-                  display="spinner"
-                  textColor={isDark ? "#FFFFFF" : "#000000"}
-                  themeVariant={isDark ? "dark" : "light"}
-                  onChange={(event, date) => {
-                    if (Platform.OS === "android") {
-                      setActivePicker(null);
-                    }
-                    if (date) {
-                      if (activePicker === "startDate" || activePicker === "startTime") {
-                        setStartDate(date);
-                      } else {
+                <View className="flex-row flex-1 items-center justify-end">
+                  <DateTimePicker
+                    value={endDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => {
+                      if (date) {
                         setEndDate(date);
                         setUserModifiedEndTime(true);
                       }
-                    }
-                  }}
-                  style={{ alignSelf: "center" }}
-                />
-                <Pressable
-                  onPress={() => setActivePicker(null)}
-                  className="mx-4 py-3 items-center rounded-xl"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-white font-semibold">Done</Text>
-                </Pressable>
+                    }}
+                  />
+                  <DateTimePicker
+                    value={endDate}
+                    mode="time"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => {
+                      if (date) {
+                        setEndDate(date);
+                        setUserModifiedEndTime(true);
+                      }
+                    }}
+                  />
+                </View>
               </View>
-            </Modal>
+            </View>
           </Animated.View>
 
           {/* Frequency (Recurring) */}
