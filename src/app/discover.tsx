@@ -67,6 +67,10 @@ interface PopularEvent {
   location: string | null;
   user: { id: string; name: string | null; image: string | null };
   attendeeCount: number;
+  capacity?: number | null;
+  goingCount?: number;
+  isFull?: boolean;
+  viewerRsvpStatus?: "going" | "not_going" | "interested" | "maybe" | null;
   joinRequests?: Array<{
     id: string;
     userId: string;
@@ -501,15 +505,20 @@ export default function DiscoverScreen() {
                       <View className="items-center">
                         <View
                           className="px-3 py-1.5 rounded-full flex-row items-center"
-                          style={{ backgroundColor: themeColor + "20" }}
+                          style={{ backgroundColor: event.isFull ? "#EF444420" : themeColor + "20" }}
                         >
-                          <Users size={14} color={themeColor} />
-                          <Text className="font-bold ml-1" style={{ color: themeColor }}>
-                            {event.attendeeCount}
+                          <Users size={14} color={event.isFull ? "#EF4444" : themeColor} />
+                          <Text className="font-bold ml-1" style={{ color: event.isFull ? "#EF4444" : themeColor }}>
+                            {event.capacity != null
+                              ? event.isFull
+                                ? "Full"
+                                : `${event.goingCount ?? event.attendeeCount}/${event.capacity}`
+                              : event.attendeeCount
+                            }
                           </Text>
                         </View>
                         <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-                          going
+                          {event.isFull ? `${event.goingCount ?? event.attendeeCount} going` : "going"}
                         </Text>
                       </View>
                     </View>

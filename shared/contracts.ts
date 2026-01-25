@@ -96,6 +96,11 @@ export const eventSchema = z.object({
       image: z.string().nullable(),
     }),
   })).optional(),
+  // Capacity fields (server-computed)
+  capacity: z.number().nullable().optional(), // Max guests (null = unlimited)
+  goingCount: z.number().optional(), // Number of confirmed attendees
+  isFull: z.boolean().optional(), // True if goingCount >= capacity
+  viewerRsvpStatus: z.enum(["going", "not_going", "interested", "maybe"]).nullable().optional(), // Current viewer's RSVP
 });
 export type Event = z.infer<typeof eventSchema>;
 
@@ -136,6 +141,7 @@ export const createEventRequestSchema = z.object({
   isPrivateCircleEvent: z.boolean().optional(), // If true, shows as "busy" to non-circle members
   sendNotification: z.boolean().optional(), // Whether to notify friends about this event
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default true)
+  capacity: z.number().min(1).nullable().optional(), // Max guests (null = unlimited)
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

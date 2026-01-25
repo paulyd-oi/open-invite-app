@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "expo-router";
-import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X } from "@/ui/icons";
+import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
 import * as Haptics from "expo-haptics";
@@ -158,6 +158,19 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             </View>
           )}
         </View>
+
+        {/* Capacity indicator */}
+        {event.capacity != null && (
+          <View className="flex-row items-center mt-2">
+            <Users size={14} color={event.isFull ? "#EF4444" : "#22C55E"} />
+            <Text style={{ color: event.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
+              {event.isFull 
+                ? `Full • ${event.goingCount ?? 0} going`
+                : `${event.goingCount ?? 0}/${event.capacity} filled`
+              }
+            </Text>
+          </View>
+        )}
 
         {/* Social Proof - Friends Going */}
         {attendeesList.length > 0 && (

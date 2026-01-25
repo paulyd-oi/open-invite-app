@@ -526,6 +526,9 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
       // Invalidate attending events so Social tab updates immediately
       queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
+      // Refetch event details to update capacity
+      queryClient.invalidateQueries({ queryKey: ["events", id] });
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
       setShowRsvpOptions(false);
       
       // Check if we should show first RSVP nudge
@@ -536,8 +539,17 @@ export default function EventDetailScreen() {
         }
       }
     },
-    onError: () => {
-      safeToast.error("Oops", "That didn't go through. Please try again.");
+    onError: (error: any) => {
+      // Handle 409 EVENT_FULL error
+      if (error?.response?.status === 409 || error?.status === 409) {
+        safeToast.warning("Full", "This invite is full.");
+        // Refetch event details to show updated state
+        queryClient.invalidateQueries({ queryKey: ["events", id] });
+        queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
+        queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      } else {
+        safeToast.error("Oops", "That didn't go through. Please try again.");
+      }
     },
   });
 
@@ -934,6 +946,26 @@ export default function EventDetailScreen() {
                 </View>
               )}
             </View>
+
+            {/* Spots (Capacity) */}
+            {event.capacity != null && (
+              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+                <View className="flex-row items-center">
+                  <Users size={20} color={event.isFull ? "#EF4444" : "#22C55E"} />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Spots</Text>
+                    <Text className="font-semibold" style={{ color: event.isFull ? "#EF4444" : colors.text }}>
+                      {event.goingCount ?? 0} / {event.capacity} filled
+                    </Text>
+                  </View>
+                  {event.isFull && (
+                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#EF444420" }}>
+                      <Text className="text-xs font-semibold" style={{ color: "#EF4444" }}>Full</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
 
             {/* Sync to Calendar Button / Synced Badge */}
             <View className="py-3 mt-1 border-t" style={{ borderColor: colors.border }}>
@@ -1395,6 +1427,13 @@ export default function EventDetailScreen() {
                 {/* RSVP Options */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                    {/* Full indicator */}
+                    {event.isFull && myRsvpStatus !== "going" && (
+                      <View className="flex-row items-center justify-center py-3" style={{ backgroundColor: "#EF444415" }}>
+                        <Users size={16} color="#EF4444" />
+                        <Text className="ml-2 text-sm font-medium" style={{ color: "#EF4444" }}>This invite is full</Text>
+                      </View>
+                    )}
                     {/* Pending indicator */}
                     {rsvpMutation.isPending && (
                       <View className="flex-row items-center justify-center py-2" style={{ backgroundColor: colors.surfaceElevated }}>
@@ -1402,22 +1441,37 @@ export default function EventDetailScreen() {
                         <Text className="ml-2 text-sm" style={{ color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Going */}
-                    <Pressable
-                      onPress={() => handleRsvp("going")}
-                      disabled={rsvpMutation.isPending}
-                      className="flex-row items-center p-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-                    >
-                      <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#22C55E20" }}>
-                        <Check size={20} color="#22C55E" />
+                    {/* Going - disabled if full and not already going */}
+                    {event.isFull && myRsvpStatus !== "going" ? (
+                      <View
+                        className="flex-row items-center p-4"
+                        style={{ borderBottomWidth: 1, borderBottomColor: colors.separator, opacity: 0.5 }}
+                      >
+                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: colors.surfaceElevated }}>
+                          <Users size={20} color={colors.textTertiary} />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-semibold" style={{ color: colors.textTertiary }}>Full</Text>
+                          <Text className="text-xs" style={{ color: colors.textTertiary }}>No spots available</Text>
+                        </View>
                       </View>
-                      <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>You're In</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Added to your calendar</Text>
-                      </View>
-                      {myRsvpStatus === "going" && <Check size={18} color={themeColor} />}
-                    </Pressable>
+                    ) : (
+                      <Pressable
+                        onPress={() => handleRsvp("going")}
+                        disabled={rsvpMutation.isPending}
+                        className="flex-row items-center p-4"
+                        style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+                      >
+                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#22C55E20" }}>
+                          <Check size={20} color="#22C55E" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="font-semibold" style={{ color: colors.text }}>You're In</Text>
+                          <Text className="text-xs" style={{ color: colors.textSecondary }}>Added to your calendar</Text>
+                        </View>
+                        {myRsvpStatus === "going" && <Check size={18} color={themeColor} />}
+                      </Pressable>
+                    )}
 
                     {/* Interested */}
                     <Pressable

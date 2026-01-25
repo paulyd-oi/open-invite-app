@@ -6,6 +6,7 @@ import {
   Pressable,
   TextInput,
   Platform,
+  Switch,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -83,6 +84,10 @@ export default function EditEventScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Capacity state
+  const [hasCapacity, setHasCapacity] = useState(false);
+  const [capacityInput, setCapacityInput] = useState("");
 
   // Fetch event data
   const { data: myEventsData } = useQuery({
@@ -104,6 +109,11 @@ export default function EditEventScreen() {
       setVisibility((event.visibility as "all_friends" | "specific_groups" | "private") ?? "all_friends");
       if (event.groupVisibility) {
         setSelectedGroupIds(event.groupVisibility.map((g) => g.groupId));
+      }
+      // Load capacity
+      if (event.capacity != null) {
+        setHasCapacity(true);
+        setCapacityInput(String(event.capacity));
       }
       setIsLoaded(true);
     }
@@ -166,6 +176,7 @@ export default function EditEventScreen() {
       startTime: startDate.toISOString(),
       visibility,
       groupIds: visibility === "specific_groups" ? selectedGroupIds : undefined,
+      capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
     });
   };
 
@@ -529,6 +540,39 @@ export default function EditEventScreen() {
                     </Pressable>
                   ))
                 )}
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Capacity */}
+          <Animated.View entering={FadeInDown.delay(285).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1">
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Limit number of guests</Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Once full, RSVPs close automatically.</Text>
+              </View>
+              <Switch
+                value={hasCapacity}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setHasCapacity(value);
+                  if (!value) setCapacityInput("");
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={hasCapacity ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {hasCapacity && (
+              <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <TextInput
+                  value={capacityInput}
+                  onChangeText={(text) => setCapacityInput(text.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 6"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="number-pad"
+                  className="text-base"
+                  style={{ color: colors.text }}
+                />
               </View>
             )}
           </Animated.View>

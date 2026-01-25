@@ -7,6 +7,7 @@ import {
   TextInput,
   Platform,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -376,6 +377,10 @@ export default function CreateEventScreen() {
   const [sendNotification, setSendNotification] = useState(true);
   const [isPrivateCircleEvent, setIsPrivateCircleEvent] = useState(true); // Default to private for circle events
   const [circleEventMode, setCircleEventMode] = useState<"open_invite" | "set_rsvp">("open_invite"); // Default to Open Invite for lower friction
+  
+  // Capacity state
+  const [hasCapacity, setHasCapacity] = useState(false);
+  const [capacityInput, setCapacityInput] = useState("");
 
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -600,6 +605,7 @@ export default function CreateEventScreen() {
       isRecurring,
       recurrence: isRecurring ? frequency : undefined,
       sendNotification,
+      capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
     });
   };
 
@@ -1383,6 +1389,39 @@ export default function CreateEventScreen() {
                   : "All friends will be notified about this event"
                 : "No notifications will be sent"}
             </Text>
+          </Animated.View>
+
+          {/* Capacity */}
+          <Animated.View entering={FadeInDown.delay(285).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1">
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Limit number of guests</Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Once full, RSVPs close automatically.</Text>
+              </View>
+              <Switch
+                value={hasCapacity}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setHasCapacity(value);
+                  if (!value) setCapacityInput("");
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={hasCapacity ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {hasCapacity && (
+              <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <TextInput
+                  value={capacityInput}
+                  onChangeText={(text) => setCapacityInput(text.replace(/[^0-9]/g, ""))}
+                  placeholder="e.g. 6"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="number-pad"
+                  className="text-base"
+                  style={{ color: colors.text }}
+                />
+              </View>
+            )}
           </Animated.View>
 
           {/* Create Button */}
