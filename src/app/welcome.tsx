@@ -42,7 +42,7 @@ import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
-import { isAppleSignInAvailable, isAppleAuthCancellation } from "@/lib/appleSignIn";
+import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -458,6 +458,7 @@ export default function WelcomeOnboardingScreen() {
     setErrorBanner(null);
 
     try {
+      console.log("[AUTH_TRACE] Apple Sign-In: requesting credential...");
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -465,11 +466,21 @@ export default function WelcomeOnboardingScreen() {
         ],
       });
 
+      // Validate credential has required fields
+      console.log("[AUTH_TRACE] Apple Sign-In: credential received", {
+        hasIdentityToken: !!credential.identityToken,
+        hasAuthorizationCode: !!credential.authorizationCode,
+        hasEmail: !!credential.email,
+        hasFullName: !!(credential.fullName?.givenName || credential.fullName?.familyName),
+      });
+      
       if (!credential.identityToken) {
-        throw new Error("No identity token received from Apple");
+        console.log("[AUTH_TRACE] Apple Sign-In: MISSING identityToken");
+        throw new Error("Apple Sign-In did not return required credentials. Please try again.");
       }
 
       // Send to backend - use credentials: "include" so Set-Cookie is persisted
+      console.log("[AUTH_TRACE] Apple Sign-In: sending to backend...");
       const response = await fetch(`${BACKEND_URL}/api/auth/apple`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -487,6 +498,13 @@ export default function WelcomeOnboardingScreen() {
       });
 
       const data = await response.json();
+      
+      console.log("[AUTH_TRACE] Apple Sign-In: backend response", {
+        status: response.status,
+        ok: response.ok,
+        hasToken: !!data.token || !!data.session?.token,
+        success: data.success || data.ok,
+      });
 
       if (!response.ok || (!data.success && !data.ok)) {
         throw new Error(data.error || "Apple authentication failed");
@@ -516,12 +534,22 @@ export default function WelcomeOnboardingScreen() {
       // Advance to Slide 3 - auth succeeded (cookie is set)
       setCurrentSlide(3);
     } catch (error: any) {
+      // User cancelled - no error to show
       if (isAppleAuthCancellation(error)) {
-        console.log("[Apple Auth] User cancelled");
+        console.log("[AUTH_TRACE] Apple Sign-In: user cancelled");
         return;
       }
-      console.error("[Apple Auth] Error:", error?.message || error);
-      setErrorBanner(error?.message || "Apple Sign-In failed. Please try again.");
+      
+      // Log for debugging (AUTH_TRACE prefix for filtering)
+      console.log("[AUTH_TRACE] Apple Sign-In error:", {
+        code: error?.code,
+        message: error?.message,
+        name: error?.name,
+      });
+      
+      // Decode error to user-friendly message
+      const userMessage = decodeAppleAuthError(error);
+      setErrorBanner(userMessage || "Apple Sign-In failed. Please try again.");
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -556,16 +584,20 @@ export default function WelcomeOnboardingScreen() {
     if (!isMountedRef.current) return;
     
     // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
+    // CRITICAL: Photo upload failure must NOT reset auth state or redirect user.
+    // If session check fails, just skip upload - user can add photo later.
+    let effectiveUserId: string | null = null;
     try {
       const sessionResult = await getSessionCached();
-      const effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
+      effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       if (!effectiveUserId) {
-        console.log("[Onboarding] No effectiveUserId for photo upload, skipping");
+        console.log("[AUTH_TRACE] Photo upload: no effectiveUserId, skipping (user can add later)");
         return;
       }
-      console.log(`[Onboarding] Photo upload authorized - effectiveUserId: ${effectiveUserId}`);
-    } catch {
-      console.log("[Onboarding] Session check failed for photo upload, skipping");
+      console.log(`[AUTH_TRACE] Photo upload authorized: effectiveUserId=${effectiveUserId.substring(0, 8)}...`);
+    } catch (err) {
+      console.log("[AUTH_TRACE] Photo upload: session check failed, skipping (transient error)");
+      // DO NOT redirect or reset auth state - just skip the upload
       return;
     }
 
@@ -600,11 +632,15 @@ export default function WelcomeOnboardingScreen() {
       // Photo uploaded - defer profile save to Continue step when handle is available
       console.log("[Onboarding] Photo uploaded, stored in state. Will save with profile on Continue.");
       safeToast.success("Photo uploaded", "It will be saved with your profile.");
-    } catch (error) {
-      console.log("[Onboarding] Photo upload failed:", error);
+    } catch (error: any) {
+      // CRITICAL: Photo upload failure must NOT affect auth state or navigation
+      // Just log and inform user - they can add photo later from settings
+      console.log("[AUTH_TRACE] Photo upload failed:", error?.message || error);
       if (isMountedRef.current) {
-        safeToast.warning("Upload failed", "Could not upload photo. You can add it later.");
+        safeToast.warning("Upload failed", "Could not upload photo. You can add it later in Settings.");
       }
+      // Clear local URI so user doesn't see broken preview
+      // But DON'T clear avatarUrl if it was already set from a previous successful upload
     } finally {
       if (isMountedRef.current) {
         setUploadBusy(false);
@@ -644,22 +680,29 @@ export default function WelcomeOnboardingScreen() {
 
     // Check session (cookie auth) instead of SecureStore token
     // Auth is determined by effectiveUserId (user.id ?? session.userId)
+    // CRITICAL: During onboarding, we should NOT redirect to /login on transient errors.
+    // The user just authenticated - a session fetch failure is likely transient.
+    let effectiveUserId: string | null = null;
     try {
       const sessionResult = await getSessionCached();
-      const effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
+      effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       
-      // Debug log for session state (required by task spec)
-      console.log(`[Onboarding] effectiveUserId present: ${!!effectiveUserId}`);
-      
-      if (!effectiveUserId) {
-        console.log("[Onboarding] No valid session (effectiveUserId missing), redirecting to login");
-        router.replace("/login");
-        return;
-      }
+      // Debug log for session state (AUTH_TRACE prefix for filtering)
+      console.log(`[AUTH_TRACE] Onboarding session check: effectiveUserId=${!!effectiveUserId}`);
     } catch (sessionErr: any) {
       const status = sessionErr?.status || 'unknown';
-      console.log(`[Onboarding] Session check failed (status: ${status}), redirecting to login`);
-      router.replace("/login");
+      console.log(`[AUTH_TRACE] Onboarding session check failed: status=${status}`);
+      // Transient error - DO NOT redirect to /login. User just authenticated.
+      // Show error and allow retry.
+      setErrorBanner("Session check failed. Please tap Continue to retry.");
+      return;
+    }
+    
+    // If no session at all (truly logged out), show error but don't auto-redirect
+    // This prevents the "loop back to beginning" issue
+    if (!effectiveUserId) {
+      console.log("[AUTH_TRACE] Onboarding: no effectiveUserId, showing error");
+      setErrorBanner("Your session expired. Please go back and sign in again.");
       return;
     }
 

@@ -112,6 +112,50 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 
 ---
 
+### Date: 2026-01-25
+### Finding: Apple Sign-In "unknown reason" errors needed user-friendly decoding
+### Proof:
+- expo-apple-authentication returns cryptic error codes (1000, 1001, 1002, 1003, 1004)
+- Raw error.message exposed to user in error banner
+- User sees "authorization attempt failed for an unknown reason" - not actionable
+### Impact: Users cannot understand what went wrong or how to fix it
+### Action Taken:
+- Added decodeAppleAuthError() function to src/lib/appleSignIn.ts
+- Maps error codes to friendly messages ("Please try again", "Check your Apple ID settings")
+- Cancellation (code 1001) returns null (no error shown)
+- Added AUTH_TRACE logging for debugging without exposing internals to user
+
+---
+
+### Date: 2026-01-25
+### Finding: Onboarding session check failures caused redirect loop to /login
+### Proof:
+- handleSlide3Continue() called router.replace("/login") on any session check error
+- User completes signup (Slide 2) → Slide 3 → Continue → transient session error → back to login
+- This is the "loop back to beginning" bug reported on TestFlight
+### Impact: New users cannot complete onboarding if any network hiccup occurs
+### Action Taken:
+- Removed router.replace("/login") calls from session checks during onboarding
+- Transient errors: show "Session check failed. Please tap Continue to retry."
+- Expired session: show "Your session expired. Please go back and sign in again."
+- Photo upload session failures: skip silently, user can add photo later
+
+---
+
+### Date: 2026-01-25
+### Finding: Photo upload failures could destabilize onboarding flow
+### Proof:
+- uploadPhotoInBackground() session check returned early on error
+- But if the error was treated as auth failure elsewhere, could cascade
+- No explicit guarantee that upload failure doesn't trigger logout
+### Impact: Risk of auth state corruption on transient upload errors
+### Action Taken:
+- Added AUTH_TRACE logging with explicit "DO NOT redirect" comments
+- Upload errors are now explicitly non-fatal
+- User shown toast: "Could not upload photo. You can add it later in Settings."
+
+---
+
 ### Date: 2026-01-24
 ### Finding: First-session guidance needed time-gating to avoid permanent prompts
 ### Proof:

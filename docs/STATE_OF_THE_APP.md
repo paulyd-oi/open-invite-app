@@ -15,11 +15,21 @@
 - Instant feedback on primary actions: RSVP, Create Circle, Create/Edit Event
 - Spacing polish: breathing room between sections, header spacing, list spacing
 - Terminology: User-facing strings use "Group" (not Circle), "Friends" (not Connections)
+- Apple Sign-In hardened: user-friendly errors, cancellation detection, AUTH_TRACE logging
+- Onboarding photo upload: failures non-fatal, no redirect to /login on error
+- Session checks in onboarding: transient errors show retry message, never auto-redirect
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- Apple Sign-In error handling: added decodeAppleAuthError() for user-friendly messages
+- Apple Sign-In AUTH_TRACE: detailed logging of credential validation and backend response
+- Onboarding session checks: removed auto-redirect to /login on transient errors
+- Photo upload resilience: failure does not reset auth state or navigation
+- Session expired during onboarding: shows "Your session expired" message instead of redirect loop
+
+## Previously Fixed
 - Terminology standardization: "Circle" → "Group" in user-facing strings (circles.tsx, event/edit/[id].tsx, CreateCircleModal.tsx, social.tsx)
 - Spacing polish: increased vertical breathing room on calendar, social feed, circles screens
 - Instant feedback on primary actions: RSVP shows "Updating…", Create Circle shows ActivityIndicator
@@ -28,8 +38,6 @@
 - First-session guidance: Added `src/lib/firstSessionGuidance.ts` with 30-minute time window
 - Empty states updated: calendar.tsx, circles.tsx, social.tsx show inline guidance text
 - Guidance completion: create.tsx marks `create_invite`, circles.tsx marks `join_circle`
-
-## Previously Fixed
 - useEntitlements: Added optional `enabled` param to gate fetch on bootStatus
 - MiniCalendar: Changed gating from `!!session` to `bootStatus === 'authed'`
 - Logout key deletion: Enumerated SECURESTORE_AUTH_KEYS and ASYNCSTORAGE_AUTH_KEYS with consolidated [LOGOUT_INVARIANT] log
@@ -40,9 +48,9 @@
 - React Native drops uppercase Cookie header; now using lowercase 'cookie'
 
 ## Next Priority
-- Manual testing: verify first-session guidance shows only within 30 minutes
-- Manual testing: verify guidance disappears after user creates invite/circle
+- TestFlight verification: Apple Sign-In flow on real device
+- TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-24: Typecheck PASS, scripts/ai/verify_frontend.sh PASS
+- 2026-01-25: Typecheck PASS
 
