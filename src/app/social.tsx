@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, usePathname } from "expo-router";
@@ -854,18 +854,37 @@ export default function SocialScreen() {
             </Text>
             {guidanceLoaded && shouldShowEmptyGuidanceSync("view_feed") && (
               <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
-                When friends RSVP or create invites, it shows up here.
+                Bring your people in — invites make the feed come alive.
               </Text>
+            )}
+            {guidanceLoaded && shouldShowEmptyGuidanceSync("view_feed") && (
+              <Pressable
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  try {
+                    await Share.share({
+                      message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/app/open-invite",
+                      url: "https://apps.apple.com/app/open-invite",
+                    });
+                  } catch (error) {
+                    console.error("Error sharing:", error);
+                  }
+                }}
+                className="flex-row items-center px-5 py-2.5 rounded-full mb-3"
+                style={{ backgroundColor: themeColor }}
+              >
+                <UserPlus size={16} color="#FFFFFF" />
+                <Text className="font-semibold ml-2 text-white">Invite a friend</Text>
+              </Pressable>
             )}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 router.push("/create");
               }}
-              className="px-6 py-3 rounded-full"
-              style={{ backgroundColor: themeColor }}
+              className="flex-row items-center"
             >
-              <Text className="text-white font-semibold">Create an Invite</Text>
+              <Text className="font-medium" style={{ color: themeColor }}>Create an Invite</Text>
             </Pressable>
           </View>
         </ScrollView>
