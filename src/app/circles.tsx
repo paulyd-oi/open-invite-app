@@ -142,11 +142,11 @@ export default function CirclesScreen() {
               </Text>
               {guidanceLoaded && shouldShowEmptyGuidanceSync("join_circle") && (
                 <Text className="text-center mb-4 px-8" style={{ color: colors.textSecondary }}>
-                  Circles are private groups where invites stay inside.
+                  Circles keep invites simple and private.
                 </Text>
               )}
               <Pressable onPress={handleCreateCircle} className="px-6 py-3 rounded-full" style={{ backgroundColor: themeColor }}>
-                <Text className="text-white font-semibold">Create Circle</Text>
+                <Text className="text-white font-semibold">Create your first circle</Text>
               </Pressable>
             </View>
           ) : (
