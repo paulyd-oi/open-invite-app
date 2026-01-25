@@ -1395,6 +1395,13 @@ export default function EventDetailScreen() {
                 {/* RSVP Options */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                    {/* Pending indicator */}
+                    {rsvpMutation.isPending && (
+                      <View className="flex-row items-center justify-center py-2" style={{ backgroundColor: colors.surfaceElevated }}>
+                        <ActivityIndicator size="small" color={themeColor} />
+                        <Text className="ml-2 text-sm" style={{ color: colors.textSecondary }}>Updating…</Text>
+                      </View>
+                    )}
                     {/* Going */}
                     <Pressable
                       onPress={() => handleRsvp("going")}

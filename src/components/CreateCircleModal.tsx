@@ -9,6 +9,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { X, Check, Users, Search } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
@@ -124,12 +125,17 @@ export function CreateCircleModal({
                 style={{
                   backgroundColor:
                     name.trim() && selectedFriends.size > 0 ? themeColor : isDark ? "#2C2C2E" : "#E5E7EB",
+                  opacity: isLoading ? 0.7 : 1,
                 }}
               >
-                <Check
-                  size={20}
-                  color={name.trim() && selectedFriends.size > 0 ? "#fff" : colors.textTertiary}
-                />
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Check
+                    size={20}
+                    color={name.trim() && selectedFriends.size > 0 ? "#fff" : colors.textTertiary}
+                  />
+                )}
               </Pressable>
             </View>
 

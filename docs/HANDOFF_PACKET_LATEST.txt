@@ -1,60 +1,40 @@
-HANDOFF PACKET — Error Message UX Humanization
-===============================================
+HANDOFF PACKET — Instant Feedback on Primary Actions
+=====================================================
 
 SUMMARY
 -------
-Replaced harsh, developer-style error messages with calm, human-friendly microcopy.
-No raw error codes (401/500), no "Something went wrong", no error.message leaks.
-Text-only changes — no new components, no new error handling architecture.
+Added instant tap feedback on primary actions so the app feels responsive and trustworthy.
+No new UI surfaces, no new flows — only localized changes to action buttons.
+Uses existing mutation.isPending flags with visible indicators.
 
 FILES CHANGED
 -------------
-1. src/app/calendar.tsx
-2. src/app/event/[id].tsx
-3. src/app/event/edit/[id].tsx
-4. src/app/event-request/[id].tsx
-5. src/app/import-calendar.tsx
-6. docs/STATE_OF_THE_APP.md
+1. src/app/event/[id].tsx — RSVP inline "Updating…" indicator
+2. src/components/CreateCircleModal.tsx — ActivityIndicator when creating
 
-ERROR COPY REPLACEMENTS (before → after)
------------------------------------------
+ACTION-BY-ACTION BEHAVIOR (before → after)
+------------------------------------------
 
-calendar.tsx:
-- "Error" / "Failed to add event to calendar." → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to delete event" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to update event color" → "Oops" / "That didn't go through. Please try again."
-- "Failed to load calendar" / "Something went wrong fetching your events." → "Couldn't load your calendar" / "Couldn't refresh right now. Try again in a moment."
+A) RSVP on Event Detail (src/app/event/[id].tsx)
+   BEFORE: Buttons disabled with 0.6 opacity when pending, no text indicator
+   AFTER:  Buttons disabled + inline "Updating…" banner with ActivityIndicator at top of RSVP options
 
-event/[id].tsx:
-- "Error" / `Failed to add event: ${error?.message || "Unknown error"}` → "Oops" / "That didn't go through. Please try again."
-- "Sync Failed" / result.error ?? "Could not sync to calendar" → "Sync Failed" / "That didn't go through. Please try again."
-- "Sync Failed" / error?.message ?? "An error occurred" → "Sync Failed" / "That didn't go through. Please try again."
-- "Error" / "Failed to join event" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to post comment" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to delete comment" → "Oops" / "That didn't go through. Please try again."
-- "Failed to update RSVP. Please try again." → "Oops" / "That didn't go through. Please try again."
-- "Upload Failed" / "Could not upload image. Please try again." → "Oops" / "That didn't go through. Please try again."
+B) Create Circle (src/components/CreateCircleModal.tsx)
+   BEFORE: Check icon button disabled when pending, no visual change
+   AFTER:  Check icon replaced with ActivityIndicator spinner, button opacity reduced to 0.7
 
-event/edit/[id].tsx:
-- "Error" / "Failed to update event. Please try again." → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to delete event. Please try again." → "Oops" / "That didn't go through. Please try again."
+C) Create Invite (src/app/create.tsx)
+   ✅ ALREADY HAD: "Creating..." text on button when pending
 
-event-request/[id].tsx:
-- "Error" / "Failed to respond to event request" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to cancel event request" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to send nudge" → "Oops" / "That didn't go through. Please try again."
-- "Error" / "Failed to send suggestion" → "Oops" / "That didn't go through. Please try again."
+D) Edit Event (src/app/event/edit/[id].tsx)
+   ✅ ALREADY HAD: "Saving..." on save button, "Deleting..." on delete button
 
-import-calendar.tsx:
-- error.message || "Failed to sync events" → "Oops" / "That didn't go through. Please try again."
-- "Failed to load calendar events" → "Oops" / "Couldn't refresh right now. Try again in a moment."
-
-HOW TO TEST (manual error scenarios)
-------------------------------------
-1. Airplane mode test: Enable airplane mode, try to RSVP to an event → should see "Oops / That didn't go through. Please try again."
-2. Network error on calendar: Kill backend, go to calendar tab → should see "Couldn't load your calendar / Couldn't refresh right now. Try again in a moment."
-3. Comment post failure: Try posting comment with network off → should see "Oops / That didn't go through. Please try again."
-4. Calendar sync failure: Try syncing event to device calendar with network off → should see "Sync Failed / That didn't go through. Please try again."
+HOW TO TEST (manual)
+--------------------
+1. RSVP: Go to any event detail → tap "You're In" → see "Updating…" banner appear with spinner
+2. Create Circle: Open circles tab → tap Create → fill form → tap checkmark → see spinner replace checkmark
+3. Create Event: Go to create screen → fill form → tap "Create Open Invite" → see "Creating..." text
+4. Edit Event: Go to edit screen → make change → tap Save → see "Saving..." text
 
 VERIFY RESULTS
 --------------
@@ -63,11 +43,11 @@ VERIFY RESULTS
 
 COMMIT HASH
 -----------
-2f07cbf
+73f5285
 
-STANDARDS APPLIED
------------------
-- Network / refresh failure: "Couldn't refresh right now. Try again in a moment."
-- Action failed (generic): "That didn't go through. Please try again."
-- No raw server errors exposed to users
-- No harsh "Error" titles — replaced with "Oops" or contextual titles
+IMPLEMENTATION NOTES
+--------------------
+- Used existing rsvpMutation.isPending and createCircleMutation.isPending flags
+- No new state variables introduced
+- ActivityIndicator already imported in event/[id].tsx, added to CreateCircleModal.tsx
+- Haptics remain unchanged (already present)

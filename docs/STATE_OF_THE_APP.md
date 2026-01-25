@@ -12,11 +12,13 @@
 - Logout invariant log: single [LOGOUT_INVARIANT] JSON emitted with full key audit
 - First-session inline guidance: time-gated (30 min) empty-state hints
 - Human-friendly error toasts: no raw codes, calm microcopy across all screens
+- Instant feedback on primary actions: RSVP, Create Circle, Create/Edit Event
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- Instant feedback on primary actions: RSVP shows "Updating…", Create Circle shows ActivityIndicator
 - Error message UX: Humanized all user-facing error toasts with calm, non-alarming copy
 - Calendar empty state: Added "Invite a friend" CTA with native share sheet
 - First-session guidance: Added `src/lib/firstSessionGuidance.ts` with 30-minute time window
