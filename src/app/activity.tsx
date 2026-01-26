@@ -43,6 +43,7 @@ const notificationTypeConfig: Record<
   event_invite: { iconName: "calendar-outline", color: "#FF6B4A" },
   event_reminder: { iconName: "notifications-outline", color: "#F59E0B" },
   event_join: { iconName: "checkmark-circle-outline", color: "#10B981" },
+  event_comment: { iconName: "chatbubble-outline", color: "#8B5CF6" },
   achievement: { iconName: "star-outline", color: "#9333EA" },
   referral: { iconName: "gift-outline", color: "#EC4899" },
   default: { iconName: "notifications-outline", color: "#6B7280" },
@@ -53,14 +54,21 @@ function parseNotificationData(notification: Notification): {
   actorName?: string;
   actorAvatarUrl?: string;
   eventTitle?: string;
+  eventId?: string;
+  commentId?: string;
 } {
   try {
     if (!notification.data) return {};
     const data = JSON.parse(notification.data);
     return {
+      // Support both old and new key names for actor info
       actorName: data.actorName || data.senderName || data.userName,
-      actorAvatarUrl: data.actorAvatarUrl || data.senderAvatarUrl || data.userAvatarUrl,
+      actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl,
+      // Event info
       eventTitle: data.eventTitle || data.title,
+      eventId: data.eventId,
+      // Comment-specific
+      commentId: data.commentId,
     };
   } catch {
     return {};
@@ -90,6 +98,11 @@ function NotificationCard({
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
   const { actorName, actorAvatarUrl, eventTitle } = parseNotificationData(notification);
+
+  // Custom rendering for event_comment notifications
+  const isEventComment = notification.type === "event_comment";
+  const commentTitle = isEventComment && actorName ? `${actorName} commented` : null;
+  const commentSubtitle = isEventComment && eventTitle ? `On ${eventTitle}` : null;
 
   // Use actor avatar if available, otherwise fall back to type icon
   const hasAvatar = !!actorAvatarUrl;
@@ -173,13 +186,19 @@ function NotificationCard({
 
         {/* Content */}
         <View className="flex-1 ml-3">
-          {/* Title line with bold actor name */}
+          {/* Title line - special handling for event_comment */}
           <Text
             className="text-sm"
             style={{ color: colors.text }}
             numberOfLines={2}
           >
-            {actorName ? (
+            {commentTitle ? (
+              // event_comment: "{actorName} commented"
+              <>
+                <Text style={{ fontWeight: "700" }}>{actorName}</Text>
+                <Text> commented</Text>
+              </>
+            ) : actorName ? (
               <>
                 <Text style={{ fontWeight: "700" }}>{actorName}</Text>
                 <Text> {notification.title.replace(actorName, "").trim()}</Text>
@@ -189,8 +208,17 @@ function NotificationCard({
             )}
           </Text>
           
-          {/* Event title or body as secondary */}
-          {eventTitle ? (
+          {/* Subtitle - special handling for event_comment */}
+          {commentSubtitle ? (
+            // event_comment: "On {eventTitle}"
+            <Text
+              className="text-sm mt-0.5"
+              style={{ color: colors.textSecondary }}
+              numberOfLines={1}
+            >
+              {commentSubtitle}
+            </Text>
+          ) : eventTitle ? (
             <Text
               className="text-sm mt-0.5"
               style={{ color: colors.textSecondary }}
