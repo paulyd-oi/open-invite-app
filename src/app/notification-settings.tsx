@@ -561,8 +561,8 @@ export default function NotificationSettingsScreen() {
           >
             <ToggleItem
               icon={<MessageCircle size={18} color="#3498DB" />}
-              title="Event Comments"
-              description="Comments on your events"
+              title="Event comments (Push)"
+              description="Get push notifications when someone comments on an event"
               value={preferences.eventComments}
               onValueChange={(v) => updatePreference("eventComments", v)}
               disabled={!masterEnabled}

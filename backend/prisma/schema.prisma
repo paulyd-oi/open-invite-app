@@ -276,6 +276,7 @@ model event {
   event_group_visibility event_group_visibility[]
   event_interest         event_interest[]
   event_join_request     event_join_request[]
+  event_mute             event_mute[]
   event_photo            event_photo[]
 
   @@index([userId])
@@ -356,6 +357,19 @@ model event_reminder {
   updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([userId, eventId, minutesBefore])
+}
+
+model event_mute {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
 }
 
 model event_request {
@@ -717,6 +731,7 @@ model user {
   event_comment                                       event_comment[]
   event_interest                                      event_interest[]
   event_join_request                                  event_join_request[]
+  event_mute                                          event_mute[]
   event_photo                                         event_photo[]
   event_request                                       event_request[]
   event_request_member                                event_request_member[]

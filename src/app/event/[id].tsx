@@ -430,6 +430,28 @@ export default function EventDetailScreen() {
 
   const comments = commentsData?.comments ?? [];
 
+  // Fetch event mute status
+  const { data: muteData, isLoading: isLoadingMute } = useQuery({
+    queryKey: ["events", id, "mute"],
+    queryFn: () => api.get<{ muted: boolean }>(`/api/notifications/event/${id}`),
+    enabled: bootStatus === 'authed' && !!id,
+  });
+
+  const isEventMuted = muteData?.muted ?? false;
+
+  // Mute toggle mutation
+  const muteMutation = useMutation({
+    mutationFn: (muted: boolean) =>
+      api.post(`/api/notifications/event/${id}`, { muted }),
+    onSuccess: (_, muted) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      queryClient.setQueryData(["events", id, "mute"], { muted });
+    },
+    onError: () => {
+      safeToast.error("Oops", "That didn't go through. Please try again.");
+    },
+  });
+
   // Find the event - prefer direct fetch, fallback to lists
   const event =
     singleEventData?.event ??
@@ -1086,6 +1108,30 @@ export default function EventDetailScreen() {
               selectedReminders={selectedReminders}
               onRemindersChange={setSelectedReminders}
             />
+
+            {/* Mute Event Notifications */}
+            <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1 mr-3">
+                  <Bell size={18} color={isEventMuted ? colors.textTertiary : themeColor} />
+                  <View className="ml-3">
+                    <Text className="font-semibold text-sm" style={{ color: colors.text }}>
+                      Mute this event
+                    </Text>
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                      Stops push notifications for this event.{"\n"}Activity will still show updates.
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={isEventMuted}
+                  onValueChange={(value) => muteMutation.mutate(value)}
+                  disabled={isLoadingMute || muteMutation.isPending}
+                  trackColor={{ false: isDark ? "#3C3C3E" : "#E5E7EB", true: themeColor + "80" }}
+                  thumbColor={isEventMuted ? themeColor : isDark ? "#6B6B6B" : "#f4f3f4"}
+                />
+              </View>
+            </View>
 
             {/* Category Badge */}
             {event.category && (

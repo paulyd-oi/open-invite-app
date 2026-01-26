@@ -251,6 +251,81 @@ notificationsRouter.get("/nudge-eligibility", async (c) => {
   }
 });
 
+// GET /api/notifications/event/:eventId - Get mute status for an event
+notificationsRouter.get("/event/:eventId", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const eventId = c.req.param("eventId");
+
+  try {
+    const mute = await db.event_mute.findUnique({
+      where: {
+        userId_eventId: {
+          userId: user.id,
+          eventId,
+        },
+      },
+    });
+
+    return c.json({ muted: !!mute });
+  } catch (error) {
+    console.error("Error fetching event mute status:", error);
+    return c.json({ error: "Failed to fetch mute status" }, 500);
+  }
+});
+
+// POST /api/notifications/event/:eventId - Toggle mute status for an event
+notificationsRouter.post("/event/:eventId", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const eventId = c.req.param("eventId");
+
+  try {
+    const body = await c.req.json();
+    const { muted } = body;
+
+    if (typeof muted !== "boolean") {
+      return c.json({ error: "muted field must be a boolean" }, 400);
+    }
+
+    if (muted) {
+      // Create mute record
+      await db.event_mute.upsert({
+        where: {
+          userId_eventId: {
+            userId: user.id,
+            eventId,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          eventId,
+        },
+      });
+    } else {
+      // Remove mute record
+      await db.event_mute.deleteMany({
+        where: {
+          userId: user.id,
+          eventId,
+        },
+      });
+    }
+
+    return c.json({ muted });
+  } catch (error) {
+    console.error("Error updating event mute status:", error);
+    return c.json({ error: "Failed to update mute status" }, 500);
+  }
+});
+
 // DELETE /api/notifications/unregister-token - Unregister push token (mark inactive)
 notificationsRouter.delete("/unregister-token", async (c) => {
   const user = c.get("user");
