@@ -8,7 +8,7 @@ import { api } from "./api";
 // ============================================
 
 export const FREE_TIER_LIMITS = {
-  maxActiveEvents: 3,
+  maxActiveEvents: 5,
   eventHistoryDays: 30,
   recurringEvents: false,
   whosFreeAheadDays: 7,

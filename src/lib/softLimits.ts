@@ -6,7 +6,7 @@
  */
 
 // Maximum active events for free users before showing upgrade prompt
-export const MAX_ACTIVE_EVENTS_FREE = 3;
+export const MAX_ACTIVE_EVENTS_FREE = 5;
 
 /**
  * Count active events from the user's event list

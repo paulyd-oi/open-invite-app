@@ -77,7 +77,7 @@ export interface CapabilityResult {
 const FREE_LIMITS: PlanLimits = {
   whosFreeHorizonDays: 7,
   upcomingBirthdaysHorizonDays: 7,
-  activeEventsMax: 3,
+  activeEventsMax: 5,
   eventHistoryDays: 30,
   circlesMax: 2,
   membersPerCircleMax: 15,

@@ -9,6 +9,7 @@ import {
   Switch,
   Platform,
   Linking,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -385,6 +386,10 @@ export default function SettingsScreen() {
   const [editCalendarBio, setEditCalendarBio] = useState("");
   const [editHandle, setEditHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
+
+  // Username change info modal
+  const [showUsernameInfoModal, setShowUsernameInfoModal] = useState(false);
+  const [hasShownUsernameInfo, setHasShownUsernameInfo] = useState(false);
 
   // Phone number states
   const [showPhoneSection, setShowPhoneSection] = useState(false);
@@ -1063,6 +1068,13 @@ export default function SettingsScreen() {
                     const cleaned = text.replace(/^@+/, "").toLowerCase();
                     setEditHandle(cleaned);
                     setHandleError(null);
+                  }}
+                  onFocus={() => {
+                    // Show username change info modal once per session
+                    if (!hasShownUsernameInfo) {
+                      setShowUsernameInfoModal(true);
+                      setHasShownUsernameInfo(true);
+                    }
                   }}
                   placeholder="username"
                   placeholderTextColor={colors.textTertiary}
@@ -2034,6 +2046,43 @@ export default function SettingsScreen() {
         }}
         onCancel={() => setShowRemovePhoneConfirm(false)}
       />
+
+      {/* Username Change Info Modal */}
+      <Modal
+        visible={showUsernameInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUsernameInfoModal(false)}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowUsernameInfoModal(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            className="mx-6 rounded-2xl p-6"
+            style={{ backgroundColor: colors.surface, maxWidth: 320 }}
+          >
+            <Text className="text-lg font-bold text-center mb-3" style={{ color: colors.text }}>
+              Username Changes
+            </Text>
+            <Text className="text-sm text-center mb-5" style={{ color: colors.textSecondary }}>
+              You can change your username up to 2 times every 30 days.
+            </Text>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowUsernameInfoModal(false);
+              }}
+              className="rounded-xl py-3 items-center"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold">Got it</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
