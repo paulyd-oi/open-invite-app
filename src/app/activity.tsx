@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, RefreshControl, FlatList } from "react-native";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { View, Text, Pressable, RefreshControl, FlatList, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -11,7 +11,9 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
+import { ChevronRight } from "@/ui/icons";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
 
 // Helper to format relative time
@@ -46,76 +48,186 @@ const notificationTypeConfig: Record<
   default: { iconName: "notifications-outline", color: "#6B7280" },
 };
 
-// Notification Card Component
+// Helper to extract actor info from notification data
+function parseNotificationData(notification: Notification): {
+  actorName?: string;
+  actorAvatarUrl?: string;
+  eventTitle?: string;
+} {
+  try {
+    if (!notification.data) return {};
+    const data = JSON.parse(notification.data);
+    return {
+      actorName: data.actorName || data.senderName || data.userName,
+      actorAvatarUrl: data.actorAvatarUrl || data.senderAvatarUrl || data.userAvatarUrl,
+      eventTitle: data.eventTitle || data.title,
+    };
+  } catch {
+    return {};
+  }
+}
+
+// Helper to get initials from a name
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+// Notification Card Component - Enhanced social UI
 function NotificationCard({
   notification,
   index,
   onPress,
-  onMarkRead,
 }: {
   notification: Notification;
   index: number;
   onPress: () => void;
-  onMarkRead: () => void;
 }) {
   const { themeColor, colors } = useTheme();
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
+  const { actorName, actorAvatarUrl, eventTitle } = parseNotificationData(notification);
+
+  // Use actor avatar if available, otherwise fall back to type icon
+  const hasAvatar = !!actorAvatarUrl;
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+    <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).springify()}>
       <Pressable
         onPress={() => {
           Haptics.selectionAsync();
-          if (!notification.read) {
-            onMarkRead();
-          }
           onPress();
         }}
-        className="mx-4 mb-3 p-4 rounded-2xl"
+        className="mx-4 mb-2 px-4 py-3 rounded-2xl flex-row items-center"
         style={{
-          backgroundColor: notification.read ? colors.surface : themeColor + "10",
+          backgroundColor: notification.read ? colors.surface : themeColor + "08",
           borderWidth: notification.read ? 0 : 1,
-          borderColor: notification.read ? "transparent" : themeColor + "30",
+          borderColor: notification.read ? "transparent" : themeColor + "20",
         }}
       >
-        <View className="flex-row items-start">
-          {/* Icon */}
-          <View
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: config.color + "20" }}
-          >
-            <Ionicons name={config.iconName} size={20} color={config.color} />
-          </View>
+        {/* Avatar or Icon */}
+        <View style={{ position: "relative" }}>
+          {hasAvatar ? (
+            <Image
+              source={{ uri: actorAvatarUrl }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: colors.surface,
+              }}
+            />
+          ) : actorName ? (
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: config.color + "20",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "600", color: config.color }}>
+                {getInitials(actorName)}
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: config.color + "20",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name={config.iconName} size={22} color={config.color} />
+            </View>
+          )}
+          {/* Type badge overlay */}
+          {hasAvatar && (
+            <View
+              style={{
+                position: "absolute",
+                bottom: -2,
+                right: -2,
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                backgroundColor: config.color,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 2,
+                borderColor: colors.background,
+              }}
+            >
+              <Ionicons name={config.iconName} size={10} color="#fff" />
+            </View>
+          )}
+        </View>
 
-          {/* Content */}
-          <View className="flex-1 ml-3">
+        {/* Content */}
+        <View className="flex-1 ml-3">
+          {/* Title line with bold actor name */}
+          <Text
+            className="text-sm"
+            style={{ color: colors.text }}
+            numberOfLines={2}
+          >
+            {actorName ? (
+              <>
+                <Text style={{ fontWeight: "700" }}>{actorName}</Text>
+                <Text> {notification.title.replace(actorName, "").trim()}</Text>
+              </>
+            ) : (
+              <Text style={{ fontWeight: "600" }}>{notification.title}</Text>
+            )}
+          </Text>
+          
+          {/* Event title or body as secondary */}
+          {eventTitle ? (
             <Text
-              className="text-sm font-semibold"
-              style={{ color: colors.text }}
+              className="text-sm mt-0.5"
+              style={{ color: colors.textSecondary }}
               numberOfLines={1}
             >
-              {notification.title}
+              {eventTitle}
             </Text>
+          ) : notification.body && notification.body !== notification.title ? (
             <Text
-              className="text-sm mt-1"
+              className="text-xs mt-0.5"
               style={{ color: colors.textSecondary }}
-              numberOfLines={2}
+              numberOfLines={1}
             >
               {notification.body}
             </Text>
-            <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
-              {formatRelativeTime(notification.createdAt)}
-            </Text>
-          </View>
+          ) : null}
 
-          {/* Unread indicator */}
+          {/* Timestamp */}
+          <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
+            {formatRelativeTime(notification.createdAt)}
+          </Text>
+        </View>
+
+        {/* Chevron + unread indicator */}
+        <View className="flex-row items-center ml-2">
           {!notification.read && (
             <View
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: themeColor }}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: themeColor,
+                marginRight: 8,
+              }}
             />
           )}
+          <ChevronRight size={18} color={colors.textTertiary} />
         </View>
       </Pressable>
     </Animated.View>
@@ -151,6 +263,7 @@ export default function ActivityScreen() {
   const { data: session, isPending: sessionLoading } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const [refreshing, setRefreshing] = useState(false);
+  const { markAllSeen } = useMarkAllNotificationsSeen();
 
   // Fetch notifications
   const { data: notificationsData, isLoading, refetch } = useQuery({
@@ -160,25 +273,31 @@ export default function ActivityScreen() {
     staleTime: 30000,
   });
 
-  // Mark notification as read
+  // Mark notification as read (individual)
   const markReadMutation = useMutation({
     mutationFn: (notificationId: string) =>
       api.put(`/api/notifications/${notificationId}/read`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
     },
   });
 
-  // Mark all notifications as read
-  const markAllReadMutation = useMutation({
-    mutationFn: () => api.put("/api/notifications/read-all", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    },
-  });
+  // Instagram-style: Mark all as seen when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      // Only mark as seen if we have unread notifications
+      if (notificationsData?.unreadCount && notificationsData.unreadCount > 0) {
+        markAllSeen();
+      }
+    }, [notificationsData?.unreadCount, markAllSeen])
+  );
 
-  const notifications = notificationsData?.notifications ?? [];
-  const unreadCount = notificationsData?.unreadCount ?? 0;
+  // Defensive de-dupe: ensure no duplicate notification IDs in list
+  const uniqueNotifications = useMemo(() => {
+    const notifications = notificationsData?.notifications ?? [];
+    return Array.from(new Map(notifications.map(n => [n.id, n])).values());
+  }, [notificationsData?.notifications]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -187,6 +306,11 @@ export default function ActivityScreen() {
   }, [refetch]);
 
   const handleNotificationPress = (notification: Notification) => {
+    // Mark as read if not already
+    if (!notification.read) {
+      markReadMutation.mutate(notification.id);
+    }
+    
     // Parse notification data to route appropriately
     try {
       const data = notification.data ? JSON.parse(notification.data) : {};
@@ -202,7 +326,7 @@ export default function ActivityScreen() {
         router.push("/achievements" as any);
       }
     } catch {
-      // If data parsing fails, just mark as read
+      // If data parsing fails, just stay on screen
     }
   };
 
@@ -253,55 +377,28 @@ export default function ActivityScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
 
-        <View className="flex-row items-center">
-          <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-            Notifications
-          </Text>
-          {unreadCount > 0 && (
-            <View
-              className="ml-2 px-2 py-0.5 rounded-full min-w-[24px] items-center"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-xs font-semibold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </Text>
-            </View>
-          )}
-        </View>
+        <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+          Activity
+        </Text>
 
-        {unreadCount > 0 ? (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              markAllReadMutation.mutate();
-            }}
-            className="px-3 py-1"
-          >
-            <Text className="text-sm font-medium" style={{ color: themeColor }}>
-              Mark all
-            </Text>
-          </Pressable>
-        ) : (
-          <View className="w-16" />
-        )}
+        <View className="w-10" />
       </View>
 
       {/* Content */}
       <FlatList
-        data={notifications}
+        data={uniqueNotifications}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <NotificationCard
             notification={item}
             index={index}
             onPress={() => handleNotificationPress(item)}
-            onMarkRead={() => markReadMutation.mutate(item.id)}
           />
         )}
         contentContainerStyle={{
           paddingTop: 12,
           paddingBottom: 100,
-          flexGrow: notifications.length === 0 ? 1 : undefined,
+          flexGrow: uniqueNotifications.length === 0 ? 1 : undefined,
         }}
         ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : <EmptyState />}
         refreshControl={

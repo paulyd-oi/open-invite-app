@@ -18,7 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Search,
@@ -71,6 +71,7 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
@@ -538,6 +539,16 @@ export default function FriendsScreen() {
 
   // Fetch entitlements for gating
   const { data: entitlements } = useEntitlements();
+
+  // Unseen notification count for Activity badge
+  const { unseenCount, refetch: refetchUnseenCount } = useUnseenNotificationCount();
+
+  // Refetch unseen count when screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchUnseenCount();
+    }, [refetchUnseenCount])
+  );
 
   // Handler for creating circle with gating
   const handleCreateCirclePress = () => {
@@ -1032,7 +1043,29 @@ export default function FriendsScreen() {
             className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
             style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
           >
-            <Activity size={16} color="#2196F3" />
+            <View style={{ position: "relative" }}>
+              <Activity size={16} color="#2196F3" />
+              {unseenCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -6,
+                    backgroundColor: "#FF3B30",
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
+                    {unseenCount > 99 ? "99+" : unseenCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
               Activity
             </Text>
