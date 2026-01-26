@@ -84,6 +84,47 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+// Helper to build notification copy based on type and parsed data
+type ParsedNotificationData = ReturnType<typeof parseNotificationData>;
+
+function buildNotificationCopy(
+  notification: Notification,
+  parsed: ParsedNotificationData
+): {
+  primary: { bold: string; rest: string } | string;
+  secondary: string | undefined;
+} {
+  const { actorName, eventTitle } = parsed;
+
+  if (notification.type === "event_comment") {
+    // event_comment: "{actorName} commented" / "On {eventTitle}"
+    if (actorName) {
+      return {
+        primary: { bold: actorName, rest: " commented" },
+        secondary: eventTitle ? `On ${eventTitle}` : undefined,
+      };
+    }
+    // Fallback if no actorName
+    return {
+      primary: notification.title || "New comment",
+      secondary: eventTitle || notification.body || undefined,
+    };
+  }
+
+  // Default handling for other notification types
+  if (actorName) {
+    return {
+      primary: { bold: actorName, rest: "" },
+      secondary: eventTitle || notification.body || undefined,
+    };
+  }
+
+  return {
+    primary: notification.title,
+    secondary: notification.body !== notification.title ? notification.body : undefined,
+  };
+}
+
 // Notification Card Component - Enhanced social UI
 function NotificationCard({
   notification,
@@ -97,12 +138,9 @@ function NotificationCard({
   const { themeColor, colors } = useTheme();
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
-  const { actorName, actorAvatarUrl, eventTitle } = parseNotificationData(notification);
-
-  // Custom rendering for event_comment notifications
-  const isEventComment = notification.type === "event_comment";
-  const commentTitle = isEventComment && actorName ? `${actorName} commented` : null;
-  const commentSubtitle = isEventComment && eventTitle ? `On ${eventTitle}` : null;
+  const parsed = parseNotificationData(notification);
+  const { actorName, actorAvatarUrl } = parsed;
+  const copy = buildNotificationCopy(notification, parsed);
 
   // Use actor avatar if available, otherwise fall back to type icon
   const hasAvatar = !!actorAvatarUrl;
@@ -186,53 +224,30 @@ function NotificationCard({
 
         {/* Content */}
         <View className="flex-1 ml-3">
-          {/* Title line - special handling for event_comment */}
+          {/* Title line - using buildNotificationCopy */}
           <Text
             className="text-sm"
             style={{ color: colors.text }}
             numberOfLines={2}
           >
-            {commentTitle ? (
-              // event_comment: "{actorName} commented"
+            {typeof copy.primary === "object" ? (
               <>
-                <Text style={{ fontWeight: "700" }}>{actorName}</Text>
-                <Text> commented</Text>
-              </>
-            ) : actorName ? (
-              <>
-                <Text style={{ fontWeight: "700" }}>{actorName}</Text>
-                <Text> {notification.title.replace(actorName, "").trim()}</Text>
+                <Text style={{ fontWeight: "700" }}>{copy.primary.bold}</Text>
+                <Text>{copy.primary.rest}</Text>
               </>
             ) : (
-              <Text style={{ fontWeight: "600" }}>{notification.title}</Text>
+              <Text style={{ fontWeight: "600" }}>{copy.primary}</Text>
             )}
           </Text>
           
-          {/* Subtitle - special handling for event_comment */}
-          {commentSubtitle ? (
-            // event_comment: "On {eventTitle}"
+          {/* Subtitle */}
+          {copy.secondary ? (
             <Text
               className="text-sm mt-0.5"
               style={{ color: colors.textSecondary }}
               numberOfLines={1}
             >
-              {commentSubtitle}
-            </Text>
-          ) : eventTitle ? (
-            <Text
-              className="text-sm mt-0.5"
-              style={{ color: colors.textSecondary }}
-              numberOfLines={1}
-            >
-              {eventTitle}
-            </Text>
-          ) : notification.body && notification.body !== notification.title ? (
-            <Text
-              className="text-xs mt-0.5"
-              style={{ color: colors.textSecondary }}
-              numberOfLines={1}
-            >
-              {notification.body}
+              {copy.secondary}
             </Text>
           ) : null}
 
@@ -339,22 +354,43 @@ export default function ActivityScreen() {
       markReadMutation.mutate(notification.id);
     }
     
-    // Parse notification data to route appropriately
+    // Parse notification data once
+    let data: Record<string, unknown> = {};
     try {
-      const data = notification.data ? JSON.parse(notification.data) : {};
-      if (data.eventId) {
-        router.push(`/event/${data.eventId}` as any);
-      } else if (
-        data.friendId ||
-        notification.type === "friend_request" ||
-        notification.type === "friend_accepted"
-      ) {
-        router.push("/friends" as any);
-      } else if (data.achievementId) {
-        router.push("/achievements" as any);
-      }
+      data = notification.data ? JSON.parse(notification.data) : {};
     } catch {
       // If data parsing fails, just stay on screen
+      return;
+    }
+
+    // Handle event_comment: navigate to event if eventId exists
+    if (notification.type === "event_comment") {
+      if (data.eventId && typeof data.eventId === "string") {
+        router.push(`/event/${data.eventId}` as any);
+      }
+      return;
+    }
+
+    // Handle other notification types with eventId
+    if (data.eventId && typeof data.eventId === "string") {
+      router.push(`/event/${data.eventId}` as any);
+      return;
+    }
+
+    // Friend-related notifications
+    if (
+      data.friendId ||
+      notification.type === "friend_request" ||
+      notification.type === "friend_accepted"
+    ) {
+      router.push("/friends" as any);
+      return;
+    }
+
+    // Achievement notifications
+    if (data.achievementId) {
+      router.push("/achievements" as any);
+      return;
     }
   };
 
