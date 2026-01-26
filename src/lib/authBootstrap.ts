@@ -435,9 +435,31 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
         }
       }
       
-      // Unknown error - return loggedOut
-      log("  → Unknown error - returning loggedOut");
-      return { state: "loggedOut", session: null, error: error.message };
+      // Unknown error (non-401/403, non-network) - attempt cached session, return degraded
+      // This prevents false logouts on transient/unknown errors
+      log("  → Unknown error - attempting cached session before degraded");
+      try {
+        const cached = await AsyncStorage.getItem(SESSION_CACHE_KEY);
+        if (cached) {
+          const cachedSession = JSON.parse(cached);
+          const effectiveUserId = cachedSession?.effectiveUserId ?? cachedSession?.user?.id ?? null;
+          if (effectiveUserId) {
+            log(`    ✓ Using cached session (effectiveUserId: ${effectiveUserId}) - returning degraded`);
+            hasValidSession = true;
+            session = cachedSession;
+            // Fall through to continue with cached session
+          } else {
+            log("    → Cached session has no effectiveUserId - returning degraded");
+            return { state: "degraded", session: null, error: error.message ?? "Unknown error" };
+          }
+        } else {
+          log("    → No cached session - returning degraded (not loggedOut)");
+          return { state: "degraded", session: null, error: error.message ?? "Unknown error" };
+        }
+      } catch (e) {
+        log("    ⚠️ Cache read error - returning degraded:", e);
+        return { state: "degraded", session: null, error: "Cache error" };
+      }
     }
 
     // Step 2: Determine auth state based on session validation

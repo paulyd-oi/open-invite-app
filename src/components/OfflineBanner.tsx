@@ -7,14 +7,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useIsSyncing, useSyncProgress } from "@/lib/offlineStore";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 /**
  * Unified Network Status Banner
  *
  * Shows different states:
- * 1. Offline - "You're offline — changes will sync when you're back online"
- * 2. Syncing - "Syncing..." with progress indicator
- * 3. Online - Hidden
+ * 1. Degraded - "Reconnecting..." with retry option (auth bootstrap failed but had cached session)
+ * 2. Offline - "You're offline — changes will sync when you're back online"
+ * 3. Syncing - "Syncing..." with progress indicator
+ * 4. Online - Hidden
  */
 export function NetworkStatusBanner() {
   const { isOffline, refresh } = useNetworkStatus();
@@ -23,6 +25,7 @@ export function NetworkStatusBanner() {
   const queryClient = useQueryClient();
   const { themeColor } = useTheme();
   const [isRetrying, setIsRetrying] = React.useState(false);
+  const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
 
   const handleRetry = async () => {
     setIsRetrying(true);
@@ -35,6 +38,54 @@ export function NetworkStatusBanner() {
       setIsRetrying(false);
     }
   };
+
+  const handleDegradedRetry = async () => {
+    setIsRetrying(true);
+    try {
+      await retryBootstrap();
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Show reconnecting banner when in degraded state (auth bootstrap failed but using cached session)
+  if (bootStatus === 'degraded') {
+    return (
+      <Animated.View
+        entering={FadeInUp.springify()}
+        exiting={FadeOutUp.springify()}
+        className="absolute top-0 left-0 right-0 z-50"
+        style={{
+          backgroundColor: "#FEF3C7",
+          paddingTop: 50, // Account for status bar
+        }}
+      >
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <View className="flex-row items-center flex-1">
+            <Cloud size={18} color="#D97706" />
+            <Text className="ml-2 font-medium flex-1" style={{ color: "#B45309" }} numberOfLines={1}>
+              Reconnecting...
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleDegradedRetry}
+            disabled={isRetrying}
+            className="flex-row items-center px-3 py-1.5 rounded-full ml-2"
+            style={{ backgroundColor: "#D97706" }}
+          >
+            <RefreshCw
+              size={14}
+              color="#fff"
+              style={{ opacity: isRetrying ? 0.5 : 1 }}
+            />
+            <Text className="text-white text-sm font-medium ml-1">
+              {isRetrying ? "..." : "Retry"}
+            </Text>
+          </Pressable>
+        </View>
+      </Animated.View>
+    );
+  }
 
   // Show syncing banner
   if (isSyncing) {
