@@ -22,13 +22,13 @@ export default function GlobalErrorBoundary({ error, retry }: Props) {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace("/(tabs)");
+      router.replace("/");
     }
   };
 
   const handleGoHome = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.replace("/(tabs)");
+    router.replace("/");
   };
 
   return (

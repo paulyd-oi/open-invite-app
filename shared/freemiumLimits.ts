@@ -8,7 +8,7 @@
 
 export const FREE_TIER_LIMITS = {
   // Events
-  maxActiveEvents: 3,           // Max concurrent future events
+  maxActiveEvents: 5,           // Max concurrent future events
   eventHistoryDays: 30,         // Days of event history visible
   recurringEvents: false,       // Can't create recurring events
 

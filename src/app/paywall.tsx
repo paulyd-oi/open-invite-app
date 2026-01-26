@@ -254,7 +254,7 @@ export default function PaywallScreen() {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.replace("/(tabs)");
+              router.replace("/");
             }
           }}
           className="absolute top-14 right-5 w-8 h-8 rounded-full bg-white/20 items-center justify-center"
