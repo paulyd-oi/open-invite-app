@@ -293,6 +293,80 @@ export function isPro(entitlements: EntitlementsResponse | undefined): boolean {
   return plan === "PRO" || plan === "LIFETIME_PRO";
 }
 
+/**
+ * CANONICAL premium check function.
+ * Use this ONE function for all premium/paywall gating decisions.
+ * 
+ * Checks multiple signals to catch all premium states:
+ * - plan === "PRO" or "LIFETIME_PRO"
+ * - isLifetime flag (backend may send this separately)
+ * - isPro flag (backend may send this separately)
+ * - tier === "premium" or "pro" or "lifetime"
+ * - productId contains "lifetime" (RevenueCat)
+ * 
+ * @param payload - Raw subscription/entitlements payload from backend or RevenueCat
+ * @param source - Where this check is being called from (for logging)
+ * @returns true if user should have premium access
+ */
+export function isPremiumFromSubscription(
+  payload: {
+    plan?: Plan | string;
+    tier?: string;
+    isLifetime?: boolean;
+    isPro?: boolean;
+    productId?: string;
+    entitlements?: { active?: { premium?: unknown } };
+  } | undefined,
+  source?: string
+): boolean {
+  if (!payload) {
+    if (__DEV__) {
+      console.log(`[isPremiumFromSubscription] No payload, returning false. Source: ${source ?? "unknown"}`);
+    }
+    return false;
+  }
+
+  const {
+    plan,
+    tier,
+    isLifetime,
+    isPro: isPropFlag,
+    productId,
+    entitlements,
+  } = payload;
+
+  // Check all possible premium indicators
+  const planIsPremium = plan === "PRO" || plan === "LIFETIME_PRO";
+  const tierIsPremium = tier === "premium" || tier === "pro" || tier === "lifetime";
+  const lifetimeFlag = isLifetime === true;
+  const proFlag = isPropFlag === true;
+  const productIsLifetime = productId?.toLowerCase().includes("lifetime") ?? false;
+  const revenueCatPremium = !!entitlements?.active?.premium;
+
+  const result = planIsPremium || tierIsPremium || lifetimeFlag || proFlag || productIsLifetime || revenueCatPremium;
+
+  if (__DEV__) {
+    console.log(`[isPremiumFromSubscription] Source: ${source ?? "unknown"}`, {
+      plan,
+      tier,
+      isLifetime,
+      isPro: isPropFlag,
+      productId,
+      hasRevenueCatPremium: revenueCatPremium,
+      computed: {
+        planIsPremium,
+        tierIsPremium,
+        lifetimeFlag,
+        proFlag,
+        productIsLifetime,
+      },
+      result,
+    });
+  }
+
+  return result;
+}
+
 // ============================================
 // Capability Checks
 // ============================================

@@ -1486,6 +1486,7 @@ export default function CircleScreen() {
                   borderTopLeftRadius: 24,
                   borderTopRightRadius: 24,
                   paddingBottom: Math.max(insets.bottom, 20) + 8,
+                  maxHeight: "85%",
                 }}
               >
               {/* Handle */}
@@ -1500,6 +1501,11 @@ export default function CircleScreen() {
                 </Text>
               </View>
 
+              {/* Scrollable content for keyboard accessibility */}
+              <ScrollView 
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
               {/* Group Info */}
               <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", alignItems: "center" }}>
                 <View
@@ -1667,6 +1673,7 @@ export default function CircleScreen() {
                   </View>
                 </Pressable>
               </View>
+              </ScrollView>
             </Animated.View>
           </Pressable>
         </Pressable>

@@ -17,8 +17,10 @@ import {
   type PaywallContext,
   markPaywallShown,
   trackAnalytics,
+  isPremiumFromSubscription,
 } from "@/lib/entitlements";
 import { goToSubscription } from "@/lib/nav";
+import { useSubscription } from "@/lib/SubscriptionContext";
 
 interface PaywallModalProps {
   visible: boolean;
@@ -162,6 +164,7 @@ export function PaywallModal({
 }: PaywallModalProps) {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
+  const { subscription, isPremium } = useSubscription();
   const copy = PAYWALL_COPY[context];
 
   // Log when shown and mark session
@@ -169,6 +172,22 @@ export function PaywallModal({
     if (visible) {
       markPaywallShown();
       trackAnalytics("paywall_shown", { context });
+
+      // DEV: Log subscription state when paywall is shown
+      // This helps debug cases where Lifetime users see paywalls
+      if (__DEV__) {
+        const computedPremium = isPremiumFromSubscription(
+          subscription as any,
+          `PaywallModal(${context})`
+        );
+        console.warn(
+          `[PaywallModal] PAYWALL SHOWN for context "${context}"\n` +
+          `  subscription.tier: ${subscription?.tier}\n` +
+          `  context isPremium: ${isPremium}\n` +
+          `  computed isPremium: ${computedPremium}\n` +
+          `  MISMATCH: ${isPremium !== computedPremium ? "YES - INVESTIGATE!" : "No"}`
+        );
+      }
 
       // Dev warning: onPrimary should be provided for explicit CTA handling
       if (__DEV__ && !onPrimary) {
@@ -178,7 +197,7 @@ export function PaywallModal({
         );
       }
     }
-  }, [visible, context, onPrimary]);
+  }, [visible, context, onPrimary, subscription, isPremium]);
 
   const handlePrimary = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
