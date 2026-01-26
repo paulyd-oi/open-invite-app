@@ -69,6 +69,8 @@ import { EventPhotoGallery } from "@/components/EventPhotoGallery";
 import { EventCategoryBadge } from "@/components/EventCategoryPicker";
 import { EventSummaryModal } from "@/components/EventSummaryModal";
 import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
+import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
+import { shouldShowNotificationNudge } from "@/lib/push/registerPush";
 // MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
@@ -265,6 +267,7 @@ export default function EventDetailScreen() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
   const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
+  const [showNotificationNudge, setShowNotificationNudge] = useState(false);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -652,18 +655,40 @@ export default function EventDetailScreen() {
   const handleFirstRsvpNudgePrimary = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
-    router.push("/discover");
+    // Check if we should also show notification nudge
+    const canShowNotifNudge = await shouldShowNotificationNudge();
+    if (canShowNotifNudge) {
+      setShowNotificationNudge(true);
+    } else {
+      router.push("/discover");
+    }
   };
 
   const handleFirstRsvpNudgeSecondary = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
-    router.push("/create");
+    // Check if we should also show notification nudge
+    const canShowNotifNudge = await shouldShowNotificationNudge();
+    if (canShowNotifNudge) {
+      setShowNotificationNudge(true);
+    } else {
+      router.push("/create");
+    }
   };
 
   const handleFirstRsvpNudgeDismiss = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
+    // Check if we should also show notification nudge
+    const canShowNotifNudge = await shouldShowNotificationNudge();
+    if (canShowNotifNudge) {
+      setShowNotificationNudge(true);
+    }
+  };
+
+  // Notification nudge handler
+  const handleNotificationNudgeClose = () => {
+    setShowNotificationNudge(false);
   };
 
   // Format relative time
@@ -1925,6 +1950,11 @@ export default function EventDetailScreen() {
         onPrimary={handleFirstRsvpNudgePrimary}
         onSecondary={handleFirstRsvpNudgeSecondary}
         onDismiss={handleFirstRsvpNudgeDismiss}
+      />
+
+      <NotificationNudgeModal
+        visible={showNotificationNudge}
+        onClose={handleNotificationNudgeClose}
       />
     </SafeAreaView>
   );

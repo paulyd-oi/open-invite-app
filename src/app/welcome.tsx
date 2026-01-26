@@ -44,6 +44,8 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
+import { shouldShowNotificationNudge } from "@/lib/push/registerPush";
+import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -356,6 +358,9 @@ export default function WelcomeOnboardingScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
+
+  // Notification nudge state (shown after onboarding)
+  const [showNotificationNudge, setShowNotificationNudge] = useState(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -802,7 +807,19 @@ export default function WelcomeOnboardingScreen() {
     // Notify backend (fire and forget)
     api.post("/api/onboarding/complete", {}).catch(() => {});
 
-    // Navigate to calendar - use replace to prevent back nav
+    // Check if we should show notification nudge
+    const shouldNudge = await shouldShowNotificationNudge();
+    if (shouldNudge) {
+      setShowNotificationNudge(true);
+    } else {
+      // Navigate to calendar - use replace to prevent back nav
+      router.replace("/calendar");
+    }
+  };
+
+  // Handle notification nudge close (navigate after)
+  const handleNotificationNudgeClose = () => {
+    setShowNotificationNudge(false);
     router.replace("/calendar");
   };
 
@@ -1089,14 +1106,24 @@ export default function WelcomeOnboardingScreen() {
   };
 
   return (
-    <Animated.View
-      key={currentSlide}
-      entering={SlideInRight.duration(250)}
-      exiting={SlideOutLeft.duration(200)}
-      style={styles.flex1}
-    >
-      {renderCurrentSlide()}
-    </Animated.View>
+    <>
+      <Animated.View
+        key={currentSlide}
+        entering={SlideInRight.duration(250)}
+        exiting={SlideOutLeft.duration(200)}
+        style={styles.flex1}
+      >
+        {renderCurrentSlide()}
+      </Animated.View>
+
+      {/* Notification Nudge Modal - shown after onboarding completion */}
+      <NotificationNudgeModal
+        visible={showNotificationNudge}
+        onClose={handleNotificationNudgeClose}
+        onEnable={handleNotificationNudgeClose}
+        onNotNow={handleNotificationNudgeClose}
+      />
+    </>
   );
 }
 
