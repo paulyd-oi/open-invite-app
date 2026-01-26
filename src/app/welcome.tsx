@@ -43,6 +43,7 @@ import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
+import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -507,7 +508,15 @@ export default function WelcomeOnboardingScreen() {
       });
 
       if (!response.ok || (!data.success && !data.ok)) {
-        throw new Error(data.error || "Apple authentication failed");
+        // Enhanced error capture for diagnosability
+        console.log("[AUTH_TRACE] Apple Sign-In BACKEND FAILURE:", {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          responseBody: JSON.stringify(data).slice(0, 500),
+          errorField: data.error,
+          messageField: data.message,
+        });
+        throw new Error(data.error || data.message || `Apple authentication failed (HTTP ${response.status})`);
       }
 
       // Cookie-based auth: Set-Cookie header from backend establishes session.
@@ -540,11 +549,17 @@ export default function WelcomeOnboardingScreen() {
         return;
       }
       
-      // Log for debugging (AUTH_TRACE prefix for filtering)
-      console.log("[AUTH_TRACE] Apple Sign-In error:", {
+      // Enhanced diagnostic logging for all Apple Sign-In errors
+      console.log("[AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC:", {
+        // Native error details
         code: error?.code,
         message: error?.message,
         name: error?.name,
+        // For network/fetch errors
+        status: error?.status,
+        statusText: error?.statusText,
+        // Full error object (truncated)
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 1000),
       });
       
       // Decode error to user-friendly message
@@ -740,6 +755,11 @@ export default function WelcomeOnboardingScreen() {
         },
       }));
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+
+      // Request bootstrap refresh so status updates from 'onboarding' to 'authed'
+      // This prevents the onboarding loop issue
+      console.log("[AUTH_TRACE] Onboarding: profile saved, requesting bootstrap refresh");
+      requestBootstrapRefreshOnce();
 
       // Advance to Slide 4
       if (isMountedRef.current) {

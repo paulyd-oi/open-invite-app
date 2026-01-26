@@ -308,8 +308,42 @@ export default function CreateEventScreen() {
   });
 
   const activeProfile = profilesData?.activeProfile;
+  const [locationPermissionAsked, setLocationPermissionAsked] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
 
-  // Fetch user location for location-biased place search
+  // Request and fetch user location for location-biased place search
+  const requestAndFetchLocation = useCallback(async () => {
+    if (userLocation) return; // Already have location
+
+    try {
+      // First check current permission status
+      let { status } = await Location.getForegroundPermissionsAsync();
+
+      // If not determined yet, request permission
+      if (status !== "granted") {
+        const result = await Location.requestForegroundPermissionsAsync();
+        status = result.status;
+        setLocationPermissionAsked(true);
+        console.log("[create.tsx] Location permission result:", status);
+      }
+
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setUserLocation({
+          lat: loc.coords.latitude,
+          lon: loc.coords.longitude,
+        });
+        console.log("[create.tsx] Got user location for search biasing");
+      }
+    } catch (error) {
+      // Silently fail - location biasing is optional
+      console.log("[create.tsx] Could not get user location for search biasing:", error);
+    }
+  }, [userLocation]);
+
+  // Try to fetch location on mount (if already granted)
   useEffect(() => {
     const fetchUserLocation = async () => {
       try {
@@ -325,7 +359,7 @@ export default function CreateEventScreen() {
         }
       } catch (error) {
         // Silently fail - location biasing is optional
-        console.log("Could not get user location for search biasing");
+        console.log("[create.tsx] Could not get user location for search biasing");
       }
     };
     fetchUserLocation();
@@ -350,7 +384,6 @@ export default function CreateEventScreen() {
   const [showLocationSearch, setShowLocationSearch] = useState(false);
   const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [emoji, setEmoji] = useState(templateEmoji ?? "📅");
   const [startDate, setStartDate] = useState(getInitialDate);
   const [endDate, setEndDate] = useState(() => {
@@ -427,6 +460,11 @@ export default function CreateEventScreen() {
       return;
     }
 
+    // Request location permission on first search if not already asked
+    if (!userLocation && !locationPermissionAsked) {
+      requestAndFetchLocation();
+    }
+
     const timeoutId = setTimeout(async () => {
       setIsSearchingPlaces(true);
       try {
@@ -444,7 +482,7 @@ export default function CreateEventScreen() {
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [locationQuery, userLocation]);
+  }, [locationQuery, userLocation, locationPermissionAsked, requestAndFetchLocation]);
 
   const handleSelectPlace = (place: PlaceSuggestion) => {
     Haptics.selectionAsync();

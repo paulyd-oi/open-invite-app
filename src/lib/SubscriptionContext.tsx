@@ -102,8 +102,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setFeatures(data.features);
 
       // If RevenueCat not enabled, fall back to backend tier
+      // IMPORTANT: Lifetime users must always be treated as premium
       if (!isRevenueCatEnabled()) {
-        setIsPremium(data.subscription?.tier === "premium");
+        // Cast tier to string for flexible comparison (backend may return various values)
+        const tier = data.subscription?.tier as string | undefined;
+        const backendIsPremium = tier === "premium" || 
+          tier === "pro" ||
+          (data.subscription as any)?.isLifetime === true ||
+          (data.subscription as any)?.isPro === true;
+        setIsPremium(backendIsPremium);
+        if (__DEV__) {
+          console.log("[SubscriptionContext] Backend tier:", tier, 
+            "isLifetime:", (data.subscription as any)?.isLifetime,
+            "isPro:", (data.subscription as any)?.isPro,
+            "=> isPremium:", backendIsPremium);
+        }
       }
     } catch (error) {
       if (__DEV__) {

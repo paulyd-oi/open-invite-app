@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Check, Users, Search } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -46,6 +47,7 @@ export function CreateCircleModal({
   isLoading,
 }: CreateCircleModalProps) {
   const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("👥");
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
@@ -101,7 +103,7 @@ export function CreateCircleModal({
           <Pressable
             onPress={() => {}}
             className="flex-1 mt-20 rounded-t-3xl overflow-hidden"
-            style={{ backgroundColor: colors.background }}
+            style={{ backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 0) }}
           >
             {/* Header */}
             <View

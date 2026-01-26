@@ -7,6 +7,7 @@ import {
   Modal,
   ActivityIndicator,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Star, Sparkles, NotebookPen, Check } from "@/ui/icons";
 import Animated, {
@@ -121,6 +122,7 @@ export function EventSummaryModal({
   existingRating,
 }: EventSummaryModalProps) {
   const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [summary, setSummary] = useState(existingSummary ?? "");
   const [rating, setRating] = useState(existingRating ?? 0);
@@ -339,7 +341,7 @@ export function EventSummaryModal({
           )}
 
           {/* Actions */}
-          <View className="px-5 pb-8 pt-2">
+          <View className="px-5 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 20) + 8 }}>
             <Pressable
               onPress={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || (!hasChanges && isEditing)}

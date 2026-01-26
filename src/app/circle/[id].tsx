@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams, Stack } from "expo-router";
 import {
@@ -694,6 +694,7 @@ export default function CircleScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
 
   const [message, setMessage] = useState("");
@@ -1469,20 +1470,24 @@ export default function CircleScreen() {
         animationType="fade"
         onRequestClose={() => setShowGroupSettings(false)}
       >
-        <Pressable
-          style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowGroupSettings(false)}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
         >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                paddingBottom: 40,
-              }}
-            >
+          <Pressable
+            style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
+            onPress={() => setShowGroupSettings(false)}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                style={{
+                  backgroundColor: colors.background,
+                  borderTopLeftRadius: 24,
+                  borderTopRightRadius: 24,
+                  paddingBottom: Math.max(insets.bottom, 20) + 8,
+                }}
+              >
               {/* Handle */}
               <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
                 <View style={{ width: 40, height: 4, backgroundColor: colors.textTertiary, borderRadius: 2, opacity: 0.4 }} />
@@ -1665,6 +1670,7 @@ export default function CircleScreen() {
             </Animated.View>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Members Sheet Modal */}

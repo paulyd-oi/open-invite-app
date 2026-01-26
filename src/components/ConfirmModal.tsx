@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, Modal } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
@@ -26,6 +27,7 @@ export function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   const { colors, isDark, themeColor } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -55,8 +57,8 @@ export function ConfirmModal({
         <Animated.View
           entering={SlideInDown.springify().damping(20)}
           exiting={SlideOutDown.duration(200)}
-          className="rounded-t-3xl p-5 pb-8"
-          style={{ backgroundColor: colors.surface }}
+          className="rounded-t-3xl p-5"
+          style={{ backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 20) + 8 }}
         >
           {/* Title */}
           <Text

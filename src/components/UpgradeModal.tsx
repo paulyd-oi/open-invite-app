@@ -8,6 +8,7 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -55,6 +56,7 @@ export function UpgradeModal({
   showAllFeatures = false,
 }: UpgradeModalProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const buttonScale = useSharedValue(1);
 
   const handleUpgradePress = () => {
@@ -117,7 +119,10 @@ export function UpgradeModal({
             exiting={SlideOutDown.springify().damping(20)}
           >
             {/* Glass Card */}
-            <View className="mx-4 mb-8 rounded-3xl overflow-hidden">
+            <View 
+              className="mx-4 rounded-3xl overflow-hidden"
+              style={{ marginBottom: Math.max(insets.bottom, 8) + 8 }}
+            >
               {/* Background Gradient */}
               <LinearGradient
                 colors={["#1a1a2e", "#16213e", "#0f0f23"]}

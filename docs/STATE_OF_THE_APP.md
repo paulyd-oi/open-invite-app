@@ -18,11 +18,24 @@
 - Apple Sign-In hardened: user-friendly errors, cancellation detection, AUTH_TRACE logging
 - Onboarding photo upload: failures non-fatal, no redirect to /login on error
 - Session checks in onboarding: transient errors show retry message, never auto-redirect
+- Lifetime subscription: Always treated as Premium (tier/isLifetime/isPro all checked)
+- Location permission: Requested on first place search (create.tsx)
+- Bottom sheets: SafeAreaInsets for proper bottom padding on all modals
+- Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
 
 ## Unstable / Regressions
 - None currently known
 
 ## Fixed This Session
+- P0-A Onboarding: requestBootstrapRefreshOnce() after profile save prevents loop
+- P0-B Lifetime Premium: SubscriptionContext now checks tier/isLifetime/isPro
+- P0-C Apple Sign-In: Enhanced AUTH_TRACE with httpStatus, responseBody, fullError
+- P1-D Bottom sheets: ConfirmModal, CreateCircleModal, UpgradeModal, EventSummaryModal use insets
+- P1-E Keyboard: Group Settings Modal wrapped in KeyboardAvoidingView
+- P1-F Location: create.tsx requests permission on first search
+- P1-G Friend Notes: Enhanced error logging with status/body in onError
+
+## Previously Fixed
 - Birthday card navigation: Upcoming birthdays on calendar now tap to open User Profile
 - Dark mode Friend Profile header: Added headerTintColor and headerTitleStyle for contrast
 - Friend Profile bio display: Shows bio field when present (in addition to calendarBio)
