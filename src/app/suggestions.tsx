@@ -21,6 +21,7 @@ import {
   Share2,
   Info,
   X,
+  Sparkles,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -35,9 +36,11 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSuggestionsFeed } from "@/hooks/useSuggestionsFeed";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
+import { SuggestionFeedCard, SuggestionsFeedEmpty } from "@/components/SuggestionFeedCard";
 import {
   type GetFriendSuggestionsResponse,
   type FriendSuggestion,
@@ -264,6 +267,14 @@ export default function SuggestionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"for-you" | "people">("for-you");
+
+  // Fetch personalized suggestions feed
+  const {
+    suggestions: feedSuggestions,
+    isLoading: feedLoading,
+    refetch: refetchFeed,
+  } = useSuggestionsFeed();
 
   // Fetch referral stats for sharing
   const { data: referralStats } = useQuery({
@@ -272,7 +283,7 @@ export default function SuggestionsScreen() {
     enabled: bootStatus === 'authed',
   });
 
-  // Fetch friend suggestions
+  // Fetch friend suggestions (people you may know)
   const {
     data: suggestionsData,
     isLoading,
@@ -303,9 +314,9 @@ export default function SuggestionsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
+    await Promise.all([refetch(), refetchFeed()]);
     setRefreshing(false);
-  }, [refetch]);
+  }, [refetch, refetchFeed]);
 
   const handleAddFriend = (suggestion: FriendSuggestion) => {
     // Guard: require email verification
@@ -392,48 +403,116 @@ export default function SuggestionsScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-          People You May Know
+          Suggestions
         </Text>
         <View className="w-10" />
       </View>
 
-      {/* Suggestions List */}
-      <FlatList
-        data={suggestions}
-        keyExtractor={(item) => item.user.id}
-        renderItem={({ item, index }) => (
-          <SuggestionCard
-            suggestion={item}
-            index={index}
-            onAddFriend={() => handleAddFriend(item)}
-            isPending={
-              sendRequestMutation.isPending &&
-              sendRequestMutation.variables === item.user.id
-            }
-            isSuccess={sentRequests.has(item.user.id)}
-          />
-        )}
-        contentContainerStyle={{
-          paddingTop: 16,
-          paddingBottom: 100,
-          flexGrow: suggestions.length === 0 ? 1 : undefined,
-        }}
-        ListEmptyComponent={
-          isLoading ? (
-            <SuggestionsSkeleton />
-          ) : (
-            <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
-          )
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={themeColor}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Segmented Control */}
+      <View className="flex-row mx-4 mt-3 p-1 rounded-xl" style={{ backgroundColor: colors.surface }}>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab("for-you");
+          }}
+          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+          style={{ backgroundColor: activeTab === "for-you" ? themeColor : "transparent" }}
+        >
+          <Sparkles size={16} color={activeTab === "for-you" ? "#fff" : colors.textSecondary} />
+          <Text
+            className="font-medium ml-1.5"
+            style={{ color: activeTab === "for-you" ? "#fff" : colors.textSecondary }}
+          >
+            For You
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab("people");
+          }}
+          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+          style={{ backgroundColor: activeTab === "people" ? themeColor : "transparent" }}
+        >
+          <Users size={16} color={activeTab === "people" ? "#fff" : colors.textSecondary} />
+          <Text
+            className="font-medium ml-1.5"
+            style={{ color: activeTab === "people" ? "#fff" : colors.textSecondary }}
+          >
+            People
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Content based on active tab */}
+      {activeTab === "for-you" ? (
+        /* Suggestions Feed */
+        <FlatList
+          data={feedSuggestions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <SuggestionFeedCard suggestion={item} index={index} />
+          )}
+          contentContainerStyle={{
+            paddingTop: 16,
+            paddingBottom: 100,
+            flexGrow: feedSuggestions.length === 0 ? 1 : undefined,
+          }}
+          ListEmptyComponent={
+            feedLoading ? (
+              <SuggestionsSkeleton />
+            ) : (
+              <SuggestionsFeedEmpty />
+            )
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={themeColor}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        /* People You May Know */
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item) => item.user.id}
+          renderItem={({ item, index }) => (
+            <SuggestionCard
+              suggestion={item}
+              index={index}
+              onAddFriend={() => handleAddFriend(item)}
+              isPending={
+                sendRequestMutation.isPending &&
+                sendRequestMutation.variables === item.user.id
+              }
+              isSuccess={sentRequests.has(item.user.id)}
+            />
+          )}
+          contentContainerStyle={{
+            paddingTop: 16,
+            paddingBottom: 100,
+            flexGrow: suggestions.length === 0 ? 1 : undefined,
+          }}
+          ListEmptyComponent={
+            isLoading ? (
+              <SuggestionsSkeleton />
+            ) : (
+              <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
+            )
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={themeColor}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Info Modal */}
       <Modal

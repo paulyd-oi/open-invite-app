@@ -44,6 +44,7 @@ let privacyRouter: any;
 let entitlementsRouter: any;
 let cronRouter: any;
 let appleAuthRouter: any;
+let suggestionsRouter: any;
 
 try {
   console.log("  Loading upload router...");
@@ -105,6 +106,8 @@ try {
   cronRouter = require("./routes/cron").cronRouter;
   console.log("  Loading apple auth router...");
   appleAuthRouter = require("./routes/appleAuth").appleAuthRouter;
+  console.log("  Loading suggestions router...");
+  suggestionsRouter = require("./routes/suggestions").suggestionsRouter;
   console.log("✅ All route modules loaded successfully!");
 } catch (error: any) {
   console.error("❌ Error loading route modules:", error.message);
@@ -320,6 +323,9 @@ app.route("/api/cron", cronRouter);
 
 console.log("🍎 Mounting Apple auth routes at /api/auth");
 app.route("/api/auth", appleAuthRouter);
+
+console.log("💡 Mounting suggestions routes at /api/suggestions");
+app.route("/api/suggestions", suggestionsRouter);
 
 // Email verification success page
 // After users click the verification link, they are redirected here

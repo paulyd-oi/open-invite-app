@@ -858,6 +858,39 @@ export const getFriendSuggestionsResponseSchema = z.object({
 export type GetFriendSuggestionsResponse = z.infer<typeof getFriendSuggestionsResponseSchema>;
 
 // ============================================
+// Open Invite - Suggestions Feed
+// ============================================
+
+// Suggestion action types for personalized recommendations
+export const suggestionActionSchema = z.enum([
+  "JOIN_EVENT",
+  "NUDGE_CREATE",
+  "NUDGE_INVITE",
+  "RECONNECT_FRIEND",
+  "HOT_AREA",
+]);
+export type SuggestionAction = z.infer<typeof suggestionActionSchema>;
+
+// Suggestion feed item
+export const suggestionFeedItemSchema = z.object({
+  id: z.string(),
+  type: suggestionActionSchema,
+  title: z.string(),
+  subtitle: z.string(),
+  ctaLabel: z.string(),
+  eventId: z.string().optional(),
+  userId: z.string().optional(),
+  category: z.string().optional(),
+});
+export type SuggestionFeedItem = z.infer<typeof suggestionFeedItemSchema>;
+
+// GET /api/suggestions/feed
+export const getSuggestionsFeedResponseSchema = z.object({
+  suggestions: z.array(suggestionFeedItemSchema),
+});
+export type GetSuggestionsFeedResponse = z.infer<typeof getSuggestionsFeedResponseSchema>;
+
+// ============================================
 // Open Invite - Activity Feed
 // ============================================
 
