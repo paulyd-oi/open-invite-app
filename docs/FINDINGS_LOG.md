@@ -169,3 +169,23 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Tracks completion per action: `openinvite.guidance.completed.<key>`
 - Inline guidance only shows when: empty state + <30min since first open + action not completed
 - Action keys: create_invite, join_circle, view_feed
+
+---
+
+### Date: 2026-01-27
+### Finding: Ruthless Simplicity Phase 1 - UI subtraction rationale
+### Proof:
+- "Weekly" pill on event cards redundant - series already shows "Next: date" and "+N more"
+- "Maybe" RSVP state creates decision paralysis, low value vs Interested
+- Circle Event Mode toggle unnecessary complexity - Open Invite behavior is default desired UX
+- Frequency/Notification toggles in circle context add friction without value
+- Bottom nav had Calendar in center, but Social feed is primary engagement surface
+### Impact: Cleaner UI, reduced cognitive load, faster task completion
+### Action Taken:
+- Removed Weekly pill from EventCard (social.tsx)
+- Removed Maybe RSVP option from UI, backend "maybe" mapped to "interested" (event/[id].tsx)
+- Removed EventReactions "maybe" type (EventReactions.tsx)
+- Simplified Circle Create Event: removed Event Mode, Frequency, Send Notification (create.tsx)
+- Reordered bottom nav: Discover | Calendar | Social (CENTER) | Friends | Profile
+- Default landing changed from /calendar to /social
+- CTA copy simplified: "Create Open Invite" → "Create Invite"

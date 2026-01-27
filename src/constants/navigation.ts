@@ -8,15 +8,15 @@
  * 
  * Order (left to right):
  * 1. Discover (Reconnect/Popular/Streaks)
- * 2. Social Calendar Feed (open events list)
- * 3. Home (CENTER - emphasized position)
+ * 2. Calendar (personal schedule)
+ * 3. Social (CENTER - emphasized position, default landing)
  * 4. Friends
  * 5. Profile
  * 
  * Why this order:
  * - Discover is the entry point for exploration
- * - Calendar shows upcoming social events
- * - Home is center for quick access to feed
+ * - Calendar shows personal schedule
+ * - Social is center for quick access to feed (default tab)
  * - Friends for social connections
  * - Profile for user settings (standard right position)
  * 
@@ -56,19 +56,19 @@ export const BOTTOM_NAV_TABS: readonly NavTab[] = [
     isCenter: false,
   },
   {
-    key: "social",
-    Icon: List,
-    label: "Social",
-    href: "/social",
+    key: "calendar",
+    Icon: Calendar,
+    label: "Calendar",
+    href: "/calendar",
     isCenter: false,
     badgeKey: "eventRequests",
   },
   {
-    key: "home",
-    Icon: Calendar,
-    label: "Home",
-    href: "/calendar",
-    isCenter: true, // CENTER POSITION - emphasized with elevation
+    key: "social",
+    Icon: List,
+    label: "Social",
+    href: "/social",
+    isCenter: true, // CENTER POSITION - emphasized with elevation, default landing
   },
   {
     key: "friends",
@@ -108,14 +108,14 @@ export function assertTabOrder(tabs: readonly NavTab[]): void {
     );
   }
   
-  // Verify HOME is in center position (index 2)
+  // Verify SOCIAL is in center position (index 2)
   const centerTab = tabs.find(t => t.isCenter);
-  if (centerTab?.key !== "home") {
+  if (centerTab?.key !== "social") {
     console.warn(
       `[BottomNavigation] ⚠️ CENTER TAB VIOLATION!\n` +
-      `Expected: home\n` +
+      `Expected: social\n` +
       `Actual:   ${centerTab?.key ?? "none"}\n` +
-      "Home must be in center position per Navigation Invariant."
+      "Social must be in center position per Navigation Invariant."
     );
   }
 }

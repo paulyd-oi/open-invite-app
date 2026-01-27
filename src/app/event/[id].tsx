@@ -1456,27 +1456,22 @@ export default function EventDetailScreen() {
                       className="rounded-2xl p-4 flex-row items-center justify-between"
                       style={{
                         backgroundColor: myRsvpStatus === "going" ? "#22C55E15" :
-                                         myRsvpStatus === "interested" ? "#EC489915" :
-                                         myRsvpStatus === "maybe" ? "#F59E0B15" : colors.surface,
+                                         (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC489915" : colors.surface,
                         borderWidth: 1,
                         borderColor: myRsvpStatus === "going" ? "#22C55E" :
-                                     myRsvpStatus === "interested" ? "#EC4899" :
-                                     myRsvpStatus === "maybe" ? "#F59E0B" : colors.border,
+                                     (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC4899" : colors.border,
                       }}
                     >
                       <View className="flex-row items-center">
                         {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
-                        {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
-                        {myRsvpStatus === "maybe" && <Clock size={20} color="#F59E0B" />}
+                        {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && <Heart size={20} color="#EC4899" />}
                         {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
                         <Text className="font-semibold ml-2" style={{
                           color: myRsvpStatus === "going" ? "#22C55E" :
-                                 myRsvpStatus === "interested" ? "#EC4899" :
-                                 myRsvpStatus === "maybe" ? "#F59E0B" : colors.textSecondary
+                                 (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC4899" : colors.textSecondary
                         }}>
                           {myRsvpStatus === "going" ? "You're In" :
-                           myRsvpStatus === "interested" ? "Interested" :
-                           myRsvpStatus === "maybe" ? "Maybe" : "Not Going"}
+                           (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "Interested" : "Not Going"}
                         </Text>
                       </View>
                       <Pressable
@@ -1558,24 +1553,7 @@ export default function EventDetailScreen() {
                         <Text className="font-semibold" style={{ color: colors.text }}>Interested</Text>
                         <Text className="text-xs" style={{ color: colors.textSecondary }}>Save for later (not on calendar)</Text>
                       </View>
-                      {myRsvpStatus === "interested" && <Check size={18} color={themeColor} />}
-                    </Pressable>
-
-                    {/* Maybe */}
-                    <Pressable
-                      onPress={() => handleRsvp("maybe")}
-                      disabled={rsvpMutation.isPending}
-                      className="flex-row items-center p-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-                    >
-                      <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#F59E0B20" }}>
-                        <Clock size={20} color="#F59E0B" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>Maybe</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Deciding (not on calendar)</Text>
-                      </View>
-                      {myRsvpStatus === "maybe" && <Check size={18} color={themeColor} />}
+                      {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && <Check size={18} color={themeColor} />}
                     </Pressable>
 
                     {/* Not Going */}

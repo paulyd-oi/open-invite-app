@@ -1027,7 +1027,8 @@ export default function CreateEventScreen() {
             </View>
           </Animated.View>
 
-          {/* Frequency (Recurring) */}
+          {/* Frequency (Recurring) - Only for non-circle events */}
+          {!isCircleEvent && (
           <Animated.View entering={FadeInDown.delay(225).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Frequency</Text>
             <Pressable
@@ -1081,6 +1082,7 @@ export default function CreateEventScreen() {
               </View>
             )}
           </Animated.View>
+          )}
 
           {/* Suggested Times */}
           <Animated.View entering={FadeInDown.delay(245).springify()}>
@@ -1099,63 +1101,12 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(250).springify()}>
             {isCircleEvent ? (
               <>
-                {/* Group Only Visibility */}
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Group Only</Text>
-                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Text className="text-xs leading-4" style={{ color: colors.textSecondary }}>
-                    Only friends in this group can see the event.
-                  </Text>
-                </View>
-
-                {/* Event Mode Selector */}
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Mode</Text>
-                <View className="flex-row mb-4">
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setCircleEventMode("set_rsvp");
-                    }}
-                    className="flex-1 rounded-xl p-4 mr-2 flex-row items-center justify-center"
-                    style={{
-                      backgroundColor: circleEventMode === "set_rsvp" ? "#EF444415" : colors.surface,
-                      borderWidth: 1,
-                      borderColor: circleEventMode === "set_rsvp" ? "#EF444440" : colors.border
-                    }}
-                  >
-                    <Bell size={18} color={circleEventMode === "set_rsvp" ? "#EF4444" : colors.textTertiary} />
-                    <Text
-                      className="ml-2 font-medium"
-                      style={{ color: circleEventMode === "set_rsvp" ? "#EF4444" : colors.textSecondary }}
-                    >
-                      Set RSVP
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setCircleEventMode("open_invite");
-                    }}
-                    className="flex-1 rounded-xl p-4 flex-row items-center justify-center"
-                    style={{
-                      backgroundColor: circleEventMode === "open_invite" ? `${themeColor}15` : colors.surface,
-                      borderWidth: 1,
-                      borderColor: circleEventMode === "open_invite" ? `${themeColor}40` : colors.border
-                    }}
-                  >
-                    <Compass size={18} color={circleEventMode === "open_invite" ? themeColor : colors.textTertiary} />
-                    <Text
-                      className="ml-2 font-medium"
-                      style={{ color: circleEventMode === "open_invite" ? themeColor : colors.textSecondary }}
-                    >
-                      Open Invite
-                    </Text>
-                  </Pressable>
-                </View>
-                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Text className="text-xs leading-4" style={{ color: colors.textSecondary }}>
-                    {circleEventMode === "set_rsvp"
-                      ? "Everyone in the group will be invited and added as going. They can change their response later."
-                      : "Host is marked as going. Other members can see and choose to join."}
+                {/* Group Only Visibility - Simplified */}
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Visibility</Text>
+                <View className="rounded-xl p-3 mb-4 flex-row items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                  <Lock size={16} color={colors.textSecondary} />
+                  <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>
+                    Only friends in this group can see and join.
                   </Text>
                 </View>
               </>
@@ -1240,7 +1191,8 @@ export default function CreateEventScreen() {
             )}
           </Animated.View>
 
-          {/* Send Notification */}
+          {/* Send Notification - Only for non-circle events */}
+          {!isCircleEvent && (
           <Animated.View entering={FadeInDown.delay(275).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Send Notification</Text>
             <View className="flex-row mb-4">
@@ -1293,6 +1245,7 @@ export default function CreateEventScreen() {
                 : "No notifications will be sent"}
             </Text>
           </Animated.View>
+          )}
 
           {/* Capacity */}
           <Animated.View entering={FadeInDown.delay(285).springify()}>
@@ -1362,7 +1315,7 @@ export default function CreateEventScreen() {
               }}
             >
               <Text className="text-white font-semibold text-lg">
-                {createMutation.isPending ? "Creating..." : "Create Open Invite"}
+                {createMutation.isPending ? "Creating..." : "Create Invite"}
               </Text>
             </Pressable>
           </Animated.View>

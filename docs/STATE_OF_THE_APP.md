@@ -22,11 +22,25 @@
 - Location permission: Requested on first place search (create.tsx)
 - Bottom sheets: SafeAreaInsets for proper bottom padding on all modals
 - Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
+- Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
+- Default landing: Social feed on cold launch (authenticated users)
+- RSVP states: Going, Interested, Can't Make It (no Maybe)
+- Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
+- CTA copy: "Create Invite" (not "Create Open Invite")
 
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session
+## Fixed This Session (Phase 1: Ruthless Simplicity)
+- Social feed: Removed "Weekly" pill from recurring event cards
+- RSVP simplification: Removed "Maybe" option from UI, maps backend "maybe" to "interested"
+- EventReactions: Removed "Maybe" reaction type
+- Circle Create Event: Removed Event Mode selector, Frequency picker, Send Notification toggle
+- Bottom nav reorder: Social centered as primary tab (index 2, isCenter: true)
+- Default landing: /social instead of /calendar on authenticated boot
+- CTA update: "Create Open Invite" → "Create Invite"
+
+## Previously Fixed
 - Circles filter pill: Now disabled (0.5 opacity) with "Coming soon" toast instead of empty feed
 - Social feed filter pills: Added All/Friends/Circles/Hosting/Going filter options
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections now collapsible with count display
@@ -77,5 +91,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-26: Typecheck PASS (Circles filter disabled with toast)
+- 2026-01-27: Phase 1 Ruthless Simplicity complete
 

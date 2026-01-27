@@ -13,7 +13,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 
-export type ReactionType = "fire" | "love" | "hype" | "maybe" | "down";
+export type ReactionType = "fire" | "love" | "hype" | "down";
 
 interface Reaction {
   type: ReactionType;
@@ -27,7 +27,6 @@ const REACTIONS: Reaction[] = [
   { type: "love", emoji: "😍", label: "Love it", color: "#E91E63" },
   { type: "hype", emoji: "🙌", label: "Hyped", color: "#9C27B0" },
   { type: "down", emoji: "👇", label: "I'm down", color: "#22C55E" },
-  { type: "maybe", emoji: "🤔", label: "Maybe", color: "#F39C12" },
 ];
 
 interface EventReactionButtonProps {

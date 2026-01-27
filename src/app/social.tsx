@@ -111,12 +111,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
               <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1" numberOfLines={1}>
                 {isSeries ? event.title : displayEvent.title}
               </Text>
-              {isSeries && (
-                <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
-                  <Text style={{ color: themeColor }} className="text-xs font-medium">Weekly</Text>
-                </View>
-              )}
-              {isOwn && !isSeries && (
+              {isOwn && (
                 <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text style={{ color: themeColor }} className="text-xs font-medium">You</Text>
                 </View>

@@ -160,12 +160,12 @@ function BootRouter() {
         router.replace('/welcome');
       }
     } else if (bootStatus === 'authed') {
-      // Fully authenticated and onboarded - go to feed (index route)
-      if (pathname !== '/') {
+      // Fully authenticated and onboarded - go to Social feed (default landing)
+      if (pathname !== '/' && pathname !== '/social') {
         if (__DEV__) {
-          console.log('[BootRouter] → Routing to / (fully authenticated)');
+          console.log('[BootRouter] → Routing to /social (fully authenticated)');
         }
-        router.replace('/');
+        router.replace('/social');
       }
     }
   }, [navigationState?.key, bootStatus, router, pathname]);

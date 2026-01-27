@@ -1,9 +1,17 @@
-CIRCLES FILTER PILL FIX - HANDOFF PACKET
+RUTHLESS SIMPLICITY PHASE 1 - HANDOFF PACKET
 ======================================================
 
 SUMMARY
 -------
-Fixed Circles filter pill to be disabled instead of causing empty feed.
+UI subtraction to reduce cognitive load and improve UX clarity.
+
+Changes:
+1. Social feed: Removed "Weekly" pill from recurring event cards
+2. RSVP states: Removed "Maybe" option, mapping to "Interested" if backend returns it
+3. Circle Create Event: Simplified by removing Event Mode, Frequency, Send Notification toggles
+4. Bottom nav: Reordered to Discover | Calendar | Social (CENTER) | Friends | Profile
+5. Default landing: Social feed on authenticated boot instead of Calendar
+6. CTA copy: "Create Open Invite" → "Create Invite"
 
 STATUS: COMPLETE
 VERIFICATION: PENDING
@@ -11,63 +19,86 @@ VERIFICATION: PENDING
 FILES CHANGED
 -------------
 1. src/app/social.tsx
-   - Added safeToast import
-   - Circles filter pill now has 0.5 opacity (disabled styling)
-   - Tapping Circles shows toast: "Coming soon" / "Circles filtering is coming soon."
-   - Uses Haptics.notificationAsync(Warning) for disabled state feedback
-   - Does NOT switch filters when tapped
+   - Removed "Weekly" pill from EventCard, kept "You" badge
+  
+2. src/app/event/[id].tsx
+   - Removed "Maybe" RSVP button from selector
+   - Updated status display to map maybe→interested
 
-2. docs/STATE_OF_THE_APP.md
-   - Added Circles filter fix to "Fixed This Session"
-   - Updated "Last Verified" timestamp
+3. src/components/EventReactions.tsx
+   - Removed "maybe" from ReactionType and REACTIONS array
 
-3. docs/HANDOFF_PACKET_LATEST.txt
-   - Updated with current handoff
+4. src/app/create.tsx
+   - Wrapped Frequency section with {!isCircleEvent && (...)}
+   - Wrapped Send Notification section with {!isCircleEvent && (...)}
+   - Simplified circle event visibility UI (removed Event Mode selector)
+   - Changed CTA button text from "Create Open Invite" to "Create Invite"
+
+5. src/constants/navigation.ts
+   - Reordered tabs: discover, calendar, social (isCenter: true), friends, profile
+   - Updated doc comments and assertion logic
+
+6. src/app/index.tsx
+   - Changed redirect from /calendar to /social
+
+7. src/app/_layout.tsx
+   - Updated BootRouter authed redirect to /social
+
+8. docs/STATE_OF_THE_APP.md
+   - Updated with Phase 1 changes under "Fixed This Session"
+   - Added new stable items
+
+9. docs/FINDINGS_LOG.md
+   - Added Phase 1 rationale entry
 
 KEY DIFFS
 ---------
-IMPORT ADDED:
-  import { safeToast } from "@/lib/safeToast";
+# social.tsx EventCard - removed Weekly pill
+-              {isSeries && (...Weekly pill...)}
+-              {isOwn && !isSeries && (...You badge...)}
++              {isOwn && (...You badge...)}
 
-FILTER PILL LOGIC:
-  const isDisabled = filter === 'circles';
-  
-  onPress={() => {
-    if (isDisabled) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      safeToast.info("Coming soon", "Circles filtering is coming soon.");
-      return;
-    }
-    Haptics.selectionAsync();
-    setActiveFilter(filter);
-  }}
-  
-  style={{
-    ...existing styles,
-    opacity: isDisabled ? 0.5 : 1,
-  }}
+# event/[id].tsx - removed Maybe button, map to Interested
+-  {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && ...}
+
+# create.tsx - conditional rendering for circle events
++  {!isCircleEvent && (<Frequency section/>)}
++  {!isCircleEvent && (<Send Notification section/>)}
+
+# navigation.ts - reordered tabs with Social centered
+-  { key: "social", ... isCenter: false },
+-  { key: "home", ... isCenter: true },
++  { key: "calendar", ... isCenter: false },
++  { key: "social", ... isCenter: true },
 
 TEST PLAN
 ---------
-1. Tap Circles filter pill - verify toast appears
-2. Verify feed does NOT empty (stays on previous filter)
-3. Verify other filter pills still work normally
-4. Verify Circles pill has reduced opacity
+1. Cold launch → should land on /social (not /calendar)
+2. Bottom nav order: Discover | Calendar | Social(elevated) | Friends | Profile
+3. Social feed event cards: No "Weekly" pill, "You" badge still shows for own events
+4. Event detail RSVP: Options are Going | Interested | Can't Make It (no Maybe)
+5. Create event from Circle: Only shows Title, Date/Time, Location, Create Invite button
+   - No Event Mode toggle
+   - No Frequency picker
+   - No Send Notification toggle
+6. Create event (non-circle): Full UI with Frequency and Notification toggles
+7. CTA button reads "Create Invite" (not "Create Open Invite")
+8. If backend returns "maybe" RSVP status, display shows "Interested"
 
 KNOWN LIMITATIONS
 -----------------
-1. Circles filter is coming soon (needs backend support)
-2. Pill remains visible but disabled
+1. Backend may still store "maybe" status - mapped to "interested" display only
+2. Circle events always send notifications implicitly (removed toggle)
 
 COMMIT HASH
 -----------
-TBD
+9c61231
 
 PUSHED
 ------
-TBD
+YES (main branch)
 
 Agent: GitHub Copilot (Claude Opus 4.5)
-Verification: PENDING (./scripts/ai/verify_frontend.sh)
+Verification: PASS (./scripts/ai/verify_frontend.sh)
 No breaking changes. Minimal diff achieved.
 
