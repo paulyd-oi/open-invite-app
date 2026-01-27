@@ -24,6 +24,15 @@
 - Principle: Remove features that add complexity without proportional user value
 - Impact: Cleaner UI, simpler codebase, pure discovery experience
 
+## Availability Indicator Contract (Canonical)
+
+- **Never lie principle**: Unknown availability shows neutral (no outline), not false positive
+- **Conflict detection**: `(eventStart < otherEnd) AND (eventEnd > otherStart)` — standard overlap formula
+- **Self-exclusion**: Same event ID excluded from conflict check (event doesn't conflict with itself)
+- **Data source**: User's calendar = created events (`myEventsData`) + attending events (`attendingData`)
+- **Visual encoding**: GREEN border (#22C55E) = free, RED border (#EF4444) = busy, no border = unknown
+- **Edge case**: Event with missing endTime treated as point event (1 minute duration)
+
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
 

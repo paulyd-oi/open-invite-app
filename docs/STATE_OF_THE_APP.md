@@ -35,7 +35,13 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 2B: Auth Invariant Hardening)
+## Fixed This Session (Phase 3A: Availability Indicator)
+- Availability outline: Feed event cards show GREEN (free), RED (busy), or neutral border
+- Conflict detection: Time overlap check against user's calendar (created + attending events)
+- Truthful UX: Unknown state (no calendar data) shows no outline instead of false positive
+- Self-exclusion: Same event ID excluded from conflict detection
+
+## Fixed Previously (Phase 2B: Auth Invariant Hardening)
 - Cookie init authority: Removed fire-and-forget call from authClient.ts module load
 - Single authority: ensureCookieInitialized() now called ONLY by authBootstrap.ts
 - Apple Sign-In parsing: Regex extracts only cookie pair value (excludes Path, HttpOnly, etc)

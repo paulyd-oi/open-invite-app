@@ -34,7 +34,65 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessi
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
-function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
+// Availability outline colors (inline, no global tokens)
+const AVAILABILITY_COLORS = {
+  free: "#22C55E",   // green
+  busy: "#EF4444",   // red
+} as const;
+
+type AvailabilityStatus = "free" | "busy" | "unknown";
+
+/**
+ * Compute availability for a feed event against user's calendar.
+ * Returns "free" if no conflicts, "busy" if overlap, "unknown" if data unavailable.
+ * Conflict rule: (eventStart < otherEnd) AND (eventEnd > otherStart)
+ */
+function getAvailabilityStatus(
+  feedEvent: Event | EventSeries,
+  userCalendarEvents: Event[] | undefined
+): AvailabilityStatus {
+  // If calendar data not loaded, return unknown
+  if (!userCalendarEvents || userCalendarEvents.length === 0) {
+    return "unknown";
+  }
+
+  // Get the actual event to check (handle series)
+  const displayEvent = 'nextEvent' in feedEvent ? feedEvent.nextEvent : feedEvent;
+  
+  // If event has no valid time window, return unknown
+  if (!displayEvent.startTime) {
+    return "unknown";
+  }
+  
+  const eventStart = new Date(displayEvent.startTime).getTime();
+  // If no endTime, treat as point event (1 minute duration for conflict check)
+  const eventEnd = displayEvent.endTime 
+    ? new Date(displayEvent.endTime).getTime() 
+    : eventStart + 60000;
+
+  // Check for conflicts with user's calendar events
+  for (const calEvent of userCalendarEvents) {
+    // Skip if same event (ignore conflicts with self)
+    if (calEvent.id === displayEvent.id) continue;
+    
+    // Skip if calendar event has no time
+    if (!calEvent.startTime) continue;
+    
+    const calStart = new Date(calEvent.startTime).getTime();
+    const calEnd = calEvent.endTime 
+      ? new Date(calEvent.endTime).getTime() 
+      : calStart + 60000;
+    
+    // Conflict detection: overlap exists if eventStart < calEnd AND eventEnd > calStart
+    if (eventStart < calEnd && eventEnd > calStart) {
+      return "busy";
+    }
+  }
+  
+  return "free";
+}
+
+function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName, userCalendarEvents }: {
   event: Event | EventSeries;
   index: number;
   isOwn?: boolean;
@@ -43,6 +101,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   colors: typeof DARK_COLORS;
   userImage?: string | null;
   userName?: string | null;
+  userCalendarEvents?: Event[];
 }) {
   const router = useRouter();
   
@@ -83,6 +142,26 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
     image: r.user?.image ?? null,
   }));
 
+  // Compute availability status for this event
+  const availability = getAvailabilityStatus(event, userCalendarEvents);
+  
+  // Determine border style based on availability
+  // Own events keep their existing theme-tinted border
+  // Non-own events get availability outline (green/red) or default border
+  const getBorderStyle = () => {
+    if (isOwn) {
+      return { borderWidth: 1, borderColor: `${themeColor}40` };
+    }
+    if (availability === "free") {
+      return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.free };
+    }
+    if (availability === "busy") {
+      return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.busy };
+    }
+    // unknown: default border
+    return { borderWidth: 1, borderColor: colors.border };
+  };
+
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
       <Pressable
@@ -90,8 +169,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         className="rounded-2xl p-4 mb-3"
         style={{
           backgroundColor: colors.surface,
-          borderWidth: 1,
-          borderColor: isOwn ? `${themeColor}40` : colors.border,
+          ...getBorderStyle(),
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: isDark ? 0.2 : 0.05,
@@ -272,6 +350,7 @@ function EventSection({
   userName,
   isCollapsed,
   onToggle,
+  userCalendarEvents,
 }: {
   title: string;
   events: Array<Event | EventSeries>;
@@ -284,6 +363,7 @@ function EventSection({
   userName?: string | null;
   isCollapsed?: boolean;
   onToggle?: () => void;
+  userCalendarEvents?: Event[];
 }) {
   if (events.length === 0) return null;
 
@@ -320,6 +400,7 @@ function EventSection({
             colors={colors}
             userImage={userImage}
             userName={userName}
+            userCalendarEvents={userCalendarEvents}
           />
         );
       })}
@@ -781,6 +862,21 @@ export default function SocialScreen() {
     }));
   }, [allEvents, myEventsData?.events, attendingData?.events]);
 
+  // User's calendar events for availability checking (created + attending)
+  // Used by EventCard to determine free/busy status
+  const userCalendarEvents = useMemo(() => {
+    const myEvents = myEventsData?.events ?? [];
+    const attendingEvents = attendingData?.events ?? [];
+    
+    // Dedupe by event id
+    const eventMap = new Map<string, Event>();
+    [...myEvents, ...attendingEvents].forEach((event) => {
+      eventMap.set(event.id, event);
+    });
+    
+    return Array.from(eventMap.values());
+  }, [myEventsData?.events, attendingData?.events]);
+
   // Group events by time
   const groupedEvents = useMemo(
     () => groupEventsByTime(allEvents, session?.user?.id),
@@ -1033,6 +1129,7 @@ export default function SocialScreen() {
             userName={session?.user?.name}
             isCollapsed={collapsedSections.has("today")}
             onToggle={() => toggleSection("today")}
+            userCalendarEvents={userCalendarEvents}
           />
           <EventSection
             title="Tomorrow"
@@ -1046,6 +1143,7 @@ export default function SocialScreen() {
             userName={session?.user?.name}
             isCollapsed={collapsedSections.has("tomorrow")}
             onToggle={() => toggleSection("tomorrow")}
+            userCalendarEvents={userCalendarEvents}
           />
           <EventSection
             title="This Week"
@@ -1059,6 +1157,7 @@ export default function SocialScreen() {
             userName={session?.user?.name}
             isCollapsed={collapsedSections.has("thisWeek")}
             onToggle={() => toggleSection("thisWeek")}
+            userCalendarEvents={userCalendarEvents}
           />
           <EventSection
             title="Upcoming"
@@ -1076,6 +1175,7 @@ export default function SocialScreen() {
             userName={session?.user?.name}
             isCollapsed={collapsedSections.has("upcoming")}
             onToggle={() => toggleSection("upcoming")}
+            userCalendarEvents={userCalendarEvents}
           />
         </ScrollView>
       )}

@@ -1,165 +1,161 @@
 ================================================================================
-HANDOFF PACKET — PHASE 2B: AUTH INVARIANT HARDENING
+HANDOFF PACKET — PHASE 3A: SOCIAL FEED AVAILABILITY INDICATOR
 ================================================================================
 Agent: GitHub Copilot
 Date: 2026-01-27
-Session: Phase 2B — Remove fire-and-forget cookie init, ensure single authority
-Previous: Phase 2 (0285837) — Session persistence + Apple Sign-In
+Session: Phase 3A — Availability outline for social feed events
+Previous: Phase 2B (000599b) — Auth invariant hardening
 
-STATUS: ✅ COMPLETE — Single authority for cookie init established
+STATUS: ✅ COMPLETE — Availability indicator shows free/busy/unknown
 
 ================================================================================
 SUMMARY
 ================================================================================
 
-Hardened auth invariants to ensure deterministic cookie loading order:
+Added visual availability indicator to social feed event cards:
 
-A) REMOVED FIRE-AND-FORGET COOKIE INIT (FIXED)
-   Location: authClient.ts module scope
-   Issue: `void ensureCookieInitialized()` could race with explicit bootstrap call
-   Fix: Removed call, added comment documenting single authority pattern
+GREEN OUTLINE = User is FREE (no conflicting calendar events)
+RED OUTLINE = User is BUSY (time overlap with existing event)
+NO OUTLINE = UNKNOWN (calendar data not loaded)
 
-B) VERIFIED APPLE SIGN-IN COOKIE PARSING (ALREADY CORRECT)
-   Location: welcome.tsx handleAppleSignIn()
-   Status: Regex already extracts only cookie value, not Path/HttpOnly attributes
-   Evidence: `/__Secure-better-auth\.session_token=([^;]+)/` stops at semicolon
+Implementation follows "never lie" principle: unknown state shows neutral, not false positive.
 
 ================================================================================
-ROOT CAUSE ANALYSIS
+IMPLEMENTATION DETAILS
 ================================================================================
 
-TASK A — FIRE-AND-FORGET RACE CONDITION
+AVAILABILITY HELPER FUNCTION:
+- Location: src/app/social.tsx (local function, not extracted)
+- Name: getAvailabilityStatus(feedEvent, userCalendarEvents)
+- Returns: "free" | "busy" | "unknown"
 
-PROBLEM:
-- authClient.ts had `void ensureCookieInitialized()` at module scope
-- Module loads at indeterminate time during app startup
-- Could race with bootstrap sequence or cause double initialization
+CONFLICT DETECTION RULE:
+- Standard overlap: (eventStart < otherEnd) AND (eventEnd > otherStart)
+- Self-exclusion: Same event ID skipped (event doesn't conflict with itself)
+- Missing endTime: Treated as 1-minute point event
 
-BEFORE (authClient.ts line 109):
-```typescript
-// Kick-off cookie initialization on module load (fire-and-forget).
-// This is NOT a race because bootstrapAuth() awaits ensureCookieInitialized().
-void ensureCookieInitialized();
-```
+DATA SOURCE:
+- userCalendarEvents = deduplicated merge of:
+  - myEventsData (events user created)
+  - attendingData (events user is attending)
+- Already fetched by social.tsx React Query hooks
 
-WHY THIS WAS PROBLEMATIC:
-1. Comments claimed "NOT a race" but fire-and-forget is inherently unpredictable
-2. Module load order is non-deterministic in bundled apps
-3. Could start initialization before app is ready to handle it
-4. Violates single-authority principle
-
-AFTER (authClient.ts line 106-109):
-```typescript
-// NOTE: Cookie initialization is NOT started on module load.
-// Bootstrap (authBootstrap.ts) is the ONLY authoritative caller of ensureCookieInitialized().
-// This ensures deterministic boot order and prevents race conditions.
-```
-
-FIX RATIONALE:
-- authBootstrap.ts Step 0/4 already awaits ensureCookieInitialized()
-- Removing fire-and-forget means bootstrap is the ONLY caller
-- Single authority = deterministic order = no races
-
-TASK B — APPLE SIGN-IN PARSING (VERIFIED CORRECT)
-
-CHECKED CODE (welcome.tsx ~line 555):
-```typescript
-const match = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
-if (match?.[1]) {
-  const cookieValue = match[1];
-  await setExplicitCookiePair(`__Secure-better-auth.session_token=${cookieValue}`);
-}
-```
-
-WHY THIS IS CORRECT:
-- Regex `[^;]+` matches everything UNTIL the semicolon
-- Set-Cookie header: `__Secure-better-auth.session_token=VALUE; Path=/; HttpOnly`
-- Match group 1 captures only `VALUE`, not `; Path=/; HttpOnly`
-- setExplicitCookiePair() receives clean `name=value` pair
-
-NO CHANGE NEEDED — parsing already robust.
+VISUAL ENCODING:
+- free: borderWidth 2, borderColor "#22C55E" (green)
+- busy: borderWidth 2, borderColor "#EF4444" (red)
+- unknown: borderWidth 1, borderColor colors.border (neutral)
+- Own events: Keep existing theme-tinted border
 
 ================================================================================
 FILES CHANGED
 ================================================================================
 
-src/lib/authClient.ts
-  - REMOVED: `void ensureCookieInitialized();` fire-and-forget call
-  - ADDED: Comment documenting single authority pattern
+src/app/social.tsx
+  - ADDED: AVAILABILITY_COLORS constant with green (#22C55E) and red (#EF4444)
+  - ADDED: AvailabilityStatus type ("free" | "busy" | "unknown")
+  - ADDED: getAvailabilityStatus() helper function with conflict detection
+  - ADDED: userCalendarEvents useMemo combining created + attending events
+  - UPDATED: EventCard props to accept userCalendarEvents
+  - UPDATED: EventCard border styling with availability-based colors
+  - UPDATED: EventSection props to accept and pass userCalendarEvents
+  - UPDATED: All 4 EventSection calls to pass userCalendarEvents
 
 docs/STATE_OF_THE_APP.md
-  - Added Phase 2B section under "Fixed This Session"
-  - Updated Stable section with single-authority invariant
+  - Added Phase 3A section under "Fixed This Session"
 
 docs/FINDINGS_LOG.md
-  - Added canonical auth contract: single authority for cookie init
-  - Updated Apple Sign-In cookie: documents regex extracts value only
-  - Added dated finding for fire-and-forget removal
+  - Added "Availability Indicator Contract (Canonical)" section
 
 ================================================================================
 KEY DIFFS
 ================================================================================
 
-authClient.ts (lines 106-109):
-BEFORE:
-  // Kick-off cookie initialization on module load (fire-and-forget).
-  // This is NOT a race because bootstrapAuth() awaits ensureCookieInitialized().
-  void ensureCookieInitialized();
+getAvailabilityStatus() function:
+```typescript
+function getAvailabilityStatus(
+  feedEvent: Event | EventSeries,
+  userCalendarEvents: Event[] | undefined
+): AvailabilityStatus {
+  // Unknown if no calendar data
+  if (!userCalendarEvents || userCalendarEvents.length === 0) {
+    return "unknown";
+  }
+  
+  // Check each calendar event for overlap
+  for (const calEvent of userCalendarEvents) {
+    if (calEvent.id === displayEvent.id) continue; // Self-exclusion
+    
+    // Overlap: eventStart < calEnd AND eventEnd > calStart
+    if (eventStart < calEnd && eventEnd > calStart) {
+      return "busy";
+    }
+  }
+  
+  return "free";
+}
+```
 
-AFTER:
-  // NOTE: Cookie initialization is NOT started on module load.
-  // Bootstrap (authBootstrap.ts) is the ONLY authoritative caller of ensureCookieInitialized().
-  // This ensures deterministic boot order and prevents race conditions.
+EventCard border styling:
+```typescript
+const getBorderStyle = () => {
+  if (isOwn) {
+    return { borderWidth: 1, borderColor: `${themeColor}40` };
+  }
+  if (availability === "free") {
+    return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.free };
+  }
+  if (availability === "busy") {
+    return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.busy };
+  }
+  return { borderWidth: 1, borderColor: colors.border };
+};
+```
 
 ================================================================================
 VERIFICATION RESULTS
 ================================================================================
 
-✅ TypeScript: npm run typecheck PASS (no errors)
-✅ Lint/Build: ./verify_frontend.sh PASS
-✅ Grep Check: No remaining `void ensureCookieInitialized` in codebase
-
-Grep command: grep -rn "void ensureCookieInitialized" src/
-Result: Exit code 1 (no matches found)
+✅ TypeScript: npm run typecheck PASS
+✅ Lint/Build: ./scripts/ai/verify_frontend.sh PASS
+✅ No new dependencies added
+✅ No global color tokens added (inline hex only)
 
 ================================================================================
 TEST PLAN
 ================================================================================
 
-COLD START SESSION PERSISTENCE:
-1. Log in (email or Apple)
-2. Force-close app (swipe kill)
-3. Reopen app
-4. EXPECTED: Remains logged in
-5. VERIFY LOG: "[AuthBootstrap] Step 0/4: Ensuring cookie cache..." appears FIRST
+EMPTY CALENDAR → ALL GREEN:
+1. User with no created events and no RSVPs
+2. View social feed
+3. EXPECTED: All non-own events show GREEN outline
 
-APPLE SIGN-IN:
-1. Sign in with Apple on device
-2. EXPECTED: Cookie captured, session persists
-3. Force-close and reopen
-4. EXPECTED: Still logged in
+CONFLICTING EVENT → RED:
+1. User has event "Team Meeting" 2pm-3pm today
+2. Friend's event "Coffee Chat" 2:30pm-3:30pm appears in feed
+3. EXPECTED: "Coffee Chat" shows RED outline (overlap detected)
 
-NO REGRESSION:
-- Email login works
-- Logout works
-- Re-login works
+CALENDAR NOT LOADED → NEUTRAL:
+1. Kill app, clear React Query cache
+2. Navigate to social feed before calendar data loads
+3. EXPECTED: Events show default border (no outline)
 
-================================================================================
-INVARIANTS ESTABLISHED
-================================================================================
+OWN EVENTS → THEME BORDER:
+1. User's own events in feed
+2. EXPECTED: Theme-tinted border (not availability border)
 
-1. Cookie initialization happens ONLY in authBootstrap.ts Step 0/4
-2. authClient.ts exports ensureCookieInitialized() but does NOT call it
-3. No fire-and-forget calls anywhere in auth code
-4. Apple Sign-In regex extracts cookie value only (stops at semicolon)
+EDGE CASE — NO END TIME:
+1. Event with startTime but no endTime
+2. EXPECTED: Treated as 1-minute event, availability still computed
 
 ================================================================================
-PREVIOUS HANDOFF (Phase 2)
+INVARIANTS
 ================================================================================
 
-See: AUTH_INVARIANT_HARDENING_HANDOFF.txt (renamed from this file)
-Commit: 0285837
-Summary: Fixed session persistence race + Apple Sign-In cookie capture
+1. Never lie: Unknown state shows neutral, not false green
+2. Self-exclusion: Event never conflicts with itself
+3. Data source: User calendar = created + attending (already fetched)
+4. No new endpoints: Uses existing myEventsData and attendingData
+5. No global colors: Inline hex only
 
 ================================================================================
 END HANDOFF
