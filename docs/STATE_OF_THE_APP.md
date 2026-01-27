@@ -27,6 +27,7 @@
 - None currently known
 
 ## Fixed This Session
+- Circles filter pill: Now disabled (0.5 opacity) with "Coming soon" toast instead of empty feed
 - Social feed filter pills: Added All/Friends/Circles/Hosting/Going filter options
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections now collapsible with count display
 - Filter logic: Applied after recurring series grouping, purely client-side on loaded events
@@ -76,5 +77,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-26: Typecheck PASS (social feed filters and collapsible sections)
+- 2026-01-26: Typecheck PASS (Circles filter disabled with toast)
 

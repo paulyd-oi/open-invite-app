@@ -12,6 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
+import { safeToast } from "@/lib/safeToast";
 import { EmptyState } from "@/components/EmptyState";
 import { QuickEventButton } from "@/components/QuickEventButton";
 import { SocialProof } from "@/components/SocialProof";
@@ -970,6 +971,7 @@ export default function SocialScreen() {
         >
           {(['all', 'friends', 'hosting', 'going', 'circles'] as FilterType[]).map((filter) => {
             const isActive = activeFilter === filter;
+            const isDisabled = filter === 'circles';
             const label = filter === 'all' ? 'All' : 
                          filter === 'friends' ? 'Friends' :
                          filter === 'hosting' ? 'Hosting' :
@@ -978,6 +980,11 @@ export default function SocialScreen() {
               <Pressable
                 key={filter}
                 onPress={() => {
+                  if (isDisabled) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    safeToast.info("Coming soon", "Circles filtering is coming soon.");
+                    return;
+                  }
                   Haptics.selectionAsync();
                   setActiveFilter(filter);
                 }}
@@ -986,6 +993,7 @@ export default function SocialScreen() {
                   backgroundColor: isActive ? themeColor : isDark ? '#2C2C2E' : '#F3F4F6',
                   borderWidth: 1,
                   borderColor: isActive ? themeColor : 'transparent',
+                  opacity: isDisabled ? 0.5 : 1,
                 }}
               >
                 <Text 

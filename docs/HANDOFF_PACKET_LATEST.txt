@@ -1,77 +1,73 @@
-SOCIAL FEED BROWSING IMPROVEMENTS - HANDOFF PACKET
+CIRCLES FILTER PILL FIX - HANDOFF PACKET
 ======================================================
 
 SUMMARY
 -------
-Added filter pills (All/Friends/Circles/Hosting/Going) and collapsible time sections to Social feed.
+Fixed Circles filter pill to be disabled instead of causing empty feed.
 
 STATUS: COMPLETE
-VERIFICATION: PASSED
+VERIFICATION: PENDING
 
 FILES CHANGED
 -------------
 1. src/app/social.tsx
-   - Added FilterType type and filter state management
-   - Added collapsible sections state (Set<string>)
-   - Added filter pills UI (horizontal scroll, 5 options)
-   - Added filtering logic after series grouping (client-side only)
-   - Updated EventSection for collapsible behavior with count display
-   - Updated all EventSection calls with collapse props
+   - Added safeToast import
+   - Circles filter pill now has 0.5 opacity (disabled styling)
+   - Tapping Circles shows toast: "Coming soon" / "Circles filtering is coming soon."
+   - Uses Haptics.notificationAsync(Warning) for disabled state feedback
+   - Does NOT switch filters when tapped
 
 2. docs/STATE_OF_THE_APP.md
-   - Added filter pills to "Fixed This Session"
-   - Added collapsible sections to "Fixed This Session"
-   - Updated "Last Verified" to 2026-01-26
+   - Added Circles filter fix to "Fixed This Session"
+   - Updated "Last Verified" timestamp
+
+3. docs/HANDOFF_PACKET_LATEST.txt
+   - Updated with current handoff
 
 KEY DIFFS
 ---------
-FILTER STATE:
-  type FilterType = "all" | "friends" | "circles" | "hosting" | "going";
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+IMPORT ADDED:
+  import { safeToast } from "@/lib/safeToast";
 
-FILTER LOGIC:
-  - All: Show all events
-  - Friends: event.userId in friendsData.friends (uses friendId)
-  - Hosting: event.userId === session.user.id
-  - Going: event.id in attendingData.events
-  - Circles: Placeholder (returns false)
-
-COLLAPSIBLE SECTIONS:
-  - Header shows "Title (count)" and arrow (▼/▶)
-  - Tap toggles collapse state
-  - All sections expanded by default
-  - Events hidden when collapsed
+FILTER PILL LOGIC:
+  const isDisabled = filter === 'circles';
+  
+  onPress={() => {
+    if (isDisabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      safeToast.info("Coming soon", "Circles filtering is coming soon.");
+      return;
+    }
+    Haptics.selectionAsync();
+    setActiveFilter(filter);
+  }}
+  
+  style={{
+    ...existing styles,
+    opacity: isDisabled ? 0.5 : 1,
+  }}
 
 TEST PLAN
 ---------
-1. Tap each filter pill - verify events filter correctly
-2. Tap section headers - verify collapse/expand behavior
-3. Verify filters work with recurring series grouping
-4. Verify collapse state persists during filter changes
+1. Tap Circles filter pill - verify toast appears
+2. Verify feed does NOT empty (stays on previous filter)
+3. Verify other filter pills still work normally
+4. Verify Circles pill has reduced opacity
 
 KNOWN LIMITATIONS
 -----------------
-1. Circles filter is placeholder only
-2. Filter/collapse state resets on unmount
-3. No accessibility labels yet
-
-FUTURE ENHANCEMENTS
--------------------
-1. AsyncStorage persistence for filter/collapse state
-2. Circles filter implementation (needs backend support)
-3. Filter badges with counts
-4. Accessibility improvements
+1. Circles filter is coming soon (needs backend support)
+2. Pill remains visible but disabled
 
 COMMIT HASH
 -----------
-9c435f4
+TBD
 
 PUSHED
 ------
-YES (origin/main)
+TBD
 
-Agent: GitHub Copilot (Claude Sonnet 4.5)
-Verification: PASS (./scripts/ai/verify_frontend.sh)
+Agent: GitHub Copilot (Claude Opus 4.5)
+Verification: PENDING (./scripts/ai/verify_frontend.sh)
 No breaking changes. Minimal diff achieved.
 
