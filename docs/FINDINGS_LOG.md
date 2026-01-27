@@ -13,6 +13,14 @@
 - Normalization location: `src/lib/offlineSync.ts` (normalizeRsvpStatus helper), `src/app/event/[id].tsx` (myRsvpStatus assignment)
 - Offline infrastructure enforces type safety: offlineQueue, offlineStore, offlineSync all exclude "maybe"
 
+## Ruthless Simplicity Pattern (Canonical)
+
+- Phase 1C (2026-01-27): Removed Social feed filter pills (All/Friends/Circles/Hosting/Going) to reduce cognitive load
+- Discovery feed shows all events without client-side filtering
+- Collapsible sections (Today/Tomorrow/This Week/Upcoming) retained for scannable structure
+- Principle: Remove features that add complexity without proportional user value
+- Impact: Cleaner UI, simpler codebase, pure discovery experience
+
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
 

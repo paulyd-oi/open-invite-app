@@ -1,132 +1,118 @@
 ================================================================================
-HANDOFF PACKET — PHASE 1B: RSVP MAYBE TYPE REMOVAL
+HANDOFF PACKET — PHASE 1C: SOCIAL FILTER REMOVAL
 ================================================================================
 Agent: GitHub Copilot
-Date: 2026-01-24
-Session: Phase 1B — Complete removal of "maybe" RSVP state from types and offline infrastructure
-Commit: 622af13
+Date: 2026-01-27
+Session: Phase 1C — Remove Social feed filters (ruthless simplicity)
+Commit: fe873d1
 
-STATUS: ✅ COMPLETE — All type unions updated, normalization added, typecheck PASS
+STATUS: ✅ COMPLETE — Filter pills removed, pure discovery feed restored
 
 ================================================================================
 WHAT WAS DONE
 ================================================================================
 
-PHASE 1B OBJECTIVE: Remove "maybe" from RSVP type system and normalize at backend boundary
+PHASE 1C OBJECTIVE: Remove Social feed filter UI to reduce cognitive load and restore pure discovery experience
 
-TYPE SYSTEM CLEANUP:
-✅ src/lib/offlineQueue.ts (line 66-69)
-   - RsvpChangePayload.status: "going" | "interested" | "not_going" (removed "maybe")
+CODE CLEANUP (src/app/social.tsx):
+✅ Line 406: Removed FilterType type definition ("all" | "friends" | "circles" | "hosting" | "going")
+✅ Line 423: Removed activeFilter state (useState<FilterType>("all"))
+✅ Lines 793-822: Removed filteredGroupedEvents useMemo logic with filter application
+✅ Lines 960-1000: Removed filter pills UI (horizontal ScrollView with pill buttons)
+✅ Lines 897-899: Updated hasEvents check to use groupedEvents instead of filteredGroupedEvents
+✅ Lines 1104-1157: Updated all EventSection calls to use groupedEvents instead of filteredGroupedEvents
 
-✅ src/lib/offlineStore.ts (line 35-41)
-   - LocalRsvp.status: "going" | "interested" | "not_going" (removed "maybe")
-
-✅ src/lib/offlineSync.ts (line 29-41)
-   - Added normalizeRsvpStatus() helper function
-   - Maps "maybe" → "interested" at backend boundary
-   - Handles unknown statuses with fallback to "interested"
-   - useOfflineRsvp changeRsvp signature: "going" | "interested" | "not_going" (removed "maybe")
-
-✅ src/app/event/[id].tsx (line 537, 1462-1477, 1559)
-   - RsvpStatus type: "going" | "interested" | "not_going" (removed "maybe")
-   - Added normalization for myRsvpData.status (line 535-537)
-   - Removed all (myRsvpStatus === "interested" || myRsvpStatus === "maybe") checks
-   - Simplified to myRsvpStatus === "interested" throughout
-
-✅ src/app/discover.tsx (line 63)
-   - viewerRsvpStatus: "going" | "not_going" | "interested" | null (removed "maybe")
-
-NORMALIZATION IMPLEMENTATION:
-✅ normalizeRsvpStatus() in src/lib/offlineSync.ts
-   - Input: any string (including "maybe" from backend)
-   - Output: "going" | "interested" | "not_going"
-   - Logic: if "maybe" → "interested", else passthrough valid states, else fallback "interested"
-
-✅ Event Detail Screen normalization (src/app/event/[id].tsx line 535-537)
-   - const rawRsvpStatus = myRsvpData?.status;
-   - const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : (rawRsvpStatus as RsvpStatus | null);
-   - Ensures type safety after backend response
+PRESERVED FEATURES:
+✅ Collapsible sections (Today/Tomorrow/This Week/Upcoming) — retained for scannable structure
+✅ collapsedSections state and toggleSection function — still functional
+✅ friendsData and attendingData queries — still used for socialMemory and first-value nudge
+✅ Section count display in headers — "(3)" badge shows event count per section
 
 DOCUMENTATION:
 ✅ docs/STATE_OF_THE_APP.md
-   - Added Phase 1B section documenting type removal and normalization
-   - Updated Stable section to clarify "no Maybe in types or UI"
-   - Added "RSVP normalization: Backend 'maybe' mapped to 'interested' at boundary"
+   - Added Phase 1C section: "Social feed filters: Removed All/Friends/Circles/Hosting/Going filter pills"
+   - Updated Stable section: "Social feed: Pure discovery (no filter pills, shows all events)"
+   - Moved collapsible sections bullet to Previously Fixed (feature retained)
+   - Removed contradictory "Social feed filter pills: Added..." entry from Previously Fixed
 
 ✅ docs/FINDINGS_LOG.md
-   - Added "RSVP Type Contract (Canonical)" section
-   - Documents frontend states, backend legacy handling, normalization locations
-   - Establishes offline infrastructure type enforcement as canonical pattern
+   - Added "Ruthless Simplicity Pattern (Canonical)" section
+   - Documents Phase 1C change, principle, and impact
+   - Establishes pattern for future simplification decisions
 
 VERIFICATION:
-✅ npm run typecheck → PASS (no TypeScript errors)
-✅ rg -n '"maybe"' src/ → Only legitimate normalization references remain:
-   - src/lib/offlineSync.ts:35 (comment)
-   - src/lib/offlineSync.ts:38 (normalizeRsvpStatus implementation)
-   - src/app/event/[id].tsx:537 (myRsvpStatus normalization)
+✅ npm run typecheck → PASS
+✅ scripts/ai/verify_frontend.sh → PASS (all invariants satisfied)
+✅ rg -n "activeFilter|setActiveFilter|FilterType" src/app/social.tsx → No matches (fully removed)
 
 ================================================================================
 FILES MODIFIED
 ================================================================================
 
-src/lib/offlineQueue.ts          - Removed "maybe" from RsvpChangePayload type
-src/lib/offlineStore.ts          - Removed "maybe" from LocalRsvp type
-src/lib/offlineSync.ts           - Added normalizeRsvpStatus(), removed "maybe" from useOfflineRsvp
-src/app/event/[id].tsx           - Removed "maybe" from RsvpStatus type, added normalization, cleaned up checks
-src/app/discover.tsx             - Removed "maybe" from viewerRsvpStatus type
-docs/STATE_OF_THE_APP.md         - Documented Phase 1B changes
-docs/FINDINGS_LOG.md             - Added RSVP Type Contract
+src/app/social.tsx           - Removed FilterType, activeFilter, filteredGroupedEvents, filter pills UI
+docs/STATE_OF_THE_APP.md     - Added Phase 1C section, updated Stable section
+docs/FINDINGS_LOG.md         - Added Ruthless Simplicity Pattern canonical section
 
 ================================================================================
 TECHNICAL NOTES
 ================================================================================
 
-NORMALIZATION PATTERN:
-- Backend may return "maybe" for legacy RSVPs (users who RSVP'd before UI removal)
-- Frontend normalizes "maybe" → "interested" at TWO boundaries:
-  1. offlineSync.ts normalizeRsvpStatus() (unused currently but available for future use)
-  2. event/[id].tsx myRsvpStatus assignment (active normalization on query data)
-- This ensures TypeScript type safety while gracefully handling backend legacy data
+MINIMAL DIFF ACHIEVED:
+- Only removed filter-related code (type, state, pills UI, filter logic)
+- No refactoring of unrelated feed architecture
+- Collapsible sections feature untouched (user value retained)
+- Query structure unchanged (friendsData/attendingData still fetched for other features)
 
-TYPE SAFETY ACHIEVED:
-- All RSVP status parameters now strictly typed: "going" | "interested" | "not_going"
-- No conditional checks for "maybe" in business logic
-- Offline queue/store/sync cannot accept or store "maybe" values
-- Backend responses automatically normalized before entering type-safe zones
+QUERIES STILL IN USE:
+- friendsData: Used for socialMemory pattern detection, first-value nudge eligibility
+- attendingData: Used for socialMemory pattern detection, first-value nudge eligibility
+- myEventsData: Used for socialMemory pattern detection, feed merge with feed events
+- All queries remain necessary for existing features despite filter removal
 
-SEARCH RESULTS SUMMARY:
-All remaining "maybe" references are legitimate normalization logic:
-- 3 occurrences total (1 comment, 2 implementation lines)
-- No accidental "maybe" state leakage into business logic
-- Type system enforces impossibility of "maybe" after normalization
+UI BEHAVIOR AFTER REMOVAL:
+- Social feed shows ALL events from feed + myEvents (no client-side filtering)
+- Events grouped into Today/Tomorrow/This Week/Upcoming sections
+- Each section collapsible/expandable with count badge
+- Pure discovery: user sees full event landscape without artificial filtering
+
+COGNITIVE LOAD REDUCTION:
+- Before: 5 filter pills (All/Friends/Circles/Hosting/Going) + active state visual feedback
+- After: Clean header with title + quick event button only
+- Simpler mental model: "This is everything happening" vs "Which filter am I using?"
+
+CODE REMOVED SUMMARY:
+- 1 type definition (FilterType)
+- 1 state variable (activeFilter)
+- 1 derived state computation (filteredGroupedEvents useMemo with 30-line filter logic)
+- 1 UI component block (filter pills horizontal ScrollView, ~40 lines JSX)
+- ~80 lines total removed for minimal diff
 
 ================================================================================
 NEXT SESSION GUIDANCE
 ================================================================================
 
-PHASE 1B COMPLETE:
-✅ All type unions cleaned
-✅ Normalization helpers in place
-✅ Backend boundary protected
+PHASE 1C COMPLETE:
+✅ Filter pills removed from Social feed
+✅ Pure discovery experience restored
 ✅ Documentation updated
 ✅ Typecheck passing
-✅ No regressions detected
+✅ All invariants satisfied
 
 READY FOR COMMIT:
-- Message: "fix(rsvp): remove maybe state from types; normalize to interested"
-- All changes verified and documented
-- No breaking changes (UI already handled in Phase 1)
+- Message: "fix(ux): remove social feed filters (ruthless simplicity)"
+- Clean removal with minimal diff
+- No breaking changes or regressions
 
 IF ISSUES ARISE:
-- Check normalizeRsvpStatus() in offlineSync.ts for boundary handling
-- Verify myRsvpStatus normalization in event/[id].tsx line 535-537
-- Search: rg -n '"maybe"' src/ to find any new "maybe" references
-- Typecheck: npm run typecheck to catch type errors
+- Social feed shows all events (expected behavior)
+- No filter UI visible (expected after removal)
+- Collapsible sections still work (intentionally retained)
+- friendsData/attendingData queries still run (used by socialMemory, first-value nudge)
 
-MONITORING:
-- Watch for backend responses with "maybe" status (should normalize silently)
-- Monitor offline sync behavior (should reject "maybe" in queue payload)
-- Verify legacy users with "maybe" RSVPs see "Interested" in UI
+PATTERN ESTABLISHED:
+- "Ruthless Simplicity" documented in FINDINGS_LOG.md
+- Principle: Remove features that add complexity without proportional user value
+- Future candidates: Any UI that creates cognitive load without clear benefit
 
 ================================================================================
 END HANDOFF

@@ -24,6 +24,8 @@
 - Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
 - Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing: Social feed on cold launch (authenticated users)
+- Social feed: Pure discovery (no filter pills, shows all events)
+- Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections collapsible with count display
 - RSVP states: Going, Interested, Can't Make It (no Maybe in types or UI)
 - RSVP normalization: Backend "maybe" mapped to "interested" at boundary
 - Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
@@ -32,7 +34,13 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 1B: Maybe RSVP Complete Removal)
+## Fixed This Session (Phase 1C: Social Filter Removal)
+- Social feed filters: Removed All/Friends/Circles/Hosting/Going filter pills for ruthless simplicity
+- Feed display: Shows all events without client-side filtering
+- Code cleanup: Removed FilterType type, activeFilter state, filter application logic
+- Cognitive load reduction: Pure discovery feed with no filter UI clutter
+
+## Fixed Previously (Phase 1B: Maybe RSVP Complete Removal)
 - Type system: Removed "maybe" from all RSVP type unions (offlineQueue, offlineStore, offlineSync, event/[id].tsx, discover.tsx)
 - Normalization helper: Added normalizeRsvpStatus() in offlineSync.ts for backend boundary
 - Event detail screen: Added normalization for myRsvpData.status, removed all myRsvpStatus === "maybe" checks
@@ -49,10 +57,7 @@
 - CTA update: "Create Open Invite" → "Create Invite"
 
 ## Previously Fixed
-- Circles filter pill: Now disabled (0.5 opacity) with "Coming soon" toast instead of empty feed
-- Social feed filter pills: Added All/Friends/Circles/Hosting/Going filter options
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections now collapsible with count display
-- Filter logic: Applied after recurring series grouping, purely client-side on loaded events
 - Edit Event query invalidation: Update/delete now invalidates ["events", "single", id], ["calendar"], ["events", "feed"]
 - Edit Event success toast: Now shows "Updated" and "Deleted" confirmations
 - P0-A Onboarding: requestBootstrapRefreshOnce() after profile save prevents loop
