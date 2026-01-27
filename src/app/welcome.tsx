@@ -45,8 +45,6 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
-import { shouldShowNotificationNudge } from "@/lib/push/registerPush";
-import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -360,8 +358,7 @@ export default function WelcomeOnboardingScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
-  // Notification nudge state (shown after onboarding)
-  const [showNotificationNudge, setShowNotificationNudge] = useState(false);
+  // REMOVED: Notification nudge state - now triggered at Aha moments
 
   // Cleanup on unmount
   useEffect(() => {
@@ -841,21 +838,13 @@ export default function WelcomeOnboardingScreen() {
     // Notify backend (fire and forget)
     api.post("/api/onboarding/complete", {}).catch(() => {});
 
-    // Check if we should show notification nudge
-    const shouldNudge = await shouldShowNotificationNudge();
-    if (shouldNudge) {
-      setShowNotificationNudge(true);
-    } else {
-      // Navigate to calendar - use replace to prevent back nav
-      router.replace("/calendar");
-    }
-  };
-
-  // Handle notification nudge close (navigate after)
-  const handleNotificationNudgeClose = () => {
-    setShowNotificationNudge(false);
+    // REMOVED: Early notification nudge prompt
+    // Notifications will be prompted after Aha moments (create event, RSVP)
+    // Navigate to calendar - use replace to prevent back nav
     router.replace("/calendar");
   };
+
+  // REMOVED: handleNotificationNudgeClose - no longer needed
 
   // ============ RENDER SLIDES ============
 
@@ -1150,13 +1139,7 @@ export default function WelcomeOnboardingScreen() {
         {renderCurrentSlide()}
       </Animated.View>
 
-      {/* Notification Nudge Modal - shown after onboarding completion */}
-      <NotificationNudgeModal
-        visible={showNotificationNudge}
-        onClose={handleNotificationNudgeClose}
-        onEnable={handleNotificationNudgeClose}
-        onNotNow={handleNotificationNudgeClose}
-      />
+      {/* REMOVED: NotificationNudgeModal - now triggered at Aha moments */}
     </>
   );
 }

@@ -46,7 +46,8 @@ import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
+import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
+import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -414,7 +415,7 @@ export default function CreateEventScreen() {
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
-  const [showNotificationNudge, setShowNotificationNudge] = useState(false);
+  const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
@@ -540,7 +541,7 @@ export default function CreateEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["circle", circleId] });
         queryClient.invalidateQueries({ queryKey: ["circles"] });
       }
-      // Check if we should show notification nudge (after 600ms)
+      // Check if we should show notification pre-prompt (Aha moment: first event created)
       checkNotificationNudge();
       router.back();
     },
@@ -569,18 +570,18 @@ export default function CreateEventScreen() {
     setShowFrequencyPicker(false);
   };
 
-  // Check notification nudge eligibility after successful create
+  // Check notification pre-prompt eligibility after successful create (Aha moment)
   const checkNotificationNudge = async () => {
     try {
-      const response = await api.get<{ eligible: boolean }>("/api/notifications/nudge-eligibility");
-      if (response.eligible) {
-        // Wait 600ms as per spec
+      const shouldShow = await shouldShowNotificationPrompt();
+      if (shouldShow) {
+        // Wait 600ms before showing modal (after router.back() completes)
         setTimeout(() => {
-          setShowNotificationNudge(true);
+          setShowNotificationPrePrompt(true);
         }, 600);
       }
     } catch (error) {
-      console.log("[CreateEvent] Error checking nudge eligibility:", error);
+      console.log("[CreateEvent] Error checking notification prompt:", error);
     }
   };
 
@@ -1331,10 +1332,10 @@ export default function CreateEventScreen() {
         onClose={() => setShowPaywallModal(false)}
       />
 
-      {/* Notification Nudge Modal */}
-      <NotificationNudgeModal
-        visible={showNotificationNudge}
-        onClose={() => setShowNotificationNudge(false)}
+      {/* Notification Pre-Prompt Modal (Aha moment: first event created) */}
+      <NotificationPrePromptModal
+        visible={showNotificationPrePrompt}
+        onClose={() => setShowNotificationPrePrompt(false)}
       />
 
       {/* Soft-Limit Modal */}

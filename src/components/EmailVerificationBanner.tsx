@@ -4,12 +4,13 @@
  * Non-blocking banner shown when user's email is not verified.
  * Features:
  * - Shows only when emailVerified === false
- * - "Verify email" button calls resend endpoint
+ * - "Resend email" button calls resend endpoint
  * - Auto-hides when emailVerified becomes true
+ * - 30-second cooldown after auto-send and manual resend
  * - Positioned at top of screen (non-intrusive)
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, Pressable } from "react-native";
 import { Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
@@ -19,18 +20,62 @@ import { useSession, authClient } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 
+// Store last resend timestamp to enable cooldown
+let lastResendTimestamp = 0;
+
+/**
+ * Trigger cooldown externally (e.g., after auto-send from onboarding)
+ */
+export function triggerVerificationCooldown() {
+  lastResendTimestamp = Date.now();
+}
+
 export function EmailVerificationBanner() {
-  const { data: session } = useSession();
-  const { themeColor, colors, isDark } = useTheme();
+  const { data } = useSession();
+  const session = data;
+  const { colors, themeColor, isDark } = useTheme();
   const [isResending, setIsResending] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update cooldown countdown every second
+  useEffect(() => {
+    const updateCooldown = () => {
+      const elapsed = Date.now() - lastResendTimestamp;
+      const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
+      setCooldownRemaining(remaining);
+      
+      if (remaining === 0 && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    // Initial check
+    updateCooldown();
+
+    // Start interval if in cooldown
+    if (lastResendTimestamp > 0 && Date.now() - lastResendTimestamp < 30000) {
+      intervalRef.current = setInterval(updateCooldown, 1000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [lastResendTimestamp]);
 
   // Only show if user is logged in and email is not verified
   if (!session?.user?.email || session?.user?.emailVerified === true) {
     return null;
   }
 
+  const isInCooldown = cooldownRemaining > 0;
+
   const handleResendVerification = async () => {
-    if (isResending || !session?.user?.email) return;
+    if (isResending || isInCooldown || !session?.user?.email) return;
 
     setIsResending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -55,9 +100,23 @@ export function EmailVerificationBanner() {
       if (data.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success(
-          "Verification email sent",
+          "Email sent",
           "Check your inbox — it might take a minute to arrive."
         );
+        
+        // Start 30-second cooldown
+        lastResendTimestamp = Date.now();
+        setCooldownRemaining(30);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(() => {
+          const elapsed = Date.now() - lastResendTimestamp;
+          const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
+          setCooldownRemaining(remaining);
+          if (remaining === 0 && intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }, 1000);
       } else {
         // Handle specific errors
         if (data.error?.includes("already verified")) {
@@ -105,11 +164,11 @@ export function EmailVerificationBanner() {
           marginRight: 12,
         }}
       >
-        <Mail size={18} color={isDark ? "#FFB74D" : "#F57C00"} />
+        <Mail size={18} color={isDark ? "#FF9800" : "#F57C00"} />
       </View>
 
-      {/* Content */}
-      <View style={{ flex: 1 }}>
+      {/* Text Content */}
+      <View style={{ flex: 1, marginRight: 12 }}>
         <Text
           style={{
             fontSize: 13,
@@ -118,38 +177,51 @@ export function EmailVerificationBanner() {
             marginBottom: 2,
           }}
         >
-          Verify your email
+          Check your email
         </Text>
         <Text
           style={{
             fontSize: 12,
             color: colors.textSecondary,
+            marginBottom: 4,
           }}
         >
-          Unlock full features and secure your account
+          We sent a verification link to your inbox.
+        </Text>
+        <Text
+          style={{
+            fontSize: 10,
+            color: colors.textTertiary,
+          }}
+        >
+          Email verification helps keep Open Invite safe and spam-free.
         </Text>
       </View>
 
       {/* CTA Button */}
       <Pressable
         onPress={handleResendVerification}
-        disabled={isResending}
+        disabled={isResending || isInCooldown}
         style={{
           paddingHorizontal: 14,
           paddingVertical: 8,
           borderRadius: 8,
           backgroundColor: themeColor,
-          opacity: isResending ? 0.6 : 1,
+          opacity: isResending || isInCooldown ? 0.5 : 1,
         }}
       >
         <Text
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: "600",
             color: "#FFFFFF",
           }}
         >
-          {isResending ? "Sending..." : "Verify"}
+          {isResending 
+            ? "Sending..." 
+            : isInCooldown 
+              ? `Sent (${cooldownRemaining}s)` 
+              : "Resend email"}
         </Text>
       </Pressable>
     </Animated.View>

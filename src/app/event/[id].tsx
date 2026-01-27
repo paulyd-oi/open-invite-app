@@ -69,8 +69,8 @@ import { EventPhotoGallery } from "@/components/EventPhotoGallery";
 import { EventCategoryBadge } from "@/components/EventCategoryPicker";
 import { EventSummaryModal } from "@/components/EventSummaryModal";
 import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
-import { NotificationNudgeModal } from "@/components/notifications/NotificationNudgeModal";
-import { shouldShowNotificationNudge } from "@/lib/push/registerPush";
+import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
+import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 // MapPreview removed; use native maps via openMaps
 import {
   checkCalendarPermission,
@@ -267,7 +267,7 @@ export default function EventDetailScreen() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
   const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
-  const [showNotificationNudge, setShowNotificationNudge] = useState(false);
+  const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -559,7 +559,18 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
       setShowRsvpOptions(false);
       
-      // Check if we should show first RSVP nudge
+      // Check if we should show notification pre-prompt (Aha moment: first RSVP going/interested)
+      if (bootStatus === 'authed' && (status === "going" || status === "interested")) {
+        const shouldShow = await shouldShowNotificationPrompt();
+        if (shouldShow) {
+          // Wait 600ms before showing modal
+          setTimeout(() => {
+            setShowNotificationPrePrompt(true);
+          }, 600);
+        }
+      }
+      
+      // Also check if we should show first RSVP nudge (different from notification prompt)
       if (bootStatus === 'authed') {
         const canShow = await canShowFirstRsvpNudge();
         if (canShow) {
@@ -676,45 +687,25 @@ export default function EventDetailScreen() {
     setCommentToDelete(null);
   };
 
-  // First RSVP nudge handlers
+  // First RSVP nudge handlers (REMOVED: old notification nudge logic)
   const handleFirstRsvpNudgePrimary = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
-    // Check if we should also show notification nudge
-    const canShowNotifNudge = await shouldShowNotificationNudge();
-    if (canShowNotifNudge) {
-      setShowNotificationNudge(true);
-    } else {
-      router.push("/discover");
-    }
+    router.push("/discover");
   };
 
   const handleFirstRsvpNudgeSecondary = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
-    // Check if we should also show notification nudge
-    const canShowNotifNudge = await shouldShowNotificationNudge();
-    if (canShowNotifNudge) {
-      setShowNotificationNudge(true);
-    } else {
-      router.push("/create");
-    }
+    router.push("/create");
   };
 
   const handleFirstRsvpNudgeDismiss = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
-    // Check if we should also show notification nudge
-    const canShowNotifNudge = await shouldShowNotificationNudge();
-    if (canShowNotifNudge) {
-      setShowNotificationNudge(true);
-    }
   };
 
-  // Notification nudge handler
-  const handleNotificationNudgeClose = () => {
-    setShowNotificationNudge(false);
-  };
+  // REMOVED: handleNotificationNudgeClose - now handled by pre-prompt modal
 
   // Format relative time
   const formatTimeAgo = (dateString: string) => {
@@ -1979,9 +1970,10 @@ export default function EventDetailScreen() {
         onDismiss={handleFirstRsvpNudgeDismiss}
       />
 
-      <NotificationNudgeModal
-        visible={showNotificationNudge}
-        onClose={handleNotificationNudgeClose}
+      {/* Notification Pre-Prompt Modal (Aha moment: first RSVP going/interested) */}
+      <NotificationPrePromptModal
+        visible={showNotificationPrePrompt}
+        onClose={() => setShowNotificationPrePrompt(false)}
       />
     </SafeAreaView>
   );

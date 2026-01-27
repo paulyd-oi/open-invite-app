@@ -58,6 +58,7 @@ import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
+import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -922,6 +923,8 @@ export default function OnboardingScreen() {
             },
           });
           console.log("[onboarding] Verification email sent successfully");
+          // Trigger 30-second cooldown in banner
+          triggerVerificationCooldown();
         } catch (error: any) {
           console.warn("[onboarding] Failed to auto-send verification email:", error?.message ?? error);
           // Don't crash or block - just show toast
