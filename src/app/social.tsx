@@ -26,7 +26,7 @@ import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
-import { isEmailGateActive } from "@/lib/emailVerificationGate";
+import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
@@ -555,12 +555,16 @@ function EventSection({
 
 function EmptyFeed() {
   const router = useRouter();
+  const { data: session } = useSession();
 
   return (
     <EmptyState
       type="events"
       actionLabel="Create Event"
-      onAction={() => router.push("/create")}
+      onAction={() => {
+        if (!guardEmailVerification(session)) return;
+        router.push("/create");
+      }}
     />
   );
 }
@@ -1066,6 +1070,7 @@ export default function SocialScreen() {
           <ShareAppButton variant="icon" />
           <Pressable
             onPress={() => {
+              if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/create");
             }}
@@ -1152,6 +1157,7 @@ export default function SocialScreen() {
             )}
             <Pressable
               onPress={() => {
+                if (!guardEmailVerification(session)) return;
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 router.push("/create");
               }}
@@ -1271,7 +1277,10 @@ export default function SocialScreen() {
         visible={showFirstValueNudge}
         onClose={() => setShowFirstValueNudge(false)}
         onPrimary={() => router.push("/discover")}
-        onSecondary={() => router.push("/create")}
+        onSecondary={() => {
+          if (!guardEmailVerification(session)) return;
+          router.push("/create");
+        }}
       />
 
       <BottomNavigation />

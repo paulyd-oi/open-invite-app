@@ -72,7 +72,7 @@ export function guardEmailVerification(
     if (showToast) {
       safeToast.warning(
         "Verify your email to use this feature",
-        "Check your inbox or tap Resend email in the banner above."
+        "Check your inbox or tap Resend email in the verification banner."
       );
     }
     return false;

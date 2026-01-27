@@ -17,6 +17,8 @@ import { useTheme } from "@/lib/ThemeContext";
 import { type SuggestionFeedItem, type SuggestionAction, type GetFriendsResponse } from "@/shared/contracts";
 import { api } from "@/lib/api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
+import { useSession } from "@/lib/useSession";
 
 interface SuggestionFeedCardProps {
   suggestion: SuggestionFeedItem;
@@ -72,6 +74,7 @@ function getSuggestionStyle(type: SuggestionAction): {
 export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProps) {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
+  const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const style = getSuggestionStyle(suggestion.type);
   const Icon = style.icon;
@@ -93,6 +96,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
         }
         break;
       case "NUDGE_CREATE":
+        if (!guardEmailVerification(session)) return;
         router.push("/create" as any);
         break;
       case "NUDGE_INVITE":

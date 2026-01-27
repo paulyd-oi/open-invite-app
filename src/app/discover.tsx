@@ -30,6 +30,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
 
 // Response from GET /api/friends/reconnect
@@ -255,6 +256,7 @@ export default function DiscoverScreen() {
           </Text>
           <Pressable
             onPress={() => {
+              if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               router.push("/create");
             }}

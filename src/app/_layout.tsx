@@ -35,6 +35,8 @@ import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
 import { useRevenueCatSync } from '@/hooks/useRevenueCatSync';
 import { useEntitlementsForegroundRefresh } from '@/hooks/useEntitlementsForegroundRefresh';
 import { useSession } from '@/lib/useSession';
+import { EmailVerificationGateModal } from '@/components/EmailVerificationGateModal';
+import { hasShownGateModal, markGateModalShown } from '@/lib/emailVerificationGate';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -86,6 +88,7 @@ function BootRouter() {
   const navigationState = useRootNavigationState();
   const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
+  const [showEmailGateModal, setShowEmailGateModal] = useState(false);
   
   // Get session data for RevenueCat sync
   const { data: session } = useSession();
@@ -107,6 +110,31 @@ function BootRouter() {
   useEntitlementsForegroundRefresh({
     isLoggedIn: bootStatus === 'authed' || bootStatus === 'onboarding',
   });
+
+  // Email verification gate modal (global, show once per account if unverified)
+  useEffect(() => {
+    const checkEmailGate = async () => {
+      const userId = session?.user?.id;
+      const emailVerified = session?.user?.emailVerified;
+      
+      if (!userId || emailVerified !== false) return;
+      
+      const hasShown = await hasShownGateModal(userId);
+      if (!hasShown) {
+        // Wait 800ms after authed state, then show modal
+        const timer = setTimeout(() => {
+          // Mark as shown right before opening modal (timing fix)
+          markGateModalShown(userId);
+          setShowEmailGateModal(true);
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    };
+    
+    if (bootStatus === 'authed') {
+      checkEmailGate();
+    }
+  }, [session?.user?.id, session?.user?.emailVerified, bootStatus]);
 
   // Wait for navigation state to be ready before routing
   useEffect(() => {
@@ -160,12 +188,12 @@ function BootRouter() {
         router.replace('/welcome');
       }
     } else if (bootStatus === 'authed') {
-      // Fully authenticated and onboarded - go to Social feed (default landing)
-      if (pathname !== '/' && pathname !== '/social') {
+      // Fully authenticated and onboarded - go to Calendar (home/center tab)
+      if (pathname !== '/' && pathname !== '/calendar') {
         if (__DEV__) {
-          console.log('[BootRouter] → Routing to /social (fully authenticated)');
+          console.log('[BootRouter] → Routing to /calendar (fully authenticated)');
         }
-        router.replace('/social');
+        router.replace('/calendar');
       }
     }
   }, [navigationState?.key, bootStatus, router, pathname]);
@@ -175,7 +203,15 @@ function BootRouter() {
     return null;
   }
 
-  return null;
+  // Render email verification gate modal (global, authed shell)
+  return (
+    <>
+      <EmailVerificationGateModal
+        visible={showEmailGateModal}
+        onClose={() => setShowEmailGateModal(false)}
+      />
+    </>
+  );
 }
 
 function RootLayoutNav() {

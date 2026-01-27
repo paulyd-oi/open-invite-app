@@ -14,6 +14,7 @@ import {
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { ShareAppButton } from "@/components/ShareApp";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -71,7 +72,6 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
-import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -758,6 +758,7 @@ export default function FriendsScreen() {
   const handleSecondOrderNudgeSecondary = async () => {
     await markSecondOrderSocialNudgeCompleted();
     setShowSecondOrderSocialNudge(false);
+    if (!guardEmailVerification(session)) return;
     router.push("/create");
   };
 

@@ -19,7 +19,7 @@ import * as Haptics from "expo-haptics";
 
 import { useSession, authClient } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
-import { safeToast } from "@/lib/safeToast";
+import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 
 interface EmailVerificationGateModalProps {
@@ -40,45 +40,16 @@ export function EmailVerificationGateModal({ visible, onClose }: EmailVerificati
     setIsResending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const endpoint = "/api/email-verification/resend";
-    console.log("[EmailGate] resend start", { endpoint });
-
-    try {
-      const data = await authClient.$fetch<{ success?: boolean; error?: string }>(
-        endpoint,
-        {
-          method: "POST",
-          body: { 
-            email: userEmail.toLowerCase(),
-            name: session?.user?.name || session?.user?.displayName || undefined
-          },
-        }
-      );
-
-      if (data.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        safeToast.success(
-          "Email sent",
-          "Check your inbox — it might take a minute to arrive."
-        );
+    await resendVerificationEmail({
+      email: userEmail,
+      name: session?.user?.name || session?.user?.displayName,
+      onSuccess: () => {
         // Trigger cooldown in banner
         triggerVerificationCooldown();
-      } else {
-        if (data.error?.includes("already verified")) {
-          safeToast.info("Already Verified", "Your email is already verified.");
-        } else if (data.error?.includes("rate limit") || data.error?.includes("cooldown")) {
-          safeToast.warning("Please Wait", "Try again in a few minutes.");
-        } else {
-          console.warn("[EmailGate] resend failed", data.error || "Unknown error");
-          safeToast.error("Error", data.error || "Unable to send verification email.");
-        }
-      }
-    } catch (error: any) {
-      console.warn("[EmailGate] resend failed", error?.message ?? error);
-      safeToast.error("Network Error", "Please check your connection and try again.");
-    } finally {
-      setIsResending(false);
-    }
+      },
+    });
+
+    setIsResending(false);
   };
 
   const handleDismiss = () => {

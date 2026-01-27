@@ -34,12 +34,10 @@ import * as ExpoCalendar from "expo-calendar";
 import BottomNavigation from "@/components/BottomNavigation";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { EmailVerificationGateModal } from "@/components/EmailVerificationGateModal";
-import { hasShownGateModal, markGateModalShown } from "@/lib/emailVerificationGate";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
-import { isEmailGateActive } from "@/lib/emailVerificationGate";
+import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { getEventShareLink } from "@/lib/deepLinks";
@@ -1045,6 +1043,7 @@ function ListView({
   userId,
   onColorChange,
   onDelete,
+  session,
 }: {
   events: Array<Event & { isAttending?: boolean; isBirthday?: boolean }>;
   currentMonth: number;
@@ -1055,6 +1054,7 @@ function ListView({
   userId?: string;
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
+  session: any;
 }) {
   const router = useRouter();
 
@@ -1087,7 +1087,10 @@ function ListView({
         <Text className="font-medium mb-1" style={{ color: colors.text }}>Nothing this month</Text>
         <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>Try a different month or create something</Text>
         <Pressable
-          onPress={() => router.push("/create")}
+          onPress={() => {
+            if (!guardEmailVerification(session)) return;
+            router.push("/create");
+          }}
           className="flex-row items-center px-4 py-2 rounded-full"
           style={{ backgroundColor: themeColor }}
         >
@@ -1149,36 +1152,11 @@ export default function CalendarScreen() {
   const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, { timeout: 3000 });
   const [isRetrying, setIsRetrying] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
-  const [showEmailGateModal, setShowEmailGateModal] = useState(false);
 
   // Load first-session guidance state on mount
   useEffect(() => {
     loadGuidanceState().then(() => setGuidanceLoaded(true));
   }, []);
-
-  // Email verification gate modal (show once per account if unverified)
-  useEffect(() => {
-    const checkEmailGate = async () => {
-      const userId = session?.user?.id;
-      const emailVerified = session?.user?.emailVerified;
-      
-      if (!userId || emailVerified !== false) return;
-      
-      const hasShown = await hasShownGateModal(userId);
-      if (!hasShown) {
-        // Wait 800ms after landing in calendar
-        setTimeout(() => {
-          setShowEmailGateModal(true);
-        }, 800);
-        // Mark as shown immediately to prevent re-showing on re-render
-        await markGateModalShown(userId);
-      }
-    };
-    
-    if (bootStatus === 'authed') {
-      checkEmailGate();
-    }
-  }, [session?.user?.id, session?.user?.emailVerified, bootStatus]);
 
   // Handle retry from timeout UI
   const handleRetry = useCallback(() => {
@@ -2032,7 +2010,10 @@ export default function CalendarScreen() {
           </View>
           <View className="flex-row items-center">
             <Pressable
-              onPress={() => router.push("/create")}
+              onPress={() => {
+                if (!guardEmailVerification(session)) return;
+                router.push("/create");
+              }}
               className="flex-row items-center px-4 py-2 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
@@ -2140,6 +2121,7 @@ export default function CalendarScreen() {
             userId={session?.user?.id}
             onColorChange={handleColorChange}
             onDelete={handleDeleteEvent}
+            session={session}
           />
         ) : (
           <>
@@ -2269,7 +2251,10 @@ export default function CalendarScreen() {
                   )}
                   <View className="flex-row items-center mt-1 gap-4">
                     <Pressable
-                      onPress={() => router.push(`/create?date=${selectedDate.toISOString()}`)}
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        router.push(`/create?date=${selectedDate.toISOString()}`);
+                      }}
                       className="flex-row items-center"
                     >
                       <Plus size={16} color={themeColor} />
@@ -2550,11 +2535,6 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
-      {/* Email Verification Gate Modal (One-time blocking modal) */}
-      <EmailVerificationGateModal
-        visible={showEmailGateModal}
-        onClose={() => setShowEmailGateModal(false)}
-      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
