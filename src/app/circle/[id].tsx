@@ -1705,7 +1705,7 @@ export default function CircleScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 maxHeight: "90%",
-                minHeight: 300,
+                minHeight: 500,
               }}
             >
               {/* Modal Handle */}

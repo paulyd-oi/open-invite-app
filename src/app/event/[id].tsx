@@ -1165,7 +1165,7 @@ export default function EventDetailScreen() {
               const hasEnded = new Date() > eventEndTime;
               const hasSummary = event.summary && event.summary.length > 0;
               const attendeeCount = event.joinRequests?.filter((r) => r.status === "accepted").length ?? 0;
-              const reflectionEnabled = event.reflectionEnabled !== false; // default true
+              const reflectionEnabled = event.reflectionEnabled === true; // default false
 
               // Show the section if:
               // 1. Event has ended and reflection is enabled
