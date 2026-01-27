@@ -60,10 +60,30 @@ function parseNotificationData(notification: Notification): {
   try {
     if (!notification.data) return {};
     const data = JSON.parse(notification.data);
+    
+    // Extract actor avatar URL - check multiple possible field names
+    // Priority: explicit actor fields > sender fields > user fields > nested objects
+    const actorAvatarUrl = 
+      data.actorAvatarUrl ||
+      data.actorImage ||
+      data.actorImageUrl ||
+      data.actor?.avatarUrl ||
+      data.actor?.image ||
+      data.actor?.imageUrl ||
+      data.senderAvatarUrl ||
+      data.senderImage ||
+      data.userAvatarUrl ||
+      data.userImage ||
+      data.user?.avatarUrl ||
+      data.user?.image ||
+      data.avatarUrl ||
+      data.image ||
+      undefined;
+    
     return {
       // Support both old and new key names for actor info
-      actorName: data.actorName || data.senderName || data.userName,
-      actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl,
+      actorName: data.actorName || data.senderName || data.userName || data.actor?.name || data.user?.name,
+      actorAvatarUrl,
       // Event info
       eventTitle: data.eventTitle || data.title,
       eventId: data.eventId,
@@ -125,8 +145,8 @@ function buildNotificationCopy(
   };
 }
 
-// Notification Card Component - Enhanced social UI
-function NotificationCard({
+// Notification Card Component - Enhanced social UI with memoization
+const NotificationCard = React.memo(function NotificationCard({
   notification,
   index,
   onPress,
@@ -275,7 +295,7 @@ function NotificationCard({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 // Empty State Component
 function EmptyState() {

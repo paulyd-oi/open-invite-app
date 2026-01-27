@@ -1,63 +1,61 @@
-CIRCLES FILTER PILL FIX - HANDOFF PACKET
-======================================================
+PHASE 2D: ACTIVITY FEED AVATARS - HANDOFF PACKET
+=================================================
 
 SUMMARY
 -------
-Fixed Circles filter pill to be disabled instead of causing empty feed.
+Enhanced Activity feed to show actor profile pictures for notifications.
+Extended avatar URL extraction to check 12+ possible field names.
+Memoized NotificationCard for performance.
 
 STATUS: COMPLETE
 VERIFICATION: PENDING
 
 FILES CHANGED
 -------------
-1. src/app/social.tsx
-   - Added safeToast import
-   - Circles filter pill now has 0.5 opacity (disabled styling)
-   - Tapping Circles shows toast: "Coming soon" / "Circles filtering is coming soon."
-   - Uses Haptics.notificationAsync(Warning) for disabled state feedback
-   - Does NOT switch filters when tapped
+1. src/app/activity.tsx
+   - Enhanced parseNotificationData() with comprehensive avatar URL extraction
+   - Checks: actorAvatarUrl, actorImage, actorImageUrl, actor.avatarUrl, 
+     actor.image, actor.imageUrl, senderAvatarUrl, senderImage, userAvatarUrl,
+     userImage, user.avatarUrl, user.image, avatarUrl, image
+   - Also enhanced actorName extraction with actor.name, user.name fallbacks
+   - Wrapped NotificationCard in React.memo() for performance
 
 2. docs/STATE_OF_THE_APP.md
-   - Added Circles filter fix to "Fixed This Session"
+   - Added Activity feed avatars to "Fixed This Session"
    - Updated "Last Verified" timestamp
-
-3. docs/HANDOFF_PACKET_LATEST.txt
-   - Updated with current handoff
 
 KEY DIFFS
 ---------
-IMPORT ADDED:
-  import { safeToast } from "@/lib/safeToast";
+AVATAR EXTRACTION (parseNotificationData):
+  const actorAvatarUrl = 
+    data.actorAvatarUrl ||
+    data.actorImage ||
+    data.actorImageUrl ||
+    data.actor?.avatarUrl ||
+    data.actor?.image ||
+    data.actor?.imageUrl ||
+    data.senderAvatarUrl ||
+    data.senderImage ||
+    data.userAvatarUrl ||
+    data.userImage ||
+    data.user?.avatarUrl ||
+    data.user?.image ||
+    data.avatarUrl ||
+    data.image ||
+    undefined;
 
-FILTER PILL LOGIC:
-  const isDisabled = filter === 'circles';
-  
-  onPress={() => {
-    if (isDisabled) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      safeToast.info("Coming soon", "Circles filtering is coming soon.");
-      return;
-    }
-    Haptics.selectionAsync();
-    setActiveFilter(filter);
-  }}
-  
-  style={{
-    ...existing styles,
-    opacity: isDisabled ? 0.5 : 1,
-  }}
+MEMOIZATION:
+  const NotificationCard = React.memo(function NotificationCard(...) {
+    ...
+  });
 
 TEST PLAN
 ---------
-1. Tap Circles filter pill - verify toast appears
-2. Verify feed does NOT empty (stays on previous filter)
-3. Verify other filter pills still work normally
-4. Verify Circles pill has reduced opacity
-
-KNOWN LIMITATIONS
------------------
-1. Circles filter is coming soon (needs backend support)
-2. Pill remains visible but disabled
+1. Activity screen loads without crash
+2. Notifications with actor avatars show circular profile pic (44x44)
+3. Notifications without avatars show initials or icon fallback
+4. Avatar does not overlap text content
+5. Type badge overlay appears bottom-right when avatar shown
 
 COMMIT HASH
 -----------
@@ -65,24 +63,9 @@ TBD
 
 PUSHED
 ------
-TBD
+TBD (origin/feat/post-beta)
 
 Agent: GitHub Copilot (Claude Opus 4.5)
 Verification: PENDING (./scripts/ai/verify_frontend.sh)
 No breaking changes. Minimal diff achieved.
-
-STATUS: COMPLETE
-VERIFICATION: PASS (./scripts/ai/verify_frontend.sh)
-
-COMMIT HASH
------------
-a5c10bf
-
-PUSHED
-------
-YES (origin/feat/post-beta)
-
-BRANCH
-------
-main (commit exists on main); feat/post-beta branch created on origin pointing to same commit
 

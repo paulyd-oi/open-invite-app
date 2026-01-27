@@ -27,6 +27,7 @@
 - None currently known
 
 ## Fixed This Session
+- Activity feed avatars: Enhanced avatar extraction with 12+ field fallbacks, memoized NotificationCard
 - Suggestions chevron navigation: Now always navigates or shows fallback toast when ID missing
 - "Groups Together" → "Circles Together": Renamed + hidden when empty (no empty state for legacy data)
 - Activity badge overlap: Badge moved to top-right corner of button (no text overlap)
@@ -80,5 +81,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-26: Typecheck PASS (Phase 2C: Suggestions nav, Circles rename, badge fix)
+- 2026-01-26: Typecheck PASS (Phase 2D: Activity feed avatars)
 
