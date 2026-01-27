@@ -844,28 +844,11 @@ export default function WhosFreeScreen() {
             <Text style={{ color: colors.textTertiary }}>Loading...</Text>
           </View>
         ) : freeFriends.length === 0 && busyFriends.length === 0 ? (
-          /* No friends at all - show helpful onboarding message */
-          <View
-            className="rounded-2xl p-8 items-center"
-            style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-          >
-            <Text className="text-4xl mb-4">👋</Text>
-            <Text className="text-lg font-semibold text-center mb-2" style={{ color: colors.text }}>
-              Add friends to see who's free
+          /* No friends - Find Best Time section at top handles this */
+          <View className="py-8 items-center">
+            <Text style={{ color: colors.textTertiary }} className="text-center">
+              Select friends above to find the best time
             </Text>
-            <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
-              Once you add friends, you'll see their availability here to help plan hangouts.
-            </Text>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/friends");
-              }}
-              className="px-6 py-3 rounded-xl"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Find Friends</Text>
-            </Pressable>
           </View>
         ) : (
           <>

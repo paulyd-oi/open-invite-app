@@ -63,15 +63,26 @@ export function useMarkAllNotificationsSeen() {
     // Optimistically set count to 0 immediately (Instagram-style)
     queryClient.setQueryData<UnseenCountResponse>(UNSEEN_COUNT_QUERY_KEY, { count: 0 });
 
+    // Optimistically update notifications list to mark all as seen
+    queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, (old: any) => {
+      if (!old?.notifications) return old;
+      return {
+        ...old,
+        notifications: old.notifications.map((n: any) => ({ ...n, seen: true })),
+        unreadCount: 0,
+      };
+    });
+
     try {
       // Call backend to mark all as seen
       await api.post<MarkAllSeenResponse>("/api/notifications/mark-all-seen", {});
       
-      // Invalidate both queries to refresh data
+      // Invalidate both queries to refresh data from server
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
     } catch (error) {
-      // On error, re-invalidate to restore true count (no scary error shown)
+      // On error, re-invalidate to restore true state (no scary error shown)
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
       if (__DEV__) {
         console.log("[useMarkAllNotificationsSeen] Failed to mark all seen:", error);
