@@ -50,8 +50,10 @@ interface GetEventPhotosResponse {
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 // Robust uploaderId resolver to handle various photo object shapes
+// Normalizes all IDs to strings for truthful comparison
 function getUploaderId(photo: EventPhoto): string | null {
-  return photo.userId ?? (photo as any).uploaderId ?? (photo as any).createdById ?? (photo as any).actorId ?? (photo as any).ownerId ?? null;
+  const candidate = photo.userId ?? (photo as any).uploaderId ?? (photo as any).createdById ?? (photo as any).actorId ?? (photo as any).ownerId ?? null;
+  return candidate != null ? String(candidate) : null;
 }
 
 interface EventPhotoGalleryProps {
@@ -118,18 +120,11 @@ export function EventPhotoGallery({
   // Group photo logic
   const isHost = currentUserId === hostId;
   
+  // Pure computation: find selected photo by ID (no side effects)
+  const selectedPhoto = selectedGroupPhotoId ? photos.find((p) => p.id === selectedGroupPhotoId) : undefined;
+
   // Determine group photo: use stored selection if valid, else heuristic (first host-uploaded photo)
-  const groupPhoto = (() => {
-    if (selectedGroupPhotoId) {
-      const found = photos.find((p) => p.id === selectedGroupPhotoId);
-      if (found) return found;
-      // Selected photo was deleted/not in list, clear stored selection
-      SecureStore.deleteItemAsync(`oi_group_photo:${eventId}`).catch(() => {});
-      setSelectedGroupPhotoId(null);
-    }
-    // Heuristic: first photo uploaded by host
-    return photos.find((p) => getUploaderId(p) === hostId) ?? null;
-  })();
+  const groupPhoto = selectedPhoto ?? photos.find((p) => getUploaderId(p) === String(hostId)) ?? null;
 
   const hasGroupPhoto = !!groupPhoto;
 
@@ -147,6 +142,15 @@ export function EventPhotoGallery({
     };
     loadGroupPhoto();
   }, [eventId]);
+
+  // Cleanup invalid selectedGroupPhotoId (photo was deleted/not in list)
+  useEffect(() => {
+    if (selectedGroupPhotoId && !selectedPhoto) {
+      // Selected photo is no longer in the list, clear stored selection
+      SecureStore.deleteItemAsync(`oi_group_photo:${eventId}`).catch(() => {});
+      setSelectedGroupPhotoId(null);
+    }
+  }, [selectedGroupPhotoId, selectedPhoto, eventId]);
 
   // Cleanup cooldown timer on unmount
   useEffect(() => {
@@ -191,9 +195,13 @@ export function EventPhotoGallery({
       queryClient.invalidateQueries({ queryKey: ["events", "single", eventId] });
       setShowUploadModal(false);
       
+      // Defensive parsing: support multiple response shapes
+      const uploaded = (data as any)?.photo ?? (data as any)?.data ?? data;
+      const uploadedId = uploaded?.id ?? (data as any)?.photoId ?? null;
+      
       // Show "Make this Group Photo?" prompt for hosts if no group photo exists yet
-      if (isHost && !hasGroupPhoto && !isUploadingGroupPhoto && data?.photo?.id) {
-        setPendingPhotoForGroup(data.photo.id);
+      if (isHost && !hasGroupPhoto && !isUploadingGroupPhoto && uploadedId) {
+        setPendingPhotoForGroup(uploadedId);
         setShowGroupPhotoPrompt(true);
       } else {
         safeToast.success("Added!", "Your photo has been uploaded.");
@@ -475,7 +483,7 @@ export function EventPhotoGallery({
                       ? "Add last photo"
                       : userPhotosCount >= 3 
                         ? "Add 1 more"
-                        : "Add"}
+                        : "Add photos"}
               </Text>
             </Pressable>
           )}
