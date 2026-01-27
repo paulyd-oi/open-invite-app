@@ -34,9 +34,12 @@ import * as ExpoCalendar from "expo-calendar";
 import BottomNavigation from "@/components/BottomNavigation";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EmailVerificationGateModal } from "@/components/EmailVerificationGateModal";
+import { hasShownGateModal, markGateModalShown } from "@/lib/emailVerificationGate";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
+import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { getEventShareLink } from "@/lib/deepLinks";
@@ -1146,11 +1149,36 @@ export default function CalendarScreen() {
   const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, { timeout: 3000 });
   const [isRetrying, setIsRetrying] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
+  const [showEmailGateModal, setShowEmailGateModal] = useState(false);
 
   // Load first-session guidance state on mount
   useEffect(() => {
     loadGuidanceState().then(() => setGuidanceLoaded(true));
   }, []);
+
+  // Email verification gate modal (show once per account if unverified)
+  useEffect(() => {
+    const checkEmailGate = async () => {
+      const userId = session?.user?.id;
+      const emailVerified = session?.user?.emailVerified;
+      
+      if (!userId || emailVerified !== false) return;
+      
+      const hasShown = await hasShownGateModal(userId);
+      if (!hasShown) {
+        // Wait 800ms after landing in calendar
+        setTimeout(() => {
+          setShowEmailGateModal(true);
+        }, 800);
+        // Mark as shown immediately to prevent re-showing on re-render
+        await markGateModalShown(userId);
+      }
+    };
+    
+    if (bootStatus === 'authed') {
+      checkEmailGate();
+    }
+  }, [session?.user?.id, session?.user?.emailVerified, bootStatus]);
 
   // Handle retry from timeout UI
   const handleRetry = useCallback(() => {
@@ -2214,12 +2242,12 @@ export default function CalendarScreen() {
                   style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                 >
                   <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
-                  {guidanceLoaded && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
                     <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
                       Plans start when someone joins you.
                     </Text>
                   )}
-                  {guidanceLoaded && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
                     <Pressable
                       onPress={async () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -2521,6 +2549,12 @@ export default function CalendarScreen() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* Email Verification Gate Modal (One-time blocking modal) */}
+      <EmailVerificationGateModal
+        visible={showEmailGateModal}
+        onClose={() => setShowEmailGateModal(false)}
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );

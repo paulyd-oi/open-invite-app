@@ -19,6 +19,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -140,7 +141,7 @@ export default function CirclesScreen() {
               <Text className="text-lg font-semibold mb-2" style={{ color: colors.text }}>
                 No groups yet
               </Text>
-              {guidanceLoaded && shouldShowEmptyGuidanceSync("join_circle") && (
+              {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("join_circle") && (
                 <Text className="text-center mb-4 px-8" style={{ color: colors.textSecondary }}>
                   Groups keep invites simple and private.
                 </Text>

@@ -71,11 +71,11 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
-import { guardEmailVerification } from "@/lib/emailVerification";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import {

@@ -26,6 +26,7 @@ import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { resetSession } from "@/lib/authBootstrap";
 import { setLogoutIntent } from "@/lib/logoutIntent";
 import { clearSessionCache } from "@/lib/sessionCache";
@@ -1124,12 +1125,12 @@ export default function SocialScreen() {
             <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
               Nothing new yet
             </Text>
-            {guidanceLoaded && shouldShowEmptyGuidanceSync("view_feed") && (
+            {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
               <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
                 Bring your people in — invites make the feed come alive.
               </Text>
             )}
-            {guidanceLoaded && shouldShowEmptyGuidanceSync("view_feed") && (
+            {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
               <Pressable
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
