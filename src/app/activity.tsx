@@ -259,16 +259,19 @@ function NotificationCard({
 
         {/* Unread indicator */}
         <View className="flex-row items-center ml-2">
-          {!notification.seen && (
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: themeColor,
-              }}
-            />
-          )}
+          {(() => {
+            const isSeen = notification.seen ?? notification.read ?? false;
+            return !isSeen && (
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: themeColor,
+                }}
+              />
+            );
+          })()}
         </View>
       </Pressable>
     </Animated.View>
