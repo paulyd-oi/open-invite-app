@@ -1,61 +1,66 @@
 ================================================================================
-HANDOFF PACKET — PHASE 3C: FRIEND PROFILE TAB REORDER
+HANDOFF PACKET — NAVIGATION FIXES: SUGGESTIONS + CALENDAR
 ================================================================================
 Agent: GitHub Copilot
 Date: 2026-01-27
-Session: Phase 3C — Friend Profile tab reordering
-Previous: Phase 3B (6c570ee) — Swipe-left RSVP actions on social feed
+Session: Navigation fixes for Suggestions "For You" tab and Calendar "Who's Free"
+Previous: Phase 3C (750e9db) — Friend Profile tab reordering
 
-STATUS: ✅ COMPLETE — Friend Profile tabs reordered for clarity
+STATUS: ✅ COMPLETE — Suggestions now navigate to friend profiles correctly
 
 ================================================================================
 SUMMARY
 ================================================================================
 
-Reordered Friend Profile screen tabs from:
-  Bio | Notes | Groups Together | Calendar | Open Invites
+Fixed navigation in "For You" suggestions tab:
+- RECONNECT_FRIEND suggestions now navigate to /friend/{friendshipId}
+- Looks up friendshipId from cached friends data using userId
+- Falls back to /user/{userId} if friendship not in cache yet
+- Calendar "Who's Free" button already routes correctly to /whos-free (no changes needed)
 
-To new order:
-  Bio | Calendar | Groups Together | Notes | Open Invites
-
-RATIONALE:
-- Calendar moved to position 2 for immediate friend availability context
-- Notes demoted to position 4 as reference/utility vs primary information
-- Groups Together remains central (position 3)
-- Open Invites stays last as action-oriented section
-
-TECHNICAL:
-- Minimal diff: Moved two Animated.View blocks in src/app/friend/[id].tsx
-- Updated animation delays: Calendar (15ms), Groups (25ms), Notes (50ms)
-- All functionality preserved (collapsible sections, interactions)
-- TypeScript compilation passes
+Changes:
+- SuggestionFeedCard: Added friends query to map userId → friendshipId
+- Direct navigation to friend profile route (same as tapping friend cards elsewhere)
+- Minimal diff, no backend changes, no new dependencies
 
 ================================================================================
 FILES CHANGED
 ================================================================================
 
-src/app/friend/[id].tsx
-  • Moved "Friend's Calendar" section from ~line 785 to ~line 618 (after Bio)
-  • Moved "Notes to Remember" section from ~line 618 to ~line 785 (after Groups)
-  • Updated FadeInDown animation delays
+src/components/SuggestionFeedCard.tsx
+  • Added imports: useQuery, GetFriendsResponse, api, useBootAuthority
+  • Added friends query (enabled only for RECONNECT_FRIEND suggestions)
+  • Updated RECONNECT_FRIEND case to lookup friendshipId and navigate to /friend/{id}
 
 ================================================================================
 KEY DIFFS
 ================================================================================
 
-BEFORE (old order):
-  1. Bio (Friend Info card)
-  2. Notes to Remember (delay: 15ms)
-  3. Groups Together (delay: 25ms)
-  4. Friend's Calendar (delay: 50ms)
-  5. Open Invites
+Added friends query:
+```tsx
+const { data: friendsData } = useQuery({
+  queryKey: ["friends"],
+  queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+  enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
+});
+```
 
-AFTER (new order):
-  1. Bio (unchanged)
-  2. Friend's Calendar (delay: 15ms) ← moved up
-  3. Groups Together (delay: 25ms)
-  4. Notes to Remember (delay: 50ms) ← moved down
-  5. Open Invites (unchanged)
+Updated RECONNECT_FRIEND navigation:
+```tsx
+case "RECONNECT_FRIEND":
+  if (suggestion.userId) {
+    const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
+    
+    if (friendship) {
+      router.push(`/friend/${friendship.id}` as any);
+    } else {
+      router.push(`/user/${suggestion.userId}` as any);
+    }
+  } else {
+    router.push("/friends" as any);
+  }
+  break;
+```
 
 ================================================================================
 RUNTIME STATUS
@@ -143,5 +148,107 @@ NEXT RECOMMENDED STEP
 • Monitor analytics on section engagement to validate new order
 
 ================================================================================
-END HANDOFF
+END HANDOFF — PHASE 3C
+================================================================================
+
+
+================================================================================
+HANDOFF PACKET — NAVIGATION FIXES (TASK 1)
+================================================================================
+Agent: GitHub Copilot
+Date: 2026-01-27
+Task: Navigation fixes for Suggestions + Calendar
+Previous: Phase 3C (750e9db) — Friend Profile tab reordering
+Commit: e613642
+
+STATUS: ✅ COMPLETE — Suggestions navigate to friend profiles correctly
+
+================================================================================
+SUMMARY
+================================================================================
+
+Fixed navigation in "For You" suggestions tab:
+• RECONNECT_FRIEND suggestions now navigate to /friend/{friendshipId}
+• Looks up friendshipId from cached friends data using userId
+• Falls back to /user/{userId} if friendship not in cache yet
+• Calendar "Who's Free" button already routes correctly (no changes needed)
+
+Implementation:
+• SuggestionFeedCard: Added friends query to map userId → friendshipId
+• Direct navigation to friend profile route (matches tapping friend cards)
+• Minimal diff: 1 file, ~20 lines changed, no backend changes
+
+================================================================================
+FILES CHANGED
+================================================================================
+
+src/components/SuggestionFeedCard.tsx
+  • Added imports: useQuery, GetFriendsResponse, api, useBootAuthority
+  • Added friends query (enabled only for RECONNECT_FRIEND type)
+  • Updated RECONNECT_FRIEND navigation to lookup friendshipId
+
+================================================================================
+KEY DIFFS
+================================================================================
+
+Added friends query in component:
+```tsx
+const { data: friendsData } = useQuery({
+  queryKey: ["friends"],
+  queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+  enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
+});
+```
+
+Updated RECONNECT_FRIEND navigation logic:
+```tsx
+case "RECONNECT_FRIEND":
+  if (suggestion.userId) {
+    // Find friendship by matching friend's user ID
+    const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
+    
+    if (friendship) {
+      router.push(`/friend/${friendship.id}` as any);  // Direct to friend profile
+    } else {
+      router.push(`/user/${suggestion.userId}` as any);  // Fallback to user profile
+    }
+  } else {
+    router.push("/friends" as any);
+  }
+  break;
+```
+
+================================================================================
+VERIFICATION
+================================================================================
+
+✅ TypeScript: ./scripts/ai/verify_frontend.sh PASS
+✅ No new dependencies
+✅ Minimal diff (one file)
+✅ Committed: e613642
+✅ Pushed: origin/main
+
+Manual testing steps:
+1. npx expo start
+2. Navigate to Suggestions tab → "For You"
+3. Tap "Reconnect with..." suggestion
+4. EXPECTED: Opens friend's profile (Bio, Calendar, Groups, Notes)
+5. Calendar tab → tap "Who's Free?" → EXPECTED: Shows availability screen
+
+================================================================================
+ASSUMPTIONS
+================================================================================
+
+• Friends query only runs for RECONNECT_FRIEND suggestions (efficiency)
+• Friends list assumed cached from Friends tab or other app areas
+• Backend guarantees RECONNECT suggestions only include actual friends
+• Calendar button already functional - verified /whos-free.tsx is "Find Best Time"
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+• Manual test reconnect suggestions navigation
+• Optional backend enhancement: Include friendshipId in suggestions to eliminate lookup
+
 ================================================================================
