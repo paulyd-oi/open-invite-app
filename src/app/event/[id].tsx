@@ -531,10 +531,13 @@ export default function EventDetailScreen() {
   });
 
   const interests = interestsData?.event_interest ?? [];
-  const myRsvpStatus = myRsvpData?.status ?? null;
+  
+  // Normalize RSVP status from backend (map "maybe" -> "interested")
+  const rawRsvpStatus = myRsvpData?.status;
+  const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
 
   // RSVP mutation (unified)
-  type RsvpStatus = "going" | "interested" | "maybe" | "not_going";
+  type RsvpStatus = "going" | "interested" | "not_going";
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => api.post(`/api/events/${id}/rsvp`, { status }),
@@ -1456,22 +1459,22 @@ export default function EventDetailScreen() {
                       className="rounded-2xl p-4 flex-row items-center justify-between"
                       style={{
                         backgroundColor: myRsvpStatus === "going" ? "#22C55E15" :
-                                         (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC489915" : colors.surface,
+                                         myRsvpStatus === "interested" ? "#EC489915" : colors.surface,
                         borderWidth: 1,
                         borderColor: myRsvpStatus === "going" ? "#22C55E" :
-                                     (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC4899" : colors.border,
+                                     myRsvpStatus === "interested" ? "#EC4899" : colors.border,
                       }}
                     >
                       <View className="flex-row items-center">
                         {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
-                        {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && <Heart size={20} color="#EC4899" />}
+                        {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
                         {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
                         <Text className="font-semibold ml-2" style={{
                           color: myRsvpStatus === "going" ? "#22C55E" :
-                                 (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "#EC4899" : colors.textSecondary
+                                 myRsvpStatus === "interested" ? "#EC4899" : colors.textSecondary
                         }}>
                           {myRsvpStatus === "going" ? "You're In" :
-                           (myRsvpStatus === "interested" || myRsvpStatus === "maybe") ? "Interested" : "Not Going"}
+                           myRsvpStatus === "interested" ? "Interested" : "Not Going"}
                         </Text>
                       </View>
                       <Pressable
@@ -1553,7 +1556,7 @@ export default function EventDetailScreen() {
                         <Text className="font-semibold" style={{ color: colors.text }}>Interested</Text>
                         <Text className="text-xs" style={{ color: colors.textSecondary }}>Save for later (not on calendar)</Text>
                       </View>
-                      {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && <Check size={18} color={themeColor} />}
+                      {myRsvpStatus === "interested" && <Check size={18} color={themeColor} />}
                     </Pressable>
 
                     {/* Not Going */}

@@ -6,6 +6,13 @@
 - In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
 - Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
 
+## RSVP Type Contract (Canonical)
+
+- Frontend RSVP states: `"going" | "interested" | "not_going"` (no "maybe")
+- Backend may return "maybe" for legacy data → normalize to "interested" at boundary
+- Normalization location: `src/lib/offlineSync.ts` (normalizeRsvpStatus helper), `src/app/event/[id].tsx` (myRsvpStatus assignment)
+- Offline infrastructure enforces type safety: offlineQueue, offlineStore, offlineSync all exclude "maybe"
+
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
 

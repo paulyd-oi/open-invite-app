@@ -66,7 +66,7 @@ export interface UpdateEventPayload {
 // RSVP payload for RSVP_CHANGE
 export interface RsvpChangePayload {
   eventId: string;
-  status: "going" | "interested" | "maybe" | "not_going";
+  status: "going" | "interested" | "not_going";
 }
 
 // Delete RSVP payload

@@ -24,14 +24,22 @@
 - Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
 - Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing: Social feed on cold launch (authenticated users)
-- RSVP states: Going, Interested, Can't Make It (no Maybe)
+- RSVP states: Going, Interested, Can't Make It (no Maybe in types or UI)
+- RSVP normalization: Backend "maybe" mapped to "interested" at boundary
 - Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
 - CTA copy: "Create Invite" (not "Create Open Invite")
 
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 1: Ruthless Simplicity)
+## Fixed This Session (Phase 1B: Maybe RSVP Complete Removal)
+- Type system: Removed "maybe" from all RSVP type unions (offlineQueue, offlineStore, offlineSync, event/[id].tsx, discover.tsx)
+- Normalization helper: Added normalizeRsvpStatus() in offlineSync.ts for backend boundary
+- Event detail screen: Added normalization for myRsvpData.status, removed all myRsvpStatus === "maybe" checks
+- Offline infrastructure: Updated LocalRsvp, RsvpChangePayload, useOfflineRsvp to exclude "maybe"
+- Type safety: All RSVP states now strictly "going" | "interested" | "not_going"
+
+## Fixed Previously (Phase 1: Ruthless Simplicity)
 - Social feed: Removed "Weekly" pill from recurring event cards
 - RSVP simplification: Removed "Maybe" option from UI, maps backend "maybe" to "interested"
 - EventReactions: Removed "Maybe" reaction type

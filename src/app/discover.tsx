@@ -60,7 +60,7 @@ interface PopularEvent {
   capacity?: number | null;
   goingCount?: number;
   isFull?: boolean;
-  viewerRsvpStatus?: "going" | "not_going" | "interested" | "maybe" | null;
+  viewerRsvpStatus?: "going" | "not_going" | "interested" | null;
   joinRequests?: Array<{
     id: string;
     userId: string;

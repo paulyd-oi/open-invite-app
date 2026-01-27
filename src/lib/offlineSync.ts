@@ -30,6 +30,17 @@ import {
 } from "./offlineStore";
 import { safeToast } from "@/lib/safeToast";
 
+/**
+ * Normalize RSVP status from backend to valid frontend states.
+ * Maps "maybe" to "interested" at the boundary.
+ */
+function normalizeRsvpStatus(status: string): "going" | "interested" | "not_going" {
+  if (status === "maybe") return "interested";
+  if (status === "going" || status === "interested" || status === "not_going") return status;
+  // Fallback for unknown statuses
+  return "interested";
+}
+
 // Types for API responses
 interface CreateEventResponse {
   id: string;
@@ -314,7 +325,7 @@ export function useOfflineRsvp() {
   const removeLocalRsvp = useOfflineStore((s) => s.removeLocalRsvp);
 
   const changeRsvp = useCallback(
-    async (eventId: string, status: "going" | "interested" | "maybe" | "not_going"): Promise<void> => {
+    async (eventId: string, status: "going" | "interested" | "not_going"): Promise<void> => {
       if (isOnline) {
         // Online: change normally
         await api.post(`/api/events/${eventId}/rsvp`, { status });

@@ -35,7 +35,7 @@ export interface LocalEvent extends Partial<Event> {
 // Local RSVP state
 export interface LocalRsvp {
   eventId: string;
-  status: "going" | "interested" | "maybe" | "not_going";
+  status: "going" | "interested" | "not_going";
   localId: string;
   queueActionId?: string;
 }
