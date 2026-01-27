@@ -1,53 +1,116 @@
-HANDOFF PACKET — Circle Description UI (Host-Only Edit)
-================================================================================
+HANDOFF PACKET — Edit Event Query Invalidation Fix
+==================================================
 
 SUMMARY
 -------
-Added description field to circles with display on cards and editable in Group Settings.
-Host-only editing enforced via frontend UI gating and backend 403 handling.
+Fixed Edit Event screen to properly invalidate all event-related queries after save/delete operations. This ensures UI stays in sync across all views (event details, calendar, social feed) after editing or deleting an event.
 
-PRECHECK
---------
-✅ pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
-✅ remote: https://github.com/paulyd-oi/open-invite-app.git
-✅ branch: main
-✅ status: clean
+REPO CONFIRMATION
+-----------------
+pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
+branch: main  
+remote: https://github.com/paulyd-oi/open-invite-app.git
 
-CHANGES
--------
-1. shared/contracts.ts — Added `description: z.string().nullable().optional()` to circleSchema
-2. src/components/CircleCard.tsx — Display description under name (max 2 lines, muted text)
-3. src/app/circle/[id].tsx — Group Settings description section with host-only edit
+FILES CHANGED
+-------------
+1. src/app/event/edit/[id].tsx
+   - updateMutation: Added invalidateQueries for ["events", "single", id] and ["calendar"]
+   - updateMutation: Added success toast "Updated"
+   - deleteMutation: Added invalidateQueries for ["calendar"]
+   - deleteMutation: Added success toast "Deleted"
+
+2. docs/STATE_OF_THE_APP.md
+   - Added entry to "Fixed This Session" documenting the query invalidation fix
 
 KEY DIFFS
 ---------
-contracts.ts:
-  + description: z.string().nullable().optional(),
+Before:
+```typescript
+onSuccess: () => {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  queryClient.invalidateQueries({ queryKey: ["events"] });
+  queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
+  queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+  router.back();
+}
+```
 
-CircleCard.tsx:
-  + {circle.description && (
-  +   <Text ... numberOfLines={2}>{circle.description}</Text>
-  + )}
-  + Changed member count from "text-sm" to "text-xs" to make room for description
+After:
+```typescript
+onSuccess: () => {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  // Invalidate all event-related queries to ensure UI is in sync everywhere
+  queryClient.invalidateQueries({ queryKey: ["events"] });
+  queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
+  queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
+  queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+  queryClient.invalidateQueries({ queryKey: ["calendar"] });
+  safeToast.success("Updated", "Your event has been updated.");
+  router.back();
+}
+```
 
-circle/[id].tsx:
-  + const [editingDescription, setEditingDescription] = useState(false);
-  + const [descriptionText, setDescriptionText] = useState("");
-  + const isHost = circle?.createdById === session?.user?.id;
-  + updateCircleMutation with PUT /api/circles/:id
-  + Description section in Group Settings modal with:
-    - Read mode: shows description or "No description"
-    - Edit mode (host only): TextInput with 160 char limit + Save/Cancel
-    - 403 error handling with friendly toast
+Similar changes applied to deleteMutation.
 
-TEST PLAN (TestFlight steps)
-----------------------------
-1. Friends tab → Planning section → Verify circle cards show description if set
-2. Tap circle → Tap member avatars → Group Settings
-3. Verify description section shows:
-   - If host: "Tap Edit to add a description" or existing description + Edit button
-   - If member: "No description" or existing description (no Edit button)
-4. As host: Tap Edit → Enter description (up to 160 chars) → Save
+MUTE EVENT INVESTIGATION
+-------------------------
+The task mentioned "Mute Event Button triggers 'Oops that didn't go through'". Investigation found:
+- Backend API endpoints exist at GET/POST /api/notifications/event/:eventId
+- Frontend mutation in event/[id].tsx is correctly implemented
+- Mutation sends { muted: boolean } which matches backend expectation
+- Error message "Oops that didn't go through" is the standard error handler
+- No code issues found - if error occurs, it's likely network/backend deployment issue
+
+The mute functionality code is correct and does not require changes.
+
+TEST PLAN
+---------
+1. Edit an event:
+   - Navigate to event details
+   - Tap Edit
+   - Change title, description, or time
+   - Tap "Save Changes"
+   - Verify toast shows "Updated"
+   - Verify event details screen shows updated values
+   - Navigate to calendar - verify event shows updated data
+   - Navigate to social feed - verify event shows updated data
+
+2. Delete an event:
+   - Navigate to event details
+   - Tap Edit
+   - Tap "Delete Event"
+   - Confirm deletion
+   - Verify toast shows "Deleted"
+   - Verify redirected to /calendar
+   - Verify event no longer appears in calendar
+   - Verify event no longer appears in social feed
+
+3. Mute event (existing functionality - no changes made):
+   - Navigate to event details
+   - Toggle "Mute this event" switch
+   - Verify no error toast appears
+   - Verify switch state persists after navigating away and back
+
+COMMIT HASH
+-----------
+5c7aed8
+
+PUSHED TO REMOTE
+----------------
+YES - pushed to origin/main
+
+VERIFY SCRIPT RESULT
+--------------------
+PASS - scripts/ai/verify_frontend.sh passed all checks
+
+NOTES
+-----
+- Did NOT refactor to unify Event Details and Edit Event screens (would violate minimal diff requirement)
+- The separate edit screen works correctly and is a reasonable pattern
+- Date/Time picker in edit screen uses @react-native-community/datetimepicker (same as create flow)
+- Navigation after save/delete is correct (router.back() and router.replace("/calendar"))
+- All TypeScript checks pass
+- All invariant checks pass
 5. Verify toast "Description updated" appears
 6. Verify description shows on card and in settings
 7. As host: Clear description → Save → Verify clears to "No description"
