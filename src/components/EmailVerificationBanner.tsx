@@ -15,9 +15,8 @@ import { Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 
-import { useSession } from "@/lib/useSession";
+import { useSession, authClient } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
-import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 
 export function EmailVerificationBanner() {
@@ -36,21 +35,28 @@ export function EmailVerificationBanner() {
     setIsResending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    const endpoint = "/api/email-verification/resend";
+    console.log("[verify] resend start", { endpoint });
+
     try {
-      const response = await fetch(`${BACKEND_URL}/api/email-verification/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: session.user.email.toLowerCase() }),
-      });
+      const data = await authClient.$fetch<{ success?: boolean; error?: string; message?: string }>(
+        endpoint,
+        {
+          method: "POST",
+          body: { 
+            email: session.user.email.toLowerCase(),
+            name: session.user.name || session.user.displayName || undefined
+          },
+        }
+      );
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      console.log("[verify] resend success");
+      
+      if (data.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success(
-          "Verification Email Sent",
-          "Check your inbox and click the link to verify your email."
+          "Verification email sent",
+          "Check your inbox — it might take a minute to arrive."
         );
       } else {
         // Handle specific errors
@@ -59,11 +65,12 @@ export function EmailVerificationBanner() {
         } else if (data.error?.includes("rate limit") || data.error?.includes("cooldown")) {
           safeToast.warning("Please Wait", "Try again in a few minutes.");
         } else {
+          console.warn("[verify] resend failed", data.error || "Unknown error");
           safeToast.error("Error", data.error || "Unable to send verification email.");
         }
       }
-    } catch (error) {
-      console.error("[EmailVerificationBanner] Resend error:", error);
+    } catch (error: any) {
+      console.warn("[verify] resend failed", error?.message ?? error);
       safeToast.error("Network Error", "Please check your connection and try again.");
     } finally {
       setIsResending(false);

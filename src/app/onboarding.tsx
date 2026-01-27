@@ -57,6 +57,7 @@ import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSession, authClient } from "@/lib/useSession";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -643,12 +644,14 @@ export default function OnboardingScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const queryClient = useQueryClient();
   const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pendingCalendarRoute, setPendingCalendarRoute] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [showFriendsAvailable, setShowFriendsAvailable] = useState(false);
   const [demoReferralCode] = useState("bdia_t8js");
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
 
   // Contact sync state
   const [contactsLoading, setContactsLoading] = useState(false);
@@ -904,6 +907,27 @@ export default function OnboardingScreen() {
     try {
       await api.post("/api/onboarding/complete", {});
       // Invalidate session + onboarding status so calendar/bootstrap refetches fresh state
+      
+      // Auto-send verification email if not verified (only once per signup)
+      if (session?.user?.email && session?.user?.emailVerified === false && !verificationEmailSent) {
+        console.log("[onboarding] Auto-sending verification email after signup");
+        setVerificationEmailSent(true); // Guard: only send once
+        
+        try {
+          await authClient.$fetch("/api/email-verification/resend", {
+            method: "POST",
+            body: {
+              email: session.user.email.toLowerCase(),
+              name: session.user.name || session.user.displayName || undefined,
+            },
+          });
+          console.log("[onboarding] Verification email sent successfully");
+        } catch (error: any) {
+          console.warn("[onboarding] Failed to auto-send verification email:", error?.message ?? error);
+          // Don't crash or block - just show toast
+          safeToast.warning("Couldn't send verification email", "Try again from the banner.");
+        }
+      }
       await queryClient.invalidateQueries({ queryKey: ["session"] });
       await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
     } catch (error) {
