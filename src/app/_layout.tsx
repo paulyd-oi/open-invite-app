@@ -206,7 +206,7 @@ function BootRouter() {
       }
     } else if (bootStatus === 'authed') {
       // Fully authenticated and onboarded - go to Calendar (home/center tab)
-      if (pathname !== '/' && pathname !== '/calendar') {
+      if (pathname !== '/calendar') {
         if (__DEV__) {
           console.log('[BootRouter] → Routing to /calendar (fully authenticated)');
         }
