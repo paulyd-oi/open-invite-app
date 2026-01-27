@@ -37,7 +37,8 @@ import {
 import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
-import { authClient, hasAuthToken, setAuthToken } from "@/lib/authClient";
+import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie } from "@/lib/authClient";
+import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
@@ -485,12 +486,13 @@ export default function WelcomeOnboardingScreen() {
         throw new Error("Apple Sign-In did not return required credentials. Please try again.");
       }
 
-      // Send to backend - use credentials: "include" so Set-Cookie is persisted
+      // Send to backend - CRITICAL: React Native doesn't auto-persist Set-Cookie
+      // We must manually capture the Set-Cookie header and store it in SecureStore
       console.log("[AUTH_TRACE] Apple Sign-In: sending to backend...");
       const response = await fetch(`${BACKEND_URL}/api/auth/apple`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "omit", // Don't rely on auto cookie handling in RN
         body: JSON.stringify({
           identityToken: credential.identityToken,
           user: {
@@ -503,12 +505,19 @@ export default function WelcomeOnboardingScreen() {
         }),
       });
 
+      // CRITICAL: Capture Set-Cookie header before reading body
+      // React Native exposes Set-Cookie via response.headers.get() sometimes
+      const setCookieHeader = response.headers.get("set-cookie") || response.headers.get("Set-Cookie");
+      console.log("[AUTH_TRACE] Apple Sign-In: Set-Cookie header present:", !!setCookieHeader);
+      
       const data = await response.json();
       
       console.log("[AUTH_TRACE] Apple Sign-In: backend response", {
         status: response.status,
         ok: response.ok,
         hasToken: !!data.token || !!data.session?.token,
+        hasSetCookie: !!setCookieHeader,
+        hasSessionInBody: !!data.session,
         success: data.success || data.ok,
       });
 
@@ -524,15 +533,40 @@ export default function WelcomeOnboardingScreen() {
         throw new Error(data.error || data.message || `Apple authentication failed (HTTP ${response.status})`);
       }
 
-      // Cookie-based auth: Set-Cookie header from backend establishes session.
-      // Token in response body is optional (for backward compat with SecureStore).
+      // CRITICAL: Store session cookie for React Native
+      // 1. Try Set-Cookie header (may not be accessible in RN)
+      // 2. Try session token from response body (backend should include this)
+      // 3. Refresh explicit cookie cache to ensure subsequent requests work
+      
+      let cookieStored = false;
+      
+      // Method 1: Extract from Set-Cookie header (if accessible)
+      if (setCookieHeader) {
+        const sessionMatch = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
+        if (sessionMatch && sessionMatch[1]) {
+          await setExplicitCookiePair(`__Secure-better-auth.session_token=${sessionMatch[1]}`);
+          console.log("[AUTH_TRACE] Apple Sign-In: Cookie stored from Set-Cookie header");
+          cookieStored = true;
+        }
+      }
+      
+      // Method 2: Backend returns session token in response body
       const tokenValue = data.token || data.session?.token;
       if (tokenValue) {
         await setAuthToken(tokenValue);
-        console.log("[Auth] Apple: token stored (optional), tokenExists: true");
-      } else {
-        console.log("[Auth] Apple: no token in response (cookie auth mode)");
+        console.log("[AUTH_TRACE] Apple Sign-In: token stored in SecureStore");
+        
+        // Also store as cookie format for Better Auth compatibility
+        if (!cookieStored) {
+          await setExplicitCookiePair(`__Secure-better-auth.session_token=${tokenValue}`);
+          console.log("[AUTH_TRACE] Apple Sign-In: Cookie stored from response token");
+          cookieStored = true;
+        }
       }
+      
+      // Refresh explicit cookie cache to ensure it's loaded for subsequent requests
+      await refreshExplicitCookie();
+      console.log("[AUTH_TRACE] Apple Sign-In: Cookie cache refreshed");
 
       // Pre-populate name from Apple
       if (credential.fullName?.givenName) {

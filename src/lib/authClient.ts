@@ -73,8 +73,41 @@ if (__DEV__) {
   void debugDumpBetterAuthCookieOnce();
 }
 
-// Initialize cookie cache on module load
-void refreshExplicitCookie();
+// Track initialization state for cookie loading
+let cookieInitialized = false;
+let cookieInitPromise: Promise<void> | null = null;
+
+/**
+ * Ensure cookie cache is initialized before making authenticated requests.
+ * This MUST be awaited before bootstrap starts to prevent race conditions.
+ * On cold start, the cookie must be read from SecureStore before any API calls.
+ */
+export async function ensureCookieInitialized(): Promise<void> {
+  if (cookieInitialized) {
+    return;
+  }
+  
+  if (cookieInitPromise) {
+    return cookieInitPromise;
+  }
+  
+  cookieInitPromise = (async () => {
+    if (__DEV__) {
+      console.log('[authClient] Initializing cookie cache from SecureStore...');
+    }
+    await refreshExplicitCookie();
+    cookieInitialized = true;
+    if (__DEV__) {
+      console.log('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
+    }
+  })();
+  
+  return cookieInitPromise;
+}
+
+// Start initialization immediately but don't block module load
+// Bootstrap will await ensureCookieInitialized() explicitly
+void ensureCookieInitialized();
 
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });

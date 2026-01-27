@@ -1,118 +1,185 @@
 ================================================================================
-HANDOFF PACKET — PHASE 1C: SOCIAL FILTER REMOVAL
+HANDOFF PACKET — PHASE 2: AUTH TRUST (P0 FIXES)
 ================================================================================
 Agent: GitHub Copilot
 Date: 2026-01-27
-Session: Phase 1C — Remove Social feed filters (ruthless simplicity)
-Commit: fe873d1
+Session: Phase 2 — Fix session persistence on cold start + Apple Sign-In cookie handling
+Commit: 0285837
 
-STATUS: ✅ COMPLETE — Filter pills removed, pure discovery feed restored
-
-================================================================================
-WHAT WAS DONE
-================================================================================
-
-PHASE 1C OBJECTIVE: Remove Social feed filter UI to reduce cognitive load and restore pure discovery experience
-
-CODE CLEANUP (src/app/social.tsx):
-✅ Line 406: Removed FilterType type definition ("all" | "friends" | "circles" | "hosting" | "going")
-✅ Line 423: Removed activeFilter state (useState<FilterType>("all"))
-✅ Lines 793-822: Removed filteredGroupedEvents useMemo logic with filter application
-✅ Lines 960-1000: Removed filter pills UI (horizontal ScrollView with pill buttons)
-✅ Lines 897-899: Updated hasEvents check to use groupedEvents instead of filteredGroupedEvents
-✅ Lines 1104-1157: Updated all EventSection calls to use groupedEvents instead of filteredGroupedEvents
-
-PRESERVED FEATURES:
-✅ Collapsible sections (Today/Tomorrow/This Week/Upcoming) — retained for scannable structure
-✅ collapsedSections state and toggleSection function — still functional
-✅ friendsData and attendingData queries — still used for socialMemory and first-value nudge
-✅ Section count display in headers — "(3)" badge shows event count per section
-
-DOCUMENTATION:
-✅ docs/STATE_OF_THE_APP.md
-   - Added Phase 1C section: "Social feed filters: Removed All/Friends/Circles/Hosting/Going filter pills"
-   - Updated Stable section: "Social feed: Pure discovery (no filter pills, shows all events)"
-   - Moved collapsible sections bullet to Previously Fixed (feature retained)
-   - Removed contradictory "Social feed filter pills: Added..." entry from Previously Fixed
-
-✅ docs/FINDINGS_LOG.md
-   - Added "Ruthless Simplicity Pattern (Canonical)" section
-   - Documents Phase 1C change, principle, and impact
-   - Establishes pattern for future simplification decisions
-
-VERIFICATION:
-✅ npm run typecheck → PASS
-✅ scripts/ai/verify_frontend.sh → PASS (all invariants satisfied)
-✅ rg -n "activeFilter|setActiveFilter|FilterType" src/app/social.tsx → No matches (fully removed)
+STATUS: ✅ COMPLETE — Session persistence fixed, Apple Sign-In cookie capture improved
 
 ================================================================================
-FILES MODIFIED
+SUMMARY
 ================================================================================
 
-src/app/social.tsx           - Removed FilterType, activeFilter, filteredGroupedEvents, filter pills UI
-docs/STATE_OF_THE_APP.md     - Added Phase 1C section, updated Stable section
-docs/FINDINGS_LOG.md         - Added Ruthless Simplicity Pattern canonical section
+Two P0 auth bugs fixed:
+
+A) SESSION PERSISTENCE ON FORCE-CLOSE (FIXED)
+   Root Cause: Race condition - bootstrapAuth() called API before cookie was loaded from SecureStore
+   Fix: Added ensureCookieInitialized() that MUST be awaited before bootstrap starts
+
+B) APPLE SIGN-IN IN TESTFLIGHT (IMPROVED)
+   Root Cause: credentials: "include" doesn't work in React Native; Set-Cookie ignored
+   Fix: Explicit cookie extraction from header/response + storage via setExplicitCookiePair()
 
 ================================================================================
-TECHNICAL NOTES
+ROOT CAUSE ANALYSIS
 ================================================================================
 
-MINIMAL DIFF ACHIEVED:
-- Only removed filter-related code (type, state, pills UI, filter logic)
-- No refactoring of unrelated feed architecture
-- Collapsible sections feature untouched (user value retained)
-- Query structure unchanged (friendsData/attendingData still fetched for other features)
+TASK B — SESSION PERSISTENCE (FORCE-CLOSE LOGOUT)
 
-QUERIES STILL IN USE:
-- friendsData: Used for socialMemory pattern detection, first-value nudge eligibility
-- attendingData: Used for socialMemory pattern detection, first-value nudge eligibility
-- myEventsData: Used for socialMemory pattern detection, feed merge with feed events
-- All queries remain necessary for existing features despite filter removal
+PROBLEM:
+- User logs in → force-closes app (swipe-kill) → reopens → logged out
+- Cookie exists in SecureStore but not used on cold start
 
-UI BEHAVIOR AFTER REMOVAL:
-- Social feed shows ALL events from feed + myEvents (no client-side filtering)
-- Events grouped into Today/Tomorrow/This Week/Upcoming sections
-- Each section collapsible/expandable with count badge
-- Pure discovery: user sees full event landscape without artificial filtering
+TRACE:
+1. authClient.ts module loads → calls `void refreshExplicitCookie()` (fire-and-forget)
+2. bootstrapAuth() starts immediately 
+3. /api/auth/session called WITHOUT cookie (race condition)
+4. Backend returns 401 → bootstrap decides "loggedOut"
+5. User sees login screen despite valid cookie in storage
 
-COGNITIVE LOAD REDUCTION:
-- Before: 5 filter pills (All/Friends/Circles/Hosting/Going) + active state visual feedback
-- After: Clean header with title + quick event button only
-- Simpler mental model: "This is everything happening" vs "Which filter am I using?"
+FIX:
+1. Added `ensureCookieInitialized()` export in authClient.ts
+   - Tracks initialization state with promise
+   - Returns immediately if already initialized
+   - Awaits refreshExplicitCookie() if not
+   
+2. bootstrapAuth() now calls `await ensureCookieInitialized()` as Step 0/4
+   - Cookie GUARANTEED loaded before any API call
+   - Eliminates race condition entirely
 
-CODE REMOVED SUMMARY:
-- 1 type definition (FilterType)
-- 1 state variable (activeFilter)
-- 1 derived state computation (filteredGroupedEvents useMemo with 30-line filter logic)
-- 1 UI component block (filter pills horizontal ScrollView, ~40 lines JSX)
-- ~80 lines total removed for minimal diff
+TASK A — APPLE SIGN-IN (TESTFLIGHT)
+
+PROBLEM:
+- Apple Sign-In on device returns credentials
+- Backend exchange succeeds
+- User immediately logged out after onboarding
+
+TRACE:
+1. handleAppleSignIn() used `credentials: "include"` with fetch()
+2. React Native fetch does NOT auto-persist Set-Cookie headers
+3. Session cookie from backend never stored client-side
+4. Next API call has no cookie → 401 → logout
+
+FIX:
+1. Changed to `credentials: "omit"` (explicit cookie handling)
+2. Extract Set-Cookie header: `response.headers.get("set-cookie")`
+3. Parse and store: `setExplicitCookiePair("__Secure-better-auth.session_token=VALUE")`
+4. Fallback: Use token from response body if Set-Cookie header inaccessible
+5. Call refreshExplicitCookie() after storage to warm cache
 
 ================================================================================
-NEXT SESSION GUIDANCE
+FILES CHANGED
 ================================================================================
 
-PHASE 1C COMPLETE:
-✅ Filter pills removed from Social feed
-✅ Pure discovery experience restored
-✅ Documentation updated
-✅ Typecheck passing
-✅ All invariants satisfied
+src/lib/authClient.ts
+  - Added cookieInitialized flag and cookieInitPromise tracking
+  - Added ensureCookieInitialized() export function
+  - Changed module-level init from void to managed promise
 
-READY FOR COMMIT:
-- Message: "fix(ux): remove social feed filters (ruthless simplicity)"
-- Clean removal with minimal diff
-- No breaking changes or regressions
+src/lib/authBootstrap.ts  
+  - Added import for ensureCookieInitialized
+  - bootstrapAuth() now awaits ensureCookieInitialized() as Step 0/4
+  - Added logging for cookie cache initialization
 
-IF ISSUES ARISE:
-- Social feed shows all events (expected behavior)
-- No filter UI visible (expected after removal)
-- Collapsible sections still work (intentionally retained)
-- friendsData/attendingData queries still run (used by socialMemory, first-value nudge)
+src/app/welcome.tsx
+  - Added imports: refreshExplicitCookie, setExplicitCookiePair
+  - handleAppleSignIn() changed credentials to "omit"
+  - Added Set-Cookie header extraction
+  - Added explicit cookie storage with fallback to response token
+  - Added refreshExplicitCookie() call after storage
+  - Enhanced AUTH_TRACE logging
 
-PATTERN ESTABLISHED:
-- "Ruthless Simplicity" documented in FINDINGS_LOG.md
-- Principle: Remove features that add complexity without proportional user value
-- Future candidates: Any UI that creates cognitive load without clear benefit
+docs/STATE_OF_THE_APP.md
+  - Added Phase 2 section for auth trust fixes
+  - Updated Stable section with session persistence and Apple Sign-In improvements
+
+docs/FINDINGS_LOG.md
+  - Added canonical auth contract updates for cold start and Apple Sign-In
+  - Added dated findings for both bugs with proof and action taken
+
+================================================================================
+KEY DIFFS
+================================================================================
+
+authClient.ts:
++ let cookieInitialized = false;
++ let cookieInitPromise: Promise<void> | null = null;
++ export async function ensureCookieInitialized(): Promise<void> { ... }
++ void ensureCookieInitialized();  // Start but don't block module load
+- void refreshExplicitCookie();     // Was fire-and-forget (race condition)
+
+authBootstrap.ts:
++ import { ensureCookieInitialized } from "./authClient";
++ log("Step 0/4: Ensuring cookie cache is initialized from SecureStore...");
++ await ensureCookieInitialized();
++ log("  ✓ Cookie cache ready");
+
+welcome.tsx (handleAppleSignIn):
++ const setCookieHeader = response.headers.get("set-cookie");
++ credentials: "omit"  // Was: "include" (doesn't work in RN)
++ if (setCookieHeader) { await setExplicitCookiePair(...); }
++ if (tokenValue) { await setExplicitCookiePair(...); }  // Fallback
++ await refreshExplicitCookie();  // Warm cache
+
+================================================================================
+TEST PLAN
+================================================================================
+
+FORCE-CLOSE SESSION PERSISTENCE:
+1. Log in with email or Apple
+2. Navigate to social feed (confirm authed)
+3. Force-close app (swipe up to kill)
+4. Reopen app
+5. EXPECTED: Remains logged in, sees social feed
+6. VERIFY LOG: "[AuthBootstrap] Step 0/4: Ensuring cookie cache..." before Step 1
+
+APPLE SIGN-IN IN TESTFLIGHT:
+1. Install TestFlight build
+2. Tap "Continue with Apple"
+3. Complete Face ID / Apple ID prompt
+4. EXPECTED: Advances to profile setup (Slide 3)
+5. Complete onboarding
+6. EXPECTED: Lands on social feed, remains logged in
+7. Force-close and reopen
+8. EXPECTED: Still logged in
+9. VERIFY LOG: "[AUTH_TRACE] Apple Sign-In: Cookie stored from..." appears
+
+REGRESSION CHECK:
+- Email login still works
+- Email signup still works
+- Logout still works (clears session)
+- Login after logout still works
+
+================================================================================
+BACKEND REQUIREMENTS (IF APPLE STILL FAILS)
+================================================================================
+
+If Apple Sign-In still fails after frontend fix, check backend config:
+
+1. App Store Connect:
+   - Services IDs configured for "Sign in with Apple"
+   - Associated Domains includes backend URL
+   - Bundle ID matches Expo config
+
+2. Apple Developer Portal:
+   - Key for Sign in with Apple generated
+   - Key downloaded and available to backend
+   - Team ID and Key ID noted
+
+3. Render Environment Variables:
+   APPLE_CLIENT_ID=<Service ID or Bundle ID>
+   APPLE_TEAM_ID=<Team ID>
+   APPLE_KEY_ID=<Key ID>
+   APPLE_PRIVATE_KEY=<Key contents>
+
+4. Backend Better Auth config:
+   - apple provider enabled
+   - clientId matches APPLE_CLIENT_ID
+   - Key configured correctly
+
+Evidence needed: AUTH_TRACE logs showing backend response status and error messages.
 
 ================================================================================
 END HANDOFF

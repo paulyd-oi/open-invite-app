@@ -5,6 +5,8 @@
 - Authenticated API calls must use the Better Auth session cookie: `__Secure-better-auth.session_token`.
 - In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
 - Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
+- **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
+- **Apple Sign-In cookie**: React Native doesn't auto-persist Set-Cookie headers; must manually extract from header or response body and store via `setExplicitCookiePair()`.
 
 ## RSVP Type Contract (Canonical)
 
@@ -23,6 +25,39 @@
 
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
+
+---
+
+### Date: 2026-01-27
+### Finding: Session lost on force-close (swipe-kill) due to race condition
+### Proof:
+- `refreshExplicitCookie()` called with `void` (fire-and-forget) on module load
+- `bootstrapAuth()` calls `/api/auth/session` immediately
+- Race: API call fires BEFORE SecureStore read completes → cookie not attached → 401 → logout
+- User reopens app → treated as logged out despite valid cookie in storage
+### Impact: Session lost every time user swipe-kills app
+### Action Taken:
+- Added `ensureCookieInitialized()` export that tracks initialization state with promise
+- Bootstrap now awaits `ensureCookieInitialized()` before any API calls (Step 0/4)
+- Cookie guaranteed loaded before session check
+### Related Files: `src/lib/authClient.ts`, `src/lib/authBootstrap.ts`
+
+---
+
+### Date: 2026-01-27
+### Finding: Apple Sign-In cookie not persisted in React Native
+### Proof:
+- Used `credentials: "include"` with native fetch() - doesn't work in RN
+- Set-Cookie header from backend ignored by React Native fetch
+- Session established on backend but never stored client-side → 401 on next request
+### Impact: Apple Sign-In users immediately logged out after onboarding
+### Action Taken:
+- Changed to `credentials: "omit"` (explicit cookie handling)
+- Extract Set-Cookie header via `response.headers.get("set-cookie")`
+- Store cookie explicitly via `setExplicitCookiePair()`
+- Fallback: use token from response body if Set-Cookie inaccessible
+- Call `refreshExplicitCookie()` after storage to ensure cache is warm
+### Related Files: `src/app/welcome.tsx` (handleAppleSignIn)
 
 ---
 

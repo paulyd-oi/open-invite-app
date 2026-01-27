@@ -18,7 +18,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { authClient, hasAuthToken, clearAuthToken } from "./authClient";
+import { authClient, hasAuthToken, clearAuthToken, ensureCookieInitialized } from "./authClient";
 import { getSessionCached, clearSessionCache } from "./sessionCache";
 import { clearSessionCookie, SESSION_COOKIE_KEY } from "./sessionCookie";
 import { isNetworkError, shouldLogoutOnError, isRateLimitError } from "./networkStatus";
@@ -292,6 +292,12 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
   const startTime = Date.now();
 
   try {
+    // CRITICAL: Ensure cookie cache is initialized from SecureStore BEFORE any API calls.
+    // This fixes the force-close logout bug where cookie wasn't loaded before session check.
+    log("Step 0/4: Ensuring cookie cache is initialized from SecureStore...");
+    await ensureCookieInitialized();
+    log("  ✓ Cookie cache ready");
+    
     // Check if we're rate-limited
     if (isRateLimited()) {
       const remaining = getRateLimitRemaining();

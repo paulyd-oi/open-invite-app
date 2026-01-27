@@ -5,6 +5,7 @@
 - Login with Better Auth (cookie session established)
 - Signup with Better Auth (cookie session established)
 - Cookie storage in SecureStore (open-invite_cookie key)
+- Session persistence across force-close: Cookie cache initialized before bootstrap (ensureCookieInitialized)
 - Authed queries gated on bootStatus (no 401 spam after logout)
 - /uploads/ images render without token requirement
 - useEntitlements hook accepts enabled parameter for gating
@@ -15,7 +16,7 @@
 - Instant feedback on primary actions: RSVP, Create Circle, Create/Edit Event
 - Spacing polish: breathing room between sections, header spacing, list spacing
 - Terminology: User-facing strings use "Group" (not Circle), "Friends" (not Connections)
-- Apple Sign-In hardened: user-friendly errors, cancellation detection, AUTH_TRACE logging
+- Apple Sign-In hardened: user-friendly errors, cancellation detection, AUTH_TRACE logging, explicit cookie capture
 - Onboarding photo upload: failures non-fatal, no redirect to /login on error
 - Session checks in onboarding: transient errors show retry message, never auto-redirect
 - Lifetime subscription: Always treated as Premium (tier/isLifetime/isPro all checked)
@@ -34,7 +35,14 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 1C: Social Filter Removal)
+## Fixed This Session (Phase 2: Auth Trust)
+- Session persistence fix: ensureCookieInitialized() awaited before bootstrap prevents race condition
+- Cold start auth: Cookie loaded from SecureStore BEFORE session check API call
+- Apple Sign-In cookie capture: Explicit Set-Cookie header extraction and storage
+- Apple Sign-In fallback: Token from response body stored as cookie format for Better Auth
+- AUTH_TRACE logging: Enhanced diagnostics for cookie state, Set-Cookie presence, token extraction
+
+## Fixed Previously (Phase 1C: Social Filter Removal)
 - Social feed filters: Removed All/Friends/Circles/Hosting/Going filter pills for ruthless simplicity
 - Feed display: Shows all events without client-side filtering
 - Code cleanup: Removed FilterType type, activeFilter state, filter application logic
