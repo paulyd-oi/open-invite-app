@@ -274,6 +274,8 @@ function EventSection({
   colors,
   userImage,
   userName,
+  isCollapsed,
+  onToggle,
 }: {
   title: string;
   events: Array<Event | EventSeries>;
@@ -284,13 +286,28 @@ function EventSection({
   colors: typeof DARK_COLORS;
   userImage?: string | null;
   userName?: string | null;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }) {
   if (events.length === 0) return null;
 
   return (
     <View className="mb-6">
-      <Text style={{ color: colors.text }} className="text-lg font-sora-semibold mb-4">{title}</Text>
-      {events.map((event, index) => {
+      <Pressable 
+        onPress={onToggle}
+        className="flex-row items-center mb-4"
+        disabled={!onToggle}
+      >
+        <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1">
+          {title} ({events.length})
+        </Text>
+        {onToggle && (
+          <Text style={{ color: colors.textTertiary }} className="text-sm">
+            {isCollapsed ? "▶" : "▼"}
+          </Text>
+        )}
+      </Pressable>
+      {!isCollapsed && events.map((event, index) => {
         // Check if this is a series or single event
         const isSeries = 'nextEvent' in event;
         const eventId = isSeries ? event.seriesKey : event.id;
@@ -390,6 +407,8 @@ function VerificationBanner({
   );
 }
 
+type FilterType = "all" | "friends" | "circles" | "hosting" | "going";
+
 export default function SocialScreen() {
   const { data: session, isPending: sessionLoading } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -403,6 +422,10 @@ export default function SocialScreen() {
   const [insightDismissed, setInsightDismissed] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
   const hasBootstrapped = useRef(false);
+  
+  // Filter and collapse state
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Auth gating based on boot status (token validation), not session presence
   const isAuthed = bootStatus === "authed";
@@ -770,6 +793,37 @@ export default function SocialScreen() {
     () => groupEventsByTime(allEvents, session?.user?.id),
     [allEvents, session?.user?.id]
   );
+  
+  // Apply filter to grouped events
+  const filteredGroupedEvents = useMemo(() => {
+    const filterFn = (item: Event | EventSeries): boolean => {
+      const event = 'nextEvent' in item ? item.nextEvent : item;
+      const userId = session?.user?.id;
+      
+      if (activeFilter === "all") return true;
+      if (activeFilter === "hosting") return event.userId === userId;
+      if (activeFilter === "going") {
+        const attendingIds = new Set(attendingData?.events?.map(e => e.id) ?? []);
+        return attendingIds.has(event.id);
+      }
+      if (activeFilter === "friends") {
+        const friendIds = new Set(friendsData?.friends?.map(f => f.friendId) ?? []);
+        return event.userId ? friendIds.has(event.userId) : false;
+      }
+      if (activeFilter === "circles") {
+        // For now, return false as circles feature needs backend support
+        return false;
+      }
+      return true;
+    };
+    
+    return {
+      today: groupedEvents.today.filter(filterFn),
+      tomorrow: groupedEvents.tomorrow.filter(filterFn),
+      thisWeek: groupedEvents.thisWeek.filter(filterFn),
+      upcoming: groupedEvents.upcoming.filter(filterFn),
+    };
+  }, [groupedEvents, activeFilter, session?.user?.id, attendingData?.events, friendsData?.friends]);
 
   // Count events in the next 14 days for social proof line
   const plansIn14Days = useMemo(() => {
@@ -844,10 +898,22 @@ export default function SocialScreen() {
   }
 
   const hasEvents =
-    groupedEvents.today.length > 0 ||
-    groupedEvents.tomorrow.length > 0 ||
-    groupedEvents.thisWeek.length > 0 ||
-    groupedEvents.upcoming.length > 0;
+    filteredGroupedEvents.today.length > 0 ||
+    filteredGroupedEvents.tomorrow.length > 0 ||
+    filteredGroupedEvents.thisWeek.length > 0 ||
+    filteredGroupedEvents.upcoming.length > 0;
+    
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) {
+        next.delete(section);
+      } else {
+        next.add(section);
+      }
+      return next;
+    });
+  };
 
   return (
     <AuthProvider state="authed">
@@ -892,6 +958,46 @@ export default function SocialScreen() {
           themeColor={themeColor}
           colors={colors}
         />
+      )}
+      
+      {/* Filter Pills */}
+      {!isLoading && (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          className="px-5 pb-3"
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {(['all', 'friends', 'hosting', 'going', 'circles'] as FilterType[]).map((filter) => {
+            const isActive = activeFilter === filter;
+            const label = filter === 'all' ? 'All' : 
+                         filter === 'friends' ? 'Friends' :
+                         filter === 'hosting' ? 'Hosting' :
+                         filter === 'going' ? 'Going' : 'Circles';
+            return (
+              <Pressable
+                key={filter}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setActiveFilter(filter);
+                }}
+                className="px-4 py-2 rounded-full"
+                style={{
+                  backgroundColor: isActive ? themeColor : isDark ? '#2C2C2E' : '#F3F4F6',
+                  borderWidth: 1,
+                  borderColor: isActive ? themeColor : 'transparent',
+                }}
+              >
+                <Text 
+                  className="text-sm font-medium"
+                  style={{ color: isActive ? '#FFFFFF' : colors.text }}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       )}
 
       {isLoading ? (
@@ -994,7 +1100,7 @@ export default function SocialScreen() {
           )}
           <EventSection
             title="Today"
-            events={groupedEvents.today}
+            events={filteredGroupedEvents.today}
             startIndex={0}
             userId={session?.user?.id}
             themeColor={themeColor}
@@ -1002,36 +1108,42 @@ export default function SocialScreen() {
             colors={colors}
             userImage={session?.user?.image}
             userName={session?.user?.name}
+            isCollapsed={collapsedSections.has("today")}
+            onToggle={() => toggleSection("today")}
           />
           <EventSection
             title="Tomorrow"
-            events={groupedEvents.tomorrow}
-            startIndex={groupedEvents.today.length}
+            events={filteredGroupedEvents.tomorrow}
+            startIndex={filteredGroupedEvents.today.length}
             userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
             userImage={session?.user?.image}
             userName={session?.user?.name}
+            isCollapsed={collapsedSections.has("tomorrow")}
+            onToggle={() => toggleSection("tomorrow")}
           />
           <EventSection
             title="This Week"
-            events={groupedEvents.thisWeek}
-            startIndex={groupedEvents.today.length + groupedEvents.tomorrow.length}
+            events={filteredGroupedEvents.thisWeek}
+            startIndex={filteredGroupedEvents.today.length + filteredGroupedEvents.tomorrow.length}
             userId={session?.user?.id}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
             userImage={session?.user?.image}
             userName={session?.user?.name}
+            isCollapsed={collapsedSections.has("thisWeek")}
+            onToggle={() => toggleSection("thisWeek")}
           />
           <EventSection
             title="Upcoming"
-            events={groupedEvents.upcoming}
+            events={filteredGroupedEvents.upcoming}
             startIndex={
-              groupedEvents.today.length +
-              groupedEvents.tomorrow.length +
-              groupedEvents.thisWeek.length
+              filteredGroupedEvents.today.length +
+              filteredGroupedEvents.tomorrow.length +
+              filteredGroupedEvents.thisWeek.length
             }
             userId={session?.user?.id}
             themeColor={themeColor}
@@ -1039,6 +1151,8 @@ export default function SocialScreen() {
             colors={colors}
             userImage={session?.user?.image}
             userName={session?.user?.name}
+            isCollapsed={collapsedSections.has("upcoming")}
+            onToggle={() => toggleSection("upcoming")}
           />
         </ScrollView>
       )}

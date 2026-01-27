@@ -27,6 +27,9 @@
 - None currently known
 
 ## Fixed This Session
+- Social feed filter pills: Added All/Friends/Circles/Hosting/Going filter options
+- Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections now collapsible with count display
+- Filter logic: Applied after recurring series grouping, purely client-side on loaded events
 - Edit Event query invalidation: Update/delete now invalidates ["events", "single", id], ["calendar"], ["events", "feed"]
 - Edit Event success toast: Now shows "Updated" and "Deleted" confirmations
 - P0-A Onboarding: requestBootstrapRefreshOnce() after profile save prevents loop
@@ -73,5 +76,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-25: Typecheck PASS
+- 2026-01-26: Typecheck PASS (social feed filters and collapsible sections)
 

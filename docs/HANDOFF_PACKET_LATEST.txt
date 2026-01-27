@@ -1,130 +1,77 @@
-HANDOFF PACKET — Edit Event Query Invalidation Fix
-==================================================
+SOCIAL FEED BROWSING IMPROVEMENTS - HANDOFF PACKET
+======================================================
 
 SUMMARY
 -------
-Fixed Edit Event screen to properly invalidate all event-related queries after save/delete operations. This ensures UI stays in sync across all views (event details, calendar, social feed) after editing or deleting an event.
+Added filter pills (All/Friends/Circles/Hosting/Going) and collapsible time sections to Social feed.
 
-REPO CONFIRMATION
------------------
-pwd: /Users/paulsmbp/Documents/GitHub/open-invite-app
-branch: main  
-remote: https://github.com/paulyd-oi/open-invite-app.git
+STATUS: COMPLETE
+VERIFICATION: PASSED
 
 FILES CHANGED
 -------------
-1. src/app/event/edit/[id].tsx
-   - updateMutation: Added invalidateQueries for ["events", "single", id] and ["calendar"]
-   - updateMutation: Added success toast "Updated"
-   - deleteMutation: Added invalidateQueries for ["calendar"]
-   - deleteMutation: Added success toast "Deleted"
+1. src/app/social.tsx
+   - Added FilterType type and filter state management
+   - Added collapsible sections state (Set<string>)
+   - Added filter pills UI (horizontal scroll, 5 options)
+   - Added filtering logic after series grouping (client-side only)
+   - Updated EventSection for collapsible behavior with count display
+   - Updated all EventSection calls with collapse props
 
 2. docs/STATE_OF_THE_APP.md
-   - Added entry to "Fixed This Session" documenting the query invalidation fix
+   - Added filter pills to "Fixed This Session"
+   - Added collapsible sections to "Fixed This Session"
+   - Updated "Last Verified" to 2026-01-26
 
 KEY DIFFS
 ---------
-Before:
-```typescript
-onSuccess: () => {
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  queryClient.invalidateQueries({ queryKey: ["events"] });
-  queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
-  queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-  router.back();
-}
-```
+FILTER STATE:
+  type FilterType = "all" | "friends" | "circles" | "hosting" | "going";
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-After:
-```typescript
-onSuccess: () => {
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  // Invalidate all event-related queries to ensure UI is in sync everywhere
-  queryClient.invalidateQueries({ queryKey: ["events"] });
-  queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-  queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
-  queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-  queryClient.invalidateQueries({ queryKey: ["calendar"] });
-  safeToast.success("Updated", "Your event has been updated.");
-  router.back();
-}
-```
+FILTER LOGIC:
+  - All: Show all events
+  - Friends: event.userId in friendsData.friends (uses friendId)
+  - Hosting: event.userId === session.user.id
+  - Going: event.id in attendingData.events
+  - Circles: Placeholder (returns false)
 
-Similar changes applied to deleteMutation.
-
-MUTE EVENT INVESTIGATION
--------------------------
-The task mentioned "Mute Event Button triggers 'Oops that didn't go through'". Investigation found:
-- Backend API endpoints exist at GET/POST /api/notifications/event/:eventId
-- Frontend mutation in event/[id].tsx is correctly implemented
-- Mutation sends { muted: boolean } which matches backend expectation
-- Error message "Oops that didn't go through" is the standard error handler
-- No code issues found - if error occurs, it's likely network/backend deployment issue
-
-The mute functionality code is correct and does not require changes.
+COLLAPSIBLE SECTIONS:
+  - Header shows "Title (count)" and arrow (▼/▶)
+  - Tap toggles collapse state
+  - All sections expanded by default
+  - Events hidden when collapsed
 
 TEST PLAN
 ---------
-1. Edit an event:
-   - Navigate to event details
-   - Tap Edit
-   - Change title, description, or time
-   - Tap "Save Changes"
-   - Verify toast shows "Updated"
-   - Verify event details screen shows updated values
-   - Navigate to calendar - verify event shows updated data
-   - Navigate to social feed - verify event shows updated data
+1. Tap each filter pill - verify events filter correctly
+2. Tap section headers - verify collapse/expand behavior
+3. Verify filters work with recurring series grouping
+4. Verify collapse state persists during filter changes
 
-2. Delete an event:
-   - Navigate to event details
-   - Tap Edit
-   - Tap "Delete Event"
-   - Confirm deletion
-   - Verify toast shows "Deleted"
-   - Verify redirected to /calendar
-   - Verify event no longer appears in calendar
-   - Verify event no longer appears in social feed
+KNOWN LIMITATIONS
+-----------------
+1. Circles filter is placeholder only
+2. Filter/collapse state resets on unmount
+3. No accessibility labels yet
 
-3. Mute event (existing functionality - no changes made):
-   - Navigate to event details
-   - Toggle "Mute this event" switch
-   - Verify no error toast appears
-   - Verify switch state persists after navigating away and back
+FUTURE ENHANCEMENTS
+-------------------
+1. AsyncStorage persistence for filter/collapse state
+2. Circles filter implementation (needs backend support)
+3. Filter badges with counts
+4. Accessibility improvements
 
 COMMIT HASH
 -----------
-5c7aed8
+[PENDING]
 
-PUSHED TO REMOTE
-----------------
-YES - pushed to origin/main
+PUSHED
+------
+[PENDING]
 
-VERIFY SCRIPT RESULT
---------------------
-PASS - scripts/ai/verify_frontend.sh passed all checks
-
-NOTES
------
-- Did NOT refactor to unify Event Details and Edit Event screens (would violate minimal diff requirement)
-- The separate edit screen works correctly and is a reasonable pattern
-- Date/Time picker in edit screen uses @react-native-community/datetimepicker (same as create flow)
-- Navigation after save/delete is correct (router.back() and router.replace("/calendar"))
-- All TypeScript checks pass
-- All invariant checks pass
-5. Verify toast "Description updated" appears
-6. Verify description shows on card and in settings
-7. As host: Clear description → Save → Verify clears to "No description"
-8. As member: Open settings → Verify no Edit button visible
-
-RISKS / FOLLOWUPS
------------------
-- Backend must return description field (confirmed live)
-- Backend enforces 403 for non-host updates
-- No emoji picker for description (text only)
-
-PUSH STATUS
------------
-✅ Commit: bb5b2ea
-✅ Pushed to origin/main
-================================================================================
+Agent: GitHub Copilot (Claude Sonnet 4.5)
+Verification: PASS (./scripts/ai/verify_frontend.sh)
+No breaking changes. Minimal diff achieved.
 
