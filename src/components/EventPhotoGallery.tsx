@@ -107,11 +107,14 @@ export function EventPhotoGallery({
 
   const photos = photosData?.photos ?? [];
 
+  // P0.4: Safe fallback - ensure photos is always an array
+  const safePhotos = Array.isArray(photos) ? photos : [];
+
   // Calculate user's upload count and remaining slots using robust uploaderId resolver
   const currentUserId = session?.user?.id;
-  const userPhotosCount = currentUserId ? photos.filter((p) => getUploaderId(p) === currentUserId).length : 0;
+  const userPhotosCount = currentUserId ? safePhotos.filter((p) => getUploaderId(p) === currentUserId).length : 0;
   const userUploadsRemaining = Math.max(0, userPhotoLimit - userPhotosCount);
-  const eventSlotsRemaining = Math.max(0, MAX_PHOTOS_TOTAL - photos.length);
+  const eventSlotsRemaining = Math.max(0, MAX_PHOTOS_TOTAL - safePhotos.length);
   const canUpload = userUploadsRemaining > 0 && eventSlotsRemaining > 0 && cooldownSeconds === 0;
 
   // Phase 3B: Quality over quantity microcopy threshold
@@ -121,10 +124,10 @@ export function EventPhotoGallery({
   const isHost = currentUserId === hostId;
   
   // Pure computation: find selected photo by ID (no side effects)
-  const selectedPhoto = selectedGroupPhotoId ? photos.find((p) => p.id === selectedGroupPhotoId) : undefined;
+  const selectedPhoto = selectedGroupPhotoId ? safePhotos.find((p) => p.id === selectedGroupPhotoId) : undefined;
 
   // Determine group photo: use stored selection if valid, else heuristic (first host-uploaded photo)
-  const groupPhoto = selectedPhoto ?? photos.find((p) => getUploaderId(p) === String(hostId)) ?? null;
+  const groupPhoto = selectedPhoto ?? safePhotos.find((p) => getUploaderId(p) === String(hostId)) ?? null;
 
   const hasGroupPhoto = !!groupPhoto;
 
@@ -189,9 +192,9 @@ export function EventPhotoGallery({
         caption: "",
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
+      await queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
       queryClient.invalidateQueries({ queryKey: ["events", "single", eventId] });
       setShowUploadModal(false);
       
@@ -199,6 +202,30 @@ export function EventPhotoGallery({
       const uploaded = (data as any)?.photo ?? (data as any)?.data ?? data;
       const uploadedId = uploaded?.id ?? (data as any)?.photoId ?? null;
       
+      // P0.2: Replace flow reliability
+      if (isUploadingGroupPhoto) {
+        if (uploadedId) {
+          await handleSetGroupPhoto(uploadedId);
+        } else {
+          // Best-effort: refetch and select newest host-uploaded photo
+          const freshPhotos = await queryClient.fetchQuery({ 
+            queryKey: ["events", eventId, "photos"],
+            queryFn: () => api.get<GetEventPhotosResponse>(`/api/events/${eventId}/photos`),
+          });
+          const hostPhotos = (freshPhotos?.photos ?? [])
+            .filter((p) => getUploaderId(p) === String(hostId))
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          
+          if (hostPhotos[0]) {
+            await handleSetGroupPhoto(hostPhotos[0].id);
+          } else {
+            safeToast.success("Added!", "Your photo has been uploaded.");
+          }
+        }
+        setIsUploadingGroupPhoto(false);
+        return;
+      }
+
       // Show "Make this Group Photo?" prompt for hosts if no group photo exists yet
       if (isHost && !hasGroupPhoto && !isUploadingGroupPhoto && uploadedId) {
         setPendingPhotoForGroup(uploadedId);
@@ -224,6 +251,10 @@ export function EventPhotoGallery({
         startCooldown(retryAfterSec);
       } else {
         safeToast.error("Error", error?.message ?? "Failed to upload photo");
+      }
+      
+      if (isUploadingGroupPhoto) {
+        setIsUploadingGroupPhoto(false);
       }
     },
   });
@@ -285,7 +316,7 @@ export function EventPhotoGallery({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Saved!", "Photo has been saved to your photo library.");
     } catch (error) {
-      console.error("Download error:", error);
+      if (__DEV__) console.error("Download error:", error);
       safeToast.error("Error", "Failed to save photo. Please try again.");
     } finally {
       setDownloading(false);
@@ -293,6 +324,12 @@ export function EventPhotoGallery({
   };
 
   const handlePickImage = async (isGroupPhotoMode = false) => {
+    // P0.1: Hard block picker launch if user limit reached
+    if (!isGroupPhotoMode && userUploadsRemaining <= 0) {
+      safeToast.error("Limit Reached", "You've reached the photo limit for this invite.");
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -334,6 +371,12 @@ export function EventPhotoGallery({
   };
 
   const handleTakePhoto = async (isGroupPhotoMode = false) => {
+    // P0.1: Hard block camera launch if user limit reached
+    if (!isGroupPhotoMode && userUploadsRemaining <= 0) {
+      safeToast.error("Limit Reached", "You've reached the photo limit for this invite.");
+      return;
+    }
+
     // Use improved permission request with explanation
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
@@ -428,7 +471,7 @@ export function EventPhotoGallery({
   };
 
   // Don't show for future events
-  if (!isPastEvent && photos.length === 0) {
+  if (!isPastEvent && safePhotos.length === 0) {
     return null;
   }
 
@@ -441,10 +484,10 @@ export function EventPhotoGallery({
             <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
               Memories
             </Text>
-            {photos.length > 0 && (
+            {safePhotos.length > 0 && (
               <View className="px-2 py-1 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
                 <Text className="text-xs font-semibold" style={{ color: themeColor }}>
-                  {photos.length}
+                  {safePhotos.length}
                 </Text>
               </View>
             )}
@@ -538,7 +581,7 @@ export function EventPhotoGallery({
                 </View>
                 <Pressable
                   onPress={() => {
-                    const index = photos.findIndex((p) => p.id === groupPhoto.id);
+                    const index = safePhotos.findIndex((p) => p.id === groupPhoto.id);
                     if (index >= 0) openGallery(index);
                   }}
                 >
@@ -584,8 +627,11 @@ export function EventPhotoGallery({
                         Host tip: Take one group photo 📸
                       </Text>
                     </View>
-                    <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
-                      It's the one photo everyone wants.
+                    <Text className="text-xs mb-1" style={{ color: colors.textSecondary }}>
+                      One great group photo beats 10 random shots.
+                    </Text>
+                    <Text className="text-xs mb-3" style={{ color: colors.textTertiary }}>
+                      Pro tip: Ask someone to take it on your phone.
                     </Text>
                     <View className="flex-row items-center">
                       <ImagePlus size={14} color={themeColor} />
@@ -620,7 +666,7 @@ export function EventPhotoGallery({
           <View className="py-8 items-center">
             <ActivityIndicator size="small" color={themeColor} />
           </View>
-        ) : photos.length === 0 ? (
+        ) : safePhotos.length === 0 ? (
           <Pressable
             onPress={() => isPastEvent && setShowUploadModal(true)}
             className="rounded-2xl p-6 items-center"
@@ -643,7 +689,7 @@ export function EventPhotoGallery({
             contentContainerStyle={{ paddingRight: 20 }}
             style={{ marginLeft: -20, marginRight: -20, paddingLeft: 20 }}
           >
-            {photos.map((photo, index) => (
+            {safePhotos.map((photo, index) => (
               <Animated.View
                 key={photo.id}
                 entering={FadeIn.delay(index * 100)}
@@ -797,13 +843,13 @@ export function EventPhotoGallery({
               <X size={24} color="#fff" />
             </Pressable>
             <Text className="text-white font-semibold">
-              {selectedPhotoIndex + 1} / {photos.length}
+              {selectedPhotoIndex + 1} / {safePhotos.length}
             </Text>
             <View className="flex-row items-center">
               {/* Download Button */}
               <Pressable
                 onPress={() => {
-                  const photo = photos[selectedPhotoIndex];
+                  const photo = safePhotos[selectedPhotoIndex];
                   if (photo) handleDownloadPhoto(photo.imageUrl);
                 }}
                 disabled={downloading}
@@ -817,10 +863,10 @@ export function EventPhotoGallery({
                 )}
               </Pressable>
               {/* Delete Button (for owner or photo uploader) */}
-              {(photos[selectedPhotoIndex]?.userId === session?.user?.id || isOwner) && (
+              {(safePhotos[selectedPhotoIndex]?.userId === session?.user?.id || isOwner) && (
                 <Pressable
                   onPress={() => {
-                    const photo = photos[selectedPhotoIndex];
+                    const photo = safePhotos[selectedPhotoIndex];
                     if (photo) handleDeletePhoto(photo.id);
                   }}
                   className="w-10 h-10 rounded-full items-center justify-center"
@@ -834,11 +880,11 @@ export function EventPhotoGallery({
 
           {/* Photo */}
           <View className="flex-1 justify-center items-center">
-            {photos[selectedPhotoIndex] && (
+            {safePhotos[selectedPhotoIndex] && (
               <Animated.Image
-                key={photos[selectedPhotoIndex].id}
+                key={safePhotos[selectedPhotoIndex].id}
                 entering={ZoomIn.springify()}
-                source={{ uri: photos[selectedPhotoIndex].imageUrl }}
+                source={{ uri: safePhotos[selectedPhotoIndex].imageUrl }}
                 style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH }}
                 resizeMode="contain"
               />
@@ -866,21 +912,21 @@ export function EventPhotoGallery({
             <View className="items-center">
               <View className="flex-row items-center">
                 <View className="w-8 h-8 rounded-full overflow-hidden mr-2">
-                  {photos[selectedPhotoIndex]?.user?.image ? (
+                  {safePhotos[selectedPhotoIndex]?.user?.image ? (
                     <Image
-                      source={{ uri: photos[selectedPhotoIndex]?.user?.image ?? undefined }}
+                      source={{ uri: safePhotos[selectedPhotoIndex]?.user?.image ?? undefined }}
                       className="w-full h-full"
                     />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>
                       <Text className="text-white font-bold">
-                        {photos[selectedPhotoIndex]?.user?.name?.[0] ?? "?"}
+                        {safePhotos[selectedPhotoIndex]?.user?.name?.[0] ?? "?"}
                       </Text>
                     </View>
                   )}
                 </View>
                 <Text className="text-white font-medium">
-                  {photos[selectedPhotoIndex]?.user?.name ?? "User"}
+                  {safePhotos[selectedPhotoIndex]?.user?.name ?? "User"}
                 </Text>
               </View>
             </View>
@@ -888,13 +934,13 @@ export function EventPhotoGallery({
             <Pressable
               onPress={() => {
                 Haptics.selectionAsync();
-                setSelectedPhotoIndex((prev) => Math.min(photos.length - 1, prev + 1));
+                setSelectedPhotoIndex((prev) => Math.min(safePhotos.length - 1, prev + 1));
               }}
-              disabled={selectedPhotoIndex === photos.length - 1}
+              disabled={selectedPhotoIndex === safePhotos.length - 1}
               className="w-12 h-12 rounded-full items-center justify-center"
               style={{
                 backgroundColor: "rgba(255,255,255,0.1)",
-                opacity: selectedPhotoIndex === photos.length - 1 ? 0.3 : 1,
+                opacity: selectedPhotoIndex === safePhotos.length - 1 ? 0.3 : 1,
               }}
             >
               <ChevronRight size={24} color="#fff" />
