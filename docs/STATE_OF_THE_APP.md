@@ -27,6 +27,15 @@
 - None currently known
 
 ## Fixed This Session
+- Suggestions chevron navigation: Now always navigates or shows fallback toast when ID missing
+- "Groups Together" → "Circles Together": Renamed + hidden when empty (no empty state for legacy data)
+- Activity badge overlap: Badge moved to top-right corner of button (no text overlap)
+- Circles filter pill: Now disabled (0.5 opacity) with "Coming soon" toast instead of empty feed
+- Social feed filter pills: Added All/Friends/Circles/Hosting/Going filter options
+- Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections now collapsible with count display
+- Filter logic: Applied after recurring series grouping, purely client-side on loaded events
+- Edit Event query invalidation: Update/delete now invalidates ["events", "single", id], ["calendar"], ["events", "feed"]
+- Edit Event success toast: Now shows "Updated" and "Deleted" confirmations
 - P0-A Onboarding: requestBootstrapRefreshOnce() after profile save prevents loop
 - P0-B Lifetime Premium: SubscriptionContext now checks tier/isLifetime/isPro
 - P0-C Apple Sign-In: Enhanced AUTH_TRACE with httpStatus, responseBody, fullError
@@ -71,5 +80,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-25: Typecheck PASS
+- 2026-01-26: Typecheck PASS (Phase 2C: Suggestions nav, Circles rename, badge fix)
 

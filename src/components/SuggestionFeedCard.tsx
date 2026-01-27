@@ -11,6 +11,7 @@ import {
   TrendingUp,
   ChevronRight,
 } from "@/ui/icons";
+import { safeToast } from "@/lib/safeToast";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { type SuggestionFeedItem, type SuggestionAction } from "@/shared/contracts";
@@ -79,6 +80,9 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
       case "JOIN_EVENT":
         if (suggestion.eventId) {
           router.push(`/event/${suggestion.eventId}` as any);
+        } else {
+          // Fallback: show toast if event ID is missing
+          safeToast.info("Event unavailable", "This event is no longer available.");
         }
         break;
       case "NUDGE_CREATE":
@@ -91,6 +95,8 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
         if (suggestion.userId) {
           router.push(`/user/${suggestion.userId}` as any);
         } else {
+          // Fallback: navigate to friends instead of dead tap
+          safeToast.info("Reconnect", "Check your friends list to reconnect.");
           router.push("/friends" as any);
         }
         break;

@@ -693,46 +693,29 @@ export default function FriendDetailScreen() {
           )}
         </Animated.View>
 
-        {/* Shared Groups Section */}
-        <Animated.View entering={FadeInDown.delay(25).springify()} className="mb-4">
-          <View className="flex-row items-center justify-between mb-3">
-            <View className="flex-row items-center">
-              <Users size={18} color="#4ECDC4" />
-              <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                Groups Together
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowAddToGroupModal(true);
-              }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Plus size={14} color="#fff" />
-              <Text className="text-white text-sm font-medium ml-1">Add</Text>
-            </Pressable>
-          </View>
-
-          {sharedGroups.length === 0 ? (
-            <View className="rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-              <Text className="text-center text-sm" style={{ color: colors.textTertiary }}>
-                Not in any groups together yet
-              </Text>
+        {/* Shared Circles Section - only show if there are shared circles */}
+        {sharedGroups.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(25).springify()} className="mb-4">
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center">
+                <Users size={18} color="#4ECDC4" />
+                <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                  Circles Together
+                </Text>
+              </View>
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowAddToGroupModal(true);
                 }}
-                className="mt-2"
+                className="flex-row items-center px-3 py-1.5 rounded-full"
+                style={{ backgroundColor: themeColor }}
               >
-                <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                  Add to a group
-                </Text>
+                <Plus size={14} color="#fff" />
+                <Text className="text-white text-sm font-medium ml-1">Add</Text>
               </Pressable>
             </View>
-          ) : (
+
             <View className="flex-row flex-wrap">
               {sharedGroups.map((membership) => (
                 <View
@@ -750,8 +733,8 @@ export default function FriendDetailScreen() {
                 </View>
               ))}
             </View>
-          )}
-        </Animated.View>
+          </Animated.View>
+        )}
 
         {/* Friend's Calendar */}
         <Animated.View entering={FadeInDown.delay(50).springify()}>
