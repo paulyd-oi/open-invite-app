@@ -115,8 +115,10 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const translateX = useSharedValue(0);
   
   // Check if this is a series or single event
-  const isSeries = 'nextEvent' in event;
-  const displayEvent = isSeries ? event.nextEvent : event;
+  // All events are wrapped in EventSeries, but only recurring ones with multiple occurrences are "series"
+  const isSeriesWrapper = 'nextEvent' in event;
+  const isSeries = isSeriesWrapper && (event as EventSeries).isRecurring && (event as EventSeries).occurrenceCount > 1;
+  const displayEvent = isSeriesWrapper ? (event as EventSeries).nextEvent : event;
   const startDate = new Date(displayEvent.startTime);
   const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
   
@@ -262,12 +264,12 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? "#2C2C2E" : "#FFF7ED" }}
           >
-            <Text className="text-2xl">{isSeries ? event.emoji : displayEvent.emoji}</Text>
+            <Text className="text-2xl">{displayEvent.emoji}</Text>
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">
               <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1" numberOfLines={1}>
-                {isSeries ? event.title : displayEvent.title}
+                {displayEvent.title}
               </Text>
               {isOwn && (
                 <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
@@ -292,12 +294,12 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 Next: {dateLabel} at {timeLabel}
               </Text>
             )}
-            {isSeries && event.occurrenceCount > 1 && (
+            {isSeries && (event as EventSeries).occurrenceCount > 1 && (
               <Text
                 style={{ color: themeColor }}
                 className="text-sm mt-0.5 font-medium"
               >
-                +{event.occurrenceCount - 1} more
+                +{(event as EventSeries).occurrenceCount - 1} more
               </Text>
             )}
             {!isSeries && (
