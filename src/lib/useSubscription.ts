@@ -2,6 +2,7 @@
 // Frontend hook for subscription status and limit checks
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 // ============================================
 // FREE TIER LIMITS (mirror of backend)
@@ -211,9 +212,11 @@ export interface SubscriptionData {
 // ============================================
 
 export function useSubscription() {
+  const { status: bootStatus } = useBootAuthority();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["subscription"],
     queryFn: () => api.get<SubscriptionData>("/api/subscription"),
+    enabled: bootStatus === 'authed',
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

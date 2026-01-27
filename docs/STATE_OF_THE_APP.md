@@ -7,6 +7,9 @@
 - Cookie storage in SecureStore (open-invite_cookie key)
 - Session persistence across force-close: Cookie cache initialized by bootstrap only (single authority)
 - Authed queries gated on bootStatus (no 401 spam after logout)
+- Subscription query gated on bootStatus (prevents post-logout 401s)
+- Email verification guard throttled (max 1 toast per 3 seconds, prevents spam)
+- API 401/403 errors: console.log only (not console.error), no red overlays for expected auth failures
 - /uploads/ images render without token requirement
 - useEntitlements hook accepts enabled parameter for gating
 - MiniCalendar gated on bootStatus (not !!session)
@@ -35,7 +38,13 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 3C: Friend Profile Tab Reorder)
+## Fixed This Session (P0 Auth/Toast/Logout Noise)
+- Email verification toast spam: Added 3-second throttle to guardEmailVerification
+- Post-logout 401 overlays: Changed api.ts to use console.log (not console.error) for auth errors, preventing red overlays
+- Subscription query 401s: Gated useSubscription query with `enabled: bootStatus === 'authed'`
+- API error logging: Reduced noise, expected auth failures logged once without red overlays
+
+## Fixed Previously (Phase 3C: Friend Profile Tab Reorder)
 - Tab order: Reordered friend profile sections to Bio → Calendar → Groups Together → Notes → Open Invites
 - Calendar prominence: Moved calendar to position 2 for immediate friend availability context
 - Notes demotion: Moved notes to position 4 as reference vs primary information

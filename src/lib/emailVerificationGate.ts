@@ -8,6 +8,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeToast } from "@/lib/safeToast";
 
+// Throttle state for toast deduplication
+let lastToastTime = 0;
+const TOAST_THROTTLE_MS = 3000; // 3 seconds between toasts
+
 // Type for session data
 type SessionData = {
   user?: {
@@ -70,10 +74,15 @@ export function guardEmailVerification(
 
   if (session.user.emailVerified === false) {
     if (showToast) {
-      safeToast.warning(
-        "Verify your email to use this feature",
-        "Check your inbox or tap Resend email in the verification banner."
-      );
+      // Throttle toasts to prevent spam (max 1 per 3 seconds)
+      const now = Date.now();
+      if (now - lastToastTime > TOAST_THROTTLE_MS) {
+        safeToast.warning(
+          "Verify your email to use this feature",
+          "Check your inbox or tap Resend email in the verification banner."
+        );
+        lastToastTime = now;
+      }
     }
     return false;
   }

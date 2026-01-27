@@ -14,6 +14,9 @@
 - Authenticated API calls must use the Better Auth session cookie: `__Secure-better-auth.session_token`.
 - In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
 - Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
+- **Subscription query gating**: `useSubscription` query must be gated with `enabled: bootStatus === 'authed'` to prevent post-logout 401s.
+- **Email verification toast throttling**: `guardEmailVerification` throttles toasts to max 1 per 3 seconds to prevent spam.
+- **API 401/403 logging**: Use `console.log` (not `console.error`) for expected auth failures to avoid red console overlays in DEV.
 - **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
 - **Single authority for cookie init**: `ensureCookieInitialized()` is called ONLY from `authBootstrap.ts` Step 0/4. No fire-and-forget calls on module load. This prevents race conditions and ensures deterministic boot order.
 - **Apple Sign-In cookie**: React Native doesn't auto-persist Set-Cookie headers; must manually extract from header or response body and store via `setExplicitCookiePair()`. Regex extracts cookie value only (up to semicolon), not Path/HttpOnly/etc attributes.
@@ -56,6 +59,21 @@
 
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
+
+---
+
+### Date: 2026-01-27
+### Finding: Post-logout 401 cascades causing red console error overlays
+### Proof:
+- After logout, authed queries (subscription, profile) continue firing while bootStatus transitions
+- api.ts used `console.error()` for 401/403 → red React Native error overlay spam
+- useSubscription query not gated, fired on every render regardless of auth state
+### Impact: Disruptive UX after logout, console noise, false alarm error overlays
+### Action Taken:
+- Gated useSubscription query: `enabled: bootStatus === 'authed'`
+- Changed api.ts 401/403 logging from `console.error()` to `console.log()` to prevent red overlays
+- Added throttling to guardEmailVerification (3-second window) to prevent toast spam
+### Related Files: `src/lib/useSubscription.ts`, `src/lib/api.ts`, `src/lib/emailVerificationGate.ts`
 
 ---
 

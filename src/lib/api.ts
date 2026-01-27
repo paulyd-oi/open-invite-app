@@ -64,19 +64,22 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
         path.includes("/api/entitlements")
       );
       
-      if (!isKnownOptional) {
+      // Expected auth errors during logout/bootstrap - only log, don't show red overlay
+      const isExpectedAuthError = error.status === 401 || error.status === 403;
+      
+      if (!isKnownOptional && !isExpectedAuthError) {
         console.log(`[api.ts]: ${method} ${path} - ${error.message || error}`);
-        if (error.status === 401 || error.status === 403) {
-          console.log(`[api.ts auth error]: ${error.status} - Authorization header should be handled by authClient`);
-        }
+      } else if (isExpectedAuthError) {
+        // Use console.log (not error) to avoid red overlay for expected auth failures
+        console.log(`[api.ts auth]: ${error.status} ${method} ${path} - expected during logout/bootstrap`);
       }
       
-      // Detailed error logging for /api/profile to debug validation failures
-      if (path.includes("/api/profile")) {
-        console.error(`[api.ts] /api/profile ERROR DETAILS:`);
-        console.error(`  status: ${error.status}`);
-        console.error(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
-        console.error(`  message: ${error.message}`);
+      // Detailed error logging for /api/profile (non-401) to debug validation failures
+      if (path.includes("/api/profile") && !isExpectedAuthError) {
+        console.log(`[api.ts] /api/profile ERROR DETAILS:`);
+        console.log(`  status: ${error.status}`);
+        console.log(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
+        console.log(`  message: ${error.message}`);
       }
     }
 
