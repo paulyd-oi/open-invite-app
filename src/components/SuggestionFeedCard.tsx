@@ -163,7 +163,6 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
           <Text className="text-white font-medium text-sm">
             {suggestion.ctaLabel}
           </Text>
-          <ChevronRight size={14} color="#fff" style={{ marginLeft: 2 }} />
         </Pressable>
       </Pressable>
     </Animated.View>

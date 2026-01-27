@@ -12,6 +12,7 @@ import {
   Modal,
   Keyboard,
   Share,
+  Dimensions,
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -1705,7 +1706,7 @@ export default function CircleScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 maxHeight: "90%",
-                minHeight: 500,
+                minHeight: Dimensions.get('window').height * 0.85,
               }}
             >
               {/* Modal Handle */}

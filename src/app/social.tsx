@@ -321,7 +321,6 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
               </View>
             )}
           </View>
-          <ChevronRight size={20} color={colors.textTertiary} />
         </View>
 
         {!isSeries && (
