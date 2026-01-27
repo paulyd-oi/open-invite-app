@@ -3,14 +3,14 @@
     "name": "Open Invite",
     "slug": "open-invite",
     "scheme": "vibecode",
-    "version": "1.4.1",
+    "version": "3.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "175",
+      "buildNumber": "200",
       "usesAppleSignIn": true,
       "jsEngine": "jsc",
       "infoPlist": {
