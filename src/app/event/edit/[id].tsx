@@ -132,9 +132,13 @@ export default function EditEventScreen() {
       api.put<UpdateEventResponse>(`/api/events/${id}`, data),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Invalidate all event-related queries to ensure UI is in sync everywhere
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
       queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
       queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      safeToast.success("Updated", "Your event has been updated.");
       router.back();
     },
     onError: (error) => {
@@ -147,9 +151,12 @@ export default function EditEventScreen() {
     mutationFn: () => api.delete<DeleteEventResponse>(`/api/events/${id}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Invalidate all event-related queries to ensure UI is in sync everywhere
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
       queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      safeToast.success("Deleted", "Your event has been deleted.");
       router.replace("/calendar");
     },
     onError: () => {

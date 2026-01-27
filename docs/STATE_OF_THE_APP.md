@@ -27,6 +27,8 @@
 - None currently known
 
 ## Fixed This Session
+- Edit Event query invalidation: Update/delete now invalidates ["events", "single", id], ["calendar"], ["events", "feed"]
+- Edit Event success toast: Now shows "Updated" and "Deleted" confirmations
 - P0-A Onboarding: requestBootstrapRefreshOnce() after profile save prevents loop
 - P0-B Lifetime Premium: SubscriptionContext now checks tier/isLifetime/isPro
 - P0-C Apple Sign-In: Enhanced AUTH_TRACE with httpStatus, responseBody, fullError
