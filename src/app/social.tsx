@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import BottomNavigation from "@/components/BottomNavigation";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { safeToast } from "@/lib/safeToast";
 import { EmptyState } from "@/components/EmptyState";
 import { QuickEventButton } from "@/components/QuickEventButton";
@@ -563,70 +564,6 @@ function EmptyFeed() {
   );
 }
 
-// Soft banner for users who deferred email verification
-function VerificationBanner({
-  onDismiss,
-  themeColor,
-  colors,
-}: {
-  onDismiss: () => void;
-  themeColor: string;
-  colors: typeof DARK_COLORS;
-}) {
-  const router = useRouter();
-
-  const handleVerify = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/settings");
-  };
-
-  return (
-    <Animated.View
-      entering={FadeIn.duration(300)}
-      exiting={FadeOut.duration(200)}
-      className="mx-5 mb-4 rounded-2xl p-4"
-      style={{
-        backgroundColor: `${themeColor}15`,
-        borderWidth: 1,
-        borderColor: `${themeColor}30`,
-      }}
-    >
-      <View className="flex-row items-start">
-        <View
-          className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-          style={{ backgroundColor: `${themeColor}25` }}
-        >
-          <Mail size={20} color={themeColor} />
-        </View>
-        <View className="flex-1">
-          <Text style={{ color: colors.text }} className="text-sm font-sora-semibold">
-            Verify your email
-          </Text>
-          <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
-            Verify to host events and invite friends.
-          </Text>
-        </View>
-        <Pressable
-          onPress={onDismiss}
-          hitSlop={12}
-          className="p-1"
-        >
-          <X size={18} color={colors.textTertiary} />
-        </Pressable>
-      </View>
-      <Pressable
-        onPress={handleVerify}
-        className="mt-3 py-2.5 rounded-xl items-center"
-        style={{ backgroundColor: themeColor }}
-      >
-        <Text className="text-white text-sm font-sora-semibold">
-          Verify Now
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
 export default function SocialScreen() {
   const { data: session, isPending: sessionLoading } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -635,7 +572,6 @@ export default function SocialScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const [authBootstrapState, setAuthBootstrapState] = useState<"checking" | "error" | "ready">("checking");
   const [authBootstrapError, setAuthBootstrapError] = useState<{ error?: string; timedOut?: boolean }>();
-  const [showVerificationBanner, setShowVerificationBanner] = useState(false);
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
@@ -666,41 +602,15 @@ export default function SocialScreen() {
   // Initialize push notifications - registers token and sets up listeners
   useNotifications();
 
-  // Check verification deferred status - only show if session user is NOT verified
-  useEffect(() => {
-    const checkVerificationStatus = async () => {
-      try {
-        // First check if user is already verified via session - if so, never show banner
-        if (session?.user?.emailVerified === true) {
-          setShowVerificationBanner(false);
-          return;
-        }
-        // Only show banner if explicitly deferred AND not dismissed AND not verified
-        const deferred = await AsyncStorage.getItem("verification_deferred");
-        const dismissed = await AsyncStorage.getItem("verification_banner_dismissed");
-        if (deferred === "true" && dismissed !== "true" && session?.user?.emailVerified === false) {
-          setShowVerificationBanner(true);
-        } else {
-          setShowVerificationBanner(false);
-        }
-      } catch (error) {
-        // Ignore errors
-      }
-    };
-    // Only run once session is loaded (not pending)
-    if (!sessionLoading) {
-      checkVerificationStatus();
-    }
-  }, [session, sessionLoading]);
+  // Refetch session on app focus to sync emailVerified state
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+    }, [queryClient])
+  );
 
-  const handleDismissBanner = useCallback(async () => {
-    setShowVerificationBanner(false);
-    try {
-      await AsyncStorage.setItem("verification_banner_dismissed", "true");
-    } catch (error) {
-      // Ignore
-    }
-  }, []);
+  // Removed old verification banner logic - now using EmailVerificationBanner component
+  // which auto-shows when emailVerified === false
 
   // Check insight card dismissal status (14-day cooldown)
   useEffect(() => {
@@ -1179,14 +1089,8 @@ export default function SocialScreen() {
         </View>
       )}
 
-      {/* Verification banner for users who deferred email verification */}
-      {showVerificationBanner && (
-        <VerificationBanner
-          onDismiss={handleDismissBanner}
-          themeColor={themeColor}
-          colors={colors}
-        />
-      )}
+      {/* Email verification banner - shows when emailVerified === false */}
+      <EmailVerificationBanner />
       
       {/* Filter Pills */}
       {isLoading ? (

@@ -149,7 +149,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
   }
 }
 
-type AuthView = "login" | "forgotPassword" | "verifyEmail" | "success";
+type AuthView = "login" | "forgotPassword" | "success";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -169,48 +169,10 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
-  // Verification code state
-  const [verificationCode, setVerificationCode] = useState(["", "", "", "", ""]);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [codeError, setCodeError] = useState<string | null>(null);
-  const codeInputRefs = useRef<(TextInput | null)[]>([]);
-
   // NOTE: Removed auto-redirect based on session.user - BootRouter handles all auth routing.
   // login.tsx should only redirect after explicit login success, not on mount.
 
   // Handle code input change
-  const handleCodeChange = (index: number, value: string) => {
-    const digit = value.replace(/[^0-9]/g, "");
-
-    if (digit.length <= 1) {
-      const newCode = [...verificationCode];
-      newCode[index] = digit;
-      setVerificationCode(newCode);
-      setCodeError(null);
-
-      if (digit && index < 4) {
-        codeInputRefs.current[index + 1]?.focus();
-      }
-
-      if (digit && index === 4) {
-        const fullCode = [...newCode.slice(0, 4), digit].join("");
-        if (fullCode.length === 5) {
-          handleVerifyCode(fullCode);
-        }
-      }
-    } else if (digit.length === 5) {
-      const digits = digit.split("");
-      setVerificationCode(digits);
-      handleVerifyCode(digit);
-    }
-  };
-
-  const handleCodeKeyPress = (index: number, key: string) => {
-    if (key === "Backspace" && !verificationCode[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleSignIn = async () => {
     if (!email || !password) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -226,19 +188,13 @@ export default function LoginScreen() {
       });
 
       if (result.error) {
-        if (
-          result.error.message?.toLowerCase().includes("verify") ||
-          result.error.message?.toLowerCase().includes("verification")
-        ) {
-          setAuthView("verifyEmail");
-          await handleResendCode();
-        } else {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          safeToast.error(
-            "Sign In Failed",
-            result.error.message || "Please check your credentials"
-          );
-        }
+        // NOTE: No longer block login for unverified email - users can sign in
+        // and will see banner in-app to verify later
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        safeToast.error(
+          "Sign In Failed",
+          result.error.message || "Please check your credentials"
+        );
       } else if (result.data) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAuthView("success");
@@ -252,107 +208,6 @@ export default function LoginScreen() {
         "Sign In Failed",
         error?.message || "Unable to connect. Please try again."
       );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (code?: string) => {
-    const codeToVerify = code || verificationCode.join("");
-
-    if (codeToVerify.length !== 5) {
-      setCodeError("Please enter the complete 5-digit code");
-      return;
-    }
-
-    setIsVerifying(true);
-    setCodeError(null);
-
-    try {
-      const response = await fetch(
-        `${backendUrl}/api/email-verification/verify`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            email: email.toLowerCase(),
-            code: codeToVerify,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setCodeError(data.error || "Invalid code. Please try again.");
-        setVerificationCode(["", "", "", "", ""]);
-        codeInputRefs.current[0]?.focus();
-        return;
-      }
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      const signInResult = await authClient.signIn.email({
-        email,
-        password,
-      });
-
-      if (signInResult.error) {
-        safeToast.success(
-          "Verification Successful",
-          "Your email has been verified! Please sign in."
-        );
-        setAuthView("login");
-      } else {
-        setAuthView("success");
-        setTimeout(() => {
-          routeAfterAuthSuccess(router);
-        }, 1500);
-      }
-    } catch (error: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setCodeError(error?.message || "Failed to verify code. Please try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!email) {
-      safeToast.error("Error", "Please enter your email address");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `${backendUrl}/api/email-verification/resend`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            email: email.toLowerCase(),
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to resend code");
-      }
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Code Sent", "A new verification code has been sent to your email.");
-
-      setVerificationCode(["", "", "", "", ""]);
-      setCodeError(null);
-      codeInputRefs.current[0]?.focus();
-    } catch (error: any) {
-      safeToast.error("Error", error?.message || "Unable to resend code.");
     } finally {
       setIsLoading(false);
     }
@@ -450,230 +305,6 @@ export default function LoginScreen() {
               Redirecting you now...
             </Text>
           </Animated.View>
-        </LinearGradient>
-      </View>
-    );
-  }
-
-  // Verification View
-  if (authView === "verifyEmail") {
-    return (
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
-        <LinearGradient
-          colors={[theme.gradientTop, theme.background]}
-          style={{ flex: 1 }}
-        >
-          <SafeAreaView style={{ flex: 1 }}>
-            {/* Header */}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingHorizontal: 20,
-                paddingVertical: 16,
-              }}
-            >
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setAuthView("login");
-                  setVerificationCode(["", "", "", "", ""]);
-                  setCodeError(null);
-                }}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.6 : 1,
-                  padding: 8,
-                })}
-              >
-                <ArrowLeft size={24} color={theme.text} />
-              </Pressable>
-              <Text
-                style={{
-                  fontFamily: "Sora_600SemiBold",
-                  fontSize: 18,
-                  color: theme.text,
-                }}
-              >
-                Verify Email
-              </Text>
-            </View>
-
-            <KeyboardAvoidingView
-              style={{ flex: 1 }}
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-              <ScrollView
-                contentContainerStyle={{
-                  flexGrow: 1,
-                  justifyContent: "center",
-                  paddingHorizontal: 24,
-                }}
-                keyboardShouldPersistTaps="handled"
-              >
-                <Animated.View
-                  entering={FadeInUp.springify()}
-                  style={{ alignItems: "center" }}
-                >
-                  <View
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      backgroundColor: `${theme.accent}20`,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginBottom: 24,
-                    }}
-                  >
-                    <ShieldCheck size={40} color={theme.accent} />
-                  </View>
-
-                  <Text
-                    style={{
-                      fontFamily: "Sora_700Bold",
-                      fontSize: 24,
-                      color: theme.text,
-                      textAlign: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Enter Verification Code
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "Sora_400Regular",
-                      fontSize: 14,
-                      color: theme.textSecondary,
-                      textAlign: "center",
-                      marginBottom: 32,
-                    }}
-                  >
-                    We sent a 5-digit code to{"\n"}
-                    <Text style={{ color: theme.text, fontWeight: "600" }}>
-                      {email}
-                    </Text>
-                  </Text>
-
-                  {/* Code Input */}
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "center",
-                      gap: 12,
-                      marginBottom: 16,
-                    }}
-                  >
-                    {[0, 1, 2, 3, 4].map((index) => (
-                      <TextInput
-                        key={index}
-                        ref={(ref) => {
-                          codeInputRefs.current[index] = ref;
-                        }}
-                        value={verificationCode[index]}
-                        onChangeText={(value) => handleCodeChange(index, value)}
-                        onKeyPress={({ nativeEvent }) =>
-                          handleCodeKeyPress(index, nativeEvent.key)
-                        }
-                        keyboardType="number-pad"
-                        maxLength={index === 0 ? 5 : 1}
-                        selectTextOnFocus
-                        style={{
-                          width: 56,
-                          height: 64,
-                          borderRadius: 14,
-                          backgroundColor: theme.inputBg,
-                          borderWidth: 2,
-                          borderColor: codeError
-                            ? "#EF4444"
-                            : verificationCode[index]
-                            ? theme.accent
-                            : theme.inputBorder,
-                          textAlign: "center",
-                          fontSize: 24,
-                          fontFamily: "Sora_700Bold",
-                          color: theme.text,
-                        }}
-                        editable={!isVerifying}
-                      />
-                    ))}
-                  </View>
-
-                  {codeError && (
-                    <Text
-                      style={{
-                        fontFamily: "Sora_400Regular",
-                        fontSize: 13,
-                        color: "#EF4444",
-                        textAlign: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      {codeError}
-                    </Text>
-                  )}
-
-                  {/* Verify Button */}
-                  <Pressable
-                    onPress={() => handleVerifyCode()}
-                    disabled={
-                      isVerifying || verificationCode.join("").length !== 5
-                    }
-                    style={{
-                      width: "100%",
-                      marginTop: 16,
-                    }}
-                  >
-                    <LinearGradient
-                      colors={
-                        isVerifying || verificationCode.join("").length !== 5
-                          ? ["#4B5563", "#374151"]
-                          : [theme.accentLight, theme.accent]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 18,
-                        borderRadius: 16,
-                        alignItems: "center",
-                      }}
-                    >
-                      {isVerifying ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text
-                          style={{
-                            fontFamily: "Sora_600SemiBold",
-                            fontSize: 16,
-                            color: "#fff",
-                          }}
-                        >
-                          Verify Email
-                        </Text>
-                      )}
-                    </LinearGradient>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={handleResendCode}
-                    disabled={isLoading}
-                    style={{ marginTop: 24 }}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: "Sora_600SemiBold",
-                        fontSize: 14,
-                        color: theme.accent,
-                      }}
-                    >
-                      {isLoading ? "Sending..." : "Resend Code"}
-                    </Text>
-                  </Pressable>
-                </Animated.View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </SafeAreaView>
         </LinearGradient>
       </View>
     );
