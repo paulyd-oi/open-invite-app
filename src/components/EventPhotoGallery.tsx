@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
+import * as SecureStore from "expo-secure-store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useTheme } from "@/lib/ThemeContext";
@@ -48,11 +49,17 @@ interface GetEventPhotosResponse {
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+// Robust uploaderId resolver to handle various photo object shapes
+function getUploaderId(photo: EventPhoto): string | null {
+  return photo.userId ?? (photo as any).uploaderId ?? (photo as any).createdById ?? (photo as any).actorId ?? (photo as any).ownerId ?? null;
+}
+
 interface EventPhotoGalleryProps {
   eventId: string;
   eventTitle: string;
   eventTime: Date;
   isOwner: boolean;
+  hostId: string;
 }
 
 export function EventPhotoGallery({
@@ -60,6 +67,7 @@ export function EventPhotoGallery({
   eventTitle,
   eventTime,
   isOwner,
+  hostId,
 }: EventPhotoGalleryProps) {
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
@@ -74,6 +82,10 @@ export function EventPhotoGallery({
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedGroupPhotoId, setSelectedGroupPhotoId] = useState<string | null>(null);
+  const [showGroupPhotoPrompt, setShowGroupPhotoPrompt] = useState(false);
+  const [pendingPhotoForGroup, setPendingPhotoForGroup] = useState<string | null>(null);
+  const [isUploadingGroupPhoto, setIsUploadingGroupPhoto] = useState(false);
 
   // Check if event is in the past (can add photos)
   const isPastEvent = eventTime < new Date();
@@ -93,12 +105,48 @@ export function EventPhotoGallery({
 
   const photos = photosData?.photos ?? [];
 
-  // Calculate user's upload count and remaining slots
+  // Calculate user's upload count and remaining slots using robust uploaderId resolver
   const currentUserId = session?.user?.id;
-  const userPhotosCount = photos.filter((p) => p.userId === currentUserId).length;
+  const userPhotosCount = currentUserId ? photos.filter((p) => getUploaderId(p) === currentUserId).length : 0;
   const userUploadsRemaining = Math.max(0, userPhotoLimit - userPhotosCount);
   const eventSlotsRemaining = Math.max(0, MAX_PHOTOS_TOTAL - photos.length);
   const canUpload = userUploadsRemaining > 0 && eventSlotsRemaining > 0 && cooldownSeconds === 0;
+
+  // Phase 3B: Quality over quantity microcopy threshold
+  const shouldShowQualityMicrocopy = userPhotosCount >= 3 || userUploadsRemaining <= 2;
+
+  // Group photo logic
+  const isHost = currentUserId === hostId;
+  
+  // Determine group photo: use stored selection if valid, else heuristic (first host-uploaded photo)
+  const groupPhoto = (() => {
+    if (selectedGroupPhotoId) {
+      const found = photos.find((p) => p.id === selectedGroupPhotoId);
+      if (found) return found;
+      // Selected photo was deleted/not in list, clear stored selection
+      SecureStore.deleteItemAsync(`oi_group_photo:${eventId}`).catch(() => {});
+      setSelectedGroupPhotoId(null);
+    }
+    // Heuristic: first photo uploaded by host
+    return photos.find((p) => getUploaderId(p) === hostId) ?? null;
+  })();
+
+  const hasGroupPhoto = !!groupPhoto;
+
+  // Load selected group photo from local storage
+  useEffect(() => {
+    const loadGroupPhoto = async () => {
+      try {
+        const stored = await SecureStore.getItemAsync(`oi_group_photo:${eventId}`);
+        if (stored) {
+          setSelectedGroupPhotoId(stored);
+        }
+      } catch (error) {
+        if (__DEV__) console.log("[GroupPhoto] Failed to load selection:", error);
+      }
+    };
+    loadGroupPhoto();
+  }, [eventId]);
 
   // Cleanup cooldown timer on unmount
   useEffect(() => {
@@ -132,17 +180,24 @@ export function EventPhotoGallery({
   // Upload photo mutation
   const uploadPhotoMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
-      return api.post(`/api/events/${eventId}/photos`, {
+      return api.post<{ photo: EventPhoto }>(`/api/events/${eventId}/photos`, {
         imageUrl,
         caption: "",
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
       queryClient.invalidateQueries({ queryKey: ["events", "single", eventId] });
       setShowUploadModal(false);
-      safeToast.success("Added!", "Your photo has been uploaded.");
+      
+      // Show "Make this Group Photo?" prompt for hosts if no group photo exists yet
+      if (isHost && !hasGroupPhoto && !isUploadingGroupPhoto && data?.photo?.id) {
+        setPendingPhotoForGroup(data.photo.id);
+        setShowGroupPhotoPrompt(true);
+      } else {
+        safeToast.success("Added!", "Your photo has been uploaded.");
+      }
     },
     onError: (error: any) => {
       // Handle specific backend error codes
@@ -229,7 +284,7 @@ export function EventPhotoGallery({
     }
   };
 
-  const handlePickImage = async () => {
+  const handlePickImage = async (isGroupPhotoMode = false) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -237,6 +292,9 @@ export function EventPhotoGallery({
     });
 
     if (!result.canceled && result.assets[0]) {
+      if (isGroupPhotoMode) {
+        setIsUploadingGroupPhoto(true);
+      }
       // Check limits before proceeding
       if (!canUpload) {
         if (cooldownSeconds > 0) {
@@ -260,11 +318,14 @@ export function EventPhotoGallery({
         }
       } finally {
         setUploading(false);
+        if (isGroupPhotoMode) {
+          setIsUploadingGroupPhoto(false);
+        }
       }
     }
   };
 
-  const handleTakePhoto = async () => {
+  const handleTakePhoto = async (isGroupPhotoMode = false) => {
     // Use improved permission request with explanation
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
@@ -277,6 +338,9 @@ export function EventPhotoGallery({
     });
 
     if (!result.canceled && result.assets[0]) {
+      if (isGroupPhotoMode) {
+        setIsUploadingGroupPhoto(true);
+      }
       // Check limits before proceeding
       if (!canUpload) {
         if (cooldownSeconds > 0) {
@@ -300,6 +364,9 @@ export function EventPhotoGallery({
         }
       } finally {
         setUploading(false);
+        if (isGroupPhotoMode) {
+          setIsUploadingGroupPhoto(false);
+        }
       }
     }
   };
@@ -322,6 +389,34 @@ export function EventPhotoGallery({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedPhotoIndex(index);
     setShowGalleryModal(true);
+  };
+
+  // Handler to set group photo
+  const handleSetGroupPhoto = async (photoId: string) => {
+    try {
+      await SecureStore.setItemAsync(`oi_group_photo:${eventId}`, photoId);
+      setSelectedGroupPhotoId(photoId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Set as Group Photo", "Everyone will see this first.");
+    } catch (error) {
+      if (__DEV__) console.error("[GroupPhoto] Failed to save selection:", error);
+      safeToast.error("Error", "Failed to save group photo selection.");
+    }
+  };
+
+  // Handler for Make Group Photo prompt
+  const handleConfirmGroupPhoto = async () => {
+    if (pendingPhotoForGroup) {
+      await handleSetGroupPhoto(pendingPhotoForGroup);
+    }
+    setShowGroupPhotoPrompt(false);
+    setPendingPhotoForGroup(null);
+  };
+
+  const handleDeclineGroupPhoto = () => {
+    setShowGroupPhotoPrompt(false);
+    setPendingPhotoForGroup(null);
+    safeToast.success("Added!", "Your photo has been uploaded.");
   };
 
   // Don't show for future events
@@ -372,11 +467,31 @@ export function EventPhotoGallery({
             >
               <ImagePlus size={16} color={canUpload ? themeColor : colors.textTertiary} />
               <Text className="text-sm font-medium ml-1" style={{ color: canUpload ? themeColor : colors.textTertiary }}>
-                {cooldownSeconds > 0 ? `Wait ${cooldownSeconds}s` : "Add"}
+                {uploading 
+                  ? "Uploading…" 
+                  : cooldownSeconds > 0 
+                    ? `Wait ${cooldownSeconds}s` 
+                    : userUploadsRemaining === 1 
+                      ? "Add last photo"
+                      : userPhotosCount >= 3 
+                        ? "Add 1 more"
+                        : "Add"}
               </Text>
             </Pressable>
           )}
         </View>
+
+        {/* Phase 3B: Quality over quantity microcopy */}
+        {isPastEvent && shouldShowQualityMicrocopy && userUploadsRemaining > 0 && (
+          <View className="mb-3 px-2">
+            <Text className="text-xs font-medium" style={{ color: colors.text }}>
+              Pick your best moments 👌
+            </Text>
+            <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+              Quality over quantity—share the highlights.
+            </Text>
+          </View>
+        )}
 
         {/* Limits helper text */}
         {isPastEvent && (
@@ -392,6 +507,107 @@ export function EventPhotoGallery({
           </View>
         )}
 
+        {/* Group Photo Section */}
+        {isPastEvent && (
+          <View className="mb-4">
+            {hasGroupPhoto ? (
+              <>
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-sm font-medium" style={{ color: colors.textSecondary }}>
+                    Group Photo
+                  </Text>
+                  {isHost && (
+                    <Pressable
+                      onPress={() => setShowUploadModal(true)}
+                      className="px-2 py-1 rounded-full"
+                      style={{ backgroundColor: `${themeColor}15` }}
+                    >
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>
+                        Replace
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+                <Pressable
+                  onPress={() => {
+                    const index = photos.findIndex((p) => p.id === groupPhoto.id);
+                    if (index >= 0) openGallery(index);
+                  }}
+                >
+                  <Image
+                    source={{ uri: groupPhoto.imageUrl }}
+                    className="w-full rounded-2xl"
+                    style={{ aspectRatio: 16 / 9 }}
+                    resizeMode="cover"
+                  />
+                  <View
+                    className="absolute bottom-3 left-3 right-3 flex-row items-center"
+                    style={{ backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 10, padding: 8 }}
+                  >
+                    <View className="w-6 h-6 rounded-full overflow-hidden mr-2">
+                      {groupPhoto.user?.image ? (
+                        <Image source={{ uri: groupPhoto.user.image }} className="w-full h-full" />
+                      ) : (
+                        <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>
+                          <Text className="text-white text-xs font-bold">
+                            {groupPhoto.user?.name?.[0] ?? "?"}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-white text-sm flex-1" numberOfLines={1}>
+                      {groupPhoto.user?.name ?? "User"}
+                    </Text>
+                  </View>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                {/* Host nudge when no group photo */}
+                {isHost ? (
+                  <Pressable
+                    onPress={() => setShowUploadModal(true)}
+                    className="rounded-2xl p-4"
+                    style={{ backgroundColor: `${themeColor}10`, borderWidth: 1, borderColor: `${themeColor}30` }}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <Camera size={18} color={themeColor} />
+                      <Text className="text-sm font-semibold ml-2" style={{ color: colors.text }}>
+                        Host tip: Take one group photo 📸
+                      </Text>
+                    </View>
+                    <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
+                      It's the one photo everyone wants.
+                    </Text>
+                    <View className="flex-row items-center">
+                      <ImagePlus size={14} color={themeColor} />
+                      <Text className="text-xs font-medium ml-1" style={{ color: themeColor }}>
+                        Add group photo
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : (
+                  <View className="rounded-2xl p-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                    <View className="flex-row items-center mb-1">
+                      <Camera size={16} color={colors.textTertiary} />
+                      <Text className="text-sm font-medium ml-2" style={{ color: colors.text }}>
+                        Group Photo
+                      </Text>
+                    </View>
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                      Get a group photo before everyone leaves 📸
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
+                      Upload one group pic—best memory of the night.
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {/* Photo Grid */}
         {isLoading ? (
           <View className="py-8 items-center">
             <ActivityIndicator size="small" color={themeColor} />
@@ -692,6 +908,63 @@ export function EventPhotoGallery({
           setPhotoToDelete(null);
         }}
       />
+
+      {/* Make this Group Photo Prompt Modal */}
+      <Modal
+        visible={showGroupPhotoPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDeclineGroupPhoto}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center px-6"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={handleDeclineGroupPhoto}
+        >
+          <Pressable onPress={() => {}} className="w-full">
+            <Animated.View
+              entering={FadeInUp.springify()}
+              className="rounded-2xl overflow-hidden"
+              style={{ backgroundColor: colors.surface }}
+            >
+              <View className="p-6">
+                <View className="items-center mb-4">
+                  <View
+                    className="w-16 h-16 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: `${themeColor}20` }}
+                  >
+                    <Camera size={32} color={themeColor} />
+                  </View>
+                  <Text className="text-lg font-bold text-center" style={{ color: colors.text }}>
+                    Make this the Group Photo?
+                  </Text>
+                  <Text className="text-sm text-center mt-2" style={{ color: colors.textSecondary }}>
+                    Everyone will see it first.
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={handleConfirmGroupPhoto}
+                  className="rounded-xl py-3 items-center mb-2"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <Text className="font-semibold text-white">Yes</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleDeclineGroupPhoto}
+                  className="rounded-xl py-3 items-center"
+                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                >
+                  <Text className="font-semibold" style={{ color: colors.text }}>
+                    Not now
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 }

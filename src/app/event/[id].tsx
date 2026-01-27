@@ -1151,6 +1151,7 @@ export default function EventDetailScreen() {
             eventTitle={event.title}
             eventTime={startDate}
             isOwner={isMyEvent}
+            hostId={event.userId}
           />
         </Animated.View>
 
