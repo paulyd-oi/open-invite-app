@@ -463,6 +463,7 @@ export const notificationSchema = z.object({
   body: z.string(),
   data: z.string().nullable(),
   read: z.boolean(),
+  seen: z.boolean(),
   createdAt: z.string(),
 });
 export type Notification = z.infer<typeof notificationSchema>;

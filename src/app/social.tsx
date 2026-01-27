@@ -383,10 +383,23 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   // Swipeable wrapper with action buttons
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
-      <View className="mb-3 overflow-hidden rounded-2xl">
+      <View className="mb-3 relative">
+        {/* Background lane for revealed actions */}
+        <View 
+          className="absolute right-0 top-0 bottom-0 rounded-2xl overflow-hidden"
+          style={{ 
+            width: ACTION_WIDTH + 20,
+            backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6",
+          }}
+        >
+          <View className="flex-1 flex-row items-center justify-end pr-4">
+            {/* Placeholder to maintain layout - actions are overlaid */}
+          </View>
+        </View>
+
         {/* Action buttons revealed on swipe */}
         <Animated.View 
-          className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-2"
+          className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-4"
           style={[{ width: ACTION_WIDTH }, actionsAnimatedStyle]}
         >
           <Pressable

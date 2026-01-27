@@ -269,7 +269,6 @@ function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship;
               </View>
             )}
           </View>
-          <ChevronRight size={20} color={colors.textTertiary} style={{ marginTop: 2 }} />
         </View>
 
         {/* Mini Calendar */}
@@ -1244,8 +1243,6 @@ export default function FriendsScreen() {
                               )}
                             </View>
                           </View>
-
-                          <ChevronRight size={16} color={colors.textTertiary} />
                         </Pressable>
                       ))}
                     </View>

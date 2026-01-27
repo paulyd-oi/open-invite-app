@@ -257,20 +257,18 @@ function NotificationCard({
           </Text>
         </View>
 
-        {/* Chevron + unread indicator */}
+        {/* Unread indicator */}
         <View className="flex-row items-center ml-2">
-          {!notification.read && (
+          {!notification.seen && (
             <View
               style={{
                 width: 8,
                 height: 8,
                 borderRadius: 4,
                 backgroundColor: themeColor,
-                marginRight: 8,
               }}
             />
           )}
-          <ChevronRight size={18} color={colors.textTertiary} />
         </View>
       </Pressable>
     </Animated.View>

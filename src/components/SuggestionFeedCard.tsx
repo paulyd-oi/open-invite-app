@@ -111,6 +111,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
             router.push(`/user/${suggestion.userId}` as any);
           }
         } else {
+          console.warn('[SuggestionFeedCard] RECONNECT_FRIEND suggestion missing userId - routing to /friends fallback');
           router.push("/friends" as any);
         }
         break;

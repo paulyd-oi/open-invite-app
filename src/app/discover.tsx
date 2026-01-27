@@ -381,7 +381,6 @@ export default function DiscoverScreen() {
                               : "No events yet"}
                           </Text>
                         </View>
-                        <ChevronRight size={20} color={colors.textTertiary} />
                       </Pressable>
                       {/* Dismiss button */}
                       <Pressable
