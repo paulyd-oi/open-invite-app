@@ -35,7 +35,14 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 3A: Availability Indicator)
+## Fixed This Session (Phase 3B: Swipe Actions)
+- Swipe-to-reveal RSVP: Event cards support swipe-left to reveal Heart (Interested) and Check (Going) buttons
+- Gesture threshold: 60px swipe reveals actions, snaps open/closed on release
+- Safety guards: Authed-only, own events excluded, full events disable Going button
+- RSVP mutation: Reuses existing API pattern, invalidates feed/attending/calendar queries
+- Vertical scroll preserved: failOffsetY prevents gesture hijacking scroll
+
+## Fixed Previously (Phase 3A: Availability Indicator)
 - Availability outline: Feed event cards show GREEN (free), RED (busy), or neutral border
 - Conflict detection: Time overlap check against user's calendar (created + attending events)
 - Truthful UX: Unknown state (no calendar data) shows no outline instead of false positive

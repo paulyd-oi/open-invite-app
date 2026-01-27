@@ -1,114 +1,135 @@
 ================================================================================
-HANDOFF PACKET — PHASE 3A: SOCIAL FEED AVAILABILITY INDICATOR
+HANDOFF PACKET — PHASE 3B: SOCIAL FEED SWIPE ACTIONS
 ================================================================================
 Agent: GitHub Copilot
 Date: 2026-01-27
-Session: Phase 3A — Availability outline for social feed events
-Previous: Phase 2B (000599b) — Auth invariant hardening
+Session: Phase 3B — Swipe-left RSVP actions on social feed
+Previous: Phase 3A (9f666d7) — Availability indicator
 
-STATUS: ✅ COMPLETE — Availability indicator shows free/busy/unknown
+STATUS: ✅ COMPLETE — Swipe-to-reveal RSVP actions implemented
 
 ================================================================================
 SUMMARY
 ================================================================================
 
-Added visual availability indicator to social feed event cards:
+Added iMessage-style swipe-left actions on social feed event cards:
 
-GREEN OUTLINE = User is FREE (no conflicting calendar events)
-RED OUTLINE = User is BUSY (time overlap with existing event)
-NO OUTLINE = UNKNOWN (calendar data not loaded)
+SWIPE LEFT → Reveals two action buttons:
+  - Heart (theme color) = Mark as Interested
+  - Check (green) = RSVP Going
 
-Implementation follows "never lie" principle: unknown state shows neutral, not false positive.
+INTERACTION:
+  - 60px threshold to reveal actions
+  - Snaps open past threshold, snaps closed otherwise
+  - Tap action triggers RSVP then snaps card back
+  - Normal tap still navigates to event detail
+
+SAFETY:
+  - Authed-only (disabled when not authenticated)
+  - Own events excluded (cannot swipe your own events)
+  - Series excluded (tap to detail for recurring events)
+  - Full events: Going button grayed, shows toast "This invite is full"
+  - Vertical scroll preserved via failOffsetY
 
 ================================================================================
 IMPLEMENTATION DETAILS
 ================================================================================
 
-AVAILABILITY HELPER FUNCTION:
-- Location: src/app/social.tsx (local function, not extracted)
-- Name: getAvailabilityStatus(feedEvent, userCalendarEvents)
-- Returns: "free" | "busy" | "unknown"
+GESTURE CONFIGURATION:
+```typescript
+const panGesture = Gesture.Pan()
+  .enabled(canSwipe)           // Boolean(isAuthed && !isOwn && !isSeries)
+  .activeOffsetX([-20, 20])    // Horizontal activation threshold
+  .failOffsetY([-10, 10])      // Preserve vertical scroll
+```
 
-CONFLICT DETECTION RULE:
-- Standard overlap: (eventStart < otherEnd) AND (eventEnd > otherStart)
-- Self-exclusion: Same event ID skipped (event doesn't conflict with itself)
-- Missing endTime: Treated as 1-minute point event
+SNAP BEHAVIOR:
+- Swipe < -60px: Snap to -120px (open)
+- Swipe > -60px: Snap to 0 (closed)
+- Resistance when swiping right (0.2x translation)
 
-DATA SOURCE:
-- userCalendarEvents = deduplicated merge of:
-  - myEventsData (events user created)
-  - attendingData (events user is attending)
-- Already fetched by social.tsx React Query hooks
+RSVP MUTATION:
+- Reuses existing API pattern from event/[id].tsx
+- POST /api/events/{eventId}/rsvp with { status }
+- Invalidates: feed, attending, calendar, mine queries
+- Error handling: 409 → "This invite is full", else generic error toast
 
-VISUAL ENCODING:
-- free: borderWidth 2, borderColor "#22C55E" (green)
-- busy: borderWidth 2, borderColor "#EF4444" (red)
-- unknown: borderWidth 1, borderColor colors.border (neutral)
-- Own events: Keep existing theme-tinted border
+ACTION BUTTONS:
+- Heart: 48px circle, theme color, Heart icon
+- Check: 48px circle, green (#22C55E) or gray (#9CA3AF) if full
+- Both use Ionicons via @/ui/icons
 
 ================================================================================
 FILES CHANGED
 ================================================================================
 
 src/app/social.tsx
-  - ADDED: AVAILABILITY_COLORS constant with green (#22C55E) and red (#EF4444)
-  - ADDED: AvailabilityStatus type ("free" | "busy" | "unknown")
-  - ADDED: getAvailabilityStatus() helper function with conflict detection
-  - ADDED: userCalendarEvents useMemo combining created + attending events
-  - UPDATED: EventCard props to accept userCalendarEvents
-  - UPDATED: EventCard border styling with availability-based colors
-  - UPDATED: EventSection props to accept and pass userCalendarEvents
-  - UPDATED: All 4 EventSection calls to pass userCalendarEvents
+  - ADDED: Gesture imports (Gesture, GestureDetector from react-native-gesture-handler)
+  - ADDED: Reanimated hooks (useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate)
+  - ADDED: useMutation import for RSVP
+  - ADDED: Heart, Check icon imports
+  - ADDED: SWIPE_THRESHOLD (60) and ACTION_WIDTH (120) constants
+  - ADDED: RsvpStatus type
+  - UPDATED: EventCard to be swipeable with gesture handler
+  - ADDED: rsvpMutation hook in SocialScreen
+  - ADDED: handleSwipeRsvp callback
+  - UPDATED: EventSection to pass onRsvp and isAuthed props
+  - UPDATED: All EventSection calls with new props
 
 docs/STATE_OF_THE_APP.md
-  - Added Phase 3A section under "Fixed This Session"
+  - Added Phase 3B section under "Fixed This Session"
 
 docs/FINDINGS_LOG.md
-  - Added "Availability Indicator Contract (Canonical)" section
+  - Added "Swipe Actions Contract (Canonical)" section
 
 ================================================================================
 KEY DIFFS
 ================================================================================
 
-getAvailabilityStatus() function:
+EventCard swipe wrapper:
 ```typescript
-function getAvailabilityStatus(
-  feedEvent: Event | EventSeries,
-  userCalendarEvents: Event[] | undefined
-): AvailabilityStatus {
-  // Unknown if no calendar data
-  if (!userCalendarEvents || userCalendarEvents.length === 0) {
-    return "unknown";
-  }
-  
-  // Check each calendar event for overlap
-  for (const calEvent of userCalendarEvents) {
-    if (calEvent.id === displayEvent.id) continue; // Self-exclusion
-    
-    // Overlap: eventStart < calEnd AND eventEnd > calStart
-    if (eventStart < calEnd && eventEnd > calStart) {
-      return "busy";
+const canSwipe = Boolean(isAuthed && !isOwn && !isSeries);
+
+const panGesture = Gesture.Pan()
+  .enabled(canSwipe)
+  .activeOffsetX([-20, 20])
+  .failOffsetY([-10, 10])
+  .onUpdate((e) => {
+    if (e.translationX < 0) {
+      translateX.value = Math.max(e.translationX, -ACTION_WIDTH);
+    } else {
+      translateX.value = e.translationX * 0.2;
     }
-  }
-  
-  return "free";
-}
+  })
+  .onEnd((e) => {
+    if (e.translationX < -SWIPE_THRESHOLD) {
+      translateX.value = withSpring(-ACTION_WIDTH);
+    } else {
+      translateX.value = withSpring(0);
+    }
+  });
 ```
 
-EventCard border styling:
+Action buttons:
+```tsx
+<Pressable onPress={handleInterested} style={{ backgroundColor: themeColor }}>
+  <Heart size={22} color="#FFFFFF" />
+</Pressable>
+<Pressable onPress={handleGoing} style={{ backgroundColor: isEventFull ? "#9CA3AF" : "#22C55E" }}>
+  <Check size={22} color="#FFFFFF" />
+</Pressable>
+```
+
+RSVP mutation:
 ```typescript
-const getBorderStyle = () => {
-  if (isOwn) {
-    return { borderWidth: 1, borderColor: `${themeColor}40` };
-  }
-  if (availability === "free") {
-    return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.free };
-  }
-  if (availability === "busy") {
-    return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.busy };
-  }
-  return { borderWidth: 1, borderColor: colors.border };
-};
+const rsvpMutation = useMutation({
+  mutationFn: ({ eventId, status }) => api.post(`/api/events/${eventId}/rsvp`, { status }),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+    queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
+    queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+  },
+});
 ```
 
 ================================================================================
@@ -118,44 +139,56 @@ VERIFICATION RESULTS
 ✅ TypeScript: npm run typecheck PASS
 ✅ Lint/Build: ./scripts/ai/verify_frontend.sh PASS
 ✅ No new dependencies added
-✅ No global color tokens added (inline hex only)
+✅ Uses existing react-native-gesture-handler from project
 
 ================================================================================
 TEST PLAN
 ================================================================================
 
-EMPTY CALENDAR → ALL GREEN:
-1. User with no created events and no RSVPs
-2. View social feed
-3. EXPECTED: All non-own events show GREEN outline
+SWIPE REVEALS ACTIONS:
+1. Swipe left on event card (not your own)
+2. EXPECTED: Heart and Check buttons appear on right
+3. Release past 60px: stays open
+4. Release before 60px: snaps closed
 
-CONFLICTING EVENT → RED:
-1. User has event "Team Meeting" 2pm-3pm today
-2. Friend's event "Coffee Chat" 2:30pm-3:30pm appears in feed
-3. EXPECTED: "Coffee Chat" shows RED outline (overlap detected)
+INTERESTED (HEART):
+1. Swipe open, tap Heart
+2. EXPECTED: Card snaps closed, haptic feedback
+3. Check event detail: status = "interested"
 
-CALENDAR NOT LOADED → NEUTRAL:
-1. Kill app, clear React Query cache
-2. Navigate to social feed before calendar data loads
-3. EXPECTED: Events show default border (no outline)
+GOING (CHECK):
+1. Swipe open, tap Check
+2. EXPECTED: Card snaps closed, haptic feedback
+3. Check event detail: status = "going"
 
-OWN EVENTS → THEME BORDER:
-1. User's own events in feed
-2. EXPECTED: Theme-tinted border (not availability border)
+FULL EVENT:
+1. Find event at capacity
+2. Swipe open, tap Check
+3. EXPECTED: Toast "This invite is full", card closes
 
-EDGE CASE — NO END TIME:
-1. Event with startTime but no endTime
-2. EXPECTED: Treated as 1-minute event, availability still computed
+OWN EVENTS:
+1. Try to swipe your own event
+2. EXPECTED: Swipe disabled, no action buttons
+
+VERTICAL SCROLL:
+1. Scroll feed up/down
+2. EXPECTED: Smooth scroll, no swipe interference
+
+TAP NAVIGATION:
+1. Tap on event card (don't swipe)
+2. EXPECTED: Navigate to event detail page
 
 ================================================================================
 INVARIANTS
 ================================================================================
 
-1. Never lie: Unknown state shows neutral, not false green
-2. Self-exclusion: Event never conflicts with itself
-3. Data source: User calendar = created + attending (already fetched)
-4. No new endpoints: Uses existing myEventsData and attendingData
-5. No global colors: Inline hex only
+1. Swipe enabled only when bootStatus === "authed"
+2. Own events never swipeable
+3. Series events never swipeable
+4. Full events cannot RSVP "going" (toast instead)
+5. Vertical scroll always takes priority over swipe gesture
+6. Availability outlines (Phase 3A) preserved
+7. Navigation to event detail on tap preserved
 
 ================================================================================
 END HANDOFF

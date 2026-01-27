@@ -33,6 +33,18 @@
 - **Visual encoding**: GREEN border (#22C55E) = free, RED border (#EF4444) = busy, no border = unknown
 - **Edge case**: Event with missing endTime treated as point event (1 minute duration)
 
+## Swipe Actions Contract (Canonical)
+
+- **Threshold**: 60px horizontal swipe required to reveal action buttons
+- **Snap behavior**: Past threshold snaps open (-120px), below snaps closed (0)
+- **Actions**: Heart = "interested" RSVP, Check = "going" RSVP
+- **Authed-only**: Swipe gesture disabled when `bootStatus !== "authed"`
+- **Own events excluded**: User cannot swipe on their own events
+- **Series excluded**: Recurring event series cannot be swiped (tap to detail instead)
+- **Full event guard**: If event at capacity, "Going" shows toast "This invite is full" instead of RSVP
+- **Vertical scroll safe**: `failOffsetY([-10, 10])` ensures scroll wins over swipe gesture
+- **RSVP mapping**: Heart → POST `/api/events/{id}/rsvp` with status "interested", Check → status "going"
+
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
 

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter, usePathname } from "expo-router";
-import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus } from "@/ui/icons";
-import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
+import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as SplashScreen from "expo-splash-screen";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -34,6 +35,10 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessi
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
+// Swipe action threshold (px to reveal actions)
+const SWIPE_THRESHOLD = 60;
+const ACTION_WIDTH = 120; // Width of action buttons area
+
 // Availability outline colors (inline, no global tokens)
 const AVAILABILITY_COLORS = {
   free: "#22C55E",   // green
@@ -41,6 +46,7 @@ const AVAILABILITY_COLORS = {
 } as const;
 
 type AvailabilityStatus = "free" | "busy" | "unknown";
+type RsvpStatus = "going" | "interested" | "not_going";
 
 /**
  * Compute availability for a feed event against user's calendar.
@@ -92,7 +98,7 @@ function getAvailabilityStatus(
   return "free";
 }
 
-function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName, userCalendarEvents }: {
+function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName, userCalendarEvents, onRsvp, isAuthed }: {
   event: Event | EventSeries;
   index: number;
   isOwn?: boolean;
@@ -102,14 +108,21 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   userImage?: string | null;
   userName?: string | null;
   userCalendarEvents?: Event[];
+  onRsvp?: (eventId: string, status: RsvpStatus) => void;
+  isAuthed?: boolean;
 }) {
   const router = useRouter();
+  const translateX = useSharedValue(0);
   
   // Check if this is a series or single event
   const isSeries = 'nextEvent' in event;
   const displayEvent = isSeries ? event.nextEvent : event;
   const startDate = new Date(displayEvent.startTime);
   const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
+  
+  // Check if event is full (capacity exists and goingCount >= capacity)
+  const isEventFull = displayEvent.capacity != null && 
+    (displayEvent.goingCount ?? 0) >= displayEvent.capacity;
 
   const dateLabel = startDate.toLocaleDateString("en-US", {
     weekday: "short",
@@ -162,8 +175,75 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
     return { borderWidth: 1, borderColor: colors.border };
   };
 
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+  // Swipe action handlers
+  const triggerHaptic = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  };
+
+  const handleInterested = () => {
+    if (!isAuthed || !onRsvp) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onRsvp(displayEvent.id, "interested");
+    translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+  };
+
+  const handleGoing = () => {
+    if (!isAuthed || !onRsvp) return;
+    if (isEventFull) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      safeToast.warning("Full", "This invite is full.");
+      translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onRsvp(displayEvent.id, "going");
+    translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+  };
+
+  // Pan gesture for swipe-to-reveal actions (only for non-own events when authed)
+  const canSwipe = Boolean(isAuthed && !isOwn && !isSeries);
+  
+  const panGesture = Gesture.Pan()
+    .enabled(canSwipe)
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-10, 10])
+    .onUpdate((e) => {
+      // Only allow swipe left (negative values)
+      if (e.translationX < 0) {
+        translateX.value = Math.max(e.translationX, -ACTION_WIDTH);
+      } else {
+        translateX.value = e.translationX * 0.2; // Resistance when swiping right
+      }
+      // Haptic at threshold
+      if (e.translationX < -SWIPE_THRESHOLD && translateX.value > -SWIPE_THRESHOLD - 5) {
+        runOnJS(triggerHaptic)();
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationX < -SWIPE_THRESHOLD) {
+        // Snap open
+        translateX.value = withSpring(-ACTION_WIDTH, { damping: 15, stiffness: 150 });
+      } else {
+        // Snap closed
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      }
+    });
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const actionsAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [-ACTION_WIDTH, -SWIPE_THRESHOLD, 0],
+      [1, 0.5, 0]
+    );
+    return { opacity: Math.max(0, opacity) };
+  });
+
+  // Wrapper for swipeable card
+  const cardContent = (
       <Pressable
         onPress={handlePress}
         className="rounded-2xl p-4 mb-3"
@@ -288,6 +368,49 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           </View>
         )}
       </Pressable>
+  );
+
+  // If swipe is not enabled, return card directly
+  if (!canSwipe) {
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        {cardContent}
+      </Animated.View>
+    );
+  }
+
+  // Swipeable wrapper with action buttons
+  return (
+    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+      <View className="mb-3 overflow-hidden rounded-2xl">
+        {/* Action buttons revealed on swipe */}
+        <Animated.View 
+          className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-2"
+          style={[{ width: ACTION_WIDTH }, actionsAnimatedStyle]}
+        >
+          <Pressable
+            onPress={handleInterested}
+            className="w-12 h-12 rounded-full items-center justify-center mr-2"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Heart size={22} color="#FFFFFF" />
+          </Pressable>
+          <Pressable
+            onPress={handleGoing}
+            className="w-12 h-12 rounded-full items-center justify-center"
+            style={{ backgroundColor: isEventFull ? "#9CA3AF" : "#22C55E" }}
+          >
+            <Check size={22} color="#FFFFFF" />
+          </Pressable>
+        </Animated.View>
+        
+        {/* Swipeable card */}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={cardAnimatedStyle}>
+            {cardContent}
+          </Animated.View>
+        </GestureDetector>
+      </View>
     </Animated.View>
   );
 }
@@ -351,6 +474,8 @@ function EventSection({
   isCollapsed,
   onToggle,
   userCalendarEvents,
+  onRsvp,
+  isAuthed,
 }: {
   title: string;
   events: Array<Event | EventSeries>;
@@ -364,6 +489,8 @@ function EventSection({
   isCollapsed?: boolean;
   onToggle?: () => void;
   userCalendarEvents?: Event[];
+  onRsvp?: (eventId: string, status: RsvpStatus) => void;
+  isAuthed?: boolean;
 }) {
   if (events.length === 0) return null;
 
@@ -401,6 +528,8 @@ function EventSection({
             userImage={userImage}
             userName={userName}
             userCalendarEvents={userCalendarEvents}
+            onRsvp={onRsvp}
+            isAuthed={isAuthed}
           />
         );
       })}
@@ -709,6 +838,33 @@ export default function SocialScreen() {
     refetchInterval: 30000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
+
+  // RSVP mutation for swipe actions
+  const rsvpMutation = useMutation({
+    mutationFn: ({ eventId, status }: { eventId: string; status: RsvpStatus }) => 
+      api.post(`/api/events/${eventId}/rsvp`, { status }),
+    onSuccess: (_, { status }) => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
+    },
+    onError: (error: any) => {
+      // Handle 409 EVENT_FULL error
+      if (error?.response?.status === 409 || error?.status === 409) {
+        safeToast.warning("Full", "This invite is full.");
+      } else {
+        safeToast.error("Oops", "That didn't go through. Please try again.");
+      }
+    },
+  });
+
+  // Handle RSVP from swipe action
+  const handleSwipeRsvp = useCallback((eventId: string, status: RsvpStatus) => {
+    if (!isAuthed) return;
+    rsvpMutation.mutate({ eventId, status });
+  }, [isAuthed, rsvpMutation]);
 
   // Fetch friends for first-value nudge eligibility
   const {
@@ -1130,6 +1286,8 @@ export default function SocialScreen() {
             isCollapsed={collapsedSections.has("today")}
             onToggle={() => toggleSection("today")}
             userCalendarEvents={userCalendarEvents}
+            onRsvp={handleSwipeRsvp}
+            isAuthed={isAuthed}
           />
           <EventSection
             title="Tomorrow"
@@ -1144,6 +1302,8 @@ export default function SocialScreen() {
             isCollapsed={collapsedSections.has("tomorrow")}
             onToggle={() => toggleSection("tomorrow")}
             userCalendarEvents={userCalendarEvents}
+            onRsvp={handleSwipeRsvp}
+            isAuthed={isAuthed}
           />
           <EventSection
             title="This Week"
@@ -1158,6 +1318,8 @@ export default function SocialScreen() {
             isCollapsed={collapsedSections.has("thisWeek")}
             onToggle={() => toggleSection("thisWeek")}
             userCalendarEvents={userCalendarEvents}
+            onRsvp={handleSwipeRsvp}
+            isAuthed={isAuthed}
           />
           <EventSection
             title="Upcoming"
@@ -1176,6 +1338,8 @@ export default function SocialScreen() {
             isCollapsed={collapsedSections.has("upcoming")}
             onToggle={() => toggleSection("upcoming")}
             userCalendarEvents={userCalendarEvents}
+            onRsvp={handleSwipeRsvp}
+            isAuthed={isAuthed}
           />
         </ScrollView>
       )}
