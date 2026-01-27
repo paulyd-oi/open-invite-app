@@ -1,5 +1,14 @@
 # Findings Log — Frontend
 
+## Friend Profile UX Pattern (Canonical)
+
+- **Tab order principle**: Information hierarchy = Bio → Calendar → Groups → Notes → Open Invites
+- **Calendar prominence**: Friend availability (calendar) shown early (position 2) for scheduling context
+- **Notes as reference**: Personal notes demoted to position 4 (utility vs primary information)
+- **Groups central**: Shared groups remain position 3 as key relationship context
+- **Actions last**: Open Invites (action-oriented) stay last to separate discovery from reference
+- **Animation flow**: Progressive delays (15ms → 25ms → 50ms) for smooth visual entrance
+
 ## Auth Contract (Canonical)
 
 - Authenticated API calls must use the Better Auth session cookie: `__Secure-better-auth.session_token`.

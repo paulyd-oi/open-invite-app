@@ -35,7 +35,13 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 3B: Swipe Actions)
+## Fixed This Session (Phase 3C: Friend Profile Tab Reorder)
+- Tab order: Reordered friend profile sections to Bio → Calendar → Groups Together → Notes → Open Invites
+- Calendar prominence: Moved calendar to position 2 for immediate friend availability context
+- Notes demotion: Moved notes to position 4 as reference vs primary information
+- Animation delays: Updated delays (15ms → 25ms → 50ms) for visual flow
+
+## Fixed Previously (Phase 3B: Swipe Actions)
 - Swipe-to-reveal RSVP: Event cards support swipe-left to reveal Heart (Interested) and Check (Going) buttons
 - Gesture threshold: 60px swipe reveals actions, snaps open/closed on release
 - Safety guards: Authed-only, own events excluded, full events disable Going button
