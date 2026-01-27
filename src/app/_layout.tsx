@@ -88,6 +88,7 @@ function BootRouter() {
   const navigationState = useRootNavigationState();
   const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
+  const gateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showEmailGateModal, setShowEmailGateModal] = useState(false);
   
   // Get session data for RevenueCat sync
@@ -119,22 +120,38 @@ function BootRouter() {
       
       if (!userId || emailVerified !== false) return;
       
+      // Prevent double-scheduling: if timer already scheduled, do nothing
+      if (gateTimerRef.current) return;
+      
       const hasShown = await hasShownGateModal(userId);
       if (!hasShown) {
         // Wait 800ms after authed state, then show modal
-        const timer = setTimeout(() => {
-          // Mark as shown right before opening modal (timing fix)
-          markGateModalShown(userId);
+        gateTimerRef.current = setTimeout(async () => {
+          // Mark as shown BEFORE opening modal (best-effort persistence)
+          try {
+            await markGateModalShown(userId);
+          } catch (error) {
+            console.warn('[EmailGate] Failed to persist show-once flag:', error);
+            // Continue showing modal even if write fails (better UX)
+          }
           setShowEmailGateModal(true);
+          gateTimerRef.current = null;
         }, 800);
-        return () => clearTimeout(timer);
       }
     };
     
     if (bootStatus === 'authed') {
       checkEmailGate();
     }
-  }, [session?.user?.id, session?.user?.emailVerified, bootStatus]);
+
+    // Cleanup: clear timer if effect re-runs or component unmounts
+    return () => {
+      if (gateTimerRef.current) {
+        clearTimeout(gateTimerRef.current);
+        gateTimerRef.current = null;
+      }
+    };
+  }, [bootStatus, session?.user?.id, session?.user?.emailVerified]);
 
   // Wait for navigation state to be ready before routing
   useEffect(() => {
