@@ -44,7 +44,7 @@ import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
-import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse } from "@/shared/contracts";
+import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1170,32 +1170,21 @@ export default function CalendarScreen() {
   // Get local events created while offline
   const localEvents = useLocalEvents();
 
+  // Fetch friends count for Get Started gating
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled: bootStatus === 'authed',
+  });
+
   // First login guide popup
   const [showFirstLoginGuide, setShowFirstLoginGuide] = useState(false);
-
-  // Check if this is the user's first login (per-user key)
-  useEffect(() => {
-    const checkFirstLogin = async () => {
-      // Must have a valid user ID to check/set guide seen status
-      const userId = session?.user?.id;
-      if (!userId) return;
-      
-      const guideSeenKey = `${GUIDE_SEEN_KEY_PREFIX}${userId}`;
-      const hasSeenGuide = await AsyncStorage.getItem(guideSeenKey);
-      if (!hasSeenGuide) {
-        // Show the popup after a small delay for smoother UX
-        setTimeout(() => {
-          setShowFirstLoginGuide(true);
-        }, 500);
-      }
-    };
-    checkFirstLogin();
-  }, [session?.user?.id]);
 
   const handleDismissGuide = async () => {
     const userId = session?.user?.id;
     if (userId) {
-      await AsyncStorage.setItem(`${GUIDE_SEEN_KEY_PREFIX}${userId}`, "true");
+      // Persist dismissal per-user (survives logout)
+      await AsyncStorage.setItem(`get_started_dismissed:${userId}`, "true");
     }
     setShowFirstLoginGuide(false);
   };
@@ -1203,7 +1192,8 @@ export default function CalendarScreen() {
   const handleOpenGuide = async () => {
     const userId = session?.user?.id;
     if (userId) {
-      await AsyncStorage.setItem(`${GUIDE_SEEN_KEY_PREFIX}${userId}`, "true");
+      // Mark as dismissed when opening guide
+      await AsyncStorage.setItem(`get_started_dismissed:${userId}`, "true");
     }
     setShowFirstLoginGuide(false);
     router.push("/onboarding");
@@ -1476,6 +1466,38 @@ export default function CalendarScreen() {
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
   const eventRequests = eventRequestsData?.eventRequests ?? [];
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
+
+  // Check if this is a true new user (per-user key + usage signals) - moved after calendarData definition
+  useEffect(() => {
+    const checkFirstLogin = async () => {
+      // Must have a valid user ID to check/set guide seen status
+      const userId = session?.user?.id;
+      if (!userId || bootStatus !== 'authed') return;
+      
+      // Wait for data to load before deciding
+      if (!friendsData || !calendarData) return;
+      
+      const guideSeenKey = `get_started_dismissed:${userId}`;
+      const hasDismissed = await AsyncStorage.getItem(guideSeenKey);
+      if (hasDismissed) return; // Already dismissed by this user
+
+      // Only show for true new users: no friends AND no calendar events
+      const friendsCount = friendsData?.friends?.length ?? 0;
+      const createdEventsCount = calendarData?.createdEvents?.length ?? 0;
+      const goingEventsCount = calendarData?.goingEvents?.length ?? 0;
+      const totalEventsCount = createdEventsCount + goingEventsCount;
+      
+      const isTrueNewUser = friendsCount === 0 && totalEventsCount === 0;
+      
+      if (isTrueNewUser) {
+        // Show the popup after a small delay for smoother UX
+        setTimeout(() => {
+          setShowFirstLoginGuide(true);
+        }, 500);
+      }
+    };
+    checkFirstLogin();
+  }, [session?.user?.id, bootStatus, friendsData, calendarData]);
 
   // Determine empty state logic (fixed bug: account for loading states)
   // Note: isRefetchingCalendar intentionally excluded – refetch should not reset empty state

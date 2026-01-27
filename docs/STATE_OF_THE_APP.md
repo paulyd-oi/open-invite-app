@@ -28,17 +28,25 @@
 - Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
 - Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing: Social feed on cold launch (authenticated users)
-- Social feed: Pure discovery (no filter pills, shows all events)
+- Social feed: Pure discovery (filters out going/interested/host events, no filter pills UI)
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections collapsible with count display
 - RSVP states: Going, Interested, Can't Make It (no Maybe in types or UI)
 - RSVP normalization: Backend "maybe" mapped to "interested" at boundary
 - Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
 - CTA copy: "Create Invite" (not "Create Open Invite")
+- Get Started guide: Per-user dismissal (get_started_dismissed:userId), gated by true-new-user signals (0 friends AND 0 events)
+- Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), no calendar tile obscuring
 
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (P0 Auth/Toast/Logout Noise)
+## Fixed This Session (P1/P2 Feed Discovery + Get Started + Date UI)
+- Social feed discovery: Filters out events where viewerRsvpStatus is "going" or "interested", host events, and my/attending events
+- Get Started dismissal: Changed to per-user key (get_started_dismissed:${userId}), persists across logout/login
+- Get Started gating: Only shows for true new users (friendsCount === 0 AND totalEventsCount === 0), prevents reappearing for established users
+- Social calendar date modal: Replaced blocking center modal with iOS bottom sheet (presentationStyle="pageSheet", slide animation, justify-end layout)
+
+## Fixed Previously (P0 Auth/Toast/Logout Noise)
 - Email verification toast spam: Added 3-second throttle to guardEmailVerification
 - Post-logout 401 overlays: Changed api.ts to use console.log (not console.error) for auth errors, preventing red overlays
 - Subscription query 401s: Gated useSubscription query with `enabled: bootStatus === 'authed'`

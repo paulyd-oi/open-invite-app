@@ -908,6 +908,28 @@ export default function SocialScreen() {
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
 
+    // DISCOVERY FILTERING: Remove redundant items from feed
+    // Filter out events user is already going to, interested in, or hosting
+    const myEventIds = new Set(myEvents.map(e => e.id));
+    const attendingEventIds = new Set(attendingEvents.map(e => e.id));
+    const viewerUserId = session?.user?.id;
+
+    const discoveryFeed = feedEvents.filter(event => {
+      // Exclude events viewer is hosting
+      if (event.userId === viewerUserId) return false;
+      
+      // Exclude events viewer is already going to or interested in
+      if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
+      
+      // Exclude if event is in user's created events
+      if (myEventIds.has(event.id)) return false;
+      
+      // Exclude if event is in user's attending events
+      if (attendingEventIds.has(event.id)) return false;
+
+      return true;
+    });
+
     // Create a map to deduplicate by event ID
     const eventMap = new Map<string, Event>();
 
@@ -923,15 +945,15 @@ export default function SocialScreen() {
       }
     });
 
-    // Add feed events (won't override my events or attending events)
-    feedEvents.forEach((event) => {
+    // Add filtered discovery feed events (won't override my events or attending events)
+    discoveryFeed.forEach((event) => {
       if (!eventMap.has(event.id)) {
         eventMap.set(event.id, event);
       }
     });
 
     return Array.from(eventMap.values());
-  }, [feedData?.events, myEventsData?.events, attendingData?.events]);
+  }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // Prepare events for calendar with metadata
   const calendarEvents = useMemo(() => {

@@ -514,28 +514,29 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
         </View>
       </View>
 
-      {/* Day Events Modal */}
+      {/* Day Events Modal - Bottom Sheet Style */}
       <Modal
         visible={showDayModal}
         transparent
-        animationType="fade"
+        animationType="slide"
+        presentationStyle="pageSheet"
         onRequestClose={() => setShowDayModal(false)}
       >
-        <Pressable
-          className="flex-1 justify-center px-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowDayModal(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 24,
-                maxHeight: "80%",
-                overflow: "hidden",
-              }}
-            >
+        <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <Pressable
+            className="flex-1"
+            onPress={() => setShowDayModal(false)}
+          />
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            style={{
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              maxHeight: "75%",
+              paddingBottom: 34, // Safe area for home indicator
+            }}
+          >
               {/* Modal Handle */}
               <View className="items-center pt-3 pb-2">
                 <View
@@ -609,9 +610,8 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
                 )}
               </ScrollView>
             </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </View>
+        </Modal>
     </View>
   );
 }

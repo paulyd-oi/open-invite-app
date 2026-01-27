@@ -1,5 +1,31 @@
 # Findings Log — Frontend
 
+## Social Feed Discovery Pattern (Canonical)
+
+- **Discovery-first principle**: Social feed excludes events where user has taken action (going/interested RSVP) or is the host
+- **Filtering logic**: Exclude if `viewerRsvpStatus === "going" | "interested"`, `userId === viewerUserId`, or `eventId in myEventIds/attendingEventIds`
+- **Implementation location**: `src/app/social.tsx` allEvents useMemo, applied to feedEvents before deduplication
+- **User benefit**: Feed shows only new discovery opportunities, reduces redundancy with Calendar/Attending views
+- **Pattern**: Apply filter → deduplicate → render (preserves chronological order)
+
+## Get Started Guide Persistence Pattern (Canonical)
+
+- **Per-user dismissal**: AsyncStorage key format `get_started_dismissed:${userId}` (not global GUIDE_SEEN_KEY_PREFIX)
+- **Usage signal gating**: Only show if `friendsCount === 0 AND totalEventsCount === 0` (true new users)
+- **Persistence scope**: Survives logout/login for same user (authBootstrap.ts only clears SESSION_CACHE_KEY, not get_started keys)
+- **Data loading check**: useEffect waits for `friendsData && calendarData` before deciding whether to show
+- **Implementation location**: `src/app/calendar.tsx` checkFirstLogin useEffect (positioned after calendarData query definition)
+- **User benefit**: Established users never see "Getting Started" again, prevents onboarding fatigue
+
+## Social Calendar Date Modal Pattern (Canonical)
+
+- **Bottom sheet presentation**: Use `presentationStyle="pageSheet"` for iOS native behavior (Android: standard modal)
+- **Animation**: `animationType="slide"` (not "fade") for sheet sliding from bottom
+- **Layout**: Parent View with `justify-end`, Pressable overlay for dismiss, Animated.View for content
+- **Safe area**: `paddingBottom: 34` for home indicator clearance on iOS
+- **User benefit**: Calendar tiles remain visible during date browsing, non-blocking UX
+- **Implementation location**: `src/components/FeedCalendar.tsx` Day Events Modal (lines ~518-650)
+
 ## Friend Profile UX Pattern (Canonical)
 
 - **Tab order principle**: Information hierarchy = Bio → Calendar → Groups → Notes → Open Invites
