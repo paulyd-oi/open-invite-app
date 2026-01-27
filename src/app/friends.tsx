@@ -1049,8 +1049,8 @@ export default function FriendsScreen() {
                 <View
                   style={{
                     position: "absolute",
-                    top: -4,
-                    right: -6,
+                    top: -6,
+                    right: -8,
                     backgroundColor: "#FF3B30",
                     borderRadius: 8,
                     minWidth: 16,
