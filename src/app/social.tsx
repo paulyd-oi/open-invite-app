@@ -902,58 +902,37 @@ export default function SocialScreen() {
     SplashScreen.hideAsync();
   }, []);
 
-  // Combine and deduplicate events
-  const allEvents = useMemo(() => {
+  // Discovery events: pure discovery (excludes going/interested/host)
+  const discoveryEvents = useMemo(() => {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
 
-    // DISCOVERY FILTERING: Remove redundant items from feed
-    // Filter out events user is already going to, interested in, or hosting
     const myEventIds = new Set(myEvents.map(e => e.id));
     const attendingEventIds = new Set(attendingEvents.map(e => e.id));
     const viewerUserId = session?.user?.id;
 
-    const discoveryFeed = feedEvents.filter(event => {
-      // Exclude events viewer is hosting
+    return feedEvents.filter(event => {
       if (event.userId === viewerUserId) return false;
-      
-      // Exclude events viewer is already going to or interested in
       if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
-      
-      // Exclude if event is in user's created events
       if (myEventIds.has(event.id)) return false;
-      
-      // Exclude if event is in user's attending events
       if (attendingEventIds.has(event.id)) return false;
-
       return true;
     });
+  }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
-    // Create a map to deduplicate by event ID
+  // All events for calendar (includes my events + attending + discovery)
+  const allEvents = useMemo(() => {
+    const myEvents = myEventsData?.events ?? [];
+    const attendingEvents = attendingData?.events ?? [];
+
     const eventMap = new Map<string, Event>();
-
-    // Add my events first (so they show as "own")
-    myEvents.forEach((event) => {
-      eventMap.set(event.id, event);
-    });
-
-    // Add attending events
-    attendingEvents.forEach((event) => {
-      if (!eventMap.has(event.id)) {
-        eventMap.set(event.id, event);
-      }
-    });
-
-    // Add filtered discovery feed events (won't override my events or attending events)
-    discoveryFeed.forEach((event) => {
-      if (!eventMap.has(event.id)) {
-        eventMap.set(event.id, event);
-      }
-    });
+    myEvents.forEach(e => eventMap.set(e.id, e));
+    attendingEvents.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    discoveryEvents.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
 
     return Array.from(eventMap.values());
-  }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
+  }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
 
   // Prepare events for calendar with metadata
   const calendarEvents = useMemo(() => {
@@ -984,21 +963,21 @@ export default function SocialScreen() {
     return Array.from(eventMap.values());
   }, [myEventsData?.events, attendingData?.events]);
 
-  // Group events by time
+  // Group discovery events by time (feed sections show ONLY discovery)
   const groupedEvents = useMemo(
-    () => groupEventsByTime(allEvents, session?.user?.id),
-    [allEvents, session?.user?.id]
+    () => groupEventsByTime(discoveryEvents, session?.user?.id),
+    [discoveryEvents, session?.user?.id]
   );
 
-  // Count events in the next 14 days for social proof line
+  // Count discovery events in the next 14 days for social proof line
   const plansIn14Days = useMemo(() => {
     const now = new Date();
     const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    return allEvents.filter((event) => {
+    return discoveryEvents.filter((event) => {
       const eventDate = new Date(event.startTime);
       return eventDate >= now && eventDate <= fourteenDaysFromNow;
     }).length;
-  }, [allEvents]);
+  }, [discoveryEvents]);
 
   const handleRefresh = () => {
     refetchFeed();

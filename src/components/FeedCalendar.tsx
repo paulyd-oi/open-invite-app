@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Image } from "react-native";
 import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar, Building2 } from "@/ui/icons";
-import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown, SlideInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 
@@ -517,24 +517,19 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
       {/* Day Events Modal - Bottom Sheet Style */}
       <Modal
         visible={showDayModal}
-        transparent
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowDayModal(false)}
       >
-        <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-          <Pressable
-            className="flex-1"
-            onPress={() => setShowDayModal(false)}
-          />
+        <View className="flex-1 justify-end">
           <Animated.View
-            entering={FadeIn.duration(200)}
+            entering={SlideInDown.springify().damping(20)}
             style={{
               backgroundColor: colors.background,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               maxHeight: "75%",
-              paddingBottom: 34, // Safe area for home indicator
+              paddingBottom: 34,
             }}
           >
               {/* Modal Handle */}
