@@ -31,9 +31,10 @@ import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed }
 import { SocialMemoryCard } from "@/components/SocialMemoryCard";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
+import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName }: {
-  event: Event;
+  event: Event | EventSeries;
   index: number;
   isOwn?: boolean;
   themeColor: string;
@@ -43,8 +44,12 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   userName?: string | null;
 }) {
   const router = useRouter();
-  const startDate = new Date(event.startTime);
-  const endDate = event.endTime ? new Date(event.endTime) : null;
+  
+  // Check if this is a series or single event
+  const isSeries = 'nextEvent' in event;
+  const displayEvent = isSeries ? event.nextEvent : event;
+  const startDate = new Date(displayEvent.startTime);
+  const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
 
   const dateLabel = startDate.toLocaleDateString("en-US", {
     weekday: "short",
@@ -62,15 +67,15 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/event/${event.id}` as any);
+    router.push(`/event/${displayEvent.id}` as any);
   };
 
   // For own events, use the passed user image/name; otherwise use event.user data
-  const displayImage = isOwn ? userImage : event.user?.image;
-  const displayName = isOwn ? userName : event.user?.name;
+  const displayImage = isOwn ? userImage : displayEvent.user?.image;
+  const displayName = isOwn ? userName : displayEvent.user?.name;
 
   // Get accepted attendees for social proof
-  const acceptedAttendees = event.joinRequests?.filter((r) => r.status === "accepted") ?? [];
+  const acceptedAttendees = displayEvent.joinRequests?.filter((r) => r.status === "accepted") ?? [];
   const attendeesList = acceptedAttendees.map((r) => ({
     id: r.userId,
     name: r.user?.name ?? "Unknown",
@@ -98,82 +103,107 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? "#2C2C2E" : "#FFF7ED" }}
           >
-            <Text className="text-2xl">{event.emoji}</Text>
+            <Text className="text-2xl">{isSeries ? event.emoji : displayEvent.emoji}</Text>
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">
               <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1" numberOfLines={1}>
-                {event.title}
+                {isSeries ? event.title : displayEvent.title}
               </Text>
-              {isOwn && (
+              {isSeries && (
+                <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
+                  <Text style={{ color: themeColor }} className="text-xs font-medium">Weekly</Text>
+                </View>
+              )}
+              {isOwn && !isSeries && (
                 <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text style={{ color: themeColor }} className="text-xs font-medium">You</Text>
                 </View>
               )}
             </View>
-            {event.description && (
+            {displayEvent.description && !isSeries && (
               <Text
                 style={{ color: colors.textSecondary }}
                 className="text-sm mt-0.5"
                 numberOfLines={2}
               >
-                {event.description}
+                {displayEvent.description}
               </Text>
             )}
-            <View className="flex-row items-center mt-1">
-              <View className="w-6 h-6 rounded-full mr-2 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {displayImage ? (
-                  <Image source={{ uri: displayImage }} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                    <Text style={{ color: themeColor }} className="text-xs font-medium">
-                      {displayName?.[0] ?? "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <Text style={{ color: colors.textSecondary }} className="text-sm">
-                {isOwn ? "Your event" : event.user?.name ?? "Someone"}
+            {isSeries && (
+              <Text
+                style={{ color: colors.textSecondary }}
+                className="text-sm mt-0.5"
+              >
+                Next: {dateLabel} at {timeLabel}
               </Text>
-            </View>
+            )}
+            {isSeries && event.occurrenceCount > 1 && (
+              <Text
+                style={{ color: themeColor }}
+                className="text-sm mt-0.5 font-medium"
+              >
+                +{event.occurrenceCount - 1} more
+              </Text>
+            )}
+            {!isSeries && (
+              <View className="flex-row items-center mt-1">
+                <View className="w-6 h-6 rounded-full mr-2 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                  {displayImage ? (
+                    <Image source={{ uri: displayImage }} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
+                      <Text style={{ color: themeColor }} className="text-xs font-medium">
+                        {displayName?.[0] ?? "?"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={{ color: colors.textSecondary }} className="text-sm">
+                  {isOwn ? "Your event" : displayEvent.user?.name ?? "Someone"}
+                </Text>
+              </View>
+            )}
           </View>
           <ChevronRight size={20} color={colors.textTertiary} />
         </View>
 
-        <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
-          <View className="flex-row items-center mr-4">
-            <Calendar size={14} color="#9CA3AF" />
-            <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{dateLabel}</Text>
-          </View>
-          <View className="flex-row items-center mr-4">
-            <Clock size={14} color={themeColor} />
-            <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{timeLabel}</Text>
-          </View>
-          {event.location && (
-            <View className="flex-row items-center flex-1">
-              <MapPin size={14} color="#4ECDC4" />
-              <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1" numberOfLines={1}>
-                {event.location}
-              </Text>
+        {!isSeries && (
+          <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
+            <View className="flex-row items-center mr-4">
+              <Calendar size={14} color="#9CA3AF" />
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{dateLabel}</Text>
             </View>
-          )}
-        </View>
+            <View className="flex-row items-center mr-4">
+              <Clock size={14} color={themeColor} />
+              <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{timeLabel}</Text>
+            </View>
+            {displayEvent.location && (
+              <View className="flex-row items-center flex-1">
+                <MapPin size={14} color="#4ECDC4" />
+                <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1" numberOfLines={1}>
+                  {displayEvent.location}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Capacity indicator */}
-        {event.capacity != null && (
+        {!isSeries && displayEvent.capacity != null && (
           <View className="flex-row items-center mt-2">
-            <Users size={14} color={event.isFull ? "#EF4444" : "#22C55E"} />
-            <Text style={{ color: event.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
-              {event.isFull 
-                ? `Full • ${event.goingCount ?? 0} going`
-                : `${event.goingCount ?? 0}/${event.capacity} filled`
+            <Users size={14} color={displayEvent.isFull ? "#EF4444" : "#22C55E"} />
+            <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
+              {displayEvent.isFull 
+                ? `Full • ${displayEvent.goingCount ?? 0} going`
+                : `${displayEvent.goingCount ?? 0}/${displayEvent.capacity} filled`
               }
             </Text>
           </View>
         )}
 
         {/* Social Proof - Friends Going */}
-        {attendeesList.length > 0 && (
+        {!isSeries && attendeesList.length > 0 && (
           <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
             <SocialProof
               attendees={attendeesList}
@@ -189,10 +219,10 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
 }
 
 interface GroupedEvents {
-  today: Event[];
-  tomorrow: Event[];
-  thisWeek: Event[];
-  upcoming: Event[];
+  today: Array<Event | EventSeries>;
+  tomorrow: Array<Event | EventSeries>;
+  thisWeek: Array<Event | EventSeries>;
+  upcoming: Array<Event | EventSeries>;
 }
 
 function groupEventsByTime(events: Event[], userId?: string): GroupedEvents {
@@ -208,23 +238,26 @@ function groupEventsByTime(events: Event[], userId?: string): GroupedEvents {
     upcoming: [],
   };
 
-  // Sort events by start time
-  const sortedEvents = [...events].sort(
-    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  // Group recurring events into series first
+  const series = groupEventsIntoSeries(events);
+
+  // Sort series by next occurrence time
+  const sortedSeries = [...series].sort(
+    (a, b) => new Date(a.nextEvent.startTime).getTime() - new Date(b.nextEvent.startTime).getTime()
   );
 
-  sortedEvents.forEach((event) => {
-    const eventDate = new Date(event.startTime);
+  sortedSeries.forEach((item) => {
+    const eventDate = new Date(item.nextEvent.startTime);
     const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
 
     if (eventDay.getTime() === today.getTime()) {
-      grouped.today.push(event);
+      grouped.today.push(item);
     } else if (eventDay.getTime() === tomorrow.getTime()) {
-      grouped.tomorrow.push(event);
+      grouped.tomorrow.push(item);
     } else if (eventDay > tomorrow && eventDay < endOfWeek) {
-      grouped.thisWeek.push(event);
+      grouped.thisWeek.push(item);
     } else if (eventDay >= endOfWeek) {
-      grouped.upcoming.push(event);
+      grouped.upcoming.push(item);
     }
   });
 
@@ -243,7 +276,7 @@ function EventSection({
   userName,
 }: {
   title: string;
-  events: Event[];
+  events: Array<Event | EventSeries>;
   startIndex: number;
   userId?: string;
   themeColor: string;
@@ -257,19 +290,26 @@ function EventSection({
   return (
     <View className="mb-6">
       <Text style={{ color: colors.text }} className="text-lg font-sora-semibold mb-4">{title}</Text>
-      {events.map((event, index) => (
-        <EventCard
-          key={event.id}
-          event={event}
-          index={startIndex + index}
-          isOwn={event.userId === userId}
-          themeColor={themeColor}
-          isDark={isDark}
-          colors={colors}
-          userImage={userImage}
-          userName={userName}
-        />
-      ))}
+      {events.map((event, index) => {
+        // Check if this is a series or single event
+        const isSeries = 'nextEvent' in event;
+        const eventId = isSeries ? event.seriesKey : event.id;
+        const eventUserId = isSeries ? event.nextEvent.userId : event.userId;
+        
+        return (
+          <EventCard
+            key={eventId}
+            event={event}
+            index={startIndex + index}
+            isOwn={eventUserId === userId}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            userImage={userImage}
+            userName={userName}
+          />
+        );
+      })}
     </View>
   );
 }

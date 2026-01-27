@@ -20,6 +20,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge } from "@/shared/contracts";
+import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
 interface FriendNote {
   id: string;
@@ -27,11 +28,15 @@ interface FriendNote {
   createdAt: string;
 }
 
-function EventCard({ event, index }: { event: Event; index: number }) {
+function EventCard({ event, index }: { event: Event | EventSeries; index: number }) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
-  const startDate = new Date(event.startTime);
-  const endDate = event.endTime ? new Date(event.endTime) : null;
+  
+  // Check if this is a series or single event
+  const isSeries = 'nextEvent' in event;
+  const displayEvent = isSeries ? event.nextEvent : event;
+  const startDate = new Date(displayEvent.startTime);
+  const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
   const isToday = new Date().toDateString() === startDate.toDateString();
   const isTomorrow =
     new Date(Date.now() + 86400000).toDateString() === startDate.toDateString();
@@ -55,7 +60,7 @@ function EventCard({ event, index }: { event: Event; index: number }) {
       <Pressable
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push(`/event/${event.id}` as any);
+          router.push(`/event/${displayEvent.id}` as any);
         }}
         className="rounded-2xl p-4 mb-3"
         style={{
@@ -71,27 +76,47 @@ function EventCard({ event, index }: { event: Event; index: number }) {
       >
         <View className="flex-row items-start">
           <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
-            <Text className="text-xl">{event.emoji}</Text>
+            <Text className="text-xl">{isSeries ? event.emoji : displayEvent.emoji}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-lg font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-              {event.title}
-            </Text>
-            <View className="flex-row items-center mt-1">
-              <Clock size={14} color={themeColor} />
-              <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>
-                {dateLabel} at {timeLabel}
+            <View className="flex-row items-center">
+              <Text className="text-lg font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
+                {isSeries ? event.title : displayEvent.title}
               </Text>
+              {isSeries && (
+                <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
+                  <Text style={{ color: themeColor }} className="text-xs font-medium">Weekly</Text>
+                </View>
+              )}
             </View>
+            {isSeries ? (
+              <>
+                <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                  Next: {dateLabel} at {timeLabel}
+                </Text>
+                {event.occurrenceCount > 1 && (
+                  <Text className="text-sm mt-0.5 font-medium" style={{ color: themeColor }}>
+                    +{event.occurrenceCount - 1} more
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View className="flex-row items-center mt-1">
+                <Clock size={14} color={themeColor} />
+                <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>
+                  {dateLabel} at {timeLabel}
+                </Text>
+              </View>
+            )}
           </View>
           <ChevronRight size={20} color={colors.textTertiary} />
         </View>
 
-        {event.location && (
+        {!isSeries && displayEvent.location && (
           <View className="flex-row items-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
             <MapPin size={14} color="#4ECDC4" />
             <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-              {event.location}
+              {displayEvent.location}
             </Text>
           </View>
         )}
@@ -418,6 +443,11 @@ export default function FriendDetailScreen() {
   const groups = groupsData?.groups ?? [];
   const friend = data?.friend;
   const events = data?.events ?? [];
+  
+  // Group recurring events into series
+  const eventSeries = useMemo(() => {
+    return groupEventsIntoSeries(events);
+  }, [events]);
 
   // Mutations for adding/removing from groups
   const addMemberMutation = useMutation({
@@ -768,7 +798,7 @@ export default function FriendDetailScreen() {
         <View className="flex-row items-center mb-3">
           <Calendar size={18} color="#4ECDC4" />
           <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-            Open Invites ({events.length})
+            Open Invites ({eventSeries.length})
           </Text>
         </View>
 
@@ -776,7 +806,7 @@ export default function FriendDetailScreen() {
           <View className="py-8 items-center">
             <Text style={{ color: colors.textTertiary }}>Loading events...</Text>
           </View>
-        ) : events.length === 0 ? (
+        ) : eventSeries.length === 0 ? (
           <View className="rounded-2xl p-6 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
             <Text className="text-4xl mb-3">🎉</Text>
             <Text className="text-center" style={{ color: colors.textSecondary }}>
@@ -784,9 +814,10 @@ export default function FriendDetailScreen() {
             </Text>
           </View>
         ) : (
-          events.map((event: Event, index: number) => (
-            <EventCard key={event.id} event={event} index={index} />
-          ))
+          eventSeries.map((item, index) => {
+            const key = 'nextEvent' in item ? item.seriesKey : (item as Event).id;
+            return <EventCard key={key} event={item} index={index} />;
+          })
         )}
       </ScrollView>
 
