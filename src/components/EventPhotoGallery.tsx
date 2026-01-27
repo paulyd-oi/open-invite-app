@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -72,9 +72,17 @@ export function EventPhotoGallery({
   const [downloading, setDownloading] = useState(false);
   const [showDeletePhotoConfirm, setShowDeletePhotoConfirm] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if event is in the past (can add photos)
   const isPastEvent = eventTime < new Date();
+
+  // Photo upload limits
+  const MAX_PHOTOS_PER_USER = 5;
+  const MAX_PHOTOS_FOR_HOST = 10;
+  const MAX_PHOTOS_TOTAL = 20;
+  const userPhotoLimit = isOwner ? MAX_PHOTOS_FOR_HOST : MAX_PHOTOS_PER_USER;
 
   // Fetch event photos
   const { data: photosData, isLoading } = useQuery({
@@ -84,6 +92,42 @@ export function EventPhotoGallery({
   });
 
   const photos = photosData?.photos ?? [];
+
+  // Calculate user's upload count and remaining slots
+  const currentUserId = session?.user?.id;
+  const userPhotosCount = photos.filter((p) => p.userId === currentUserId).length;
+  const userUploadsRemaining = Math.max(0, userPhotoLimit - userPhotosCount);
+  const eventSlotsRemaining = Math.max(0, MAX_PHOTOS_TOTAL - photos.length);
+  const canUpload = userUploadsRemaining > 0 && eventSlotsRemaining > 0 && cooldownSeconds === 0;
+
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Start cooldown timer
+  const startCooldown = useCallback((seconds: number) => {
+    setCooldownSeconds(seconds);
+    if (cooldownTimerRef.current) {
+      clearInterval(cooldownTimerRef.current);
+    }
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          if (cooldownTimerRef.current) {
+            clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
 
   // Upload photo mutation
   const uploadPhotoMutation = useMutation({
@@ -96,10 +140,28 @@ export function EventPhotoGallery({
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "single", eventId] });
       setShowUploadModal(false);
+      safeToast.success("Added!", "Your photo has been uploaded.");
     },
     onError: (error: any) => {
-      safeToast.error("Error", error?.message ?? "Failed to upload photo");
+      // Handle specific backend error codes
+      const errorCode = error?.data?.code || error?.code;
+      const retryAfterSec = error?.data?.retryAfterSec;
+
+      if (errorCode === "EVENT_PHOTO_LIMIT_REACHED") {
+        safeToast.error("Limit Reached", "Event photo limit reached.");
+        setShowUploadModal(false);
+      } else if (errorCode === "USER_EVENT_PHOTO_LIMIT_REACHED") {
+        safeToast.error("Limit Reached", "You've reached your upload limit for this event.");
+        setShowUploadModal(false);
+      } else if (errorCode === "EVENT_PHOTO_COOLDOWN" && retryAfterSec) {
+        safeToast.warning("Please Wait", `Please wait ${retryAfterSec}s before uploading again.`);
+        setShowUploadModal(false);
+        startCooldown(retryAfterSec);
+      } else {
+        safeToast.error("Error", error?.message ?? "Failed to upload photo");
+      }
     },
   });
 
@@ -175,13 +237,27 @@ export function EventPhotoGallery({
     });
 
     if (!result.canceled && result.assets[0]) {
+      // Check limits before proceeding
+      if (!canUpload) {
+        if (cooldownSeconds > 0) {
+          safeToast.warning("Please Wait", `Please wait ${cooldownSeconds}s before uploading again.`);
+        } else if (userUploadsRemaining <= 0) {
+          safeToast.error("Limit Reached", "You've reached your upload limit for this event.");
+        } else {
+          safeToast.error("Limit Reached", "Event photo limit reached.");
+        }
+        return;
+      }
       setUploading(true);
       try {
         // Compress and upload the image to the server
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
-        safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        // Error handled by mutation onError
+        if (!error?.data?.code) {
+          safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        }
       } finally {
         setUploading(false);
       }
@@ -201,13 +277,27 @@ export function EventPhotoGallery({
     });
 
     if (!result.canceled && result.assets[0]) {
+      // Check limits before proceeding
+      if (!canUpload) {
+        if (cooldownSeconds > 0) {
+          safeToast.warning("Please Wait", `Please wait ${cooldownSeconds}s before uploading again.`);
+        } else if (userUploadsRemaining <= 0) {
+          safeToast.error("Limit Reached", "You've reached your upload limit for this event.");
+        } else {
+          safeToast.error("Limit Reached", "Event photo limit reached.");
+        }
+        return;
+      }
       setUploading(true);
       try {
         // Compress and upload the image to the server
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
-        safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        // Error handled by mutation onError
+        if (!error?.data?.code) {
+          safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
+        }
       } finally {
         setUploading(false);
       }
@@ -259,19 +349,48 @@ export function EventPhotoGallery({
           {isPastEvent && (
             <Pressable
               onPress={() => {
+                if (cooldownSeconds > 0) {
+                  safeToast.warning("Please Wait", `Please wait ${cooldownSeconds}s before uploading again.`);
+                  return;
+                }
+                if (!canUpload) {
+                  if (userUploadsRemaining <= 0) {
+                    safeToast.error("Limit Reached", "You've reached your upload limit for this event.");
+                  } else {
+                    safeToast.error("Limit Reached", "Event photo limit reached.");
+                  }
+                  return;
+                }
                 Haptics.selectionAsync();
                 setShowUploadModal(true);
               }}
               className="flex-row items-center px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: `${themeColor}20` }}
+              style={{ 
+                backgroundColor: canUpload ? `${themeColor}20` : (isDark ? "#3C3C3E" : "#E5E7EB"),
+                opacity: canUpload ? 1 : 0.6,
+              }}
             >
-              <ImagePlus size={16} color={themeColor} />
-              <Text className="text-sm font-medium ml-1" style={{ color: themeColor }}>
-                Add
+              <ImagePlus size={16} color={canUpload ? themeColor : colors.textTertiary} />
+              <Text className="text-sm font-medium ml-1" style={{ color: canUpload ? themeColor : colors.textTertiary }}>
+                {cooldownSeconds > 0 ? `Wait ${cooldownSeconds}s` : "Add"}
               </Text>
             </Pressable>
           )}
         </View>
+
+        {/* Limits helper text */}
+        {isPastEvent && (
+          <View className="mb-2">
+            <Text className="text-xs" style={{ color: colors.textTertiary }}>
+              {isOwner ? `${MAX_PHOTOS_FOR_HOST} max for host` : `${MAX_PHOTOS_PER_USER} max per person`} • {MAX_PHOTOS_TOTAL} max total
+            </Text>
+            {currentUserId && (
+              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                You have {userUploadsRemaining} upload{userUploadsRemaining !== 1 ? "s" : ""} left • Event has {eventSlotsRemaining} slot{eventSlotsRemaining !== 1 ? "s" : ""} left
+              </Text>
+            )}
+          </View>
+        )}
 
         {isLoading ? (
           <View className="py-8 items-center">

@@ -27,6 +27,7 @@
 - None currently known
 
 ## Fixed This Session
+- Event photo upload guardrails: Limits helper text, remaining counters, error code handling, cooldown UX
 - Settings screen reorder: Premium section moved directly below Invite Friends section
 - Settings redundant Subscription card: Removed duplicate Subscription item from Invite Friends section (full Premium section handles this)
 - Activity feed avatars: Enhanced avatar extraction with 12+ field fallbacks, memoized NotificationCard
@@ -83,5 +84,5 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
-- 2026-01-26: Typecheck PASS (Phase 2E: Settings reorder)
+- 2026-01-26: Typecheck PASS (Phase 3A-FE: Event photo upload guardrails)
 
