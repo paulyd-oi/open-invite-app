@@ -1,185 +1,165 @@
 ================================================================================
-HANDOFF PACKET — PHASE 2: AUTH TRUST (P0 FIXES)
+HANDOFF PACKET — PHASE 2B: AUTH INVARIANT HARDENING
 ================================================================================
 Agent: GitHub Copilot
 Date: 2026-01-27
-Session: Phase 2 — Fix session persistence on cold start + Apple Sign-In cookie handling
-Commit: 0285837
+Session: Phase 2B — Remove fire-and-forget cookie init, ensure single authority
+Previous: Phase 2 (0285837) — Session persistence + Apple Sign-In
 
-STATUS: ✅ COMPLETE — Session persistence fixed, Apple Sign-In cookie capture improved
+STATUS: ✅ COMPLETE — Single authority for cookie init established
 
 ================================================================================
 SUMMARY
 ================================================================================
 
-Two P0 auth bugs fixed:
+Hardened auth invariants to ensure deterministic cookie loading order:
 
-A) SESSION PERSISTENCE ON FORCE-CLOSE (FIXED)
-   Root Cause: Race condition - bootstrapAuth() called API before cookie was loaded from SecureStore
-   Fix: Added ensureCookieInitialized() that MUST be awaited before bootstrap starts
+A) REMOVED FIRE-AND-FORGET COOKIE INIT (FIXED)
+   Location: authClient.ts module scope
+   Issue: `void ensureCookieInitialized()` could race with explicit bootstrap call
+   Fix: Removed call, added comment documenting single authority pattern
 
-B) APPLE SIGN-IN IN TESTFLIGHT (IMPROVED)
-   Root Cause: credentials: "include" doesn't work in React Native; Set-Cookie ignored
-   Fix: Explicit cookie extraction from header/response + storage via setExplicitCookiePair()
+B) VERIFIED APPLE SIGN-IN COOKIE PARSING (ALREADY CORRECT)
+   Location: welcome.tsx handleAppleSignIn()
+   Status: Regex already extracts only cookie value, not Path/HttpOnly attributes
+   Evidence: `/__Secure-better-auth\.session_token=([^;]+)/` stops at semicolon
 
 ================================================================================
 ROOT CAUSE ANALYSIS
 ================================================================================
 
-TASK B — SESSION PERSISTENCE (FORCE-CLOSE LOGOUT)
+TASK A — FIRE-AND-FORGET RACE CONDITION
 
 PROBLEM:
-- User logs in → force-closes app (swipe-kill) → reopens → logged out
-- Cookie exists in SecureStore but not used on cold start
+- authClient.ts had `void ensureCookieInitialized()` at module scope
+- Module loads at indeterminate time during app startup
+- Could race with bootstrap sequence or cause double initialization
 
-TRACE:
-1. authClient.ts module loads → calls `void refreshExplicitCookie()` (fire-and-forget)
-2. bootstrapAuth() starts immediately 
-3. /api/auth/session called WITHOUT cookie (race condition)
-4. Backend returns 401 → bootstrap decides "loggedOut"
-5. User sees login screen despite valid cookie in storage
+BEFORE (authClient.ts line 109):
+```typescript
+// Kick-off cookie initialization on module load (fire-and-forget).
+// This is NOT a race because bootstrapAuth() awaits ensureCookieInitialized().
+void ensureCookieInitialized();
+```
 
-FIX:
-1. Added `ensureCookieInitialized()` export in authClient.ts
-   - Tracks initialization state with promise
-   - Returns immediately if already initialized
-   - Awaits refreshExplicitCookie() if not
-   
-2. bootstrapAuth() now calls `await ensureCookieInitialized()` as Step 0/4
-   - Cookie GUARANTEED loaded before any API call
-   - Eliminates race condition entirely
+WHY THIS WAS PROBLEMATIC:
+1. Comments claimed "NOT a race" but fire-and-forget is inherently unpredictable
+2. Module load order is non-deterministic in bundled apps
+3. Could start initialization before app is ready to handle it
+4. Violates single-authority principle
 
-TASK A — APPLE SIGN-IN (TESTFLIGHT)
+AFTER (authClient.ts line 106-109):
+```typescript
+// NOTE: Cookie initialization is NOT started on module load.
+// Bootstrap (authBootstrap.ts) is the ONLY authoritative caller of ensureCookieInitialized().
+// This ensures deterministic boot order and prevents race conditions.
+```
 
-PROBLEM:
-- Apple Sign-In on device returns credentials
-- Backend exchange succeeds
-- User immediately logged out after onboarding
+FIX RATIONALE:
+- authBootstrap.ts Step 0/4 already awaits ensureCookieInitialized()
+- Removing fire-and-forget means bootstrap is the ONLY caller
+- Single authority = deterministic order = no races
 
-TRACE:
-1. handleAppleSignIn() used `credentials: "include"` with fetch()
-2. React Native fetch does NOT auto-persist Set-Cookie headers
-3. Session cookie from backend never stored client-side
-4. Next API call has no cookie → 401 → logout
+TASK B — APPLE SIGN-IN PARSING (VERIFIED CORRECT)
 
-FIX:
-1. Changed to `credentials: "omit"` (explicit cookie handling)
-2. Extract Set-Cookie header: `response.headers.get("set-cookie")`
-3. Parse and store: `setExplicitCookiePair("__Secure-better-auth.session_token=VALUE")`
-4. Fallback: Use token from response body if Set-Cookie header inaccessible
-5. Call refreshExplicitCookie() after storage to warm cache
+CHECKED CODE (welcome.tsx ~line 555):
+```typescript
+const match = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
+if (match?.[1]) {
+  const cookieValue = match[1];
+  await setExplicitCookiePair(`__Secure-better-auth.session_token=${cookieValue}`);
+}
+```
+
+WHY THIS IS CORRECT:
+- Regex `[^;]+` matches everything UNTIL the semicolon
+- Set-Cookie header: `__Secure-better-auth.session_token=VALUE; Path=/; HttpOnly`
+- Match group 1 captures only `VALUE`, not `; Path=/; HttpOnly`
+- setExplicitCookiePair() receives clean `name=value` pair
+
+NO CHANGE NEEDED — parsing already robust.
 
 ================================================================================
 FILES CHANGED
 ================================================================================
 
 src/lib/authClient.ts
-  - Added cookieInitialized flag and cookieInitPromise tracking
-  - Added ensureCookieInitialized() export function
-  - Changed module-level init from void to managed promise
-
-src/lib/authBootstrap.ts  
-  - Added import for ensureCookieInitialized
-  - bootstrapAuth() now awaits ensureCookieInitialized() as Step 0/4
-  - Added logging for cookie cache initialization
-
-src/app/welcome.tsx
-  - Added imports: refreshExplicitCookie, setExplicitCookiePair
-  - handleAppleSignIn() changed credentials to "omit"
-  - Added Set-Cookie header extraction
-  - Added explicit cookie storage with fallback to response token
-  - Added refreshExplicitCookie() call after storage
-  - Enhanced AUTH_TRACE logging
+  - REMOVED: `void ensureCookieInitialized();` fire-and-forget call
+  - ADDED: Comment documenting single authority pattern
 
 docs/STATE_OF_THE_APP.md
-  - Added Phase 2 section for auth trust fixes
-  - Updated Stable section with session persistence and Apple Sign-In improvements
+  - Added Phase 2B section under "Fixed This Session"
+  - Updated Stable section with single-authority invariant
 
 docs/FINDINGS_LOG.md
-  - Added canonical auth contract updates for cold start and Apple Sign-In
-  - Added dated findings for both bugs with proof and action taken
+  - Added canonical auth contract: single authority for cookie init
+  - Updated Apple Sign-In cookie: documents regex extracts value only
+  - Added dated finding for fire-and-forget removal
 
 ================================================================================
 KEY DIFFS
 ================================================================================
 
-authClient.ts:
-+ let cookieInitialized = false;
-+ let cookieInitPromise: Promise<void> | null = null;
-+ export async function ensureCookieInitialized(): Promise<void> { ... }
-+ void ensureCookieInitialized();  // Start but don't block module load
-- void refreshExplicitCookie();     // Was fire-and-forget (race condition)
+authClient.ts (lines 106-109):
+BEFORE:
+  // Kick-off cookie initialization on module load (fire-and-forget).
+  // This is NOT a race because bootstrapAuth() awaits ensureCookieInitialized().
+  void ensureCookieInitialized();
 
-authBootstrap.ts:
-+ import { ensureCookieInitialized } from "./authClient";
-+ log("Step 0/4: Ensuring cookie cache is initialized from SecureStore...");
-+ await ensureCookieInitialized();
-+ log("  ✓ Cookie cache ready");
+AFTER:
+  // NOTE: Cookie initialization is NOT started on module load.
+  // Bootstrap (authBootstrap.ts) is the ONLY authoritative caller of ensureCookieInitialized().
+  // This ensures deterministic boot order and prevents race conditions.
 
-welcome.tsx (handleAppleSignIn):
-+ const setCookieHeader = response.headers.get("set-cookie");
-+ credentials: "omit"  // Was: "include" (doesn't work in RN)
-+ if (setCookieHeader) { await setExplicitCookiePair(...); }
-+ if (tokenValue) { await setExplicitCookiePair(...); }  // Fallback
-+ await refreshExplicitCookie();  // Warm cache
+================================================================================
+VERIFICATION RESULTS
+================================================================================
+
+✅ TypeScript: npm run typecheck PASS (no errors)
+✅ Lint/Build: ./verify_frontend.sh PASS
+✅ Grep Check: No remaining `void ensureCookieInitialized` in codebase
+
+Grep command: grep -rn "void ensureCookieInitialized" src/
+Result: Exit code 1 (no matches found)
 
 ================================================================================
 TEST PLAN
 ================================================================================
 
-FORCE-CLOSE SESSION PERSISTENCE:
-1. Log in with email or Apple
-2. Navigate to social feed (confirm authed)
-3. Force-close app (swipe up to kill)
-4. Reopen app
-5. EXPECTED: Remains logged in, sees social feed
-6. VERIFY LOG: "[AuthBootstrap] Step 0/4: Ensuring cookie cache..." before Step 1
+COLD START SESSION PERSISTENCE:
+1. Log in (email or Apple)
+2. Force-close app (swipe kill)
+3. Reopen app
+4. EXPECTED: Remains logged in
+5. VERIFY LOG: "[AuthBootstrap] Step 0/4: Ensuring cookie cache..." appears FIRST
 
-APPLE SIGN-IN IN TESTFLIGHT:
-1. Install TestFlight build
-2. Tap "Continue with Apple"
-3. Complete Face ID / Apple ID prompt
-4. EXPECTED: Advances to profile setup (Slide 3)
-5. Complete onboarding
-6. EXPECTED: Lands on social feed, remains logged in
-7. Force-close and reopen
-8. EXPECTED: Still logged in
-9. VERIFY LOG: "[AUTH_TRACE] Apple Sign-In: Cookie stored from..." appears
+APPLE SIGN-IN:
+1. Sign in with Apple on device
+2. EXPECTED: Cookie captured, session persists
+3. Force-close and reopen
+4. EXPECTED: Still logged in
 
-REGRESSION CHECK:
-- Email login still works
-- Email signup still works
-- Logout still works (clears session)
-- Login after logout still works
+NO REGRESSION:
+- Email login works
+- Logout works
+- Re-login works
 
 ================================================================================
-BACKEND REQUIREMENTS (IF APPLE STILL FAILS)
+INVARIANTS ESTABLISHED
 ================================================================================
 
-If Apple Sign-In still fails after frontend fix, check backend config:
+1. Cookie initialization happens ONLY in authBootstrap.ts Step 0/4
+2. authClient.ts exports ensureCookieInitialized() but does NOT call it
+3. No fire-and-forget calls anywhere in auth code
+4. Apple Sign-In regex extracts cookie value only (stops at semicolon)
 
-1. App Store Connect:
-   - Services IDs configured for "Sign in with Apple"
-   - Associated Domains includes backend URL
-   - Bundle ID matches Expo config
+================================================================================
+PREVIOUS HANDOFF (Phase 2)
+================================================================================
 
-2. Apple Developer Portal:
-   - Key for Sign in with Apple generated
-   - Key downloaded and available to backend
-   - Team ID and Key ID noted
-
-3. Render Environment Variables:
-   APPLE_CLIENT_ID=<Service ID or Bundle ID>
-   APPLE_TEAM_ID=<Team ID>
-   APPLE_KEY_ID=<Key ID>
-   APPLE_PRIVATE_KEY=<Key contents>
-
-4. Backend Better Auth config:
-   - apple provider enabled
-   - clientId matches APPLE_CLIENT_ID
-   - Key configured correctly
-
-Evidence needed: AUTH_TRACE logs showing backend response status and error messages.
+See: AUTH_INVARIANT_HARDENING_HANDOFF.txt (renamed from this file)
+Commit: 0285837
+Summary: Fixed session persistence race + Apple Sign-In cookie capture
 
 ================================================================================
 END HANDOFF

@@ -105,9 +105,9 @@ export async function ensureCookieInitialized(): Promise<void> {
   return cookieInitPromise;
 }
 
-// Start initialization immediately but don't block module load
-// Bootstrap will await ensureCookieInitialized() explicitly
-void ensureCookieInitialized();
+// NOTE: Cookie initialization is NOT started on module load.
+// Bootstrap (authBootstrap.ts) is the ONLY authoritative caller of ensureCookieInitialized().
+// This prevents race conditions and ensures deterministic cookie loading order.
 
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });

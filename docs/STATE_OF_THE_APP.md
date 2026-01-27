@@ -5,7 +5,7 @@
 - Login with Better Auth (cookie session established)
 - Signup with Better Auth (cookie session established)
 - Cookie storage in SecureStore (open-invite_cookie key)
-- Session persistence across force-close: Cookie cache initialized before bootstrap (ensureCookieInitialized)
+- Session persistence across force-close: Cookie cache initialized by bootstrap only (single authority)
 - Authed queries gated on bootStatus (no 401 spam after logout)
 - /uploads/ images render without token requirement
 - useEntitlements hook accepts enabled parameter for gating
@@ -35,7 +35,12 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (Phase 2: Auth Trust)
+## Fixed This Session (Phase 2B: Auth Invariant Hardening)
+- Cookie init authority: Removed fire-and-forget call from authClient.ts module load
+- Single authority: ensureCookieInitialized() now called ONLY by authBootstrap.ts
+- Apple Sign-In parsing: Regex extracts only cookie pair value (excludes Path, HttpOnly, etc)
+
+## Fixed Previously (Phase 2: Auth Trust)
 - Session persistence fix: ensureCookieInitialized() awaited before bootstrap prevents race condition
 - Cold start auth: Cookie loaded from SecureStore BEFORE session check API call
 - Apple Sign-In cookie capture: Explicit Set-Cookie header extraction and storage

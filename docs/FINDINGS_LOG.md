@@ -6,7 +6,8 @@
 - In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
 - Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
 - **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
-- **Apple Sign-In cookie**: React Native doesn't auto-persist Set-Cookie headers; must manually extract from header or response body and store via `setExplicitCookiePair()`.
+- **Single authority for cookie init**: `ensureCookieInitialized()` is called ONLY from `authBootstrap.ts` Step 0/4. No fire-and-forget calls on module load. This prevents race conditions and ensures deterministic boot order.
+- **Apple Sign-In cookie**: React Native doesn't auto-persist Set-Cookie headers; must manually extract from header or response body and store via `setExplicitCookiePair()`. Regex extracts cookie value only (up to semicolon), not Path/HttpOnly/etc attributes.
 
 ## RSVP Type Contract (Canonical)
 
@@ -40,6 +41,21 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Added `ensureCookieInitialized()` export that tracks initialization state with promise
 - Bootstrap now awaits `ensureCookieInitialized()` before any API calls (Step 0/4)
 - Cookie guaranteed loaded before session check
+### Related Files: `src/lib/authClient.ts`, `src/lib/authBootstrap.ts`
+
+---
+
+### Date: 2026-01-27
+### Finding: Fire-and-forget cookie init on module load causes unpredictable boot order
+### Proof:
+- `void ensureCookieInitialized()` called at bottom of authClient.ts module scope
+- Module loads at indeterminate time during app startup
+- Could race with bootstrap sequence or cause double initialization
+### Impact: Non-deterministic auth boot, potential race conditions
+### Action Taken:
+- Removed `void ensureCookieInitialized()` from authClient.ts module scope
+- Documented that authBootstrap.ts is the ONLY authority for cookie initialization
+- Single source of truth: bootstrap Step 0/4 is the only caller
 ### Related Files: `src/lib/authClient.ts`, `src/lib/authBootstrap.ts`
 
 ---
