@@ -11,9 +11,12 @@ import {
   TrendingUp,
   ChevronRight,
 } from "@/ui/icons";
+import { useQuery } from "@tanstack/react-query";
 
 import { useTheme } from "@/lib/ThemeContext";
-import { type SuggestionFeedItem, type SuggestionAction } from "@/shared/contracts";
+import { type SuggestionFeedItem, type SuggestionAction, type GetFriendsResponse } from "@/shared/contracts";
+import { api } from "@/lib/api";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 interface SuggestionFeedCardProps {
   suggestion: SuggestionFeedItem;
@@ -69,8 +72,16 @@ function getSuggestionStyle(type: SuggestionAction): {
 export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProps) {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
+  const { status: bootStatus } = useBootAuthority();
   const style = getSuggestionStyle(suggestion.type);
   const Icon = style.icon;
+
+  // Fetch friends list to map userId → friendshipId for RECONNECT_FRIEND suggestions
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
+  });
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -89,7 +100,16 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
         break;
       case "RECONNECT_FRIEND":
         if (suggestion.userId) {
-          router.push(`/user/${suggestion.userId}` as any);
+          // Find the friendship ID by matching the friend's user ID
+          const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
+          
+          if (friendship) {
+            // Navigate to friend profile using friendship ID
+            router.push(`/friend/${friendship.id}` as any);
+          } else {
+            // Fallback to user profile page if friendship not found in cache
+            router.push(`/user/${suggestion.userId}` as any);
+          }
         } else {
           router.push("/friends" as any);
         }
