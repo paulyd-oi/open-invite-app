@@ -7,15 +7,20 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+
+    "icon": "./icon.png",
+
     "ios": {
+      "icon": "./icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "200",
+      "buildNumber": "201",
       "usesAppleSignIn": true,
       "jsEngine": "jsc",
       "infoPlist": {
         "UISupportsDocumentBrowser": false,
         "LSSupportsOpeningDocumentsInPlace": false,
+
         "NSCameraUsageDescription": "Open Invite uses the camera to capture photos inside the app before you publish them.",
         "NSPhotoLibraryUsageDescription": "Open Invite accesses your photo library so you can move media between the app and your library.",
         "NSPhotoLibraryAddUsageDescription": "Open Invite saves media you export from the app into your photo library.",
@@ -26,42 +31,37 @@
         "NSCalendarsWriteOnlyUsageDescription": "Open Invite needs calendar write access to add events you choose to save.",
         "NSRemindersUsageDescription": "Open Invite uses reminders to help you stay on track with events you choose to save.",
         "NSRemindersFullAccessUsageDescription": "Open Invite needs reminders access to help you stay on track with events you choose to save.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ],
+
+        "UIBackgroundModes": ["remote-notification"],
+
         "ITSAppUsesNonExemptEncryption": false,
+
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "iCalendar Event",
             "LSHandlerRank": "Alternate",
-            "LSItemContentTypes": [
-              "com.apple.ical.ics"
-            ]
+            "LSItemContentTypes": ["com.apple.ical.ics"]
           }
         ],
+
         "UTImportedTypeDeclarations": [
           {
             "UTTypeIdentifier": "com.apple.ical.ics",
             "UTTypeTagSpecification": {
-              "public.filename-extension": [
-                "ics"
-              ],
-              "public.mime-type": [
-                "text/calendar"
-              ]
+              "public.filename-extension": ["ics"],
+              "public.mime-type": ["text/calendar"]
             },
-            "UTTypeConformsTo": [
-              "public.data",
-              "public.content"
-            ]
+            "UTTypeConformsTo": ["public.data", "public.content"]
           }
         ]
       }
     },
+
     "android": {
       "edgeToEdgeEnabled": true,
       "package": "com.vibecode.openinvite.x0qi5wk"
     },
+
     "plugins": [
       "expo-router",
       "expo-asset",
@@ -69,10 +69,11 @@
       "expo-web-browser",
       "react-native-edge-to-edge"
     ],
+
     "experiments": {
       "typedRoutes": true
     },
-    "icon": "./icon.png",
+
     "extra": {
       "router": {},
       "eas": {
