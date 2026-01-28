@@ -27,6 +27,24 @@ import Purchases, {
   type PurchasesPackage,
 } from "react-native-purchases";
 
+// ============================================
+// REVENUECAT CONFIGURATION
+// ============================================
+
+/**
+ * Offering ID for Founder Pro v1
+ * Use this constant when requesting specific offerings
+ * If null or not found, falls back to current offering
+ */
+export const REVENUECAT_OFFERING_ID = "founder_pro_v1";
+
+/**
+ * Entitlement identifier for premium access
+ * Backend and RevenueCat both use "premium" as the entitlement ID
+ * User-facing copy should say "Founder Pro"
+ */
+export const REVENUECAT_ENTITLEMENT_ID = "premium";
+
 // Check if running on web
 const isWeb = Platform.OS === "web";
 

@@ -44,6 +44,7 @@ import {
   purchasePackage,
   restorePurchases,
   getCustomerInfo,
+  REVENUECAT_OFFERING_ID,
 } from "@/lib/revenuecatClient";
 import { safeToast } from "@/lib/safeToast";
 import { useSubscription, FREE_TIER_LIMITS, PRO_TIER_LIMITS, PRICING } from "@/lib/useSubscription";
@@ -121,6 +122,12 @@ export default function SubscriptionScreen() {
         const packages = result.data.current.availablePackages;
         setYearlyPackage(packages.find((p) => p.identifier === "$rc_annual") ?? null);
         setLifetimePackage(packages.find((p) => p.identifier === "$rc_lifetime") ?? null);
+      } else {
+        // Offering fetch failed - show calm message
+        safeToast.info(
+          "Founder Pro Unavailable",
+          "Founder Pro is temporarily unavailable. Try again in a moment."
+        );
       }
       setPackagesLoading(false);
     };

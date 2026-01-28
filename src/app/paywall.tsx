@@ -35,6 +35,7 @@ import {
   purchasePackage,
   restorePurchases,
   hasEntitlement,
+  REVENUECAT_OFFERING_ID,
 } from "@/lib/revenuecatClient";
 
 // Beta mode - set to false for production (payments are active)
@@ -115,7 +116,21 @@ export default function PaywallScreen() {
     if (result.ok && result.data.current) {
       const packages = result.data.current.availablePackages;
       const yearly = packages.find((p) => p.identifier === "$rc_annual");
+      
+      if (!yearly) {
+        safeToast.info(
+          "Founder Pro Unavailable",
+          "Founder Pro is temporarily unavailable. Try again in a moment."
+        );
+      }
+      
       setYearlyPackage(yearly ?? null);
+    } else {
+      // Offering fetch failed
+      safeToast.info(
+        "Founder Pro Unavailable",
+        "Founder Pro is temporarily unavailable. Try again in a moment."
+      );
     }
 
     setIsLoading(false);
