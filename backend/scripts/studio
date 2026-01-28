@@ -1,9 +1,0 @@
-#! /bin/bash
-set -e
-
-echo "Installing dependencies and generating Prisma client..."
-bun install
-
-echo "Starting Cloud Studio..."
-exec bun run studio
-
