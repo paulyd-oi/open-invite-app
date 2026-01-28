@@ -165,7 +165,8 @@ export function useNotifications() {
         } else if (type === "friend_request" || type === "friend_accepted") {
           queryClient.invalidateQueries({ queryKey: ["friends"] });
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-        } else if (type === "join_request" || type === "join_accepted" || type === "event_join") {
+        } else if (type === "join_request" || type === "join_accepted" || type === "event_join" ||
+  type === "new_attendee" || type === "new_attendee") {
           // RSVP/join notifications - refresh events and specific event
           queryClient.invalidateQueries({ queryKey: ["events"] });
           const eventId = notification.request.content.data?.eventId;
@@ -216,6 +217,7 @@ export function useNotifications() {
           type === "event_update" ||
           type === "event_reminder" ||
           type === "event_join" ||
+  type === "new_attendee" ||
           type === "event_comment" ||
           type === "join_request" ||
           type === "join_accepted"
