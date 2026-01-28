@@ -1,90 +1,89 @@
-PHASE E.1 - ACTIVITY FEED AVATAR + DEEP LINK HARDENING
+PHASE E.2 - WORK SCHEDULE BLOCK2 AUTO-EXPAND
 ======================================================
 
 SUMMARY
 -------
-Fixed Activity list to always show valid avatars and implemented strict tap routing priority per E.1 spec.
+Auto-expand block2 UI for days with saved schedule data, preserving user changes after initial sync.
 
 Changes:
-1. Avatar fallback chain expanded (6 URL fields + initials fallback)
-2. Initials derived from actorName OR notification title
-3. URL validation with http prefix check
-4. Strict tap routing: eventId > userId > do nothing (no error toasts)
-5. DEV-only warnings for invalid navigation targets
+1. Auto-expand: Days with saved block2StartTime + block2EndTime auto-expand on load
+2. Sync guard: useRef prevents overwriting user's manual expand/collapse after first load
+3. Mutation verified: toggleBlock2 collapse already sends null for both fields (no empty strings)
+4. No flicker: Expansion derives from data on load, then user-controlled
 
 STATUS: COMPLETE
 VERIFICATION: PASS
 
 FILES CHANGED
 -------------
-1. src/app/activity.tsx (+57 lines, -46 lines)
-   - parseNotificationData(): Added userId field, expanded avatar URL fallback
-   - NotificationCard: Avatar priority: avatarUrl > initials > icon
-   - handleNotificationPress(): Strict priority routing, no type-specific branches
+1. src/app/settings.tsx (+15 lines)
+   - Added useRef import
+   - Added didSyncBlock2Ref to track initial sync
+   - Added useEffect to auto-expand days with saved block2 data
 
 2. docs/STATE_OF_THE_APP.md
-   - Added E.1 fixes under "Fixed This Session"
+   - Added E.2 stable item + Fixed This Session section
 
 3. docs/FINDINGS_LOG.md
-   - Added "Activity Feed Avatar + Routing Contract (Canonical)" pattern
+   - Added "Work Schedule Block2 Auto-Expand Pattern (Canonical)"
 
 KEY DIFFS
 ---------
-# Avatar URL Fallback Chain (Expanded)
-- actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl
-+ actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl || data.avatarUrl || data.image
+# React import
+- import React, { useState, useEffect } from "react";
++ import React, { useState, useEffect, useRef } from "react";
 
-# Avatar Display Priority (Never Blank)
-- const hasAvatar = !!actorAvatarUrl;
-+ const displayName = actorName || (notification.title ? notification.title.split(' ')[0] : undefined);
-+ const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith('http');
-+ const hasInitials = !!displayName && displayName.length > 0;
+# After workSchedules/workSettings derived state
++ // Track if we've done initial block2 expansion sync (prevents overwriting user changes)
++ const didSyncBlock2Ref = useRef(false);
++
++ // Auto-expand block2 UI for days that have saved block2 times (only on first load)
++ useEffect(() => {
++   if (didSyncBlock2Ref.current || !workScheduleData?.schedules) return;
++   const daysWithBlock2 = workScheduleData.schedules
++     .filter((s) => s.block2StartTime && s.block2EndTime)
++     .map((s) => s.dayOfWeek);
++   if (daysWithBlock2.length > 0) {
++     setExpandedBlock2Days(new Set(daysWithBlock2));
++   }
++   didSyncBlock2Ref.current = true;
++ }, [workScheduleData?.schedules]);
 
-# Tap Routing (Strict Priority)
-- if (notification.type === "event_comment") { ... }
-- if (notification.type === "friend_request") { router.push("/friends"); }
-+ const eventId = data.eventId;
-+ if (eventId && typeof eventId === "string") { router.push(`/event/${eventId}`); return; }
-+ const userId = data.userId || data.senderId || data.actorId;
-+ if (userId && typeof userId === "string") { router.push(`/user/${userId}`); return; }
-+ if (__DEV__) { console.warn('[Activity] Notification has no valid navigation target:', {...}); }
+# Existing hasBlock2 logic (unchanged, verified correct)
+const hasBlock2 = expandedBlock2Days.has(schedule.dayOfWeek) || 
+  (schedule.block2StartTime && schedule.block2EndTime);
 
-# parseNotificationData (Added userId)
-+ userId: data.userId || data.senderId || data.actorId,
+# Existing toggleBlock2 collapse (unchanged, already sends null)
+updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: null, block2EndTime: null });
 
 TEST PLAN
 ---------
-1. Avatar with Remote URL: Shows 44x44 circle image
-2. Avatar with Initials Fallback: Shows initials (e.g., "JS" for "John Smith")
-3. Avatar from Title Fallback: Extracts first word (e.g., "S" from "Sarah sent...")
-4. Avatar Icon Fallback: Shows type-specific icon when no data
-5. Event Notification Tap: Navigates to /event/:eventId
-6. Friend Notification Tap: Navigates to /user/:userId (if no eventId)
-7. Invalid Notification Tap: Stays on screen, DEV console.warn only
+1. Save block2 times for Monday (e.g., 1pm-3pm)
+2. Close and reopen Settings screen
+3. Monday's block2 row should auto-expand showing saved times
+4. Manually collapse Monday's block2 (x button)
+5. Navigate away and back - Monday should stay collapsed (user override preserved within session)
+6. Data removed from backend - block2 no longer auto-expands for that day
 
-WHAT WAS REMOVED
-----------------
-1. Friends list fallback for friend_request type (now requires userId)
-2. Achievement route handling (follows strict priority)
-3. Type-specific routing branches (unified to priority system)
-4. User-facing error toasts on invalid taps
-
-EDGE CASES HANDLED
-------------------
-1. Empty notification data: Falls to icon display, stays on screen on tap
-2. Invalid JSON parse: Falls to icon display, stays on screen (DEV warn)
-3. Non-HTTP URLs: Treated as invalid, falls to initials
-4. Missing displayName: Falls to icon (never blank)
+BEHAVIOR MATRIX
+---------------
+| Scenario                        | Expected                                    |
+|---------------------------------|---------------------------------------------|
+| Fresh load, no block2 saved     | All days collapsed                          |
+| Fresh load, Mon has block2      | Mon auto-expanded, others collapsed         |
+| User collapses Mon              | Mon collapsed, mutation sends null          |
+| User re-expands Mon same session| Mon expanded (pickers show)                 |
+| Navigate away/back same session | User's manual state preserved               |
 
 COMMIT HASH
 -----------
-d77fb89
+ae60888
 
 PUSHED
 ------
 YES (main branch)
 
 Agent: GitHub Copilot (Claude Opus 4.5)
-Verification: PASS (./scripts/ai/verify_frontend.sh + npm run typecheck)
-No breaking changes. Minimal diff achieved.
+Verification: PASS (verify_frontend.sh + npm run typecheck)
+No breaking changes. Minimal diff achieved (+15 lines).
 
