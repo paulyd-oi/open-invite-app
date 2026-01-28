@@ -1,5 +1,14 @@
 # Findings Log — Frontend
 
+## Work Schedule Block2 Auto-Expand Pattern (Canonical)
+
+- **First-load initialization**: useEffect with ref guard syncs expandedBlock2Days Set from loaded schedule data
+- **Guard pattern**: `didSyncBlock2Ref.current` prevents overwriting user's manual expand/collapse after initial sync
+- **Data-derived state**: `hasBlock2` computed as `expandedBlock2Days.has(day) || (block2StartTime && block2EndTime)`
+- **Mutation contract**: toggleBlock2 collapse sends `{ block2StartTime: null, block2EndTime: null }` (no empty strings)
+- **UI stability**: Expansion state derived from data on load, user-controlled thereafter (no flicker)
+- **Implementation location**: `src/app/settings.tsx` (useEffect after workScheduleData query, toggleBlock2 handler)
+
 ## Social Feed Discovery Pattern (Canonical)
 
 - **Discovery-first principle**: Social feed excludes events where user has taken action (going/interested RSVP) or is the host

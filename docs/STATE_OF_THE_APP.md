@@ -43,9 +43,15 @@
 - Activity feed avatars: Parses actorAvatarUrl from notification data with multiple fallback fields
 - Activity feed avatar fallback: Always shows valid content (avatarUrl > initials > icon), never blank circle
 - Activity tap routing: Strict priority (eventId > userId > do nothing), no error toasts on invalid targets
+- Work schedule block2 auto-expand: Days with saved block2 times auto-expand UI on load, user changes preserved after initial sync
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (E.2 Work Schedule Block2 Persistence)
+- Block2 auto-expand: Days with saved block2StartTime + block2EndTime auto-expand UI on data load
+- Initial sync guard: useRef tracks first load to prevent overwriting user manual expand/collapse
+- Mutation payload: toggleBlock2 already sends null for both fields when removing (verified)
 
 ## Fixed This Session (E.1 Activity Feed Hardening)
 - Activity avatar display: Expanded URL fallback chain (actorAvatarUrl|actorImage|senderAvatarUrl|userAvatarUrl|avatarUrl|image)

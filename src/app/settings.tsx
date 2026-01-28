@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -442,6 +442,21 @@ export default function SettingsScreen() {
 
   const workSchedules = workScheduleData?.schedules ?? [];
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
+
+  // Track if we've done initial block2 expansion sync (prevents overwriting user changes)
+  const didSyncBlock2Ref = useRef(false);
+
+  // Auto-expand block2 UI for days that have saved block2 times (only on first load)
+  useEffect(() => {
+    if (didSyncBlock2Ref.current || !workScheduleData?.schedules) return;
+    const daysWithBlock2 = workScheduleData.schedules
+      .filter((s) => s.block2StartTime && s.block2EndTime)
+      .map((s) => s.dayOfWeek);
+    if (daysWithBlock2.length > 0) {
+      setExpandedBlock2Days(new Set(daysWithBlock2));
+    }
+    didSyncBlock2Ref.current = true;
+  }, [workScheduleData?.schedules]);
 
   // Fetch current profile to get calendarBio
   // Gate on bootStatus to prevent queries during logout
