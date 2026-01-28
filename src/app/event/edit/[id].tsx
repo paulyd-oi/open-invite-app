@@ -180,9 +180,9 @@ export default function EditEventScreen() {
       safeToast.success("Updated", "Co-hosts have been updated.");
     },
     onError: (error: any) => {
-      // Check for COHOST_LIMIT_REACHED - free users can't add co-hosts
+      // Check for COHOSTS_REQUIRE_PRO - free users can't add co-hosts
       const errorData = error?.response?.data || error?.data || {};
-      if (errorData.error === "COHOST_LIMIT_REACHED" && errorData.requiresUpgrade) {
+      if (errorData.error === "COHOSTS_REQUIRE_PRO" && errorData.requiresUpgrade) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         safeToast.info(
           "Founder Pro Feature",
