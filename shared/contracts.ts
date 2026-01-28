@@ -58,6 +58,7 @@ export const eventSchema = z.object({
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
   isBusy: z.boolean().optional(), // Mark as busy/work time - hidden from social feed, shown greyed
+  hostIds: z.array(z.string()).optional(), // Co-host user IDs who can edit the event
   // Host-only summary fields (only returned to event host)
   summary: z.string().nullable().optional(), // Host's reflection notes
   summaryRating: z.number().nullable().optional(), // 1-5 star rating
@@ -1890,3 +1891,46 @@ export const updateNotificationPreferencesResponseSchema = z.object({
   preferences: notificationPreferencesSchema,
 });
 export type UpdateNotificationPreferencesResponse = z.infer<typeof updateNotificationPreferencesResponseSchema>;
+
+// ============================================
+// User Reports (Trust & Safety)
+// ============================================
+
+// Reason enum values for reporting users
+export const reportReasonEnum = z.enum([
+  "spam",
+  "harassment",
+  "impersonation",
+  "inappropriate_content",
+  "other",
+]);
+export type ReportReason = z.infer<typeof reportReasonEnum>;
+
+// POST /api/reports/user - Report a user
+export const reportUserRequestSchema = z.object({
+  reportedUserId: z.string(),
+  reason: reportReasonEnum,
+  details: z.string().max(500).optional(),
+});
+export type ReportUserRequest = z.infer<typeof reportUserRequestSchema>;
+
+export const reportUserResponseSchema = z.object({
+  success: z.literal(true),
+});
+export type ReportUserResponse = z.infer<typeof reportUserResponseSchema>;
+
+// ============================================
+// Event Co-Hosts
+// ============================================
+
+// PUT /api/events/:id/hosts - Update event hosts
+export const updateEventHostsRequestSchema = z.object({
+  hostIds: z.array(z.string()),
+});
+export type UpdateEventHostsRequest = z.infer<typeof updateEventHostsRequestSchema>;
+
+export const updateEventHostsResponseSchema = z.object({
+  success: z.boolean(),
+  event: eventSchema,
+});
+export type UpdateEventHostsResponse = z.infer<typeof updateEventHostsResponseSchema>;

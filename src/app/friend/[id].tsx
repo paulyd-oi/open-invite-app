@@ -19,7 +19,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge } from "@/shared/contracts";
+import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
 interface FriendNote {
@@ -342,6 +342,11 @@ export default function FriendDetailScreen() {
 
   // State for unfriend confirmation
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<ReportReason | null>(null);
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   // Add note mutation
   const addNoteMutation = useMutation({
@@ -421,9 +426,42 @@ export default function FriendDetailScreen() {
     setNoteToDelete(null);
   };
 
+  const handleMenuPress = () => {
+    Haptics.selectionAsync();
+    setShowMenuModal(true);
+  };
+
   const handleUnfriend = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setShowMenuModal(false);
     setShowUnfriendConfirm(true);
+  };
+
+  const handleReportUser = () => {
+    Haptics.selectionAsync();
+    setShowMenuModal(false);
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!selectedReportReason || !friend?.id) return;
+    setIsSubmittingReport(true);
+    try {
+      await api.post('/api/reports/user', {
+        reportedUserId: friend.id,
+        reason: selectedReportReason,
+        details: selectedReportReason === 'other' ? reportDetails.trim() || undefined : undefined,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success('Report submitted', 'Thanks — we received your report.');
+      setShowReportModal(false);
+      setSelectedReportReason(null);
+      setReportDetails('');
+    } catch (error) {
+      safeToast.error('Error', "Couldn't submit report. Please try again.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
 
   const confirmUnfriend = () => {
@@ -515,7 +553,7 @@ export default function FriendDetailScreen() {
           headerTitleStyle: { color: colors.text },
           headerRight: () => (
             <Pressable
-              onPress={handleUnfriend}
+              onPress={handleMenuPress}
               className="w-8 h-8 rounded-full items-center justify-center mr-1"
               style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -942,6 +980,175 @@ export default function FriendDetailScreen() {
           setNoteToDelete(null);
         }}
       />
+
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenuModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenuModal(false)}
+      >
+        <Pressable 
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowMenuModal(false)}
+        >
+          <View 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.background }}
+          >
+            <Text className="text-lg font-bold mb-4" style={{ color: colors.text }}>
+              Options
+            </Text>
+            
+            <Pressable
+              className="flex-row items-center py-4 border-b"
+              style={{ borderColor: colors.border }}
+              onPress={handleReportUser}
+            >
+              <Ionicons name="flag-outline" size={22} color={colors.text} />
+              <Text className="ml-3 text-base" style={{ color: colors.text }}>
+                Report User
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              className="flex-row items-center py-4"
+              onPress={handleUnfriend}
+            >
+              <Ionicons name="person-remove-outline" size={22} color="#EF4444" />
+              <Text className="ml-3 text-base" style={{ color: '#EF4444' }}>
+                Unfriend
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              className="mt-4 py-4 rounded-xl items-center"
+              style={{ backgroundColor: colors.surface }}
+              onPress={() => setShowMenuModal(false)}
+            >
+              <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Report User Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <Pressable 
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowReportModal(false)}
+        >
+          <Pressable 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.background }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-xl font-bold mb-2" style={{ color: colors.text }}>
+              Report User
+            </Text>
+            <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
+              Select a reason for your report
+            </Text>
+            
+            {(['spam', 'harassment', 'impersonation', 'inappropriate_content', 'other'] as const).map((reason) => {
+              const labels: Record<typeof reason, string> = {
+                spam: 'Spam',
+                harassment: 'Harassment',
+                impersonation: 'Impersonation',
+                inappropriate_content: 'Inappropriate Content',
+                other: 'Other',
+              };
+              const isSelected = selectedReportReason === reason;
+              return (
+                <Pressable
+                  key={reason}
+                  className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                  style={{ 
+                    backgroundColor: isSelected ? themeColor + '20' : colors.surface,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? themeColor : colors.border,
+                  }}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSelectedReportReason(reason);
+                  }}
+                >
+                  <View 
+                    className="w-5 h-5 rounded-full border-2 mr-3 items-center justify-center"
+                    style={{ borderColor: isSelected ? themeColor : colors.border }}
+                  >
+                    {isSelected && (
+                      <View 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: themeColor }}
+                      />
+                    )}
+                  </View>
+                  <Text style={{ color: colors.text }}>{labels[reason]}</Text>
+                </Pressable>
+              );
+            })}
+            
+            {selectedReportReason === 'other' && (
+              <TextInput
+                className="rounded-xl p-4 mt-2"
+                style={{ 
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                }}
+                placeholder="Please describe the issue..."
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                value={reportDetails}
+                onChangeText={setReportDetails}
+              />
+            )}
+            
+            <View className="flex-row mt-4 gap-3">
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ backgroundColor: colors.surface }}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setSelectedReportReason(null);
+                  setReportDetails('');
+                }}
+              >
+                <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ 
+                  backgroundColor: selectedReportReason ? themeColor : colors.surface,
+                  opacity: selectedReportReason ? 1 : 0.5,
+                }}
+                onPress={submitReport}
+                disabled={!selectedReportReason || isSubmittingReport}
+              >
+                <Text className="text-base font-medium" style={{ color: selectedReportReason ? '#FFFFFF' : colors.textSecondary }}>
+                  {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Unfriend Confirmation Modal */}
       <ConfirmModal

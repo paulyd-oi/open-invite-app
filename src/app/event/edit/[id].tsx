@@ -7,6 +7,8 @@ import {
   TextInput,
   Platform,
   Switch,
+  Modal,
+  Image,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,6 +26,8 @@ import {
   ChevronLeft,
   Lock,
   CloudDownload,
+  UserPlus,
+  X,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -42,6 +46,8 @@ import {
   type GetCirclesResponse,
   type Circle,
   type DeleteEventResponse,
+  type GetFriendsResponse,
+  type Friendship,
 } from "@/shared/contracts";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
@@ -89,6 +95,10 @@ export default function EditEventScreen() {
   const [hasCapacity, setHasCapacity] = useState(false);
   const [capacityInput, setCapacityInput] = useState("");
 
+  // Co-hosts state
+  const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
+  const [showHostPicker, setShowHostPicker] = useState(false);
+
   // Fetch event data
   const { data: myEventsData } = useQuery({
     queryKey: ["events", "mine"],
@@ -115,6 +125,10 @@ export default function EditEventScreen() {
         setHasCapacity(true);
         setCapacityInput(String(event.capacity));
       }
+      // Load co-hosts
+      if (event.hostIds && event.hostIds.length > 0) {
+        setSelectedHostIds(event.hostIds);
+      }
       setIsLoaded(true);
     }
   }, [event, isLoaded]);
@@ -126,6 +140,15 @@ export default function EditEventScreen() {
   });
 
   const circles = circlesData?.circles ?? [];
+
+  // Fetch friends for co-host picker
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+    enabled: bootStatus === 'authed',
+  });
+
+  const friends = friendsData?.friends ?? [];
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateEventRequest) =>
@@ -144,6 +167,20 @@ export default function EditEventScreen() {
     onError: (error) => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
       console.error(error);
+    },
+  });
+
+  // Co-hosts mutation
+  const updateHostsMutation = useMutation({
+    mutationFn: (hostIds: string[]) =>
+      api.put(`/api/events/${id}/hosts`, { hostIds }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      safeToast.success("Updated", "Co-hosts have been updated.");
+    },
+    onError: () => {
+      safeToast.error("Oops", "Couldn't update co-hosts. Please try again.");
     },
   });
 
@@ -185,6 +222,20 @@ export default function EditEventScreen() {
       groupIds: visibility === "specific_groups" ? selectedGroupIds : undefined,
       capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
     });
+  };
+
+  const toggleHost = (friendId: string) => {
+    Haptics.selectionAsync();
+    setSelectedHostIds((prev) =>
+      prev.includes(friendId)
+        ? prev.filter((id) => id !== friendId)
+        : [...prev, friendId]
+    );
+  };
+
+  const saveHosts = () => {
+    updateHostsMutation.mutate(selectedHostIds);
+    setShowHostPicker(false);
   };
 
   const handleDelete = () => {
@@ -584,6 +635,69 @@ export default function EditEventScreen() {
             )}
           </Animated.View>
 
+          {/* Co-hosts Section */}
+          <Animated.View entering={FadeInDown.delay(290).springify()}>
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowHostPicker(true);
+              }}
+              className="flex-row items-center justify-between rounded-xl p-4 mb-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center flex-1">
+                <UserPlus size={20} color={colors.textSecondary} />
+                <View className="ml-3 flex-1">
+                  <Text style={{ color: colors.text }} className="font-medium">
+                    Co-hosts
+                  </Text>
+                  <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">
+                    {selectedHostIds.length > 0
+                      ? `${selectedHostIds.length} friend${selectedHostIds.length > 1 ? 's' : ''} can edit this event`
+                      : 'Add friends who can edit this event'}
+                  </Text>
+                </View>
+              </View>
+              <ChevronDown size={18} color={colors.textTertiary} />
+            </Pressable>
+            
+            {/* Show selected co-hosts */}
+            {selectedHostIds.length > 0 && (
+              <View className="flex-row flex-wrap mb-4 -mt-2">
+                {selectedHostIds.map((hostId) => {
+                  const friendship = friends.find((f) => f.friendId === hostId);
+                  if (!friendship) return null;
+                  return (
+                    <View
+                      key={hostId}
+                      className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
+                      style={{ backgroundColor: `${themeColor}15`, borderWidth: 1, borderColor: `${themeColor}30` }}
+                    >
+                      {friendship.friend.image ? (
+                        <Image
+                          source={{ uri: friendship.friend.image }}
+                          className="w-5 h-5 rounded-full mr-2"
+                        />
+                      ) : (
+                        <View
+                          className="w-5 h-5 rounded-full mr-2 items-center justify-center"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          <Text className="text-white text-xs font-bold">
+                            {friendship.friend.name?.charAt(0) || '?'}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={{ color: themeColor }} className="text-sm font-medium">
+                        {friendship.friend.name}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
+
           {/* Save Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Pressable
@@ -620,6 +734,108 @@ export default function EditEventScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Co-host Picker Modal */}
+      <Modal
+        visible={showHostPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowHostPicker(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowHostPicker(false)}
+        >
+          <Pressable
+            className="rounded-t-3xl max-h-[70%]"
+            style={{ backgroundColor: colors.background }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="p-6 pb-2">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-xl font-bold" style={{ color: colors.text }}>
+                  Add Co-hosts
+                </Text>
+                <Pressable
+                  onPress={() => setShowHostPicker(false)}
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <X size={18} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
+                Co-hosts can edit event details but cannot delete the event.
+              </Text>
+            </View>
+            
+            <ScrollView className="px-6" style={{ maxHeight: 300 }}>
+              {friends.length === 0 ? (
+                <View className="py-8 items-center">
+                  <Text style={{ color: colors.textSecondary }}>
+                    No friends yet. Add friends first!
+                  </Text>
+                </View>
+              ) : (
+                friends.map((friendship: Friendship) => {
+                  const isSelected = selectedHostIds.includes(friendship.friendId);
+                  return (
+                    <Pressable
+                      key={friendship.friendId}
+                      onPress={() => toggleHost(friendship.friendId)}
+                      className="flex-row items-center py-3 border-b"
+                      style={{ borderColor: colors.border }}
+                    >
+                      {friendship.friend.image ? (
+                        <Image
+                          source={{ uri: friendship.friend.image }}
+                          className="w-10 h-10 rounded-full"
+                        />
+                      ) : (
+                        <View
+                          className="w-10 h-10 rounded-full items-center justify-center"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          <Text className="text-white font-bold">
+                            {friendship.friend.name?.charAt(0) || '?'}
+                          </Text>
+                        </View>
+                      )}
+                      <Text className="flex-1 ml-3 font-medium" style={{ color: colors.text }}>
+                        {friendship.friend.name}
+                      </Text>
+                      <View
+                        className="w-6 h-6 rounded-full items-center justify-center"
+                        style={{
+                          backgroundColor: isSelected ? themeColor : colors.surface,
+                          borderWidth: isSelected ? 0 : 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        {isSelected && <Check size={14} color="#FFFFFF" />}
+                      </View>
+                    </Pressable>
+                  );
+                })
+              )}
+            </ScrollView>
+            
+            <View className="p-6 pt-4 pb-10">
+              <Pressable
+                onPress={saveHosts}
+                disabled={updateHostsMutation.isPending}
+                className="rounded-xl p-4 items-center"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white font-semibold text-base">
+                  {updateHostsMutation.isPending ? 'Saving...' : 'Save Co-hosts'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
