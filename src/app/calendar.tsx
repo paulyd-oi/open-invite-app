@@ -43,7 +43,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
-import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -1171,10 +1171,11 @@ export default function CalendarScreen() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
 
-  // Load first-session guidance state on mount
+  // Load first-session guidance state when user ID is available
   useEffect(() => {
+    setGuidanceUserId(session?.user?.id ?? null);
     loadGuidanceState().then(() => setGuidanceLoaded(true));
-  }, []);
+  }, [session?.user?.id]);
 
   // Handle retry from timeout UI
   const handleRetry = useCallback(() => {

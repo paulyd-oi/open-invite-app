@@ -22,7 +22,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
-import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete } from "@/lib/firstSessionGuidance";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 
 export default function CirclesScreen() {
@@ -37,10 +37,11 @@ export default function CirclesScreen() {
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
   const entitlements = useEntitlements();
 
-  // Load guidance state on mount
+  // Load guidance state when user ID is available
   useEffect(() => {
+    setGuidanceUserId(session?.user?.id ?? null);
     loadGuidanceState().then(() => setGuidanceLoaded(true));
-  }, []);
+  }, [session?.user?.id]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["circles"],

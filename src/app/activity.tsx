@@ -378,12 +378,15 @@ export default function ActivityScreen() {
       return;
     }
 
-    // Friend-related notifications
-    if (
-      data.friendId ||
-      notification.type === "friend_request" ||
-      notification.type === "friend_accepted"
-    ) {
+    // Friend-related notifications - navigate to specific user if userId present
+    if (notification.type === "friend_request" || notification.type === "friend_accepted") {
+      // Try to navigate to the specific user's profile
+      const userId = data.userId || data.senderId || data.actorId;
+      if (userId && typeof userId === "string") {
+        router.push(`/user/${userId}` as any);
+        return;
+      }
+      // Fallback to friends list
       router.push("/friends" as any);
       return;
     }
@@ -393,6 +396,20 @@ export default function ActivityScreen() {
       router.push("/achievements" as any);
       return;
     }
+
+    // Fallback: if userId present but no other route matched, navigate to user profile
+    const actorUserId = data.userId || data.actorId || data.senderId;
+    if (actorUserId && typeof actorUserId === "string") {
+      router.push(`/user/${actorUserId}` as any);
+      return;
+    }
+
+    // No navigation possible - log and stay on screen
+    console.warn('[Activity] Notification has no valid navigation target:', {
+      type: notification.type,
+      hasEventId: !!data.eventId,
+      hasUserId: !!actorUserId,
+    });
   };
 
   // Show login prompt if not authenticated

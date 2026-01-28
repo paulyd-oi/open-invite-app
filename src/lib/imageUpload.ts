@@ -140,7 +140,7 @@ export async function uploadImage(
         httpMethod: "POST",
         uploadType: FileSystem.FileSystemUploadType.MULTIPART,
         fieldName: "image",
-        headers: sessionCookie ? { Cookie: sessionCookie } : {},
+        headers: sessionCookie ? { cookie: sessionCookie } : {},
       }
     );
 

@@ -33,7 +33,7 @@ import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
 import { SocialMemoryCard } from "@/components/SocialMemoryCard";
-import { loadGuidanceState, shouldShowEmptyGuidanceSync } from "@/lib/firstSessionGuidance";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dismissAllGuidance } from "@/lib/firstSessionGuidance";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
@@ -588,10 +588,11 @@ export default function SocialScreen() {
   // Auth gating based on boot status (token validation), not session presence
   const isAuthed = bootStatus === "authed";
 
-  // Load guidance state on mount
+  // Load guidance state when user ID is available
   useEffect(() => {
+    setGuidanceUserId(session?.user?.id ?? null);
     loadGuidanceState().then(() => setGuidanceLoaded(true));
-  }, []);
+  }, [session?.user?.id]);
 
   // Redirect non-authed users to appropriate auth screen
   useEffect(() => {
@@ -897,6 +898,27 @@ export default function SocialScreen() {
     // No qualifying patterns found
     return null;
   }, [bootStatus, feedLoading, myEventsLoading, attendingLoading, friendsLoading, attendingData, myEventsData, friendsData]);
+
+  // Auto-dismiss guidance for senior users (those with friends or events)
+  // This prevents showing guides to existing accounts who have already used the app
+  useEffect(() => {
+    const checkSeniorUser = async () => {
+      if (!session?.user?.id || bootStatus !== 'authed') return;
+      if (feedLoading || myEventsLoading || friendsLoading) return;
+      
+      const hasFriends = (friendsData?.friends?.length ?? 0) > 0;
+      const hasEvents = (myEventsData?.events?.length ?? 0) > 0;
+      
+      // If user has friends OR events, they're a senior user - dismiss all guidance
+      if (hasFriends || hasEvents) {
+        await dismissAllGuidance();
+        // Reload guidance state to update cache
+        await loadGuidanceState();
+        setGuidanceLoaded(true);
+      }
+    };
+    checkSeniorUser();
+  }, [session?.user?.id, bootStatus, feedLoading, myEventsLoading, friendsLoading, friendsData, myEventsData]);
 
   useEffect(() => {
     SplashScreen.hideAsync();

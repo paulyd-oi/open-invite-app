@@ -353,7 +353,7 @@ export default function DiscoverScreen() {
                   >
                     <View className="flex-row items-center">
                       <Pressable
-                        onPress={() => router.push(`/profile/${friend.id}` as any)}
+                        onPress={() => router.push(`/user/${friend.id}` as any)}
                         className="flex-row items-center flex-1"
                       >
                         <View

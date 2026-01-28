@@ -14,7 +14,7 @@
 - useEntitlements hook accepts enabled parameter for gating
 - MiniCalendar gated on bootStatus (not !!session)
 - Logout invariant log: single [LOGOUT_INVARIANT] JSON emitted with full key audit
-- First-session inline guidance: time-gated (30 min) empty-state hints
+- First-session inline guidance: Per-user-id completion tracking (no time heuristic), auto-dismissed for senior users with friends/events
 - Human-friendly error toasts: no raw codes, calm microcopy across all screens
 - Instant feedback on primary actions: RSVP, Create Circle, Create/Edit Event
 - Spacing polish: breathing room between sections, header spacing, list spacing
@@ -36,13 +36,23 @@
 - CTA copy: "Create Invite" (not "Create Open Invite")
 - Get Started guide: Per-user dismissal (get_started_dismissed:userId), gated by true-new-user signals (0 friends AND 0 events)
 - Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), transparent background, no calendar tile obscuring
-- Profile photo upload: Uses session cookie auth (not Bearer token), defensive JSON parsing with error logging
+- Profile photo upload: Uses session cookie auth (lowercase 'cookie' header), defensive JSON parsing with error logging
 - Pro user throttle gate: Checks both isPremium AND entitlements.plan to prevent false throttling
+- Discover tab reconnect: Routes to /user/:id (not /profile/:id which doesn't exist)
+- Activity feed deep links: Tapping notification routes to event or user profile based on data.eventId/userId
+- Activity feed avatars: Parses actorAvatarUrl from notification data with multiple fallback fields
 
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (P0 Sheet Overlay + Upload + Pro Throttle)
+## Fixed This Session (P1 Guides + Suggestions + Activity)
+- Guidance system: Replaced time-based heuristic with per-user-id completion tracking. Senior users (with friends OR events) auto-dismissed on load.
+- Discover Reconnect routing: Fixed /profile/:id → /user/:id (profile route didn't exist, caused navigation error)
+- Image upload cookie: Fixed uppercase Cookie → lowercase cookie (React Native drops uppercase headers silently)
+- Activity feed deep links: Added userId fallback for friend_request/friend_accepted notifications
+- Activity feed navigation: Falls back to user profile if eventId missing but userId present
+
+## Fixed Previously (P0 Sheet Overlay + Upload + Pro Throttle)
 - FeedCalendar modal white block: Added transparent background to outer View so calendar remains visible behind bottom sheet
 - Profile photo upload JSON parse error: Switched from Bearer token auth (which doesn't exist in Better Auth flow) to session cookie auth, added defensive JSON parsing with error logging
 - Pro user false throttle: Soft-limit check now checks both isPremium (SubscriptionContext) AND entitlements.plan (PRO/LIFETIME_PRO) to prevent lifetime users seeing upgrade modal

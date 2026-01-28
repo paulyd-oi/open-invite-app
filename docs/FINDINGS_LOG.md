@@ -372,3 +372,66 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 ### Action Taken:
 - Added style={{ backgroundColor: 'transparent' }} to outer View wrapping modal content
 - File: src/components/FeedCalendar.tsx, modal day events section
+
+---
+
+### Date: 2025-01-28
+### Finding: P1 - Guidance overlays showing for senior/founder accounts
+### Proof:
+- firstSessionGuidance.ts used time-based heuristic (30 min since firstOpenAt)
+- firstOpenAt stored in SecureStore gets reset on reinstall or app data clear
+- Senior users who reinstall would see guides intended for brand new users
+- No per-user-id scoping - global timestamp, not tied to specific account
+### Impact: Senior users confused by onboarding UI, trust erosion
+### Action Taken:
+- Replaced time-based heuristic with per-user-id completion tracking
+- Keys now: `openinvite.guidance.dismissed.<userId>`, `openinvite.guidance.completed.<userId>.<actionKey>`
+- Added setGuidanceUserId() to set current user for per-user scoping
+- Added dismissAllGuidance() for bulk dismiss
+- Auto-dismiss for senior users: social.tsx checks if user has friends OR events, dismisses all guidance
+- Files: src/lib/firstSessionGuidance.ts, src/app/social.tsx, src/app/circles.tsx, src/app/calendar.tsx
+
+---
+
+### Date: 2025-01-28
+### Finding: P1 - Discover Reconnect tab routes to non-existent /profile/:id
+### Proof:
+- discover.tsx used `router.push(\`/profile/\${friend.id}\`)` for reconnect friend cards
+- No /profile/[id].tsx route exists in app structure
+- Only /user/[id].tsx (user profile by userId) and /friend/[id].tsx (friend by friendshipId) exist
+- Tapping reconnect card caused navigation error (route not found)
+### Impact: Reconnect feature broken, users cannot view friend profiles from Discover
+### Action Taken:
+- Changed route from /profile/:id to /user/:id
+- File: src/app/discover.tsx
+
+---
+
+### Date: 2025-01-28
+### Finding: P1 - Image upload uses uppercase Cookie header which React Native drops
+### Proof:
+- imageUpload.ts used `headers: { Cookie: sessionCookie }`
+- React Native drops uppercase 'Cookie' header silently (known React Native behavior)
+- authClient.ts already documented this: "Better Auth expo uses LOWERCASE 'cookie' header"
+- Upload requests sent without auth cookie
+### Impact: Image uploads fail with auth errors
+### Action Taken:
+- Changed Cookie to cookie (lowercase) in FileSystem.uploadAsync headers
+- File: src/lib/imageUpload.ts
+
+---
+
+### Date: 2025-01-28
+### Finding: P1 - Activity feed doesn't deep link to user profile when eventId missing
+### Proof:
+- handleNotificationPress only routed to /event/:id if eventId present
+- Friend notifications (friend_request, friend_accepted) routed to /friends list, not specific user
+- No fallback for userId when eventId is absent
+- Users couldn't tap to see who sent friend request
+### Impact: Activity feed less useful, extra taps to find relevant user
+### Action Taken:
+- Added userId/senderId/actorId lookup from notification data
+- Friend-related notifications now route to /user/:userId if userId present
+- Added final fallback: any notification with userId but no other route goes to /user/:userId
+- Added structured warn log for notifications with no valid navigation target
+- File: src/app/activity.tsx
