@@ -55,6 +55,7 @@
 - **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
 - **Single authority for cookie init**: `ensureCookieInitialized()` is called ONLY from `authBootstrap.ts` Step 0/4. No fire-and-forget calls on module load. This prevents race conditions and ensures deterministic boot order.
 - **Apple Sign-In cookie**: React Native doesn't auto-persist Set-Cookie headers; must manually extract from header or response body and store via `setExplicitCookiePair()`. Regex extracts cookie value only (up to semicolon), not Path/HttpOnly/etc attributes.
+- **Cookie injection doctrine (smoke tests)**: When passing `SESSION_COOKIE_VALUE` to scripts, normalize both forms: (1) raw token `abc123...`, (2) full pair `__Secure-better-auth.session_token=abc123...`. Always send as `-H "cookie: ; __Secure-better-auth.session_token=<token>"` (lowercase, leading '; '). Never duplicate cookie name or header.
 
 ## RSVP Type Contract (Canonical)
 
