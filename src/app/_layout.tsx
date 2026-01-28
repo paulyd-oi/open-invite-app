@@ -23,6 +23,7 @@ import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext'
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import { ToastContainer } from '@/components/Toast';
 import { AutoSyncProvider } from '@/components/AutoSyncProvider';
 import { setupDeepLinkListener } from '@/lib/deepLinks';
@@ -558,6 +559,7 @@ export default function RootLayout() {
                   <StatusBar style="dark" />
                   <View style={{ flex: 1 }}>
                     <NetworkStatusBanner />
+                    <UpdateBanner />
                     <ToastContainer />
                     <BootRouter />
                     <RootLayoutNav />

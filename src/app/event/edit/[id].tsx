@@ -179,7 +179,19 @@ export default function EditEventScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       safeToast.success("Updated", "Co-hosts have been updated.");
     },
-    onError: () => {
+    onError: (error: any) => {
+      // Check for COHOST_LIMIT_REACHED - free users can't add co-hosts
+      const errorData = error?.response?.data || error?.data || {};
+      if (errorData.error === "COHOST_LIMIT_REACHED" && errorData.requiresUpgrade) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        safeToast.info(
+          "Founder Pro Feature",
+          "Upgrade to add co-hosts to your events."
+        );
+        // Reset to no co-hosts
+        setSelectedHostIds([]);
+        return;
+      }
       safeToast.error("Oops", "Couldn't update co-hosts. Please try again.");
     },
   });

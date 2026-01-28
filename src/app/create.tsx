@@ -552,8 +552,15 @@ export default function CreateEventScreen() {
       checkNotificationNudge();
       router.back();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       logError("Create Event", error);
+      // Check for HOST_LIMIT_REACHED - show soft limit modal
+      const errorData = error?.response?.data || error?.data || {};
+      if (errorData.error === "HOST_LIMIT_REACHED" && errorData.requiresUpgrade) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setShowSoftLimitModal(true);
+        return;
+      }
       const { title, message } = toUserMessage(error);
       safeToast.error(title, message || "Failed to create event. Please try again.");
     },

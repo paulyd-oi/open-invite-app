@@ -42,26 +42,22 @@ const BETA_MODE = false;
 
 // Free tier features
 const FREE_FEATURES = [
-  { text: "Up to 10 friends", included: true },
-  { text: "Up to 5 events per month", included: true },
-  { text: "Basic event creation", included: true },
-  { text: "Smart Notifications", included: false },
-  { text: "Unlimited friends", included: false },
-  { text: "Unlimited events", included: false },
-  { text: "Priority Support", included: false },
+  { text: "3 hosted events per month", included: true },
+  { text: "Unlimited friends", included: true },
+  { text: "RSVP to any event", included: true },
+  { text: "Unlimited hosting", included: false },
+  { text: "Add co-hosts", included: false },
 ];
 
-// Premium tier features
+// Founder Pro v1 features
 const PREMIUM_FEATURES = [
-  { text: "Unlimited friends", included: true },
-  { text: "Unlimited events", included: true },
-  { text: "Smart Notifications", included: true },
-  { text: "Priority Support", included: true },
-  { text: "Groups", included: true },
-  { text: "Who's Free feature", included: true },
-  { text: "Work Schedule sync", included: true },
-  { text: "Notes for friends", included: true },
+  { text: "Unlimited hosting", included: true },
+  { text: "Unlimited co-hosts", included: true },
+  { text: "Everything in Free", included: true },
 ];
+
+// Future expansion note
+const FOUNDER_PRO_NOTE = "More organizer tools will be added as they ship.";
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -468,6 +464,16 @@ export default function PaywallScreen() {
                   </Text>
                 </View>
               ))}
+            </View>
+            
+            {/* Founder Pro Note */}
+            <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Text
+                className="text-xs text-center italic"
+                style={{ color: colors.textTertiary }}
+              >
+                {FOUNDER_PRO_NOTE}
+              </Text>
             </View>
           </View>
         </Animated.View>
