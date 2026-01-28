@@ -1484,6 +1484,9 @@ export default function CalendarScreen() {
     startTime: string | null;
     endTime: string | null;
     label: string;
+    // Split schedule support (optional second block)
+    block2StartTime?: string | null;
+    block2EndTime?: string | null;
   }
   interface WorkScheduleSettings {
     showOnCalendar: boolean;
@@ -1647,6 +1650,34 @@ export default function CalendarScreen() {
           isBirthday: false,
           isWork: true,
         });
+
+        // Block 2 (split schedule) - if present
+        if (schedule.block2StartTime && schedule.block2EndTime) {
+          const [block2StartHours, block2StartMinutes] = schedule.block2StartTime.split(":").map(Number);
+          const [block2EndHours, block2EndMinutes] = schedule.block2EndTime.split(":").map(Number);
+
+          const block2StartTime = new Date(currentYear, currentMonth, day, block2StartHours, block2StartMinutes);
+          const block2EndTime = new Date(currentYear, currentMonth, day, block2EndHours, block2EndMinutes);
+
+          events.push({
+            id: `work-${currentYear}-${currentMonth}-${day}-b2`,
+            title: schedule.label || "Work",
+            description: `${schedule.block2StartTime} - ${schedule.block2EndTime}`,
+            location: null,
+            emoji: "💼",
+            startTime: block2StartTime.toISOString(),
+            endTime: block2EndTime.toISOString(),
+            isRecurring: true,
+            recurrence: "weekly",
+            visibility: "all_friends",
+            userId: session?.user?.id ?? "",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            isAttending: false,
+            isBirthday: false,
+            isWork: true,
+          });
+        }
       }
     }
 

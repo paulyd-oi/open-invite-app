@@ -487,10 +487,10 @@ export default function ImportCalendarScreen() {
         </Pressable>
         <View className="flex-1">
           <Text className="text-xl font-bold" style={{ color: colors.text }}>
-            Sync Calendar
+            Calendar Sync (Optional)
           </Text>
           <Text className="text-sm" style={{ color: colors.textSecondary }}>
-            Import events to share with friends
+            One-time import from your device
           </Text>
         </View>
       </View>
@@ -517,13 +517,19 @@ export default function ImportCalendarScreen() {
                 className="text-xl font-bold text-center mb-2"
                 style={{ color: colors.text }}
               >
-                Connect Your Calendar
+                Calendar Sync
+              </Text>
+              <Text
+                className="text-center mb-4"
+                style={{ color: colors.textSecondary }}
+              >
+                Open Invite works great on its own — create events manually and share them with friends anytime.
               </Text>
               <Text
                 className="text-center mb-6"
                 style={{ color: colors.textSecondary }}
               >
-                Automatically share your calendar events with friends. You can always add events manually.
+                You can also do a one-time import from your device calendar to quickly add existing events. Automatic background sync is coming soon!
               </Text>
 
               {permissionResult && !permissionResult.canAskAgain ? (
@@ -545,12 +551,13 @@ export default function ImportCalendarScreen() {
                   >
                     Enable in Settings → Open Invite → Calendars
                   </Text>
-                  <Text
-                    className="text-xs text-center"
-                    style={{ color: colors.textTertiary }}
+                  <Pressable
+                    onPress={() => router.push("/calendar-import-help")}
+                    className="w-full py-3 rounded-xl items-center"
+                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
                   >
-                    This feature is optional — you can still use Open Invite without it.
-                  </Text>
+                    <Text style={{ color: themeColor }} className="font-medium">Learn More</Text>
+                  </Pressable>
                 </>
               ) : (
                 // Can still request permission
@@ -560,13 +567,20 @@ export default function ImportCalendarScreen() {
                     className="w-full py-4 rounded-xl items-center mb-3"
                     style={{ backgroundColor: themeColor }}
                   >
-                    <Text className="text-white font-semibold">Enable Calendar Access</Text>
+                    <Text className="text-white font-semibold">Import from Calendar</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => router.push("/calendar-import-help")}
+                    className="w-full py-3 rounded-xl items-center mb-3"
+                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  >
+                    <Text style={{ color: themeColor }} className="font-medium">Learn More</Text>
                   </Pressable>
                   <Text
                     className="text-xs text-center"
                     style={{ color: colors.textTertiary }}
                   >
-                    Optional — you can still create events manually without calendar access.
+                    Optional — you can create events manually anytime without calendar access.
                   </Text>
                 </>
               )}
@@ -881,7 +895,7 @@ export default function ImportCalendarScreen() {
                   className="text-xs leading-5 text-center"
                   style={{ color: colors.textSecondary }}
                 >
-                  Synced events will appear on your Open Invite calendar and be visible to friends based on your visibility settings. You can change visibility for each event later.
+                  This is a one-time import. Imported events become Open Invite events and will be visible to friends based on your visibility settings. Automatic background sync is coming soon!
                 </Text>
               </View>
             </Animated.View>

@@ -46,6 +46,8 @@ import {
   Sparkles,
   Copy,
   Mail,
+  Plus,
+  X,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -409,7 +411,8 @@ export default function SettingsScreen() {
 
   // Work schedule states
   const [showWorkScheduleSection, setShowWorkScheduleSection] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState<{ day: number; type: "start" | "end" } | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState<{ day: number; type: "start" | "end" | "block2Start" | "block2End" } | null>(null);
+  const [expandedBlock2Days, setExpandedBlock2Days] = useState<Set<number>>(new Set());
 
   // Work schedule types
   interface WorkScheduleDay {
@@ -420,6 +423,9 @@ export default function SettingsScreen() {
     startTime: string | null;
     endTime: string | null;
     label: string;
+    // Split schedule support (optional second block)
+    block2StartTime?: string | null;
+    block2EndTime?: string | null;
   }
 
   interface WorkScheduleSettings {
@@ -644,7 +650,7 @@ export default function SettingsScreen() {
   });
 
   const updateWorkScheduleMutation = useMutation({
-    mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string }) =>
+    mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string; block2StartTime?: string | null; block2EndTime?: string | null }) =>
       api.put<{ schedule: WorkScheduleDay }>(`/api/work-schedule/${data.dayOfWeek}`, data),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -886,13 +892,30 @@ export default function SettingsScreen() {
     updateWorkScheduleMutation.mutate({ dayOfWeek, isEnabled });
   };
 
-  const handleWorkScheduleTimeChange = (dayOfWeek: number, type: "start" | "end", date: Date) => {
+  const handleWorkScheduleTimeChange = (dayOfWeek: number, type: "start" | "end" | "block2Start" | "block2End", date: Date) => {
     const timeStr = formatDateToTime(date);
     if (type === "start") {
       updateWorkScheduleMutation.mutate({ dayOfWeek, startTime: timeStr });
-    } else {
+    } else if (type === "end") {
       updateWorkScheduleMutation.mutate({ dayOfWeek, endTime: timeStr });
+    } else if (type === "block2Start") {
+      updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: timeStr });
+    } else if (type === "block2End") {
+      updateWorkScheduleMutation.mutate({ dayOfWeek, block2EndTime: timeStr });
     }
+  };
+
+  // Toggle second block visibility for a day
+  const toggleBlock2 = (dayOfWeek: number) => {
+    const newSet = new Set(expandedBlock2Days);
+    if (newSet.has(dayOfWeek)) {
+      newSet.delete(dayOfWeek);
+      // Clear block2 times when removing
+      updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: null, block2EndTime: null });
+    } else {
+      newSet.add(dayOfWeek);
+    }
+    setExpandedBlock2Days(newSet);
   };
 
   if (!session) {
@@ -1659,11 +1682,15 @@ export default function SettingsScreen() {
             {showWorkScheduleSection && (
               <View className="px-4 py-3">
                 <Text style={{ color: colors.textTertiary }} className="text-xs mb-3">
-                  Set your regular work hours. These will show as "Busy" on your calendar and help friends see when you're free.
+                  Set your regular work hours. These will show as "Busy" on your calendar and help friends see when you're free. Tap (+) to add a second time block for split schedules.
                 </Text>
 
                 {/* Day-by-day schedule */}
-                {workSchedules.map((schedule, index) => (
+                {workSchedules.map((schedule, index) => {
+                  const hasBlock2 = expandedBlock2Days.has(schedule.dayOfWeek) || 
+                    (schedule.block2StartTime && schedule.block2EndTime);
+                  
+                  return (
                   <View
                     key={schedule.dayOfWeek}
                     className="py-3"
@@ -1709,12 +1736,65 @@ export default function SettingsScreen() {
                       />
                     </View>
 
+                    {/* Block 2 (split schedule) */}
+                    {schedule.isEnabled && hasBlock2 && (
+                      <View className="flex-row items-center mt-2 ml-20">
+                        <Pressable
+                          onPress={() => setShowTimePicker({ day: schedule.dayOfWeek, type: "block2Start" })}
+                          className="px-2 py-1 rounded-lg mr-1"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Text style={{ color: themeColor }} className="text-xs font-medium">
+                            {formatTimeDisplay(schedule.block2StartTime ?? null)}
+                          </Text>
+                        </Pressable>
+                        <Text style={{ color: colors.textTertiary }} className="text-xs">to</Text>
+                        <Pressable
+                          onPress={() => setShowTimePicker({ day: schedule.dayOfWeek, type: "block2End" })}
+                          className="px-2 py-1 rounded-lg ml-1"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Text style={{ color: themeColor }} className="text-xs font-medium">
+                            {formatTimeDisplay(schedule.block2EndTime ?? null)}
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => toggleBlock2(schedule.dayOfWeek)}
+                          className="ml-2 w-6 h-6 rounded-full items-center justify-center"
+                          style={{ backgroundColor: isDark ? "#3A3A3C" : "#E5E7EB" }}
+                        >
+                          <X size={14} color={colors.textTertiary} />
+                        </Pressable>
+                      </View>
+                    )}
+
+                    {/* Add Block 2 button */}
+                    {schedule.isEnabled && !hasBlock2 && (
+                      <Pressable
+                        onPress={() => toggleBlock2(schedule.dayOfWeek)}
+                        className="flex-row items-center mt-2 ml-20"
+                      >
+                        <View
+                          className="w-5 h-5 rounded-full items-center justify-center mr-1"
+                          style={{ backgroundColor: `${themeColor}20` }}
+                        >
+                          <Plus size={12} color={themeColor} />
+                        </View>
+                        <Text style={{ color: themeColor }} className="text-xs">
+                          Add second block
+                        </Text>
+                      </Pressable>
+                    )}
+
                     {/* Time Picker for this day */}
                     {showTimePicker?.day === schedule.dayOfWeek && (
                       <View className="mt-3">
                         <DateTimePicker
                           value={parseTimeToDate(
-                            showTimePicker.type === "start" ? schedule.startTime : schedule.endTime
+                            showTimePicker.type === "start" ? schedule.startTime :
+                            showTimePicker.type === "end" ? schedule.endTime :
+                            showTimePicker.type === "block2Start" ? (schedule.block2StartTime ?? null) :
+                            (schedule.block2EndTime ?? null)
                           )}
                           mode="time"
                           display={Platform.OS === "ios" ? "spinner" : "default"}
@@ -1741,7 +1821,8 @@ export default function SettingsScreen() {
                       </View>
                     )}
                   </View>
-                ))}
+                  );
+                })}
 
                 {/* Show on Calendar Toggle */}
                 <View
