@@ -49,6 +49,13 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (E.4 Auth Contract Smoke Script)
+- Created scripts/ai/smoke_auth_contract.sh to verify AUTH_CONTRACT compliance
+- Normalizes SESSION_COOKIE_VALUE: handles both raw token and full cookie pair formats
+- Always sends cookie as lowercase header with leading '; ' (React Native format)
+- Three proofs: unauthed endpoint OK, authed endpoint OK with cookie, authed endpoint 401 without cookie
+- Created scripts/ai/verify_backend.sh to run smoke test (skips if SESSION_COOKIE_VALUE not set)
+
 ## Fixed This Session (E.3 Calendar Import Help Screen)
 - Rewrote /calendar-import-help with truthful sections: One-time Import, Not Live Sync Yet, Privacy
 - Added bottom buttons: "Import Calendar" (returns to import flow), "Back"
