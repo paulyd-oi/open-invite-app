@@ -73,3 +73,6 @@ enabled: !!session
 See also:
 - [docs/API_AUTH_EXAMPLES.md](API_AUTH_EXAMPLES.md) — curl examples
 - [docs/FINDINGS_LOG.md](FINDINGS_LOG.md) — detailed proof and history
+
+type: "event_join"
+deepLinkPath: `/event/${eventId}`
