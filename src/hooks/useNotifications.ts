@@ -165,8 +165,20 @@ export function useNotifications() {
         } else if (type === "friend_request" || type === "friend_accepted") {
           queryClient.invalidateQueries({ queryKey: ["friends"] });
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-        } else if (type === "join_request" || type === "join_accepted") {
+        } else if (type === "join_request" || type === "join_accepted" || type === "event_join") {
+          // RSVP/join notifications - refresh events and specific event
           queryClient.invalidateQueries({ queryKey: ["events"] });
+          const eventId = notification.request.content.data?.eventId;
+          if (eventId) {
+            queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+          }
+        } else if (type === "event_comment") {
+          // Comment notification - refresh event comments
+          const eventId = notification.request.content.data?.eventId;
+          if (eventId) {
+            queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+            queryClient.invalidateQueries({ queryKey: ["eventComments", eventId] });
+          }
         } else if (type === "circle_message") {
           // Refresh circles to update unread counts
           queryClient.invalidateQueries({ queryKey: ["circles"] });
@@ -177,6 +189,9 @@ export function useNotifications() {
             queryClient.invalidateQueries({ queryKey: ["circle-messages", circleId] });
           }
         }
+        
+        // Always refresh notifications/activity list on any notification
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
       }
     );
 
@@ -187,23 +202,77 @@ export function useNotifications() {
         const type = data?.type;
         const eventId = data?.eventId;
         const friendId = data?.friendId;
+        const userId = data?.userId || data?.actorId || data?.senderId;
         const circleId = data?.circleId;
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         // Navigate based on notification type
-        if (type === "new_event" || type === "event_update" || type === "event_reminder") {
+        // D5-F2: Deep-link handling for push taps
+        
+        // Event-related notifications → event detail
+        if (
+          type === "new_event" ||
+          type === "event_update" ||
+          type === "event_reminder" ||
+          type === "event_join" ||
+          type === "event_comment" ||
+          type === "join_request" ||
+          type === "join_accepted"
+        ) {
           if (eventId) {
             router.push(`/event/${eventId}` as any);
+            return;
           }
-        } else if (type === "friend_request") {
-          router.push("/friends");
-        } else if (type === "friend_accepted" && friendId) {
-          router.push(`/friend/${friendId}` as any);
-        } else if ((type === "join_request" || type === "join_accepted") && eventId) {
-          router.push(`/event/${eventId}` as any);
-        } else if (type === "circle_message" && circleId) {
+        }
+        
+        // Friend request → user profile or friends list
+        if (type === "friend_request") {
+          if (userId) {
+            router.push(`/user/${userId}` as any);
+          } else {
+            router.push("/friends");
+          }
+          return;
+        }
+        
+        // Friend accepted → user profile
+        if (type === "friend_accepted") {
+          if (friendId) {
+            router.push(`/user/${friendId}` as any);
+          } else if (userId) {
+            router.push(`/user/${userId}` as any);
+          }
+          return;
+        }
+        
+        // Circle message → circle chat
+        if (type === "circle_message" && circleId) {
           router.push(`/circle/${circleId}` as any);
+          return;
+        }
+        
+        // Fallback: if we have eventId, go to event
+        if (eventId) {
+          router.push(`/event/${eventId}` as any);
+          return;
+        }
+        
+        // Fallback: if we have userId, go to user profile
+        if (userId) {
+          router.push(`/user/${userId}` as any);
+          return;
+        }
+        
+        // No valid navigation target - log warning (D5-F2 requirement)
+        if (__DEV__) {
+          console.warn('[useNotifications] Push tap has no valid navigation target:', {
+            type,
+            eventId,
+            userId,
+            friendId,
+            circleId,
+          });
         }
       }
     );
