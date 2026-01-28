@@ -39,6 +39,8 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { SoftLimitModal } from "@/components/SoftLimitModal";
+import { useSubscription } from "@/lib/SubscriptionContext";
 import {
   type GetEventsResponse,
   type UpdateEventRequest,
@@ -98,6 +100,10 @@ export default function EditEventScreen() {
   // Co-hosts state
   const [selectedHostIds, setSelectedHostIds] = useState<string[]>([]);
   const [showHostPicker, setShowHostPicker] = useState(false);
+  const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
+
+  // Subscription for paywall
+  const { openPaywall } = useSubscription();
 
   // Fetch event data
   const { data: myEventsData } = useQuery({
@@ -184,10 +190,8 @@ export default function EditEventScreen() {
       const errorData = error?.response?.data || error?.data || {};
       if (errorData.error === "COHOSTS_REQUIRE_PRO" && errorData.requiresUpgrade) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        safeToast.info(
-          "Founder Pro Feature",
-          "Upgrade to add co-hosts to your events."
-        );
+        // Show soft-limit modal for upgrade
+        setShowSoftLimitModal(true);
         // Reset to no co-hosts
         setSelectedHostIds([]);
         return;
@@ -258,6 +262,19 @@ export default function EditEventScreen() {
   const confirmDelete = () => {
     setShowDeleteConfirm(false);
     deleteMutation.mutate();
+  };
+
+  // Handle soft-limit modal upgrade action (co-hosts)
+  const handleSoftLimitUpgrade = async () => {
+    setShowSoftLimitModal(false);
+    const result = await openPaywall();
+    if (!result.ok && result.error) {
+      router.push("/subscription?source=soft_limit_cohosts");
+    }
+  };
+
+  const handleSoftLimitDismiss = () => {
+    setShowSoftLimitModal(false);
   };
 
   const toggleGroup = (groupId: string) => {
@@ -858,6 +875,15 @@ export default function EditEventScreen() {
         isDestructive
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Soft-Limit Modal (Co-hosts require pro) */}
+      <SoftLimitModal
+        visible={showSoftLimitModal}
+        onUpgrade={handleSoftLimitUpgrade}
+        onDismiss={handleSoftLimitDismiss}
+        title="Co-hosts require Pro"
+        description="Upgrade to Founder Pro to add co-hosts to your events."
       />
     </SafeAreaView>
   );
