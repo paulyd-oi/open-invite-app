@@ -278,13 +278,13 @@ export default function SubscriptionScreen() {
     switch (source) {
       case "soft_limit_active_events":
         return {
-          headline: "Premium for organizers",
+          headline: "Founder Pro for organizers",
           subhead: "Unlimited active events and smarter reminders.",
         };
       case "poll_attempt":
         return {
           headline: "Decide faster with polls",
-          subhead: "Get instant RSVP commitments with premium polls.",
+          subhead: "Get instant RSVP commitments with Pro polls.",
         };
       case "nudge_attempt":
         return {
@@ -298,7 +298,7 @@ export default function SubscriptionScreen() {
         };
       case "settings":
         return {
-          headline: "Premium for organizers",
+          headline: "Founder Pro for organizers",
           subhead: "Unlock all features and remove limits.",
         };
       default:

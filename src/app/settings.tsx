@@ -1812,7 +1812,7 @@ export default function SettingsScreen() {
 
         {/* Premium Status Section */}
         <Animated.View entering={FadeInDown.delay(245).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PREMIUM</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">FOUNDER PRO</Text>
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
             {/* Current Status */}
             <Pressable
@@ -1861,8 +1861,8 @@ export default function SettingsScreen() {
                   <Sparkles size={20} color={themeColor} />
                 </View>
                 <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-base font-medium">Upgrade to Premium</Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited features</Text>
+                  <Text style={{ color: colors.text }} className="text-base font-medium">Upgrade to Founder Pro</Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Unlock unlimited hosting</Text>
                 </View>
                 <View className="px-3 py-1 rounded-full" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text style={{ color: themeColor }} className="text-xs font-medium">Upgrade</Text>
@@ -1907,10 +1907,10 @@ export default function SettingsScreen() {
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-base font-medium">
-                  {isRefreshingEntitlements ? "Refreshing..." : "Refresh Premium Status"}
+                  {isRefreshingEntitlements ? "Refreshing..." : "Refresh Pro Status"}
                 </Text>
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  Sync your subscription status
+                  Sync your Founder Pro status
                 </Text>
               </View>
             </Pressable>
