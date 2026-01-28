@@ -127,9 +127,9 @@ export async function uploadImage(
       console.log(`[imageUpload] Uploading image: ${fileSizeKB} KB`);
     }
 
-    // Get authentication token from SecureStore
-    const { getAuthToken } = await import("./authClient");
-    const token = await getAuthToken();
+    // Get session cookie for authentication (Better Auth cookie-based auth)
+    const { getSessionCookie } = await import("./sessionCookie");
+    const sessionCookie = await getSessionCookie();
 
     // Create form data using fetch-blob approach compatible with React Native
     // We need to use FileSystem.uploadAsync for proper multipart/form-data support
@@ -140,16 +140,34 @@ export async function uploadImage(
         httpMethod: "POST",
         uploadType: FileSystem.FileSystemUploadType.MULTIPART,
         fieldName: "image",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: sessionCookie ? { cookie: sessionCookie } : {},
       }
     );
 
     if (uploadResult.status !== 200) {
-      const errorData = JSON.parse(uploadResult.body || "{}");
-      throw new Error(errorData.error || "Upload failed");
+      // Try to parse error, but handle non-JSON gracefully
+      let errorMsg = "Upload failed";
+      try {
+        const errorData = JSON.parse(uploadResult.body || "{}");
+        errorMsg = errorData.error || errorMsg;
+      } catch {
+        if (__DEV__) {
+          console.log("[imageUpload] Non-JSON error response:", uploadResult.body?.substring(0, 200));
+        }
+      }
+      throw new Error(errorMsg);
     }
 
-    const responseData = JSON.parse(uploadResult.body) as UploadResponse;
+    // Parse response with defensive error handling
+    let responseData: UploadResponse;
+    try {
+      responseData = JSON.parse(uploadResult.body) as UploadResponse;
+    } catch (parseError) {
+      if (__DEV__) {
+        console.log("[imageUpload] JSON parse error, response body:", uploadResult.body?.substring(0, 500));
+      }
+      throw new Error("Invalid response from server");
+    }
 
     // Convert relative URL to absolute URL
     if (responseData.url && !responseData.url.startsWith("http")) {

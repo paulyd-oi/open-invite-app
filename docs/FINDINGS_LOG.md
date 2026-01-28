@@ -329,3 +329,46 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Reordered bottom nav: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing changed from /calendar to /social
 - CTA copy simplified: "Create Open Invite" → "Create Invite"
+
+---
+
+### Date: 2025-01-28
+### Finding: P0 - Profile photo upload uses wrong auth mechanism
+### Proof:
+- imageUpload.ts used getAuthToken() for Bearer header
+- Better Auth uses cookie-based auth, not Bearer tokens
+- getAuthToken() returns null because token doesn't exist in this auth flow
+- Response parsing assumed JSON, crashed on HTML error pages
+### Impact: Profile photo uploads fail silently, users cannot set profile pictures
+### Action Taken:
+- Replaced getAuthToken() import with getSessionCookie() from sessionCookie.ts
+- Changed headers from `Authorization: Bearer <token>` to `cookie: <sessionCookie>`
+- Added try-catch for JSON parsing with console.error logging for debugging
+- File: src/lib/imageUpload.ts
+
+---
+
+### Date: 2025-01-28
+### Finding: P0 - Pro/Lifetime users incorrectly throttled by free-tier upgrade modal
+### Proof:
+- create.tsx soft-limit check only used isPremium from useSubscription()
+- useSubscription() can fail to load or return false for lifetime users
+- Lifetime Pro users were seeing "Upgrade for unlimited events" modal
+### Impact: Paying customers blocked from app functionality, trust erosion
+### Action Taken:
+- Added entitlements?.plan check as fallback: PRO or LIFETIME_PRO bypasses limit
+- userIsPro now: `isPremium || entitlements?.plan === 'PRO' || entitlements?.plan === 'LIFETIME_PRO'`
+- File: src/app/create.tsx, line ~625
+
+---
+
+### Date: 2025-01-28
+### Finding: P0 - FeedCalendar date modal shows white block obscuring calendar
+### Proof:
+- Modal with presentationStyle="pageSheet" had outer View without transparent background
+- NativeWind className="flex-1 justify-end" doesn't set backgroundColor
+- Result: white fullscreen overlay instead of see-through backdrop
+### Impact: Calendar not visible when viewing day events, poor UX
+### Action Taken:
+- Added style={{ backgroundColor: 'transparent' }} to outer View wrapping modal content
+- File: src/components/FeedCalendar.tsx, modal day events section

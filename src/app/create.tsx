@@ -622,7 +622,9 @@ export default function CreateEventScreen() {
     }
 
     // Soft-limit check: Show upgrade prompt for free users hitting active events limit
-    if (!isPremium && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
+    // Check both isPremium (from SubscriptionContext) AND entitlements plan for robustness
+    const userIsPro = isPremium || entitlements?.plan === 'PRO' || entitlements?.plan === 'LIFETIME_PRO';
+    if (!userIsPro && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       markActiveEventsPromptShown();
       setShowSoftLimitModal(true);

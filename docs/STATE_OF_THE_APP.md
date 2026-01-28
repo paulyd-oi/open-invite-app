@@ -4,7 +4,7 @@
 - Onboarding flow with bootstrap refresh mechanism
 - Login with Better Auth (cookie session established)
 - Signup with Better Auth (cookie session established)
-- Cookie storage in SecureStore (open-invite_cookie key)
+- Cookie storage in SecureStore (open-invite_session_cookie key)
 - Session persistence across force-close: Cookie cache initialized by bootstrap only (single authority)
 - Authed queries gated on bootStatus (no 401 spam after logout)
 - Subscription query gated on bootStatus (prevents post-logout 401s)
@@ -35,12 +35,19 @@
 - Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
 - CTA copy: "Create Invite" (not "Create Open Invite")
 - Get Started guide: Per-user dismissal (get_started_dismissed:userId), gated by true-new-user signals (0 friends AND 0 events)
-- Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), no calendar tile obscuring
+- Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), transparent background, no calendar tile obscuring
+- Profile photo upload: Uses session cookie auth (not Bearer token), defensive JSON parsing with error logging
+- Pro user throttle gate: Checks both isPremium AND entitlements.plan to prevent false throttling
 
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (P1/P2 Feed Discovery + Get Started + Date UI)
+## Fixed This Session (P0 Sheet Overlay + Upload + Pro Throttle)
+- FeedCalendar modal white block: Added transparent background to outer View so calendar remains visible behind bottom sheet
+- Profile photo upload JSON parse error: Switched from Bearer token auth (which doesn't exist in Better Auth flow) to session cookie auth, added defensive JSON parsing with error logging
+- Pro user false throttle: Soft-limit check now checks both isPremium (SubscriptionContext) AND entitlements.plan (PRO/LIFETIME_PRO) to prevent lifetime users seeing upgrade modal
+
+## Fixed Previously (P1/P2 Feed Discovery + Get Started + Date UI)
 - Social feed discovery: Filters out events where viewerRsvpStatus is "going" or "interested", host events, and my/attending events
 - Get Started dismissal: Changed to per-user key (get_started_dismissed:${userId}), persists across logout/login
 - Get Started gating: Only shows for true new users (friendsCount === 0 AND totalEventsCount === 0), prevents reappearing for established users

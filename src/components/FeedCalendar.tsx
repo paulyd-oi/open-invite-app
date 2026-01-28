@@ -521,7 +521,7 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
         presentationStyle="pageSheet"
         onRequestClose={() => setShowDayModal(false)}
       >
-        <View className="flex-1 justify-end">
+        <View className="flex-1 justify-end" style={{ backgroundColor: 'transparent' }}>
           <Animated.View
             entering={SlideInDown.springify().damping(20)}
             style={{
