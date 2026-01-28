@@ -579,6 +579,7 @@ function EventListItem({
   isDark,
   onColorChange,
   onDelete,
+  onToggleBusy,
   isOwner,
 }: {
   event: Event & { isBusinessEvent?: boolean; businessEventId?: string };
@@ -591,6 +592,7 @@ function EventListItem({
   isDark: boolean;
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
+  onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   isOwner?: boolean;
 }) {
   const router = useRouter();
@@ -601,8 +603,8 @@ function EventListItem({
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
-  // Use pink/magenta for birthdays, gray for work, theme color for regular events
-  const eventColor = isBirthday ? "#FF69B4" : isWork ? "#6B7280" : getEventColor(event, themeColor);
+  // Use pink/magenta for birthdays, gray for work/busy, theme color for regular events
+  const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? "#6B7280" : getEventColor(event, themeColor);
   const textColor = getTextColorForBackground(eventColor, isDark);
 
   // Format time label: birthdays show "All day", all other events show time range
@@ -650,6 +652,11 @@ function EventListItem({
     console.log("[Calendar] Color selected:", color, "for event:", event.id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onColorChange?.(event.id, color);
+  };
+
+  const handleToggleBusy = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onToggleBusy?.(event.id, !event.isBusy);
   };
 
   // Handle navigation with context menu awareness
@@ -870,6 +877,14 @@ function EventListItem({
           </ContextMenu.Sub>
         )}
 
+        {/* Toggle Busy - Only if user is owner */}
+        {isOwner && onToggleBusy && (
+          <ContextMenu.Item key="busy" onSelect={handleToggleBusy}>
+            <ContextMenu.ItemTitle>{event.isBusy ? "Unmark as Busy" : "Mark as Busy"}</ContextMenu.ItemTitle>
+            <ContextMenu.ItemIcon ios={{ name: event.isBusy ? "calendar" : "briefcase" }} />
+          </ContextMenu.Item>
+        )}
+
         {/* Delete - Only if user is owner */}
         {isOwner && onDelete && (
           <ContextMenu.Item key="delete" onSelect={handleDelete} destructive>
@@ -1043,6 +1058,7 @@ function ListView({
   userId,
   onColorChange,
   onDelete,
+  onToggleBusy,
   session,
 }: {
   events: Array<Event & { isAttending?: boolean; isBirthday?: boolean }>;
@@ -1054,6 +1070,7 @@ function ListView({
   userId?: string;
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
+  onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   session: any;
 }) {
   const router = useRouter();
@@ -1133,6 +1150,7 @@ function ListView({
               isOwner={event.userId === userId}
               onColorChange={onColorChange}
               onDelete={onDelete}
+              onToggleBusy={onToggleBusy}
             />
           ))}
         </Animated.View>
@@ -1288,7 +1306,14 @@ export default function CalendarScreen() {
   const prevViewModeRef = React.useRef(viewMode);
 
   // Helper function to update display state (called from worklet via runOnJS)
-  const onHeightChange = useCallback((newHeight: number) => {
+  // Throttled to reduce re-renders during pinch gesture
+  const lastUpdateRef = React.useRef(0);
+  const onHeightChange = useCallback((newHeight: number, forceUpdate = false) => {
+    const now = Date.now();
+    // Throttle updates to every 50ms during gesture (forceUpdate bypasses throttle for gesture end)
+    if (!forceUpdate && now - lastUpdateRef.current < 50) return;
+    lastUpdateRef.current = now;
+    
     setDisplayUnifiedHeight(newHeight);
 
     // Check if view mode changed and trigger haptic
@@ -1309,15 +1334,15 @@ export default function CalendarScreen() {
       baseUnifiedHeight.value = unifiedHeight.value;
     })
     .onUpdate((event) => {
-      // Scale the unified height based on pinch
+      // Scale the unified height based on pinch (worklet - no JS bridge)
       const newHeight = baseUnifiedHeight.value * event.scale;
       // Clamp between min and max
       unifiedHeight.value = Math.max(
         UNIFIED_MIN_HEIGHT,
         Math.min(UNIFIED_MAX_HEIGHT, newHeight)
       );
-      // Update display state
-      runOnJS(onHeightChange)(unifiedHeight.value);
+      // Throttled update to display state
+      runOnJS(onHeightChange)(unifiedHeight.value, false);
     })
     .onEnd(() => {
       // Snap to nice values at view mode boundaries or current position
@@ -1334,7 +1359,8 @@ export default function CalendarScreen() {
       // Clamp and animate
       targetHeight = Math.max(UNIFIED_MIN_HEIGHT, Math.min(UNIFIED_MAX_HEIGHT, targetHeight));
       unifiedHeight.value = withSpring(targetHeight, { damping: 15, stiffness: 150 });
-      runOnJS(onHeightChange)(targetHeight);
+      // Force update on gesture end to ensure final state is captured
+      runOnJS(onHeightChange)(targetHeight, true);
       runOnJS(triggerHaptic)();
     });
 
@@ -1421,6 +1447,20 @@ export default function CalendarScreen() {
     },
   });
 
+  // Toggle busy status mutation
+  const toggleBusyMutation = useMutation({
+    mutationFn: ({ eventId, isBusy }: { eventId: string; isBusy: boolean }) =>
+      api.put(`/api/events/${eventId}/busy`, { isBusy }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+    },
+    onError: () => {
+      safeToast.error("Oops", "That didn't go through. Please try again.");
+    },
+  });
+
   // Handlers for context menu actions
   const handleDeleteEvent = (eventId: string) => {
     deleteEventMutation.mutate(eventId);
@@ -1429,6 +1469,10 @@ export default function CalendarScreen() {
   const handleColorChange = (eventId: string, color: string) => {
     console.log("[Calendar] handleColorChange called:", { eventId, color });
     updateEventColorMutation.mutate({ eventId, color });
+  };
+
+  const handleToggleBusy = (eventId: string, isBusy: boolean) => {
+    toggleBusyMutation.mutate({ eventId, isBusy });
   };
 
   // Fetch work schedule
@@ -2143,6 +2187,7 @@ export default function CalendarScreen() {
             userId={session?.user?.id}
             onColorChange={handleColorChange}
             onDelete={handleDeleteEvent}
+            onToggleBusy={handleToggleBusy}
             session={session}
           />
         ) : (
@@ -2313,6 +2358,7 @@ export default function CalendarScreen() {
                       isOwner={event.userId === session?.user?.id}
                       onColorChange={handleColorChange}
                       onDelete={handleDeleteEvent}
+                      onToggleBusy={handleToggleBusy}
                     />
                   </Animated.View>
                 ))

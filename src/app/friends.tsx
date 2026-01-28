@@ -78,6 +78,8 @@ import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
+import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import {
   type GetFriendsResponse,
   type GetFriendRequestsResponse,
@@ -406,6 +408,8 @@ function FriendRequestCard({
   onViewProfile?: () => void;
 }) {
   const user = type === "received" ? request.sender : request.receiver;
+  const mutualCount = request.mutualCount ?? 0;
+  const mutualPreviewUsers = request.mutualPreviewUsers ?? [];
 
   return (
     <Pressable
@@ -434,9 +438,50 @@ function FriendRequestCard({
         <Text className="font-medium" style={{ color: colors.text }}>
           {user?.name ?? user?.email ?? "Unknown"}
         </Text>
-        <Text className="text-xs" style={{ color: colors.textTertiary }}>
-          {type === "received" ? "Wants to connect" : "Pending"}
-        </Text>
+        {/* Mutual friends display (Instagram-style) */}
+        {type === "received" && mutualCount > 0 ? (
+          <View className="flex-row items-center mt-0.5">
+            {/* Mini avatar stack */}
+            {mutualPreviewUsers.length > 0 && (
+              <View className="flex-row mr-1.5">
+                {mutualPreviewUsers.slice(0, 2).map((u, idx) => (
+                  <View
+                    key={u.id}
+                    className="w-4 h-4 rounded-full overflow-hidden border"
+                    style={{
+                      marginLeft: idx > 0 ? -6 : 0,
+                      borderColor: colors.surface,
+                      borderWidth: 1,
+                      zIndex: 2 - idx,
+                    }}
+                  >
+                    {u.image ? (
+                      <Image source={{ uri: u.image }} className="w-full h-full" />
+                    ) : (
+                      <View
+                        className="w-full h-full items-center justify-center"
+                        style={{ backgroundColor: themeColor + "30" }}
+                      >
+                        <Text style={{ color: themeColor, fontSize: 8 }}>
+                          {u.name?.[0]?.toUpperCase() ?? "?"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              {mutualCount === 1
+                ? `${mutualPreviewUsers[0]?.name ?? "1 mutual friend"}`
+                : `${mutualCount} mutual friends`}
+            </Text>
+          </View>
+        ) : (
+          <Text className="text-xs" style={{ color: colors.textTertiary }}>
+            {type === "received" ? "Wants to connect" : "Pending"}
+          </Text>
+        )}
       </View>
       {type === "received" && (
         <View className="flex-row">
@@ -542,11 +587,18 @@ export default function FriendsScreen() {
   // Unseen notification count for Activity badge
   const { unseenCount, refetch: refetchUnseenCount } = useUnseenNotificationCount();
 
-  // Refetch unseen count when screen gains focus
+  // Interactive onboarding guide
+  const onboardingGuide = useOnboardingGuide();
+
+  // Refetch unseen count when screen gains focus + track onboarding step
   useFocusEffect(
     React.useCallback(() => {
       refetchUnseenCount();
-    }, [refetchUnseenCount])
+      // Complete "friends_tab" step when user visits Friends screen
+      if (onboardingGuide.shouldShowStep("friends_tab")) {
+        onboardingGuide.completeStep("friends_tab");
+      }
+    }, [refetchUnseenCount, onboardingGuide])
   );
 
   // Handler for creating circle with gating
@@ -680,6 +732,11 @@ export default function FriendsScreen() {
       setShowAddFriend(false);
       setShowContactsModal(false);
       refetchRequests();
+      
+      // Complete "add_friend" onboarding step when user sends a friend request
+      if (onboardingGuide.shouldShowStep("add_friend")) {
+        onboardingGuide.completeStep("add_friend");
+      }
     },
     onError: () => {
       safeToast.error("Error", "Failed to send friend request");
@@ -2247,6 +2304,28 @@ export default function FriendsScreen() {
         onSecondary={handleSecondOrderNudgeSecondary}
         onDismiss={handleSecondOrderNudgeDismiss}
       />
+
+      {/* Onboarding Guide Overlay */}
+      {onboardingGuide.shouldShowStep("friends_tab") && (
+        <OnboardingGuideOverlay
+          step="friends_tab"
+          onDismiss={() => onboardingGuide.completeStep("friends_tab")}
+          themeColor={themeColor}
+          isDark={isDark}
+          colors={colors}
+          position="bottom"
+        />
+      )}
+      {onboardingGuide.shouldShowStep("add_friend") && (
+        <OnboardingGuideOverlay
+          step="add_friend"
+          onDismiss={() => onboardingGuide.completeStep("add_friend")}
+          themeColor={themeColor}
+          isDark={isDark}
+          colors={colors}
+          position="top"
+        />
+      )}
 
       <BottomNavigation />
     </SafeAreaView>

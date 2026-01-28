@@ -52,6 +52,8 @@ import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/enti
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
+import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
+import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import {
   MAX_ACTIVE_EVENTS_FREE,
   getActiveEventCount,
@@ -286,6 +288,7 @@ export default function CreateEventScreen() {
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const onboardingGuide = useOnboardingGuide();
   const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam } = useLocalSearchParams<{
     date?: string;
     template?: string;
@@ -530,6 +533,10 @@ export default function CreateEventScreen() {
       trackEventCreated();
       // Mark guidance complete - user has created their first invite
       markGuidanceComplete("create_invite");
+      // Complete "create_event" onboarding step
+      if (onboardingGuide.shouldShowStep("create_event")) {
+        onboardingGuide.completeStep("create_event");
+      }
       // Invalidate all event-related queries to refresh calendar and feed
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
@@ -1346,6 +1353,18 @@ export default function CreateEventScreen() {
         title="You're organizing a lot"
         description="Premium removes limits and adds smart reminders."
       />
+
+      {/* Onboarding Guide Overlay */}
+      {onboardingGuide.shouldShowStep("create_event") && (
+        <OnboardingGuideOverlay
+          step="create_event"
+          onDismiss={() => onboardingGuide.dismissGuide()}
+          themeColor={themeColor}
+          isDark={isDark}
+          colors={colors}
+          position="bottom"
+        />
+      )}
     </SafeAreaView>
   );
 }

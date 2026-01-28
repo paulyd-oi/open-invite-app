@@ -7,6 +7,10 @@ import { requestCalendarPermission } from "./permissions";
 const SYNC_MAPPING_PREFIX = "calendarSync:event:";
 const SYNC_CALENDAR_KEY = "calendarSync:calendarId";
 
+// Marker for Open Invite synced events (prevents re-import loopback)
+const OPEN_INVITE_MARKER_PREFIX = "OID:";
+export const OPEN_INVITE_SYNC_MARKER = "— Synced from Open Invite";
+
 export interface CalendarPermissionResult {
   granted: boolean;
   status: string;
@@ -362,9 +366,10 @@ export async function syncEventToDeviceCalendar(event: SyncEventInput): Promise<
       : new Date(startDate.getTime() + 60 * 60 * 1000); // Default 1 hour
 
     const eventTitle = event.emoji ? `${event.emoji} ${event.title}` : event.title;
+    // Include OID marker to prevent re-import (dedupe)
     const eventNotes = event.description
-      ? `${event.description}\n\n— Synced from Open Invite`
-      : "— Synced from Open Invite";
+      ? `${event.description}\n\n${OPEN_INVITE_SYNC_MARKER} (${OPEN_INVITE_MARKER_PREFIX}${event.id})`
+      : `${OPEN_INVITE_SYNC_MARKER} (${OPEN_INVITE_MARKER_PREFIX}${event.id})`;
 
     const eventDetails: Omit<Partial<Calendar.Event>, 'id' | 'organizer'> = {
       title: eventTitle,
@@ -418,4 +423,24 @@ export async function syncEventToDeviceCalendar(event: SyncEventInput): Promise<
       error: error?.message ?? "Failed to sync event",
     };
   }
+}
+
+/**
+ * Check if a device calendar event was originally synced from Open Invite.
+ * Returns the Open Invite event ID if found, null otherwise.
+ */
+export function extractOpenInviteEventId(notes: string | undefined | null): string | null {
+  if (!notes) return null;
+  
+  // Look for OID: marker in notes
+  const match = notes.match(/OID:([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Check if a device calendar event should be skipped during import
+ * (i.e., it was originally exported from Open Invite)
+ */
+export function isOpenInviteExportedEvent(notes: string | undefined | null): boolean {
+  return extractOpenInviteEventId(notes) !== null;
 }

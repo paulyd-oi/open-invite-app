@@ -58,6 +58,7 @@ import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
+import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -646,6 +647,7 @@ export default function OnboardingScreen() {
   const queryClient = useQueryClient();
   const { status: bootStatus } = useBootAuthority();
   const { data: session } = useSession();
+  const onboardingGuide = useOnboardingGuide();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pendingCalendarRoute, setPendingCalendarRoute] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -936,6 +938,8 @@ export default function OnboardingScreen() {
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
     }
+    // Start the interactive onboarding guide for new users
+    onboardingGuide.startGuide();
     // Request bootstrap refresh and wait for it to complete before routing
     requestBootstrapRefreshOnce();
     setPendingCalendarRoute(true);

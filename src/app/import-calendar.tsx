@@ -38,6 +38,7 @@ import {
   requestCalendarPermissions,
   checkCalendarPermission,
   openAppSettings,
+  isOpenInviteExportedEvent,
   type DeviceCalendar,
   type CalendarEvent,
   type CalendarPermissionResult,
@@ -359,12 +360,17 @@ export default function ImportCalendarScreen() {
         endDate
       );
 
-      // Sort by start date
-      calendarEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+      // Filter out events that were exported from Open Invite (prevent loopback duplicates)
+      const filteredEvents = calendarEvents.filter(
+        (event) => !isOpenInviteExportedEvent(event.notes)
+      );
 
-      setEvents(calendarEvents);
+      // Sort by start date
+      filteredEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+      setEvents(filteredEvents);
       // Pre-select all events by default
-      setSelectedEvents(new Set(calendarEvents.map((e) => e.id)));
+      setSelectedEvents(new Set(filteredEvents.map((e) => e.id)));
       setShowEvents(true);
       setSyncResult(null);
     } catch (error) {

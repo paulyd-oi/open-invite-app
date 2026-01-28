@@ -38,6 +38,7 @@ const serializeEvent = (event: {
   isRecurring: boolean;
   recurrence: string | null;
   visibility: string;
+  isBusy?: boolean; // Busy/work toggle
   userId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -148,10 +149,12 @@ eventsRouter.get("/feed", async (c) => {
   // 1. visibility = "all_friends" OR
   // 2. visibility = "specific_groups" AND the user is in one of those groups
   // Note: We include ALL events (past and future) so they show on the calendar
+  // Filter out busy/work events from the social feed
 
   const events = await db.event.findMany({
     where: {
       userId: { in: friendIds },
+      isBusy: { not: true }, // Exclude busy/work events from social feed
       OR: [
         { visibility: "all_friends" },
         {
@@ -3263,5 +3266,49 @@ eventsRouter.put("/:id/visibility", async (c) => {
   return c.json({
     success: true,
     event: serializeEvent(updatedEvent!),
+  });
+});
+
+// PUT /api/events/:id/busy - Toggle busy/work status
+eventsRouter.put("/:id/busy", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const eventId = c.req.param("id");
+  const body = await c.req.json();
+  const { isBusy } = body;
+
+  if (typeof isBusy !== "boolean") {
+    return c.json({ error: "isBusy must be a boolean" }, 400);
+  }
+
+  // Check event exists and user owns it
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    select: { userId: true },
+  });
+
+  if (!event) {
+    return c.json({ error: "Event not found" }, 404);
+  }
+
+  if (event.userId !== user.id) {
+    return c.json({ error: "Not authorized" }, 403);
+  }
+
+  // Update busy status
+  const updatedEvent = await db.event.update({
+    where: { id: eventId },
+    data: { isBusy },
+    include: {
+      user: { select: { id: true, name: true, email: true, image: true } },
+    },
+  });
+
+  return c.json({
+    success: true,
+    event: serializeEvent(updatedEvent),
   });
 });

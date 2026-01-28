@@ -258,6 +258,7 @@ model event {
   visibility             String                   @default("all_friends")
   category               String?
   rsvpDeadline           DateTime?
+  isBusy                 Boolean                  @default(false) // Mark as busy/work time - hidden from social feed
   userId                 String
   createdAt              DateTime                 @default(now())
   updatedAt DateTime @default(now()) @updatedAt

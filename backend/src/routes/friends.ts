@@ -143,6 +143,48 @@ friendsRouter.get("/requests", async (c) => {
     }),
   ]);
 
+  // Compute mutual friends for each received request
+  const myFriendships = await db.friendship.findMany({
+    where: { userId: user.id },
+    select: { friendId: true },
+  });
+  const myFriendIds = new Set(myFriendships.map((f) => f.friendId));
+
+  // Get friendship data for all senders to compute mutual friends
+  const senderIds = received.map((r) => r.senderId);
+  const senderFriendships = await db.friendship.findMany({
+    where: { userId: { in: senderIds } },
+    select: { userId: true, friendId: true },
+  });
+
+  // Group by sender
+  const senderFriendMap = new Map<string, Set<string>>();
+  for (const sf of senderFriendships) {
+    if (!senderFriendMap.has(sf.userId)) {
+      senderFriendMap.set(sf.userId, new Set());
+    }
+    senderFriendMap.get(sf.userId)!.add(sf.friendId);
+  }
+
+  // Compute mutual counts
+  const mutualCountMap = new Map<string, number>();
+  const mutualPreviewMap = new Map<string, { id: string; name: string | null; image: string | null }[]>();
+
+  for (const senderId of senderIds) {
+    const senderFriends = senderFriendMap.get(senderId) || new Set();
+    const mutualIds = [...myFriendIds].filter((id) => senderFriends.has(id));
+    mutualCountMap.set(senderId, mutualIds.length);
+
+    // Fetch up to 3 preview users for display
+    if (mutualIds.length > 0) {
+      const previewUsers = await db.user.findMany({
+        where: { id: { in: mutualIds.slice(0, 3) } },
+        select: { id: true, name: true, image: true },
+      });
+      mutualPreviewMap.set(senderId, previewUsers);
+    }
+  }
+
   return c.json({
     received: received.map((r) => {
       const { user_friend_request_senderIdTouser, ...rest } = r;
@@ -150,6 +192,8 @@ friendsRouter.get("/requests", async (c) => {
         ...rest,
         createdAt: r.createdAt.toISOString(),
         sender: user_friend_request_senderIdTouser ?? null,
+        mutualCount: mutualCountMap.get(r.senderId) ?? 0,
+        mutualPreviewUsers: mutualPreviewMap.get(r.senderId) ?? [],
       };
     }),
     sent: sent.map((s) => {

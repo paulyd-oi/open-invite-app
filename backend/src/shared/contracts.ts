@@ -56,6 +56,7 @@ export const eventSchema = z.object({
   visibility: z.string(),
   category: z.string().nullable().optional(), // Event category
   rsvpDeadline: z.string().nullable().optional(), // ISO date string for RSVP deadline
+  isBusy: z.boolean().optional(), // Mark as busy/work time - hidden from social feed, shown greyed
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -272,6 +273,13 @@ export const friendRequestSchema = z.object({
   createdAt: z.string(),
   sender: friendUserSchema.optional(),
   receiver: friendUserSchema.optional(),
+  // Mutual friends data (for received requests)
+  mutualCount: z.number().optional(),
+  mutualPreviewUsers: z.array(z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    image: z.string().nullable(),
+  })).optional(),
 });
 export type FriendRequest = z.infer<typeof friendRequestSchema>;
 

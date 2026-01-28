@@ -239,6 +239,9 @@ model Event {
   // RSVP deadline - after this time, users cannot request to join
   rsvpDeadline DateTime?
 
+  // Busy/work toggle - hidden from social feed, shown greyed on calendar
+  isBusy      Boolean  @default(false)
+
   // Creator
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
