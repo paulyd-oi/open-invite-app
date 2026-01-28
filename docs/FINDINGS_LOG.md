@@ -435,3 +435,26 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Added final fallback: any notification with userId but no other route goes to /user/:userId
 - Added structured warn log for notifications with no valid navigation target
 - File: src/app/activity.tsx
+
+---
+
+### Date: 2025-01-28
+### Finding: Bug Class - Global onboarding flags break multi-account behavior
+### Proof:
+- Global guidance keys (not user-scoped) persist across account switches
+- Time-based heuristics (e.g., "30 min since first open") reset on reinstall
+- Senior accounts who reinstall see new-user onboarding inappropriately
+- Multi-account users: dismissing guidance on one account affects all accounts
+### Impact: Trust erosion for senior users, confusion from seeing onboarding twice
+### Pattern to Avoid:
+- ❌ `openinvite.firstOpenAt` (global timestamp, resets on reinstall)
+- ❌ `GUIDANCE_SEEN_KEY` (no userId scoping)
+- ❌ Time-since-install checks: `elapsed < THIRTY_MINUTES_MS`
+### Correct Pattern:
+- ✅ Per-user-id keys: `openinvite.guidance.dismissed.<userId>`
+- ✅ Per-user completion: `openinvite.guidance.completed.<userId>.<actionKey>`
+- ✅ Auto-dismiss for senior users: check friends/events count, call dismissAllGuidance()
+- ✅ Set current user: `setGuidanceUserId(session?.user?.id)`
+### References:
+- src/lib/firstSessionGuidance.ts - Per-user-id implementation
+- docs/INVARIANTS.md - Guidance & Onboarding section

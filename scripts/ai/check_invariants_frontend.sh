@@ -58,6 +58,25 @@ else
   echo "  ✓ No uppercase Cookie headers found"
 fi
 
+# Invariant 4: No global guidance keys without userId scoping
+echo "Checking: Guidance keys are user-scoped..."
+
+# Pattern: Look for FIRST_OPEN_KEY or GUIDANCE_PREFIX without userId context
+# This is a lightweight check - we look for the old pattern names
+GLOBAL_GUIDANCE=$(grep -rn --include="*.ts" --include="*.tsx" -E 'FIRST_OPEN_KEY|THIRTY_MINUTES_MS.*guidance|guidance.*THIRTY_MINUTES' src/ 2>/dev/null || true)
+
+if [ -n "$GLOBAL_GUIDANCE" ]; then
+  echo "FAIL: Found time-based or global guidance patterns in src/"
+  echo "  Guidance must use per-user-id keys (see docs/INVARIANTS.md)"
+  echo ""
+  echo "$GLOBAL_GUIDANCE" | while read -r line; do
+    echo "  $line"
+  done
+  FAIL=1
+else
+  echo "  ✓ No global guidance patterns found"
+fi
+
 # Summary
 echo ""
 if [ $FAIL -eq 0 ]; then
