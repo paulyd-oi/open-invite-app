@@ -34,6 +34,7 @@ import {
   ImagePlus,
   Trash2,
   Share2,
+  AlertTriangle,
   Heart,
   Bell,
   Copy,
@@ -63,6 +64,7 @@ import {
   type GetEventCommentsResponse,
   type EventComment,
   type CreateCommentResponse,
+  type EventReportReason,
 } from "@/shared/contracts";
 import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
@@ -268,6 +270,12 @@ export default function EventDetailScreen() {
   const [isCheckingSync, setIsCheckingSync] = useState(true);
   const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
   const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
+
+  // Event Report Modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<EventReportReason | null>(null);
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -707,6 +715,32 @@ export default function EventDetailScreen() {
 
   // REMOVED: handleNotificationNudgeClose - now handled by pre-prompt modal
 
+  // Event Report handlers
+  const handleReportEvent = () => {
+    Haptics.selectionAsync();
+    setShowReportModal(true);
+  };
+
+  const submitEventReport = async () => {
+    if (!selectedReportReason || !event?.id) return;
+    setIsSubmittingReport(true);
+    try {
+      await api.post("/api/reports/event", {
+        eventId: event.id,
+        reason: selectedReportReason,
+        details: selectedReportReason === "other" ? reportDetails.trim() || undefined : undefined,
+      });
+      safeToast.success("Report submitted", "Thanks - we received your report.");
+      setShowReportModal(false);
+      setSelectedReportReason(null);
+      setReportDetails("");
+    } catch (error) {
+      safeToast.error("Error", "Could not submit report. Please try again.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
   // Format relative time
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -807,6 +841,15 @@ export default function EventDetailScreen() {
               >
                 <MessageCircle size={20} color={themeColor} />
               </Pressable>
+              {/* Report Button (only for non-owners) */}
+              {!isMyEvent && (
+                <Pressable
+                  onPress={handleReportEvent}
+                  className="p-2"
+                >
+                  <AlertTriangle size={20} color={colors.textSecondary} />
+                </Pressable>
+              )}
               {/* Edit Button (only for owner) */}
               {isMyEvent && (
                 <Pressable
@@ -1975,6 +2018,120 @@ export default function EventDetailScreen() {
         visible={showNotificationPrePrompt}
         onClose={() => setShowNotificationPrePrompt(false)}
       />
+
+      {/* Report Event Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <Pressable 
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowReportModal(false)}
+        >
+          <Pressable 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.background }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-xl font-bold mb-2" style={{ color: colors.text }}>
+              Report Event
+            </Text>
+            <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
+              Select a reason for your report
+            </Text>
+            
+            {(["spam", "inappropriate", "safety", "other"] as const).map((reason) => {
+              const labels: Record<typeof reason, string> = {
+                spam: "Spam",
+                inappropriate: "Inappropriate Content",
+                safety: "Safety Concern",
+                other: "Other",
+              };
+              const isSelected = selectedReportReason === reason;
+              return (
+                <Pressable
+                  key={reason}
+                  className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                  style={{ 
+                    backgroundColor: isSelected ? themeColor + "20" : colors.surface,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? themeColor : colors.border,
+                  }}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSelectedReportReason(reason);
+                  }}
+                >
+                  <View 
+                    className="w-5 h-5 rounded-full border-2 mr-3 items-center justify-center"
+                    style={{ borderColor: isSelected ? themeColor : colors.border }}
+                  >
+                    {isSelected && (
+                      <View 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: themeColor }}
+                      />
+                    )}
+                  </View>
+                  <Text style={{ color: colors.text }}>{labels[reason]}</Text>
+                </Pressable>
+              );
+            })}
+            
+            {selectedReportReason === "other" && (
+              <TextInput
+                className="rounded-xl p-4 mt-2"
+                style={{ 
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  minHeight: 80,
+                  textAlignVertical: "top",
+                }}
+                placeholder="Please describe the issue..."
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                value={reportDetails}
+                onChangeText={setReportDetails}
+              />
+            )}
+            
+            <View className="flex-row mt-4 gap-3">
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ backgroundColor: colors.surface }}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setSelectedReportReason(null);
+                  setReportDetails("");
+                }}
+              >
+                <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ 
+                  backgroundColor: selectedReportReason ? themeColor : colors.surface,
+                  opacity: selectedReportReason ? 1 : 0.5,
+                }}
+                onPress={submitEventReport}
+                disabled={!selectedReportReason || isSubmittingReport}
+              >
+                <Text className="text-base font-medium" style={{ color: selectedReportReason ? "#FFFFFF" : colors.textSecondary }}>
+                  {isSubmittingReport ? "Submitting..." : "Submit Report"}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

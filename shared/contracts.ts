@@ -1934,3 +1934,29 @@ export const updateEventHostsResponseSchema = z.object({
   event: eventSchema,
 });
 export type UpdateEventHostsResponse = z.infer<typeof updateEventHostsResponseSchema>;
+
+// ============================================
+// Event Reports (Trust & Safety)
+// ============================================
+
+// Reason enum values for reporting events
+export const eventReportReasonEnum = z.enum([
+  "spam",
+  "inappropriate",
+  "safety",
+  "other",
+]);
+export type EventReportReason = z.infer<typeof eventReportReasonEnum>;
+
+// POST /api/reports/event - Report an event
+export const reportEventRequestSchema = z.object({
+  eventId: z.string(),
+  reason: eventReportReasonEnum,
+  details: z.string().max(500).optional(),
+});
+export type ReportEventRequest = z.infer<typeof reportEventRequestSchema>;
+
+export const reportEventResponseSchema = z.object({
+  success: z.literal(true),
+});
+export type ReportEventResponse = z.infer<typeof reportEventResponseSchema>;
