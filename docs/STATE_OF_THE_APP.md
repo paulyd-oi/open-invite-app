@@ -41,9 +41,18 @@
 - Discover tab reconnect: Routes to /user/:id (not /profile/:id which doesn't exist)
 - Activity feed deep links: Tapping notification routes to event or user profile based on data.eventId/userId
 - Activity feed avatars: Parses actorAvatarUrl from notification data with multiple fallback fields
+- Activity feed avatar fallback: Always shows valid content (avatarUrl > initials > icon), never blank circle
+- Activity tap routing: Strict priority (eventId > userId > do nothing), no error toasts on invalid targets
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (E.1 Activity Feed Hardening)
+- Activity avatar display: Expanded URL fallback chain (actorAvatarUrl|actorImage|senderAvatarUrl|userAvatarUrl|avatarUrl|image)
+- Activity avatar initials: Falls back to displayName from actorName or notification.title first word
+- Activity avatar guarantee: Always shows valid content - never blank circle (avatar > initials > icon)
+- Activity tap routing: Simplified to strict priority (eventId > userId > do nothing with DEV warn)
+- Activity error handling: No user-facing error toasts on invalid routes, DEV-only console warnings
 
 ## Fixed This Session (P1 Guides + Suggestions + Activity)
 - Guidance system: Replaced time-based heuristic with per-user-id completion tracking. Senior users (with friends OR events) auto-dismissed on load.

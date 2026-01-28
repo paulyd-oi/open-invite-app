@@ -55,18 +55,21 @@ function parseNotificationData(notification: Notification): {
   actorAvatarUrl?: string;
   eventTitle?: string;
   eventId?: string;
+  userId?: string;
   commentId?: string;
 } {
   try {
     if (!notification.data) return {};
     const data = JSON.parse(notification.data);
     return {
-      // Support both old and new key names for actor info
-      actorName: data.actorName || data.senderName || data.userName,
-      actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl,
+      // Support multiple key names for actor info (Cloudinary compatible URLs)
+      actorName: data.actorName || data.senderName || data.userName || data.name,
+      actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl || data.avatarUrl || data.image,
       // Event info
       eventTitle: data.eventTitle || data.title,
       eventId: data.eventId,
+      // User info for deep linking
+      userId: data.userId || data.senderId || data.actorId,
       // Comment-specific
       commentId: data.commentId,
     };
@@ -142,8 +145,11 @@ function NotificationCard({
   const { actorName, actorAvatarUrl } = parsed;
   const copy = buildNotificationCopy(notification, parsed);
 
-  // Use actor avatar if available, otherwise fall back to type icon
-  const hasAvatar = !!actorAvatarUrl;
+  // Avatar display priority: avatarUrl > initials from name > icon fallback
+  // Derive display name: actorName > notification title (extract first word/name)
+  const displayName = actorName || (notification.title ? notification.title.split(' ')[0] : undefined);
+  const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith('http');
+  const hasInitials = !!displayName && displayName.length > 0;
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).springify()}>
@@ -159,7 +165,7 @@ function NotificationCard({
           borderColor: notification.read ? "transparent" : themeColor + "20",
         }}
       >
-        {/* Avatar or Icon */}
+        {/* Avatar or Icon - always shows something (never blank) */}
         <View style={{ position: "relative" }}>
           {hasAvatar ? (
             <Image
@@ -171,7 +177,7 @@ function NotificationCard({
                 backgroundColor: colors.surface,
               }}
             />
-          ) : actorName ? (
+          ) : hasInitials ? (
             <View
               style={{
                 width: 44,
@@ -183,7 +189,7 @@ function NotificationCard({
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: "600", color: config.color }}>
-                {getInitials(actorName)}
+                {getInitials(displayName)}
               </Text>
             </View>
           ) : (
@@ -360,56 +366,42 @@ export default function ActivityScreen() {
     try {
       data = notification.data ? JSON.parse(notification.data) : {};
     } catch {
-      // If data parsing fails, just stay on screen
-      return;
-    }
-
-    // Handle event_comment: navigate to event if eventId exists
-    if (notification.type === "event_comment") {
-      if (data.eventId && typeof data.eventId === "string") {
-        router.push(`/event/${data.eventId}` as any);
+      // If data parsing fails, stay on screen (no error toast)
+      if (__DEV__) {
+        console.warn('[Activity] Failed to parse notification data:', notification.id);
       }
       return;
     }
 
-    // Handle other notification types with eventId
-    if (data.eventId && typeof data.eventId === "string") {
-      router.push(`/event/${data.eventId}` as any);
+    // STRICT PRIORITY ROUTING (E.1 spec):
+    // Priority 1: eventId exists → /event/:eventId
+    // Priority 2: userId exists → /user/:userId  
+    // Priority 3: do nothing (DEV warn only, no error toast)
+
+    // Priority 1: Event deep link
+    const eventId = data.eventId;
+    if (eventId && typeof eventId === "string") {
+      router.push(`/event/${eventId}` as any);
       return;
     }
 
-    // Friend-related notifications - navigate to specific user if userId present
-    if (notification.type === "friend_request" || notification.type === "friend_accepted") {
-      // Try to navigate to the specific user's profile
-      const userId = data.userId || data.senderId || data.actorId;
-      if (userId && typeof userId === "string") {
-        router.push(`/user/${userId}` as any);
-        return;
-      }
-      // Fallback to friends list
-      router.push("/friends" as any);
+    // Priority 2: User profile deep link
+    const userId = data.userId || data.senderId || data.actorId;
+    if (userId && typeof userId === "string") {
+      router.push(`/user/${userId}` as any);
       return;
     }
 
-    // Achievement notifications
-    if (data.achievementId) {
-      router.push("/achievements" as any);
-      return;
+    // Priority 3: No valid target - DEV warn only (no toast)
+    if (__DEV__) {
+      console.warn('[Activity] Notification has no valid navigation target:', {
+        id: notification.id,
+        type: notification.type,
+        hasEventId: !!eventId,
+        hasUserId: !!userId,
+      });
     }
-
-    // Fallback: if userId present but no other route matched, navigate to user profile
-    const actorUserId = data.userId || data.actorId || data.senderId;
-    if (actorUserId && typeof actorUserId === "string") {
-      router.push(`/user/${actorUserId}` as any);
-      return;
-    }
-
-    // No navigation possible - log and stay on screen
-    console.warn('[Activity] Notification has no valid navigation target:', {
-      type: notification.type,
-      hasEventId: !!data.eventId,
-      hasUserId: !!actorUserId,
-    });
+    // Stay on screen - no error toast per E.1 spec
   };
 
   // Show login prompt if not authenticated

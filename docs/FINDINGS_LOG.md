@@ -71,6 +71,16 @@
 - **Visual encoding**: GREEN border (#22C55E) = free, RED border (#EF4444) = busy, no border = unknown
 - **Edge case**: Event with missing endTime treated as point event (1 minute duration)
 
+## Activity Feed Avatar + Routing Contract (Canonical)
+
+- **Avatar fallback chain**: `actorAvatarUrl || actorImage || senderAvatarUrl || userAvatarUrl || avatarUrl || image`
+- **Initials fallback**: If no valid URL, derive displayName from `actorName || notification.title.split(' ')[0]`
+- **Never blank**: Avatar shows either remote image, initials, or type icon — never empty circle
+- **URL validation**: Check `avatarUrl.startsWith('http')` to ensure valid remote URL (Cloudinary compatible)
+- **Tap routing priority**: Strict order: (1) eventId → /event/:id, (2) userId → /user/:id, (3) do nothing
+- **No error toasts**: Invalid navigation targets log DEV warning only, no user-facing errors
+- **userId extraction**: Check `data.userId || data.senderId || data.actorId` for user deep link
+
 ## Swipe Actions Contract (Canonical)
 
 - **Threshold**: 60px horizontal swipe required to reveal action buttons
