@@ -44,9 +44,16 @@
 - Activity feed avatar fallback: Always shows valid content (avatarUrl > initials > icon), never blank circle
 - Activity tap routing: Strict priority (eventId > userId > do nothing), no error toasts on invalid targets
 - Work schedule block2 auto-expand: Days with saved block2 times auto-expand UI on load, user changes preserved after initial sync
+- Calendar import help screen: Truthful sections (one-time import, not live sync, privacy), Import Calendar + Back buttons
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (E.3 Calendar Import Help Screen)
+- Rewrote /calendar-import-help with truthful sections: One-time Import, Not Live Sync Yet, Privacy
+- Added bottom buttons: "Import Calendar" (returns to import flow), "Back"
+- Privacy section clarifies: friends see title/time/location based on visibility; notes/attendees stay private
+- Mom-safe language: No technical jargon, clear expectations
 
 ## Fixed This Session (E.2 Work Schedule Block2 Persistence)
 - Block2 auto-expand: Days with saved block2StartTime + block2EndTime auto-expand UI on data load
