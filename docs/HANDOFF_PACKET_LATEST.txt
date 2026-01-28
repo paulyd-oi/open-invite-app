@@ -1,104 +1,90 @@
-RUTHLESS SIMPLICITY PHASE 1 - HANDOFF PACKET
+PHASE E.1 - ACTIVITY FEED AVATAR + DEEP LINK HARDENING
 ======================================================
 
 SUMMARY
 -------
-UI subtraction to reduce cognitive load and improve UX clarity.
+Fixed Activity list to always show valid avatars and implemented strict tap routing priority per E.1 spec.
 
 Changes:
-1. Social feed: Removed "Weekly" pill from recurring event cards
-2. RSVP states: Removed "Maybe" option, mapping to "Interested" if backend returns it
-3. Circle Create Event: Simplified by removing Event Mode, Frequency, Send Notification toggles
-4. Bottom nav: Reordered to Discover | Calendar | Social (CENTER) | Friends | Profile
-5. Default landing: Social feed on authenticated boot instead of Calendar
-6. CTA copy: "Create Open Invite" → "Create Invite"
+1. Avatar fallback chain expanded (6 URL fields + initials fallback)
+2. Initials derived from actorName OR notification title
+3. URL validation with http prefix check
+4. Strict tap routing: eventId > userId > do nothing (no error toasts)
+5. DEV-only warnings for invalid navigation targets
 
 STATUS: COMPLETE
-VERIFICATION: PENDING
+VERIFICATION: PASS
 
 FILES CHANGED
 -------------
-1. src/app/social.tsx
-   - Removed "Weekly" pill from EventCard, kept "You" badge
-  
-2. src/app/event/[id].tsx
-   - Removed "Maybe" RSVP button from selector
-   - Updated status display to map maybe→interested
+1. src/app/activity.tsx (+57 lines, -46 lines)
+   - parseNotificationData(): Added userId field, expanded avatar URL fallback
+   - NotificationCard: Avatar priority: avatarUrl > initials > icon
+   - handleNotificationPress(): Strict priority routing, no type-specific branches
 
-3. src/components/EventReactions.tsx
-   - Removed "maybe" from ReactionType and REACTIONS array
+2. docs/STATE_OF_THE_APP.md
+   - Added E.1 fixes under "Fixed This Session"
 
-4. src/app/create.tsx
-   - Wrapped Frequency section with {!isCircleEvent && (...)}
-   - Wrapped Send Notification section with {!isCircleEvent && (...)}
-   - Simplified circle event visibility UI (removed Event Mode selector)
-   - Changed CTA button text from "Create Open Invite" to "Create Invite"
-
-5. src/constants/navigation.ts
-   - Reordered tabs: discover, calendar, social (isCenter: true), friends, profile
-   - Updated doc comments and assertion logic
-
-6. src/app/index.tsx
-   - Changed redirect from /calendar to /social
-
-7. src/app/_layout.tsx
-   - Updated BootRouter authed redirect to /social
-
-8. docs/STATE_OF_THE_APP.md
-   - Updated with Phase 1 changes under "Fixed This Session"
-   - Added new stable items
-
-9. docs/FINDINGS_LOG.md
-   - Added Phase 1 rationale entry
+3. docs/FINDINGS_LOG.md
+   - Added "Activity Feed Avatar + Routing Contract (Canonical)" pattern
 
 KEY DIFFS
 ---------
-# social.tsx EventCard - removed Weekly pill
--              {isSeries && (...Weekly pill...)}
--              {isOwn && !isSeries && (...You badge...)}
-+              {isOwn && (...You badge...)}
+# Avatar URL Fallback Chain (Expanded)
+- actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl
++ actorAvatarUrl: data.actorAvatarUrl || data.actorImage || data.senderAvatarUrl || data.userAvatarUrl || data.avatarUrl || data.image
 
-# event/[id].tsx - removed Maybe button, map to Interested
--  {(myRsvpStatus === "interested" || myRsvpStatus === "maybe") && ...}
+# Avatar Display Priority (Never Blank)
+- const hasAvatar = !!actorAvatarUrl;
++ const displayName = actorName || (notification.title ? notification.title.split(' ')[0] : undefined);
++ const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith('http');
++ const hasInitials = !!displayName && displayName.length > 0;
 
-# create.tsx - conditional rendering for circle events
-+  {!isCircleEvent && (<Frequency section/>)}
-+  {!isCircleEvent && (<Send Notification section/>)}
+# Tap Routing (Strict Priority)
+- if (notification.type === "event_comment") { ... }
+- if (notification.type === "friend_request") { router.push("/friends"); }
++ const eventId = data.eventId;
++ if (eventId && typeof eventId === "string") { router.push(`/event/${eventId}`); return; }
++ const userId = data.userId || data.senderId || data.actorId;
++ if (userId && typeof userId === "string") { router.push(`/user/${userId}`); return; }
++ if (__DEV__) { console.warn('[Activity] Notification has no valid navigation target:', {...}); }
 
-# navigation.ts - reordered tabs with Social centered
--  { key: "social", ... isCenter: false },
--  { key: "home", ... isCenter: true },
-+  { key: "calendar", ... isCenter: false },
-+  { key: "social", ... isCenter: true },
+# parseNotificationData (Added userId)
++ userId: data.userId || data.senderId || data.actorId,
 
 TEST PLAN
 ---------
-1. Cold launch → should land on /social (not /calendar)
-2. Bottom nav order: Discover | Calendar | Social(elevated) | Friends | Profile
-3. Social feed event cards: No "Weekly" pill, "You" badge still shows for own events
-4. Event detail RSVP: Options are Going | Interested | Can't Make It (no Maybe)
-5. Create event from Circle: Only shows Title, Date/Time, Location, Create Invite button
-   - No Event Mode toggle
-   - No Frequency picker
-   - No Send Notification toggle
-6. Create event (non-circle): Full UI with Frequency and Notification toggles
-7. CTA button reads "Create Invite" (not "Create Open Invite")
-8. If backend returns "maybe" RSVP status, display shows "Interested"
+1. Avatar with Remote URL: Shows 44x44 circle image
+2. Avatar with Initials Fallback: Shows initials (e.g., "JS" for "John Smith")
+3. Avatar from Title Fallback: Extracts first word (e.g., "S" from "Sarah sent...")
+4. Avatar Icon Fallback: Shows type-specific icon when no data
+5. Event Notification Tap: Navigates to /event/:eventId
+6. Friend Notification Tap: Navigates to /user/:userId (if no eventId)
+7. Invalid Notification Tap: Stays on screen, DEV console.warn only
 
-KNOWN LIMITATIONS
------------------
-1. Backend may still store "maybe" status - mapped to "interested" display only
-2. Circle events always send notifications implicitly (removed toggle)
+WHAT WAS REMOVED
+----------------
+1. Friends list fallback for friend_request type (now requires userId)
+2. Achievement route handling (follows strict priority)
+3. Type-specific routing branches (unified to priority system)
+4. User-facing error toasts on invalid taps
+
+EDGE CASES HANDLED
+------------------
+1. Empty notification data: Falls to icon display, stays on screen on tap
+2. Invalid JSON parse: Falls to icon display, stays on screen (DEV warn)
+3. Non-HTTP URLs: Treated as invalid, falls to initials
+4. Missing displayName: Falls to icon (never blank)
 
 COMMIT HASH
 -----------
-9c61231
+d77fb89
 
 PUSHED
 ------
 YES (main branch)
 
 Agent: GitHub Copilot (Claude Opus 4.5)
-Verification: PASS (./scripts/ai/verify_frontend.sh)
+Verification: PASS (./scripts/ai/verify_frontend.sh + npm run typecheck)
 No breaking changes. Minimal diff achieved.
 
