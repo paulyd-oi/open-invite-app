@@ -770,8 +770,11 @@ export default function OnboardingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const data = await api.get<{ referralCode: string; shareLink: string }>("/api/referral/code");
-      const message = `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${data.referralCode}\n\nDownload: ${data.shareLink}`;
+      const data = await api.get<{ referralCode: string | null; shareLink: string }>("/api/referral/code");
+      // Handle null referralCode (user hasn't completed profile)
+      const message = data.referralCode
+        ? `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${data.referralCode}\n\nDownload: ${data.shareLink}`
+        : `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${data.shareLink}`;
       await Share.share({ message, title: "Join Open Invite!" });
     } catch (error) {
       console.error("Share error:", error);

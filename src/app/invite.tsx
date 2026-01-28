@@ -33,7 +33,7 @@ import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 interface ReferralStats {
-  referralCode: string;
+  referralCode: string | null;
   shareLink: string;
   successfulReferrals: number;
   pendingReferrals: number;
@@ -66,7 +66,10 @@ export default function InviteScreen() {
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    if (!stats) return;
+    if (!stats || !stats.referralCode) {
+      safeToast.info("Complete Profile", "Finish setting up your profile to unlock your invite code.");
+      return;
+    }
 
     const message = `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${stats.referralCode}\n\nDownload: ${stats.shareLink}`;
 
@@ -77,7 +80,10 @@ export default function InviteScreen() {
   };
 
   const handleCopyCode = async () => {
-    if (!stats) return;
+    if (!stats || !stats.referralCode) {
+      safeToast.info("Complete Profile", "Finish setting up your profile to unlock your invite code.");
+      return;
+    }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await Clipboard.setStringAsync(stats.referralCode);
