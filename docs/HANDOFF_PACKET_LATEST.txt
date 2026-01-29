@@ -1,9 +1,124 @@
 ========================================
-HANDOFF PACKET — V1 Polish Micro Tweaks
+HANDOFF PACKET — Remove Build-199 Scaffolding
 ========================================
 Date: 2026-01-28
-Session: App Store polish (notification UX + admin debug visibility)
-Commit: 0856b6a
+Session: Remove diagnostic scaffolding (Backend Environment setting)
+Commit: (pending)
+
+## OBJECTIVE
+Remove temporary build-199 diagnostic scaffolding:
+- Backend Environment setting from Settings Admin section
+- BACKEND_URL property exposure from api client
+Keep production-ready features (notification resolver with calm toast)
+Keep legacy data compatibility (e.g., /uploads image paths)
+
+## FILES CHANGED
+src/app/settings.tsx
+  - Removed Backend Environment setting from Admin section
+  - Lines ~2023-2054: Entire __DEV__ && SettingItem block removed
+  - Admin Console entry remains (only debug setting removed)
+
+src/lib/api.ts
+  - Removed BACKEND_URL property from api client object
+  - Line ~192-194: Comment + property exposure removed
+  - BACKEND_URL still exported for module use (just not as api.BACKEND_URL)
+
+## KEY DIFFS
+
+BEFORE (settings.tsx Admin section):
+```typescript
+{adminStatus?.isAdmin && (
+  <Animated.View>
+    <SettingItem title="Admin Console" ... />
+    {__DEV__ && (
+      <SettingItem
+        title="Backend Environment"
+        subtitle={api.BACKEND_URL || "Not configured"}
+        onPress={() => {
+          Clipboard.setStringAsync(api.BACKEND_URL || "");
+          safeToast.success("Copied", "Backend URL copied to clipboard");
+        }}
+      />
+    )}
+  </Animated.View>
+)}
+```
+
+AFTER (settings.tsx Admin section):
+```typescript
+{adminStatus?.isAdmin && (
+  <Animated.View>
+    <SettingItem title="Admin Console" ... />
+  </Animated.View>
+)}
+```
+
+BEFORE (api.ts):
+```typescript
+  },
+  
+  // Expose BACKEND_URL for debugging
+  BACKEND_URL,
+};
+```
+
+AFTER (api.ts):
+```typescript
+  },
+};
+```
+
+## WHAT WAS KEPT
+✅ Notification resolver (resolveNotificationTarget)
+✅ Calm toast for invalid notification targets ("This item is no longer available")
+✅ Activity feed avatar fallback chains
+✅ Friends view mode persistence
+✅ First-time guide user-scoped dismissal
+✅ Legacy /uploads image path support
+✅ All production-ready features from previous sprints
+
+## WHAT WAS REMOVED
+❌ Backend Environment setting in Settings Admin section
+❌ api.BACKEND_URL property exposure
+❌ Copy-to-clipboard functionality for backend URL
+❌ Any reviewer-facing debug/admin UI
+
+## VERIFICATION
+✅ TypeScript: Clean (no errors)
+✅ Invariants: All checks pass
+✅ Frontend verification: scripts/ai/verify_frontend.sh PASSED
+
+## RUNTIME STATUS
+- Admin section: Only shows Admin Console entry (no Backend Environment)
+- api client: No BACKEND_URL property (still exported as module export)
+- Production UI: Zero debug/diagnostic UI visible to reviewers
+- Legacy data: All compatibility preserved (/uploads paths, etc.)
+- No breaking changes
+- No new dependencies
+
+## DEVICE TEST PLAN
+Production/TestFlight Build:
+[ ] Login as admin → Settings Admin section → only Admin Console visible
+[ ] Verify no "Backend Environment" or other debug settings appear
+[ ] Tap Admin Console → navigates to /admin screen normally
+
+All Users:
+[ ] Activity notifications: Tap invalid target → see calm "Unavailable" toast
+[ ] Legacy image paths: Profile/event images with /uploads/ prefix render correctly
+[ ] Friends view mode: Toggle persists across app restart
+[ ] All existing features work normally
+
+## NOTES
+- Removed only temporary diagnostic scaffolding added for build-199 debugging
+- Admin Console entry remains (legitimate admin feature, not debug scaffolding)
+- BACKEND_URL still exported from api.ts module (just not as api.BACKEND_URL property)
+- Legacy data compatibility intentionally preserved (no DB migration needed)
+- Notification resolver with calm toast kept (production-ready UX improvement)
+- Zero functional regressions expected
+
+========================================
+END HANDOFF PACKET
+========================================
 
 ## OBJECTIVE
 Two micro-tweaks for App Store submission:

@@ -188,9 +188,6 @@ const api = {
       throw error;
     }
   },
-  
-  // Expose BACKEND_URL for debugging
-  BACKEND_URL,
 };
 
 // Export the API client and backend URL to be used in other modules

@@ -102,16 +102,6 @@
 - **Implementation location**: `src/app/friends.tsx` (viewMode state, useEffect restoration, toggle handlers)
 - **User benefit**: View preference (list vs grid) persists across sessions and app restarts
 
-## Admin Debug Info Pattern (Canonical)
-
-- **Multi-gate visibility**: Backend Environment setting shown only when `__DEV__ && adminStatus?.isAdmin === true`
-- **Production invisible**: __DEV__ gate ensures setting never appears in TestFlight or App Store builds
-- **Display location**: Settings screen Admin section (after Admin Console entry)
-- **Copy-to-clipboard**: Tapping setting copies BACKEND_URL to clipboard with success toast
-- **API exposure**: `api.BACKEND_URL` added as property on api client object for runtime access
-- **Implementation location**: `src/app/settings.tsx` (Admin section), `src/lib/api.ts` (BACKEND_URL property)
-- **User benefit**: Admins can verify backend environment in dev (prod vs staging), hidden from App Review
-
 ## Swipe Actions Contract (Canonical)
 
 - **Threshold**: 60px horizontal swipe required to reveal action buttons

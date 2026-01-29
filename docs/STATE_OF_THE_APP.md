@@ -47,7 +47,6 @@
 - Activity notification resolver: resolveNotificationTarget() helper centralizes navigation logic, calm toast for missing entities ("This item is no longer available")
 - Friends view mode persistence: Persists list/detailed preference per userId in AsyncStorage (friends_view_mode:userId)
 - Suggestions feed graceful errors: Returns empty suggestions on fetch failure (no scary toasts)
-- Admin debug info: Backend URL displayed + copyable in Settings Admin section (__DEV__ gated, admins only, hidden in production builds)
 - Work schedule block2 auto-expand: Days with saved block2 times auto-expand UI on load, user changes preserved after initial sync
 - Calendar import help screen: Truthful sections (one-time import, not live sync, privacy), Import Calendar + Back buttons
 
