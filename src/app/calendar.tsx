@@ -2326,16 +2326,6 @@ export default function CalendarScreen() {
                       Free?
                     </Text>
                   </Pressable>
-                  {selectedDateEvents.length > 0 && (
-                    <View
-                      className="px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: `${themeColor}20` }}
-                    >
-                      <Text className="text-xs font-medium" style={{ color: themeColor }}>
-                        {selectedDateEvents.length} event{selectedDateEvents.length !== 1 ? "s" : ""}
-                      </Text>
-                    </View>
-                  )}
                 </View>
               </View>
 

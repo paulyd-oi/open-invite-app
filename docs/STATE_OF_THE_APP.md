@@ -10,7 +10,8 @@
 - Group create modal (circles): Simplified to "Circle Only" (no Open Invite option)
 - Work schedule block2: Saves default times (13:00-17:00) immediately on add
 - Emoji icon validation: Rejects non-emoji input, DEV log for rejected input
-- Home calendar: Removed "X plans in 14 days" social proof line
+- Home calendar: Removed event count pill from selected date header (calendar.tsx)
+- Social tab micro proof: "X plans in 14 days" line (plansIn14Days useMemo in social.tsx)
 - Groups page: Back button added, "+ New" button label
 - Onboarding flow with bootstrap refresh mechanism
 - Login with Better Auth (cookie session established)

@@ -2,6 +2,13 @@
 
 ## Sprint V1.1 UX Polish Patterns (2025-06)
 
+### Home Calendar Pill Removal ✓
+CHANGE: Removed event count pill from Calendar selected date header (was "{selectedDateEvents.length} event(s)")
+NOTE: Social tab "X plans in 14 days" line was mistakenly removed - restored.
+CODE PATH: 
+- src/app/calendar.tsx (Selected Date Events header, lines ~2315-2340)
+- src/app/social.tsx (plansIn14Days useMemo + Micro Social Proof Line render)
+
 ### Coachmark Permanent Dismissal Pattern
 - **Migration**: AsyncStorage → SecureStore for cross-session persistence
 - **Versioned keys**: `guide_friends_add_people_v1`, `guide_create_first_plan_v1` (version suffix allows reset)
