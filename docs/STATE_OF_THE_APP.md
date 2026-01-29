@@ -1,6 +1,7 @@
 # State of the App — Frontend
 
 ## Stable
+- Edit Event UX matches Create Event: Inline compact DateTimePicker (not modal pickers), no Private visibility option, no co-hosts section
 - Coachmark permanent dismissal: SecureStore with versioned keys (guide_friends_add_people_v1, guide_create_first_plan_v1), loadedOnce gating
 - Pin Friend persistence: Query invalidation for pinnedFriendships after pin mutation, DEV logs
 - Pin Friend styling: Always green (#10B981) swipe action (not conditional)

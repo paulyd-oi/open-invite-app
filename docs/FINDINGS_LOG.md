@@ -1,5 +1,50 @@
 # Findings Log — Frontend
 
+## Sprint Pack V2 Event Editing Consistency (2025-06)
+
+### Edit Event UX Alignment Pattern ✓
+**ROOT CAUSE**: Edit Event (src/app/event/edit/[id].tsx) had diverged from Create Event (src/app/create.tsx) UX patterns:
+1. **Time UI inconsistency**: Edit used modal-based date/time pickers (separate modals triggered by buttons showing clock/calendar icons), Create used inline compact DateTimePicker
+2. **Private visibility option**: Edit had 3 visibility options (All Friends, Groups, Private), Create only has 2 (All Friends, Groups)
+3. **Co-hosts feature**: Edit had full co-hosts section (button, modal picker, mutations, state), Create has no co-hosts support
+
+**FIX APPLIED**:
+- **Time UI**: Replaced modal pickers with inline compact DateTimePicker matching Create pattern (lines 358-443)
+  - Pattern: Single card with START row (date picker + time picker) and END row (date picker + time picker) side-by-side
+  - Removed state: showDatePicker, showTimePicker
+  - Removed modal components and handlers
+- **Private button**: Removed entire Private Pressable from visibility options (lines 420-435)
+  - TypeScript type narrowed from `"all_friends" | "specific_groups" | "private"` to `"all_friends" | "specific_groups"`
+- **Co-hosts feature**: Complete removal (Option A - preferred minimal path)
+  - Removed UI: Co-hosts section, Add Host button, host picker modal
+  - Removed state: selectedHostIds, showHostPicker, showSoftLimitModal
+  - Removed queries: friends query (GetFriendsResponse)
+  - Removed mutations: updateHostsMutation
+  - Removed functions: toggleHost, saveHosts, handleSoftLimitUpgrade, handleSoftLimitDismiss
+  - Removed components: SoftLimitModal usage
+  - Removed imports: Modal, Image, Clock, Calendar, Lock, UserPlus, X, CloudDownload
+
+**INVARIANTS ADDED**:
+- DEV decision log: [DEV_DECISION] edit_event_time_ui mode=inline_compact_matching_create
+- DEV decision log: [DEV_DECISION] edit_event_private_removed (after visibility options)
+- DEV decision log: [DEV_DECISION] edit_event_host_section mode=removed_for_consistency (after capacity section)
+
+**CODE PATHS**:
+- src/app/event/edit/[id].tsx (891 → ~554 lines)
+  - Lines 1-30: Import cleanup
+  - Lines 75-82: State variable cleanup
+  - Lines 86: Removed useSubscription hook
+  - Lines 110-125: Removed co-hosts loading from useEffect
+  - Lines 130-135: Removed friends query
+  - Lines 171-195: Removed updateHostsMutation
+  - Lines 198-223: Removed handler functions
+  - Lines 358-443: Time UI transformation
+  - Lines 420-435: Private button removal
+  - Lines 502: Co-hosts section removal point
+  - Lines 550-end: Modal components removed
+
+**VERIFICATION**: `npm run typecheck && bash scripts/ai/verify_frontend.sh` PASSED
+
 ## Sprint V1.1 UX Polish Patterns (2025-06)
 
 ### Home Calendar Pill Removal ✓
