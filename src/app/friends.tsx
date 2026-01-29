@@ -1204,6 +1204,27 @@ export default function FriendsScreen() {
   }, [groups, selectedGroupId]);
 
   if (!session) {
+    // INVARIANT: Only show login screen if bootStatus is definitively loggedOut
+    // During loading/unknown, show skeleton to prevent flash
+    if (bootStatus === 'loading' || bootStatus === 'authed' || bootStatus === 'onboarding') {
+      if (__DEV__) {
+        console.log('[FRIENDS_AUTH_GATE] Showing skeleton - bootStatus:', bootStatus, 'session:', !!session);
+      }
+      return (
+        <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+          <View className="px-5 pt-2 pb-4">
+            <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
+          </View>
+          <FriendsListSkeleton />
+          <BottomNavigation />
+        </SafeAreaView>
+      );
+    }
+    
+    // Only show login prompt when definitively logged out
+    if (__DEV__) {
+      console.log('[FRIENDS_AUTH_GATE] Showing login prompt - bootStatus:', bootStatus);
+    }
     return (
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
         <View className="flex-1 items-center justify-center px-8">

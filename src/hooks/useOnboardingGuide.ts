@@ -1,12 +1,21 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import * as SecureStore from "expo-secure-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 
-// Versioned SecureStore keys for coachmark persistence
-const GUIDE_FRIENDS_ADD_KEY = "guide_friends_add_people_v1";
-const GUIDE_CREATE_EVENT_KEY = "guide_create_first_plan_v1";
+// SecureStore key prefixes - MUST be user-scoped to prevent cross-account pollution
+const GUIDE_FRIENDS_ADD_KEY_PREFIX = "guide_friends_add_people_v2";
+const GUIDE_CREATE_EVENT_KEY_PREFIX = "guide_create_first_plan_v2";
+
+// Helper to build user-scoped keys
+function buildGuideKey(prefix: string, userId: string): string {
+  return `${prefix}:${userId}`;
+}
+
+// Module-level cache for SYNC reads to prevent flash on remount
+// Key: userId, Value: { friendsDismissed, createDismissed }
+const guideStateCache = new Map<string, { friendsDismissed: boolean; createDismissed: boolean }>();
 
 // Onboarding guide steps - action-based progression
 export type OnboardingGuideStep = 
@@ -25,64 +34,103 @@ interface OnboardingGuideState {
  * Hook to manage interactive action-based onboarding
  * Guides new users through: Friends tab → Add Friend → Create Event
  * 
- * CRITICAL: Uses SecureStore with versioned keys for permanent dismissal
- * Keys: guide_friends_add_people_v1, guide_create_first_plan_v1
+ * CRITICAL: Uses SecureStore with user-scoped versioned keys for permanent dismissal
+ * Keys: guide_friends_add_people_v2:<userId>, guide_create_first_plan_v2:<userId>
+ * 
+ * INVARIANT: loadedOnce must be true before shouldShowStep returns true (prevents flash)
  */
 export function useOnboardingGuide() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const userId = session?.user?.id;
+  const mountIdRef = useRef(Math.random().toString(36).slice(2));
+
+  // Check module cache SYNCHRONOUSLY on mount to prevent flash
+  const cachedState = userId ? guideStateCache.get(userId) : undefined;
+  const initialIsCompleted = cachedState 
+    ? (cachedState.friendsDismissed && cachedState.createDismissed)
+    : true; // Default completed to prevent flash
+  const initialLoadedOnce = !!cachedState; // If cache hit, we're already loaded
 
   const [state, setState] = useState<OnboardingGuideState>({
-    currentStep: "friends_tab",
-    isCompleted: true, // Default to completed to prevent flash
-    isLoading: true,
+    currentStep: cachedState 
+      ? (cachedState.createDismissed ? "completed" : (cachedState.friendsDismissed ? "add_friend" : "friends_tab"))
+      : "friends_tab",
+    isCompleted: initialIsCompleted,
+    isLoading: !cachedState, // Only loading if no cache
   });
   // Track if SecureStore check has completed (hard render gate)
-  const [loadedOnce, setLoadedOnce] = useState(false);
+  const [loadedOnce, setLoadedOnce] = useState(initialLoadedOnce);
   const queryClient = useQueryClient();
 
   // Load saved state on mount - ONLY after userId is known
   useEffect(() => {
     // Guard: Do not load until we have a userId and are authed
     if (!userId || bootStatus !== "authed") {
-      if (__DEV__) console.log("[DEV_DECISION] guide skip: no userId or not authed", { userId: !!userId, bootStatus });
+      if (__DEV__) console.log("[GUIDE_DECISION] skip load: no userId or not authed", { 
+        mountId: mountIdRef.current,
+        userId: userId?.substring(0, 8) || 'none', 
+        bootStatus 
+      });
       setState(prev => ({ ...prev, isLoading: false, isCompleted: true }));
+      return;
+    }
+
+    // If cache hit, we're already initialized - skip async read
+    if (guideStateCache.has(userId)) {
+      if (__DEV__) console.log("[GUIDE_DECISION] cache HIT - skip async read", { 
+        mountId: mountIdRef.current,
+        userId: userId.substring(0, 8),
+        cached: guideStateCache.get(userId)
+      });
       return;
     }
 
     const loadState = async () => {
       try {
-        // Use versioned SecureStore keys (global, not per-user - dismiss once = never show again)
+        // Use user-scoped versioned SecureStore keys
+        const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
+        const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
+        
         const [friendsDismissed, createDismissed] = await Promise.all([
-          SecureStore.getItemAsync(GUIDE_FRIENDS_ADD_KEY),
-          SecureStore.getItemAsync(GUIDE_CREATE_EVENT_KEY),
+          SecureStore.getItemAsync(friendsKey),
+          SecureStore.getItemAsync(createKey),
         ]);
+        
+        const isFriendsDismissed = friendsDismissed === "true";
+        const isCreateDismissed = createDismissed === "true";
+        
+        // Update module cache BEFORE setting state (sync read on next mount)
+        guideStateCache.set(userId, { 
+          friendsDismissed: isFriendsDismissed, 
+          createDismissed: isCreateDismissed 
+        });
         
         // Determine current step based on what's dismissed
         let currentStep: OnboardingGuideStep = "friends_tab";
         let isCompleted = false;
         
-        if (friendsDismissed === "true") {
+        if (isFriendsDismissed) {
           currentStep = "add_friend";
-          // Check if add_friend was also dismissed (implicitly via friends key)
-          if (createDismissed === "true") {
+          if (isCreateDismissed) {
             currentStep = "completed";
             isCompleted = true;
           }
         }
         
         // If both guides are dismissed, user has completed onboarding
-        if (friendsDismissed === "true" && createDismissed === "true") {
+        if (isFriendsDismissed && isCreateDismissed) {
           isCompleted = true;
           currentStep = "completed";
         }
         
-        if (__DEV__) console.log("[DEV_DECISION] guide show/hide", { 
-          key_friends: GUIDE_FRIENDS_ADD_KEY, 
-          key_create: GUIDE_CREATE_EVENT_KEY,
-          dismissed_friends: friendsDismissed === "true",
-          dismissed_create: createDismissed === "true",
+        if (__DEV__) console.log("[GUIDE_DECISION] loaded from SecureStore", { 
+          mountId: mountIdRef.current,
+          userId: userId.substring(0, 8),
+          friendsKey,
+          createKey,
+          dismissed_friends: isFriendsDismissed,
+          dismissed_create: isCreateDismissed,
           currentStep,
           isCompleted 
         });
@@ -117,14 +165,24 @@ export function useOnboardingGuide() {
     const isNowCompleted = nextStep === "completed";
 
     try {
+      // Build user-scoped keys
+      const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
+      const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
+      
       // Persist dismissal to SecureStore based on which step was completed
       if (step === "friends_tab" || step === "add_friend") {
-        await SecureStore.setItemAsync(GUIDE_FRIENDS_ADD_KEY, "true");
-        if (__DEV__) console.log("[DEV_DECISION] guide dismiss", { key: GUIDE_FRIENDS_ADD_KEY, dismissed: true, step });
+        await SecureStore.setItemAsync(friendsKey, "true");
+        // Update module cache immediately
+        const cached = guideStateCache.get(userId) || { friendsDismissed: false, createDismissed: false };
+        guideStateCache.set(userId, { ...cached, friendsDismissed: true });
+        if (__DEV__) console.log("[GUIDE_DECISION] step dismissed", { key: friendsKey, step, userId: userId.substring(0, 8) });
       }
       if (step === "create_event" || isNowCompleted) {
-        await SecureStore.setItemAsync(GUIDE_CREATE_EVENT_KEY, "true");
-        if (__DEV__) console.log("[DEV_DECISION] guide dismiss", { key: GUIDE_CREATE_EVENT_KEY, dismissed: true, step });
+        await SecureStore.setItemAsync(createKey, "true");
+        // Update module cache immediately
+        const cached = guideStateCache.get(userId) || { friendsDismissed: false, createDismissed: false };
+        guideStateCache.set(userId, { ...cached, createDismissed: true });
+        if (__DEV__) console.log("[GUIDE_DECISION] step dismissed", { key: createKey, step, userId: userId.substring(0, 8) });
       }
       
       setState({
@@ -142,14 +200,17 @@ export function useOnboardingGuide() {
     if (!userId) return;
 
     try {
-      await SecureStore.deleteItemAsync(GUIDE_FRIENDS_ADD_KEY);
-      await SecureStore.deleteItemAsync(GUIDE_CREATE_EVENT_KEY);
+      const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
+      const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
+      await SecureStore.deleteItemAsync(friendsKey);
+      await SecureStore.deleteItemAsync(createKey);
+      guideStateCache.delete(userId); // Clear module cache
       setState({
         currentStep: "friends_tab",
         isCompleted: false,
         isLoading: false,
       });
-      if (__DEV__) console.log("[DEV_DECISION] guide reset via startGuide");
+      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via startGuide", { userId: userId.substring(0, 8) });
     } catch (error) {
       console.error("Failed to start onboarding guide:", error);
     }
@@ -160,14 +221,18 @@ export function useOnboardingGuide() {
     if (!userId) return;
 
     try {
+      const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
+      const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
       // Dismiss both guides permanently
-      await SecureStore.setItemAsync(GUIDE_FRIENDS_ADD_KEY, "true");
-      await SecureStore.setItemAsync(GUIDE_CREATE_EVENT_KEY, "true");
+      await SecureStore.setItemAsync(friendsKey, "true");
+      await SecureStore.setItemAsync(createKey, "true");
+      // Update module cache
+      guideStateCache.set(userId, { friendsDismissed: true, createDismissed: true });
       setState(prev => ({ ...prev, isCompleted: true }));
-      if (__DEV__) console.log("[DEV_DECISION] guide dismissed entirely", { 
-        key_friends: GUIDE_FRIENDS_ADD_KEY, 
-        key_create: GUIDE_CREATE_EVENT_KEY,
-        dismissed: true 
+      if (__DEV__) console.log("[GUIDE_DECISION] guide dismissed entirely", { 
+        friendsKey,
+        createKey,
+        userId: userId.substring(0, 8)
       });
     } catch (error) {
       console.error("Failed to dismiss onboarding guide:", error);
@@ -179,15 +244,18 @@ export function useOnboardingGuide() {
     if (!userId) return;
 
     try {
-      await SecureStore.deleteItemAsync(GUIDE_FRIENDS_ADD_KEY);
-      await SecureStore.deleteItemAsync(GUIDE_CREATE_EVENT_KEY);
+      const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
+      const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
+      await SecureStore.deleteItemAsync(friendsKey);
+      await SecureStore.deleteItemAsync(createKey);
+      guideStateCache.delete(userId); // Clear module cache
       setState({
         currentStep: "friends_tab",
         isCompleted: false,
         isLoading: false,
       });
       setLoadedOnce(false);
-      if (__DEV__) console.log("[DEV_DECISION] guide reset via resetGuide");
+      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via resetGuide", { userId: userId.substring(0, 8) });
     } catch (error) {
       console.error("Failed to reset onboarding guide:", error);
     }
