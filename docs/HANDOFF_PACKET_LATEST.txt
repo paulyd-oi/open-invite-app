@@ -1,134 +1,108 @@
 ========================================
-HANDOFF PACKET - Global Push Token Registration
+HANDOFF PACKET - Remove Legacy "Add to Groups" Modals
 ========================================
-Date: 2025-01-29
+Date: 2026-01-29
 Branch: main
 Author: GitHub Copilot (Claude Opus 4.5)
 
 ========================================
 SUMMARY
 ========================================
-Moved useNotifications() from social.tsx to _layout.tsx BootRouter
-so push token registration happens globally on auth, not only when
-Social tab is mounted.
+Removed legacy "Add to Groups" modals from friend add flows pre-launch.
+These modals showed outdated "Groups" concept (not Circles) and caused
+confusion. After accepting a friend request, users now see a clean
+success toast and smooth redirect instead of the legacy modal.
 
-PROBLEM: Push tokens never registered because useNotifications() was
-only called when user visited Social tab. Most users land on Calendar
-first and never see Social, so tokens never register.
+- Removed modal state variables, triggers, mutations, and JSX
+- Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments for future reference
+- Added DEV-only console log at trigger points
+- friends.tsx: Shows toast "Friend added!" after accepting request
+- user/[id].tsx: Redirects to friend profile after accepting request
 
-FIX: Mount useNotifications() in BootRouter (global authed shell).
-The hook internally gates on bootStatus === 'authed' && session?.user,
-so no changes to the hook logic were needed.
+========================================
+ROOT CAUSE
+========================================
+1. friends.tsx:
+   - acceptRequestMutation.onSuccess triggered setShowAddToGroupsModal(true)
+   - Modal JSX rendered when showAddToGroupsModal was true
+   
+2. user/[id].tsx:
+   - acceptRequestMutation.onSuccess triggered setShowAddToGroupsModal(true)
+   - Modal JSX rendered when showAddToGroupsModal was true
 
 ========================================
 FILES CHANGED
 ========================================
-src/app/_layout.tsx
-  - Added import: useNotifications from @/hooks/useNotifications
-  - Added useNotifications() call in BootRouter after entitlements hooks
-  - Added DEV-only log: [BootRouter] authed shell mounted for push bootstrap
-  - Added loggedPushBootstrapOnceRef to prevent log spam
+src/app/friends.tsx
+  - Removed state: showAddToGroupsModal, newlyAcceptedFriend, selectedGroupIds
+  - Removed trigger in acceptRequestMutation.onSuccess
+  - Removed addFriendToGroupsMutation
+  - Removed modal JSX (~160 lines)
+  - Added success toast: "Friend added!" after accepting request
+  - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
 
-src/app/social.tsx
-  - Removed import: useNotifications from @/hooks/useNotifications
-  - Removed useNotifications() call
-  - Added comment: NOTE: useNotifications() moved to _layout.tsx BootRouter
+src/app/user/[id].tsx
+  - Removed state: showAddToGroupsModal, newlyAcceptedFriend, selectedGroupIds
+  - Removed groups query (only used for modal)
+  - Removed trigger in acceptRequestMutation.onSuccess
+  - Removed addFriendToGroupsMutation
+  - Removed modal JSX (~175 lines)
+  - Clean redirect to friend profile after accepting request
+  - Removed unused imports: Modal, GetGroupsResponse
+  - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
 
 ========================================
 KEY DIFFS
 ========================================
-_layout.tsx (BootRouter):
-+ import { useNotifications } from '@/hooks/useNotifications';
+friends.tsx (acceptRequestMutation.onSuccess):
+- if (data.friendshipId && data.friend) {
+-   setNewlyAcceptedFriend({ ... });
+-   setShowAddToGroupsModal(true);
+- }
++ if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
++ safeToast.success("Friend added!", data.friend?.name ? `${data.friend.name} is now your friend` : "You're now friends");
 
-+ // Register push notifications globally (gates on bootStatus === 'authed' internally)
-+ useNotifications();
-+
-+ // DEV-only: Log once when authed shell is mounted for push bootstrap
-+ const loggedPushBootstrapOnceRef = useRef(false);
-+ useEffect(() => {
-+   if (bootStatus === 'authed' && session?.user?.id && !loggedPushBootstrapOnceRef.current) {
-+     loggedPushBootstrapOnceRef.current = true;
-+     if (__DEV__) {
-+       console.log('[BootRouter] authed shell mounted for push bootstrap');
-+     }
-+   }
-+ }, [bootStatus, session?.user?.id]);
-
-social.tsx:
-- import { useNotifications } from "@/hooks/useNotifications";
-- useNotifications();
-+ // NOTE: useNotifications() moved to _layout.tsx BootRouter for global push registration
-
-========================================
-VERIFICATION
-========================================
-npm run typecheck - PASS
-bash scripts/ai/verify_frontend.sh - PASS
-- AUTH_CONTRACT.md exists
-- No !!session gating found
-- No uppercase Cookie headers
-- Guidance keys user-scoped
-- Invariant check PASSED
+user/[id].tsx (acceptRequestMutation.onSuccess):
+- if (groups.length > 0 && user) {
+-   setShowAddToGroupsModal(true);
+- } else {
+-   router.replace(`/friend/${responseData.friendshipId}`);
+- }
++ if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
++ if (responseData.friendshipId) {
++   router.replace(`/friend/${responseData.friendshipId}`);
++ }
 
 ========================================
 RUNTIME STATUS
 ========================================
-On app launch with authed user, expect DEV logs:
-  [BootRouter] authed shell mounted for push bootstrap, userId: abc12345...
-  [PUSH_BOOTSTRAP] Boot complete, initiating push registration
-  [PUSH_BOOTSTRAP] Initial permission status: <status>
-  [PUSH_BOOTSTRAP] Requesting permission from OS... (if undetermined)
-  [PUSH_BOOTSTRAP] Getting push token...
-  [PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[...
-  [PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
-  [PUSH_BOOTSTRAP] ✓ Push registration complete
+Verification command:
+  bash scripts/ai/verify_frontend.sh
+
+Result: PASS
+  - TypeScript: No errors
+  - Invariants: All passed
+  - No uppercase Cookie headers
+  - No !!session gating
 
 ========================================
-COLD-START TEST CHECKLIST (TestFlight)
+MANUAL REPRO
 ========================================
-1. Delete app from iPhone (or clear storage)
-2. Install TestFlight build
-3. Log in with test account
-4. Do NOT visit Social tab - stay on Calendar
-5. Within 10 seconds, verify in backend:
-
-   a) GET /api/notifications/device-tokens
-      Expected: Shows real ExponentPushToken[...], NOT test123
-      Expected: activeCount >= 1
-
-   b) GET /api/notifications/snapshot?userId=<USER_ID>
-      Expected: pushPermissionStatus = "granted"
-      Expected: tokens.active >= 1
-
-6. Trigger test push:
-   POST /api/notifications/test-push
-   Body: { "userId": "<USER_ID>" }
-   Expected: success = true
-   Expected: Device receives push notification
+1. Open app, go to Friends tab
+2. Search for a user or receive a friend request
+3. Accept friend request
+4. EXPECTED: See success toast "Friend added!" (friends.tsx)
+   OR redirect to friend profile (user/[id].tsx)
+5. EXPECTED: NO "Add to Groups" modal appears anywhere
+6. DEV console should show: [LEGACY_ADD_TO_GROUPS_REMOVED]
 
 ========================================
-PROOF LOGS (expected in DEV console)
+ASSUMPTIONS / UNCERTAINTIES
 ========================================
-[BootRouter] authed shell mounted for push bootstrap, userId: abc12345...
-[PUSH_BOOTSTRAP] Boot complete, initiating push registration
-[PUSH_BOOTSTRAP] Initial permission status: undetermined
-[PUSH_BOOTSTRAP] Requesting permission from OS...
-[PUSH_BOOTSTRAP] Permission after request: granted
-[PUSH_BOOTSTRAP] Getting push token...
-[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc123...
-[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
-[PUSH_BOOTSTRAP] Permission status updated to granted
-[PUSH_BOOTSTRAP] ✓ Push registration complete
+- Group filter feature in friends.tsx is preserved (uses same groups query)
+- Circles feature is separate and untouched
+- No backend changes needed (modals were frontend-only)
+- Second order social nudge still works (separate flow)
 
 ========================================
-INVARIANTS PRESERVED
-========================================
-- No new dependencies
-- useNotifications() hook unchanged (internal gating preserved)
-- bootStatus gating maintained
-- No login flashes (hook only runs when authed)
-- Minimal diff (moved 2 lines between files + added DEV log)
-
-========================================
-END OF HANDOFF
-========================================
+END HANDOFF

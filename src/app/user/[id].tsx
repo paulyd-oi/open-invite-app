@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal } from "react-native";
+import { View, Text, ScrollView, Pressable, Image, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -11,7 +11,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
-import { type FriendUser, type GetGroupsResponse, type ProfileBadge, type Event } from "@/shared/contracts";
+import { type FriendUser, type ProfileBadge, type Event } from "@/shared/contracts";
 
 // Minimal Calendar Component (no events visible for privacy)
 function PrivateCalendar({ themeColor }: { themeColor: string }) {
@@ -356,14 +356,7 @@ export default function UserProfileScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
 
-  // Add to groups modal state
-  const [showAddToGroupsModal, setShowAddToGroupsModal] = useState(false);
-  const [newlyAcceptedFriend, setNewlyAcceptedFriend] = useState<{
-    friendshipId: string;
-    friendName: string;
-    friendImage?: string | null;
-  } | null>(null);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal state removed pre-launch
 
   // Fetch user profile data
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -372,12 +365,7 @@ export default function UserProfileScreen() {
     enabled: bootStatus === 'authed' && !!id,
   });
 
-  // Fetch groups for add-to-groups modal
-  const { data: groupsData } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: bootStatus === 'authed',
-  });
+  // [LEGACY_ADD_TO_GROUPS_REMOVED] - groups query removed pre-launch
 
   // Fetch user's badge
   const { data: badgeData } = useQuery({
@@ -403,8 +391,6 @@ export default function UserProfileScreen() {
     return events.filter(event => new Date(event.startTime) >= today);
   }, [friendEventsData?.events]);
 
-  const groups = groupsData?.groups ?? [];
-
   // Send friend request mutation
   const sendRequestMutation = useMutation({
     mutationFn: () => api.post("/api/friends/request", { userId: id }),
@@ -425,20 +411,12 @@ export default function UserProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
 
-      // Show add-to-groups modal if we have groups, otherwise redirect to friend profile
+      // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal trigger removed pre-launch
+      if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
+      
+      // Redirect to friend profile on success
       if (responseData.friendshipId) {
-        if (groups.length > 0 && user) {
-          setNewlyAcceptedFriend({
-            friendshipId: responseData.friendshipId,
-            friendName: user.name ?? "your new friend",
-            friendImage: user.image,
-          });
-          setSelectedGroupIds([]);
-          setShowAddToGroupsModal(true);
-        } else {
-          // No groups, redirect directly to friend profile
-          router.replace(`/friend/${responseData.friendshipId}` as any);
-        }
+        router.replace(`/friend/${responseData.friendshipId}` as any);
       }
     },
   });
@@ -454,25 +432,7 @@ export default function UserProfileScreen() {
     },
   });
 
-  // Add friend to multiple groups mutation
-  const addFriendToGroupsMutation = useMutation({
-    mutationFn: async ({ friendshipId, groupIds }: { friendshipId: string; groupIds: string[] }) => {
-      for (const groupId of groupIds) {
-        await api.post(`/api/groups/${groupId}/members`, { friendshipId });
-      }
-      return { success: true, friendshipId };
-    },
-    onSuccess: (data) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowAddToGroupsModal(false);
-      setNewlyAcceptedFriend(null);
-      setSelectedGroupIds([]);
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      // Redirect to friend profile
-      router.replace(`/friend/${data.friendshipId}` as any);
-    },
-  });
+  // [LEGACY_ADD_TO_GROUPS_REMOVED] - addFriendToGroupsMutation removed pre-launch
 
   const user = data?.user;
   const isFriend = data?.isFriend ?? false;
@@ -792,177 +752,7 @@ export default function UserProfileScreen() {
         )}
       </ScrollView>
 
-      {/* Add to Groups Modal (shown after accepting friend request) */}
-      <Modal
-        visible={showAddToGroupsModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setShowAddToGroupsModal(false);
-          setNewlyAcceptedFriend(null);
-          setSelectedGroupIds([]);
-        }}
-      >
-        <Pressable
-          className="flex-1 justify-center px-5"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => {
-            setShowAddToGroupsModal(false);
-            setNewlyAcceptedFriend(null);
-            setSelectedGroupIds([]);
-          }}
-        >
-          <Pressable onPress={() => {}}>
-            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, maxHeight: "80%" }}>
-              {/* Header */}
-              <View className="px-5 py-4 border-b items-center" style={{ borderColor: colors.border }}>
-                <View className="w-16 h-16 rounded-full mb-3 items-center justify-center overflow-hidden" style={{ backgroundColor: themeColor + "20" }}>
-                  {newlyAcceptedFriend?.friendImage ? (
-                    <Image source={{ uri: newlyAcceptedFriend.friendImage }} className="w-full h-full" />
-                  ) : (
-                    <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                      {newlyAcceptedFriend?.friendName?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  )}
-                </View>
-                <Text className="text-lg font-bold text-center" style={{ color: colors.text }}>
-                  {newlyAcceptedFriend?.friendName} is now your friend!
-                </Text>
-                <Text className="text-sm text-center mt-1" style={{ color: colors.textSecondary }}>
-                  Add them to groups to see their events
-                </Text>
-              </View>
-
-              {/* Groups List */}
-              <ScrollView className="max-h-80" contentContainerStyle={{ padding: 16 }}>
-                {groups.length === 0 ? (
-                  <View className="py-6 items-center">
-                    <Users size={32} color={colors.textTertiary} />
-                    <Text className="mt-3 text-center" style={{ color: colors.textSecondary }}>
-                      You don't have any groups yet.
-                    </Text>
-                    <Text className="text-sm text-center mt-1" style={{ color: colors.textTertiary }}>
-                      Create groups from your Profile to organize friends.
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <Text className="text-sm font-medium mb-3" style={{ color: colors.textSecondary }}>
-                      Select groups to add {newlyAcceptedFriend?.friendName?.split(" ")[0] ?? "them"} to:
-                    </Text>
-                    {groups.map((group) => {
-                      const isSelected = selectedGroupIds.includes(group.id);
-                      return (
-                        <Pressable
-                          key={group.id}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            if (isSelected) {
-                              setSelectedGroupIds(selectedGroupIds.filter((gid) => gid !== group.id));
-                            } else {
-                              setSelectedGroupIds([...selectedGroupIds, group.id]);
-                            }
-                          }}
-                          className="flex-row items-center rounded-xl p-3 mb-2"
-                          style={{
-                            backgroundColor: isSelected ? group.color + "15" : (isDark ? "#2C2C2E" : "#F9FAFB"),
-                            borderWidth: isSelected ? 1 : 0,
-                            borderColor: isSelected ? group.color + "50" : "transparent",
-                          }}
-                        >
-                          <View
-                            className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                            style={{ backgroundColor: group.color + "20" }}
-                          >
-                            <Users size={18} color={group.color} />
-                          </View>
-                          <View className="flex-1">
-                            <Text className="font-medium" style={{ color: colors.text }}>
-                              {group.name}
-                            </Text>
-                            <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                              {group.memberships?.length ?? 0} friends
-                            </Text>
-                          </View>
-                          <View
-                            className="w-6 h-6 rounded-full items-center justify-center"
-                            style={{
-                              backgroundColor: isSelected ? group.color : (isDark ? "#3C3C3E" : "#E5E7EB"),
-                            }}
-                          >
-                            {isSelected && <Check size={14} color="#fff" />}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-
-                    {groups.length > 1 && (
-                      <Pressable
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          if (selectedGroupIds.length === groups.length) {
-                            setSelectedGroupIds([]);
-                          } else {
-                            setSelectedGroupIds(groups.map((g) => g.id));
-                          }
-                        }}
-                        className="mt-2"
-                      >
-                        <Text className="text-center font-medium" style={{ color: themeColor }}>
-                          {selectedGroupIds.length === groups.length ? "Deselect All" : "Select All Groups"}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </>
-                )}
-              </ScrollView>
-
-              {/* Actions */}
-              <View className="px-4 py-4 border-t" style={{ borderColor: colors.border }}>
-                {groups.length > 0 && selectedGroupIds.length > 0 && (
-                  <Pressable
-                    onPress={() => {
-                      if (newlyAcceptedFriend) {
-                        addFriendToGroupsMutation.mutate({
-                          friendshipId: newlyAcceptedFriend.friendshipId,
-                          groupIds: selectedGroupIds,
-                        });
-                      }
-                    }}
-                    disabled={addFriendToGroupsMutation.isPending}
-                    className="py-3.5 rounded-xl mb-2"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <Text className="text-white text-center font-semibold">
-                      {addFriendToGroupsMutation.isPending
-                        ? "Adding..."
-                        : `Add to ${selectedGroupIds.length} Group${selectedGroupIds.length > 1 ? "s" : ""}`}
-                    </Text>
-                  </Pressable>
-                )}
-                <Pressable
-                  onPress={() => {
-                    const friendshipId = newlyAcceptedFriend?.friendshipId;
-                    setShowAddToGroupsModal(false);
-                    setNewlyAcceptedFriend(null);
-                    setSelectedGroupIds([]);
-                    // Redirect to friend profile
-                    if (friendshipId) {
-                      router.replace(`/friend/${friendshipId}` as any);
-                    }
-                  }}
-                  className="py-3.5 rounded-xl"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                >
-                  <Text className="text-center font-medium" style={{ color: colors.text }}>
-                    {groups.length === 0 || selectedGroupIds.length === 0 ? "Done" : "Skip for Now"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* [LEGACY_ADD_TO_GROUPS_REMOVED] - Add to Groups Modal removed pre-launch */}
     </SafeAreaView>
   );
 }
