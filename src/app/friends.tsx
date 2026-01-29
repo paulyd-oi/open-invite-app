@@ -41,6 +41,7 @@ import {
   LayoutGrid,
   Filter,
   Activity,
+  Sparkles,
   Building2,
   BadgeCheck,
   Plus,
@@ -1268,41 +1269,56 @@ export default function FriendsScreen() {
 
       {/* Social Features Quick Access */}
       <View className="px-5 pb-3">
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push("/activity");
-          }}
-          className="flex-row items-center justify-center px-4 py-2.5 rounded-xl"
-          style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
-        >
-          <View style={{ position: "relative" }}>
-            <Activity size={16} color="#2196F3" />
-            {unseenCount > 0 && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: -6,
-                  right: -8,
-                  backgroundColor: "#FF3B30",
-                  borderRadius: 8,
-                  minWidth: 16,
-                  height: 16,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingHorizontal: 4,
-                }}
-              >
-                <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
-                  {unseenCount > 99 ? "99+" : unseenCount}
-                </Text>
-              </View>
-            )}
-          </View>
-          <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
-            Activity
-          </Text>
-        </Pressable>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/activity");
+            }}
+            className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
+            style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
+          >
+            <View style={{ position: "relative" }}>
+              <Activity size={16} color="#2196F3" />
+              {unseenCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -8,
+                    backgroundColor: "#FF3B30",
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
+                    {unseenCount > 99 ? "99+" : unseenCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
+              Activity
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/suggestions");
+            }}
+            className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
+            style={{ backgroundColor: "#9C27B020", borderWidth: 1, borderColor: "#9C27B030" }}
+          >
+            <Sparkles size={16} color="#9C27B0" />
+            <Text className="text-sm font-medium ml-2" style={{ color: "#9C27B0" }}>
+              Suggestions
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView

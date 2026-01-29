@@ -1,47 +1,401 @@
-import React, { useEffect } from "react";
-import { View, Text, Pressable } from "react-native";
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  Image,
+  RefreshControl,
+  FlatList,
+  Share,
+  Modal,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ChevronLeft, Calendar } from "@/ui/icons";
+import {
+  UserPlus,
+  ChevronLeft,
+  Users,
+  Check,
+  Share2,
+  Info,
+  X,
+  Sparkles,
+} from "@/ui/icons";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
+import { useSession } from "@/lib/useSession";
+import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import BottomNavigation from "@/components/BottomNavigation";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSuggestionsFeed } from "@/hooks/useSuggestionsFeed";
+import { guardEmailVerification } from "@/lib/emailVerification";
+import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
+import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
+import { SuggestionFeedCard, SuggestionsFeedEmpty } from "@/components/SuggestionFeedCard";
+import {
+  type GetFriendSuggestionsResponse,
+  type FriendSuggestion,
+  type SendFriendRequestResponse,
+} from "@/shared/contracts";
 
-/**
- * SUGGESTIONS SCREEN - DISABLED
- * 
- * This screen is temporarily disabled (P2.1 pre-launch removal).
- * Issues:
- * - "Join event" cards have dead tap (haptics but no navigation)
- * - Floating orange/yellow dot artifact on cards
- * 
- * The entry point (Suggestions button in friends.tsx) has been removed.
- * This route is left as a "Coming soon" placeholder in case someone
- * bookmarked it or it's reached via deep link.
- */
-export default function SuggestionsScreen() {
-  const router = useRouter();
+// Suggestion Card Component
+function SuggestionCard({
+  suggestion,
+  index,
+  onAddFriend,
+  isPending,
+  isSuccess,
+}: {
+  suggestion: FriendSuggestion;
+  index: number;
+  onAddFriend: () => void;
+  isPending: boolean;
+  isSuccess: boolean;
+}) {
   const { themeColor, colors } = useTheme();
+  const router = useRouter();
+  const scale = useSharedValue(1);
 
-  // DEV-only log for detecting accidental navigation to disabled screen
-  useEffect(() => {
-    if (__DEV__) {
-      console.warn(
-        '[SUGGESTIONS_DISABLED] User reached /suggestions route - this screen is disabled. ' +
-        'Entry point should have been removed from friends.tsx. ' +
-        'Check for stale deep links or bookmarks.'
-      );
-    }
-  }, []);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const userName = suggestion.user?.name || (suggestion.user?.handle ? `@${suggestion.user.handle}` : "Unknown");
+  const mutualCount = suggestion.mutualFriendCount;
+
+  const handlePress = () => {
+    scale.value = withSpring(0.98, {}, () => {
+      scale.value = withSpring(1);
+    });
+    router.push(`/user/${suggestion.user.id}`);
+  };
 
   return (
-    <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+    <Animated.View
+      entering={FadeInDown.delay(index * 80).springify()}
+      style={animatedStyle}
+    >
+      <Pressable
+        onPress={handlePress}
+        className="mx-4 mb-3 p-4 rounded-2xl"
+        style={{ backgroundColor: colors.surface }}
+      >
+        <View className="flex-row items-center">
+          {/* User Avatar */}
+          {suggestion.user.avatarUrl ? (
+            <Image
+              source={{ uri: suggestion.user.avatarUrl }}
+              className="w-14 h-14 rounded-full"
+            />
+          ) : (
+            <View
+              className="w-14 h-14 rounded-full items-center justify-center"
+              style={{ backgroundColor: themeColor + "20" }}
+            >
+              <Text
+                className="text-xl font-semibold"
+                style={{ color: themeColor }}
+              >
+                {userName?.charAt(0).toUpperCase() ?? "?"}
+              </Text>
+            </View>
+          )}
+
+          {/* User Info */}
+          <View className="flex-1 ml-3">
+            <Text
+              className="text-base font-semibold"
+              style={{ color: colors.text }}
+              numberOfLines={1}
+            >
+              {userName}
+            </Text>
+
+            {/* Mutual Friends */}
+            <View className="flex-row items-center mt-1">
+              <Users size={14} color={colors.textSecondary} />
+              <Text
+                className="text-sm ml-1"
+                style={{ color: colors.textSecondary }}
+              >
+                {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+              </Text>
+            </View>
+
+            {/* Mutual Friend Avatars */}
+            {suggestion.mutualFriends.length > 0 && (
+              <View className="flex-row items-center mt-2">
+                {suggestion.mutualFriends.slice(0, 3).map((friend, i) => (
+                  <View
+                    key={friend.id}
+                    className="w-6 h-6 rounded-full border-2 overflow-hidden"
+                    style={{
+                      borderColor: colors.surface,
+                      marginLeft: i > 0 ? -8 : 0,
+                      zIndex: 3 - i,
+                    }}
+                  >
+                    {friend.image ? (
+                      <Image
+                        source={{ uri: friend.image }}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <View
+                        className="w-full h-full items-center justify-center"
+                        style={{ backgroundColor: themeColor + "30" }}
+                      >
+                        <Text
+                          className="text-[8px] font-medium"
+                          style={{ color: themeColor }}
+                        >
+                          {(friend.name || "?").charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+                {suggestion.mutualFriends.length > 3 && (
+                  <Text
+                    className="text-xs ml-1"
+                    style={{ color: colors.textTertiary }}
+                  >
+                    +{suggestion.mutualFriends.length - 3}
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Add Friend Button */}
+          <View
+            style={{
+              opacity: isPending ? 0.7 : 1,
+            }}
+          >
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                onAddFriend();
+              }}
+              disabled={isPending || isSuccess}
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: isSuccess ? "#4CAF50" : themeColor,
+              }}
+            >
+              {isPending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : isSuccess ? (
+                <Check size={18} color="#fff" />
+              ) : (
+                <UserPlus size={18} color="#fff" />
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// Empty State Component with Invite CTA
+function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => void }) {
+  const { colors, themeColor } = useTheme();
+  
+  return (
+    <View className="flex-1 items-center justify-center px-6 py-12">
+      <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: themeColor + "15" }}>
+        <Users size={40} color={themeColor} />
+      </View>
+      
+      <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+        People you may know
+      </Text>
+      
+      <Text className="text-center text-sm leading-5 mb-1" style={{ color: colors.textSecondary }}>
+        Suggestions appear as more friends join Open Invite.
+      </Text>
+      
+      <Text className="text-center text-sm leading-5 mb-6" style={{ color: colors.textSecondary }}>
+        Invite a few people to kickstart your network.
+      </Text>
+      
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onInvite();
+        }}
+        className="px-6 py-3 rounded-full flex-row items-center mb-3"
+        style={{ backgroundColor: themeColor }}
+      >
+        <Share2 size={18} color="#fff" />
+        <Text className="text-white font-semibold ml-2">Invite friends</Text>
+      </Pressable>
+      
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync();
+          onInfo();
+        }}
+        className="flex-row items-center"
+      >
+        <Info size={14} color={colors.textTertiary} />
+        <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>
+          How suggestions work
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+export default function SuggestionsScreen() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { themeColor, colors } = useTheme();
+  const { data: session, isPending: sessionLoading } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const [refreshing, setRefreshing] = useState(false);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<"for-you" | "people">("for-you");
+
+  // Fetch personalized suggestions feed
+  const {
+    suggestions: feedSuggestions,
+    isLoading: feedLoading,
+    refetch: refetchFeed,
+  } = useSuggestionsFeed();
+
+  // Fetch referral stats for sharing
+  const { data: referralStats } = useQuery({
+    queryKey: ["referralStats"],
+    queryFn: () => api.get<{ referralCode: string; shareLink: string }>("/api/referral/stats"),
+    enabled: bootStatus === 'authed',
+  });
+
+  // Fetch friend suggestions (people you may know)
+  const {
+    data: suggestionsData,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["friendSuggestions"],
+    queryFn: () =>
+      api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
+    enabled: bootStatus === 'authed',
+    staleTime: 60000, // Cache for 1 minute
+  });
+
+  // Send friend request mutation - use userId instead of email since email can be null
+  const sendRequestMutation = useMutation({
+    mutationFn: (userId: string) =>
+      api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
+    onSuccess: (_, userId) => {
+      setSentRequests((prev) => new Set(prev).add(userId));
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  const suggestions = suggestionsData?.suggestions ?? [];
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetch(), refetchFeed()]);
+    setRefreshing(false);
+  }, [refetch, refetchFeed]);
+
+  const handleAddFriend = (suggestion: FriendSuggestion) => {
+    // Guard: require email verification
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+    sendRequestMutation.mutate(suggestion.user.id);
+  };
+
+  const handleInviteFriends = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    try {
+      let message = "Join me on Open Invite — a social calendar to plan and share events.";
+      
+      // Prefer using shareLink if available
+      if (referralStats?.shareLink) {
+        message = `I'm using Open Invite to stay connected in real life — join me: ${referralStats.shareLink}`;
+      } else if (referralStats?.referralCode) {
+        // Fallback to constructing deep link if shareLink is not available
+        const deepLink = `openinvite://?ref=${referralStats.referralCode}`;
+        message = `Join me on Open Invite! Use my code ${referralStats.referralCode} or tap ${deepLink}`;
+      }
+      
+      await Share.share({
+        message,
+        title: "Invite friends to Open Invite",
+      });
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
+
+  // Show login prompt if not authenticated
+  if (!session && !sessionLoading) {
+    return (
+      <SafeAreaView
+        className="flex-1"
+        style={{ backgroundColor: colors.background }}
+      >
+        <View className="flex-1 items-center justify-center px-8">
+          <Text
+            className="text-xl font-semibold text-center mb-2"
+            style={{ color: colors.text }}
+          >
+            Sign in to see suggestions
+          </Text>
+          <Text
+            className="text-center text-sm mb-6"
+            style={{ color: colors.textSecondary }}
+          >
+            Discover people you might know based on mutual friends.
+          </Text>
+          <Pressable
+            onPress={() => router.replace("/login")}
+            className="px-6 py-3 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white font-semibold">Sign In</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: colors.background }}
+      edges={["top"]}
+    >
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3">
+      <View
+        className="flex-row items-center justify-between px-4 py-3 border-b"
+        style={{ borderBottomColor: colors.separator }}
+      >
         <Pressable
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Haptics.selectionAsync();
             router.back();
           }}
           className="w-10 h-10 items-center justify-center"
@@ -54,43 +408,156 @@ export default function SuggestionsScreen() {
         <View className="w-10" />
       </View>
 
-      {/* Coming Soon Placeholder */}
-      <View className="flex-1 items-center justify-center px-6">
-        <View
-          className="w-20 h-20 rounded-full items-center justify-center mb-4"
-          style={{ backgroundColor: themeColor + "15" }}
-        >
-          <Calendar size={40} color={themeColor} />
-        </View>
-        
-        <Text
-          className="text-xl font-semibold text-center mb-2"
-          style={{ color: colors.text }}
-        >
-          Coming Soon
-        </Text>
-        
-        <Text
-          className="text-center text-sm leading-5 mb-6"
-          style={{ color: colors.textSecondary }}
-        >
-          Personalized suggestions are being improved.{"\n"}
-          Check back soon!
-        </Text>
-        
+      {/* Segmented Control */}
+      <View className="flex-row mx-4 mt-3 p-1 rounded-xl" style={{ backgroundColor: colors.surface }}>
         <Pressable
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.back();
+            Haptics.selectionAsync();
+            setActiveTab("for-you");
           }}
-          className="px-6 py-3 rounded-full"
-          style={{ backgroundColor: themeColor }}
+          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+          style={{ backgroundColor: activeTab === "for-you" ? themeColor : "transparent" }}
         >
-          <Text className="text-white font-semibold">Go Back</Text>
+          <Sparkles size={16} color={activeTab === "for-you" ? "#fff" : colors.textSecondary} />
+          <Text
+            className="font-medium ml-1.5"
+            style={{ color: activeTab === "for-you" ? "#fff" : colors.textSecondary }}
+          >
+            For You
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab("people");
+          }}
+          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+          style={{ backgroundColor: activeTab === "people" ? themeColor : "transparent" }}
+        >
+          <Users size={16} color={activeTab === "people" ? "#fff" : colors.textSecondary} />
+          <Text
+            className="font-medium ml-1.5"
+            style={{ color: activeTab === "people" ? "#fff" : colors.textSecondary }}
+          >
+            People
+          </Text>
         </Pressable>
       </View>
 
-      <BottomNavigation />
+      {/* Content based on active tab */}
+      {activeTab === "for-you" ? (
+        /* Suggestions Feed */
+        <FlatList
+          data={feedSuggestions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <SuggestionFeedCard suggestion={item} index={index} />
+          )}
+          contentContainerStyle={{
+            paddingTop: 16,
+            paddingBottom: 100,
+            flexGrow: feedSuggestions.length === 0 ? 1 : undefined,
+          }}
+          ListEmptyComponent={
+            feedLoading ? (
+              <SuggestionsSkeleton />
+            ) : (
+              <SuggestionsFeedEmpty />
+            )
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={themeColor}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        /* People You May Know */
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item) => item.user.id}
+          renderItem={({ item, index }) => (
+            <SuggestionCard
+              suggestion={item}
+              index={index}
+              onAddFriend={() => handleAddFriend(item)}
+              isPending={
+                sendRequestMutation.isPending &&
+                sendRequestMutation.variables === item.user.id
+              }
+              isSuccess={sentRequests.has(item.user.id)}
+            />
+          )}
+          contentContainerStyle={{
+            paddingTop: 16,
+            paddingBottom: 100,
+            flexGrow: suggestions.length === 0 ? 1 : undefined,
+          }}
+          ListEmptyComponent={
+            isLoading ? (
+              <SuggestionsSkeleton />
+            ) : (
+              <EmptyState onInvite={handleInviteFriends} onInfo={() => setShowInfoModal(true)} />
+            )
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={themeColor}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {/* Info Modal */}
+      <Modal
+        visible={showInfoModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInfoModal(false)}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center px-6"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowInfoModal(false)}
+        >
+          <Pressable
+            className="rounded-2xl p-6 w-full max-w-sm"
+            style={{ backgroundColor: colors.surface }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                How suggestions work
+              </Text>
+              <Pressable
+                onPress={() => setShowInfoModal(false)}
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.border }}
+              >
+                <X size={16} color={colors.text} />
+              </Pressable>
+            </View>
+            
+            <View className="mb-3">
+              <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
+                • We suggest people based on your connections.
+              </Text>
+            </View>
+            
+            <View>
+              <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
+                • The list improves as your network grows.
+              </Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
