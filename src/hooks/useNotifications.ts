@@ -56,6 +56,27 @@ export function useNotifications() {
   }, []);
 
   /**
+   * Validate that a token is a real Expo push token (not a placeholder)
+   */
+  const isValidPushToken = useCallback((token: string): boolean => {
+    // Reject obviously invalid tokens
+    if (!token || typeof token !== 'string') return false;
+    // Must start with ExponentPushToken[
+    if (!token.startsWith('ExponentPushToken[')) return false;
+    // Reject placeholder/test tokens
+    const lowerToken = token.toLowerCase();
+    if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
+      if (__DEV__) {
+        console.log('[PUSH_BOOTSTRAP] Rejected placeholder token:', token);
+      }
+      return false;
+    }
+    // Must have reasonable length (real tokens are ~40+ chars)
+    if (token.length < 30) return false;
+    return true;
+  }, []);
+
+  /**
    * Check and register token if permission is granted
    * Called on mount and when app returns to foreground
    * Throttled to once per 24 hours (backend upserts, so repeated calls are safe but wasteful)
@@ -65,24 +86,38 @@ export function useNotifications() {
     // INVARIANT: Only register when fully authenticated
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__) {
-        console.log("[useNotifications] Skipping registration - bootStatus:", bootStatus, "hasUser:", !!session?.user);
+        console.log("[PUSH_BOOTSTRAP] Skipping - bootStatus:", bootStatus, "hasUser:", !!session?.user);
       }
       return;
     }
 
     try {
-      const { status } = await Notifications.getPermissionsAsync();
+      // Step 1: Check current permission status
+      let { status } = await Notifications.getPermissionsAsync();
+      
+      if (__DEV__) {
+        console.log("[PUSH_BOOTSTRAP] Initial permission status:", status);
+      }
+
+      // Step 2: If undetermined, REQUEST permission (not just read)
+      if (status === 'undetermined') {
+        if (__DEV__) {
+          console.log("[PUSH_BOOTSTRAP] Requesting permission from OS...");
+        }
+        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        status = newStatus;
+        if (__DEV__) {
+          console.log("[PUSH_BOOTSTRAP] Permission after request:", status);
+        }
+      }
+
       const permissionChanged = status !== lastPermissionStatus.current;
       const wasGranted = lastPermissionStatus.current === "granted";
-
-      if (__DEV__) {
-        console.log("[PUSH_BOOTSTRAP] Permission status:", status, "forceRegister:", forceRegister);
-      }
 
       // Handle permission revocation
       if (status !== "granted" && wasGranted) {
         if (__DEV__) {
-          console.log("[useNotifications] Permission revoked");
+          console.log("[PUSH_BOOTSTRAP] Permission revoked");
         }
         await api.post("/api/notifications/status", {
           pushPermissionStatus: "denied",
@@ -98,22 +133,24 @@ export function useNotifications() {
         
         if (throttled) {
           if (__DEV__) {
-            console.log("[useNotifications] Token registration throttled (24h)");
+            console.log("[PUSH_BOOTSTRAP] Token registration throttled (24h)");
           }
           lastPermissionStatus.current = status;
           return;
         }
 
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Registering push token with backend...");
+          console.log("[PUSH_BOOTSTRAP] Getting push token...");
         }
 
         const token = await registerForPushNotificationsAsync();
-        if (token) {
+        
+        // Validate token before sending to backend
+        if (token && isValidPushToken(token)) {
           setExpoPushToken(token);
 
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Got token:", token.substring(0, 30) + "...");
+            console.log("[PUSH_BOOTSTRAP] Got valid token:", token.substring(0, 30) + "...");
           }
 
           // Send token to backend (backend upserts)
@@ -142,6 +179,20 @@ export function useNotifications() {
           if (__DEV__) {
             console.log("[PUSH_BOOTSTRAP] ✓ Push registration complete");
           }
+        } else if (token) {
+          // Token exists but failed validation (placeholder/invalid)
+          if (__DEV__) {
+            console.log("[PUSH_BOOTSTRAP] Token failed validation, not sending to backend:", token);
+          }
+          // Still update permission status even if token is invalid
+          await api.post("/api/notifications/status", {
+            pushPermissionStatus: "granted",
+          });
+        } else {
+          // No token (simulator or unsupported device)
+          if (__DEV__) {
+            console.log("[PUSH_BOOTSTRAP] No token available (simulator/unsupported)");
+          }
         }
       } else if (status === "denied") {
         // User denied permission - notify backend
@@ -159,7 +210,7 @@ export function useNotifications() {
         console.error("[PUSH_BOOTSTRAP] Error:", error);
       }
     }
-  }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered]);
+  }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered, isValidPushToken]);
 
   // Initial registration and AppState listener for foreground permission re-check
   // CRITICAL: Gate on bootStatus === 'authed' to prevent network calls when logged out

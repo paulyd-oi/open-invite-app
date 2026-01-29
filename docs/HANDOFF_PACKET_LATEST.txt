@@ -1,5 +1,5 @@
 ========================================
-HANDOFF PACKET - Push Notification Registration Fix
+HANDOFF PACKET - Push Notification Permission Request + Token Validation
 ========================================
 Date: 2025-01-29
 Branch: main
@@ -8,51 +8,48 @@ Author: GitHub Copilot (Claude Opus 4.5)
 ========================================
 SUMMARY
 ========================================
-Fixed push notification token registration to properly gate on
-bootStatus === 'authed' instead of just checking session?.user.
-This ensures:
-1. No network calls fire when logged out
-2. Token registration only happens once properly authenticated
-3. Permission status updates are sent to backend
-4. Comprehensive DEV logging for debugging
+Fixed push notification bootstrap to:
+1. REQUEST permission when undetermined (not just read status)
+2. VALIDATE tokens before sending (block placeholder/test tokens)
+3. Handle all permission states properly (undetermined/granted/denied)
+4. Gate all network calls on bootStatus === 'authed'
+
+ROOT CAUSE: Hook was only reading permission status, never requesting
+it when undetermined. Also no validation to block placeholder tokens.
 
 ========================================
 FILES CHANGED
 ========================================
 src/hooks/useNotifications.ts
-  - Added import: useBootAuthority from @/hooks/useBootAuthority
-  - Added bootStatus gating in checkAndRegisterToken()
-  - Added bootStatus gating in initial registration effect
-  - Added registrationAttempted ref to track state
-  - Added [PUSH_BOOTSTRAP] DEV logs for tracing
-  - Updated effect dependency array to include bootStatus
+  - Added isValidPushToken() helper to reject placeholder tokens
+  - Updated checkAndRegisterToken() to REQUEST permission when undetermined
+  - Added token validation before sending to backend
+  - All logs use [PUSH_BOOTSTRAP] prefix consistently
 
 ========================================
 KEY DIFFS
 ========================================
-1. Added bootStatus check in checkAndRegisterToken:
-   if (bootStatus !== 'authed' || !session?.user) {
-     if (__DEV__) {
-       console.log("[useNotifications] Skipping registration - bootStatus:", bootStatus);
-     }
-     return;
+1. NEW: Token validation (blocks ExponentPushToken[test123] etc):
+   const isValidPushToken = (token: string): boolean => {
+     if (!token.startsWith('ExponentPushToken[')) return false;
+     if (token.toLowerCase().includes('test')) return false;
+     if (token.length < 30) return false;
+     return true;
+   };
+
+2. NEW: Request permission when undetermined:
+   if (status === 'undetermined') {
+     console.log("[PUSH_BOOTSTRAP] Requesting permission from OS...");
+     const { status: newStatus } = await Notifications.requestPermissionsAsync();
+     status = newStatus;
    }
 
-2. Added bootStatus check in initial registration effect:
-   useEffect(() => {
-     if (bootStatus !== 'authed' || !session?.user) {
-       return;
-     }
-     // ... registration logic
-   }, [bootStatus, session?.user?.id, checkAndRegisterToken]);
-
-3. Added comprehensive DEV logging:
-   [PUSH_BOOTSTRAP] Boot complete, initiating push registration
-   [PUSH_BOOTSTRAP] Permission status: granted/denied
-   [PUSH_BOOTSTRAP] Registering push token with backend...
-   [PUSH_BOOTSTRAP] Got token: ExponentPushToken[xxx]...
-   [PUSH_BOOTSTRAP] Token registered successfully
-   [PUSH_BOOTSTRAP] Push registration complete
+3. Token validation before backend call:
+   if (token && isValidPushToken(token)) {
+     // Send to backend
+   } else if (token) {
+     // Token failed validation, log and skip register-token
+   }
 
 ========================================
 VERIFICATION
@@ -66,50 +63,59 @@ bash scripts/ai/verify_frontend.sh - PASS
 - Invariant check PASSED
 
 ========================================
-PROOF (REQUIRES TESTFLIGHT BUILD)
+PROOF STEPS (when real device build exists)
 ========================================
-After deploying TestFlight build, verify with backend commands:
+1. Build TestFlight: shipios
 
-1. Check device tokens:
-   GET /api/notifications/device-tokens
-   Expected: { activeCount: >= 1 }
+2. Install on real device, open app
 
-2. Check user notification snapshot:
-   GET /api/notifications/snapshot?userId=<USER_ID>
-   Expected: { pushPermissionStatus: "granted", tokens: { active: >= 1 } }
+3. When prompted, GRANT notification permission
 
-3. Test push delivery:
-   POST /api/notifications/test-push
-   Body: { userId: "<USER_ID>" }
-   Expected: { success: true }
+4. Check backend (within 1 min):
+   curl -X GET https://open-invite-backend.onrender.com/api/notifications/device-tokens \
+     -H "Cookie: <auth_cookie>"
+   Expected: { "activeCount": 1, ... }
 
-4. Console log proof (DEV build):
-   [PUSH_BOOTSTRAP] Boot complete, initiating push registration
-   [PUSH_BOOTSTRAP] Permission status: granted
-   [PUSH_BOOTSTRAP] Registering push token with backend...
-   [PUSH_BOOTSTRAP] Got token: ExponentPushToken[...]
-   [PUSH_BOOTSTRAP] Token registered successfully
-   [PUSH_BOOTSTRAP] Push registration complete
+5. Test push delivery:
+   curl -X POST https://open-invite-backend.onrender.com/api/notifications/test-push \
+     -H "Content-Type: application/json" \
+     -H "Cookie: <auth_cookie>" \
+     -d '{"userId": "<USER_ID>"}'
+   Expected: { "success": true }
+
+6. Device should receive push notification
 
 ========================================
-NEXT STEPS
+RUNTIME NOTES (DEV console logs)
 ========================================
-1. Build TestFlight: Run shipios (scripts/ship-ios-prod.sh)
-2. Install on real device
-3. Grant notification permission when prompted
-4. Verify backend shows:
-   - pushPermissionStatus = "granted"
-   - activeCount >= 1 in device-tokens
-5. Send test push and confirm delivery
+On app boot with authed user:
+  [PUSH_BOOTSTRAP] Skipping - bootStatus: booting hasUser: false
+  ... (auth completes)
+  [PUSH_BOOTSTRAP] Boot complete, initiating push registration
+  [PUSH_BOOTSTRAP] Initial permission status: undetermined
+  [PUSH_BOOTSTRAP] Requesting permission from OS...
+  [PUSH_BOOTSTRAP] Permission after request: granted
+  [PUSH_BOOTSTRAP] Getting push token...
+  [PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc123...
+  [PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
+  [PUSH_BOOTSTRAP] Permission status updated to granted
+  [PUSH_BOOTSTRAP] ✓ Push registration complete
+
+On simulator (no real token):
+  [PUSH_BOOTSTRAP] No token available (simulator/unsupported)
+
+On placeholder token (should NOT happen now):
+  [PUSH_BOOTSTRAP] Rejected placeholder token: ExponentPushToken[test123]
+  [PUSH_BOOTSTRAP] Token failed validation, not sending to backend
 
 ========================================
 INVARIANTS PRESERVED
 ========================================
 - No new dependencies added
-- expo-notifications already installed
-- bootStatus gating pattern matches existing hooks
-- Auth contract preserved (cookie-based auth)
-- Minimal diff (single file, surgical changes)
+- expo-device already used in registerForPushNotificationsAsync
+- bootStatus gating pattern maintained
+- Auth contract preserved
+- Minimal diff (single file)
 
 ========================================
 END OF HANDOFF
