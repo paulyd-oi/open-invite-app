@@ -24,7 +24,6 @@ import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
-import { useNotifications } from "@/hooks/useNotifications";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { resetSession } from "@/lib/authBootstrap";
@@ -605,8 +604,7 @@ export default function SocialScreen() {
 
   // NOTE: useRevenueCatSync is called in _layout.tsx BootRouter (single global call)
 
-  // Initialize push notifications - registers token and sets up listeners
-  useNotifications();
+  // NOTE: useNotifications() moved to _layout.tsx BootRouter for global push registration
 
   // Refetch session on app focus to sync emailVerified state
   useFocusEffect(

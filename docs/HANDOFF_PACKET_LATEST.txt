@@ -1,5 +1,5 @@
 ========================================
-HANDOFF PACKET - Apple Sign-In Session Bootstrap Fix
+HANDOFF PACKET - Global Push Token Registration
 ========================================
 Date: 2025-01-29
 Branch: main
@@ -8,75 +8,56 @@ Author: GitHub Copilot (Claude Opus 4.5)
 ========================================
 SUMMARY
 ========================================
-Fixed Apple Sign-In to trigger bootstrap refresh after cookie storage.
-Previously, after Apple sign-in stored the session cookie, the 
-bootStatus remained stale (loggedOut/loading), causing BootRouter 
-to potentially redirect back to /login.
+Moved useNotifications() from social.tsx to _layout.tsx BootRouter
+so push token registration happens globally on auth, not only when
+Social tab is mounted.
 
-ROOT CAUSE: After storing cookie via setExplicitCookiePair(), no
-bootstrap refresh was requested. BootRouter uses bootStatus to decide
-routing, but bootStatus was never updated after Apple auth.
+PROBLEM: Push tokens never registered because useNotifications() was
+only called when user visited Social tab. Most users land on Calendar
+first and never see Social, so tokens never register.
 
-FIX: Added requestBootstrapRefreshOnce() call after successful Apple
-sign-in, before advancing to slide 3 (profile setup).
-
-========================================
-CODE PATH IDENTIFICATION
-========================================
-File: src/app/welcome.tsx
-Function: handleAppleSignIn()
-
-Flow:
-1. AppleAuthentication.signInAsync() -> credential with identityToken
-2. POST /api/auth/apple with identityToken
-3. Extract mobileSessionToken from response
-4. setExplicitCookiePair(tokenValue) -> SecureStore
-5. setExplicitCookieValueDirectly() -> module cache
-6. refreshExplicitCookie() -> verify cache
-7. requestBootstrapRefreshOnce() -> UPDATE bootStatus  <-- NEW
-8. setCurrentSlide(3) -> advance to profile setup
+FIX: Mount useNotifications() in BootRouter (global authed shell).
+The hook internally gates on bootStatus === 'authed' && session?.user,
+so no changes to the hook logic were needed.
 
 ========================================
 FILES CHANGED
 ========================================
-src/app/welcome.tsx
-  - Added requestBootstrapRefreshOnce() after cookie storage
-  - Added AUTH_TRACE logs for bootstrap refresh request
-  - Added AUTH_TRACE logs for display name population
-  - Added AUTH_TRACE log for success transition to slide 3
+src/app/_layout.tsx
+  - Added import: useNotifications from @/hooks/useNotifications
+  - Added useNotifications() call in BootRouter after entitlements hooks
+  - Added DEV-only log: [BootRouter] authed shell mounted for push bootstrap
+  - Added loggedPushBootstrapOnceRef to prevent log spam
+
+src/app/social.tsx
+  - Removed import: useNotifications from @/hooks/useNotifications
+  - Removed useNotifications() call
+  - Added comment: NOTE: useNotifications() moved to _layout.tsx BootRouter
 
 ========================================
 KEY DIFFS
 ========================================
-After cookie storage, before advancing to slide 3:
+_layout.tsx (BootRouter):
++ import { useNotifications } from '@/hooks/useNotifications';
 
-+     // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
-+     // Without this, BootRouter may redirect to /login because bootStatus is stale
-+     console.log("[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...");
-+     requestBootstrapRefreshOnce();
-+     console.log("[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested");
++ // Register push notifications globally (gates on bootStatus === 'authed' internally)
++ useNotifications();
++
++ // DEV-only: Log once when authed shell is mounted for push bootstrap
++ const loggedPushBootstrapOnceRef = useRef(false);
++ useEffect(() => {
++   if (bootStatus === 'authed' && session?.user?.id && !loggedPushBootstrapOnceRef.current) {
++     loggedPushBootstrapOnceRef.current = true;
++     if (__DEV__) {
++       console.log('[BootRouter] authed shell mounted for push bootstrap');
++     }
++   }
++ }, [bootStatus, session?.user?.id]);
 
-========================================
-DEV LOGS ADDED
-========================================
-[AUTH_TRACE] Apple Sign-In: requesting credential...
-[AUTH_TRACE] Apple Sign-In: credential received { hasIdentityToken, hasAuthorizationCode, hasEmail, hasFullName }
-[AUTH_TRACE] Apple Sign-In: sending to backend...
-[AUTH_TRACE] Apple Sign-In: Set-Cookie header present: <boolean>
-[AUTH_TRACE] Apple Sign-In: backend response { status, ok, hasToken, hasSetCookie, hasSessionInBody }
-[AUTH_TRACE] Apple Sign-In: Cookie stored in SecureStore
-[AUTH_TRACE] Apple Sign-In: Cookie cache set directly
-[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh
-[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...
-[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested
-[AUTH_TRACE] Apple Sign-In: Display name populated from <source>
-[AUTH_TRACE] Apple Sign-In: ✓ SUCCESS - advancing to slide 3 (profile setup)
-
-On cancellation:
-[AUTH_TRACE] Apple Sign-In: user cancelled
-
-On error:
-[AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC: { code, message, name, status, statusText, fullError }
+social.tsx:
+- import { useNotifications } from "@/hooks/useNotifications";
+- useNotifications();
++ // NOTE: useNotifications() moved to _layout.tsx BootRouter for global push registration
 
 ========================================
 VERIFICATION
@@ -90,53 +71,63 @@ bash scripts/ai/verify_frontend.sh - PASS
 - Invariant check PASSED
 
 ========================================
-COLD START PROOF STEPS (TestFlight)
+RUNTIME STATUS
 ========================================
-A) Fresh Install Success Path:
-   1. Install TestFlight build on real device
-   2. Open app → lands on /welcome (slide 1)
-   3. Tap "Continue" → slide 2 (account creation)
-   4. Tap "Sign in with Apple"
-   5. Complete Apple auth (allow sign-in)
-   6. Observe logs: [AUTH_TRACE] Apple Sign-In: ✓ SUCCESS
-   7. App advances to slide 3 (profile setup)
-   8. Complete profile and finish onboarding
-   9. Confirm lands on /calendar
-   10. Force-close app completely
-   11. Reopen app
-   12. Confirm remains authed (lands on /calendar, no login prompt)
-
-B) Cancellation Path:
-   1. On slide 2, tap "Sign in with Apple"
-   2. Cancel Apple auth (tap Cancel or X)
-   3. Observe log: [AUTH_TRACE] Apple Sign-In: user cancelled
-   4. Confirm NO error banner shown
-   5. Confirm app remains on slide 2 (ready to retry)
-
-C) Backend Failure Path:
-   1. Simulate backend down (or test with invalid endpoint)
-   2. Tap "Sign in with Apple"
-   3. Complete Apple auth
-   4. Observe log: [AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC: ...
-   5. Confirm error banner shows user-friendly message
-   6. Confirm app remains on slide 2 (no broken loop)
+On app launch with authed user, expect DEV logs:
+  [BootRouter] authed shell mounted for push bootstrap, userId: abc12345...
+  [PUSH_BOOTSTRAP] Boot complete, initiating push registration
+  [PUSH_BOOTSTRAP] Initial permission status: <status>
+  [PUSH_BOOTSTRAP] Requesting permission from OS... (if undetermined)
+  [PUSH_BOOTSTRAP] Getting push token...
+  [PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[...
+  [PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
+  [PUSH_BOOTSTRAP] ✓ Push registration complete
 
 ========================================
-NEXT STEPS
+COLD-START TEST CHECKLIST (TestFlight)
 ========================================
-1. Build TestFlight: shipios
-2. Test fresh install flow with real Apple ID
-3. Verify cold restart keeps user authed
-4. Monitor AUTH_TRACE logs for any edge cases
+1. Delete app from iPhone (or clear storage)
+2. Install TestFlight build
+3. Log in with test account
+4. Do NOT visit Social tab - stay on Calendar
+5. Within 10 seconds, verify in backend:
+
+   a) GET /api/notifications/device-tokens
+      Expected: Shows real ExponentPushToken[...], NOT test123
+      Expected: activeCount >= 1
+
+   b) GET /api/notifications/snapshot?userId=<USER_ID>
+      Expected: pushPermissionStatus = "granted"
+      Expected: tokens.active >= 1
+
+6. Trigger test push:
+   POST /api/notifications/test-push
+   Body: { "userId": "<USER_ID>" }
+   Expected: success = true
+   Expected: Device receives push notification
+
+========================================
+PROOF LOGS (expected in DEV console)
+========================================
+[BootRouter] authed shell mounted for push bootstrap, userId: abc12345...
+[PUSH_BOOTSTRAP] Boot complete, initiating push registration
+[PUSH_BOOTSTRAP] Initial permission status: undetermined
+[PUSH_BOOTSTRAP] Requesting permission from OS...
+[PUSH_BOOTSTRAP] Permission after request: granted
+[PUSH_BOOTSTRAP] Getting push token...
+[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc123...
+[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
+[PUSH_BOOTSTRAP] Permission status updated to granted
+[PUSH_BOOTSTRAP] ✓ Push registration complete
 
 ========================================
 INVARIANTS PRESERVED
 ========================================
 - No new dependencies
-- Cookie-based auth flow preserved
+- useNotifications() hook unchanged (internal gating preserved)
 - bootStatus gating maintained
-- Cancellation handling preserved (no error toast)
-- Minimal diff (single file, surgical addition)
+- No login flashes (hook only runs when authed)
+- Minimal diff (moved 2 lines between files + added DEV log)
 
 ========================================
 END OF HANDOFF
