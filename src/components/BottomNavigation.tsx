@@ -15,6 +15,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/imageUrl";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { ProfileSwitcher } from "./ProfileSwitcher";
 import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
@@ -239,7 +240,9 @@ export default function BottomNavigation() {
   // Get active profile info
   const activeProfile = profilesData?.activeProfile;
   // Canonical avatar precedence: profile.image → session.user.image
-  const profileImage = activeProfile?.image ?? (session?.user as any)?.image;
+  // Use resolveImageUrl to handle both absolute Cloudinary URLs and legacy /uploads/ paths
+  const rawProfileImage = activeProfile?.image ?? (session?.user as any)?.image;
+  const profileImage = resolveImageUrl(rawProfileImage);
 
   // Check if user has multiple profiles (show indicator)
   const hasMultipleProfiles = (profilesData?.profiles?.length ?? 0) > 1;

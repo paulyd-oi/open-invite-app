@@ -48,7 +48,7 @@ import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
-import { useEntitlements, canCreateEvent, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, canCreateEvent, useIsPro, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -422,7 +422,9 @@ export default function CreateEventScreen() {
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
+  // useIsPro is single source of truth - CRITICAL: don't show gates while isLoading
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
+  const { isPro: userIsPro, isLoading: entitlementsLoading } = useIsPro();
   const { isPremium, openPaywall } = useSubscription();
 
   // Check for pending ICS import on mount
@@ -621,25 +623,30 @@ export default function CreateEventScreen() {
       return;
     }
 
-    // Soft-limit check: Show upgrade prompt for free users hitting active events limit
-    // Check both isPremium (from SubscriptionContext) AND entitlements plan for robustness
-    const userIsPro = isPremium || entitlements?.plan === 'PRO' || entitlements?.plan === 'LIFETIME_PRO';
-    if (!userIsPro && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      markActiveEventsPromptShown();
-      setShowSoftLimitModal(true);
-      return;
-    }
+    // CRITICAL: Don't gate while entitlements are loading - prevents false gates for Pro users
+    if (entitlementsLoading) {
+      // Still loading - let the request proceed and let backend validate
+      // This prevents the race condition where Pro users see gates momentarily
+    } else {
+      // Soft-limit check: Show upgrade prompt for free users hitting active events limit
+      // Use unified isPro check from useIsPro() hook (single source of truth)
+      if (!userIsPro && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        markActiveEventsPromptShown();
+        setShowSoftLimitModal(true);
+        return;
+      }
 
-    // Check entitlements before creating
-    const isRecurring = frequency !== "once";
-    const check = canCreateEvent(entitlements, isRecurring);
+      // Check entitlements before creating
+      const isRecurring = frequency !== "once";
+      const check = canCreateEvent(entitlements, isRecurring);
 
-    if (!check.allowed && check.context) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      setPaywallContext(check.context);
-      setShowPaywallModal(true);
-      return;
+      if (!check.allowed && check.context) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setPaywallContext(check.context);
+        setShowPaywallModal(true);
+        return;
+      }
     }
 
     createMutation.mutate({

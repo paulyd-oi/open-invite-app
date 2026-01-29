@@ -294,6 +294,36 @@ export function isPro(entitlements: EntitlementsResponse | undefined): boolean {
 }
 
 /**
+ * SINGLE SOURCE OF TRUTH for Pro/Premium status.
+ * Use this hook in ALL gating logic.
+ * 
+ * Returns:
+ * - isPro: true if user has PRO or LIFETIME_PRO plan
+ * - isLoading: true while entitlements are being fetched (DO NOT show gates while loading)
+ * - entitlements: raw entitlements data for advanced checks
+ * 
+ * CRITICAL: Never show upgrade gates/modals while isLoading is true.
+ */
+export function useIsPro(): {
+  isPro: boolean;
+  isLoading: boolean;
+  entitlements: EntitlementsResponse | undefined;
+} {
+  const { data: entitlements, isLoading } = useEntitlements();
+  
+  // During loading, assume user MAY be premium to avoid flashing gates
+  // The isPro value during loading is technically undefined behavior,
+  // but callers MUST check isLoading before acting on isPro
+  const userIsPro = isPro(entitlements);
+  
+  return {
+    isPro: userIsPro,
+    isLoading,
+    entitlements,
+  };
+}
+
+/**
  * CANONICAL premium check function.
  * Use this ONE function for all premium/paywall gating decisions.
  * 

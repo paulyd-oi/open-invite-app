@@ -1516,40 +1516,6 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Subscription Section */}
-        <Animated.View entering={FadeInDown.delay(165).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {/* Subscription */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/subscription");
-              }}
-              className="flex-row items-center p-4"
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: "#FFD70020" }}
-              >
-                <Crown size={20} color="#FFD700" />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">Subscription</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {userIsPremium ? "Manage your plan" : "Upgrade to Premium"}
-                </Text>
-              </View>
-              {userIsPremium && (
-                <View className="px-2 py-1 rounded-full mr-2" style={{ backgroundColor: "#10B98120" }}>
-                  <Text style={{ color: "#10B981" }} className="text-xs font-medium">Active</Text>
-                </View>
-              )}
-              <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
-
         {/* Birthdays Section */}
         <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">BIRTHDAYS</Text>
