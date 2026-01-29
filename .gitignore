@@ -63,3 +63,8 @@ UI_REVISIONS_IMPLEMENTATION_HANDOFF.md
 UX_NO_DEAD_ENDS_HANDOFF.md
 ios/.xcode.env.local
 EMAIL_GATE_RELIABILITY_FIX_HANDOFF.md
+
+# Handoff packets (AI execution artifacts)
+docs/handoff_archive/
+*_HANDOFF.txt
+*_HANDOFF.md
