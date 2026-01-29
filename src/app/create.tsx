@@ -782,7 +782,11 @@ export default function CreateEventScreen() {
                           setEmoji(lastEmoji);
                           Haptics.selectionAsync();
                         } else {
-                          setCustomEmojiInput(text);
+                          // Reject non-emoji input - only allow empty or emoji
+                          if (text.length > 0 && __DEV__) {
+                            console.log("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
+                          }
+                          setCustomEmojiInput(""); // Clear non-emoji input
                         }
                       }}
                       placeholder="Tap to open emoji keyboard"

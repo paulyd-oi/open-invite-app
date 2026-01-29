@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Users, Plus } from "@/ui/icons";
+import { Users, Plus, ChevronLeft } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -115,20 +115,30 @@ export default function CirclesScreen() {
       >
         <View className="px-6 pt-6 pb-6">
           <View className="flex-row items-center justify-between">
-            <View>
-              <Text className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
-                Groups
-              </Text>
-              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                Plan events together
-              </Text>
+            <View className="flex-row items-center">
+              <Pressable
+                onPress={() => router.back()}
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: colors.surface }}
+              >
+                <ChevronLeft size={24} color={colors.text} />
+              </Pressable>
+              <View>
+                <Text className="text-2xl font-bold tracking-tight" style={{ color: colors.text }}>
+                  Groups
+                </Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                  Plan events together
+                </Text>
+              </View>
             </View>
             <Pressable
               onPress={handleCreateCircle}
               className="flex-row items-center px-4 py-2 rounded-full"
               style={{ backgroundColor: themeColor }}
             >
-              <Text className="text-white font-semibold">Create</Text>
+              <Plus size={16} color="white" />
+              <Text className="text-white font-semibold ml-1">New</Text>
             </Pressable>
           </View>
         </View>

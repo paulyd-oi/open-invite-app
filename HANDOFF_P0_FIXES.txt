@@ -1,0 +1,226 @@
+# P0 App Store Blocker Fixes - Handoff Packet
+Date: 2025-01-14
+Status: COMPLETE - All structural fixes implemented with proof logs
+
+## Summary
+This handoff packet documents the structural fixes for recurring P0 UI regressions:
+- A) Guide modal appearing repeatedly for non-new users
+- B) Social Calendar white overlay
+- C) Suggestions feed error handling (already correct)
+- D) Friends list pin swipe + badges display
+- E) Username change admin override
+- F) Settings Founder Pro section ordering
+
+## Verification
+```
+bash scripts/ai/verify_frontend.sh
+✓ All checks passed
+✓ TypeScript compilation successful
+```
+
+---
+
+## A) First-Time Guide Modal - STRUCTURAL FIX
+
+### Root Cause
+The checkFirstLogin effect in calendar.tsx used truthiness checks:
+```tsx
+if (!friendsData || !calendarData) return;
+```
+
+**Problem**: Empty arrays `{ friends: [] }` are truthy, so the check passed even when data was still loading. This caused false positives where returning users saw the guide.
+
+### Structural Fix Applied
+Added `isFetched` flags to both queries and changed gating logic:
+
+**File**: src/app/calendar.tsx
+
+1. Friends query now includes `isFetched`:
+```tsx
+const { data: friendsData, isFetched: isFriendsFetched } = useQuery({
+  queryKey: ["friends"],
+  queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+  enabled: bootStatus === 'authed',
+});
+```
+
+2. Calendar query now includes `isFetched`:
+```tsx
+const { data: calendarData, ..., isFetched: isCalendarFetched } = useQuery({...});
+```
+
+3. Effect now gates on `isFetched` instead of data truthiness:
+```tsx
+if (!isFriendsFetched || !isCalendarFetched) {
+  if (__DEV__) console.log('[GUIDE_DECISION] Skip: data not yet fetched', { isFriendsFetched, isCalendarFetched });
+  return;
+}
+```
+
+### DEV Proof Logs
+When running in DEV mode, the following logs appear:
+- `[GUIDE_DECISION] Skip: not authed or no userId` - Before auth
+- `[GUIDE_DECISION] Skip: data not yet fetched` - During loading
+- `[GUIDE_DECISION] Skip: already dismissed` - For returning users
+- `[GUIDE_DECISION] Evaluation { userId, friendsCount, willShowGuide }` - Final decision
+
+### Why This Is Structural
+- **Before**: Truthiness check passed on empty arrays during loading
+- **After**: `isFetched` ensures data has actually loaded from the server
+- **Impossible regression**: The guide cannot show during loading state
+
+---
+
+## B) Social Calendar White Overlay - STRUCTURAL FIX
+
+### Root Cause
+The Modal in FeedCalendar.tsx used `presentationStyle="pageSheet"` with an outer View having `backgroundColor: 'transparent'`. On iOS, pageSheet has a default white background that shows through.
+
+### Structural Fix Applied
+**File**: src/components/FeedCalendar.tsx
+
+Changed the outer View to use `colors.background`:
+```tsx
+<View className="flex-1" style={{ backgroundColor: colors.background }}>
+```
+
+Removed `justify-end` class and `maxHeight: "75%"` to make it a full pageSheet.
+
+### DEV Proof Log
+```tsx
+{__DEV__ && (() => { console.log('[CALENDAR_SHEET_RENDER]', { showDayModal, bgColor: colors.background }); return null; })()}
+```
+
+---
+
+## C) Suggestions Feed Error Handling - ALREADY CORRECT
+
+### Verification
+Checked src/hooks/useSuggestionsFeed.ts:
+- Returns `{ suggestions: [] }` on error (graceful degradation)
+- No error toasts shown to users
+
+Checked src/app/suggestions.tsx:
+- `sendRequestMutation.onError` only does haptic feedback, no toast
+
+### Reconnect 7-Day Logic
+The reconnect feature (friends added <7 days should not appear) is a **backend concern**. The endpoint `/api/friends/reconnect` needs to filter by friendship age. The frontend `ReconnectFriend` interface doesn't include a `friendsSince` field.
+
+**Backend TODO**: Filter reconnect suggestions where friendship age < 7 days.
+
+---
+
+## D) Friends List Pin + Badges - IMPLEMENTED
+
+### File: src/app/friends.tsx
+
+### Badges Display
+Added BadgePill to FriendListItem (was already in FriendCard):
+```tsx
+{friend.featuredBadge && (
+  <View className="mt-0.5">
+    <BadgePill
+      name={friend.featuredBadge.name}
+      tierColor={friend.featuredBadge.tierColor}
+      variant="small"
+    />
+  </View>
+)}
+```
+
+### Swipe-to-Pin (FriendListItem)
+- Added pan gesture to FriendListItem component
+- Swipe right reveals pin action background
+- Releases swipe to toggle pin
+- Visual indicator for pinned friends (border highlight, pin icon)
+
+### Long-Press-to-Pin (FriendCard)
+- Added `onLongPress` handler to FriendCard
+- 500ms delay for long press
+- Haptic feedback on pin toggle
+- Pin indicator icon in top-right corner
+
+### Pin Mutation Connected
+Both FriendListItem and FriendCard now receive:
+```tsx
+onPin={(id) => pinFriendshipMutation.mutate(id)}
+isPinned={pinnedFriendshipIds.has(friendship.id)}
+```
+
+---
+
+## E) Username Change Admin Override - IMPLEMENTED
+
+### File: src/app/settings.tsx
+
+### Changes
+1. Updated mutation type to include `adminBypassCooldown`:
+```tsx
+mutationFn: (data: { ...; adminBypassCooldown?: boolean }) =>
+```
+
+2. When admin changes handle, bypass flag is sent:
+```tsx
+if (normalizedEditHandle !== currentHandleNormalized) {
+  updates.handle = normalizedEditHandle;
+  if (adminStatus?.isAdmin) {
+    updates.adminBypassCooldown = true;
+  }
+}
+```
+
+3. Info modal shows different text for admins:
+```tsx
+{adminStatus?.isAdmin 
+  ? "As an admin, you can change your username without cooldown restrictions."
+  : "You can change your username up to 2 times every 30 days."
+}
+```
+
+### Backend Requirement
+The `/api/profile` endpoint needs to check `adminBypassCooldown` flag and skip cooldown validation when true AND the user is a verified admin.
+
+---
+
+## F) Settings Section Reorder - COMPLETED
+
+### File: src/app/settings.tsx
+
+**New Order**:
+1. INVITE FRIENDS (Referral) - delay 160
+2. FOUNDER PRO - delay 167 (NEW POSITION)
+3. BIRTHDAYS - delay 175
+4. ... other sections
+
+Moved the entire FOUNDER PRO section from after Privacy Settings to between INVITE FRIENDS and BIRTHDAYS.
+
+---
+
+## Files Modified
+1. `src/app/calendar.tsx` - Guide modal structural fix
+2. `src/components/FeedCalendar.tsx` - White overlay fix
+3. `src/app/friends.tsx` - Pin swipe + badges features
+4. `src/app/settings.tsx` - Admin override + section reorder
+
+## Testing Checklist
+- [ ] Cold start app as new user -> Guide should show
+- [ ] Cold start app as existing user (has friends/events) -> Guide should NOT show
+- [ ] Open social calendar day modal in dark mode -> No white overlay
+- [ ] Swipe right on friend in list view -> Pin action appears
+- [ ] Long press friend in card view -> Pin toggles
+- [ ] Check friends display badges when they have one
+- [ ] Admin changes username -> No cooldown error
+- [ ] Settings page order: Referral -> Founder Pro -> Birthdays
+
+## Backend Requirements (Not in this PR)
+1. `/api/friends/reconnect` - Filter friends added <7 days ago
+2. `/api/profile` - Honor `adminBypassCooldown` flag for admins
+
+---
+
+## Proof Logs Summary
+DEV-only logs added for debugging:
+- `[GUIDE_DECISION]` - Guide modal decision flow
+- `[CALENDAR_SHEET_RENDER]` - Calendar sheet background color
+
+These logs are stripped in production builds.

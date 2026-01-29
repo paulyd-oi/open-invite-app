@@ -322,9 +322,12 @@ export default function DiscoverScreen() {
               <View className="flex-row items-center mb-1">
                 <Sparkles size={16} color={themeColor} />
                 <Text className="font-medium ml-2" style={{ color: colors.textSecondary }}>
-                  Haven't hung out in a while
+                  Reconnect
                 </Text>
               </View>
+              <Text className="text-sm ml-6" style={{ color: colors.textTertiary }}>
+                Friends you haven't hung out with in 14+ days
+              </Text>
             </Animated.View>
 
             {reconnectFriends.length === 0 ? (

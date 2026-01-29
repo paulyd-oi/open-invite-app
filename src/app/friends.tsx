@@ -393,11 +393,11 @@ function FriendListItem({
   return (
     <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
       <View className="mb-2 overflow-hidden rounded-xl">
-        {/* Pin action background */}
+        {/* Pin action background - GREEN (#10B981) to match CircleCard pin styling */}
         {onPin && (
           <Animated.View 
             className="absolute inset-y-0 left-0 w-20 items-center justify-center rounded-l-xl"
-            style={[{ backgroundColor: isPinned ? colors.textTertiary : themeColor }, pinBgStyle]}
+            style={[{ backgroundColor: "#10B981" }, pinBgStyle]}
           >
             <Pin size={24} color="#FFFFFF" />
           </Animated.View>
@@ -1073,7 +1073,7 @@ export default function FriendsScreen() {
   const circles = circlesData?.circles ?? [];
 
   // Fetch pinned friendships
-  const { data: pinnedData } = useQuery({
+  const { data: pinnedData, isFetched: pinnedFetched } = useQuery({
     queryKey: ["pinnedFriendships"],
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
     enabled: bootStatus === 'authed',
@@ -1083,6 +1083,11 @@ export default function FriendsScreen() {
   useEffect(() => {
     if (pinnedData?.pinnedFriendshipIds) {
       setPinnedFriendshipIds(new Set(pinnedData.pinnedFriendshipIds));
+      if (__DEV__) console.log("[DEV_DECISION] pin loaded from server", { 
+        count: pinnedData.pinnedFriendshipIds.length, 
+        ids: pinnedData.pinnedFriendshipIds,
+        source: "server" 
+      });
     }
   }, [pinnedData]);
 
@@ -1113,7 +1118,7 @@ export default function FriendsScreen() {
     },
   });
 
-  // Pin friendship mutation
+  // Pin friendship mutation - persists to server and invalidates query for remount resilience
   const pinFriendshipMutation = useMutation({
     mutationFn: (friendshipId: string) =>
       api.post<{ isPinned: boolean }>(`/api/circles/friends/${friendshipId}/pin`, {}),
@@ -1125,6 +1130,9 @@ export default function FriendsScreen() {
         newPinned.delete(friendshipId);
       }
       setPinnedFriendshipIds(newPinned);
+      // Invalidate the query to ensure persistence across remounts
+      queryClient.invalidateQueries({ queryKey: ["pinnedFriendships"] });
+      if (__DEV__) console.log("[DEV_DECISION] pin persisted", { friendId: friendshipId, isPinned: data.isPinned, source: "server" });
     },
   });
 

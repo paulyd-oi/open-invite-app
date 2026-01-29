@@ -105,14 +105,14 @@ export function FriendCard({
     >
       {/* Swipe Actions Background */}
       <View className="absolute inset-0 flex-row">
-        {/* Pin Action (left side - revealed on swipe right) */}
+        {/* Pin Action (left side - revealed on swipe right) - Always GREEN to match CircleCard */}
         <Animated.View
           style={animatedPinStyle}
           className="absolute left-4 top-0 bottom-0 justify-center"
         >
           <View
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: isPinned ? colors.textTertiary : "#10B981" }}
+            style={{ backgroundColor: "#10B981" }}
           >
             <Pin size={18} color="#fff" />
           </View>

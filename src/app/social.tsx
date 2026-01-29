@@ -991,16 +991,6 @@ export default function SocialScreen() {
     [discoveryEvents, session?.user?.id]
   );
 
-  // Count discovery events in the next 14 days for social proof line
-  const plansIn14Days = useMemo(() => {
-    const now = new Date();
-    const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    return discoveryEvents.filter((event) => {
-      const eventDate = new Date(event.startTime);
-      return eventDate >= now && eventDate <= fourteenDaysFromNow;
-    }).length;
-  }, [discoveryEvents]);
-
   const handleRefresh = () => {
     refetchFeed();
     refetchMyEvents();
@@ -1104,19 +1094,6 @@ export default function SocialScreen() {
           </Pressable>
         </View>
       </View>
-
-      {/* Micro Social Proof Line */}
-      {!isLoading && plansIn14Days > 0 && (
-        <View className="px-5 pb-3">
-          <Text
-            style={{ color: colors.textSecondary }}
-            className="text-sm"
-            accessibilityLabel={`${plansIn14Days} ${plansIn14Days === 1 ? 'plan' : 'plans'} in the next 14 days`}
-          >
-            {plansIn14Days} {plansIn14Days === 1 ? 'plan' : 'plans'} in the next 14 days
-          </Text>
-        </View>
-      )}
 
       {/* Email verification banner - shows when emailVerified === false */}
       <EmailVerificationBanner />

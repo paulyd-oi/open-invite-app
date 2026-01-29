@@ -1912,57 +1912,21 @@ export default function CircleScreen() {
               Create Event
             </Text>
 
-            {/* Segmented Control */}
-            <View style={{ flexDirection: "row", backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6", borderRadius: 10, padding: 4, marginBottom: 20 }}>
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setCreateEventVisibility("open_invite");
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: createEventVisibility === "open_invite" ? colors.background : "transparent",
-                }}
-              >
-                <Text style={{
-                  textAlign: "center",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: createEventVisibility === "open_invite" ? themeColor : colors.textSecondary,
-                }}>
-                  Open Invite
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setCreateEventVisibility("circle_only");
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: createEventVisibility === "circle_only" ? colors.background : "transparent",
-                }}
-              >
-                <Text style={{
-                  textAlign: "center",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: createEventVisibility === "circle_only" ? themeColor : colors.textSecondary,
-                }}>
-                  Circle Only
-                </Text>
-              </Pressable>
+            {/* Circle Only indicator */}
+            <View style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <Text style={{
+                textAlign: "center",
+                fontSize: 14,
+                fontWeight: "600",
+                color: themeColor,
+              }}>
+                Circle Only
+              </Text>
             </View>
 
             {/* Description text */}
             <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: "center", marginBottom: 20 }}>
-              {createEventVisibility === "open_invite"
-                ? "All your friends can see and join this event."
-                : "Only circle members can see and join this event."}
+              Events created here are only visible to friends in this group.
             </Text>
 
             {/* Create Button */}
@@ -1970,7 +1934,7 @@ export default function CircleScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setShowCreateEvent(false);
-                router.push(`/create?circleId=${id}&visibility=${createEventVisibility}` as any);
+                router.push(`/create?circleId=${id}&visibility=circle_only` as any);
               }}
               style={{
                 backgroundColor: themeColor,
@@ -1979,7 +1943,7 @@ export default function CircleScreen() {
                 alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>Create Event</Text>
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>Create</Text>
             </Pressable>
 
             {/* Cancel Button */}

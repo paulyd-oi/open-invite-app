@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import Constants from "expo-constants";
 import {
   ChevronLeft,
   Palette,
@@ -930,8 +931,17 @@ export default function SettingsScreen() {
       newSet.delete(dayOfWeek);
       // Clear block2 times when removing
       updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: null, block2EndTime: null });
+      if (__DEV__) {
+        console.log("[DEV_DECISION] work_schedule_block2_remove", { dayOfWeek });
+      }
     } else {
       newSet.add(dayOfWeek);
+      // Save default block2 times immediately so they persist
+      // Default to 13:00-17:00 (1pm-5pm) for afternoon block
+      updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: "13:00", block2EndTime: "17:00" });
+      if (__DEV__) {
+        console.log("[DEV_DECISION] work_schedule_block2_add", { dayOfWeek, defaultTimes: "13:00-17:00" });
+      }
     }
     setExpandedBlock2Days(newSet);
   };
@@ -1519,18 +1529,28 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Premium Status Section - Between Referral and Birthdays */}
+        {/* Subscription Section - Between Referral and Birthdays */}
+        {__DEV__ && !entitlementsLoading && (() => { console.log("[DEV_DECISION] subscription_ui", { 
+          state: entitlementsLoading ? "loading" : userIsPremium ? "pro" : "free", 
+          entitlement: entitlements?.plan 
+        }); return null; })()}
         <Animated.View entering={FadeInDown.delay(167).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">FOUNDER PRO</Text>
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
+          {/* Gate entire section on entitlements being loaded to prevent flash */}
+          {entitlementsLoading ? (
+            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
+              <Text style={{ color: colors.textTertiary }} className="text-sm text-center">Loading subscription status...</Text>
+            </View>
+          ) : (
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {/* Current Status */}
+            {/* Current Status - Show truthful state */}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push("/subscription?source=settings");
               }}
               className="p-4"
-              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+              style={{ borderBottomWidth: !userIsPremium ? 1 : 0, borderBottomColor: colors.separator }}
             >
               <View className="flex-row items-center">
                 <View
@@ -1540,17 +1560,19 @@ export default function SettingsScreen() {
                   <Crown size={20} color={userIsPremium ? "#FFD700" : colors.textSecondary} />
                 </View>
                 <View className="flex-1">
-                  <Text style={{ color: colors.text }} className="text-base font-medium">Plan</Text>
+                  <Text style={{ color: colors.text }} className="text-base font-medium">
+                    {userIsPremium ? "Founder Pro" : "Plan"}
+                  </Text>
                   <Text style={{ color: colors.textSecondary }} className="text-sm">
-                    {entitlementsLoading ? "Loading..." : entitlements?.plan === "LIFETIME_PRO" ? "Lifetime Pro" : entitlements?.plan === "PRO" ? "Pro" : "Free"}
+                    {userIsPremium ? "Thank you for your support!" : "Free"}
                   </Text>
                 </View>
-                <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
+                {!userIsPremium && <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>}
               </View>
             </Pressable>
 
-            {/* Upgrade CTA (only show for free users, hidden while loading to prevent flash) */}
-            {!entitlementsLoading && !userIsPremium && (
+            {/* Upgrade CTA (only show for free users) */}
+            {!userIsPremium && (
               <Pressable
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1624,6 +1646,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </View>
+          )}
         </Animated.View>
 
         {/* Birthdays Section */}
@@ -2014,11 +2037,13 @@ export default function SettingsScreen() {
             <SettingItem
               icon={<Info size={20} color="#9B59B6" />}
               title="About Open Invite"
-              subtitle="Version 1.0.0"
+              subtitle={`Version ${Constants.expoConfig?.version ?? "1.0.0"}`}
               isDark={isDark}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                safeToast.info("About Open Invite", "Version 1.0.0 - Share plans with friends!");
+                const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+                if (__DEV__) console.log("[DEV_DECISION] app_version", { source: "Constants.expoConfig", version: appVersion });
+                safeToast.info("About Open Invite", `Version ${appVersion} - Share plans with friends!`);
               }}
             />
           </View>

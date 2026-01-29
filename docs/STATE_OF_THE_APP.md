@@ -1,6 +1,17 @@
 # State of the App — Frontend
 
 ## Stable
+- Coachmark permanent dismissal: SecureStore with versioned keys (guide_friends_add_people_v1, guide_create_first_plan_v1), loadedOnce gating
+- Pin Friend persistence: Query invalidation for pinnedFriendships after pin mutation, DEV logs
+- Pin Friend styling: Always green (#10B981) swipe action (not conditional)
+- Subscription section: Entitlement-smart with loading gate, truthful Pro/Free display
+- App version: Auto-synced from Constants.expoConfig?.version
+- Reconnect tab: Shows subtitle "Friends you haven't hung out with in 14+ days"
+- Group create modal (circles): Simplified to "Circle Only" (no Open Invite option)
+- Work schedule block2: Saves default times (13:00-17:00) immediately on add
+- Emoji icon validation: Rejects non-emoji input, DEV log for rejected input
+- Home calendar: Removed "X plans in 14 days" social proof line
+- Groups page: Back button added, "+ New" button label
 - Onboarding flow with bootstrap refresh mechanism
 - Login with Better Auth (cookie session established)
 - Signup with Better Auth (cookie session established)

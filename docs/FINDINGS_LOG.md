@@ -1,5 +1,38 @@
 # Findings Log — Frontend
 
+## Sprint V1.1 UX Polish Patterns (2025-06)
+
+### Coachmark Permanent Dismissal Pattern
+- **Migration**: AsyncStorage → SecureStore for cross-session persistence
+- **Versioned keys**: `guide_friends_add_people_v1`, `guide_create_first_plan_v1` (version suffix allows reset)
+- **loadedOnce gating**: shouldShowStep gates on loadedOnce to prevent flash
+- **DEV decision logs**: All state changes logged with `[DEV_DECISION]` prefix
+- **Implementation location**: `src/hooks/useOnboardingGuide.ts`
+
+### Pin Friend Query Invalidation Pattern
+- **Consistency**: invalidateQueries for `["pinnedFriendships"]` after pin mutation
+- **DEV logs**: All pin operations logged for debugging
+- **UI color**: Always #10B981 green (not conditional on pin state)
+- **Implementation location**: `src/app/friends.tsx`, `src/components/FriendCard.tsx`
+
+### Subscription Section Entitlement-Smart Pattern
+- **Gate on loading**: Show "Loading subscription status..." while entitlementsLoading
+- **Truthful display**: Show "Founder Pro" for userIsPremium, "Free" otherwise
+- **No flash**: Entire section gated on entitlements being loaded
+- **DEV decision log**: Logs state, entitlement on render
+- **Implementation location**: `src/app/settings.tsx` SUBSCRIPTION section
+
+### Work Schedule Block2 Persistence Pattern
+- **Default values on add**: When adding block2, save default times (13:00-17:00) immediately
+- **Prevents data loss**: User can navigate away without picking times and block2 persists
+- **DEV logs**: Log block2 add/remove operations
+- **Implementation location**: `src/app/settings.tsx` toggleBlock2 function
+
+### Emoji Icon Validation Pattern
+- **Reject non-emoji**: Clear input if no emoji graphemes detected
+- **DEV log on reject**: Log rejected non-emoji input in DEV mode
+- **Implementation location**: `src/app/create.tsx` customEmojiInput onChangeText
+
 ## Work Schedule Block2 Auto-Expand Pattern (Canonical)
 
 - **First-load initialization**: useEffect with ref guard syncs expandedBlock2Days Set from loaded schedule data

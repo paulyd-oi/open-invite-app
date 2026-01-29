@@ -10,6 +10,8 @@ Constraints:
 - Preserve navigation architecture
 - Preserve icon immutables
 
+If task involves recurring UI regression, follow docs/CLAUDE_UI_REGRESSION_PROTOCOL.md
+
 Completion requirements:
 - Update docs/STATE_OF_THE_APP.md
 - If new discoveries, append to docs/FINDINGS_LOG.md using the template
