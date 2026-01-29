@@ -44,10 +44,11 @@ function getSuggestionStyle(type: SuggestionAction): {
         iconColor: "#10B981",
       };
     case "NUDGE_INVITE":
+      // [NUDGE_ARTIFACT_FIX] Use neutral theme-safe colors instead of orange
       return {
         icon: UserPlus,
-        bgColor: "#F5920020",
-        iconColor: "#F59200",
+        bgColor: "#6B728020",
+        iconColor: "#6B7280",
       };
     case "RECONNECT_FRIEND":
       return {

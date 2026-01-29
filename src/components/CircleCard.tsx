@@ -165,17 +165,7 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
                   <Pin size={10} color="#fff" />
                 </View>
               )}
-              {/* Unread messages badge */}
-              {(circle.unreadCount ?? 0) > 0 && (
-                <View
-                  className="absolute -top-1 -left-1 min-w-5 h-5 px-1.5 rounded-full items-center justify-center"
-                  style={{ backgroundColor: "#EF4444" }}
-                >
-                  <Text className="text-[10px] font-bold text-white">
-                    {(circle.unreadCount ?? 0) > 99 ? "99+" : circle.unreadCount}
-                  </Text>
-                </View>
-              )}
+              {/* [UNREAD_DOTS_REMOVED_P2.3] Unread messages badge rendering removed pre-launch */}
             </View>
 
             {/* Middle - Circle Info */}

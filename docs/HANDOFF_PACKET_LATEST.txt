@@ -1,53 +1,73 @@
 ========================================
-HANDOFF PACKET - Fix DisplayName Overwrite + Normalize Username
+HANDOFF PACKET - Optional Cleanup Sweep (3 Fixes)
 ========================================
 Date: 2026-01-29
 Branch: main
 Author: GitHub Copilot (Claude Opus 4.5)
-Task: P0.2
 
 ========================================
 SUMMARY
 ========================================
-Fixed bug where user-entered display name was never persisted during
-onboarding, causing the UI to fall back to email local-part (e.g., 
-"cryptopdal" instead of "Paul").
+Three cleanup fixes for pre-launch polish:
 
-ROOT CAUSE: welcome.tsx line 775-780 had an incorrect comment claiming
-"backend rejects unknown fields" and was NOT sending the `name` field
-in the PUT /api/profile payload. The backend DOES accept `name` per
-shared/contracts.ts line 555.
+A) Removed "Add to Groups" button/action from Friend Profile detail screen
+   - "Groups Together" section is still visible (informational only)
+   - Add button and "Add to a group" link removed
+   - Modal infrastructure kept but no longer triggered
 
-FIXES APPLIED:
-1. Now include `name` in profile PUT payload during onboarding
-2. Added DEV log [DISPLAYNAME_WRITE] when persisting user-entered name
-3. Added helper `computeDisplayLabel()` for render-only display fallback
-4. Added DEV log [DISPLAYNAME_FALLBACK_BLOCKED] when fallback is used
-5. Username @ prefix stripping was already working (no change needed)
+B) Removed unread badge rendering from CircleCard
+   - Data fields/props preserved, only rendering removed
+   - Added marker comment [UNREAD_DOTS_REMOVED_P2.3]
 
-========================================
-ROOT CAUSE ANALYSIS
-========================================
-CODE PATH BEFORE (BROKEN):
-1. User enters displayName "Paul" in welcome.tsx slide 3
-2. handleSlide3Continue() at line 713 extracts trimmedName = "Paul"
-3. BUT payload at line 778 only included { handle, avatarUrl? }
-4. api.put("/api/profile", payload) persists ONLY handle + avatar
-5. displayName "Paul" is LOST - never sent to backend
-6. Later, getProfileDisplay() falls back to email local-part
-
-CODE PATH AFTER (FIXED):
-1. User enters displayName "Paul" in welcome.tsx slide 3
-2. handleSlide3Continue() extracts trimmedName = "Paul"
-3. payload now includes { handle, avatarUrl?, name? }
-4. If trimmedName exists, payload.name = trimmedName
-5. DEV log: [DISPLAYNAME_WRITE] Persisting user-entered name: Paul
-6. api.put("/api/profile", payload) persists name to backend
-7. Cache also updated with name field
+C) Fixed NUDGE_INVITE orange artifact in SuggestionFeedCard
+   - Changed from orange (#F59200) to neutral gray (#6B7280)
+   - Added marker comment [NUDGE_ARTIFACT_FIX]
 
 ========================================
 FILES CHANGED
 ========================================
+src/app/friend/[id].tsx
+  - Lines 673-706: Removed Add button from Groups Together header
+  - Lines 690-701: Removed "Add to a group" link from empty state
+  - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
+
+src/components/CircleCard.tsx
+  - Lines 167-178: Removed unread badge render block
+  - Added [UNREAD_DOTS_REMOVED_P2.3] marker comment
+  - Kept: circle.unreadCount data field in props
+
+src/components/SuggestionFeedCard.tsx
+  - Lines 44-49: Changed NUDGE_INVITE colors
+  - BEFORE: bgColor "#F5920020", iconColor "#F59200"
+  - AFTER:  bgColor "#6B728020", iconColor "#6B7280"
+  - Added [NUDGE_ARTIFACT_FIX] marker comment
+
+========================================
+EXACT CODE PATHS REMOVED
+========================================
+A) friend/[id].tsx - Add to Groups UI:
+   - Pressable with setShowAddToGroupModal(true) in Groups Together header
+   - Pressable "Add to a group" link in empty state
+   - Modal still exists but can no longer be triggered
+
+B) CircleCard.tsx - Unread badge:
+   - Entire conditional block: {(circle.unreadCount ?? 0) > 0 && ...}
+   - Rendered red badge with count text
+
+C) SuggestionFeedCard.tsx - Orange styling:
+   - NUDGE_INVITE case now returns neutral gray instead of orange
+
+========================================
+VERIFY RESULT
+========================================
+bash scripts/ai/verify_frontend.sh → PASS
+- Invariants: All passed
+- TypeScript: No errors
+
+========================================
+COMMIT
+========================================
+fix(optional): remove legacy groups action + unread badge + nudge artifact
 src/app/welcome.tsx (lines 770-815)
   - BEFORE: payload = { handle, avatarUrl? }
   - AFTER:  payload = { handle, avatarUrl?, name? }

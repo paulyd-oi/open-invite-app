@@ -669,7 +669,7 @@ export default function FriendDetailScreen() {
           <FriendCalendar events={events} themeColor={themeColor} />
         </Animated.View>
 
-        {/* Shared Groups Section */}
+        {/* Shared Groups Section - [LEGACY_ADD_TO_GROUPS_REMOVED] Add button removed pre-launch */}
         <Animated.View entering={FadeInDown.delay(25).springify()} className="mb-4">
           <View className="flex-row items-center justify-between mb-3">
             <View className="flex-row items-center">
@@ -678,17 +678,7 @@ export default function FriendDetailScreen() {
                 Groups Together
               </Text>
             </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowAddToGroupModal(true);
-              }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Plus size={14} color="#fff" />
-              <Text className="text-white text-sm font-medium ml-1">Add</Text>
-            </Pressable>
+            {/* [LEGACY_ADD_TO_GROUPS_REMOVED] Add button removed - groups are informational only pre-launch */}
           </View>
 
           {sharedGroups.length === 0 ? (
@@ -697,17 +687,7 @@ export default function FriendDetailScreen() {
               <Text className="text-center text-sm" style={{ color: colors.textTertiary }}>
                 Not in any groups together yet
               </Text>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowAddToGroupModal(true);
-                }}
-                className="mt-2"
-              >
-                <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                  Add to a group
-                </Text>
-              </Pressable>
+              {/* [LEGACY_ADD_TO_GROUPS_REMOVED] "Add to a group" link removed pre-launch */}
             </View>
           ) : (
             <View className="flex-row flex-wrap">
