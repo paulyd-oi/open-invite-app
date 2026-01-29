@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { cleanGroupName } from "@/lib/displayHelpers";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -314,6 +315,10 @@ export default function FriendDetailScreen() {
     queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
     enabled: bootStatus === 'authed',
   });
+  
+  if (__DEV__) {
+    console.log("[DEV_DECISION] groups_together_source kind=friend_groups reason=uses_/api/groups_endpoint_for_shared_memberships");
+  }
 
   // Fetch notes for this friend
   const { data: notesData, refetch: refetchNotes } = useQuery({
@@ -688,6 +693,7 @@ export default function FriendDetailScreen() {
 
           {sharedGroups.length === 0 ? (
             <View className="rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
+              {__DEV__ && (() => { console.log("[DEV_DECISION] groups_together_empty_state shown=true reason=no_shared_memberships"); return null; })()}
               <Text className="text-center text-sm" style={{ color: colors.textTertiary }}>
                 Not in any groups together yet
               </Text>
@@ -716,7 +722,7 @@ export default function FriendDetailScreen() {
                     style={{ backgroundColor: membership.group.color }}
                   />
                   <Text className="font-medium text-sm" style={{ color: membership.group.color }}>
-                    {membership.group.name}
+                    {cleanGroupName(membership.group.name)}
                   </Text>
                 </View>
               ))}
@@ -932,7 +938,7 @@ export default function FriendDetailScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="font-semibold" style={{ color: colors.text }}>
-                        {group.name}
+                        {cleanGroupName(group.name)}
                       </Text>
                       <Text className="text-sm" style={{ color: colors.textTertiary }}>
                         {group.memberships?.length ?? 0} members

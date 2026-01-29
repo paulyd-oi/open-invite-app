@@ -73,6 +73,7 @@ import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderS
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
+import { cleanGroupName } from "@/lib/displayHelpers";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
@@ -277,7 +278,7 @@ function FriendCard({
                     style={{ backgroundColor: m.group.color + "20" }}
                   >
                     <Text className="text-xs" style={{ color: m.group.color }}>
-                      {m.group.name}
+                      {cleanGroupName(m.group.name)}
                     </Text>
                   </View>
                 ))}
@@ -459,7 +460,7 @@ function FriendListItem({
                           style={{ backgroundColor: m.group.color + "15" }}
                         >
                           <Text className="text-[10px]" style={{ color: m.group.color }}>
-                            {m.group.name}
+                            {cleanGroupName(m.group.name)}
                           </Text>
                         </View>
                       ))}
@@ -1632,7 +1633,7 @@ export default function FriendsScreen() {
             <View className="flex-row items-center">
               <Users size={16} color="#4ECDC4" />
               <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-                {selectedGroup ? selectedGroup.name : "Friends"} ({filteredFriends.length})
+                {selectedGroup ? cleanGroupName(selectedGroup.name) : "Friends"} ({filteredFriends.length})
               </Text>
               {selectedGroupId && filteredFriends.length !== friends.length && (
                 <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>
@@ -2041,7 +2042,7 @@ export default function FriendsScreen() {
                       </View>
                       <View className="flex-1">
                         <Text className="font-semibold" style={{ color: colors.text }}>
-                          {group.name}
+                          {cleanGroupName(group.name)}
                         </Text>
                         <Text className="text-sm" style={{ color: colors.textTertiary }}>
                           {memberCount} {memberCount === 1 ? "friend" : "friends"}
@@ -2165,7 +2166,7 @@ export default function FriendsScreen() {
                           </View>
                           <View className="flex-1">
                             <Text className="font-medium" style={{ color: colors.text }}>
-                              {group.name}
+                              {cleanGroupName(group.name)}
                             </Text>
                             <Text className="text-xs" style={{ color: colors.textTertiary }}>
                               {group.memberships?.length ?? 0} friends
@@ -2285,7 +2286,7 @@ export default function FriendsScreen() {
                 </View>
                 {editingGroup && (
                   <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                    {editingGroup.name}
+                    {cleanGroupName(editingGroup.name)}
                   </Text>
                 )}
               </View>

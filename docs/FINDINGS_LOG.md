@@ -1,5 +1,40 @@
 # Findings Log — Frontend
 
+## Sprint Pack V2 Legacy Group Text Removal (2025-01-29)
+
+### Legacy Group Name Display Filter Pattern ✓
+**ROOT CAUSE**: Database records from older versions of the app contained group names like "LEGACY GROUP" which were displayed verbatim in UI, causing confusing user-facing text.
+
+**EXACT CODE PATHS**:
+- src/app/friends.tsx
+  - Line 280: `{m.group.name}` in list view group badges
+  - Line 463: `{m.group.name}` in detailed view group badges
+  - Line 1636: `{selectedGroup.name}` in filter header
+  - Line 2045: `{group.name}` in group list items
+  - Line 2168: `{group.name}` in add-to-group modal
+  - Line 2288: `{editingGroup.name}` in edit group modal header
+- src/app/friend/[id].tsx
+  - Line 719: `{membership.group.name}` in Groups Together section
+  - Line 935: `{group.name}` in Add to Group modal
+
+**WHY LEGACY TEXT APPEARED**: Backend `/api/groups` endpoint returns `FriendGroup` objects with `name` field directly from database. Old records had literal "LEGACY GROUP" text which frontend rendered without filtering.
+
+**FIX APPLIED**:
+1. Created `cleanGroupName()` helper in src/lib/displayHelpers.ts:
+   - Removes "LEGACY GROUP", "Legacy Group", "legacy group" (case-insensitive)
+   - Removes "(LEGACY)" and "[LEGACY]" patterns
+   - Returns "Group" if cleaning removes entire name
+   - Logs all cleanings with `[DEV_DECISION] legacy_group_text_removed` in DEV mode
+2. Applied `cleanGroupName()` to all 8 group name render locations across friends.tsx and friend/[id].tsx
+3. Groups Together data source verified: Uses `/api/groups` endpoint for friend groups (not circles), data comes from `friendship.groupMemberships` array
+
+**INVARIANTS ADDED**:
+- DEV log in cleanGroupName(): `[DEV_DECISION] legacy_group_text_removed count=1 original="..." cleaned="..."`
+- DEV log in friend/[id].tsx: `[DEV_DECISION] groups_together_source kind=friend_groups reason=uses_/api/groups_endpoint_for_shared_memberships`
+- DEV log for empty state: `[DEV_DECISION] groups_together_empty_state shown=true reason=no_shared_memberships`
+
+**VERIFICATION**: `npm run typecheck && bash scripts/ai/verify_frontend.sh` PASSED
+
 ## Sprint Pack V2 Event Editing Consistency (2025-06)
 
 ### Edit Event UX Alignment Pattern ✓
