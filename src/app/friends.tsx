@@ -39,7 +39,6 @@ import {
   MapPin,
   List,
   LayoutGrid,
-  Filter,
   Activity,
   Sparkles,
   Building2,
@@ -73,7 +72,6 @@ import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderS
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
-import { cleanGroupName } from "@/lib/displayHelpers";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
@@ -89,8 +87,6 @@ import {
   type FriendRequest,
   type GetFriendEventsResponse,
   type Event,
-  type GetGroupsResponse,
-  type FriendGroup,
   type Circle,
   type GetCirclesResponse,
   type SearchUsersRankedResponse,
@@ -269,7 +265,7 @@ function FriendCard({
                 {bio}
               </Text>
             )}
-            {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
+            {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
             {/* Featured Badge */}
             {friend.featuredBadge && (
               <View className="mt-1.5">
@@ -433,7 +429,7 @@ function FriendListItem({
                       />
                     </View>
                   )}
-                  {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
+                  {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
                 </View>
               </Pressable>
 
@@ -590,7 +586,7 @@ export default function FriendsScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
-  const { groupId: initialGroupId } = useLocalSearchParams<{ groupId?: string }>();
+  // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   const [searchEmail, setSearchEmail] = useState("");
@@ -639,26 +635,8 @@ export default function FriendsScreen() {
       // Ignore errors - non-critical
     }
   }, [session?.user?.id]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(initialGroupId ?? null);
-  const [showGroupFilter, setShowGroupFilter] = useState(false);
-
-  // Edit group modal state
-  const [showEditGroupModal, setShowEditGroupModal] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<FriendGroup | null>(null);
-  const [editGroupColor, setEditGroupColor] = useState("#FF6B6B");
-
-  // Available colors for group color picker
-  const GROUP_COLORS = [
-    "#FF6B6B", "#FF8C42", "#FFD93D", "#6BCB77", "#4D96FF",
-    "#9B59B6", "#E91E63", "#00BCD4", "#795548", "#607D8B",
-  ];
-
-  // Set initial group filter from URL params
-  useEffect(() => {
-    if (initialGroupId) {
-      setSelectedGroupId(initialGroupId);
-    }
-  }, [initialGroupId]);
+  // [LEGACY_GROUPS_PURGED] selectedGroupId, showGroupFilter, editingGroup states removed
+  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
 
   // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal state removed pre-launch
   const [showSecondOrderSocialNudge, setShowSecondOrderSocialNudge] = useState(false);
@@ -677,7 +655,7 @@ export default function FriendsScreen() {
   // Confirm modal state for destructive actions
   const [showLeaveCircleConfirm, setShowLeaveCircleConfirm] = useState(false);
   const [circleToLeave, setCircleToLeave] = useState<{ id: string; name: string } | null>(null);
-  const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
+  // [LEGACY_GROUPS_PURGED] showDeleteGroupConfirm removed
 
   // Fetch entitlements for gating
   const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
@@ -984,14 +962,7 @@ export default function FriendsScreen() {
   const friends = friendsData?.friends ?? [];
   const receivedRequests = requestsData?.received ?? [];
 
-  // Fetch groups for filtering
-  const { data: groupsData } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: bootStatus === 'authed',
-  });
-
-  const groups = groupsData?.groups ?? [];
+  // [LEGACY_GROUPS_PURGED] groups query and variable removed
 
   // Fetch circles (Planning groups)
   const { data: circlesData, refetch: refetchCircles } = useQuery({
@@ -1066,56 +1037,12 @@ export default function FriendsScreen() {
     },
   });
 
-  // Update group mutation (for changing color)
-  const updateGroupMutation = useMutation({
-    mutationFn: ({ groupId, color }: { groupId: string; color: string }) =>
-      api.put<{ group: FriendGroup }>(`/api/groups/${groupId}`, { color }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      setShowEditGroupModal(false);
-      setEditingGroup(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    },
-  });
+  // [LEGACY_GROUPS_PURGED] updateGroupMutation, deleteGroupMutation, removeMemberFromGroupMutation removed
 
-  // Delete group mutation
-  const deleteGroupMutation = useMutation({
-    mutationFn: (groupId: string) => api.delete(`/api/groups/${groupId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      if (selectedGroupId === editingGroup?.id) {
-        setSelectedGroupId(null);
-      }
-      setShowEditGroupModal(false);
-      setEditingGroup(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    },
-  });
-
-  // Remove member from group mutation
-  const removeMemberFromGroupMutation = useMutation({
-    mutationFn: ({ groupId, friendshipId }: { groupId: string; friendshipId: string }) =>
-      api.delete(`/api/groups/${groupId}/members/${friendshipId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    },
-  });
-
-  // Filter friends by selected group and sort by pinned status
-  // Also filter out any friendships with undefined friend data to prevent crashes
+  // Filter friends (no group filtering) and sort by pinned status
   const filteredFriends = useMemo(() => {
-    // First, filter out any friendships where friend is undefined
-    let result = friends.filter((friendship) => friendship.friend != null);
-    if (selectedGroupId) {
-      result = result.filter((friendship) =>
-        friendship.groupMemberships?.some((m) => m.groupId === selectedGroupId)
-      );
-    }
+    // Filter out any friendships where friend is undefined
+    const result = friends.filter((friendship) => friendship.friend != null);
     // Sort pinned friends first
     return result.sort((a, b) => {
       const aPinned = pinnedFriendshipIds.has(a.id);
@@ -1124,12 +1051,9 @@ export default function FriendsScreen() {
       if (!aPinned && bPinned) return 1;
       return 0;
     });
-  }, [friends, selectedGroupId, pinnedFriendshipIds]);
+  }, [friends, pinnedFriendshipIds]);
 
-  const selectedGroup = useMemo(() => {
-    if (!selectedGroupId) return null;
-    return groups.find((g) => g.id === selectedGroupId) ?? null;
-  }, [groups, selectedGroupId]);
+  // [LEGACY_GROUPS_PURGED] selectedGroup memo removed
 
   if (!session) {
     // INVARIANT: Only show login screen if bootStatus is definitively loggedOut
@@ -1564,13 +1488,8 @@ export default function FriendsScreen() {
             <View className="flex-row items-center">
               <Users size={16} color="#4ECDC4" />
               <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-                {selectedGroup ? cleanGroupName(selectedGroup.name) : "Friends"} ({filteredFriends.length})
+                Friends ({filteredFriends.length})
               </Text>
-              {selectedGroupId && filteredFriends.length !== friends.length && (
-                <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>
-                  of {friends.length}
-                </Text>
-              )}
             </View>
             {friendsExpanded ? (
               <ChevronUp size={18} color={colors.textTertiary} />
@@ -1617,41 +1536,7 @@ export default function FriendsScreen() {
                   </Text>
                 </Pressable>
               </View>
-
-              {/* Group Filter Button */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowGroupFilter(true);
-                }}
-                className="flex-row items-center px-2.5 py-1.5 rounded-lg"
-                style={{
-                  backgroundColor: selectedGroupId ? (selectedGroup?.color ?? themeColor) + "15" : (isDark ? "#2C2C2E" : "#F3F4F6"),
-                  borderWidth: selectedGroupId ? 1 : 0,
-                  borderColor: selectedGroupId ? (selectedGroup?.color ?? themeColor) + "40" : "transparent",
-                }}
-              >
-                <Filter size={14} color={selectedGroupId ? (selectedGroup?.color ?? themeColor) : colors.textSecondary} />
-                <Text
-                  className="text-xs font-medium ml-1"
-                  style={{ color: selectedGroupId ? (selectedGroup?.color ?? themeColor) : colors.textSecondary }}
-                  numberOfLines={1}
-                >
-                  {selectedGroup?.name ?? "All"}
-                </Text>
-                {selectedGroupId && (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedGroupId(null);
-                    }}
-                    className="ml-1"
-                  >
-                    <X size={12} color={selectedGroup?.color ?? themeColor} />
-                  </Pressable>
-                )}
-              </Pressable>
+              {/* [LEGACY_GROUPS_PURGED] Group Filter Button removed */}
             </View>
           )}
         </View>
@@ -1661,42 +1546,18 @@ export default function FriendsScreen() {
             {isLoading ? (
               <FriendsListSkeleton />
             ) : filteredFriends.length === 0 ? (
-              selectedGroupId ? (
-                <View className="py-12 items-center px-8">
-                  <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
-                    <Users size={36} color={themeColor} />
-                  </View>
-                  <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-                    No friends in this group
-                  </Text>
-                  <Text className="text-sm text-center leading-5" style={{ color: colors.textSecondary }}>
-                    Try selecting a different group or add friends to this group
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedGroupId(null);
-                    }}
-                    className="mt-4 px-6 py-3 rounded-full"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <Text className="text-white font-medium">Show All Friends</Text>
-                  </Pressable>
+              <View className="py-12 items-center px-8">
+                <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
+                  <Users size={36} color={themeColor} />
                 </View>
-              ) : (
-                <View className="py-12 items-center px-8">
-                  <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
-                    <Users size={36} color={themeColor} />
-                  </View>
-                  <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-                    No friends yet
-                  </Text>
-                  <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
-                    Invite friends to see their plans and share yours
-                  </Text>
-                  <ShareAppButton variant="full" />
-                </View>
-              )
+                <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
+                  No friends yet
+                </Text>
+                <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
+                  Invite friends to see their plans and share yours
+                </Text>
+                <ShareAppButton variant="full" />
+              </View>
             ) : viewMode === "list" ? (
               filteredFriends.map((friendship: Friendship, index: number) => (
                 <FriendListItem 
@@ -1861,333 +1722,7 @@ export default function FriendsScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Group Filter Modal */}
-      <Modal
-        visible={showGroupFilter}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowGroupFilter(false)}
-      >
-        <View className="flex-1" style={{ backgroundColor: colors.background }}>
-          <View className="px-5 py-4 flex-row items-center justify-between border-b" style={{ borderBottomColor: colors.border }}>
-            <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-              Filter by Group
-            </Text>
-            <Pressable
-              onPress={() => setShowGroupFilter(false)}
-              className="w-8 h-8 rounded-full items-center justify-center"
-              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-            >
-              <X size={18} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          <ScrollView className="flex-1 px-5 py-4">
-            {/* All Friends Option */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedGroupId(null);
-                setShowGroupFilter(false);
-              }}
-              className="flex-row items-center rounded-xl p-4 mb-2 border"
-              style={{
-                backgroundColor: !selectedGroupId ? themeColor + "10" : colors.surface,
-                borderColor: !selectedGroupId ? themeColor + "40" : colors.border,
-              }}
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: themeColor + "20" }}
-              >
-                <Users size={18} color={themeColor} />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold" style={{ color: colors.text }}>
-                  All Friends
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textTertiary }}>
-                  {friends.length} friends
-                </Text>
-              </View>
-              {!selectedGroupId && (
-                <View
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Check size={16} color="#fff" />
-                </View>
-              )}
-            </Pressable>
-
-            {/* Divider */}
-            {groups.length > 0 && (
-              <View className="flex-row items-center my-3">
-                <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
-                <Text className="text-xs mx-3" style={{ color: colors.textTertiary }}>Your Groups</Text>
-                <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
-              </View>
-            )}
-
-            {/* Groups List */}
-            {groups.length === 0 ? (
-              <View className="rounded-xl p-6 border items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                <Users size={32} color={colors.textTertiary} />
-                <Text className="mt-3 mb-1 font-medium" style={{ color: colors.textSecondary }}>No groups yet</Text>
-                <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                  Create groups from your Profile to organize friends
-                </Text>
-              </View>
-            ) : (
-              <>
-                {groups.map((group) => {
-                  const isSelected = selectedGroupId === group.id;
-                  const memberCount = group.memberships?.length ?? 0;
-
-                  return (
-                    <Pressable
-                      key={group.id}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setSelectedGroupId(group.id);
-                        setShowGroupFilter(false);
-                      }}
-                      onLongPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                        setEditingGroup(group);
-                        setEditGroupColor(group.color);
-                        setShowEditGroupModal(true);
-                      }}
-                      delayLongPress={400}
-                      className="flex-row items-center rounded-xl p-4 mb-2 border"
-                      style={{
-                        backgroundColor: isSelected ? group.color + "10" : colors.surface,
-                        borderColor: isSelected ? group.color + "40" : colors.border,
-                      }}
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                        style={{ backgroundColor: group.color + "20" }}
-                      >
-                        <Users size={18} color={group.color} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>
-                          {cleanGroupName(group.name)}
-                        </Text>
-                        <Text className="text-sm" style={{ color: colors.textTertiary }}>
-                          {memberCount} {memberCount === 1 ? "friend" : "friends"}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <View
-                          className="w-8 h-8 rounded-full items-center justify-center"
-                          style={{ backgroundColor: group.color }}
-                        >
-                          <Check size={16} color="#fff" />
-                        </View>
-                      )}
-                    </Pressable>
-                  );
-                })}
-                {/* Hint text for long-press */}
-                <Text className="text-center text-xs mt-2 mb-1" style={{ color: colors.textTertiary }}>
-                  Long-press a group to edit color or remove members
-                </Text>
-              </>
-            )}
-          </ScrollView>
-
-          <View className="px-5 py-4 pb-8 border-t" style={{ borderTopColor: colors.border }}>
-            <Pressable
-              onPress={() => setShowGroupFilter(false)}
-              className="py-4 rounded-xl"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white text-center font-semibold">Done</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* [LEGACY_ADD_TO_GROUPS_REMOVED] - Add to Groups Modal removed pre-launch */}
-
-      {/* Edit Group Modal */}
-      <Modal
-        visible={showEditGroupModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setShowEditGroupModal(false);
-          setEditingGroup(null);
-        }}
-      >
-        <Pressable
-          className="flex-1 justify-center px-5"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => {
-            setShowEditGroupModal(false);
-            setEditingGroup(null);
-          }}
-        >
-          <Pressable onPress={() => {}}>
-            <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, maxHeight: "80%" }}>
-              {/* Header */}
-              <View className="px-5 py-4 border-b" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-lg font-bold" style={{ color: colors.text }}>
-                    Edit Group
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      setShowEditGroupModal(false);
-                      setEditingGroup(null);
-                    }}
-                    className="p-2 -mr-2"
-                  >
-                    <X size={20} color={colors.textTertiary} />
-                  </Pressable>
-                </View>
-                {editingGroup && (
-                  <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                    {cleanGroupName(editingGroup.name)}
-                  </Text>
-                )}
-              </View>
-
-              <ScrollView className="p-5" style={{ maxHeight: 400 }}>
-                {/* Color Picker Section */}
-                <Text className="font-semibold mb-3" style={{ color: colors.text }}>
-                  Group Color
-                </Text>
-                <View className="flex-row flex-wrap mb-6">
-                  {GROUP_COLORS.map((color) => (
-                    <Pressable
-                      key={color}
-                      onPress={() => setEditGroupColor(color)}
-                      className="mr-3 mb-3"
-                    >
-                      <View
-                        className="w-10 h-10 rounded-full items-center justify-center"
-                        style={{
-                          backgroundColor: color,
-                          borderWidth: editGroupColor === color ? 3 : 0,
-                          borderColor: isDark ? "#fff" : "#000",
-                        }}
-                      >
-                        {editGroupColor === color && (
-                          <Check size={18} color="#fff" />
-                        )}
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Save Color Button */}
-                {editingGroup && editGroupColor !== editingGroup.color && (
-                  <Pressable
-                    onPress={() => {
-                      if (editingGroup) {
-                        updateGroupMutation.mutate({
-                          groupId: editingGroup.id,
-                          color: editGroupColor,
-                        });
-                      }
-                    }}
-                    disabled={updateGroupMutation.isPending}
-                    className="py-3 rounded-xl mb-6"
-                    style={{ backgroundColor: editGroupColor }}
-                  >
-                    <Text className="text-white text-center font-semibold">
-                      {updateGroupMutation.isPending ? "Saving..." : "Save Color"}
-                    </Text>
-                  </Pressable>
-                )}
-
-                {/* Members Section */}
-                {editingGroup && (editingGroup.memberships?.length ?? 0) > 0 && (
-                  <>
-                    <Text className="font-semibold mb-3" style={{ color: colors.text }}>
-                      Members ({editingGroup.memberships?.length ?? 0})
-                    </Text>
-                    <Text className="text-xs mb-3" style={{ color: colors.textTertiary }}>
-                      Tap the X to remove a friend from this group
-                    </Text>
-                    {editingGroup.memberships?.map((membership) => {
-                      // Find the friend data from our friends list
-                      const friendData = friends.find(f => f.id === membership.friendshipId)?.friend;
-                      return (
-                        <View
-                          key={membership.friendshipId}
-                          className="flex-row items-center p-3 rounded-xl mb-2 border"
-                          style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-                        >
-                          <View
-                            className="w-10 h-10 rounded-full mr-3 items-center justify-center overflow-hidden"
-                            style={{ backgroundColor: editGroupColor + "20" }}
-                          >
-                            {friendData?.image ? (
-                              <Image source={{ uri: friendData.image }} className="w-full h-full" />
-                            ) : (
-                              <Text className="font-semibold" style={{ color: editGroupColor }}>
-                                {friendData?.name?.[0] ?? "?"}
-                              </Text>
-                            )}
-                          </View>
-                          <View className="flex-1">
-                            <Text className="font-medium" style={{ color: colors.text }}>
-                              {friendData?.name ?? "Unknown"}
-                            </Text>
-                          </View>
-                          <Pressable
-                            onPress={() => {
-                              if (editingGroup) {
-                                removeMemberFromGroupMutation.mutate({
-                                  groupId: editingGroup.id,
-                                  friendshipId: membership.friendshipId,
-                                });
-                                // Update local state to reflect removal
-                                setEditingGroup({
-                                  ...editingGroup,
-                                  memberships: editingGroup.memberships?.filter(
-                                    m => m.friendshipId !== membership.friendshipId
-                                  ),
-                                });
-                              }
-                            }}
-                            className="p-2 rounded-full"
-                            style={{ backgroundColor: isDark ? "#3C3C3E" : "#F3F4F6" }}
-                          >
-                            <X size={16} color={colors.textTertiary} />
-                          </Pressable>
-                        </View>
-                      );
-                    })}
-                  </>
-                )}
-
-                {/* Delete Group Button */}
-                <View className="mt-4 pt-4 border-t" style={{ borderTopColor: colors.border }}>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                      setShowDeleteGroupConfirm(true);
-                    }}
-                    disabled={deleteGroupMutation.isPending}
-                    className="py-3 rounded-xl flex-row items-center justify-center"
-                    style={{ backgroundColor: "#EF444420" }}
-                  >
-                    <Trash2 size={18} color="#EF4444" />
-                    <Text className="font-semibold ml-2" style={{ color: "#EF4444" }}>
-                      {deleteGroupMutation.isPending ? "Deleting..." : "Delete Group"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* [LEGACY_GROUPS_PURGED] Group Filter Modal, Edit Group Modal, and Add to Groups Modal fully removed */}
 
       {/* Paywall Modal for circles gating */}
       <PaywallModal
@@ -2216,21 +1751,7 @@ export default function FriendsScreen() {
         }}
       />
 
-      {/* Delete Group Confirmation */}
-      <ConfirmModal
-        visible={showDeleteGroupConfirm}
-        title="Delete Group"
-        message={`Are you sure you want to delete "${editingGroup?.name}"? This cannot be undone.`}
-        confirmText="Delete"
-        isDestructive
-        onConfirm={() => {
-          if (editingGroup) {
-            deleteGroupMutation.mutate(editingGroup.id);
-          }
-          setShowDeleteGroupConfirm(false);
-        }}
-        onCancel={() => setShowDeleteGroupConfirm(false)}
-      />
+      {/* [LEGACY_GROUPS_PURGED] Delete Group Confirmation removed */}
 
       <SecondOrderSocialNudge
         visible={showSecondOrderSocialNudge}

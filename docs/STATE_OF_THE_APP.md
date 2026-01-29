@@ -1,10 +1,10 @@
 # State of the App — Frontend
 
 ## Stable
+- Legacy Groups UI fully removed: Friends filter + Friend profile "Groups Together" section purged. Circles remain the only group concept.
 - Apple Sign-In cookie storage FIXED: Proper token extraction from backend response (mobileSessionToken > token > session.token > Set-Cookie header), correct setExplicitCookiePair usage (token only, not full cookie pair), direct module cache set via setExplicitCookieValueDirectly(), refreshExplicitCookie now checks SESSION_COOKIE_KEY as fallback
 - Promo code redemption: /redeem-code screen for entering codes like AWAKEN, POST /api/promo/redeem, calm error handling with mom-safe language, success shows formatted expiry date
 - Subscription UI entitlement-smart: Loading gate prevents flash, Pro users see "Subscription" (not "Founder Pro"), no upgrade CTA for Pro users, friend pin is green (#10B981)
-- Group names cleaned for display: cleanGroupName() helper filters "LEGACY GROUP" text from database records, applied to all friends list and Groups Together renders
 - Edit Event UX matches Create Event: Inline compact DateTimePicker (not modal pickers), no Private visibility option, no co-hosts section
 - Coachmark permanent dismissal: SecureStore with versioned keys (guide_friends_add_people_v1, guide_create_first_plan_v1), loadedOnce gating
 - Pin Friend persistence: Query invalidation for pinnedFriendships after pin mutation, DEV logs
@@ -70,11 +70,12 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (P2.4 Legacy Group Badge Removal from Friends List)
-- Friends list cards no longer show group badges (e.g., "Church homies")
-- Doctrine: Group badges shown ONLY in Friend Profile detail screen (/friend/[id].tsx "Groups Together" section)
-- Removed from: FriendCard (compact view) and DetailedFriendCard (detailed view) in friends.tsx
-- cleanGroupName import retained for group filter headers and group management UI
+## Fixed This Session (Legacy Groups UI Purge)
+- Legacy "Groups" UI fully removed from frontend
+- Friends screen: Group filter button/modal removed, no more filtering by legacy groups
+- Friend profile: "Groups Together" section removed, no more group pills display
+- Deleted: src/lib/displayHelpers.ts (cleanGroupName no longer needed)
+- Circles remain the only group-like concept in the UI
 
 ## Fixed This Session (P2.1 Suggestions Feed Card Navigation Fix)
 - SuggestionFeedCard dead tap fixed: Cards with missing eventId/userId are now filtered out before render

@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
+import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Plus, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
 
 // Define the MoreHorizontal icon inline using Ionicons
 import { Ionicons } from "@expo/vector-icons";
@@ -16,11 +16,10 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { cleanGroupName } from "@/lib/displayHelpers";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { type GetFriendEventsResponse, type GetFriendsResponse, type GetGroupsResponse, type FriendGroup, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
+import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
 interface FriendNote {
@@ -302,23 +301,7 @@ export default function FriendDetailScreen() {
     enabled: bootStatus === 'authed' && !!id,
   });
 
-  // Fetch friends data to get group memberships for this friendship
-  const { data: friendsData, refetch: refetchFriends } = useQuery({
-    queryKey: ["friends"],
-    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
-  });
-
-  // Fetch all groups
-  const { data: groupsData, refetch: refetchGroups } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => api.get<GetGroupsResponse>("/api/groups"),
-    enabled: bootStatus === 'authed',
-  });
-  
-  if (__DEV__) {
-    console.log("[DEV_DECISION] groups_together_source kind=friend_groups reason=uses_/api/groups_endpoint_for_shared_memberships");
-  }
+  // [LEGACY_GROUPS_PURGED] friendsData/groupsData queries removed - no longer needed
 
   // Fetch notes for this friend
   const { data: notesData, refetch: refetchNotes } = useQuery({
@@ -474,16 +457,9 @@ export default function FriendDetailScreen() {
     setShowUnfriendConfirm(false);
   };
 
-  // Find this specific friendship and its group memberships
-  const friendship = useMemo(() => {
-    return friendsData?.friends?.find(f => f.id === id);
-  }, [friendsData?.friends, id]);
+  // [LEGACY_GROUPS_PURGED] friendship and groups variables removed - no longer needed
+  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
 
-  const sharedGroups = useMemo(() => {
-    return friendship?.groupMemberships ?? [];
-  }, [friendship?.groupMemberships]);
-
-  const groups = groupsData?.groups ?? [];
   const friend = data?.friend;
   const events = data?.events ?? [];
   
@@ -626,46 +602,7 @@ export default function FriendDetailScreen() {
           <FriendCalendar events={events} themeColor={themeColor} />
         </Animated.View>
 
-        {/* Shared Groups Section - [LEGACY_ADD_TO_GROUPS_REMOVED] Add button removed pre-launch */}
-        <Animated.View entering={FadeInDown.delay(25).springify()} className="mb-4">
-          <View className="flex-row items-center justify-between mb-3">
-            <View className="flex-row items-center">
-              <Users size={18} color="#4ECDC4" />
-              <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                Groups Together
-              </Text>
-            </View>
-            {/* [LEGACY_ADD_TO_GROUPS_REMOVED] Add button removed - groups are informational only pre-launch */}
-          </View>
-
-          {sharedGroups.length === 0 ? (
-            <View className="rounded-2xl p-4 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-              {__DEV__ && (() => { console.log("[DEV_DECISION] groups_together_empty_state shown=true reason=no_shared_memberships"); return null; })()}
-              <Text className="text-center text-sm" style={{ color: colors.textTertiary }}>
-                Not in any groups together yet
-              </Text>
-              {/* [LEGACY_ADD_TO_GROUPS_REMOVED] "Add to a group" link removed pre-launch */}
-            </View>
-          ) : (
-            <View className="flex-row flex-wrap">
-              {sharedGroups.map((membership) => (
-                <View
-                  key={membership.groupId}
-                  className="rounded-full px-4 py-2 mr-2 mb-2 flex-row items-center"
-                  style={{ backgroundColor: membership.group.color + "20" }}
-                >
-                  <View
-                    className="w-3 h-3 rounded-full mr-2"
-                    style={{ backgroundColor: membership.group.color }}
-                  />
-                  <Text className="font-medium text-sm" style={{ color: membership.group.color }}>
-                    {cleanGroupName(membership.group.name)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </Animated.View>
+        {/* [LEGACY_GROUPS_PURGED] Groups Together section fully removed */}
 
         {/* Notes to Remember Section */}
         <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">

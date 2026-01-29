@@ -1,5 +1,5 @@
 ========================================
-HANDOFF PACKET - Delete Unreachable Add-to-Groups Modal
+HANDOFF PACKET - Legacy Groups UI Purge
 ========================================
 Date: 2026-01-29
 Branch: main
@@ -8,183 +8,105 @@ Author: GitHub Copilot (Claude Opus 4.5)
 ========================================
 SUMMARY
 ========================================
-Fully removed legacy "Add to Groups" modal infrastructure from
-Friend Profile detail screen. The modal was unreachable since
-prior cleanup removed all UI triggers. This cleanup removes:
-- State: showAddToGroupModal
-- Mutations: addMemberMutation, removeMemberMutation
-- Helpers: isFriendInGroup(), handleToggleGroup()
-- Modal JSX (~100 lines)
-- Imports: X, Check (no longer used)
+Fully removed legacy "Groups" UI from frontend. Circles remain
+the only group-like concept. Users now only see Circles (Planning)
+on Friends screen, no legacy group filter or management UI.
+
+REMOVED:
+- Friends screen: Group filter button, Group Filter Modal, Edit Group Modal
+- Friend profile: "Groups Together" section completely removed
+- src/lib/displayHelpers.ts (cleanGroupName function - no longer needed)
 
 PRESERVED:
-- "Groups Together" informational section (unchanged)
-- Users and Plus icons (used elsewhere in file)
-- cleanGroupName import (used by Groups Together display)
+- Circles feature (unchanged)
+- All navigation architecture
+- Backend contracts (unchanged - frontend only purge)
 
 ========================================
 FILES CHANGED
 ========================================
+src/app/friends.tsx
+  - Removed: cleanGroupName import
+  - Removed: GetGroupsResponse, FriendGroup type imports
+  - Removed: Filter icon import
+  - Removed: selectedGroupId, showGroupFilter, editingGroup, editGroupColor states
+  - Removed: GROUP_COLORS constant
+  - Removed: initialGroupId URL param usage
+  - Removed: groups query (/api/groups)
+  - Removed: updateGroupMutation, deleteGroupMutation, removeMemberFromGroupMutation
+  - Removed: Group filter button from Friends section header
+  - Removed: Group Filter Modal (~150 lines)
+  - Removed: Edit Group Modal (~200 lines)
+  - Removed: Delete Group Confirmation modal
+  - Simplified: filteredFriends (no group filtering, just pinned sorting)
+  - Added: [LEGACY_GROUPS_PURGED] DEV log
+
 src/app/friend/[id].tsx
-  - Line 6: Removed X, Check from icon imports
-  - Line 295: Removed showAddToGroupModal state
-  - Lines 496-537: Removed mutations + helpers (replaced with marker)
-  - Lines 848-951: Removed entire Modal JSX block (replaced with marker)
+  - Removed: cleanGroupName import
+  - Removed: Users icon import (was only used for Groups Together)
+  - Removed: GetFriendsResponse, GetGroupsResponse, FriendGroup type imports
+  - Removed: friendsData query
+  - Removed: groupsData query
+  - Removed: friendship memo
+  - Removed: groups variable
+  - Removed: "Groups Together" section (~40 lines)
+  - Added: [LEGACY_GROUPS_PURGED] DEV log
+
+src/lib/displayHelpers.ts
+  - DELETED: File no longer needed (cleanGroupName was only export)
+
+docs/STATE_OF_THE_APP.md
+  - Added: "Legacy Groups UI fully removed" entry at top of Stable section
+  - Updated: "Fixed This Session" section
 
 ========================================
-KEY DIFFS
+PROOF - RG BEFORE (top hits)
 ========================================
-BEFORE (imports):
-  import { ..., Users, Plus, X, Check, StickyNote, ... }
-AFTER (imports):
-  import { ..., Users, Plus, StickyNote, ... }
+groupMemberships:
+  src/app/friend/[id].tsx:483,484 (sharedGroups memo)
+  src/app/friends.tsx:1116 (group filter)
 
-BEFORE (state):
-  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
-AFTER (state):
-  // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] State removed - modal fully deleted
+cleanGroupName(:
+  src/app/friends.tsx:76,1567,1976,2053
+  src/app/friend/[id].tsx:19,662
 
-BEFORE (mutations block):
-  const addMemberMutation = useMutation({ ... });
-  const removeMemberMutation = useMutation({ ... });
-  const isFriendInGroup = (groupId) => { ... };
-  const handleToggleGroup = (group) => { ... };
-AFTER (mutations block):
-  // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Mutations/helpers deleted - modal fully removed
-
-BEFORE (modal JSX):
-  {/* Add to Group Modal */}
-  <Modal visible={showAddToGroupModal} ...>
-    ... ~100 lines ...
-  </Modal>
-AFTER (modal JSX):
-  {/* [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Modal fully deleted */}
+"Groups Together":
+  src/app/friend/[id].tsx:635
 
 ========================================
-VERIFICATION RESULT
+PROOF - RG AFTER (all clean)
+========================================
+groupMemberships in src/app/friends.tsx → CLEAN (0 matches)
+groupMemberships in src/app/friend/[id].tsx → CLEAN (0 matches)
+"Groups Together" (rendered) → CLEAN (only marker comment)
+"Add to Groups" (rendered) → CLEAN (only marker comments)
+
+========================================
+VERIFY RESULTS
 ========================================
 bash scripts/ai/verify_frontend.sh → PASS
-- Invariants: All passed
-- TypeScript: No errors
+npm run typecheck → PASS (0 errors)
 
 ========================================
-GREP PROOF
+DEV-ONLY LOGS ADDED
 ========================================
-grep "showAddToGroupModal|setShowAddToGroupModal|Add to Groups" src/app/friend/[id].tsx
-→ NO MATCHES - CLEAN
+src/app/friends.tsx:
+  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
+
+src/app/friend/[id].tsx:
+  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
+
+========================================
+RISK NOTES
+========================================
+- LOW RISK: Frontend-only change, no backend modifications
+- Circles feature completely unchanged
+- shared/contracts.ts groupMemberships field untouched (may still be used elsewhere)
 
 ========================================
 COMMIT
 ========================================
-fix(optional): delete unreachable add-to-groups modal
-src/app/welcome.tsx (lines 770-815)
-  - BEFORE: payload = { handle, avatarUrl? }
-  - AFTER:  payload = { handle, avatarUrl?, name? }
-  - Added: if (trimmedName) payload.name = trimmedName
-  - Added: DEV log [DISPLAYNAME_WRITE] when name persisted
-  - Added: Cache update includes name field for both profile and user
-
-src/lib/profileDisplay.ts (lines 100-145)
-  - Added: computeDisplayLabel() helper function
-  - Purpose: Render-only display label (displayName → @handle → email → "Friend")
-  - Added: DEV log [DISPLAYNAME_FALLBACK_BLOCKED] when fallback used
-  - IMPORTANT: This is for UI render only, never persists
-
-========================================
-DEV LOG STRINGS ADDED
-========================================
-[DISPLAYNAME_WRITE] - Logged in welcome.tsx when user's name is persisted
-[DISPLAYNAME_FALLBACK_BLOCKED] - Logged in profileDisplay.ts when fallback used
-
-========================================
-ACCEPTANCE CRITERIA (VERIFIED)
-========================================
-✓ If user has ever set a non-empty displayName, it is now persisted
-✓ Fallback to email local-part only happens if displayName is empty/null
-✓ Username normalization: "@john" → "john" (strip ONE leading @, trim whitespace)
-  - Already working at welcome.tsx line 722 and line 1063
-✓ Code path identified and fixed with minimal diff
-✓ DEV-only decision logs added
-✓ No backend changes required - frontend-only fix
-
-========================================
-MANUAL REPRO STEPS
-========================================
-1. Fresh signup with email
-2. On slide 3, enter display name "Paul" and username "paul"
-3. Complete onboarding
-4. Navigate to Profile or Settings
-5. EXPECTED: Display name shows "Paul" (not email local-part)
-6. Enter username "@paul" and confirm stored as "paul" (no @)
-
-========================================
-VERIFY RESULT
-========================================
-bash scripts/ai/verify_frontend.sh → PASS
-- Invariants: All passed
-- TypeScript: No errors
-
-========================================
-COMMIT
-========================================
-git add -A
-git commit -m "fix(profile): prevent displayName overwrite + normalize username"
-git push origin main
-  - Removed unused imports: Modal, GetGroupsResponse
-  - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
-
-========================================
-KEY DIFFS
-========================================
-friends.tsx (acceptRequestMutation.onSuccess):
-- if (data.friendshipId && data.friend) {
--   setNewlyAcceptedFriend({ ... });
--   setShowAddToGroupsModal(true);
-- }
-+ if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
-+ safeToast.success("Friend added!", data.friend?.name ? `${data.friend.name} is now your friend` : "You're now friends");
-
-user/[id].tsx (acceptRequestMutation.onSuccess):
-- if (groups.length > 0 && user) {
--   setShowAddToGroupsModal(true);
-- } else {
--   router.replace(`/friend/${responseData.friendshipId}`);
-- }
-+ if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
-+ if (responseData.friendshipId) {
-+   router.replace(`/friend/${responseData.friendshipId}`);
-+ }
-
-========================================
-RUNTIME STATUS
-========================================
-Verification command:
-  bash scripts/ai/verify_frontend.sh
-
-Result: PASS
-  - TypeScript: No errors
-  - Invariants: All passed
-  - No uppercase Cookie headers
-  - No !!session gating
-
-========================================
-MANUAL REPRO
-========================================
-1. Open app, go to Friends tab
-2. Search for a user or receive a friend request
-3. Accept friend request
-4. EXPECTED: See success toast "Friend added!" (friends.tsx)
-   OR redirect to friend profile (user/[id].tsx)
-5. EXPECTED: NO "Add to Groups" modal appears anywhere
-6. DEV console should show: [LEGACY_ADD_TO_GROUPS_REMOVED]
-
-========================================
-ASSUMPTIONS / UNCERTAINTIES
-========================================
-- Group filter feature in friends.tsx is preserved (uses same groups query)
-- Circles feature is separate and untouched
-- No backend changes needed (modals were frontend-only)
-- Second order social nudge still works (separate flow)
+chore(legacy): purge legacy groups UI
 
 ========================================
 END HANDOFF
