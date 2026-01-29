@@ -77,7 +77,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import {
@@ -582,7 +582,7 @@ export default function FriendsScreen() {
   const [showDeleteGroupConfirm, setShowDeleteGroupConfirm] = useState(false);
 
   // Fetch entitlements for gating
-  const { data: entitlements } = useEntitlements();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
   // Unseen notification count for Activity badge
   const { unseenCount, refetch: refetchUnseenCount } = useUnseenNotificationCount();
@@ -603,6 +603,12 @@ export default function FriendsScreen() {
 
   // Handler for creating circle with gating
   const handleCreateCirclePress = () => {
+    // CRITICAL: Don't gate while entitlements loading - prevents false gates for Pro users
+    if (entitlementsLoading) {
+      setShowCreateCircle(true);
+      return;
+    }
+    
     const check = canCreateCircle(entitlements);
     if (!check.allowed && check.context) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

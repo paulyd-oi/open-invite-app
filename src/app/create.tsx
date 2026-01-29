@@ -623,6 +623,9 @@ export default function CreateEventScreen() {
       return;
     }
 
+    // Compute recurring flag
+    const isRecurring = frequency !== "once";
+
     // CRITICAL: Don't gate while entitlements are loading - prevents false gates for Pro users
     if (entitlementsLoading) {
       // Still loading - let the request proceed and let backend validate
@@ -638,7 +641,6 @@ export default function CreateEventScreen() {
       }
 
       // Check entitlements before creating
-      const isRecurring = frequency !== "once";
       const check = canCreateEvent(entitlements, isRecurring);
 
       if (!check.allowed && check.context) {

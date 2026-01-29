@@ -21,7 +21,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 
@@ -35,7 +35,7 @@ export default function CirclesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext | null>(null);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
-  const entitlements = useEntitlements();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
   // Load guidance state when user ID is available
   useEffect(() => {
@@ -80,7 +80,13 @@ export default function CirclesScreen() {
   };
 
   const handleCreateCircle = async () => {
-    const limit = await canCreateCircle(entitlements.data);
+    // CRITICAL: Don't gate while entitlements loading - prevents false gates for Pro users
+    if (entitlementsLoading) {
+      setShowCreateCircle(true);
+      return;
+    }
+    
+    const limit = await canCreateCircle(entitlements);
     if (!limit.allowed && limit.context) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setPaywallContext(limit.context);

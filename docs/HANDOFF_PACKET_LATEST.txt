@@ -1,150 +1,175 @@
-LAUNCH SWEEP - FULL FRONTEND DEBUGGER AUDIT
-============================================
+================================================================================
+HANDOFF PACKET: CANONICAL AVATAR RENDERING + PRO ENTITLEMENT UNIFICATION
+================================================================================
 
+Session: 2026-01-28
+Commit: 104dde7 "fix(p0): canonical avatar rendering + pro entitlement unification"
+Branch: main
+Remote: https://github.com/paulyd-oi/open-invite-app.git
+Status: PUSHED
+
+================================================================================
 SUMMARY
--------
-Comprehensive frontend audit for launch risk: TypeScript errors, broken routes, API parity.
+================================================================================
 
-STATUS: COMPLETE
-VERIFICATION: ALL PASS
+Two P0 fixes in one commit:
 
-FINDINGS
---------
+1. CANONICAL AVATAR RENDERING
+   - BottomNavigation now uses resolveImageUrl() for avatar display
+   - Handles both absolute Cloudinary URLs and legacy /uploads/ paths
+   - Precedence: activeProfile.image → session.user.image
 
-## 1. TypeScript
-✅ PASS - No errors (npm run typecheck clean)
+2. PRO ENTITLEMENT UNIFICATION
+   - Created useIsPro() hook as single source of truth
+   - Returns { isPro, isLoading, entitlements }
+   - CRITICAL: isLoading flag prevents false gates for Pro users during fetch
+   - Merged duplicate Settings sections (removed SUBSCRIPTION, kept FOUNDER PRO)
 
-## 2. Invariants
-✅ PASS - verify_frontend.sh all checks pass:
-  - docs/AUTH_CONTRACT.md exists
-  - No !!session gating
-  - No uppercase Cookie headers
-  - Guidance keys user-scoped
+================================================================================
+FILES CHANGED (4)
+================================================================================
 
-## 3. Routes
-AUDITED: 40 Expo Router screens in src/app/
-ISSUE FOUND: 1 broken route
+1. src/lib/entitlements.ts
+   - Added useIsPro() hook with loading state awareness
+   - Export for use across all gating code
+   
+2. src/components/BottomNavigation.tsx
+   - Import resolveImageUrl from imageUrl.ts
+   - Apply resolveImageUrl() to profile image before display
+   - Handles both Cloudinary https:// and legacy /uploads/ paths
 
-| Route Target     | File:Line              | Status |
-|------------------|------------------------|--------|
-| /event-requests  | calendar.tsx:2526      | BROKEN |
+3. src/app/create.tsx
+   - Import useIsPro hook
+   - Use { isPro: userIsPro, isLoading: entitlementsLoading } = useIsPro()
+   - Skip all gating checks while entitlementsLoading === true
+   - Prevents race condition where Pro users see upgrade modal
 
-FIX: Removed "View all X requests" button. No list page exists;
-     users tap individual request items which route to /event-request/[id].
+4. src/app/settings.tsx
+   - Removed duplicate SUBSCRIPTION section (lines ~1519-1555)
+   - Kept comprehensive FOUNDER PRO section with:
+     * Plan display (shows Lifetime Pro/Pro/Free)
+     * Upgrade CTA (only for non-premium, hidden while loading)
+     * Restore Purchases button
+     * Refresh Pro Status button
 
-## 4. API Endpoint Inventory
+================================================================================
+KEY DIFFS
+================================================================================
 
-### Static Endpoints (50+)
-| Method | Endpoint                          | Status |
-|--------|-----------------------------------|--------|
-| GET    | /api/profile                      | ✓      |
-| GET    | /api/profile/stats                | ✓      |
-| GET    | /api/friends                      | ✓      |
-| GET    | /api/friends/requests             | ✓      |
-| GET    | /api/friends/suggestions          | ✓      |
-| GET    | /api/friends/reconnect            | ✓      |
-| GET    | /api/events                       | ✓      |
-| GET    | /api/events/feed                  | ✓      |
-| GET    | /api/events/mine                  | ✓      |
-| GET    | /api/events/attending             | ✓      |
-| GET    | /api/events/imported              | ✓      |
-| GET    | /api/event-requests               | ✓      |
-| GET    | /api/circles                      | ✓      |
-| GET    | /api/circles/friends/pinned       | ✓      |
-| GET    | /api/circles/unread/count         | ✓      |
-| GET    | /api/groups                       | ✓      |
-| GET    | /api/badges/catalog               | ✓      |
-| GET    | /api/notifications                | ✓      |
-| GET    | /api/notifications/preferences    | ✓      |
-| GET    | /api/notifications/unseen-count   | ✓      |
-| GET    | /api/privacy                      | ✓      |
-| GET    | /api/blocked                      | ✓      |
-| GET    | /api/birthdays                    | ✓      |
-| GET    | /api/subscription                 | ✓      |
-| GET    | /api/subscription/details         | ✓      |
-| GET    | /api/entitlements                 | ✓      |
-| GET    | /api/referral/stats               | ✓      |
-| GET    | /api/referral/code                | ✓      |
-| GET    | /api/referral/history             | ✓      |
-| GET    | /api/work-schedule                | ✓      |
-| GET    | /api/suggestions/feed             | ✓      |
-| POST   | /api/events                       | ✓      |
-| POST   | /api/events/import                | ✓      |
-| POST   | /api/events/suggested-times       | ✓      |
-| POST   | /api/event-requests               | ✓      |
-| POST   | /api/friends/request              | ✓      |
-| POST   | /api/circles                      | ✓      |
-| POST   | /api/blocked                      | ✓      |
-| POST   | /api/blocked/search               | ✓      |
-| POST   | /api/discount/redeem              | ✓      |
-| POST   | /api/referral/apply               | ✓      |
-| POST   | /api/notifications/mark-all-seen  | ✓      |
-| PUT    | /api/profile                      | ✓      |
-| PUT    | /api/privacy                      | ✓      |
-| PUT    | /api/notifications/preferences    | ✓      |
-| PUT    | /api/work-schedule/settings       | ✓      |
-| DELETE | /api/privacy/account              | ✓      |
+entitlements.ts - NEW useIsPro HOOK:
+```typescript
+export function useIsPro(): {
+  isPro: boolean;
+  isLoading: boolean;
+  entitlements: EntitlementsResponse | undefined;
+} {
+  const { data: entitlements, isLoading } = useEntitlements();
+  const userIsPro = isPro(entitlements);
+  return { isPro: userIsPro, isLoading, entitlements };
+}
+```
 
-### Dynamic Endpoints
-| Pattern                                   | Status |
-|-------------------------------------------|--------|
-| /api/events/${id}                         | ✓      |
-| /api/events/${id}/rsvp                    | ✓      |
-| /api/events/${id}/comments                | ✓      |
-| /api/events/${id}/join                    | ✓      |
-| /api/events/${id}/interests               | ✓      |
-| /api/event-requests/${id}                 | ✓      |
-| /api/event-requests/${id}/respond         | ✓      |
-| /api/event-requests/${id}/nudge           | ✓      |
-| /api/event-requests/${id}/suggest-time    | ✓      |
-| /api/friends/${id}                        | ✓      |
-| /api/friends/${id}/events                 | ✓      |
-| /api/friends/${id}/notes                  | ✓      |
-| /api/friends/request/${requestId}         | ✓      |
-| /api/circles/${id}                        | ✓      |
-| /api/circles/${id}/members                | ✓      |
-| /api/circles/${id}/messages               | ✓      |
-| /api/circles/friends/${friendshipId}/pin  | ✓      |
-| /api/groups/${groupId}                    | ✓      |
-| /api/groups/${groupId}/members            | ✓      |
-| /api/notifications/${id}/read             | ✓      |
-| /api/notifications/event/${id}            | ✓      |
-| /api/blocked/${id}                        | ✓      |
-| /api/work-schedule/${dayOfWeek}           | ✓      |
-| /api/profile/${id}/profile                | ✓      |
-| /api/achievements/user/${id}/badge        | ✓      |
+BottomNavigation.tsx - AVATAR RESOLUTION:
+```typescript
+import { resolveImageUrl } from "@/lib/imageUrl";
+// ...
+const rawProfileImage = activeProfile?.image ?? (session?.user as any)?.image;
+const profileImage = resolveImageUrl(rawProfileImage);
+```
 
-## 5. Contract Drift
-None detected. All frontend types match contracts.ts schemas.
+create.tsx - RACE CONDITION FIX:
+```typescript
+const { isPro: userIsPro, isLoading: entitlementsLoading } = useIsPro();
+// ...
+// CRITICAL: Don't gate while entitlements are loading
+if (entitlementsLoading) {
+  // Let backend validate - prevents false gates for Pro users
+} else {
+  // Apply soft-limit and paywall checks
+}
+```
 
-FILES CHANGED
--------------
-1. src/app/calendar.tsx (-13 lines)
-   - Removed broken "/event-requests" link button
+================================================================================
+VERIFICATION STATUS
+================================================================================
 
-2. docs/STATE_OF_THE_APP.md
-   - Added "Launch Sweep" section with outcomes
+✅ Repo confirmed: open-invite-app
+✅ Remote confirmed: github.com/paulyd-oi/open-invite-app.git  
+✅ Branch: main
+✅ VS Code diagnostics: 0 errors in changed files
+✅ Git commit: 104dde7
+✅ Git push: success
 
-3. docs/FINDINGS_LOG.md
-   - Added "Launch Sweep Findings" entry
+================================================================================
+RUNTIME STATUS
+================================================================================
 
-VERIFICATION OUTPUT
--------------------
-npm run typecheck: PASS (no output = success)
-verify_frontend.sh: PASS
+Backend: Unchanged (no deployment needed)
+Frontend: Expo app reload required
 
-REMAINING CONCERNS
-------------------
-None. All routes verified, all API calls match contracts.
+The changes are TypeScript-only and do not affect:
+- Navigation architecture
+- API contracts
+- Dependencies
 
-COMMIT HASH
------------
-(pending)
+================================================================================
+DEVICE TEST PLAN
+================================================================================
 
-PUSHED
-------
-PUSH FRONTEND: pending
+AVATAR RENDERING TEST:
+1. Change profile photo in Settings
+2. Verify bottom nav avatar updates immediately
+3. Verify Cloudinary URLs display correctly (https://res.cloudinary.com/...)
+4. Verify legacy /uploads/ paths still work
+5. Kill app, relaunch → avatar persists
 
-Agent: GitHub Copilot (Claude Sonnet 4)
-Task: Launch sweep debugger audit
+PRO ENTITLEMENT TEST:
+1. Log in as Lifetime Pro user
+2. Open app → verify NO upgrade modal appears during load
+3. Navigate to Create Event → should NOT see paywall
+4. Navigate to Settings → should see "Lifetime Pro" in FOUNDER PRO section
+5. Verify NO duplicate subscription sections exist
+6. Log in as Free user
+7. Navigate to Create Event → SHOULD see soft-limit modal when at limit
+8. Navigate to Settings → should see "Free" and Upgrade button
+
+REGRESSION CHECK:
+1. Free user at event limit → soft-limit modal appears
+2. Free user creating recurring event → paywall modal appears
+3. Pro user creating any event → no gates at all
+4. Settings only has ONE monetization section (FOUNDER PRO)
+
+================================================================================
+ARCHITECTURAL NOTES
+================================================================================
+
+WHY useIsPro() vs direct isPro()?
+- The isPro() function doesn't know if entitlements are loading
+- useIsPro() exposes isLoading flag to prevent gates during fetch
+- Callers MUST check isLoading before showing any upgrade UI
+
+WHY skip gates during loading?
+- Race condition: entitlements fetch takes ~200-500ms
+- During that time, placeholderData is FREE_DEFAULTS
+- Without guard, Pro users see "upgrade" modal briefly
+- Fix: skip ALL gating while isLoading, let backend validate
+
+AVATAR URL RESOLUTION:
+- resolveImageUrl(path) handles all cases:
+  * null/undefined → null
+  * https://... → returned as-is (Cloudinary)
+  * /uploads/... → prefixed with BACKEND_URL
+- Safe to call on any image path
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Monitor for any Pro users still seeing gates
+2. Consider adding analytics for gate impressions to track false positives
+3. May want to add useIsPro() to other gating locations (circles, friend notes)
+
+================================================================================
+END HANDOFF
+================================================================================
 

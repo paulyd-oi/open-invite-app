@@ -78,7 +78,7 @@ import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
-import { useEntitlements, useRefreshEntitlements, isPro } from "@/lib/entitlements";
+import { useEntitlements, useRefreshEntitlements, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 
 interface SettingItemProps {
@@ -476,12 +476,11 @@ export default function SettingsScreen() {
   });
 
   // Entitlements for premium status display
-  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
+  const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = useIsPro();
   const refreshEntitlements = useRefreshEntitlements();
   const subscription = useSubscription();
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
-  const userIsPremium = isPro(entitlements);
 
   const handleRefreshEntitlements = async () => {
     setIsRefreshingEntitlements(true);

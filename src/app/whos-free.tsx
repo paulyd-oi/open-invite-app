@@ -22,7 +22,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 
 interface FriendInfo {
   friendshipId: string;
@@ -269,7 +269,7 @@ export default function WhosFreeScreen() {
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("WHOS_FREE_HORIZON");
 
   // Fetch entitlements for gating
-  const { data: entitlements } = useEntitlements();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
   // Filter state
   type TimeRange = "all" | "after_work" | "weekend";
@@ -429,13 +429,16 @@ export default function WhosFreeScreen() {
     targetDate.setHours(0, 0, 0, 0);
     const daysDiff = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Check horizon limit
-    const check = canViewWhosFree(entitlements, daysDiff);
-    if (!check.allowed && check.context) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      setPaywallContext(check.context);
-      setShowPaywallModal(true);
-      return;
+    // CRITICAL: Don't gate while entitlements loading - prevents false gates for Pro users
+    if (!entitlementsLoading) {
+      // Check horizon limit
+      const check = canViewWhosFree(entitlements, daysDiff);
+      if (!check.allowed && check.context) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setPaywallContext(check.context);
+        setShowPaywallModal(true);
+        return;
+      }
     }
 
     setSelectedDate(newDate);

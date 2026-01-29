@@ -46,7 +46,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
-import { useEntitlements, isPro } from "@/lib/entitlements";
+import { useIsPro } from "@/lib/entitlements";
 import {
   type GetGroupsResponse,
   type GetFriendsResponse,
@@ -75,8 +75,7 @@ export default function ProfileScreen() {
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
 
   // Entitlements for premium badge
-  const { data: entitlements } = useEntitlements();
-  const userIsPremium = isPro(entitlements);
+  const { isPro: userIsPremium } = useIsPro();
 
   // Timeout for graceful degraded mode when loading takes too long
   const isBootLoading = bootStatus === 'loading';
