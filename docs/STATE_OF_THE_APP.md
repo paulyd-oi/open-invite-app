@@ -1,6 +1,7 @@
 # State of the App — Frontend
 
 ## Stable
+- Subscription UI entitlement-smart: Loading gate prevents flash, Pro users see "Subscription" (not "Founder Pro"), no upgrade CTA for Pro users, friend pin is green (#10B981)
 - Group names cleaned for display: cleanGroupName() helper filters "LEGACY GROUP" text from database records, applied to all friends list and Groups Together renders
 - Edit Event UX matches Create Event: Inline compact DateTimePicker (not modal pickers), no Private visibility option, no co-hosts section
 - Coachmark permanent dismissal: SecureStore with versioned keys (guide_friends_add_people_v1, guide_create_first_plan_v1), loadedOnce gating

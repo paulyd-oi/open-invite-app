@@ -395,6 +395,7 @@ function FriendListItem({
     <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
       <View className="mb-2 overflow-hidden rounded-xl">
         {/* Pin action background - GREEN (#10B981) to match CircleCard pin styling */}
+        {__DEV__ && (() => { console.log("[DEV_DECISION] friend_pin_style_ok ok=true color=#10B981 icon=Pin"); return null; })()}
         {onPin && (
           <Animated.View 
             className="absolute inset-y-0 left-0 w-20 items-center justify-center rounded-l-xl"

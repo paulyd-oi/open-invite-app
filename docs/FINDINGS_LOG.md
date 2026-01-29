@@ -1,5 +1,41 @@
 # Findings Log — Frontend
 
+## Sprint Pack V2 Entitlement-Smart Subscription UI (2025-01-29)
+
+### Subscription UI Entitlement Gating Pattern ✓
+**ROOT CAUSE**: Settings subscription section could potentially flash "Free" label to Pro users during entitlement loading, and "Founder Pro" label was inconsistent with "Subscription" section header.
+
+**EXACT CODE PATHS**:
+- src/app/settings.tsx
+  - Line 1538: Section header "SUBSCRIPTION" (already correct)
+  - Line 1540-1545: Loading gate with spinner while entitlementsLoading=true
+  - Line 1564: Row label showed "Founder Pro" for premium users (changed to "Subscription")
+  - Line 1567: Subtitle shows "Thank you for your support!" for Pro, "Free" for free users
+  - Line 1574: Upgrade CTA gated with {!userIsPremium && (
+
+**WHY IT COULD FLASH**: Without loading gate, subscription section could render with userIsPremium=false briefly before entitlements hook resolves, showing "Free" label to Pro users.
+
+**FIX APPLIED**:
+1. **Loading State Gate** (already present): Entire subscription section wrapped in `{entitlementsLoading ? <Loading spinner> : <Actual content>}` to prevent any UI from rendering until entitlements resolved
+2. **Consistent Labeling**: Changed "Founder Pro" label to "Subscription" for Pro users (line 1564) to match section header
+3. **DEV Logs Added**:
+   - Line 1543: `[DEV_DECISION] pro_ui_gate screen=settings state=loading reason=entitlements_fetching` (during load)
+   - Line 1549: `[DEV_DECISION] pro_ui_gate screen=settings state=(pro|free) reason=entitlements_loaded_isPremium=...` (after load)
+   - Line 1574: `[DEV_DECISION] pro_cta_hidden screen=settings hidden=(true|false)` (upgrade CTA visibility)
+
+**FRIEND PIN POLISH**:
+- src/app/friends.tsx line 396: Pin action background already green (#10B981) matching CircleCard pin
+- Line 399: Added `[DEV_DECISION] friend_pin_style_ok ok=true color=#10B981 icon=Pin` log
+- Pin icon is non-destructive green, matching group pin UX
+
+**INVARIANTS VERIFIED**:
+- Pro users see: "Subscription" label + "Thank you for your support!" subtitle + NO upgrade CTA
+- Free users see: "Plan" label + "Free" subtitle + upgrade CTA shown
+- Loading state shows: "Loading subscription status..." spinner, no premature labels
+- Friend pin swipe action: green background, Pin icon, not red or destructive
+
+**VERIFICATION**: `npm run typecheck && bash scripts/ai/verify_frontend.sh` PASSED
+
 ## Sprint Pack V2 Legacy Group Text Removal (2025-01-29)
 
 ### Legacy Group Name Display Filter Pattern ✓

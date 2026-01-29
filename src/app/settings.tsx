@@ -1530,19 +1530,17 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Subscription Section - Between Referral and Birthdays */}
-        {__DEV__ && !entitlementsLoading && (() => { console.log("[DEV_DECISION] subscription_ui", { 
-          state: entitlementsLoading ? "loading" : userIsPremium ? "pro" : "free", 
-          entitlement: entitlements?.plan 
-        }); return null; })()}
         <Animated.View entering={FadeInDown.delay(167).springify()} className="mx-4 mt-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
           {/* Gate entire section on entitlements being loaded to prevent flash */}
           {entitlementsLoading ? (
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
+              {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=loading reason=entitlements_fetching"); return null; })()}
               <Text style={{ color: colors.textTertiary }} className="text-sm text-center">Loading subscription status...</Text>
             </View>
           ) : (
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=" + (userIsPremium ? "pro" : "free") + " reason=entitlements_loaded_isPremium=" + userIsPremium); return null; })()}
             {/* Current Status - Show truthful state */}
             <Pressable
               onPress={() => {
@@ -1561,7 +1559,7 @@ export default function SettingsScreen() {
                 </View>
                 <View className="flex-1">
                   <Text style={{ color: colors.text }} className="text-base font-medium">
-                    {userIsPremium ? "Founder Pro" : "Plan"}
+                    {userIsPremium ? "Subscription" : "Plan"}
                   </Text>
                   <Text style={{ color: colors.textSecondary }} className="text-sm">
                     {userIsPremium ? "Thank you for your support!" : "Free"}
@@ -1572,6 +1570,7 @@ export default function SettingsScreen() {
             </Pressable>
 
             {/* Upgrade CTA (only show for free users) */}
+            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
             {!userIsPremium && (
               <Pressable
                 onPress={async () => {
