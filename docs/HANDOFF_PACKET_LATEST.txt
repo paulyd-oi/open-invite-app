@@ -1,5 +1,5 @@
 ========================================
-HANDOFF PACKET - Apple Sign-In Cookie Storage Fix
+HANDOFF PACKET - Push Notification Registration Fix
 ========================================
 Date: 2025-01-29
 Branch: main
@@ -8,141 +8,108 @@ Author: GitHub Copilot (Claude Opus 4.5)
 ========================================
 SUMMARY
 ========================================
-Fixed Apple Sign-In cookie storage so sessions are properly established
-in production/TestFlight builds. The fix addresses two bugs:
-1. Double-wrapped cookie value in setExplicitCookiePair() call
-2. Module cache not being populated after manual cookie storage
-
-========================================
-ROOT CAUSE
-========================================
-ISSUE 1: Double-wrapped cookie value
-- welcome.tsx called setExplicitCookiePair(`__Secure-better-auth.session_token=${token}`)
-- But setExplicitCookiePair() ALREADY formats the value with the cookie name
-- Result: `__Secure-better-auth.session_token=__Secure-better-auth.session_token=ACTUAL_TOKEN`
-- This malformed cookie was rejected by the backend
-
-ISSUE 2: Module cache disconnect
-- After storing to SESSION_COOKIE_KEY (open-invite_session_cookie), code called refreshExplicitCookie()
-- But refreshExplicitCookie() ONLY read from Better Auth's key (open-invite_cookie)
-- Since Apple Sign-In doesn't use Better Auth's expo client, that key was empty
-- The module-level `explicitCookieValue` cache stayed null
-- All subsequent API requests had NO cookie attached
-
-========================================
-FIX IMPLEMENTED
-========================================
-1. Updated refreshExplicitCookie() to check SESSION_COOKIE_KEY as fallback
-   - Priority 1: Better Auth's open-invite_cookie (email auth path)
-   - Priority 2: SESSION_COOKIE_KEY (Apple Sign-In path)
-
-2. Added setExplicitCookieValueDirectly() export to set module cache directly
-   - Avoids SecureStore read-back timing issues
-   - Takes full cookie pair: `__Secure-better-auth.session_token=TOKEN`
-
-3. Fixed welcome.tsx Apple Sign-In to:
-   - Extract token from response (mobileSessionToken > token > session.token > Set-Cookie)
-   - Call setExplicitCookiePair(tokenValue) with JUST the token value
-   - Call setExplicitCookieValueDirectly(fullCookiePair) for immediate cache
-   - Verify cache via refreshExplicitCookie()
+Fixed push notification token registration to properly gate on
+bootStatus === 'authed' instead of just checking session?.user.
+This ensures:
+1. No network calls fire when logged out
+2. Token registration only happens once properly authenticated
+3. Permission status updates are sent to backend
+4. Comprehensive DEV logging for debugging
 
 ========================================
 FILES CHANGED
 ========================================
-src/lib/authClient.ts
-  - refreshExplicitCookie(): Added SESSION_COOKIE_KEY fallback check
-  - NEW: setExplicitCookieValueDirectly() export function
-
-src/app/welcome.tsx
-  - handleAppleSignIn(): Complete rewrite of cookie extraction/storage
-  - Import: Added setExplicitCookieValueDirectly
-
-docs/STATE_OF_THE_APP.md
-  - Added Apple Sign-In cookie storage fix to Stable section
-
-docs/FINDINGS_LOG.md
-  - Added detailed root cause analysis and fix documentation
+src/hooks/useNotifications.ts
+  - Added import: useBootAuthority from @/hooks/useBootAuthority
+  - Added bootStatus gating in checkAndRegisterToken()
+  - Added bootStatus gating in initial registration effect
+  - Added registrationAttempted ref to track state
+  - Added [PUSH_BOOTSTRAP] DEV logs for tracing
+  - Updated effect dependency array to include bootStatus
 
 ========================================
-VERIFICATION RESULTS
+KEY DIFFS
 ========================================
-- npm run typecheck (npx tsc -p tsconfig.frontend.json --noEmit) - PASSED
-- git status shows only expected files modified
+1. Added bootStatus check in checkAndRegisterToken:
+   if (bootStatus !== 'authed' || !session?.user) {
+     if (__DEV__) {
+       console.log("[useNotifications] Skipping registration - bootStatus:", bootStatus);
+     }
+     return;
+   }
+
+2. Added bootStatus check in initial registration effect:
+   useEffect(() => {
+     if (bootStatus !== 'authed' || !session?.user) {
+       return;
+     }
+     // ... registration logic
+   }, [bootStatus, session?.user?.id, checkAndRegisterToken]);
+
+3. Added comprehensive DEV logging:
+   [PUSH_BOOTSTRAP] Boot complete, initiating push registration
+   [PUSH_BOOTSTRAP] Permission status: granted/denied
+   [PUSH_BOOTSTRAP] Registering push token with backend...
+   [PUSH_BOOTSTRAP] Got token: ExponentPushToken[xxx]...
+   [PUSH_BOOTSTRAP] Token registered successfully
+   [PUSH_BOOTSTRAP] Push registration complete
+
+========================================
+VERIFICATION
+========================================
+npm run typecheck - PASS
+bash scripts/ai/verify_frontend.sh - PASS
 - AUTH_CONTRACT.md exists
-- No !!session gating in src/
-- No uppercase Cookie headers in src/
-- Guidance keys are user-scoped
+- No !!session gating found
+- No uppercase Cookie headers
+- Guidance keys user-scoped
+- Invariant check PASSED
 
 ========================================
-MANUAL TEST PLAN
+PROOF (REQUIRES TESTFLIGHT BUILD)
 ========================================
-PREREQUISITE: Build with EAS (usesAppleSignIn: true), deploy to TestFlight
+After deploying TestFlight build, verify with backend commands:
 
-TEST 1: Fresh Install -> Apple Sign-In
-1. Delete app completely
-2. Install TestFlight build
-3. Launch app -> Welcome screen
-4. Tap "Continue with Apple"
-5. Complete Apple authentication
-6. EXPECTED: Lands on profile setup (Slide 3), no errors
-7. Complete profile -> lands on Social feed authenticated
-8. Verify: Can load friends, calendar, events without 401 errors
+1. Check device tokens:
+   GET /api/notifications/device-tokens
+   Expected: { activeCount: >= 1 }
 
-TEST 2: Returning User -> Apple Sign-In
-1. Log out from app
-2. Return to Welcome screen
-3. Tap "Continue with Apple"
-4. EXPECTED: Apple may show "Continue as [Name]" or full auth
-5. After completion: Lands authenticated, all data loads
+2. Check user notification snapshot:
+   GET /api/notifications/snapshot?userId=<USER_ID>
+   Expected: { pushPermissionStatus: "granted", tokens: { active: >= 1 } }
 
-TEST 3: Cancel Flow
-1. From Welcome screen, tap "Continue with Apple"
-2. On Apple sheet, tap Cancel (or swipe down)
-3. EXPECTED: Returns to Welcome screen silently, no error toast
+3. Test push delivery:
+   POST /api/notifications/test-push
+   Body: { userId: "<USER_ID>" }
+   Expected: { success: true }
 
-TEST 4: Network Error
-1. Enable Airplane mode
-2. Tap "Continue with Apple"
-3. EXPECTED: Calm error message, not raw network error
-
-TEST 5: Session Persistence
-1. Complete Apple Sign-In successfully
-2. Force-close app (swipe up from app switcher)
-3. Reopen app
-4. EXPECTED: Still authenticated, lands on Social feed
+4. Console log proof (DEV build):
+   [PUSH_BOOTSTRAP] Boot complete, initiating push registration
+   [PUSH_BOOTSTRAP] Permission status: granted
+   [PUSH_BOOTSTRAP] Registering push token with backend...
+   [PUSH_BOOTSTRAP] Got token: ExponentPushToken[...]
+   [PUSH_BOOTSTRAP] Token registered successfully
+   [PUSH_BOOTSTRAP] Push registration complete
 
 ========================================
-AUTH_TRACE LOGS (DEV ONLY)
+NEXT STEPS
 ========================================
-Expected console output on successful Apple Sign-In:
-
-[AUTH_TRACE] Apple Sign-In: requesting credential...
-[AUTH_TRACE] Apple Sign-In: credential received {hasIdentityToken: true, ...}
-[AUTH_TRACE] Apple Sign-In: sending to backend...
-[AUTH_TRACE] Apple Sign-In: Set-Cookie header present: false
-[AUTH_TRACE] Apple Sign-In: backend response {status: 200, ...}
-[AUTH_TRACE] Apple Sign-In: using mobileSessionToken from response
-[AUTH_TRACE] Apple Sign-In: Cookie stored in SecureStore
-[setExplicitCookieValueDirectly] Cookie cache set directly
-[AUTH_TRACE] Apple Sign-In: Cookie cache set directly
-[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)
-[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh
+1. Build TestFlight: Run shipios (scripts/ship-ios-prod.sh)
+2. Install on real device
+3. Grant notification permission when prompted
+4. Verify backend shows:
+   - pushPermissionStatus = "granted"
+   - activeCount >= 1 in device-tokens
+5. Send test push and confirm delivery
 
 ========================================
-STATUS: READY FOR TESTFLIGHT
+INVARIANTS PRESERVED
 ========================================
-- Code changes complete
-- TypeScript passes
-- Frontend invariants pass
-- Docs updated
-- Ready for EAS build and TestFlight deployment
-
-NEXT STEPS:
-1. Commit and push to main
-2. Run: shipios (scripts/ship-ios-prod.sh)
-3. Deploy TestFlight build
-4. Execute manual test plan
-5. Monitor AUTH_TRACE logs in TestFlight console (Xcode organizer)
+- No new dependencies added
+- expo-notifications already installed
+- bootStatus gating pattern matches existing hooks
+- Auth contract preserved (cookie-based auth)
+- Minimal diff (single file, surgical changes)
 
 ========================================
 END OF HANDOFF

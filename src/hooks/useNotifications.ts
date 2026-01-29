@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 // Throttle token registration to once per 24 hours
 const TOKEN_REGISTRATION_KEY = "push_token_last_registered";
@@ -18,6 +19,7 @@ const TOKEN_REGISTRATION_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export function useNotifications() {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [expoPushToken, setExpoPushToken] = useState<string | undefined>();
@@ -25,6 +27,7 @@ export function useNotifications() {
   const notificationListener = useRef<EventSubscription | null>(null);
   const responseListener = useRef<EventSubscription | null>(null);
   const lastPermissionStatus = useRef<string | null>(null);
+  const registrationAttempted = useRef<boolean>(false);
 
   /**
    * Check if token registration is throttled
@@ -56,14 +59,25 @@ export function useNotifications() {
    * Check and register token if permission is granted
    * Called on mount and when app returns to foreground
    * Throttled to once per 24 hours (backend upserts, so repeated calls are safe but wasteful)
+   * CRITICAL: Only runs when bootStatus === 'authed' to prevent 401 spam
    */
   const checkAndRegisterToken = useCallback(async (forceRegister = false) => {
-    if (!session?.user) return;
+    // INVARIANT: Only register when fully authenticated
+    if (bootStatus !== 'authed' || !session?.user) {
+      if (__DEV__) {
+        console.log("[useNotifications] Skipping registration - bootStatus:", bootStatus, "hasUser:", !!session?.user);
+      }
+      return;
+    }
 
     try {
       const { status } = await Notifications.getPermissionsAsync();
       const permissionChanged = status !== lastPermissionStatus.current;
       const wasGranted = lastPermissionStatus.current === "granted";
+
+      if (__DEV__) {
+        console.log("[PUSH_BOOTSTRAP] Permission status:", status, "forceRegister:", forceRegister);
+      }
 
       // Handle permission revocation
       if (status !== "granted" && wasGranted) {
@@ -91,12 +105,16 @@ export function useNotifications() {
         }
 
         if (__DEV__) {
-          console.log("[useNotifications] Registering push token");
+          console.log("[PUSH_BOOTSTRAP] Registering push token with backend...");
         }
 
         const token = await registerForPushNotificationsAsync();
         if (token) {
           setExpoPushToken(token);
+
+          if (__DEV__) {
+            console.log("[PUSH_BOOTSTRAP] Got token:", token.substring(0, 30) + "...");
+          }
 
           // Send token to backend (backend upserts)
           await api.post("/api/notifications/register-token", {
@@ -104,38 +122,64 @@ export function useNotifications() {
             platform: "expo",
           });
 
+          if (__DEV__) {
+            console.log("[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token");
+          }
+
           // Update backend with permission status
           await api.post("/api/notifications/status", {
             pushPermissionStatus: "granted",
           });
 
+          if (__DEV__) {
+            console.log("[PUSH_BOOTSTRAP] Permission status updated to granted");
+          }
+
           // Mark as registered for throttling
           await markTokenRegistered();
+          registrationAttempted.current = true;
 
           if (__DEV__) {
-            console.log("[useNotifications] Token registered successfully");
+            console.log("[PUSH_BOOTSTRAP] ✓ Push registration complete");
           }
         }
+      } else if (status === "denied") {
+        // User denied permission - notify backend
+        if (__DEV__) {
+          console.log("[PUSH_BOOTSTRAP] Permission denied by user");
+        }
+        await api.post("/api/notifications/status", {
+          pushPermissionStatus: "denied",
+        });
       }
 
       lastPermissionStatus.current = status;
     } catch (error) {
       if (__DEV__) {
-        console.error("[useNotifications] Error checking/registering token:", error);
+        console.error("[PUSH_BOOTSTRAP] Error:", error);
       }
     }
-  }, [session?.user, isRegistrationThrottled, markTokenRegistered]);
+  }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered]);
 
   // Initial registration and AppState listener for foreground permission re-check
+  // CRITICAL: Gate on bootStatus === 'authed' to prevent network calls when logged out
   useEffect(() => {
-    if (!session?.user) return;
+    if (bootStatus !== 'authed' || !session?.user) {
+      if (__DEV__ && bootStatus !== 'authed') {
+        console.log("[PUSH_BOOTSTRAP] Waiting for authed status, current:", bootStatus);
+      }
+      return;
+    }
 
     // Initial check (force register on first mount to ensure token is sent)
+    if (__DEV__) {
+      console.log("[PUSH_BOOTSTRAP] Boot complete, initiating push registration");
+    }
     checkAndRegisterToken(true);
 
     // Re-check permission when app comes to foreground (throttled)
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === "active") {
+      if (nextAppState === "active" && bootStatus === 'authed') {
         if (__DEV__) {
           console.log("[useNotifications] App became active, checking permission");
         }
@@ -148,7 +192,7 @@ export function useNotifications() {
     return () => {
       subscription.remove();
     };
-  }, [session?.user?.id, checkAndRegisterToken]);
+  }, [bootStatus, session?.user?.id, checkAndRegisterToken]);
 
   // Notification listeners
   useEffect(() => {
