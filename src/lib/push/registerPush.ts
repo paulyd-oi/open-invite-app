@@ -161,7 +161,9 @@ export async function registerPushToken(): Promise<{
     }
 
     // Get the Expo push token
+    console.log("[PUSH_DEBUG] projectId=", projectId);
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log("[PUSH_DEBUG] tokenData=", tokenData);
     const token = tokenData.data;
 
     if (__DEV__) {
