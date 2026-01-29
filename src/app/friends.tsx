@@ -269,26 +269,7 @@ function FriendCard({
                 {bio}
               </Text>
             )}
-            {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
-              <View className="flex-row flex-wrap mt-1.5">
-                {friendship.groupMemberships.slice(0, 2).map((m) => (
-                  <View
-                    key={m.groupId}
-                    className="px-2 py-0.5 rounded-full mr-1"
-                    style={{ backgroundColor: m.group.color + "20" }}
-                  >
-                    <Text className="text-xs" style={{ color: m.group.color }}>
-                      {cleanGroupName(m.group.name)}
-                    </Text>
-                  </View>
-                ))}
-                {friendship.groupMemberships.length > 2 && (
-                  <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                    +{friendship.groupMemberships.length - 2}
-                  </Text>
-                )}
-              </View>
-            )}
+            {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
             {/* Featured Badge */}
             {friend.featuredBadge && (
               <View className="mt-1.5">
@@ -452,26 +433,7 @@ function FriendListItem({
                       />
                     </View>
                   )}
-                  {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
-                    <View className="flex-row flex-wrap mt-0.5">
-                      {friendship.groupMemberships.slice(0, 2).map((m) => (
-                        <View
-                          key={m.groupId}
-                          className="px-1.5 py-0.5 rounded-full mr-1"
-                          style={{ backgroundColor: m.group.color + "15" }}
-                        >
-                          <Text className="text-[10px]" style={{ color: m.group.color }}>
-                            {cleanGroupName(m.group.name)}
-                          </Text>
-                        </View>
-                      ))}
-                      {friendship.groupMemberships.length > 2 && (
-                        <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
-                          +{friendship.groupMemberships.length - 2}
-                        </Text>
-                      )}
-                    </View>
-                  )}
+                  {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
                 </View>
               </Pressable>
 

@@ -70,6 +70,12 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (P2.4 Legacy Group Badge Removal from Friends List)
+- Friends list cards no longer show group badges (e.g., "Church homies")
+- Doctrine: Group badges shown ONLY in Friend Profile detail screen (/friend/[id].tsx "Groups Together" section)
+- Removed from: FriendCard (compact view) and DetailedFriendCard (detailed view) in friends.tsx
+- cleanGroupName import retained for group filter headers and group management UI
+
 ## Fixed This Session (P2.1 Suggestions Feed Card Navigation Fix)
 - SuggestionFeedCard dead tap fixed: Cards with missing eventId/userId are now filtered out before render
 - Navigation deterministic: JOIN_EVENT cards only render when eventId is valid, RECONNECT_FRIEND only when userId is valid

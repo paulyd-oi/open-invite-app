@@ -1,5 +1,5 @@
 =================================================================
-HANDOFF PACKET: P2.1 Suggestions Feed Navigation Fix (KEEP FEATURE)
+HANDOFF PACKET: P2.4 Legacy Group Badge Removal from Friends List
 =================================================================
 
 Date: 2025-01-29
@@ -10,69 +10,50 @@ Commit: (pending)
 =================================================================
 SUMMARY
 =================================================================
-Fixed broken Suggestions feed card navigation:
-1. Dead tap on "Join Jay Stone's event" cards - haptics fired but no navigation
-2. Potential floating dot artifact from card overflow
+Removed legacy "Group" badge from Friends list cards (e.g., "Church homies").
+Doctrine: Groups shown ONLY in Friend Profile detail screen, not on list cards.
 
 =================================================================
 FILES CHANGED
 =================================================================
 MODIFIED:
-- src/components/SuggestionFeedCard.tsx (navigation validation + DEV logs)
+- src/app/friends.tsx (removed group badge renders from both card types)
 - docs/STATE_OF_THE_APP.md (documented fix)
 
 =================================================================
 ROOT CAUSE
 =================================================================
-BUG 1: Dead Tap (Haptics but No Navigation)
-EXACT CODE PATH: src/components/SuggestionFeedCard.tsx lines 82-88
+EXACT CODE PATH: src/app/friends.tsx
 
-WHY IT HAPPENED:
-- handlePress() fired Haptics.impactAsync() UNCONDITIONALLY on every tap
-- Then for JOIN_EVENT type, navigation was inside: if (suggestion.eventId) { router.push(...) }
-- When eventId was undefined (bad data from backend), haptics fired but navigation never happened
-- User experienced: tap -> feel vibration -> nothing happens -> "dead tap"
+Location 1 - FriendCard (compact list view):
+Lines 272-290 rendered groupMemberships as colored badges
 
-BUG 2: Floating Dot Artifact
-EXACT CODE PATH: src/components/SuggestionFeedCard.tsx card container
+Location 2 - DetailedFriendCard (detailed list view):
+Lines 455-472 rendered groupMemberships as smaller colored badges
 
-WHY IT HAPPENED:
-- Card container lacked overflow:'hidden' style
-- Animated children or icon backgrounds could potentially overflow card bounds
-- Visual artifact appeared on right side of cards
+Both card components displayed legacy group badges that should only appear
+in the Friend Profile detail screen (/friend/[id].tsx "Groups Together" section).
 
 =================================================================
 FIX
 =================================================================
-1. VALIDATION BEFORE RENDER (lines 85-107):
-   - Added isValidSuggestion() check that validates required data per type
-   - JOIN_EVENT: requires eventId
-   - RECONNECT_FRIEND: requires userId
-   - Other types (NUDGE_CREATE, NUDGE_INVITE, HOT_AREA): no ID required
-   - Invalid suggestions return null (don't render)
+1. REMOVED from FriendCard (compact view):
+   - Deleted the entire {friendship.groupMemberships && ...} block
+   - Replaced with comment: "Legacy group badges removed - P2.4 doctrine"
 
-2. DEV-ONLY LOGGING:
-   - [SUGGESTIONS_NAV_ERROR] warns when suggestion has missing required data
-   - [SUGGESTIONS_NAV] logs every navigation attempt with type/eventId/userId
+2. REMOVED from DetailedFriendCard (detailed view):
+   - Deleted the entire {friendship.groupMemberships && ...} block
+   - Replaced with comment: "Legacy group badges removed - P2.4 doctrine"
 
-3. OVERFLOW HIDDEN (line 159):
-   - Added overflow:'hidden' to card container
-   - Prevents any child elements from creating visual artifacts outside card bounds
+3. PRESERVED in Friend Profile detail screen:
+   - /friend/[id].tsx "Groups Together" section UNCHANGED
+   - Line 678: "Groups Together" header
+   - Lines 694-730: sharedGroups rendering with colored pills
+   - This is the ONLY place groups should appear (per doctrine)
 
-4. CLEANED DEAD CODE:
-   - Removed unused ChevronRight import
-
-=================================================================
-DEV PROOF LOGS
-=================================================================
-When __DEV__ is true, look for these log prefixes:
-
-[SUGGESTIONS_NAV_ERROR] - Invalid suggestion detected (missing data)
-  Example: "[SUGGESTIONS_NAV_ERROR] Invalid suggestion: type=JOIN_EVENT, eventId=undefined, userId=undefined, title="Join Jay Stone's event""
-
-[SUGGESTIONS_NAV] - Navigation attempted
-  Example: "[SUGGESTIONS_NAV] Tapped: type=JOIN_EVENT, eventId=abc123, userId=none"
-  Example: "[SUGGESTIONS_NAV] Navigating to /event/abc123"
+4. RETAINED cleanGroupName import:
+   - Still used for group filter headers (line 1620)
+   - Still used in group management UI (lines 2029, 2153, 2273)
 
 =================================================================
 VERIFICATION
@@ -87,29 +68,53 @@ bash scripts/ai/verify_frontend.sh - PASSED
 =================================================================
 MANUAL REPRO CHECKLIST
 =================================================================
-[ ] 1. Open Suggestions screen (Friends tab -> Suggestions button):
-    - EXPECTED: Screen loads with "For You" tab active
+[ ] 1. Open Friends tab (list view):
+    - EXPECTED: Friend cards show name, bio, featured badge (if any)
+    - EXPECTED: NO group badges (e.g., "Church homies") on any card
 
-[ ] 2. Tap any suggestion card:
-    - EXPECTED: Navigation occurs to the correct destination
-    - EXPECTED: (DEV) Console shows [SUGGESTIONS_NAV] log with destination
+[ ] 2. Toggle to detailed view (grid icon):
+    - EXPECTED: Friend cards show name, featured badge (if any)
+    - EXPECTED: NO group badges on any card
 
-[ ] 3. Visual inspection:
-    - EXPECTED: No floating orange/yellow dot on any card
-    - EXPECTED: Cards have clean rounded corners, no overflow artifacts
+[ ] 3. Tap a friend card to open Friend Profile:
+    - EXPECTED: "Groups Together" section IS PRESENT (if user has groups)
+    - EXPECTED: Colored group pills appear in that section
+    - EXPECTED: "Not in any groups together yet" shows if no shared groups
 
-[ ] 4. Backend edge case (if testable):
-    - Create a suggestion with missing eventId
-    - EXPECTED: Card does NOT render (filtered out)
-    - EXPECTED: (DEV) Console shows [SUGGESTIONS_NAV_ERROR] warning
+[ ] 4. No layout regressions:
+    - EXPECTED: Cards still have proper spacing
+    - EXPECTED: Featured badges still display correctly
+    - EXPECTED: MiniCalendar still appears on cards
+
+=================================================================
+KEY DIFFS
+=================================================================
+FriendCard (lines 272-290) BEFORE:
+  {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
+    <View className="flex-row flex-wrap mt-1.5">
+      {friendship.groupMemberships.slice(0, 2).map((m) => (
+        <View key={m.groupId} className="px-2 py-0.5 rounded-full mr-1"
+          style={{ backgroundColor: m.group.color + "20" }}>
+          <Text className="text-xs" style={{ color: m.group.color }}>
+            {cleanGroupName(m.group.name)}
+          </Text>
+        </View>
+      ))}
+      ...
+    </View>
+  )}
+
+AFTER:
+  {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
+
+DetailedFriendCard (lines 455-472): Same pattern removed.
 
 =================================================================
 ROLLBACK
 =================================================================
 If issues arise:
 1. git revert <commit-hash>
-2. The only behavior change is: invalid suggestions no longer render
-   (they were broken anyway - dead taps)
+2. The group badge render blocks can be restored from git history
 
 =================================================================
 END OF HANDOFF
