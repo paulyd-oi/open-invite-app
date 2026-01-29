@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, X, Check, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
+import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Users, Plus, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
 
 // Define the MoreHorizontal icon inline using Ionicons
 import { Ionicons } from "@expo/vector-icons";
@@ -292,7 +292,7 @@ export default function FriendDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
-  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] State removed - modal fully deleted
   const [showNotesSection, setShowNotesSection] = useState(true);
   const [newNoteText, setNewNoteText] = useState("");
 
@@ -492,50 +492,7 @@ export default function FriendDetailScreen() {
     return groupEventsIntoSeries(events);
   }, [events]);
 
-  // Mutations for adding/removing from groups
-  const addMemberMutation = useMutation({
-    mutationFn: ({ groupId, friendshipId }: { groupId: string; friendshipId: string }) =>
-      api.post(`/api/groups/${groupId}/members`, { friendshipId }),
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      refetchGroups();
-      refetchFriends();
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-    },
-  });
-
-  const removeMemberMutation = useMutation({
-    mutationFn: ({ groupId, friendshipId }: { groupId: string; friendshipId: string }) =>
-      api.delete(`/api/groups/${groupId}/members/${friendshipId}`),
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      refetchGroups();
-      refetchFriends();
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-    },
-  });
-
-  const isFriendInGroup = (groupId: string) => {
-    return sharedGroups.some(m => m.groupId === groupId);
-  };
-
-  const handleToggleGroup = (group: FriendGroup) => {
-    if (!id) return;
-
-    const isInGroup = isFriendInGroup(group.id);
-
-    if (isInGroup) {
-      removeMemberMutation.mutate({
-        groupId: group.id,
-        friendshipId: id,
-      });
-    } else {
-      addMemberMutation.mutate({
-        groupId: group.id,
-        friendshipId: id,
-      });
-    }
-  };
+  // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Mutations/helpers deleted - modal fully removed
 
   if (!session) {
     return (
@@ -845,114 +802,7 @@ export default function FriendDetailScreen() {
         )}
       </ScrollView>
 
-      {/* Add to Group Modal */}
-      <Modal
-        visible={showAddToGroupModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowAddToGroupModal(false)}
-      >
-        <View className="flex-1" style={{ backgroundColor: colors.background }}>
-          <View className="px-5 py-4 flex-row items-center justify-between border-b" style={{ borderBottomColor: colors.border }}>
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {(friend?.Profile?.avatarUrl ?? friend?.image) ? (
-                  <Image source={{ uri: (friend?.Profile?.avatarUrl ?? friend?.image)! }} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
-                    <Text className="text-lg font-bold" style={{ color: themeColor }}>
-                      {friend?.name?.[0] ?? friend?.email?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View>
-                <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                  Add to Groups
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                  {friend?.name ?? "User"}
-                </Text>
-              </View>
-            </View>
-            <Pressable
-              onPress={() => setShowAddToGroupModal(false)}
-              className="w-8 h-8 rounded-full items-center justify-center"
-              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-            >
-              <X size={18} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          <ScrollView className="flex-1 px-5 py-4">
-            <Text className="text-sm font-medium mb-3" style={{ color: colors.textSecondary }}>
-              Select groups to add or remove this friend
-            </Text>
-
-            {groups.length === 0 ? (
-              <View className="rounded-xl p-6 border items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-                <Users size={32} color={colors.textTertiary} />
-                <Text className="mt-3 mb-1 font-medium" style={{ color: colors.textTertiary }}>No groups yet</Text>
-                <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                  Create groups from your Profile to organize friends
-                </Text>
-              </View>
-            ) : (
-              groups.map((group) => {
-                const isInGroup = isFriendInGroup(group.id);
-                return (
-                  <Pressable
-                    key={group.id}
-                    onPress={() => handleToggleGroup(group)}
-                    className="flex-row items-center rounded-xl p-4 mb-2 border"
-                    style={{
-                      backgroundColor: isInGroup ? group.color + "10" : colors.surface,
-                      borderColor: isInGroup ? group.color + "40" : colors.border,
-                    }}
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                      style={{ backgroundColor: group.color + "20" }}
-                    >
-                      <Users size={18} color={group.color} />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="font-semibold" style={{ color: colors.text }}>
-                        {cleanGroupName(group.name)}
-                      </Text>
-                      <Text className="text-sm" style={{ color: colors.textTertiary }}>
-                        {group.memberships?.length ?? 0} members
-                      </Text>
-                    </View>
-                    <View
-                      className="w-8 h-8 rounded-full items-center justify-center"
-                      style={{
-                        backgroundColor: isInGroup ? group.color : (isDark ? "#2C2C2E" : "#F3F4F6"),
-                      }}
-                    >
-                      {isInGroup ? (
-                        <Check size={16} color="#fff" />
-                      ) : (
-                        <Plus size={16} color={colors.textTertiary} />
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
-
-          <View className="px-5 py-4 pb-8 border-t" style={{ borderTopColor: colors.border }}>
-            <Pressable
-              onPress={() => setShowAddToGroupModal(false)}
-              className="py-4 rounded-xl"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white text-center font-semibold">Done</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Modal fully deleted */}
 
       <ConfirmModal
         visible={showDeleteNoteConfirm}
