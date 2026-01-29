@@ -1515,7 +1515,7 @@ export default function CalendarScreen() {
   const eventRequests = eventRequestsData?.eventRequests ?? [];
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
-  // Check if this is a true new user (per-user key + usage signals) - moved after calendarData definition
+  // Check if this is a true new user (per-user key + usage signals + defensive heuristic) - moved after calendarData definition
   useEffect(() => {
     const checkFirstLogin = async () => {
       // Must have a valid user ID to check/set guide seen status

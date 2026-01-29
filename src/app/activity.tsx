@@ -355,53 +355,50 @@ export default function ActivityScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  /**
+   * Central notification target resolver.
+   * Returns navigation href or null if no valid target.
+   * Priority: eventId → userId → null
+   */
+  function resolveNotificationTarget(notification: Notification): string | null {
+    let data: Record<string, unknown> = {};
+    try {
+      data = notification.data ? JSON.parse(notification.data) : {};
+    } catch {
+      return null; // Invalid JSON
+    }
+
+    // Priority 1: Event deep link
+    const eventId = data.eventId;
+    if (eventId && typeof eventId === "string") {
+      return `/event/${eventId}`;
+    }
+
+    // Priority 2: User profile deep link
+    const userId = data.userId || data.senderId || data.actorId;
+    if (userId && typeof userId === "string") {
+      return `/user/${userId}`;
+    }
+
+    // No valid target
+    return null;
+  }
+
   const handleNotificationPress = (notification: Notification) => {
     // Mark as read if not already
     if (!notification.read) {
       markReadMutation.mutate(notification.id);
     }
     
-    // Parse notification data once
-    let data: Record<string, unknown> = {};
-    try {
-      data = notification.data ? JSON.parse(notification.data) : {};
-    } catch {
-      // If data parsing fails, stay on screen (no error toast)
+    const target = resolveNotificationTarget(notification);
+    if (target) {
+      router.push(target as any);
+    } else {
+      // No valid target - silent no-op (no error toast per spec)
       if (__DEV__) {
-        console.warn('[Activity] Failed to parse notification data:', notification.id);
+        console.warn('[Activity] Notification has no valid navigation target:', notification.id);
       }
-      return;
     }
-
-    // STRICT PRIORITY ROUTING (E.1 spec):
-    // Priority 1: eventId exists → /event/:eventId
-    // Priority 2: userId exists → /user/:userId  
-    // Priority 3: do nothing (DEV warn only, no error toast)
-
-    // Priority 1: Event deep link
-    const eventId = data.eventId;
-    if (eventId && typeof eventId === "string") {
-      router.push(`/event/${eventId}` as any);
-      return;
-    }
-
-    // Priority 2: User profile deep link
-    const userId = data.userId || data.senderId || data.actorId;
-    if (userId && typeof userId === "string") {
-      router.push(`/user/${userId}` as any);
-      return;
-    }
-
-    // Priority 3: No valid target - DEV warn only (no toast)
-    if (__DEV__) {
-      console.warn('[Activity] Notification has no valid navigation target:', {
-        id: notification.id,
-        type: notification.type,
-        hasEventId: !!eventId,
-        hasUserId: !!userId,
-      });
-    }
-    // Stay on screen - no error toast per E.1 spec
   };
 
   // Show login prompt if not authenticated

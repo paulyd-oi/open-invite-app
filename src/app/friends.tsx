@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -534,6 +534,37 @@ export default function FriendsScreen() {
 
   // View mode and filter states
   const [viewMode, setViewMode] = useState<"list" | "detailed">("detailed");
+
+  // Restore view mode preference on mount
+  useEffect(() => {
+    const loadViewMode = async () => {
+      try {
+        const userId = session?.user?.id;
+        if (!userId) return;
+        const key = `friends_view_mode:${userId}`;
+        const saved = await AsyncStorage.getItem(key);
+        if (saved === "list" || saved === "detailed") {
+          setViewMode(saved);
+        }
+      } catch {
+        // Ignore errors - use default
+      }
+    };
+    loadViewMode();
+  }, [session?.user?.id]);
+
+  // Persist view mode changes
+  const handleViewModeChange = useCallback(async (mode: "list" | "detailed") => {
+    setViewMode(mode);
+    try {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      const key = `friends_view_mode:${userId}`;
+      await AsyncStorage.setItem(key, mode);
+    } catch {
+      // Ignore errors - non-critical
+    }
+  }, [session?.user?.id]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(initialGroupId ?? null);
   const [showGroupFilter, setShowGroupFilter] = useState(false);
 
@@ -1506,7 +1537,7 @@ export default function FriendsScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setViewMode("list");
+                    handleViewModeChange("list");
                   }}
                   className="flex-row items-center px-2.5 py-1 rounded-md"
                   style={{ backgroundColor: viewMode === "list" ? colors.surface : "transparent" }}
@@ -1522,7 +1553,7 @@ export default function FriendsScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setViewMode("detailed");
+                    handleViewModeChange("detailed");
                   }}
                   className="flex-row items-center px-2.5 py-1 rounded-md"
                   style={{ backgroundColor: viewMode === "detailed" ? colors.surface : "transparent" }}

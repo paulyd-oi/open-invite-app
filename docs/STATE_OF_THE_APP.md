@@ -44,6 +44,10 @@
 - Activity feed avatars: Parses actorAvatarUrl from notification data with multiple fallback fields
 - Activity feed avatar fallback: Always shows valid content (avatarUrl > initials > icon), never blank circle
 - Activity tap routing: Strict priority (eventId > userId > do nothing), no error toasts on invalid targets
+- Activity notification resolver: resolveNotificationTarget() helper centralizes navigation logic, silent no-op for missing entities
+- Friends view mode persistence: Persists list/detailed preference per userId in AsyncStorage (friends_view_mode:userId)
+- Suggestions feed graceful errors: Returns empty suggestions on fetch failure (no scary toasts)
+- Admin debug info: Backend URL displayed + copyable in Settings Admin section (visible only to admins)
 - Work schedule block2 auto-expand: Days with saved block2 times auto-expand UI on load, user changes preserved after initial sync
 - Calendar import help screen: Truthful sections (one-time import, not live sync, privacy), Import Calendar + Back buttons
 

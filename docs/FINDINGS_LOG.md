@@ -88,8 +88,27 @@
 - **Never blank**: Avatar shows either remote image, initials, or type icon — never empty circle
 - **URL validation**: Check `avatarUrl.startsWith('http')` to ensure valid remote URL (Cloudinary compatible)
 - **Tap routing priority**: Strict order: (1) eventId → /event/:id, (2) userId → /user/:id, (3) do nothing
-- **No error toasts**: Invalid navigation targets log DEV warning only, no user-facing errors
+- **Central resolver**: `resolveNotificationTarget()` helper centralizes navigation logic, returns null for invalid targets
+- **No error toasts**: Invalid navigation targets log DEV warning only, no user-facing errors (silent no-op)
 - **userId extraction**: Check `data.userId || data.senderId || data.actorId` for user deep link
+
+## Friends View Mode Persistence Pattern (Canonical)
+
+- **Per-user persistence**: AsyncStorage key format `friends_view_mode:${userId}` (not global)
+- **State restoration**: useEffect on mount reads saved preference, defaults to "detailed" if none found
+- **Callback pattern**: handleViewModeChange async callback writes to AsyncStorage + updates local state
+- **Toggle integration**: Pressable onPress calls `handleViewModeChange("list" | "detailed")` instead of direct setState
+- **Implementation location**: `src/app/friends.tsx` (viewMode state, useEffect restoration, toggle handlers)
+- **User benefit**: View preference (list vs grid) persists across sessions and app restarts
+
+## Admin Debug Info Pattern (Canonical)
+
+- **Admin-only visibility**: Backend Environment setting shown only when `adminStatus?.isAdmin === true`
+- **Display location**: Settings screen Admin section (after Admin Console entry)
+- **Copy-to-clipboard**: Tapping setting copies BACKEND_URL to clipboard with success toast
+- **API exposure**: `api.BACKEND_URL` added as property on api client object for runtime access
+- **Implementation location**: `src/app/settings.tsx` (Admin section), `src/lib/api.ts` (BACKEND_URL property)
+- **User benefit**: Admins can verify backend environment (prod vs staging) and share for debugging
 
 ## Swipe Actions Contract (Canonical)
 
