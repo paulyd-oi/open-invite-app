@@ -103,6 +103,14 @@
 - **Vertical scroll safe**: `failOffsetY([-10, 10])` ensures scroll wins over swipe gesture
 - **RSVP mapping**: Heart → POST `/api/events/{id}/rsvp` with status "interested", Check → status "going"
 
+## Launch Sweep Findings (2026-01-28)
+
+- **Broken route discovered**: `/event-requests` was pushed from calendar.tsx line 2526, but no such file exists (only `/event-request/[id].tsx`)
+- **Fix applied**: Removed the "View all X requests" button since no list page exists; users tap individual requests
+- **Route inventory**: 40 Expo Router screens verified (src/app/*.tsx + nested routes)
+- **API inventory**: 50+ endpoints used from frontend, all match contracts.ts patterns
+- **TypeScript**: Clean, no errors
+- **Invariants**: All checks pass (auth contract, cookie header, bootStatus gating)
 
 Purpose: Record proven discoveries, pitfalls, and rules learned during debugging.
 

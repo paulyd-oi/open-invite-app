@@ -1,108 +1,150 @@
-PHASE E.4 - AUTH CONTRACT SMOKE SCRIPT (COOKIE INJECTION FIX)
-==============================================================
+LAUNCH SWEEP - FULL FRONTEND DEBUGGER AUDIT
+============================================
 
 SUMMARY
 -------
-Created smoke_auth_contract.sh script to verify AUTH_CONTRACT compliance with proper cookie normalization.
-
-Problem: No automated way to verify AUTH_CONTRACT compliance
-Solution: Bash script that tests 3 proofs (unauthed OK, authed OK, authed 401)
-
-Changes:
-1. Created scripts/ai/smoke_auth_contract.sh (executable)
-2. Normalizes SESSION_COOKIE_VALUE: raw token OR full cookie pair
-3. Always sends: -H "cookie: ; __Secure-better-auth.session_token=<token>"
-4. Created scripts/ai/verify_backend.sh wrapper
-5. Updated docs/FINDINGS_LOG.md with cookie injection doctrine
+Comprehensive frontend audit for launch risk: TypeScript errors, broken routes, API parity.
 
 STATUS: COMPLETE
-VERIFICATION: PASS
+VERIFICATION: ALL PASS
+
+FINDINGS
+--------
+
+## 1. TypeScript
+✅ PASS - No errors (npm run typecheck clean)
+
+## 2. Invariants
+✅ PASS - verify_frontend.sh all checks pass:
+  - docs/AUTH_CONTRACT.md exists
+  - No !!session gating
+  - No uppercase Cookie headers
+  - Guidance keys user-scoped
+
+## 3. Routes
+AUDITED: 40 Expo Router screens in src/app/
+ISSUE FOUND: 1 broken route
+
+| Route Target     | File:Line              | Status |
+|------------------|------------------------|--------|
+| /event-requests  | calendar.tsx:2526      | BROKEN |
+
+FIX: Removed "View all X requests" button. No list page exists;
+     users tap individual request items which route to /event-request/[id].
+
+## 4. API Endpoint Inventory
+
+### Static Endpoints (50+)
+| Method | Endpoint                          | Status |
+|--------|-----------------------------------|--------|
+| GET    | /api/profile                      | ✓      |
+| GET    | /api/profile/stats                | ✓      |
+| GET    | /api/friends                      | ✓      |
+| GET    | /api/friends/requests             | ✓      |
+| GET    | /api/friends/suggestions          | ✓      |
+| GET    | /api/friends/reconnect            | ✓      |
+| GET    | /api/events                       | ✓      |
+| GET    | /api/events/feed                  | ✓      |
+| GET    | /api/events/mine                  | ✓      |
+| GET    | /api/events/attending             | ✓      |
+| GET    | /api/events/imported              | ✓      |
+| GET    | /api/event-requests               | ✓      |
+| GET    | /api/circles                      | ✓      |
+| GET    | /api/circles/friends/pinned       | ✓      |
+| GET    | /api/circles/unread/count         | ✓      |
+| GET    | /api/groups                       | ✓      |
+| GET    | /api/badges/catalog               | ✓      |
+| GET    | /api/notifications                | ✓      |
+| GET    | /api/notifications/preferences    | ✓      |
+| GET    | /api/notifications/unseen-count   | ✓      |
+| GET    | /api/privacy                      | ✓      |
+| GET    | /api/blocked                      | ✓      |
+| GET    | /api/birthdays                    | ✓      |
+| GET    | /api/subscription                 | ✓      |
+| GET    | /api/subscription/details         | ✓      |
+| GET    | /api/entitlements                 | ✓      |
+| GET    | /api/referral/stats               | ✓      |
+| GET    | /api/referral/code                | ✓      |
+| GET    | /api/referral/history             | ✓      |
+| GET    | /api/work-schedule                | ✓      |
+| GET    | /api/suggestions/feed             | ✓      |
+| POST   | /api/events                       | ✓      |
+| POST   | /api/events/import                | ✓      |
+| POST   | /api/events/suggested-times       | ✓      |
+| POST   | /api/event-requests               | ✓      |
+| POST   | /api/friends/request              | ✓      |
+| POST   | /api/circles                      | ✓      |
+| POST   | /api/blocked                      | ✓      |
+| POST   | /api/blocked/search               | ✓      |
+| POST   | /api/discount/redeem              | ✓      |
+| POST   | /api/referral/apply               | ✓      |
+| POST   | /api/notifications/mark-all-seen  | ✓      |
+| PUT    | /api/profile                      | ✓      |
+| PUT    | /api/privacy                      | ✓      |
+| PUT    | /api/notifications/preferences    | ✓      |
+| PUT    | /api/work-schedule/settings       | ✓      |
+| DELETE | /api/privacy/account              | ✓      |
+
+### Dynamic Endpoints
+| Pattern                                   | Status |
+|-------------------------------------------|--------|
+| /api/events/${id}                         | ✓      |
+| /api/events/${id}/rsvp                    | ✓      |
+| /api/events/${id}/comments                | ✓      |
+| /api/events/${id}/join                    | ✓      |
+| /api/events/${id}/interests               | ✓      |
+| /api/event-requests/${id}                 | ✓      |
+| /api/event-requests/${id}/respond         | ✓      |
+| /api/event-requests/${id}/nudge           | ✓      |
+| /api/event-requests/${id}/suggest-time    | ✓      |
+| /api/friends/${id}                        | ✓      |
+| /api/friends/${id}/events                 | ✓      |
+| /api/friends/${id}/notes                  | ✓      |
+| /api/friends/request/${requestId}         | ✓      |
+| /api/circles/${id}                        | ✓      |
+| /api/circles/${id}/members                | ✓      |
+| /api/circles/${id}/messages               | ✓      |
+| /api/circles/friends/${friendshipId}/pin  | ✓      |
+| /api/groups/${groupId}                    | ✓      |
+| /api/groups/${groupId}/members            | ✓      |
+| /api/notifications/${id}/read             | ✓      |
+| /api/notifications/event/${id}            | ✓      |
+| /api/blocked/${id}                        | ✓      |
+| /api/work-schedule/${dayOfWeek}           | ✓      |
+| /api/profile/${id}/profile                | ✓      |
+| /api/achievements/user/${id}/badge        | ✓      |
+
+## 5. Contract Drift
+None detected. All frontend types match contracts.ts schemas.
 
 FILES CHANGED
 -------------
-1. scripts/ai/smoke_auth_contract.sh (NEW, 134 lines)
-   - Accepts two forms of SESSION_COOKIE_VALUE
-   - Normalizes to raw token with bash substring extraction
-   - Constructs React Native format cookie header
-   - Three curl tests with proper error handling
+1. src/app/calendar.tsx (-13 lines)
+   - Removed broken "/event-requests" link button
 
-2. scripts/ai/verify_backend.sh (NEW, 35 lines)
-   - Wrapper that checks smoke script exists and is executable
-   - Optionally runs smoke test if SESSION_COOKIE_VALUE set
+2. docs/STATE_OF_THE_APP.md
+   - Added "Launch Sweep" section with outcomes
 
 3. docs/FINDINGS_LOG.md
-   - Added "Cookie injection doctrine" to Auth Contract section
+   - Added "Launch Sweep Findings" entry
 
-KEY LOGIC
----------
-# Normalize SESSION_COOKIE_VALUE
-if [[ "$SESSION_COOKIE_VALUE" == *"__Secure-better-auth.session_token="* ]]; then
-  # Full cookie pair: extract value after '='
-  RAW_TOKEN="${SESSION_COOKIE_VALUE#*=}"
-else
-  # Raw token only
-  RAW_TOKEN="$SESSION_COOKIE_VALUE"
-fi
+VERIFICATION OUTPUT
+-------------------
+npm run typecheck: PASS (no output = success)
+verify_frontend.sh: PASS
 
-# Construct React Native format cookie header
-COOKIE_HEADER="; __Secure-better-auth.session_token=${RAW_TOKEN}"
-
-# Use in curl
-curl -H "cookie: $COOKIE_HEADER" "$API_BASE_URL/api/badges/catalog"
-
-THREE PROOFS
-------------
-1. Proof A: Unauthed endpoint (/api/health) returns 200 without cookie
-2. Proof B: Authed endpoint (/api/badges/catalog) returns 200 with cookie
-3. Proof C: Authed endpoint (/api/badges/catalog) returns 401 without cookie
-
-USAGE
------
-# With raw token
-SESSION_COOKIE_VALUE="abc123..." scripts/ai/smoke_auth_contract.sh
-
-# With full cookie pair
-SESSION_COOKIE_VALUE="__Secure-better-auth.session_token=abc123..." scripts/ai/smoke_auth_contract.sh
-
-# Via verify_backend wrapper
-SESSION_COOKIE_VALUE="abc123..." bash scripts/ai/verify_backend.sh
-
-EXPECTED OUTPUT
----------------
-==========================================
-AUTH CONTRACT SMOKE TEST
-==========================================
-API: https://api.open-invite.com
-Token: abc123...
-
-🧪 Proof A: Unauthed endpoint (no cookie)
-✅ PASS: /api/health returned 200
-
-🧪 Proof B: Authed endpoint (with cookie)
-✅ PASS: /api/badges/catalog returned 200 with count=9
-
-🧪 Proof C: Authed endpoint (no cookie)
-✅ PASS: /api/badges/catalog returned 401 without cookie
-
-==========================================
-✅ ALL TESTS PASSED
-==========================================
-
-DOCTRINE ADDED TO FINDINGS_LOG
--------------------------------
-"Cookie injection doctrine (smoke tests): When passing SESSION_COOKIE_VALUE to scripts,
-normalize both forms: (1) raw token, (2) full pair. Always send as -H 'cookie: ; __Secure-better-auth.session_token=<token>'
-(lowercase, leading '; '). Never duplicate cookie name or header."
+REMAINING CONCERNS
+------------------
+None. All routes verified, all API calls match contracts.
 
 COMMIT HASH
 -----------
-e491210
+(pending)
 
 PUSHED
 ------
-YES (main branch)
+PUSH FRONTEND: pending
 
-Agent: GitHub Copilot (Claude Opus 4.5)
-Verification: PASS (verify_backend.sh without SESSION_COOKIE_VALUE)
-New files: +154 lines (2 scripts created)
+Agent: GitHub Copilot (Claude Sonnet 4)
+Task: Launch sweep debugger audit
 

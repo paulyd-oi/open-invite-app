@@ -2518,20 +2518,6 @@ export default function CalendarScreen() {
                     </Animated.View>
                   );
                 })}
-
-                {eventRequests.length > 5 && (
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/event-requests" as any);
-                    }}
-                    className="py-2 items-center"
-                  >
-                    <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                      View all {eventRequests.length} requests
-                    </Text>
-                  </Pressable>
-                )}
               </View>
             )}
             {/* Upcoming Birthdays Section - Collapsible */}

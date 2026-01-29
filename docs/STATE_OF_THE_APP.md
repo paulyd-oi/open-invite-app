@@ -49,6 +49,14 @@
 ## Unstable / Regressions
 - None currently known
 
+## Launch Sweep (2026-01-28)
+- Full frontend debugger sweep: TypeScript, routes, API calls
+- TypeScript: PASS (no errors)
+- verify_frontend.sh: PASS (all invariants)
+- Broken route fixed: Removed "/event-requests" link (no list page exists, users tap individual requests)
+- API inventory: 50+ endpoints verified present in contracts.ts
+- Route inventory: 40+ routes verified file existence
+
 ## Fixed This Session (E.4 Auth Contract Smoke Script)
 - Created scripts/ai/smoke_auth_contract.sh to verify AUTH_CONTRACT compliance
 - Normalizes SESSION_COOKIE_VALUE: handles both raw token and full cookie pair formats
