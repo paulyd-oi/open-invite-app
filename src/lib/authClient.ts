@@ -352,11 +352,13 @@ async function fetchSession(): Promise<Session> {
  * We read from there and copy to our explicit storage for deterministic attachment.
  */
 /**
- * Refresh the explicit cookie cache from Better Auth's SecureStore.
+ * Refresh the explicit cookie cache from SecureStore.
+ * Priority: 1) Better Auth's expo storage, 2) Explicit SESSION_COOKIE_KEY (for Apple Sign-In)
  * Call this after signIn/signUp to ensure subsequent requests include the cookie.
  */
 export async function refreshExplicitCookie(): Promise<void> {
   try {
+    // Priority 1: Try Better Auth's expo storage key (used by email auth)
     const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
     const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
     
@@ -365,42 +367,63 @@ export async function refreshExplicitCookie(): Promise<void> {
       console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
     }
     
-    if (!rawCookie || rawCookie === '{}') {
-      explicitCookieValue = null;
-      if (__DEV__) {
-        console.log('[refreshExplicitCookie] No cookie found - cache cleared');
+    // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
+    if (rawCookie && rawCookie !== '{}') {
+      try {
+        const parsed = JSON.parse(rawCookie);
+        const targetCookieName = '__Secure-better-auth.session_token';
+        
+        if (parsed[targetCookieName]?.value) {
+          const token = parsed[targetCookieName].value;
+          explicitCookieValue = `${targetCookieName}=${token}`;
+          if (__DEV__) {
+            console.log('[refreshExplicitCookie] Cookie cached from Better Auth storage');
+          }
+          return; // Success - done
+        }
+      } catch (parseError) {
+        if (__DEV__) {
+          console.log('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
+        }
       }
-      return;
     }
     
-    // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
-    try {
-      const parsed = JSON.parse(rawCookie);
-      const targetCookieName = '__Secure-better-auth.session_token';
-      
-      if (parsed[targetCookieName]?.value) {
-        const token = parsed[targetCookieName].value;
-        explicitCookieValue = `${targetCookieName}=${token}`;
-        if (__DEV__) {
-          console.log('[refreshExplicitCookie] Cookie cached successfully');
-        }
-      } else {
-        explicitCookieValue = null;
-        if (__DEV__) {
-          console.log('[refreshExplicitCookie] Cookie format unexpected:', Object.keys(parsed));
-        }
-      }
-    } catch (parseError) {
-      explicitCookieValue = null;
+    // Priority 2: Fallback to SESSION_COOKIE_KEY (used by Apple Sign-In)
+    const explicitCookie = await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
+    if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
+      explicitCookieValue = explicitCookie;
       if (__DEV__) {
-        console.log('[refreshExplicitCookie] Failed to parse cookie JSON:', parseError);
+        console.log('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
       }
+      return; // Success - done
+    }
+    
+    // No cookie found in either location
+    explicitCookieValue = null;
+    if (__DEV__) {
+      console.log('[refreshExplicitCookie] No cookie found in any location - cache cleared');
     }
   } catch (error) {
     explicitCookieValue = null;
     if (__DEV__) {
       console.log('[refreshExplicitCookie] Error:', error);
     }
+  }
+}
+
+/**
+ * Set the explicit cookie value directly in module cache.
+ * Use this after storing to SecureStore to avoid read-back delay.
+ * @param cookiePair The full cookie pair: "__Secure-better-auth.session_token=TOKEN"
+ */
+export function setExplicitCookieValueDirectly(cookiePair: string): void {
+  if (!cookiePair) {
+    explicitCookieValue = null;
+    return;
+  }
+  explicitCookieValue = cookiePair;
+  if (__DEV__) {
+    console.log('[setExplicitCookieValueDirectly] Cookie cache set directly');
   }
 }
 

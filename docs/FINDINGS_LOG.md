@@ -1,5 +1,54 @@
 # Findings Log — Frontend
 
+## Apple Sign-In Cookie Storage Fix (2025-01-29)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Apple Sign-In was not establishing a valid session cookie in production/TestFlight, causing authenticated API calls to fail after sign-in.
+
+**ROOT CAUSE** (Two issues):
+1. **Double-wrapped cookie value**: `setExplicitCookiePair()` was being called with already-formatted cookie pair (`__Secure-better-auth.session_token=TOKEN`), but the function internally formats the value again, resulting in malformed cookie: `__Secure-better-auth.session_token=__Secure-better-auth.session_token=TOKEN`
+2. **Module cache not updated**: After storing to `SESSION_COOKIE_KEY` (open-invite_session_cookie), `refreshExplicitCookie()` only read from Better Auth's key (`open-invite_cookie`), leaving the module-level `explicitCookieValue` cache null.
+
+**EXACT CODE PATHS**:
+
+### src/lib/authClient.ts
+- Line 358-420: `refreshExplicitCookie()` - NOW checks SESSION_COOKIE_KEY as fallback
+  - Priority 1: Read from Better Auth's `open-invite_cookie` (JSON format)
+  - Priority 2: Read from `SESSION_COOKIE_KEY` (open-invite_session_cookie) for Apple Sign-In path
+  - Logs which source was used: "Better Auth storage" vs "SESSION_COOKIE_KEY (Apple Sign-In path)"
+  
+- Line 421-430: NEW `setExplicitCookieValueDirectly(cookiePair)` - Sets module cache directly
+  - Avoids read-back delay from SecureStore
+  - Takes full cookie pair format: `__Secure-better-auth.session_token=TOKEN`
+
+### src/app/welcome.tsx (handleAppleSignIn)
+- Line 520-590: Complete rewrite of cookie extraction and storage logic
+  - **Token extraction priority**: 
+    1. `data.mobileSessionToken` (canonical Better Auth format)
+    2. `data.token` (legacy format)
+    3. `data.session.token` (nested format)
+    4. Extract from Set-Cookie header (RN fallback)
+  - **Storage sequence**:
+    1. `setExplicitCookiePair(tokenValue)` - Stores to SecureStore with proper formatting
+    2. `setExplicitCookieValueDirectly(fullCookiePair)` - Sets module cache immediately
+    3. `setAuthToken(tokenValue)` - Legacy token storage
+    4. `refreshExplicitCookie()` - Verify cache is working
+  - **Error handling**: If no token found in any location, throws user-friendly error
+
+**KEY FIX DETAILS**:
+- `setExplicitCookiePair(tokenValue)` now receives ONLY the token, not the full cookie pair
+- Module cache is set directly after storage to avoid SecureStore read-back timing issues
+- `refreshExplicitCookie()` now has SESSION_COOKIE_KEY as a fallback source
+
+**AUTH_TRACE LOGS** (DEV only):
+- `[AUTH_TRACE] Apple Sign-In: using mobileSessionToken from response`
+- `[AUTH_TRACE] Apple Sign-In: Cookie stored in SecureStore`
+- `[AUTH_TRACE] Apple Sign-In: Cookie cache set directly`
+- `[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh`
+- `[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)`
+
+**VERIFICATION**: TypeScript passes, verify_frontend.sh passes
+
 ## Promo Code Redemption Feature (2025-01-29)
 
 ### Redeem Code Flow ✓

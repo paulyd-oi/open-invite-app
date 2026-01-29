@@ -1,6 +1,7 @@
 # State of the App — Frontend
 
 ## Stable
+- Apple Sign-In cookie storage FIXED: Proper token extraction from backend response (mobileSessionToken > token > session.token > Set-Cookie header), correct setExplicitCookiePair usage (token only, not full cookie pair), direct module cache set via setExplicitCookieValueDirectly(), refreshExplicitCookie now checks SESSION_COOKIE_KEY as fallback
 - Promo code redemption: /redeem-code screen for entering codes like AWAKEN, POST /api/promo/redeem, calm error handling with mom-safe language, success shows formatted expiry date
 - Subscription UI entitlement-smart: Loading gate prevents flash, Pro users see "Subscription" (not "Founder Pro"), no upgrade CTA for Pro users, friend pin is green (#10B981)
 - Group names cleaned for display: cleanGroupName() helper filters "LEGACY GROUP" text from database records, applied to all friends list and Groups Together renders
