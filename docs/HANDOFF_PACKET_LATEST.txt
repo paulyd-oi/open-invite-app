@@ -1,5 +1,5 @@
 ========================================
-HANDOFF PACKET - Push Notification Permission Request + Token Validation
+HANDOFF PACKET - Apple Sign-In Session Bootstrap Fix
 ========================================
 Date: 2025-01-29
 Branch: main
@@ -8,48 +8,75 @@ Author: GitHub Copilot (Claude Opus 4.5)
 ========================================
 SUMMARY
 ========================================
-Fixed push notification bootstrap to:
-1. REQUEST permission when undetermined (not just read status)
-2. VALIDATE tokens before sending (block placeholder/test tokens)
-3. Handle all permission states properly (undetermined/granted/denied)
-4. Gate all network calls on bootStatus === 'authed'
+Fixed Apple Sign-In to trigger bootstrap refresh after cookie storage.
+Previously, after Apple sign-in stored the session cookie, the 
+bootStatus remained stale (loggedOut/loading), causing BootRouter 
+to potentially redirect back to /login.
 
-ROOT CAUSE: Hook was only reading permission status, never requesting
-it when undetermined. Also no validation to block placeholder tokens.
+ROOT CAUSE: After storing cookie via setExplicitCookiePair(), no
+bootstrap refresh was requested. BootRouter uses bootStatus to decide
+routing, but bootStatus was never updated after Apple auth.
+
+FIX: Added requestBootstrapRefreshOnce() call after successful Apple
+sign-in, before advancing to slide 3 (profile setup).
+
+========================================
+CODE PATH IDENTIFICATION
+========================================
+File: src/app/welcome.tsx
+Function: handleAppleSignIn()
+
+Flow:
+1. AppleAuthentication.signInAsync() -> credential with identityToken
+2. POST /api/auth/apple with identityToken
+3. Extract mobileSessionToken from response
+4. setExplicitCookiePair(tokenValue) -> SecureStore
+5. setExplicitCookieValueDirectly() -> module cache
+6. refreshExplicitCookie() -> verify cache
+7. requestBootstrapRefreshOnce() -> UPDATE bootStatus  <-- NEW
+8. setCurrentSlide(3) -> advance to profile setup
 
 ========================================
 FILES CHANGED
 ========================================
-src/hooks/useNotifications.ts
-  - Added isValidPushToken() helper to reject placeholder tokens
-  - Updated checkAndRegisterToken() to REQUEST permission when undetermined
-  - Added token validation before sending to backend
-  - All logs use [PUSH_BOOTSTRAP] prefix consistently
+src/app/welcome.tsx
+  - Added requestBootstrapRefreshOnce() after cookie storage
+  - Added AUTH_TRACE logs for bootstrap refresh request
+  - Added AUTH_TRACE logs for display name population
+  - Added AUTH_TRACE log for success transition to slide 3
 
 ========================================
 KEY DIFFS
 ========================================
-1. NEW: Token validation (blocks ExponentPushToken[test123] etc):
-   const isValidPushToken = (token: string): boolean => {
-     if (!token.startsWith('ExponentPushToken[')) return false;
-     if (token.toLowerCase().includes('test')) return false;
-     if (token.length < 30) return false;
-     return true;
-   };
+After cookie storage, before advancing to slide 3:
 
-2. NEW: Request permission when undetermined:
-   if (status === 'undetermined') {
-     console.log("[PUSH_BOOTSTRAP] Requesting permission from OS...");
-     const { status: newStatus } = await Notifications.requestPermissionsAsync();
-     status = newStatus;
-   }
++     // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
++     // Without this, BootRouter may redirect to /login because bootStatus is stale
++     console.log("[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...");
++     requestBootstrapRefreshOnce();
++     console.log("[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested");
 
-3. Token validation before backend call:
-   if (token && isValidPushToken(token)) {
-     // Send to backend
-   } else if (token) {
-     // Token failed validation, log and skip register-token
-   }
+========================================
+DEV LOGS ADDED
+========================================
+[AUTH_TRACE] Apple Sign-In: requesting credential...
+[AUTH_TRACE] Apple Sign-In: credential received { hasIdentityToken, hasAuthorizationCode, hasEmail, hasFullName }
+[AUTH_TRACE] Apple Sign-In: sending to backend...
+[AUTH_TRACE] Apple Sign-In: Set-Cookie header present: <boolean>
+[AUTH_TRACE] Apple Sign-In: backend response { status, ok, hasToken, hasSetCookie, hasSessionInBody }
+[AUTH_TRACE] Apple Sign-In: Cookie stored in SecureStore
+[AUTH_TRACE] Apple Sign-In: Cookie cache set directly
+[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh
+[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...
+[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested
+[AUTH_TRACE] Apple Sign-In: Display name populated from <source>
+[AUTH_TRACE] Apple Sign-In: ✓ SUCCESS - advancing to slide 3 (profile setup)
+
+On cancellation:
+[AUTH_TRACE] Apple Sign-In: user cancelled
+
+On error:
+[AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC: { code, message, name, status, statusText, fullError }
 
 ========================================
 VERIFICATION
@@ -63,59 +90,53 @@ bash scripts/ai/verify_frontend.sh - PASS
 - Invariant check PASSED
 
 ========================================
-PROOF STEPS (when real device build exists)
+COLD START PROOF STEPS (TestFlight)
+========================================
+A) Fresh Install Success Path:
+   1. Install TestFlight build on real device
+   2. Open app → lands on /welcome (slide 1)
+   3. Tap "Continue" → slide 2 (account creation)
+   4. Tap "Sign in with Apple"
+   5. Complete Apple auth (allow sign-in)
+   6. Observe logs: [AUTH_TRACE] Apple Sign-In: ✓ SUCCESS
+   7. App advances to slide 3 (profile setup)
+   8. Complete profile and finish onboarding
+   9. Confirm lands on /calendar
+   10. Force-close app completely
+   11. Reopen app
+   12. Confirm remains authed (lands on /calendar, no login prompt)
+
+B) Cancellation Path:
+   1. On slide 2, tap "Sign in with Apple"
+   2. Cancel Apple auth (tap Cancel or X)
+   3. Observe log: [AUTH_TRACE] Apple Sign-In: user cancelled
+   4. Confirm NO error banner shown
+   5. Confirm app remains on slide 2 (ready to retry)
+
+C) Backend Failure Path:
+   1. Simulate backend down (or test with invalid endpoint)
+   2. Tap "Sign in with Apple"
+   3. Complete Apple auth
+   4. Observe log: [AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC: ...
+   5. Confirm error banner shows user-friendly message
+   6. Confirm app remains on slide 2 (no broken loop)
+
+========================================
+NEXT STEPS
 ========================================
 1. Build TestFlight: shipios
-
-2. Install on real device, open app
-
-3. When prompted, GRANT notification permission
-
-4. Check backend (within 1 min):
-   curl -X GET https://open-invite-backend.onrender.com/api/notifications/device-tokens \
-     -H "Cookie: <auth_cookie>"
-   Expected: { "activeCount": 1, ... }
-
-5. Test push delivery:
-   curl -X POST https://open-invite-backend.onrender.com/api/notifications/test-push \
-     -H "Content-Type: application/json" \
-     -H "Cookie: <auth_cookie>" \
-     -d '{"userId": "<USER_ID>"}'
-   Expected: { "success": true }
-
-6. Device should receive push notification
-
-========================================
-RUNTIME NOTES (DEV console logs)
-========================================
-On app boot with authed user:
-  [PUSH_BOOTSTRAP] Skipping - bootStatus: booting hasUser: false
-  ... (auth completes)
-  [PUSH_BOOTSTRAP] Boot complete, initiating push registration
-  [PUSH_BOOTSTRAP] Initial permission status: undetermined
-  [PUSH_BOOTSTRAP] Requesting permission from OS...
-  [PUSH_BOOTSTRAP] Permission after request: granted
-  [PUSH_BOOTSTRAP] Getting push token...
-  [PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc123...
-  [PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
-  [PUSH_BOOTSTRAP] Permission status updated to granted
-  [PUSH_BOOTSTRAP] ✓ Push registration complete
-
-On simulator (no real token):
-  [PUSH_BOOTSTRAP] No token available (simulator/unsupported)
-
-On placeholder token (should NOT happen now):
-  [PUSH_BOOTSTRAP] Rejected placeholder token: ExponentPushToken[test123]
-  [PUSH_BOOTSTRAP] Token failed validation, not sending to backend
+2. Test fresh install flow with real Apple ID
+3. Verify cold restart keeps user authed
+4. Monitor AUTH_TRACE logs for any edge cases
 
 ========================================
 INVARIANTS PRESERVED
 ========================================
-- No new dependencies added
-- expo-device already used in registerForPushNotificationsAsync
-- bootStatus gating pattern maintained
-- Auth contract preserved
-- Minimal diff (single file)
+- No new dependencies
+- Cookie-based auth flow preserved
+- bootStatus gating maintained
+- Cancellation handling preserved (no error toast)
+- Minimal diff (single file, surgical addition)
 
 ========================================
 END OF HANDOFF

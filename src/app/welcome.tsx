@@ -585,6 +585,12 @@ export default function WelcomeOnboardingScreen() {
       await refreshExplicitCookie();
       console.log("[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh");
 
+      // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
+      // Without this, BootRouter may redirect to /login because bootStatus is stale
+      console.log("[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...");
+      requestBootstrapRefreshOnce();
+      console.log("[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested");
+
       // Pre-populate name from Apple
       if (credential.fullName?.givenName) {
         const fullName = [
@@ -592,11 +598,14 @@ export default function WelcomeOnboardingScreen() {
           credential.fullName.familyName,
         ].filter(Boolean).join(" ");
         setDisplayName(fullName);
+        console.log("[AUTH_TRACE] Apple Sign-In: Display name populated from Apple credential");
       } else if (data.user?.name) {
         setDisplayName(data.user.name);
+        console.log("[AUTH_TRACE] Apple Sign-In: Display name populated from backend response");
       }
 
       // Advance to Slide 3 - auth succeeded (cookie is set)
+      console.log("[AUTH_TRACE] Apple Sign-In: ✓ SUCCESS - advancing to slide 3 (profile setup)");
       setCurrentSlide(3);
     } catch (error: any) {
       // User cancelled - no error to show
