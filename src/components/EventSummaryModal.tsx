@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -126,12 +129,41 @@ export function EventSummaryModal({
   const queryClient = useQueryClient();
   const [summary, setSummary] = useState(existingSummary ?? "");
   const [rating, setRating] = useState(existingRating ?? 0);
+  
+  // Track whether we've initialized state for this modal session
+  const hasInitializedRef = useRef(false);
 
-  // Update state when props change
+  // Only sync state when modal opens (not on every prop change)
   useEffect(() => {
-    setSummary(existingSummary ?? "");
-    setRating(existingRating ?? 0);
-  }, [existingSummary, existingRating, visible]);
+    if (visible && !hasInitializedRef.current) {
+      // Initialize state on modal open
+      setSummary(existingSummary ?? "");
+      setRating(existingRating ?? 0);
+      hasInitializedRef.current = true;
+      if (__DEV__) {
+        console.log('[REFLECTION_MODAL] initialized', { rating: existingRating ?? 0, summaryLength: (existingSummary ?? "").length });
+      }
+    } else if (!visible) {
+      // Reset tracking when modal closes
+      hasInitializedRef.current = false;
+    }
+  }, [visible, existingSummary, existingRating]);
+
+  // DEV-only: Log rating changes
+  const handleRatingChange = (newRating: number) => {
+    if (__DEV__) {
+      console.log('[REFLECTION_MODAL] rating set to', newRating);
+    }
+    setRating(newRating);
+  };
+
+  // DEV-only: Log text changes
+  const handleTextChange = (text: string) => {
+    if (__DEV__ && text.length % 50 === 0) {
+      console.log('[REFLECTION_MODAL] text length', text.length);
+    }
+    setSummary(text);
+  };
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -179,13 +211,17 @@ export function EventSummaryModal({
       >
         <Pressable className="flex-1" onPress={onClose} />
 
-        <Animated.View
-          entering={SlideInDown.springify().damping(20)}
-          className="rounded-t-3xl"
-          style={{ backgroundColor: colors.background, maxHeight: "90%" }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
         >
-          {/* Header */}
-          <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            className="rounded-t-3xl"
+            style={{ backgroundColor: colors.background, maxHeight: "90%" }}
+          >
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
             <View className="flex-row items-center">
               <View
                 className="w-10 h-10 rounded-xl items-center justify-center mr-3"
@@ -234,22 +270,27 @@ export function EventSummaryModal({
             </View>
           </View>
 
-          {/* Rating Section */}
-          <Animated.View
-            entering={FadeInDown.delay(100).springify()}
-            className="px-5 pb-4"
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ flexGrow: 1 }}
           >
-            <Text
-              className="text-sm font-medium mb-3 text-center"
-              style={{ color: colors.textSecondary }}
+            {/* Rating Section */}
+            <Animated.View
+              entering={FadeInDown.delay(100).springify()}
+              className="px-5 pb-4"
             >
-              How was the event?
-            </Text>
-            <StarRating
-              rating={rating}
-              onRatingChange={setRating}
-              isDark={isDark}
-            />
+              <Text
+                className="text-sm font-medium mb-3 text-center"
+                style={{ color: colors.textSecondary }}
+              >
+                How was the event?
+              </Text>
+              <StarRating
+                rating={rating}
+                onRatingChange={handleRatingChange}
+                isDark={isDark}
+              />
             {rating > 0 && (
               <Animated.Text
                 entering={FadeIn}
@@ -281,13 +322,14 @@ export function EventSummaryModal({
             >
               <TextInput
                 value={summary}
-                onChangeText={setSummary}
+                onChangeText={handleTextChange}
                 placeholder="What went well? What could improve? Any highlights or things to remember..."
                 placeholderTextColor={colors.textTertiary}
                 multiline
                 className="text-base"
-                style={{ color: colors.text, flex: 1 }}
+                style={{ color: colors.text, flex: 1, minHeight: 80 }}
                 maxLength={2000}
+                scrollEnabled={false}
               />
             </View>
             <Text
@@ -339,6 +381,7 @@ export function EventSummaryModal({
               </View>
             </Animated.View>
           )}
+          </ScrollView>
 
           {/* Actions */}
           <View className="px-5 pt-2" style={{ paddingBottom: Math.max(insets.bottom, 20) + 8 }}>
@@ -381,6 +424,7 @@ export function EventSummaryModal({
             )}
           </View>
         </Animated.View>
+        </KeyboardAvoidingView>
       </Animated.View>
     </Modal>
   );
