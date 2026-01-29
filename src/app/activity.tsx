@@ -14,6 +14,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
 import { ChevronRight } from "@/ui/icons";
+import { safeToast } from "@/lib/safeToast";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
 
 // Helper to format relative time
@@ -394,7 +395,8 @@ export default function ActivityScreen() {
     if (target) {
       router.push(target as any);
     } else {
-      // No valid target - silent no-op (no error toast per spec)
+      // No valid target - show calm user-friendly message
+      safeToast.info("Unavailable", "This item is no longer available.");
       if (__DEV__) {
         console.warn('[Activity] Notification has no valid navigation target:', notification.id);
       }

@@ -2035,19 +2035,21 @@ export default function SettingsScreen() {
                   router.push("/admin");
                 }}
               />
-              <SettingItem
-                icon={<Info size={20} color="#3B82F6" />}
-                title="Backend Environment"
-                subtitle={api.BACKEND_URL || "Not configured"}
-                isDark={isDark}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Clipboard.setStringAsync(api.BACKEND_URL || "");
-                  safeToast.success("Copied", "Backend URL copied to clipboard");
-                }}
-                showArrow={false}
-                rightElement={<Copy size={16} color={colors.textSecondary} />}
-              />
+              {__DEV__ && (
+                <SettingItem
+                  icon={<Info size={20} color="#3B82F6" />}
+                  title="Backend Environment"
+                  subtitle={api.BACKEND_URL || "Not configured"}
+                  isDark={isDark}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Clipboard.setStringAsync(api.BACKEND_URL || "");
+                    safeToast.success("Copied", "Backend URL copied to clipboard");
+                  }}
+                  showArrow={false}
+                  rightElement={<Copy size={16} color={colors.textSecondary} />}
+                />
+              )}
             </View>
           </Animated.View>
         )}

@@ -1,9 +1,100 @@
 ========================================
-HANDOFF PACKET — V1 Polish Sprint
+HANDOFF PACKET — V1 Polish Micro Tweaks
 ========================================
-Date: 2026-01-29
-Session: Ship-ready P0/P1 fixes for App Store submission
+Date: 2026-01-28
+Session: App Store polish (notification UX + admin debug visibility)
 Commit: (pending)
+
+## OBJECTIVE
+Two micro-tweaks for App Store submission:
+1. Invalid notification taps show calm user feedback (not silent no-op)
+2. Admin debug info hidden in production builds (App Review optics)
+
+## FILES CHANGED
+src/app/activity.tsx
+  - Added safeToast import
+  - Changed invalid target behavior from silent no-op to calm info toast
+  - Toast message: "Unavailable" / "This item is no longer available."
+  - Preserved DEV console.warn for debugging
+  - Lines ~1-20 (imports), ~387-404 (handleNotificationPress)
+
+src/app/settings.tsx
+  - Added __DEV__ gate to Backend Environment setting
+  - Condition now: __DEV__ && adminStatus?.isAdmin
+  - Setting never appears in TestFlight/App Store builds
+  - Fully functional in dev builds for admins
+  - Lines ~2023-2054 (Admin section)
+
+## KEY CHANGES
+1. Notification Invalid Target UX
+   - Previous: Silent no-op (no user feedback)
+   - Current: Calm info toast "This item is no longer available"
+   - Reasoning: Users deserve feedback on tap, not silence
+   - Still not a scary error toast (info level, calm copy)
+   - DEV console.warn preserved for debugging
+
+2. Admin Debug Info Production Gate
+   - Previous: Visible to any admin (including prod)
+   - Current: __DEV__ gate added (dev builds only)
+   - Reasoning: App Review should never see backend URLs or debug settings
+   - Admins can still use in dev builds
+   - Zero functionality loss for legitimate use cases
+
+## VERIFICATION
+✅ TypeScript: Clean (no errors)
+✅ Invariants: All checks pass
+✅ Frontend verification: scripts/ai/verify_frontend.sh PASSED
+
+## RUNTIME STATUS
+- Activity notifications: Invalid target taps show calm "Unavailable" toast
+- Admin debug: Backend Environment only visible in __DEV__ builds (admins only)
+- No breaking changes
+- No new dependencies
+- Minimal diffs (3 lines changed per file)
+
+## DEVICE TEST PLAN
+TestFlight/Production Build:
+[ ] Tap invalid notification → see calm "Unavailable" toast (not error)
+[ ] Login as admin → Settings Admin section → no Backend Environment row visible
+[ ] Verify Admin Console still appears (only Backend Environment hidden)
+
+Dev Build:
+[ ] Tap invalid notification → see calm "Unavailable" toast
+[ ] Login as admin → Settings Admin section → Backend Environment visible + copyable
+[ ] Tap Backend Environment → URL copied to clipboard with success toast
+
+## DOCUMENTATION UPDATES
+✅ STATE_OF_THE_APP.md: Updated notification resolver behavior (calm toast) + admin debug gate (__DEV__)
+✅ FINDINGS_LOG.md: Updated canonical patterns for Activity Routing + Admin Debug Info
+✅ HANDOFF_PACKET_LATEST.txt: This file
+
+## COMMIT MESSAGE
+fix(v1): polish notification invalid taps + hide admin debug in prod
+
+- Activity: Invalid notification taps show calm info toast (not silent no-op)
+- Admin: Backend Environment gated by __DEV__ (hidden in TestFlight/App Store)
+- UX: Users get feedback on unavailable items, App Review never sees debug info
+- No breaking changes, minimal diffs
+
+Verified: TypeScript clean, invariants pass, verify_frontend.sh green
+
+## NEXT STEPS
+1. Review changes in this handoff packet
+2. Run device tests (TestFlight + dev builds)
+3. Verify App Review won't see admin debug settings
+4. Submit to App Store with confidence
+
+## NOTES
+- Chose calm info toast over making rows non-tappable (simpler diff, better UX)
+- __DEV__ is standard React Native build-time constant (true in dev, false in prod)
+- Admin Console entry still visible (only Backend Environment hidden)
+- No changes to navigation, routing, or data contracts
+- safeToast.info level (not error) for calm user experience
+- DEV console.warn preserved for debugging invalid notifications
+
+========================================
+END HANDOFF PACKET
+========================================
 
 ## OBJECTIVE
 Eliminate trust-breakers before App Store launch:

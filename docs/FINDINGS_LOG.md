@@ -89,7 +89,8 @@
 - **URL validation**: Check `avatarUrl.startsWith('http')` to ensure valid remote URL (Cloudinary compatible)
 - **Tap routing priority**: Strict order: (1) eventId → /event/:id, (2) userId → /user/:id, (3) do nothing
 - **Central resolver**: `resolveNotificationTarget()` helper centralizes navigation logic, returns null for invalid targets
-- **No error toasts**: Invalid navigation targets log DEV warning only, no user-facing errors (silent no-op)
+- **Calm user feedback**: Invalid targets show info toast "This item is no longer available" (not dev errors)
+- **DEV logging**: Invalid navigation targets log console.warn in DEV mode for debugging
 - **userId extraction**: Check `data.userId || data.senderId || data.actorId` for user deep link
 
 ## Friends View Mode Persistence Pattern (Canonical)
@@ -103,12 +104,13 @@
 
 ## Admin Debug Info Pattern (Canonical)
 
-- **Admin-only visibility**: Backend Environment setting shown only when `adminStatus?.isAdmin === true`
+- **Multi-gate visibility**: Backend Environment setting shown only when `__DEV__ && adminStatus?.isAdmin === true`
+- **Production invisible**: __DEV__ gate ensures setting never appears in TestFlight or App Store builds
 - **Display location**: Settings screen Admin section (after Admin Console entry)
 - **Copy-to-clipboard**: Tapping setting copies BACKEND_URL to clipboard with success toast
 - **API exposure**: `api.BACKEND_URL` added as property on api client object for runtime access
 - **Implementation location**: `src/app/settings.tsx` (Admin section), `src/lib/api.ts` (BACKEND_URL property)
-- **User benefit**: Admins can verify backend environment (prod vs staging) and share for debugging
+- **User benefit**: Admins can verify backend environment in dev (prod vs staging), hidden from App Review
 
 ## Swipe Actions Contract (Canonical)
 
