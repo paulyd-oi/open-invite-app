@@ -155,6 +155,15 @@ export async function uploadImage(
           console.log("[imageUpload] Non-JSON error response:", uploadResult.body?.substring(0, 200));
         }
       }
+      
+      // Add more specific error context for auth issues
+      if (uploadResult.status === 401 || uploadResult.status === 403) {
+        if (__DEV__) {
+          console.error("[imageUpload] Auth error:", uploadResult.status, sessionCookie ? "Cookie present" : "No cookie");
+        }
+        throw new Error("Session expired. Please log in again.");
+      }
+      
       throw new Error(errorMsg);
     }
 

@@ -1513,7 +1513,13 @@ export default function SettingsScreen() {
               </View>
               <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
             </Pressable>
+          </View>
+        </Animated.View>
 
+        {/* Subscription Section */}
+        <Animated.View entering={FadeInDown.delay(165).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
             {/* Subscription */}
             <Pressable
               onPress={() => {
@@ -1521,7 +1527,6 @@ export default function SettingsScreen() {
                 router.push("/subscription");
               }}
               className="flex-row items-center p-4"
-              style={{ borderTopWidth: 1, borderTopColor: colors.separator }}
             >
               <View
                 className="w-10 h-10 rounded-full items-center justify-center mr-3"

@@ -233,7 +233,7 @@ function BootRouter() {
 }
 
 function RootLayoutNav() {
-  const { themeColor } = useTheme();
+  const { themeColor, isDark } = useTheme();
 
   // Dynamic theme based on user preference
   const OpenInviteTheme = {
@@ -251,6 +251,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={OpenInviteTheme}>
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -556,7 +557,6 @@ export default function RootLayout() {
             <OfflineSyncProvider>
               <AutoSyncProvider>
                 <ErrorBoundary>
-                  <StatusBar style="dark" />
                   <View style={{ flex: 1 }}>
                     <NetworkStatusBanner />
                     <UpdateBanner />
