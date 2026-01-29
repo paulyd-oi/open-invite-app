@@ -1,5 +1,5 @@
 =================================================================
-HANDOFF PACKET: Friends Tab Guide Flicker + Login Flash Fix
+HANDOFF PACKET: P2.1 Suggestions Feed Navigation Fix (KEEP FEATURE)
 =================================================================
 
 Date: 2025-01-29
@@ -10,141 +10,106 @@ Commit: (pending)
 =================================================================
 SUMMARY
 =================================================================
-Fixed two P1.1 bugs on Friends tab:
-1. "Starting guide" re-appearing after dismiss/complete (user-scoped keys fix)
-2. Brief Login screen flash when switching to Friends tab (bootStatus guard fix)
+Fixed broken Suggestions feed card navigation:
+1. Dead tap on "Join Jay Stone's event" cards - haptics fired but no navigation
+2. Potential floating dot artifact from card overflow
 
 =================================================================
 FILES CHANGED
 =================================================================
 MODIFIED:
-- src/hooks/useOnboardingGuide.ts (user-scoped keys, module cache, DEV logs)
-- src/app/friends.tsx (bootStatus-aware auth gating with skeleton fallback)
+- src/components/SuggestionFeedCard.tsx (navigation validation + DEV logs)
+- docs/STATE_OF_THE_APP.md (documented fix)
 
 =================================================================
 ROOT CAUSE
 =================================================================
-BUG 1: Guide Re-appearing
-EXACT CODE PATH: src/hooks/useOnboardingGuide.ts
+BUG 1: Dead Tap (Haptics but No Navigation)
+EXACT CODE PATH: src/components/SuggestionFeedCard.tsx lines 82-88
 
 WHY IT HAPPENED:
-- SecureStore keys were global: `guide_friends_add_people_v1`, `guide_create_first_plan_v1`
-- Guide dismissed by User A would mark it dismissed for ALL users
-- When User B signed in, the dismissed flag from User A prevented guide from showing
-- Conversely, if User B cleared data, both users would see guide again
-- No module-level cache meant async read delay caused flash on remount
+- handlePress() fired Haptics.impactAsync() UNCONDITIONALLY on every tap
+- Then for JOIN_EVENT type, navigation was inside: if (suggestion.eventId) { router.push(...) }
+- When eventId was undefined (bad data from backend), haptics fired but navigation never happened
+- User experienced: tap -> feel vibration -> nothing happens -> "dead tap"
 
-BUG 2: Login Screen Flash
-EXACT CODE PATH: src/app/friends.tsx line 1206
+BUG 2: Floating Dot Artifact
+EXACT CODE PATH: src/components/SuggestionFeedCard.tsx card container
 
 WHY IT HAPPENED:
-- `if (!session)` check returned login UI without checking bootStatus
-- During tab switch, React Query rehydrates and session can be temporarily null
-- bootStatus could be 'loading' or 'authed' while session is still null
-- Result: brief login screen flash before session hydrates
+- Card container lacked overflow:'hidden' style
+- Animated children or icon backgrounds could potentially overflow card bounds
+- Visual artifact appeared on right side of cards
 
 =================================================================
 FIX
 =================================================================
-BUG 1 FIX (useOnboardingGuide.ts):
+1. VALIDATION BEFORE RENDER (lines 85-107):
+   - Added isValidSuggestion() check that validates required data per type
+   - JOIN_EVENT: requires eventId
+   - RECONNECT_FRIEND: requires userId
+   - Other types (NUDGE_CREATE, NUDGE_INVITE, HOT_AREA): no ID required
+   - Invalid suggestions return null (don't render)
 
-1. Changed keys to user-scoped with v2 prefix:
-   - OLD: `guide_friends_add_people_v1`
-   - NEW: `guide_friends_add_people_v2:<userId>`
+2. DEV-ONLY LOGGING:
+   - [SUGGESTIONS_NAV_ERROR] warns when suggestion has missing required data
+   - [SUGGESTIONS_NAV] logs every navigation attempt with type/eventId/userId
 
-2. Added buildGuideKey() helper:
-   ```ts
-   function buildGuideKey(prefix: string, userId: string): string {
-     return `${prefix}:${userId}`;
-   }
-   ```
+3. OVERFLOW HIDDEN (line 159):
+   - Added overflow:'hidden' to card container
+   - Prevents any child elements from creating visual artifacts outside card bounds
 
-3. Added module-level cache for synchronous reads:
-   ```ts
-   const guideStateCache: Map<string, boolean> = new Map();
-   ```
-   - On mount: checks cache FIRST (synchronous), then reads SecureStore (async backup)
-   - On dismiss/complete: updates cache immediately, then persists to SecureStore
-
-4. Added comprehensive [GUIDE_DECISION] DEV logs:
-   - Cache hits/misses
-   - SecureStore reads/writes
-   - State transitions
-
-BUG 2 FIX (friends.tsx):
-
-1. Added bootStatus-aware gating inside `if (!session)` block:
-   ```ts
-   if (!session) {
-     // During loading states, show skeleton instead of login
-     if (bootStatus === 'loading' || bootStatus === 'authed' || bootStatus === 'onboarding') {
-       return <FriendsListSkeleton />; // Prevents flash
-     }
-     // Only show login prompt when definitively logged out
-     return <LoginPrompt />;
-   }
-   ```
-
-2. Added [FRIENDS_AUTH_GATE] DEV logs for debugging:
-   - Logs bootStatus and session state when showing skeleton
-   - Logs bootStatus when showing login prompt
+4. CLEANED DEAD CODE:
+   - Removed unused ChevronRight import
 
 =================================================================
-DEV DECISION LOGS
+DEV PROOF LOGS
 =================================================================
 When __DEV__ is true, look for these log prefixes:
 
-[GUIDE_DECISION] - Guide state changes in useOnboardingGuide.ts
-  - mount:<id> cache-hit|cache-miss
-  - dismissed, active, already-active
-  - completeStep, startGuide, dismissGuide, resetGuide
+[SUGGESTIONS_NAV_ERROR] - Invalid suggestion detected (missing data)
+  Example: "[SUGGESTIONS_NAV_ERROR] Invalid suggestion: type=JOIN_EVENT, eventId=undefined, userId=undefined, title="Join Jay Stone's event""
 
-[FRIENDS_AUTH_GATE] - Auth gating in friends.tsx
-  - "Showing skeleton - bootStatus: X, session: Y"
-  - "Showing login prompt - bootStatus: X"
+[SUGGESTIONS_NAV] - Navigation attempted
+  Example: "[SUGGESTIONS_NAV] Tapped: type=JOIN_EVENT, eventId=abc123, userId=none"
+  Example: "[SUGGESTIONS_NAV] Navigating to /event/abc123"
 
 =================================================================
 VERIFICATION
 =================================================================
-✅ npm run typecheck - PASSED
-✅ bash scripts/ai/verify_frontend.sh - PASSED
-  ✓ docs/AUTH_CONTRACT.md exists
-  ✓ No !!session gating found
-  ✓ No uppercase Cookie headers found
-  ✓ No global guidance patterns found
+npm run typecheck - PASSED
+bash scripts/ai/verify_frontend.sh - PASSED
+  - docs/AUTH_CONTRACT.md exists
+  - No !!session gating found
+  - No uppercase Cookie headers found
+  - No global guidance patterns found
 
 =================================================================
 MANUAL REPRO CHECKLIST
 =================================================================
-[ ] 1. Cold start with authed user:
-    - Open app → tap Friends tab → guide should appear once
-    - Dismiss guide → navigate away → come back to Friends tab
-    - EXPECTED: Guide does NOT re-appear
+[ ] 1. Open Suggestions screen (Friends tab -> Suggestions button):
+    - EXPECTED: Screen loads with "For You" tab active
 
-[ ] 2. Rapid tab switching:
-    - While on Home tab → quickly tap Friends tab
-    - EXPECTED: No login screen flash, shows skeleton then content
+[ ] 2. Tap any suggestion card:
+    - EXPECTED: Navigation occurs to the correct destination
+    - EXPECTED: (DEV) Console shows [SUGGESTIONS_NAV] log with destination
 
-[ ] 3. Multi-user isolation:
-    - Sign out → sign in as different user
-    - EXPECTED: Guide shows once for NEW user (not affected by previous user)
+[ ] 3. Visual inspection:
+    - EXPECTED: No floating orange/yellow dot on any card
+    - EXPECTED: Cards have clean rounded corners, no overflow artifacts
 
-[ ] 4. App restart persistence:
-    - Dismiss guide → kill app → relaunch
-    - EXPECTED: Guide stays dismissed for same user
-
-[ ] 5. Dev log verification:
-    - Enable __DEV__ mode
-    - Perform repro steps
-    - EXPECTED: See [GUIDE_DECISION] and [FRIENDS_AUTH_GATE] logs in console
+[ ] 4. Backend edge case (if testable):
+    - Create a suggestion with missing eventId
+    - EXPECTED: Card does NOT render (filtered out)
+    - EXPECTED: (DEV) Console shows [SUGGESTIONS_NAV_ERROR] warning
 
 =================================================================
 ROLLBACK
 =================================================================
 If issues arise:
 1. git revert <commit-hash>
-2. Or manually restore old if (!session) block without bootStatus check
-3. Guide keys will auto-migrate (v2 prefix means new namespace)
+2. The only behavior change is: invalid suggestions no longer render
+   (they were broken anyway - dead taps)
 
 =================================================================
 END OF HANDOFF

@@ -9,7 +9,6 @@ import {
   UserPlus,
   Users,
   TrendingUp,
-  ChevronRight,
 } from "@/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 
@@ -86,14 +85,50 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
     enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
   });
 
+  // Validate suggestion has required data for its type
+  const isValidSuggestion = (() => {
+    switch (suggestion.type) {
+      case "JOIN_EVENT":
+        return !!suggestion.eventId;
+      case "RECONNECT_FRIEND":
+        return !!suggestion.userId;
+      default:
+        return true; // NUDGE_CREATE, NUDGE_INVITE, HOT_AREA don't require IDs
+    }
+  })();
+
+  // DEV-only validation logging
+  if (__DEV__ && !isValidSuggestion) {
+    console.warn(
+      `[SUGGESTIONS_NAV_ERROR] Invalid suggestion: type=${suggestion.type}, ` +
+      `eventId=${suggestion.eventId ?? 'undefined'}, userId=${suggestion.userId ?? 'undefined'}, ` +
+      `title="${suggestion.title}"`
+    );
+  }
+
+  // Don't render invalid suggestions (prevents dead taps)
+  if (!isValidSuggestion) {
+    return null;
+  }
+
   const handlePress = () => {
+    // DEV-only navigation logging
+    if (__DEV__) {
+      console.log(
+        `[SUGGESTIONS_NAV] Tapped: type=${suggestion.type}, ` +
+        `eventId=${suggestion.eventId ?? 'none'}, userId=${suggestion.userId ?? 'none'}`
+      );
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     switch (suggestion.type) {
       case "JOIN_EVENT":
-        if (suggestion.eventId) {
-          router.push(`/event/${suggestion.eventId}` as any);
+        // eventId is guaranteed valid by isValidSuggestion check above
+        if (__DEV__) {
+          console.log(`[SUGGESTIONS_NAV] Navigating to /event/${suggestion.eventId}`);
         }
+        router.push(`/event/${suggestion.eventId}` as any);
         break;
       case "NUDGE_CREATE":
         if (!guardEmailVerification(session)) return;
@@ -103,24 +138,16 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
         router.push("/friends" as any);
         break;
       case "RECONNECT_FRIEND":
-        if (suggestion.userId) {
-          // Find the friendship ID by matching the friend's user ID
-          const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
-          
-          if (friendship) {
-            // Navigate to friend profile using friendship ID
-            router.push(`/friend/${friendship.id}` as any);
-          } else {
-            // Fallback to user profile page if friendship not found in cache
-            router.push(`/user/${suggestion.userId}` as any);
-          }
+        // userId is guaranteed valid by isValidSuggestion check above
+        const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
+        
+        if (friendship) {
+          router.push(`/friend/${friendship.id}` as any);
         } else {
-          console.warn('[SuggestionFeedCard] RECONNECT_FRIEND suggestion missing userId - routing to /friends fallback');
-          router.push("/friends" as any);
+          router.push(`/user/${suggestion.userId}` as any);
         }
         break;
       case "HOT_AREA":
-        // Navigate to discover with category filter if available
         router.push("/discover" as any);
         break;
     }
@@ -131,7 +158,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
       <Pressable
         onPress={handlePress}
         className="mx-4 mb-3 p-4 rounded-2xl flex-row items-center"
-        style={{ backgroundColor: colors.surface }}
+        style={{ backgroundColor: colors.surface, overflow: 'hidden' }}
       >
         {/* Icon */}
         <View

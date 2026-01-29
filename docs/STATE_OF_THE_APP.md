@@ -70,6 +70,14 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (P2.1 Suggestions Feed Card Navigation Fix)
+- SuggestionFeedCard dead tap fixed: Cards with missing eventId/userId are now filtered out before render
+- Navigation deterministic: JOIN_EVENT cards only render when eventId is valid, RECONNECT_FRIEND only when userId is valid
+- Haptics only fires on valid navigation: No more haptics-but-no-action dead taps
+- DEV proof logs: [SUGGESTIONS_NAV] logs destination on tap, [SUGGESTIONS_NAV_ERROR] logs invalid suggestions
+- Overflow hidden: Card container now has overflow:hidden to prevent any visual artifacts
+- Cleaned unused import: Removed dead ChevronRight import
+
 ## Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating - FINALIZED)
 - Profile photo upload: Migrated to CANONICAL Cloudinary direct upload (unsigned preset openinvite_profile)
 - Cloudinary pattern: Client sends ONLY file + upload_preset (NO folder param), preset controls all naming/folder logic
