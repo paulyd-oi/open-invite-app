@@ -1,0 +1,68 @@
+# HANDOFF: Host-Only "Remove Member" Control
+
+## Summary
+Added a host-only control to remove members from a Circle in the Members Sheet Modal.
+
+## Changes Made
+
+### File: src/app/circle/[id].tsx
+
+1. **Added icon imports** (lines ~24-34):
+   - Added `Trash2` and `AlertCircle` to the icon imports from `@/ui/icons`
+
+2. **Added removeMemberMutation** (~lines 804-832):
+   - Calls `DELETE /api/circles/${id}/members/${memberUserId}`
+   - On success: Shows success toast, clears selection, invalidates queries
+   - On error: Shows appropriate error toast (403 for non-host, 400 for host removal attempt)
+
+3. **Added Remove Member Confirmation Modal** (~lines 1917-1998):
+   - Shows when `selectedMemberToRemove` state is set
+   - Displays warning icon and member name
+   - Cancel and Remove buttons with loading state
+   - Uses existing design patterns (FadeIn animation, colors from theme)
+
+4. **Added Remove button in Members Sheet** (~lines 1817-1835):
+   - Only visible when `isHost && !isHostOfCircle` (current user is host AND member is not the host)
+   - Trash icon button with red tint
+   - Triggers confirmation modal on tap
+   - Uses `e.stopPropagation()` to prevent navigation to user profile
+
+## State Already Existed
+- `selectedMemberToRemove` state was already declared at line ~709 (unused until now)
+
+## API Contract
+The implementation expects:
+```
+DELETE /api/circles/:circleId/members/:userId
+- 200: Success (member removed)
+- 400: Cannot remove host
+- 403: Only host can remove members
+- 404: Member not found
+```
+
+## UI Behavior
+1. Host opens Circle > Settings > Members
+2. Host sees trash icon on each member (except themselves with "Host" badge)
+3. Host taps trash icon
+4. Confirmation modal appears with member name
+5. Host confirms removal
+6. Member is removed, success toast shown
+7. Circle member list updates automatically
+
+## NOT CHANGED
+- Leave Circle functionality for non-hosts (works via swipe in Friends tab)
+- The existing "Leave Group" option in Group Settings (shows toast directing to Friends tab)
+
+## Testing Checklist
+- [ ] Host can see remove button on non-host members
+- [ ] Host cannot see remove button on themselves
+- [ ] Non-host cannot see any remove buttons
+- [ ] Confirmation modal shows correct member name
+- [ ] Cancel button dismisses modal without action
+- [ ] Remove button calls API and shows success toast
+- [ ] Member list updates after removal
+- [ ] API errors show appropriate error messages
+
+## TypeScript Status
+✅ No TypeScript errors in circle/[id].tsx
+(Pre-existing unrelated errors in account-center.tsx and EmailVerificationBanner.tsx)

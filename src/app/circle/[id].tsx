@@ -37,9 +37,11 @@ import {
   UserPlus,
   Check,
   UserCheck,
+  type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -61,6 +63,15 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+
+// Icon components using Ionicons
+const TrashIcon: LucideIcon = ({ color, size = 24, style }) => (
+  <Ionicons name="trash-outline" size={size} color={color} style={style} />
+);
+
+const WarningIcon: LucideIcon = ({ color, size = 24, style }) => (
+  <Ionicons name="warning-outline" size={size} color={color} style={style} />
+);
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -796,6 +807,32 @@ export default function CircleScreen() {
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       safeToast.error("Error", "Failed to add members. Please try again.");
+    },
+  });
+
+  // Remove member mutation (host only)
+  const removeMemberMutation = useMutation({
+    mutationFn: (memberUserId: string) =>
+      api.delete(`/api/circles/${id}/members/${memberUserId}`),
+    onSuccess: async () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Removed", "Member has been removed from the circle.");
+      setSelectedMemberToRemove(null);
+      // Invalidate and refetch circle data
+      await queryClient.invalidateQueries({ queryKey: ["circle", id] });
+      await queryClient.invalidateQueries({ queryKey: ["circles"] });
+      await refetch();
+    },
+    onError: (error: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (error?.status === 403) {
+        safeToast.error("Not Allowed", "Only the host can remove members.");
+      } else if (error?.status === 400) {
+        safeToast.error("Cannot Remove", "The host cannot be removed from the circle.");
+      } else {
+        safeToast.error("Error", "Failed to remove member. Please try again.");
+      }
+      setSelectedMemberToRemove(null);
     },
   });
 
@@ -1785,6 +1822,29 @@ export default function CircleScreen() {
                         </View>
                       </View>
                       
+                      {/* Remove button (host only, cannot remove self) */}
+                      {isHost && !isHostOfCircle && (
+                        <Pressable
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setSelectedMemberToRemove(member.userId);
+                          }}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 16,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: "#FF3B3015",
+                            marginRight: 8,
+                          }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <TrashIcon size={16} color="#FF3B30" />
+                        </Pressable>
+                      )}
+
                       {/* Chevron indicator */}
                       <ChevronRight size={18} color={colors.textTertiary} />
                     </Pressable>
@@ -1882,6 +1942,94 @@ export default function CircleScreen() {
                   </Pressable>
                 </View>
               )}
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Remove Member Confirmation Modal */}
+      <Modal
+        visible={!!selectedMemberToRemove}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMemberToRemove(null)}
+      >
+        <Pressable
+          style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20 }}
+          onPress={() => setSelectedMemberToRemove(null)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 340 }}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: 20,
+                padding: 24,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: "#FF3B3020",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <WarningIcon size={32} color="#FF3B30" />
+              </View>
+
+              <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center", marginBottom: 8 }}>
+                Remove Member?
+              </Text>
+
+              <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 }}>
+                {(() => {
+                  const memberToRemove = members.find(m => m.userId === selectedMemberToRemove);
+                  return `Are you sure you want to remove ${memberToRemove?.user.name ?? "this member"} from the circle?`;
+                })()}
+              </Text>
+
+              <View style={{ flexDirection: "row", width: "100%" }}>
+                <Pressable
+                  onPress={() => setSelectedMemberToRemove(null)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    marginRight: 8,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    if (selectedMemberToRemove) {
+                      removeMemberMutation.mutate(selectedMemberToRemove);
+                    }
+                  }}
+                  disabled={removeMemberMutation.isPending}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#FF3B30",
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    opacity: removeMemberMutation.isPending ? 0.5 : 1,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
+                    {removeMemberMutation.isPending ? "Removing..." : "Remove"}
+                  </Text>
+                </Pressable>
+              </View>
             </Animated.View>
           </Pressable>
         </Pressable>
