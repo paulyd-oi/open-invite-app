@@ -62,7 +62,7 @@ export function useNotifications() {
     // Reject obviously invalid tokens
     if (!token || typeof token !== 'string') return false;
     // Must start with ExponentPushToken[
-    if (!token.startsWith('ExponentPushToken[')) return false;
+    if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
     // Reject placeholder/test tokens
     const lowerToken = token.toLowerCase();
     if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
