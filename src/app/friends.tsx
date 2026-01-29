@@ -193,7 +193,19 @@ function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; boot
 }
 
 
-function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship; index: number; bootStatus: string }) {
+function FriendCard({ 
+  friendship, 
+  index, 
+  bootStatus,
+  onPin,
+  isPinned,
+}: { 
+  friendship: Friendship; 
+  index: number; 
+  bootStatus: string;
+  onPin?: (friendshipId: string) => void;
+  isPinned?: boolean;
+}) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
@@ -204,6 +216,13 @@ function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship;
   }
 
   const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
+  
+  const handleLongPress = () => {
+    if (onPin) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onPin(friendship.id);
+    }
+  };
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
@@ -212,10 +231,19 @@ function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push(`/friend/${friendship.id}` as any);
         }}
+        onLongPress={handleLongPress}
+        delayLongPress={500}
         className="rounded-xl p-3 mb-2"
-        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
       >
         <View className="flex-row items-start">
+          {/* Pin indicator */}
+          {isPinned && (
+            <View className="absolute top-3 right-3">
+              <Pin size={14} color={themeColor} />
+            </View>
+          )}
+          
           <View className="w-12 h-12 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
             {friend.image ? (
               <Image source={{ uri: friend.image }} className="w-full h-full" />
@@ -280,14 +308,31 @@ function FriendCard({ friendship, index, bootStatus }: { friendship: Friendship;
   );
 }
 
-// Collapsible List Item for "list" view mode
-function FriendListItem({ friendship, index, bootStatus }: { friendship: Friendship; index: number; bootStatus: string }) {
+// Collapsible List Item for "list" view mode - with swipe-to-pin
+function FriendListItem({ 
+  friendship, 
+  index, 
+  bootStatus,
+  onPin,
+  isPinned,
+}: { 
+  friendship: Friendship; 
+  index: number; 
+  bootStatus: string;
+  onPin?: (friendshipId: string) => void;
+  isPinned?: boolean;
+}) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
   const [isExpanded, setIsExpanded] = useState(false);
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
+  
+  // Swipe-to-pin gesture
+  const translateX = useSharedValue(0);
+  const isSwipingRight = useSharedValue(false);
+  const SWIPE_THRESHOLD = 80;
 
   const arrowStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 180])}deg` }],
@@ -298,6 +343,40 @@ function FriendListItem({ friendship, index, bootStatus }: { friendship: Friends
     maxHeight: interpolate(height.value, [0, 1], [0, 200]),
     overflow: "hidden" as const,
   }));
+  
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+  
+  const pinBgStyle = useAnimatedStyle(() => ({
+    opacity: isSwipingRight.value ? withTiming(1) : withTiming(0),
+    transform: [{ scale: isSwipingRight.value ? withSpring(1) : withSpring(0.8) }],
+  }));
+  
+  const triggerPin = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onPin?.(friendship.id);
+  };
+  
+  const panGesture = Gesture.Pan()
+    .enabled(!!onPin)
+    .activeOffsetX([10, 10])
+    .failOffsetY([-10, 10])
+    .onUpdate((event) => {
+      // Only allow swipe right for pinning
+      translateX.value = Math.max(0, event.translationX);
+      isSwipingRight.value = event.translationX > 30;
+    })
+    .onEnd((event) => {
+      if (event.translationX > SWIPE_THRESHOLD) {
+        // Swipe right -> Pin/Unpin
+        translateX.value = withSpring(0);
+        runOnJS(triggerPin)();
+      } else {
+        translateX.value = withSpring(0);
+      }
+      isSwipingRight.value = false;
+    });
 
   // Guard against undefined friend - must be after all hooks
   if (!friend) {
@@ -313,76 +392,107 @@ function FriendListItem({ friendship, index, bootStatus }: { friendship: Friends
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
-      <View
-        className="rounded-xl mb-2 overflow-hidden"
-        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-      >
-        {/* Main row */}
-        <View className="flex-row items-center p-3">
-          {/* Avatar - taps to profile */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push(`/friend/${friendship.id}` as any);
-            }}
-            className="flex-row items-center flex-1"
+      <View className="mb-2 overflow-hidden rounded-xl">
+        {/* Pin action background */}
+        {onPin && (
+          <Animated.View 
+            className="absolute inset-y-0 left-0 w-20 items-center justify-center rounded-l-xl"
+            style={[{ backgroundColor: isPinned ? colors.textTertiary : themeColor }, pinBgStyle]}
           >
-            <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-              {friend.image ? (
-                <Image source={{ uri: friend.image }} className="w-full h-full" />
-              ) : (
-                <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
-                  <Text className="font-semibold" style={{ color: themeColor }}>
-                    {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
-                  </Text>
+            <Pin size={24} color="#FFFFFF" />
+          </Animated.View>
+        )}
+        
+        <GestureDetector gesture={panGesture}>
+          <Animated.View 
+            className="rounded-xl overflow-hidden"
+            style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
+          >
+            {/* Main row */}
+            <View className="flex-row items-center p-3">
+              {/* Pin indicator */}
+              {isPinned && (
+                <View className="mr-2">
+                  <Pin size={14} color={themeColor} />
                 </View>
               )}
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-sora-medium" style={{ color: colors.text }}>
-                {friend.name ?? friend.email ?? "Unknown"}
-              </Text>
-              {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
-                <View className="flex-row flex-wrap mt-0.5">
-                  {friendship.groupMemberships.slice(0, 2).map((m) => (
-                    <View
-                      key={m.groupId}
-                      className="px-1.5 py-0.5 rounded-full mr-1"
-                      style={{ backgroundColor: m.group.color + "15" }}
-                    >
-                      <Text className="text-[10px]" style={{ color: m.group.color }}>
-                        {m.group.name}
+              
+              {/* Avatar - taps to profile */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/friend/${friendship.id}` as any);
+                }}
+                className="flex-row items-center flex-1"
+              >
+                <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                  {friend.image ? (
+                    <Image source={{ uri: friend.image }} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
+                      <Text className="font-semibold" style={{ color: themeColor }}>
+                        {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
                       </Text>
                     </View>
-                  ))}
-                  {friendship.groupMemberships.length > 2 && (
-                    <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
-                      +{friendship.groupMemberships.length - 2}
-                    </Text>
                   )}
                 </View>
-              )}
+                <View className="flex-1">
+                  <Text className="text-base font-sora-medium" style={{ color: colors.text }}>
+                    {friend.name ?? friend.email ?? "Unknown"}
+                  </Text>
+                  {/* Featured Badge */}
+                  {friend.featuredBadge && (
+                    <View className="mt-0.5">
+                      <BadgePill
+                        name={friend.featuredBadge.name}
+                        tierColor={friend.featuredBadge.tierColor}
+                        variant="small"
+                      />
+                    </View>
+                  )}
+                  {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
+                    <View className="flex-row flex-wrap mt-0.5">
+                      {friendship.groupMemberships.slice(0, 2).map((m) => (
+                        <View
+                          key={m.groupId}
+                          className="px-1.5 py-0.5 rounded-full mr-1"
+                          style={{ backgroundColor: m.group.color + "15" }}
+                        >
+                          <Text className="text-[10px]" style={{ color: m.group.color }}>
+                            {m.group.name}
+                          </Text>
+                        </View>
+                      ))}
+                      {friendship.groupMemberships.length > 2 && (
+                        <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
+                          +{friendship.groupMemberships.length - 2}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+
+              {/* Expand/collapse button */}
+              <Pressable
+                onPress={toggleExpand}
+                className="w-9 h-9 rounded-full items-center justify-center"
+                style={{ backgroundColor: isExpanded ? themeColor + "15" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
+              >
+                <Animated.View style={arrowStyle}>
+                  <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
+                </Animated.View>
+              </Pressable>
             </View>
-          </Pressable>
 
-          {/* Expand/collapse button */}
-          <Pressable
-            onPress={toggleExpand}
-            className="w-9 h-9 rounded-full items-center justify-center"
-            style={{ backgroundColor: isExpanded ? themeColor + "15" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
-          >
-            <Animated.View style={arrowStyle}>
-              <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
+            {/* Expandable calendar section */}
+            <Animated.View style={calendarStyle}>
+              <View className="px-3 pb-3">
+                <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
+              </View>
             </Animated.View>
-          </Pressable>
-        </View>
-
-        {/* Expandable calendar section */}
-        <Animated.View style={calendarStyle}>
-          <View className="px-3 pb-3">
-            <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </GestureDetector>
       </View>
     </Animated.View>
   );
@@ -1649,11 +1759,25 @@ export default function FriendsScreen() {
               )
             ) : viewMode === "list" ? (
               filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendListItem key={friendship.id} friendship={friendship} index={index} bootStatus={bootStatus} />
+                <FriendListItem 
+                  key={friendship.id} 
+                  friendship={friendship} 
+                  index={index} 
+                  bootStatus={bootStatus} 
+                  onPin={(id) => pinFriendshipMutation.mutate(id)}
+                  isPinned={pinnedFriendshipIds.has(friendship.id)}
+                />
               ))
             ) : (
               filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendCard key={friendship.id} friendship={friendship} index={index} bootStatus={bootStatus} />
+                <FriendCard 
+                  key={friendship.id} 
+                  friendship={friendship} 
+                  index={index} 
+                  bootStatus={bootStatus}
+                  onPin={(id) => pinFriendshipMutation.mutate(id)}
+                  isPinned={pinnedFriendshipIds.has(friendship.id)}
+                />
               ))
             )}
           </Animated.View>

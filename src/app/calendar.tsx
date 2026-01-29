@@ -1190,7 +1190,8 @@ export default function CalendarScreen() {
   const localEvents = useLocalEvents();
 
   // Fetch friends count for Get Started gating
-  const { data: friendsData } = useQuery({
+  // STRUCTURAL FIX: Include isFetched to distinguish "loading" from "loaded with empty data"
+  const { data: friendsData, isFetched: isFriendsFetched } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: bootStatus === 'authed',
@@ -1401,7 +1402,8 @@ export default function CalendarScreen() {
   }, [currentYear, currentMonth]);
 
   // Fetch calendar events (created + going events) for the visible range
-  const { data: calendarData, refetch: refetchCalendarEvents, isLoading: isLoadingCalendar, isRefetching: isRefetchingCalendar, isError: isCalendarError } = useQuery({
+  // STRUCTURAL FIX: Include isFetched to distinguish "loading" from "loaded with empty data"
+  const { data: calendarData, refetch: refetchCalendarEvents, isLoading: isLoadingCalendar, isRefetching: isRefetchingCalendar, isError: isCalendarError, isFetched: isCalendarFetched } = useQuery({
     queryKey: ["events", "calendar", visibleDateRange.start, visibleDateRange.end],
     queryFn: () =>
       api.get<GetCalendarEventsResponse>(
@@ -1520,14 +1522,24 @@ export default function CalendarScreen() {
     const checkFirstLogin = async () => {
       // Must have a valid user ID to check/set guide seen status
       const userId = session?.user?.id;
-      if (!userId || bootStatus !== 'authed') return;
+      if (!userId || bootStatus !== 'authed') {
+        if (__DEV__) console.log('[GUIDE_DECISION] Skip: not authed or no userId', { userId, bootStatus });
+        return;
+      }
       
-      // Wait for data to load before deciding
-      if (!friendsData || !calendarData) return;
+      // STRUCTURAL FIX: Use isFetched to ensure data has actually loaded
+      // This prevents false positives from empty arrays during loading
+      if (!isFriendsFetched || !isCalendarFetched) {
+        if (__DEV__) console.log('[GUIDE_DECISION] Skip: data not yet fetched', { isFriendsFetched, isCalendarFetched });
+        return;
+      }
       
       const guideSeenKey = `get_started_dismissed:${userId}`;
       const hasDismissed = await AsyncStorage.getItem(guideSeenKey);
-      if (hasDismissed) return; // Already dismissed by this user
+      if (hasDismissed) {
+        if (__DEV__) console.log('[GUIDE_DECISION] Skip: already dismissed', { guideSeenKey });
+        return;
+      }
 
       // Only show for true new users: no friends AND no calendar events
       const friendsCount = friendsData?.friends?.length ?? 0;
@@ -1537,6 +1549,16 @@ export default function CalendarScreen() {
       
       const isTrueNewUser = friendsCount === 0 && totalEventsCount === 0;
       
+      if (__DEV__) console.log('[GUIDE_DECISION] Evaluation', { 
+        userId, 
+        friendsCount, 
+        createdEventsCount, 
+        goingEventsCount, 
+        totalEventsCount, 
+        isTrueNewUser,
+        willShowGuide: isTrueNewUser
+      });
+      
       if (isTrueNewUser) {
         // Show the popup after a small delay for smoother UX
         setTimeout(() => {
@@ -1545,7 +1567,7 @@ export default function CalendarScreen() {
       }
     };
     checkFirstLogin();
-  }, [session?.user?.id, bootStatus, friendsData, calendarData]);
+  }, [session?.user?.id, bootStatus, isFriendsFetched, isCalendarFetched, friendsData, calendarData]);
 
   // Determine empty state logic (fixed bug: account for loading states)
   // Note: isRefetchingCalendar intentionally excluded – refetch should not reset empty state

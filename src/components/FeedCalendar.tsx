@@ -515,20 +515,22 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
       </View>
 
       {/* Day Events Modal - Bottom Sheet Style */}
+      {/* STRUCTURAL FIX: Use colors.background for pageSheet to avoid white overlay on dark mode */}
+      {__DEV__ && (() => { console.log('[CALENDAR_SHEET_RENDER]', { showDayModal, bgColor: colors.background }); return null; })()}
       <Modal
         visible={showDayModal}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setShowDayModal(false)}
       >
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'transparent' }}>
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
           <Animated.View
             entering={SlideInDown.springify().damping(20)}
             style={{
               backgroundColor: colors.background,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              maxHeight: "75%",
+              flex: 1,
               paddingBottom: 34,
             }}
           >
