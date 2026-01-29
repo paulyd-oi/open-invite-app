@@ -772,12 +772,18 @@ export default function WelcomeOnboardingScreen() {
     setIsLoading(true);
 
     try {
-      // Build payload: backend only accepts { handle, avatarUrl? }
-      // IMPORTANT: Do NOT send 'name' - backend rejects unknown fields
+      // Build payload: backend accepts { handle, avatarUrl?, name? }
       const cleanedHandle = trimmedHandle.toLowerCase(); // Normalize: lowercase
-      const payload: { handle: string; avatarUrl?: string } = {
+      const payload: { handle: string; avatarUrl?: string; name?: string } = {
         handle: cleanedHandle,
       };
+
+      // Include displayName if user entered one - this persists their chosen name
+      // CRITICAL: Only set if user explicitly entered a name, never use fallback here
+      if (trimmedName) {
+        payload.name = trimmedName;
+        if (__DEV__) console.log("[DISPLAYNAME_WRITE] Persisting user-entered name:", trimmedName);
+      }
 
       // Add avatarUrl if present (Cloudinary https:// or legacy backend /uploads/)
       if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
@@ -797,6 +803,11 @@ export default function WelcomeOnboardingScreen() {
           ...response.profile,
           handle: cleanedHandle,
           avatarUrl: avatarUrl || old?.profile?.avatarUrl,
+          name: trimmedName || old?.profile?.name, // Preserve user-entered name
+        },
+        user: {
+          ...old?.user,
+          name: trimmedName || old?.user?.name, // Sync to user object too
         },
       }));
       queryClient.invalidateQueries({ queryKey: ["profile"] });

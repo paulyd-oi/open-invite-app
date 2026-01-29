@@ -99,3 +99,48 @@ export function getProfileInitial(options: ProfileDisplayOptions): string {
 
   return name?.[0]?.toUpperCase() ?? "?";
 }
+
+/**
+ * Compute a display label for UI rendering WITHOUT persisting to profile.
+ * Use this for showing a name in UI when the actual displayName might be empty.
+ * 
+ * Precedence:
+ * 1. displayName (user-entered, persisted)
+ * 2. username/handle (with @ prefix)
+ * 3. email local-part (before @)
+ * 4. "Friend" (fallback)
+ * 
+ * IMPORTANT: This is for RENDER ONLY - never write this value back to profile.
+ * 
+ * @param user - User object with optional name, handle, email fields
+ * @returns Display label string (never empty)
+ */
+export function computeDisplayLabel(user: {
+  name?: string | null;
+  displayName?: string | null;
+  handle?: string | null;
+  email?: string | null;
+} | null | undefined): string {
+  // Check for persisted displayName first
+  const persistedName = user?.displayName?.trim() || user?.name?.trim();
+  if (persistedName) {
+    return persistedName;
+  }
+
+  // DEV: Log when fallback is used (helps trace why email local-part appears)
+  if (__DEV__ && (user?.handle || user?.email)) {
+    console.log("[DISPLAYNAME_FALLBACK_BLOCKED] No persisted name, using fallback for display only");
+  }
+
+  // Fallback: handle with @ prefix
+  if (user?.handle?.trim()) {
+    return `@${user.handle.trim()}`;
+  }
+
+  // Fallback: email local-part
+  if (user?.email?.trim()) {
+    return user.email.split("@")[0] || "Friend";
+  }
+
+  return "Friend";
+}

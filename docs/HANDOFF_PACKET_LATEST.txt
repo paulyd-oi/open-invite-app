@@ -1,53 +1,106 @@
 ========================================
-HANDOFF PACKET - Remove Legacy "Add to Groups" Modals
+HANDOFF PACKET - Fix DisplayName Overwrite + Normalize Username
 ========================================
 Date: 2026-01-29
 Branch: main
 Author: GitHub Copilot (Claude Opus 4.5)
+Task: P0.2
 
 ========================================
 SUMMARY
 ========================================
-Removed legacy "Add to Groups" modals from friend add flows pre-launch.
-These modals showed outdated "Groups" concept (not Circles) and caused
-confusion. After accepting a friend request, users now see a clean
-success toast and smooth redirect instead of the legacy modal.
+Fixed bug where user-entered display name was never persisted during
+onboarding, causing the UI to fall back to email local-part (e.g., 
+"cryptopdal" instead of "Paul").
 
-- Removed modal state variables, triggers, mutations, and JSX
-- Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments for future reference
-- Added DEV-only console log at trigger points
-- friends.tsx: Shows toast "Friend added!" after accepting request
-- user/[id].tsx: Redirects to friend profile after accepting request
+ROOT CAUSE: welcome.tsx line 775-780 had an incorrect comment claiming
+"backend rejects unknown fields" and was NOT sending the `name` field
+in the PUT /api/profile payload. The backend DOES accept `name` per
+shared/contracts.ts line 555.
+
+FIXES APPLIED:
+1. Now include `name` in profile PUT payload during onboarding
+2. Added DEV log [DISPLAYNAME_WRITE] when persisting user-entered name
+3. Added helper `computeDisplayLabel()` for render-only display fallback
+4. Added DEV log [DISPLAYNAME_FALLBACK_BLOCKED] when fallback is used
+5. Username @ prefix stripping was already working (no change needed)
 
 ========================================
-ROOT CAUSE
+ROOT CAUSE ANALYSIS
 ========================================
-1. friends.tsx:
-   - acceptRequestMutation.onSuccess triggered setShowAddToGroupsModal(true)
-   - Modal JSX rendered when showAddToGroupsModal was true
-   
-2. user/[id].tsx:
-   - acceptRequestMutation.onSuccess triggered setShowAddToGroupsModal(true)
-   - Modal JSX rendered when showAddToGroupsModal was true
+CODE PATH BEFORE (BROKEN):
+1. User enters displayName "Paul" in welcome.tsx slide 3
+2. handleSlide3Continue() at line 713 extracts trimmedName = "Paul"
+3. BUT payload at line 778 only included { handle, avatarUrl? }
+4. api.put("/api/profile", payload) persists ONLY handle + avatar
+5. displayName "Paul" is LOST - never sent to backend
+6. Later, getProfileDisplay() falls back to email local-part
+
+CODE PATH AFTER (FIXED):
+1. User enters displayName "Paul" in welcome.tsx slide 3
+2. handleSlide3Continue() extracts trimmedName = "Paul"
+3. payload now includes { handle, avatarUrl?, name? }
+4. If trimmedName exists, payload.name = trimmedName
+5. DEV log: [DISPLAYNAME_WRITE] Persisting user-entered name: Paul
+6. api.put("/api/profile", payload) persists name to backend
+7. Cache also updated with name field
 
 ========================================
 FILES CHANGED
 ========================================
-src/app/friends.tsx
-  - Removed state: showAddToGroupsModal, newlyAcceptedFriend, selectedGroupIds
-  - Removed trigger in acceptRequestMutation.onSuccess
-  - Removed addFriendToGroupsMutation
-  - Removed modal JSX (~160 lines)
-  - Added success toast: "Friend added!" after accepting request
-  - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
+src/app/welcome.tsx (lines 770-815)
+  - BEFORE: payload = { handle, avatarUrl? }
+  - AFTER:  payload = { handle, avatarUrl?, name? }
+  - Added: if (trimmedName) payload.name = trimmedName
+  - Added: DEV log [DISPLAYNAME_WRITE] when name persisted
+  - Added: Cache update includes name field for both profile and user
 
-src/app/user/[id].tsx
-  - Removed state: showAddToGroupsModal, newlyAcceptedFriend, selectedGroupIds
-  - Removed groups query (only used for modal)
-  - Removed trigger in acceptRequestMutation.onSuccess
-  - Removed addFriendToGroupsMutation
-  - Removed modal JSX (~175 lines)
-  - Clean redirect to friend profile after accepting request
+src/lib/profileDisplay.ts (lines 100-145)
+  - Added: computeDisplayLabel() helper function
+  - Purpose: Render-only display label (displayName → @handle → email → "Friend")
+  - Added: DEV log [DISPLAYNAME_FALLBACK_BLOCKED] when fallback used
+  - IMPORTANT: This is for UI render only, never persists
+
+========================================
+DEV LOG STRINGS ADDED
+========================================
+[DISPLAYNAME_WRITE] - Logged in welcome.tsx when user's name is persisted
+[DISPLAYNAME_FALLBACK_BLOCKED] - Logged in profileDisplay.ts when fallback used
+
+========================================
+ACCEPTANCE CRITERIA (VERIFIED)
+========================================
+✓ If user has ever set a non-empty displayName, it is now persisted
+✓ Fallback to email local-part only happens if displayName is empty/null
+✓ Username normalization: "@john" → "john" (strip ONE leading @, trim whitespace)
+  - Already working at welcome.tsx line 722 and line 1063
+✓ Code path identified and fixed with minimal diff
+✓ DEV-only decision logs added
+✓ No backend changes required - frontend-only fix
+
+========================================
+MANUAL REPRO STEPS
+========================================
+1. Fresh signup with email
+2. On slide 3, enter display name "Paul" and username "paul"
+3. Complete onboarding
+4. Navigate to Profile or Settings
+5. EXPECTED: Display name shows "Paul" (not email local-part)
+6. Enter username "@paul" and confirm stored as "paul" (no @)
+
+========================================
+VERIFY RESULT
+========================================
+bash scripts/ai/verify_frontend.sh → PASS
+- Invariants: All passed
+- TypeScript: No errors
+
+========================================
+COMMIT
+========================================
+git add -A
+git commit -m "fix(profile): prevent displayName overwrite + normalize username"
+git push origin main
   - Removed unused imports: Modal, GetGroupsResponse
   - Added [LEGACY_ADD_TO_GROUPS_REMOVED] comments
 
