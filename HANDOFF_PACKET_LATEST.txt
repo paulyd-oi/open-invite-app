@@ -1,5 +1,5 @@
 =================================================================
-HANDOFF PACKET: Friends Tab Guide Flicker + Login Flash Fix
+HANDOFF PACKET: P2.1 Suggestions Surface Removal (Pre-Launch)
 =================================================================
 
 Date: 2025-01-29
@@ -10,98 +10,72 @@ Commit: (pending)
 =================================================================
 SUMMARY
 =================================================================
-Fixed two P1.1 bugs on Friends tab:
-1. "Starting guide" re-appearing after dismiss/complete (user-scoped keys fix)
-2. Brief Login screen flash when switching to Friends tab (bootStatus guard fix)
+Removed broken "Suggestions" surface from Friends tab:
+- "Join Jay Stone's event" cards had dead tap (haptics but no navigation)
+- Floating orange/yellow dot artifact visible on card right side
+- Entry point removed, route converted to "Coming soon" placeholder
 
 =================================================================
 FILES CHANGED
 =================================================================
 MODIFIED:
-- src/hooks/useOnboardingGuide.ts (user-scoped keys, module cache, DEV logs)
-- src/app/friends.tsx (bootStatus-aware auth gating with skeleton fallback)
+- src/app/friends.tsx (removed Suggestions button from Social Features Quick Access)
+- src/app/suggestions.tsx (replaced 564-line broken screen with 97-line "Coming soon" placeholder)
+- docs/STATE_OF_THE_APP.md (documented removal)
+
+NOT DELETED (unreachable but preserved):
+- src/components/SuggestionFeedCard.tsx (component with orange icon, unused)
+- src/hooks/useSuggestionsFeed.ts (hook, unused)
+- src/lib/nav.ts goToSuggestions() (helper, unused)
 
 =================================================================
 ROOT CAUSE
 =================================================================
-BUG 1: Guide Re-appearing
-EXACT CODE PATH: src/hooks/useOnboardingGuide.ts
+BUG 1: Dead Tap on Event Cards
+EXACT CODE PATH: src/components/SuggestionFeedCard.tsx handlePress()
 
 WHY IT HAPPENED:
-- SecureStore keys were global: `guide_friends_add_people_v1`, `guide_create_first_plan_v1`
-- Guide dismissed by User A would mark it dismissed for ALL users
-- When User B signed in, the dismissed flag from User A prevented guide from showing
-- Conversely, if User B cleared data, both users would see guide again
-- No module-level cache meant async read delay caused flash on remount
+- JOIN_EVENT case routed to /event/${suggestion.eventId}
+- eventId was often undefined or invalid
+- Haptics fired but navigation silently failed (no event exists)
 
-BUG 2: Login Screen Flash
-EXACT CODE PATH: src/app/friends.tsx line 1206
+BUG 2: Floating Orange/Yellow Dot
+EXACT CODE PATH: src/components/SuggestionFeedCard.tsx lines 50-51
 
 WHY IT HAPPENED:
-- `if (!session)` check returned login UI without checking bootStatus
-- During tab switch, React Query rehydrates and session can be temporarily null
-- bootStatus could be 'loading' or 'authed' while session is still null
-- Result: brief login screen flash before session hydrates
+- NUDGE_INVITE type used bgColor: "#F5920020" (orange with 20% opacity)
+- Combined with absolute positioning created visible artifact
+- Card overflow rendering issue on certain devices
 
 =================================================================
 FIX
 =================================================================
-BUG 1 FIX (useOnboardingGuide.ts):
+REMOVAL STRATEGY (minimal risk):
 
-1. Changed keys to user-scoped with v2 prefix:
-   - OLD: `guide_friends_add_people_v1`
-   - NEW: `guide_friends_add_people_v2:<userId>`
+1. Removed entry point from friends.tsx:
+   - Before: Two-button row [Activity] [Suggestions]
+   - After: Single centered [Activity] button
+   - Sparkles icon import removed (no longer used)
 
-2. Added buildGuideKey() helper:
-   ```ts
-   function buildGuideKey(prefix: string, userId: string): string {
-     return `${prefix}:${userId}`;
-   }
-   ```
+2. Converted suggestions.tsx to "Coming soon" placeholder:
+   - 97 lines total (down from 564)
+   - Simple header + centered message + "Go Back" button
+   - No data fetching, no cards, no artifacts
+   - BottomNavigation preserved for consistent UX
 
-3. Added module-level cache for synchronous reads:
-   ```ts
-   const guideStateCache: Map<string, boolean> = new Map();
-   ```
-   - On mount: checks cache FIRST (synchronous), then reads SecureStore (async backup)
-   - On dismiss/complete: updates cache immediately, then persists to SecureStore
-
-4. Added comprehensive [GUIDE_DECISION] DEV logs:
-   - Cache hits/misses
-   - SecureStore reads/writes
-   - State transitions
-
-BUG 2 FIX (friends.tsx):
-
-1. Added bootStatus-aware gating inside `if (!session)` block:
-   ```ts
-   if (!session) {
-     // During loading states, show skeleton instead of login
-     if (bootStatus === 'loading' || bootStatus === 'authed' || bootStatus === 'onboarding') {
-       return <FriendsListSkeleton />; // Prevents flash
+3. Added DEV-only detection log:
+   ```tsx
+   useEffect(() => {
+     if (__DEV__) {
+       console.warn('[SUGGESTIONS_DISABLED] User reached /suggestions route...');
      }
-     // Only show login prompt when definitively logged out
-     return <LoginPrompt />;
-   }
+   }, []);
    ```
 
-2. Added [FRIENDS_AUTH_GATE] DEV logs for debugging:
-   - Logs bootStatus and session state when showing skeleton
-   - Logs bootStatus when showing login prompt
-
-=================================================================
-DEV DECISION LOGS
-=================================================================
-When __DEV__ is true, look for these log prefixes:
-
-[GUIDE_DECISION] - Guide state changes in useOnboardingGuide.ts
-  - mount:<id> cache-hit|cache-miss
-  - dismissed, active, already-active
-  - completeStep, startGuide, dismissGuide, resetGuide
-
-[FRIENDS_AUTH_GATE] - Auth gating in friends.tsx
-  - "Showing skeleton - bootStatus: X, session: Y"
-  - "Showing login prompt - bootStatus: X"
+4. Preserved but unreachable components:
+   - SuggestionFeedCard.tsx (might restore later)
+   - useSuggestionsFeed.ts hook
+   - goToSuggestions() nav helper
 
 =================================================================
 VERIFICATION
@@ -114,37 +88,62 @@ VERIFICATION
   ✓ No global guidance patterns found
 
 =================================================================
-MANUAL REPRO CHECKLIST
+WHERE SUGGESTIONS USED TO BE
 =================================================================
-[ ] 1. Cold start with authed user:
-    - Open app → tap Friends tab → guide should appear once
-    - Dismiss guide → navigate away → come back to Friends tab
-    - EXPECTED: Guide does NOT re-appear
+BEFORE (friends.tsx lines 1269-1321):
+```
+<View className="flex-row gap-2">
+  <Pressable>[Activity]</Pressable>
+  <Pressable onPress={() => router.push("/suggestions")}>
+    <Sparkles />
+    Suggestions
+  </Pressable>
+</View>
+```
 
-[ ] 2. Rapid tab switching:
-    - While on Home tab → quickly tap Friends tab
-    - EXPECTED: No login screen flash, shows skeleton then content
+AFTER (friends.tsx lines 1269-1305):
+```
+<Pressable onPress={() => router.push("/activity")}>
+  <Activity />
+  Activity
+</Pressable>
+```
 
-[ ] 3. Multi-user isolation:
-    - Sign out → sign in as different user
-    - EXPECTED: Guide shows once for NEW user (not affected by previous user)
+=================================================================
+PROOF: NO FLOATING DOT ARTIFACT
+=================================================================
+- SuggestionFeedCard with #F5920020 orange background is NO LONGER RENDERED
+- /suggestions route shows simple "Coming Soon" text (no cards)
+- No orange/yellow elements in the active UI path
 
-[ ] 4. App restart persistence:
-    - Dismiss guide → kill app → relaunch
-    - EXPECTED: Guide stays dismissed for same user
+=================================================================
+MANUAL CHECK CHECKLIST
+=================================================================
+[ ] 1. Open Friends tab:
+    - EXPECTED: Only "Activity" button visible (no "Suggestions" button)
+    
+[ ] 2. Tap Activity button:
+    - EXPECTED: Navigates to /activity screen normally
 
-[ ] 5. Dev log verification:
-    - Enable __DEV__ mode
-    - Perform repro steps
-    - EXPECTED: See [GUIDE_DECISION] and [FRIENDS_AUTH_GATE] logs in console
+[ ] 3. Deep link to /suggestions:
+    - EXPECTED: "Coming Soon" screen with "Go Back" button
+    - EXPECTED: (DEV) Console shows [SUGGESTIONS_DISABLED] warning
+
+[ ] 4. Visual scan Friends tab:
+    - EXPECTED: No floating orange/yellow dot anywhere
+
+[ ] 5. Scroll entire Friends list:
+    - EXPECTED: No suggestion cards, no orange artifacts
 
 =================================================================
 ROLLBACK
 =================================================================
-If issues arise:
+If Suggestions needs to be restored:
 1. git revert <commit-hash>
-2. Or manually restore old if (!session) block without bootStatus check
-3. Guide keys will auto-migrate (v2 prefix means new namespace)
+2. Or manually restore:
+   - Add Sparkles import back to friends.tsx
+   - Restore two-button row with Suggestions button
+   - Restore full suggestions.tsx from git history
 
 =================================================================
 END OF HANDOFF

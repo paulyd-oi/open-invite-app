@@ -70,6 +70,12 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (P2.1 Suggestions Surface Removal)
+- Suggestions entry point removed: "Suggestions" button removed from friends.tsx Social Features Quick Access
+- /suggestions route converted to "Coming Soon" placeholder (no broken cards, no floating dot artifact)
+- DEV-only log: [SUGGESTIONS_DISABLED] warns if user reaches /suggestions via stale deep link
+- SuggestionFeedCard.tsx preserved but unreachable (no UI renders it)
+
 ## Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating - FINALIZED)
 - Profile photo upload: Migrated to CANONICAL Cloudinary direct upload (unsigned preset openinvite_profile)
 - Cloudinary pattern: Client sends ONLY file + upload_preset (NO folder param), preset controls all naming/folder logic
