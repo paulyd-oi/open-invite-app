@@ -751,12 +751,9 @@ export default function WelcomeOnboardingScreen() {
         handle: cleanedHandle,
       };
 
-      // Only add avatarUrl if it's a valid backend-relative path
+      // Add avatarUrl if present (Cloudinary https:// or legacy backend /uploads/)
       if (typeof avatarUrl === "string" && avatarUrl.trim().length > 0) {
-        const backendAvatarUrl = toBackendAvatarUrl(avatarUrl);
-        if (backendAvatarUrl) {
-          payload.avatarUrl = backendAvatarUrl;
-        }
+        payload.avatarUrl = avatarUrl.trim();
       }
 
       console.log("[Onboarding] /api/profile payload keys", Object.keys(payload));

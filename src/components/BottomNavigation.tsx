@@ -238,6 +238,7 @@ export default function BottomNavigation() {
 
   // Get active profile info
   const activeProfile = profilesData?.activeProfile;
+  // Canonical avatar precedence: profile.image → session.user.image
   const profileImage = activeProfile?.image ?? (session?.user as any)?.image;
 
   // Check if user has multiple profiles (show indicator)
