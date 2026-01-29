@@ -490,22 +490,25 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 
 - **Architecture**: Client uploads directly to Cloudinary (no backend byte handling), returns secure_url to backend for profile update
 - **Unsigned preset**: Use unsigned upload preset (e.g., `openinvite_profile`) for public client uploads without API key
-- **Env vars**: `EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME`, `EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET`, `EXPO_PUBLIC_CLOUDINARY_FOLDER`
+- **Env vars**: `EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME`, `EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET` (NO EXPO_PUBLIC_CLOUDINARY_FOLDER)
 - **Upload endpoint**: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`
 - **FormData multipart**: Use React Native FormData with `{ uri, type: "image/jpeg", name: "upload.jpg" }`
+- **CRITICAL: Client must NOT send folder param**: Preset controls folder + naming logic, client sends ONLY file + upload_preset
 - **Response parsing**: Extract `secure_url` from JSON response, handle non-JSON errors defensively
 - **Error handling**: Check `!res.ok` before parsing, throw error with Cloudinary message if available
 - **Size guard**: Enforce MAX_UPLOAD_BYTES (5MB) before upload to prevent wasted bandwidth
 - **Implementation location**: `src/lib/imageUpload.ts` (uploadImage function)
 - **Profile flow**: Settings → Edit Profile → uploadImage(localUri) → backend PATCH /api/profile with avatarUrl
+- **Onboarding flow**: welcome.tsx → uploadImage(localUri) → store URL → save with profile on Continue
 
 ## Interactive Onboarding Guide Pattern (Canonical)
 
 - **User-scoped keys**: `onboarding_guide_step:${userId}`, `onboarding_guide_completed:${userId}` (not global)
 - **Boot gating**: Guide only loads after `userId` present AND `bootStatus === "authed"` (prevents flash on load)
 - **Default to completed**: State defaults to `isCompleted: true, isLoading: true` until userId+data loaded
+- **shouldShowStep check**: Returns true only if `!isCompleted && !isLoading && currentStep === step` (no flash before data loads)
 - **Three-step flow**: friends_tab → add_friend → create_event → completed
 - **Step progression**: Triggered by user actions (visiting Friends, sending request, creating event)
 - **All operations require userId**: completeStep, startGuide, dismissGuide, resetGuide check userId before mutating storage
 - **Implementation location**: `src/hooks/useOnboardingGuide.ts` (hook), `src/components/OnboardingGuideOverlay.tsx` (UI)
-- **Usage pattern**: `const guide = useOnboardingGuide(); guide.shouldShowStep("friends_tab")` returns true only if userId loaded + not completed
+- **Usage pattern**: `const guide = useOnboardingGuide(); guide.shouldShowStep("friends_tab")` returns true only if userId loaded + not completed + not loading

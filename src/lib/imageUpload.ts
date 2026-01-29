@@ -1,14 +1,14 @@
 /**
  * Image Upload Utility (Cloudinary Direct Upload)
  *
- * Provides functionality for compressing and uploading images directly to Cloudinary,
- * then returning the hosted URL for your backend to store.
+ * Compresses and uploads images directly to Cloudinary, returning a hosted URL
+ * for your backend to store.
  *
- * This module handles:
- * - Image compression using expo-image-manipulator
- * - File size validation (5MB)
- * - Unsigned Cloudinary upload via multipart FormData
- * - Defensive error handling with readable messages
+ * Canonical rules:
+ * - Folder is enforced by the Cloudinary Upload Preset (DO NOT send `folder` from client)
+ * - Uses UNSIGNED upload preset
+ * - 5MB max client-side guard
+ * - Defensive parsing + readable errors
  */
 
 import * as ImageManipulator from "expo-image-manipulator";
@@ -40,34 +40,34 @@ export interface UploadResponse {
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 /**
- * Cloudinary configuration
+ * Cloudinary configuration (client-safe)
  *
  * REQUIRED:
  * - EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME
  * - EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET
  *
- * OPTIONAL:
- * - EXPO_PUBLIC_CLOUDINARY_FOLDER (default: "profile_photos")
+ * NOTE:
+ * Folder MUST be configured in the Cloudinary upload preset.
+ * Do NOT use EXPO_PUBLIC_CLOUDINARY_FOLDER and do NOT send `folder` from the client.
  */
 const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-const CLOUDINARY_FOLDER = process.env.EXPO_PUBLIC_CLOUDINARY_FOLDER || "profile_photos";
 
 function assertCloudinaryConfigured() {
   if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME.length === 0) {
-    throw new Error("Cloudinary cloud name not configured (EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME).");
+    throw new Error(
+      "Cloudinary cloud name not configured (EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME)."
+    );
   }
   if (!CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET.length === 0) {
-    throw new Error("Cloudinary upload preset not configured (EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET).");
+    throw new Error(
+      "Cloudinary upload preset not configured (EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET)."
+    );
   }
 }
 
 /**
  * Compresses an image to reduce file size
- *
- * @param uri - Local URI of the image to compress
- * @param options - Compression options
- * @returns Compressed image URI
  */
 export async function compressImage(
   uri: string,
@@ -104,9 +104,8 @@ export async function compressImage(
 /**
  * Uploads an image directly to Cloudinary (unsigned preset).
  *
- * @param uri - Local URI of the image to upload
- * @param compress - Whether to compress the image before uploading (default: true)
- * @returns Upload response with the Cloudinary URL
+ * IMPORTANT:
+ * - Do NOT include `folder` in the request. Folder is set in the preset.
  */
 export async function uploadImage(
   uri: string,
@@ -127,9 +126,12 @@ export async function uploadImage(
       throw new Error("Image is too large (max 5MB). Please choose a smaller photo.");
     }
 
-    if (__DEV__ && typeof fileSize === "number") {
-      const fileSizeKB = (fileSize / 1024).toFixed(2);
+    if (__DEV__) {
+      const fileSizeKB =
+        typeof fileSize === "number" ? (fileSize / 1024).toFixed(2) : "unknown";
       console.log(`[imageUpload] Uploading to Cloudinary: ${fileSizeKB} KB`);
+      console.log("[imageUpload] Cloud:", CLOUDINARY_CLOUD_NAME);
+      console.log("[imageUpload] Preset:", CLOUDINARY_UPLOAD_PRESET);
     }
 
     const formData = new FormData();
@@ -141,7 +143,6 @@ export async function uploadImage(
     } as any);
 
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
-    formData.append("folder", CLOUDINARY_FOLDER);
 
     const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
@@ -202,10 +203,6 @@ export async function uploadImage(
 
 /**
  * Picks and uploads an image with compression
- * Utility function that combines image picking and uploading
- *
- * @param imagePickerResult - Result from ImagePicker
- * @returns Cloudinary URL of the uploaded image, or null if cancelled
  */
 export async function uploadImageFromPicker(
   imagePickerResult: { canceled: boolean; assets?: Array<{ uri: string }> } | null

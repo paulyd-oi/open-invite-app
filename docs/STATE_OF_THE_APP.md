@@ -37,7 +37,7 @@
 - Get Started guide: Per-user dismissal (get_started_dismissed:userId), gated by true-new-user signals (0 friends AND 0 events)
 - Interactive onboarding guide: User-scoped keys (onboarding_guide_step:userId, onboarding_guide_completed:userId), gated on bootStatus=authed + userId present + data loaded
 - Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), transparent background, no calendar tile obscuring
-- Profile photo upload: Direct Cloudinary upload (unsigned preset), no backend bytes upload, profile update uses returned URL
+- Profile photo upload: Cloudinary direct upload CANONICAL (unsigned preset openinvite_profile, NO folder from client, preset controls all naming/folder)
 - Pro user throttle gate: Checks both isPremium AND entitlements.plan to prevent false throttling
 - Discover tab reconnect: Routes to /user/:id (not /profile/:id which doesn't exist)
 - Activity feed deep links: Tapping notification routes to event or user profile based on data.eventId/userId
@@ -50,12 +50,15 @@
 ## Unstable / Regressions
 - None currently known
 
-## Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating)
-- Profile photo upload: Migrated to Cloudinary direct upload (unsigned preset openinvite_profile)
-- Cloudinary env vars: EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME, EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET, EXPO_PUBLIC_CLOUDINARY_FOLDER
-- Upload flow: compress → POST to Cloudinary API → return secure_url → backend profile update
+## Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating - FINALIZED)
+- Profile photo upload: Migrated to CANONICAL Cloudinary direct upload (unsigned preset openinvite_profile)
+- Cloudinary pattern: Client sends ONLY file + upload_preset (NO folder param), preset controls all naming/folder logic
+- Cloudinary env vars: EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME, EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET (EXPO_PUBLIC_CLOUDINARY_FOLDER removed)
+- Upload flow: compress → POST to Cloudinary API → return secure_url → backend profile update (no bytes to backend)
+- Onboarding welcome.tsx: Migrated from backend /api/upload/image to Cloudinary uploadImage()
 - Interactive onboarding guide: Fixed user-scoping (keys now onboarding_guide_step:userId, onboarding_guide_completed:userId)
 - Guide gating: Waits for userId + bootStatus=authed before loading state, defaults to isCompleted=true to prevent flash
+- Guide overlay: shouldShowStep() checks !isLoading to prevent flash before data loads
 - All guide operations (completeStep, startGuide, dismissGuide, resetGuide) now require userId
 
 ## Launch Sweep (2026-01-28)

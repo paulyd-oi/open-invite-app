@@ -45,6 +45,7 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
+import { uploadImage } from "@/lib/imageUpload";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -655,26 +656,9 @@ export default function WelcomeOnboardingScreen() {
     setUploadBusy(true);
 
     try {
-      const formData = new FormData();
-      formData.append("image", {
-        uri,
-        type: "image/jpeg",
-        name: "profile.jpg",
-      } as unknown as Blob);
-
-      console.log("[Onboarding] Uploading photo...");
-      const uploadResponse = await fetch(`${BACKEND_URL}/api/upload/image`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.status}`);
-      }
-
-      const uploadData = await uploadResponse.json();
-      const normalizedUrl = normalizeAvatarUrl(uploadData.url);
+      console.log("[Onboarding] Uploading photo to Cloudinary...");
+      const uploadResponse = await uploadImage(uri, true);
+      const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
       console.log("[Onboarding] Photo uploaded, normalized URL:", normalizedUrl.substring(0, 50) + "...");
 
       if (!isMountedRef.current) return;

@@ -1,0 +1,203 @@
+=============================================================================
+HANDOFF: P0 CLOUDINARY DIRECT UPLOAD + GUIDE GATING + SETTINGS CLEANUP
+=============================================================================
+
+COMMIT: e6898a1 "fix(p0): cloudinary direct upload + guide gating + settings cleanup"
+BRANCH: main
+REPO: open-invite-app
+DATE: 2026-01-28
+
+=============================================================================
+SUMMARY
+=============================================================================
+
+Implemented Cloudinary direct upload for profile photos and fixed interactive
+onboarding guide user-scoping. Verified settings subscription section placement,
+status bar theme awareness, and cold start routing all correct.
+
+KEY CHANGES:
+1. Profile photo upload now goes directly to Cloudinary (no backend bytes)
+2. Interactive onboarding guide (friends_tab/add_friend/create_event) now user-scoped
+3. Guide defaults to completed until userId + bootStatus loaded (prevents flash)
+4. Settings subscription section already separate (verified)
+5. StatusBar already theme-aware (verified)
+6. Cold start routing already correct (verified)
+
+All fixes minimal, no new dependencies, typecheck + invariants pass.
+
+=============================================================================
+FILES CHANGED (5)
+=============================================================================
+
+1. src/lib/imageUpload.ts (FULL REWRITE)
+   BEFORE: Backend upload via FileSystem.uploadAsync to /api/upload/image with cookies
+   AFTER: Direct Cloudinary upload via FormData POST to api.cloudinary.com
+   WHY: Eliminate auth/cookie issues, reduce backend load, leverage CDN
+   
+   KEY CHANGES:
+   - Removed FileSystem.uploadAsync to backend
+   - Added fetch POST to https://api.cloudinary.com/v1_1/${cloudName}/image/upload
+   - Reads env vars: EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME, EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+   - Returns secure_url from Cloudinary response
+   - No cookie auth needed (unsigned preset)
+   - Defensive JSON parsing with error handling
+   - Size guard (MAX_UPLOAD_BYTES = 5MB) preserved
+
+2. src/hooks/useOnboardingGuide.ts (USER SCOPING)
+   BEFORE: Global keys (onboarding_guide_step, onboarding_guide_completed)
+   AFTER: User-scoped keys (onboarding_guide_step:userId, onboarding_guide_completed:userId)
+   WHY: Prevent guide showing on established accounts, support multi-account use
+   
+   KEY CHANGES:
+   - Added useSession + useBootAuthority imports
+   - Extract userId from session?.user?.id
+   - Gate loading on userId + bootStatus === "authed"
+   - All storage keys now suffixed with :${userId}
+   - completeStep, startGuide, dismissGuide, resetGuide all require userId
+   - Default state: isCompleted=true, isLoading=true (prevents flash)
+
+3. docs/STATE_OF_THE_APP.md (DOCUMENTATION)
+   - Updated "Profile photo upload" section with Cloudinary details
+   - Added "Interactive onboarding guide" user-scoping note
+   - Added new session section: "Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating)"
+   - Documented Cloudinary env vars and upload flow
+
+4. docs/FINDINGS_LOG.md (PATTERNS)
+   - Added "Cloudinary Direct Upload Pattern (Canonical)" section
+   - Added "Interactive Onboarding Guide Pattern (Canonical)" section
+   - Documented unsigned preset pattern, FormData multipart, error handling
+   - Documented user-scoped keys, boot gating, three-step flow
+
+5. HANDOFF_PACKET_LATEST.txt (THIS FILE)
+   - Plain-text handoff with all implementation details
+
+=============================================================================
+ENVIRONMENT VARIABLES REQUIRED
+=============================================================================
+
+Add to .env or Expo config:
+
+EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=openinvite
+EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=openinvite_profile
+EXPO_PUBLIC_CLOUDINARY_FOLDER=profile_photos
+
+Cloudinary preset configuration (already created):
+- Cloud name: openinvite
+- Upload preset: openinvite_profile (UNSIGNED)
+- Asset folder: openinvite/profile_photos
+- Public ID: auto-generate unguessable
+- Display name: use filename
+
+=============================================================================
+HOW TO TEST
+=============================================================================
+
+PROFILE PHOTO UPLOAD:
+1. Open app, go to Settings
+2. Tap Edit Profile > Change photo
+3. Select image from camera roll
+4. Verify: Image compresses and uploads, no errors, photo updates immediately
+5. Check DEV logs for Cloudinary upload messages
+6. Verify returned URL starts with https://res.cloudinary.com/openinvite/
+
+ONBOARDING GUIDE (NEW USER):
+1. Create fresh account (no friends, no events)
+2. Navigate to Friends tab
+3. Verify guide appears: "Start by adding a friend"
+4. Complete steps: Friends tab > Send friend request > Create event
+5. Force close app, relaunch
+6. Verify guide does NOT reappear (user-scoped completion)
+
+ONBOARDING GUIDE (ESTABLISHED USER):
+1. Log in with established account (has friends OR events)
+2. Navigate to Friends tab
+3. Verify NO guide appears at all, no flash before hiding
+
+SETTINGS SUBSCRIPTION SECTION:
+1. Open Settings, scroll to "INVITE FRIENDS" section
+2. Verify only shows referral counter + "Invite More Friends" button
+3. Scroll down to "SUBSCRIPTION" section (separate header)
+4. Verify Subscription row with Crown icon
+
+STATUS BAR DARK MODE:
+1. Open app in light mode, verify status bar text is dark (visible)
+2. Toggle dark mode in Settings, verify status bar text is light (visible)
+
+COLD START ROUTING:
+1. Force close app, relaunch (authed user)
+2. Verify app lands on /calendar (not /login)
+
+=============================================================================
+VERIFICATION STATUS
+=============================================================================
+
+✅ TypeScript: PASS (no errors)
+✅ bash scripts/ai/verify_frontend.sh: PASS
+   - docs/AUTH_CONTRACT.md exists
+   - No !!session gating found
+   - No uppercase Cookie headers found
+   - User-scoped guidance keys confirmed
+✅ Git commit: e6898a1
+✅ Git push: main branch updated
+
+=============================================================================
+NOTES & RISKS
+=============================================================================
+
+CLOUDINARY UPLOAD:
+- Unsigned preset is public (anyone can upload) - consider rate limiting
+- 5MB size limit enforced client-side before upload
+- No cookie auth needed (removes auth complexity)
+- Backend only stores URL (never handles image bytes)
+
+ONBOARDING GUIDE:
+- Guide only loads after userId known (prevents device-only keys)
+- Default state is completed=true (prevents flash before data loads)
+- Guide completion tied to user account (survives logout/login)
+- Multi-account safe (each userId has own completion state)
+
+RUNTIME TESTING REQUIRED:
+- No device/TestFlight testing performed during this session
+- Cloudinary env vars must be set in app config
+- Test on iOS + Android (FormData behavior may differ)
+- Test with various image sizes (ensure 5MB guard works)
+
+=============================================================================
+DEPENDENCIES
+=============================================================================
+
+No changes to package.json or yarn.lock.
+No new npm packages installed.
+
+Existing dependencies used:
+- expo-image-manipulator (compression)
+- expo-file-system (file info only, not upload)
+- @react-native-async-storage/async-storage (guide state)
+- React Native FormData (Cloudinary upload)
+
+=============================================================================
+ROLLBACK PLAN
+=============================================================================
+
+If Cloudinary upload fails in production:
+
+git revert e6898a1
+
+This will restore:
+- Backend upload via FileSystem.uploadAsync
+- Session cookie auth for uploads
+- Original imageUpload.ts implementation
+
+=============================================================================
+NEXT STEPS
+=============================================================================
+
+1. Set Cloudinary env vars in app.json or .env
+2. Test profile photo upload on device (iOS + Android)
+3. Test onboarding guide with fresh account + established account
+4. Monitor Cloudinary dashboard for upload activity
+5. Consider adding Cloudinary upload preset rate limiting
+
+=============================================================================
+END OF HANDOFF
+=============================================================================
