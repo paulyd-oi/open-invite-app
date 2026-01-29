@@ -35,8 +35,9 @@
 - Circle events: Simplified creation (no Event Mode, Frequency, or Notification toggles)
 - CTA copy: "Create Invite" (not "Create Open Invite")
 - Get Started guide: Per-user dismissal (get_started_dismissed:userId), gated by true-new-user signals (0 friends AND 0 events)
+- Interactive onboarding guide: User-scoped keys (onboarding_guide_step:userId, onboarding_guide_completed:userId), gated on bootStatus=authed + userId present + data loaded
 - Social calendar date modal: Bottom sheet presentation (presentationStyle="pageSheet"), transparent background, no calendar tile obscuring
-- Profile photo upload: Uses session cookie auth (lowercase 'cookie' header), defensive JSON parsing with error logging
+- Profile photo upload: Direct Cloudinary upload (unsigned preset), no backend bytes upload, profile update uses returned URL
 - Pro user throttle gate: Checks both isPremium AND entitlements.plan to prevent false throttling
 - Discover tab reconnect: Routes to /user/:id (not /profile/:id which doesn't exist)
 - Activity feed deep links: Tapping notification routes to event or user profile based on data.eventId/userId
@@ -48,6 +49,14 @@
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (P0 Cloudinary Direct Upload + Guide Gating)
+- Profile photo upload: Migrated to Cloudinary direct upload (unsigned preset openinvite_profile)
+- Cloudinary env vars: EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME, EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET, EXPO_PUBLIC_CLOUDINARY_FOLDER
+- Upload flow: compress → POST to Cloudinary API → return secure_url → backend profile update
+- Interactive onboarding guide: Fixed user-scoping (keys now onboarding_guide_step:userId, onboarding_guide_completed:userId)
+- Guide gating: Waits for userId + bootStatus=authed before loading state, defaults to isCompleted=true to prevent flash
+- All guide operations (completeStep, startGuide, dismissGuide, resetGuide) now require userId
 
 ## Launch Sweep (2026-01-28)
 - Full frontend debugger sweep: TypeScript, routes, API calls

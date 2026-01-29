@@ -1,32 +1,18 @@
 /**
- * Image Upload Utility
+ * Image Upload Utility (Cloudinary Direct Upload)
  *
- * Provides functionality for compressing and uploading images to the backend.
+ * Provides functionality for compressing and uploading images directly to Cloudinary,
+ * then returning the hosted URL for your backend to store.
+ *
  * This module handles:
  * - Image compression using expo-image-manipulator
- * - FormData-based file uploads
- * - Error handling and progress tracking
+ * - File size validation (5MB)
+ * - Unsigned Cloudinary upload via multipart FormData
+ * - Defensive error handling with readable messages
  */
 
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
-import { fetch } from "expo/fetch";
-import { authClient } from "./authClient";
-
-// Backend URL configuration - fallback to Render production URL for TestFlight
-// Check for truthy value (not just undefined) to handle empty string case
-const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
-const vibecodeSandboxUrl = process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
-const BACKEND_URL = vibecodeSandboxUrl && vibecodeSandboxUrl.length > 0
-  ? vibecodeSandboxUrl
-  : RENDER_BACKEND_URL;
-
-if (__DEV__) {
-  console.log("[imageUpload] Using backend URL:", BACKEND_URL);
-}
-
-// Maximum file size: 5MB (matches backend limit)
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 /**
  * Image compression options
@@ -38,14 +24,42 @@ interface CompressionOptions {
 }
 
 /**
- * Upload response from the backend
+ * Upload response shape for callers
  */
-interface UploadResponse {
+export interface UploadResponse {
   success: boolean;
   message?: string;
   url: string;
   filename?: string;
   error?: string;
+}
+
+/**
+ * Maximum file size: 5MB
+ */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Cloudinary configuration
+ *
+ * REQUIRED:
+ * - EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME
+ * - EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+ *
+ * OPTIONAL:
+ * - EXPO_PUBLIC_CLOUDINARY_FOLDER (default: "profile_photos")
+ */
+const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const CLOUDINARY_FOLDER = process.env.EXPO_PUBLIC_CLOUDINARY_FOLDER || "profile_photos";
+
+function assertCloudinaryConfigured() {
+  if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME.length === 0) {
+    throw new Error("Cloudinary cloud name not configured (EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME).");
+  }
+  if (!CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET.length === 0) {
+    throw new Error("Cloudinary upload preset not configured (EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET).");
+  }
 }
 
 /**
@@ -62,7 +76,6 @@ export async function compressImage(
   const { maxWidth = 1200, maxHeight = 1200, quality = 0.7 } = options;
 
   try {
-    // Resize and compress the image
     const result = await ImageManipulator.manipulateAsync(
       uri,
       [
@@ -84,114 +97,106 @@ export async function compressImage(
     if (__DEV__) {
       console.error("[imageUpload] Compression error:", error);
     }
-    // Return original if compression fails
     return uri;
   }
 }
 
 /**
- * Uploads an image to the backend server
+ * Uploads an image directly to Cloudinary (unsigned preset).
  *
  * @param uri - Local URI of the image to upload
  * @param compress - Whether to compress the image before uploading (default: true)
- * @returns Upload response with the server URL
+ * @returns Upload response with the Cloudinary URL
  */
 export async function uploadImage(
   uri: string,
   compress: boolean = true
 ): Promise<UploadResponse> {
-  if (!BACKEND_URL) {
-    throw new Error("Backend URL not configured");
-  }
-
   try {
-    // Compress the image if requested
+    assertCloudinaryConfigured();
+
     const imageUri = compress ? await compressImage(uri) : uri;
 
-    // Get file info
     const fileInfo = await FileSystem.getInfoAsync(imageUri);
     if (!fileInfo.exists) {
       throw new Error("Image file does not exist");
     }
 
-    // Validate file size (must be under 5MB)
-    // Treat size as optional - if undefined, allow upload and let backend enforce limit
     const fileSize = (fileInfo as any).size;
     if (typeof fileSize === "number" && fileSize > MAX_UPLOAD_BYTES) {
       throw new Error("Image is too large (max 5MB). Please choose a smaller photo.");
     }
 
-    // Log file size for debugging (only if size is known)
     if (__DEV__ && typeof fileSize === "number") {
       const fileSizeKB = (fileSize / 1024).toFixed(2);
-      console.log(`[imageUpload] Uploading image: ${fileSizeKB} KB`);
+      console.log(`[imageUpload] Uploading to Cloudinary: ${fileSizeKB} KB`);
     }
 
-    // Get session cookie for authentication (Better Auth cookie-based auth)
-    const { getSessionCookie } = await import("./sessionCookie");
-    const sessionCookie = await getSessionCookie();
+    const formData = new FormData();
 
-    // Create form data using fetch-blob approach compatible with React Native
-    // We need to use FileSystem.uploadAsync for proper multipart/form-data support
-    const uploadResult = await FileSystem.uploadAsync(
-      `${BACKEND_URL}/api/upload/image`,
-      imageUri,
-      {
-        httpMethod: "POST",
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        fieldName: "image",
-        headers: sessionCookie ? { cookie: sessionCookie } : {},
-      }
-    );
+    formData.append("file", {
+      uri: imageUri,
+      type: "image/jpeg",
+      name: "upload.jpg",
+    } as any);
 
-    if (uploadResult.status !== 200) {
-      // Try to parse error, but handle non-JSON gracefully
-      let errorMsg = "Upload failed";
-      try {
-        const errorData = JSON.parse(uploadResult.body || "{}");
-        errorMsg = errorData.error || errorMsg;
-      } catch {
-        if (__DEV__) {
-          console.log("[imageUpload] Non-JSON error response:", uploadResult.body?.substring(0, 200));
-        }
-      }
-      
-      // Add more specific error context for auth issues
-      if (uploadResult.status === 401 || uploadResult.status === 403) {
-        if (__DEV__) {
-          console.error("[imageUpload] Auth error:", uploadResult.status, sessionCookie ? "Cookie present" : "No cookie");
-        }
-        throw new Error("Session expired. Please log in again.");
-      }
-      
-      throw new Error(errorMsg);
-    }
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
+    formData.append("folder", CLOUDINARY_FOLDER);
 
-    // Parse response with defensive error handling
-    let responseData: UploadResponse;
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+
+    const text = await res.text();
+
+    let json: any = null;
     try {
-      responseData = JSON.parse(uploadResult.body) as UploadResponse;
-    } catch (parseError) {
-      if (__DEV__) {
-        console.log("[imageUpload] JSON parse error, response body:", uploadResult.body?.substring(0, 500));
-      }
-      throw new Error("Invalid response from server");
+      json = JSON.parse(text);
+    } catch {
+      json = null;
     }
 
-    // Convert relative URL to absolute URL
-    if (responseData.url && !responseData.url.startsWith("http")) {
-      responseData.url = `${BACKEND_URL}${responseData.url}`;
+    if (!res.ok) {
+      const cloudinaryMsg =
+        (json && (json.error?.message || json.error)) ||
+        text?.substring(0, 200) ||
+        "Upload failed";
+
+      if (__DEV__) {
+        console.error("[imageUpload] Cloudinary upload failed:", res.status, cloudinaryMsg);
+        if (json) console.log("[imageUpload] Cloudinary error payload:", json);
+      }
+
+      throw new Error(cloudinaryMsg);
+    }
+
+    const secureUrl = json?.secure_url as string | undefined;
+    const publicId = json?.public_id as string | undefined;
+
+    if (!secureUrl || secureUrl.length === 0) {
+      if (__DEV__) {
+        console.error("[imageUpload] Cloudinary response missing secure_url:", json);
+      }
+      throw new Error("Upload succeeded but no URL was returned.");
     }
 
     if (__DEV__) {
-      console.log(`[imageUpload] Upload successful: ${responseData.url}`);
+      console.log("[imageUpload] Cloudinary upload successful:", secureUrl);
     }
-    return responseData;
+
+    return {
+      success: true,
+      url: secureUrl,
+      filename: publicId,
+    };
   } catch (error: any) {
     if (__DEV__) {
       console.error("[imageUpload] Upload error:", error);
     }
-    throw new Error(error.message || "Failed to upload image");
+    throw new Error(error?.message || "Failed to upload image");
   }
 }
 
@@ -200,7 +205,7 @@ export async function uploadImage(
  * Utility function that combines image picking and uploading
  *
  * @param imagePickerResult - Result from ImagePicker
- * @returns Server URL of the uploaded image, or null if cancelled
+ * @returns Cloudinary URL of the uploaded image, or null if cancelled
  */
 export async function uploadImageFromPicker(
   imagePickerResult: { canceled: boolean; assets?: Array<{ uri: string }> } | null

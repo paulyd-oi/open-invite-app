@@ -1,254 +1,130 @@
-================================================================================
-HANDOFF PACKET — NAVIGATION FIXES: SUGGESTIONS + CALENDAR
-================================================================================
-Agent: GitHub Copilot
-Date: 2026-01-27
-Session: Navigation fixes for Suggestions "For You" tab and Calendar "Who's Free"
-Previous: Phase 3C (750e9db) — Friend Profile tab reordering
+=============================================================================
+HANDOFF: P0 REGRESSION FIXES
+=============================================================================
 
-STATUS: ✅ COMPLETE — Suggestions now navigate to friend profiles correctly
+COMMIT: c17fe8f "fix(p0): status bar theme + subscription section + upload auth errors"
+BRANCH: main
+DATE: 2025-01-XX
 
-================================================================================
+=============================================================================
 SUMMARY
-================================================================================
+=============================================================================
 
-Fixed navigation in "For You" suggestions tab:
-- RECONNECT_FRIEND suggestions now navigate to /friend/{friendshipId}
-- Looks up friendshipId from cached friends data using userId
-- Falls back to /user/{userId} if friendship not in cache yet
-- Calendar "Who's Free" button already routes correctly to /whos-free (no changes needed)
+Fixed 5 critical P0 regressions reported:
+1. ✅ Cold start routing - Verified correct (no Get Started route, it's a modal)
+2. ✅ Guide persistence - Already user-scoped with proper loading gates
+3. ✅ Profile photo upload - Added explicit 401/403 error messaging
+4. ✅ Settings structure - Moved Subscription out of referral card
+5. ✅ Status bar visibility - Now theme-aware (light content in dark mode)
 
-Changes:
-- SuggestionFeedCard: Added friends query to map userId → friendshipId
-- Direct navigation to friend profile route (same as tapping friend cards elsewhere)
-- Minimal diff, no backend changes, no new dependencies
+All fixes minimal and targeted. No dependency changes. Typecheck + invariants pass.
 
-================================================================================
-FILES CHANGED
-================================================================================
+=============================================================================
+FILES CHANGED (3)
+=============================================================================
 
-src/components/SuggestionFeedCard.tsx
-  • Added imports: useQuery, GetFriendsResponse, api, useBootAuthority
-  • Added friends query (enabled only for RECONNECT_FRIEND suggestions)
-  • Updated RECONNECT_FRIEND case to lookup friendshipId and navigate to /friend/{id}
+1. src/app/_layout.tsx
+   - BEFORE: StatusBar hardcoded to "dark" (line 559)
+   - AFTER: StatusBar inside RootLayoutNav with theme check: style={isDark ? "light" : "dark"}
+   - WHY: Status bar content invisible in dark mode (light status bar needs dark content)
 
-================================================================================
-KEY DIFFS
-================================================================================
+2. src/app/settings.tsx
+   - BEFORE: Subscription button inside "Invite Friends" section (lines 1520-1550)
+   - AFTER: Subscription extracted to separate "SUBSCRIPTION" section below "INVITE FRIENDS"
+   - WHY: Subscription is logically distinct from referrals, deserves own section
 
-Added friends query:
-```tsx
-const { data: friendsData } = useQuery({
-  queryKey: ["friends"],
-  queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-  enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
-});
-```
+3. src/lib/imageUpload.ts
+   - BEFORE: Generic error message for all upload failures
+   - AFTER: Explicit auth error check (401/403) with "Session expired. Please log in again."
+   - WHY: Better UX for auth-related upload failures, helps debug cookie issues
 
-Updated RECONNECT_FRIEND navigation:
-```tsx
-case "RECONNECT_FRIEND":
-  if (suggestion.userId) {
-    const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
-    
-    if (friendship) {
-      router.push(`/friend/${friendship.id}` as any);
-    } else {
-      router.push(`/user/${suggestion.userId}` as any);
-    }
-  } else {
-    router.push("/friends" as any);
-  }
-  break;
-```
+=============================================================================
+VERIFICATION PERFORMED
+=============================================================================
 
-================================================================================
-RUNTIME STATUS
-================================================================================
-      translateX.value = e.translationX * 0.2;
-    }
-  })
-  .onEnd((e) => {
-    if (e.translationX < -SWIPE_THRESHOLD) {
-      translateX.value = withSpring(-ACTION_WIDTH);
-    } else {
-      translateX.value = withSpring(0);
-    }
-  });
-```
+✅ No TypeScript errors in changed files
+✅ bash scripts/ai/verify_frontend.sh - PASS
+   - Invariants present
+   - No !!session gating
+   - No uppercase Cookie headers
+   - User-scoped guidance keys confirmed
+✅ Git commit + push successful
 
-Action buttons:
-```tsx
-<Pressable onPress={handleInterested} style={{ backgroundColor: themeColor }}>
-  <Heart size={22} color="#FFFFFF" />
-</Pressable>
-<Pressable onPress={handleGoing} style={{ backgroundColor: isEventFull ? "#9CA3AF" : "#22C55E" }}>
-  <Check size={22} color="#FFFFFF" />
-</Pressable>
-```
+=============================================================================
+TESTING GUIDE
+=============================================================================
 
-RSVP mutation:
-```typescript
-const rsvpMutation = useMutation({
-  mutationFn: ({ eventId, status }) => api.post(`/api/events/${eventId}/rsvp`, { status }),
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-    queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
-    queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-  },
-});
-```
+1. Status Bar Theme Test:
+   - Open app in light mode → status bar should show dark text (visible)
+   - Open app in dark mode → status bar should show light text (visible)
+   - Toggle theme in Settings → status bar should update immediately
 
-================================================================================
-VERIFICATION RESULTS
-================================================================================
+2. Subscription Section Test:
+   - Open Settings
+   - Scroll to "INVITE FRIENDS" section → should only show referral counter + invite button
+   - Scroll down to "SUBSCRIPTION" section → should show subscription row separately
+   - Verify no visual regressions
 
-Commands to run:
-  • npx expo start
-  • Navigate: Friends tab → tap any friend
+3. Photo Upload Test:
+   - Go to Settings → Edit Profile → Change photo
+   - If upload fails with 401/403 → should show "Session expired. Please log in again."
+   - Check logs in DEV mode for auth debugging
 
-Expected behavior:
-  • Friend profile displays sections in order:
-    1. Bio (avatar, badge, name, bio, calendar bio)
-    2. Friend's Calendar (mini month view with event dots)
-    3. Groups Together (colored pills, Add button)
-    4. Notes to Remember (collapsible, add/delete notes)
-    5. Open Invites (event cards list)
-  • Smooth fade-in animations (15ms → 25ms → 50ms delays)
-  • All existing functionality preserved:
-    - Collapsible Notes section
-    - Add to Group modal
-    - Calendar navigation
-    - Event card taps navigate to detail
+4. Guide Persistence Test (unchanged but verified):
+   - Create new account → should see Get Started modal on calendar
+   - Dismiss guide → should not see on refresh
+   - Log out, log back in → guide should NOT reappear (user-scoped)
 
-================================================================================
-VERIFICATION
-================================================================================
+5. Cold Start Routing Test (unchanged but verified):
+   - First-time user → /welcome (onboarding)
+   - Returning user with token → /calendar
+   - No token → /login
+   - New user on calendar → Get Started modal (not a route)
 
-✅ TypeScript: ./scripts/ai/verify_frontend.sh PASS
-✅ No runtime errors
-✅ No new dependencies
-✅ Minimal diff (two section moves only)
+=============================================================================
+NOTES & CONTEXT
+=============================================================================
 
-================================================================================
-ASSUMPTIONS / UNCERTAINTIES
-================================================================================
+- Cold start routing was already correct - Get Started is a modal in calendar.tsx,
+  not a separate route. BootRouter routes to /login, /welcome, or /calendar.
 
-1. Calendar prominence (position 2) prioritizes friend availability context
-2. Notes as reference (position 4) assumes lower UX priority than Groups
-3. Animation delays maintain visual flow (15→25→50ms progression)
-4. Open Invites remains last as action-oriented (vs informational) section
+- Guide completion was already user-scoped using AsyncStorage keys:
+  `get_started_dismissed:${userId}`. Also waits for friendsData + calendarData
+  to load before showing (prevents flash on established accounts).
 
-================================================================================
-NEXT RECOMMENDED STEP
-================================================================================
+- Upload logging was already comprehensive in imageUpload.ts. Added specific
+  auth error messaging for better UX/debugging.
 
-• Test on device to confirm animation timing feels natural
-• Consider promoting Open Invites higher if user feedback indicates event discovery is primary use case
-• Monitor analytics on section engagement to validate new order
+- No runtime testing performed. Please verify on device:
+  - StatusBar visibility in both themes
+  - Settings section layout
+  - Photo upload error messages (may need to force 401/403 by clearing cookies)
 
-================================================================================
-END HANDOFF — PHASE 3C
-================================================================================
+=============================================================================
+DEPENDENCIES
+=============================================================================
 
+No changes to package.json or yarn.lock. No new dependencies.
 
-================================================================================
-HANDOFF PACKET — NAVIGATION FIXES (TASK 1)
-================================================================================
-Agent: GitHub Copilot
-Date: 2026-01-27
-Task: Navigation fixes for Suggestions + Calendar
-Previous: Phase 3C (750e9db) — Friend Profile tab reordering
-Commit: e613642
+=============================================================================
+ROLLBACK PLAN
+=============================================================================
 
-STATUS: ✅ COMPLETE — Suggestions navigate to friend profiles correctly
+git revert c17fe8f
 
-================================================================================
-SUMMARY
-================================================================================
+All changes are self-contained and reversible. No database migrations or
+backend changes.
 
-Fixed navigation in "For You" suggestions tab:
-• RECONNECT_FRIEND suggestions now navigate to /friend/{friendshipId}
-• Looks up friendshipId from cached friends data using userId
-• Falls back to /user/{userId} if friendship not in cache yet
-• Calendar "Who's Free" button already routes correctly (no changes needed)
-
-Implementation:
-• SuggestionFeedCard: Added friends query to map userId → friendshipId
-• Direct navigation to friend profile route (matches tapping friend cards)
-• Minimal diff: 1 file, ~20 lines changed, no backend changes
-
-================================================================================
-FILES CHANGED
-================================================================================
-
-src/components/SuggestionFeedCard.tsx
-  • Added imports: useQuery, GetFriendsResponse, api, useBootAuthority
-  • Added friends query (enabled only for RECONNECT_FRIEND type)
-  • Updated RECONNECT_FRIEND navigation to lookup friendshipId
-
-================================================================================
-KEY DIFFS
-================================================================================
-
-Added friends query in component:
-```tsx
-const { data: friendsData } = useQuery({
-  queryKey: ["friends"],
-  queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-  enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
-});
-```
-
-Updated RECONNECT_FRIEND navigation logic:
-```tsx
-case "RECONNECT_FRIEND":
-  if (suggestion.userId) {
-    // Find friendship by matching friend's user ID
-    const friendship = friendsData?.friends?.find(f => f.friend.id === suggestion.userId);
-    
-    if (friendship) {
-      router.push(`/friend/${friendship.id}` as any);  // Direct to friend profile
-    } else {
-      router.push(`/user/${suggestion.userId}` as any);  // Fallback to user profile
-    }
-  } else {
-    router.push("/friends" as any);
-  }
-  break;
-```
-
-================================================================================
-VERIFICATION
-================================================================================
-
-✅ TypeScript: ./scripts/ai/verify_frontend.sh PASS
-✅ No new dependencies
-✅ Minimal diff (one file)
-✅ Committed: e613642
-✅ Pushed: origin/main
-
-Manual testing steps:
-1. npx expo start
-2. Navigate to Suggestions tab → "For You"
-3. Tap "Reconnect with..." suggestion
-4. EXPECTED: Opens friend's profile (Bio, Calendar, Groups, Notes)
-5. Calendar tab → tap "Who's Free?" → EXPECTED: Shows availability screen
-
-================================================================================
-ASSUMPTIONS
-================================================================================
-
-• Friends query only runs for RECONNECT_FRIEND suggestions (efficiency)
-• Friends list assumed cached from Friends tab or other app areas
-• Backend guarantees RECONNECT suggestions only include actual friends
-• Calendar button already functional - verified /whos-free.tsx is "Find Best Time"
-
-================================================================================
+=============================================================================
 NEXT STEPS
-================================================================================
+=============================================================================
 
-• Manual test reconnect suggestions navigation
-• Optional backend enhancement: Include friendshipId in suggestions to eliminate lookup
+1. Test on physical device in both light/dark modes
+2. Verify Settings section layout looks good
+3. Test photo upload with various error conditions
+4. If any issues, revert and investigate
+5. Monitor for any new error reports related to these changes
 
-================================================================================
+=============================================================================
+END OF HANDOFF
+=============================================================================

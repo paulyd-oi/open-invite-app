@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
 
 // Onboarding guide steps - action-based progression
 export type OnboardingGuideStep = 
@@ -8,9 +10,6 @@ export type OnboardingGuideStep =
   | "add_friend"       // Step 2: Send a friend request
   | "create_event"     // Step 3: Create your first event
   | "completed";       // Done
-
-const ONBOARDING_GUIDE_KEY = "onboarding_guide_step";
-const ONBOARDING_GUIDE_COMPLETED_KEY = "onboarding_guide_completed";
 
 interface OnboardingGuideState {
   currentStep: OnboardingGuideStep;
@@ -21,8 +20,14 @@ interface OnboardingGuideState {
 /**
  * Hook to manage interactive action-based onboarding
  * Guides new users through: Friends tab → Add Friend → Create Event
+ * 
+ * CRITICAL: Uses user-scoped AsyncStorage keys to prevent guide showing on established accounts
  */
 export function useOnboardingGuide() {
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const userId = session?.user?.id;
+
   const [state, setState] = useState<OnboardingGuideState>({
     currentStep: "friends_tab",
     isCompleted: true, // Default to completed to prevent flash
@@ -30,10 +35,19 @@ export function useOnboardingGuide() {
   });
   const queryClient = useQueryClient();
 
-  // Load saved state on mount
+  // Load saved state on mount - ONLY after userId is known
   useEffect(() => {
+    // Guard: Do not load until we have a userId and are authed
+    if (!userId || bootStatus !== "authed") {
+      setState(prev => ({ ...prev, isLoading: false, isCompleted: true }));
+      return;
+    }
+
     const loadState = async () => {
       try {
+        const ONBOARDING_GUIDE_KEY = `onboarding_guide_step:${userId}`;
+        const ONBOARDING_GUIDE_COMPLETED_KEY = `onboarding_guide_completed:${userId}`;
+
         const [completedStr, stepStr] = await Promise.all([
           AsyncStorage.getItem(ONBOARDING_GUIDE_COMPLETED_KEY),
           AsyncStorage.getItem(ONBOARDING_GUIDE_KEY),
@@ -53,11 +67,14 @@ export function useOnboardingGuide() {
       }
     };
     loadState();
-  }, []);
+  }, [userId, bootStatus]);
 
   // Complete a step and advance to the next
   const completeStep = useCallback(async (step: OnboardingGuideStep) => {
-    if (state.isCompleted || state.currentStep !== step) return;
+    if (!userId || state.isCompleted || state.currentStep !== step) return;
+
+    const ONBOARDING_GUIDE_KEY = `onboarding_guide_step:${userId}`;
+    const ONBOARDING_GUIDE_COMPLETED_KEY = `onboarding_guide_completed:${userId}`;
 
     const nextStepMap: Record<OnboardingGuideStep, OnboardingGuideStep> = {
       friends_tab: "add_friend",
@@ -83,10 +100,15 @@ export function useOnboardingGuide() {
     } catch (error) {
       console.error("Failed to save onboarding guide step:", error);
     }
-  }, [state.isCompleted, state.currentStep]);
+  }, [userId, state.isCompleted, state.currentStep]);
 
   // Start the guide for a new user
   const startGuide = useCallback(async () => {
+    if (!userId) return;
+
+    const ONBOARDING_GUIDE_KEY = `onboarding_guide_step:${userId}`;
+    const ONBOARDING_GUIDE_COMPLETED_KEY = `onboarding_guide_completed:${userId}`;
+
     try {
       await AsyncStorage.setItem(ONBOARDING_GUIDE_KEY, "friends_tab");
       await AsyncStorage.removeItem(ONBOARDING_GUIDE_COMPLETED_KEY);
@@ -98,20 +120,29 @@ export function useOnboardingGuide() {
     } catch (error) {
       console.error("Failed to start onboarding guide:", error);
     }
-  }, []);
+  }, [userId]);
 
   // Dismiss the guide entirely
   const dismissGuide = useCallback(async () => {
+    if (!userId) return;
+
+    const ONBOARDING_GUIDE_COMPLETED_KEY = `onboarding_guide_completed:${userId}`;
+
     try {
       await AsyncStorage.setItem(ONBOARDING_GUIDE_COMPLETED_KEY, "true");
       setState(prev => ({ ...prev, isCompleted: true }));
     } catch (error) {
       console.error("Failed to dismiss onboarding guide:", error);
     }
-  }, []);
+  }, [userId]);
 
   // Reset guide (for testing)
   const resetGuide = useCallback(async () => {
+    if (!userId) return;
+
+    const ONBOARDING_GUIDE_KEY = `onboarding_guide_step:${userId}`;
+    const ONBOARDING_GUIDE_COMPLETED_KEY = `onboarding_guide_completed:${userId}`;
+
     try {
       await AsyncStorage.removeItem(ONBOARDING_GUIDE_KEY);
       await AsyncStorage.removeItem(ONBOARDING_GUIDE_COMPLETED_KEY);
@@ -123,7 +154,7 @@ export function useOnboardingGuide() {
     } catch (error) {
       console.error("Failed to reset onboarding guide:", error);
     }
-  }, []);
+  }, [userId]);
 
   return {
     ...state,
