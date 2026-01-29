@@ -1,5 +1,66 @@
 # Findings Log — Frontend
 
+## Promo Code Redemption Feature (2025-01-29)
+
+### Redeem Code Flow ✓
+**FEATURE**: Users can redeem promo codes (like AWAKEN for church launch) to unlock premium subscription directly from the app.
+
+**EXACT CODE PATHS**:
+- src/app/account-center.tsx
+  - Line 15-26: Added Gift icon import
+  - Line 477-496: Added "Redeem Code" button below General Settings (haptics, Gift icon, routes to /redeem-code)
+  
+- src/app/redeem-code.tsx (NEW FILE, 216 lines)
+  - Line 1-16: Imports (React, RN, router, icons, hooks, API client, toast)
+  - Line 30-40: State (code input, isSubmitting, successData)
+  - Line 42-95: handleRedeem function with POST /api/promo/redeem
+    - Line 47: Normalizes code (trim + uppercase)
+    - Line 49: DEV log `[DEV_DECISION] redeem_code_submit normalizedCode=...`
+    - Line 55-60: POST to /api/promo/redeem with { code }
+    - Line 63: DEV log `[DEV_DECISION] redeem_code_result success=true expiresAt=...`
+    - Line 65-66: Success state + haptics + toast "Premium unlocked"
+    - Line 68-69: Invalidate entitlements/subscription queries
+    - Line 71-73: Auto-navigate back after 2 seconds
+    - Line 75-95: Error handling with mom-safe messages
+      - 401: "Please log in again and try"
+      - 404: "That code isn't valid"
+      - 400 (already used): "You've already used this code"
+      - Fallback: "Something went wrong. Please try again"
+    - Line 77: DEV log `[DEV_DECISION] redeem_code_error status=... message=...`
+  - Line 102-110: formatExpiryDate helper (ISO to "January 29, 2027")
+  - Line 112: Button disabled logic (empty, submitting, or not authed)
+  - Line 114-210: UI (SafeAreaView, header with back button, scroll view, Tag icon, description, input, success banner, redeem button, auth gate message)
+    - Line 138-146: Tag icon in colored circle
+    - Line 148-154: Subtitle "Enter a code from your community to unlock premium"
+    - Line 156-181: TextInput with autoCapitalize="characters", maxLength=32, editable only when authed
+    - Line 183-197: Success banner with green background, expiry date
+    - Line 199-210: Redeem button (theme color, disabled state, loading spinner)
+    - Line 212-218: Auth gate message if bootStatus !== 'authed'
+
+**BACKEND CONTRACT**:
+- Endpoint: POST https://open-invite-api.onrender.com/api/promo/redeem
+- Request: `{ code: "AWAKEN" }` (normalized: trim + uppercase)
+- Success (200): `{ success: true, entitlement: "premium", expiresAt: "2027-01-29T..." }`
+- Errors:
+  - 401: User not authenticated
+  - 404: Code not found/invalid
+  - 400: Code already redeemed or invalid input
+
+**UX DECISIONS**:
+- Mom-safe language: No technical jargon like "entitlement" in UI
+- Calm error messages: "That code isn't valid" instead of "404 Not Found"
+- Input normalized: Trim whitespace, convert to uppercase automatically
+- Success feedback: Toast + inline banner with formatted expiry date
+- Auto-navigate: Returns to Account Center after 2 seconds on success
+- Auth gating: Disabled state + message if user not logged in
+
+**DEV LOGS**:
+- `redeem_code_submit`: When user taps Redeem, logs normalized code
+- `redeem_code_result`: On success, logs expiresAt timestamp
+- `redeem_code_error`: On error, logs HTTP status and error message
+
+**VERIFICATION**: `npm run typecheck && bash scripts/ai/verify_frontend.sh` PASSED
+
 ## Sprint Pack V2 Entitlement-Smart Subscription UI (2025-01-29)
 
 ### Subscription UI Entitlement Gating Pattern ✓

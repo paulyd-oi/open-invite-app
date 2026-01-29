@@ -25,6 +25,7 @@ import {
   BadgeCheck,
   Trash2,
   UserPlus,
+  Gift,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -471,6 +472,27 @@ export default function AccountCenterScreen() {
               style={{ color: colors.text }}
             >
               General Settings
+            </Text>
+            <ChevronRight size={20} color={isDark ? "#636366" : "#9CA3AF"} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/redeem-code");
+            }}
+            className="flex-row items-center p-4 active:opacity-70"
+          >
+            <View
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+            >
+              <Gift size={20} color={themeColor} />
+            </View>
+            <Text
+              className="flex-1 ml-3 text-base font-medium"
+              style={{ color: colors.text }}
+            >
+              Redeem Code
             </Text>
             <ChevronRight size={20} color={isDark ? "#636366" : "#9CA3AF"} />
           </Pressable>
