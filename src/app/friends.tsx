@@ -636,7 +636,6 @@ export default function FriendsScreen() {
     }
   }, [session?.user?.id]);
   // [LEGACY_GROUPS_PURGED] selectedGroupId, showGroupFilter, editingGroup states removed
-  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
 
   // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal state removed pre-launch
   const [showSecondOrderSocialNudge, setShowSecondOrderSocialNudge] = useState(false);

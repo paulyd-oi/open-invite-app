@@ -458,7 +458,6 @@ export default function FriendDetailScreen() {
   };
 
   // [LEGACY_GROUPS_PURGED] friendship and groups variables removed - no longer needed
-  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
 
   const friend = data?.friend;
   const events = data?.events ?? [];
