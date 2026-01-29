@@ -184,7 +184,7 @@ export default function CirclesScreen() {
                         </Text>
                         <Text className="text-sm" style={{ color: colors.textSecondary }}>
                           {circle.members?.length ?? 0} member{(circle.members?.length ?? 0) !== 1 ? 's' : ''}
-                          {circle.unreadCount ? ` • ${circle.unreadCount} unread` : ''}
+                          {/* [UNREAD_DOTS_REMOVED_P2.3] unread count text removed pre-launch */}
                         </Text>
                       </View>
                       {circle.isPinned && (

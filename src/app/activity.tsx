@@ -264,22 +264,7 @@ function NotificationCard({
           </Text>
         </View>
 
-        {/* Unread indicator */}
-        <View className="flex-row items-center ml-2">
-          {(() => {
-            const isSeen = notification.seen ?? notification.read ?? false;
-            return !isSeen && (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: themeColor,
-                }}
-              />
-            );
-          })()}
-        </View>
+        {/* [UNREAD_DOTS_REMOVED_P2.3] Unread indicator removed pre-launch */}
       </Pressable>
     </Animated.View>
   );

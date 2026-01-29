@@ -1208,26 +1208,7 @@ export default function FriendsScreen() {
           >
             <View style={{ position: "relative" }}>
               <Activity size={16} color="#2196F3" />
-              {unseenCount > 0 && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -8,
-                    backgroundColor: "#FF3B30",
-                    borderRadius: 8,
-                    minWidth: 16,
-                    height: 16,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingHorizontal: 4,
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
-                    {unseenCount > 99 ? "99+" : unseenCount}
-                  </Text>
-                </View>
-              )}
+              {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicator removed pre-launch */}
             </View>
             <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
               Activity

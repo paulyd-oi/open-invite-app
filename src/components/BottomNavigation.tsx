@@ -172,16 +172,7 @@ function NavButton({
           </View>
         )}
         </View>
-        {badgeCount !== undefined && badgeCount > 0 && (
-          <View
-            className="absolute -top-1 -right-1 min-w-5 h-5 rounded-full items-center justify-center px-1"
-            style={{ backgroundColor: "#FF3B30" }}
-          >
-            <Text className="text-white text-xs font-bold">
-              {badgeCount > 99 ? "99+" : badgeCount}
-            </Text>
-          </View>
-        )}
+        {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicators removed pre-launch */}
       </View>
       <Text
         className="text-xs mt-1 font-medium"
