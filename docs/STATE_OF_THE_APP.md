@@ -66,9 +66,29 @@
 - Suggestions feed graceful errors: Returns empty suggestions on fetch failure (no scary toasts)
 - Work schedule block2 auto-expand: Days with saved block2 times auto-expand UI on load, user changes preserved after initial sync
 - Calendar import help screen: Truthful sections (one-time import, not live sync, privacy), Import Calendar + Back buttons
+- Admin console badge grant/revoke: Added haptic feedback and success feedback for badge actions
+- Quick Busy block creation: "Busy" pill next to "Free?" on calendar selected date, opens modal to create busy blocks
+- Circle member removal: Remove button with confirmation modal triggers mutation correctly, DEV logging added
+- Friend calendar masked busy: Grey blocks for backend-masked circle events, no tap navigation, legend includes "Busy"
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (Revision Patch #1 - Launch Trust Fixes)
+- Admin Console badge grant/revoke: Added Haptics.impactAsync on button press, Haptics.notificationAsync on success/error, DEV logging for successful badge actions
+- Calendar Busy pill: Added "Busy" quick-add pill next to "Free?" in calendar selected date header
+- Calendar Busy modal: Quick modal to create busy blocks with label input and time pickers, creates events with isBusy=true
+- Circle remove member: Added DEV logging to confirm modal opens when trash button tapped
+
+## Fixed This Session (Frontend Patch #4 - Masked Busy Blocks)
+- Friend calendar masked busy handling: Backend sends masked busy blocks `{ id, startAt, endAt, isBusy: true }` for circle events friend can't see
+- isMaskedBusy() type guard: Detects items with isBusy===true and no title field
+- normalizeBusyItem(): Maps backend startAt/endAt to frontend startTime/endTime, fills placeholder required fields
+- normalizeEventsWithBusy(): Processes all events through normalization pipeline
+- Friend calendar grey busy blocks: Days with busy blocks show grey color (not theme color), events take priority
+- Friend calendar legend: Added "Busy" legend item with grey dot alongside "Has events"
+- Friend calendar tap protection: Tapping busy-only days gives haptic feedback but no navigation
+- Event series filtering: Busy blocks filtered out before groupEventsIntoSeries() to avoid crash
 
 ## Fixed This Session (Legacy Groups UI Purge)
 - Legacy "Groups" UI fully removed from frontend

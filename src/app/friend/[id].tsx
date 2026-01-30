@@ -22,6 +22,46 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 
+// ========================================
+// MASKED BUSY BLOCK HANDLING
+// Backend sends masked busy blocks for circle events friend cannot see:
+// { id: "busy_<cuid>", startAt, endAt, isBusy: true }
+// We render these as grey blocks, no navigation on tap
+// ========================================
+
+/** Type guard for masked busy blocks from backend */
+function isMaskedBusy(item: any): item is { id: string; startAt?: string; startTime?: string; endAt?: string; endTime?: string; isBusy: true } {
+  return item && item.isBusy === true && !item.title;
+}
+
+/** Normalize backend busy item to frontend Event shape */
+function normalizeBusyItem(item: any): Event {
+  return {
+    ...item,
+    // Map startAt→startTime, endAt→endTime if needed
+    startTime: item.startTime ?? item.startAt,
+    endTime: item.endTime ?? item.endAt ?? null,
+    // Provide placeholder values for required Event fields
+    title: "Busy",
+    emoji: "",
+    description: null,
+    location: null,
+    isRecurring: false,
+    recurrence: null,
+    visibility: "private",
+    userId: "",
+    createdAt: item.createdAt ?? new Date().toISOString(),
+    updatedAt: item.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+/** Process events array, normalizing masked busy items */
+function normalizeEventsWithBusy(rawEvents: any[]): Event[] {
+  return rawEvents.map((item) =>
+    isMaskedBusy(item) ? normalizeBusyItem(item) : item
+  );
+}
+
 interface FriendNote {
   id: string;
   content: string;
@@ -131,17 +171,24 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
   const { isDark, colors } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Get events by date for quick lookup
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, Event[]>();
+  // Busy block grey color (consistent with main calendar)
+  const busyColor = isDark ? "#6B6B6B" : "#9CA3AF";
+
+  // Get events by date for quick lookup, separating busy vs regular
+  const { eventsByDate, busyByDate } = useMemo(() => {
+    const eventMap = new Map<string, Event[]>();
+    const busyMap = new Map<string, Event[]>();
     events.forEach((event) => {
       const dateKey = new Date(event.startTime).toDateString();
-      if (!map.has(dateKey)) {
-        map.set(dateKey, []);
+      if (event.isBusy) {
+        if (!busyMap.has(dateKey)) busyMap.set(dateKey, []);
+        busyMap.get(dateKey)!.push(event);
+      } else {
+        if (!eventMap.has(dateKey)) eventMap.set(dateKey, []);
+        eventMap.get(dateKey)!.push(event);
       }
-      map.get(dateKey)!.push(event);
     });
-    return map;
+    return { eventsByDate: eventMap, busyByDate: busyMap };
   }, [events]);
 
   const getDaysInMonth = (date: Date) => {
@@ -171,11 +218,16 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
     const selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dateKey = selectedDate.toDateString();
     const dayEvents = eventsByDate.get(dateKey);
+    const dayBusy = busyByDate.get(dateKey);
 
+    // Navigate only if there are actual events (not just busy blocks)
     if (dayEvents && dayEvents.length > 0) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Navigate to the first event of that day
       router.push(`/event/${dayEvents[0].id}` as any);
+    } else if (dayBusy && dayBusy.length > 0) {
+      // Busy-only day: just haptic feedback, no navigation
+      Haptics.selectionAsync();
     }
   };
 
@@ -202,8 +254,14 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const dateKey = date.toDateString();
       const dayEvents = eventsByDate.get(dateKey) ?? [];
+      const dayBusy = busyByDate.get(dateKey) ?? [];
       const hasEvents = dayEvents.length > 0;
+      const hasBusy = dayBusy.length > 0;
       const isToday = today.toDateString() === dateKey;
+
+      // Determine cell color: events take priority (themeColor), then busy (grey)
+      const cellColor = hasEvents ? themeColor : hasBusy ? busyColor : null;
+      const hasAnything = hasEvents || hasBusy;
 
       days.push(
         <Pressable
@@ -214,28 +272,36 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
           <View
             className={`w-8 h-8 rounded-full items-center justify-center ${
               isToday ? "border-2" : ""
-            } ${hasEvents ? "" : ""}`}
+            }`}
             style={{
               borderColor: isToday ? themeColor : undefined,
-              backgroundColor: hasEvents ? themeColor + "20" : undefined,
+              backgroundColor: cellColor ? cellColor + "20" : undefined,
             }}
           >
             <Text
               className={`text-sm ${
-                hasEvents ? "font-semibold" : "font-normal"
+                hasAnything ? "font-semibold" : "font-normal"
               }`}
-              style={{ color: hasEvents ? themeColor : isToday ? themeColor : colors.text }}
+              style={{ color: hasEvents ? themeColor : hasBusy ? busyColor : isToday ? themeColor : colors.text }}
             >
               {day}
             </Text>
           </View>
-          {hasEvents && (
+          {hasAnything && (
             <View className="absolute bottom-0 flex-row">
+              {/* Show event dots first, then busy dots */}
               {dayEvents.slice(0, 3).map((_, idx) => (
                 <View
-                  key={idx}
+                  key={`e-${idx}`}
                   className="w-1 h-1 rounded-full mx-px"
                   style={{ backgroundColor: themeColor }}
+                />
+              ))}
+              {dayBusy.slice(0, Math.max(0, 3 - dayEvents.length)).map((_, idx) => (
+                <View
+                  key={`b-${idx}`}
+                  className="w-1 h-1 rounded-full mx-px"
+                  style={{ backgroundColor: busyColor }}
                 />
               ))}
             </View>
@@ -275,9 +341,13 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
 
       {/* Legend */}
       <View className="flex-row items-center justify-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
-        <View className="flex-row items-center">
+        <View className="flex-row items-center mr-4">
           <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: themeColor }} />
           <Text className="text-xs" style={{ color: colors.textSecondary }}>Has events</Text>
+        </View>
+        <View className="flex-row items-center">
+          <View className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: busyColor }} />
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>Busy</Text>
         </View>
       </View>
     </View>
@@ -460,11 +530,15 @@ export default function FriendDetailScreen() {
   // [LEGACY_GROUPS_PURGED] friendship and groups variables removed - no longer needed
 
   const friend = data?.friend;
-  const events = data?.events ?? [];
+  // Normalize events to handle masked busy blocks from backend
+  const events = useMemo(() => {
+    return normalizeEventsWithBusy(data?.events ?? []);
+  }, [data?.events]);
   
-  // Group recurring events into series
+  // Group recurring events into series (filter out busy blocks first)
   const eventSeries = useMemo(() => {
-    return groupEventsIntoSeries(events);
+    const nonBusyEvents = events.filter((e) => !e.isBusy);
+    return groupEventsIntoSeries(nonBusyEvents);
   }, [events]);
 
   // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Mutations/helpers deleted - modal fully removed

@@ -1828,6 +1828,9 @@ export default function CircleScreen() {
                           onPress={(e) => {
                             e.stopPropagation();
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            if (__DEV__) {
+                              console.log('[CircleRemoveMember] Opening confirmation modal for:', member.userId, member.user.name);
+                            }
                             setSelectedMemberToRemove(member.userId);
                           }}
                           style={{

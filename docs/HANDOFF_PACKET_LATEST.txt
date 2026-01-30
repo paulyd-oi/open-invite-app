@@ -1,112 +1,67 @@
 ========================================
-HANDOFF PACKET - Legacy Groups UI Purge
-========================================
+HANDOFF PACKET - Frontend Patch #4 (Masked Busy Blocks)
 Date: 2026-01-29
-Branch: main
-Author: GitHub Copilot (Claude Opus 4.5)
-
 ========================================
+
 SUMMARY
-========================================
-Fully removed legacy "Groups" UI from frontend. Circles remain
-the only group-like concept. Users now only see Circles (Planning)
-on Friends screen, no legacy group filter or management UI.
+-------
+Implemented frontend support for masked busy blocks from backend:
 
-REMOVED:
-- Friends screen: Group filter button, Group Filter Modal, Edit Group Modal
-- Friend profile: "Groups Together" section completely removed
-- src/lib/displayHelpers.ts (cleanGroupName function - no longer needed)
+Backend Patch #3 sends masked busy blocks for circle events that
+friends cannot see with the contract:
+{ id: "busy_<cuid>", startAt, endAt, isBusy: true }
 
-PRESERVED:
-- Circles feature (unchanged)
-- All navigation architecture
-- Backend contracts (unchanged - frontend only purge)
+This patch handles those items in the friend calendar view:
+1. Type guard to detect masked busy items (isBusy=true, no title)
+2. Field normalization (startAt→startTime, endAt→endTime)
+3. Grey rendering in friend calendar (not theme color)
+4. Tap protection (no navigation for busy-only days)
+5. Legend updated to show "Busy" indicator
 
-========================================
+KEY IMPLEMENTATION DETAILS
+--------------------------
+- isMaskedBusy(item): Checks isBusy===true && !item.title
+- normalizeBusyItem(): Maps startAt/endAt to startTime/endTime, fills required Event fields
+- normalizeEventsWithBusy(): Processes entire events array
+- busyColor: isDark ? "#6B6B6B" : "#9CA3AF" (consistent with main calendar)
+- Busy items filtered before groupEventsIntoSeries() to prevent crash
+- Events take priority over busy (if both exist, theme color used)
+
 FILES CHANGED
-========================================
-src/app/friends.tsx
-  - Removed: cleanGroupName import
-  - Removed: GetGroupsResponse, FriendGroup type imports
-  - Removed: Filter icon import
-  - Removed: selectedGroupId, showGroupFilter, editingGroup, editGroupColor states
-  - Removed: GROUP_COLORS constant
-  - Removed: initialGroupId URL param usage
-  - Removed: groups query (/api/groups)
-  - Removed: updateGroupMutation, deleteGroupMutation, removeMemberFromGroupMutation
-  - Removed: Group filter button from Friends section header
-  - Removed: Group Filter Modal (~150 lines)
-  - Removed: Edit Group Modal (~200 lines)
-  - Removed: Delete Group Confirmation modal
-  - Simplified: filteredFriends (no group filtering, just pinned sorting)
-  - Added: [LEGACY_GROUPS_PURGED] DEV log
-
-src/app/friend/[id].tsx
-  - Removed: cleanGroupName import
-  - Removed: Users icon import (was only used for Groups Together)
-  - Removed: GetFriendsResponse, GetGroupsResponse, FriendGroup type imports
-  - Removed: friendsData query
-  - Removed: groupsData query
-  - Removed: friendship memo
-  - Removed: groups variable
-  - Removed: "Groups Together" section (~40 lines)
-  - Added: [LEGACY_GROUPS_PURGED] DEV log
-
-src/lib/displayHelpers.ts
-  - DELETED: File no longer needed (cleanGroupName was only export)
-
-docs/STATE_OF_THE_APP.md
-  - Added: "Legacy Groups UI fully removed" entry at top of Stable section
-  - Updated: "Fixed This Session" section
-
-========================================
-PROOF - RG BEFORE (top hits)
-========================================
-groupMemberships:
-  src/app/friend/[id].tsx:483,484 (sharedGroups memo)
-  src/app/friends.tsx:1116 (group filter)
-
-cleanGroupName(:
-  src/app/friends.tsx:76,1567,1976,2053
-  src/app/friend/[id].tsx:19,662
-
-"Groups Together":
-  src/app/friend/[id].tsx:635
-
-========================================
-PROOF - RG AFTER (all clean)
-========================================
-groupMemberships in src/app/friends.tsx → CLEAN (0 matches)
-groupMemberships in src/app/friend/[id].tsx → CLEAN (0 matches)
-"Groups Together" (rendered) → CLEAN (only marker comment)
-"Add to Groups" (rendered) → CLEAN (only marker comments)
-
-========================================
-VERIFY RESULTS
-========================================
-bash scripts/ai/verify_frontend.sh → PASS
-npm run typecheck → PASS (0 errors)
-
-========================================
-DEV-ONLY LOGS ADDED
-========================================
-src/app/friends.tsx:
-  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
-
+-------------
 src/app/friend/[id].tsx:
-  if (__DEV__) console.log("[LEGACY_GROUPS_PURGED] legacy groups UI removed");
+  - Added isMaskedBusy() type guard
+  - Added normalizeBusyItem() normalizer
+  - Added normalizeEventsWithBusy() processor
+  - FriendCalendar: Separate eventsByDate/busyByDate maps
+  - FriendCalendar: busyColor constant for grey rendering
+  - FriendCalendar: Updated renderDays() for grey busy dots
+  - FriendCalendar: Updated legend with "Busy" entry
+  - FriendCalendar: handleDayPress prevents navigation for busy-only days
+  - events normalized with useMemo + normalizeEventsWithBusy()
+  - eventSeries filters out busy before grouping
 
-========================================
-RISK NOTES
-========================================
-- LOW RISK: Frontend-only change, no backend modifications
-- Circles feature completely unchanged
-- shared/contracts.ts groupMemberships field untouched (may still be used elsewhere)
+docs/STATE_OF_THE_APP.md - Updated with masked busy handling
 
-========================================
-COMMIT
-========================================
-chore(legacy): purge legacy groups UI
+ALSO IN THIS SESSION (Patch #1)
+-------------------------------
+src/app/admin.tsx - handleBadgeToggle with haptics
+src/app/calendar.tsx - Busy pill and modal added  
+src/app/circle/[id].tsx - DEV logging for remove button
+
+VERIFICATION RESULTS
+--------------------
+npm run typecheck: PASS
+bash scripts/ai/verify_frontend.sh: PASS
+
+TESTING NOTES
+-------------
+To test masked busy blocks:
+1. Create a circle with friend A
+2. Create a circle event as friend B (not in that circle with A)
+3. View friend B's calendar as friend A
+4. Should see grey "Busy" block, tapping does nothing
 
 ========================================
 END HANDOFF
+========================================

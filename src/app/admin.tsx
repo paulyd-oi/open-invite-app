@@ -94,6 +94,7 @@ export default function AdminConsole() {
   const handleBadgeToggle = async (badge: BadgeDef) => {
     if (!selectedUser || badgeActionLoading) return;
     
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const isGranted = userBadges.some(ub => ub.achievementId === badge.id);
     setBadgeActionLoading(badge.id);
     setBadgeError(null);
@@ -107,17 +108,22 @@ export default function AdminConsole() {
       }
       
       if (response.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         // Refresh user badges
         const userBadgesResponse = await getUserBadges(selectedUser.id);
         setUserBadges(userBadgesResponse.badges);
         
-        if (response.message) {
-          // Could show a toast here, but keeping it simple
+        // Show success feedback
+        setBadgeError(null);
+        if (__DEV__) {
+          console.log(`[Admin] Badge ${isGranted ? 'revoked' : 'granted'} successfully: ${badge.name}`);
         }
       } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setBadgeError(response.message || "Action failed");
       }
     } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error?.status === 401 || error?.status === 403) {
         setBadgeError("Not authorized");
         router.replace("/settings");

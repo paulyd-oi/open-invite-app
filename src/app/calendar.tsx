@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, type NativeScrollEvent, type NativeSyntheticEvent, Modal, Share, Linking, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, type NativeScrollEvent, type NativeSyntheticEvent, Modal, Share, Linking, Platform, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -23,6 +23,7 @@ import {
   CalendarPlus,
   Trash2,
   Palette,
+  Briefcase,
 } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -1200,6 +1201,61 @@ export default function CalendarScreen() {
   // First login guide popup
   const [showFirstLoginGuide, setShowFirstLoginGuide] = useState(false);
 
+  // Quick Busy block creation modal
+  const [showBusyModal, setShowBusyModal] = useState(false);
+  const [busyLabel, setBusyLabel] = useState("Busy");
+  const [busyStartTime, setBusyStartTime] = useState<Date | null>(null);
+  const [busyEndTime, setBusyEndTime] = useState<Date | null>(null);
+
+  // Create busy block mutation
+  const createBusyMutation = useMutation({
+    mutationFn: (data: { title: string; startTime: string; endTime: string }) =>
+      api.post<{ event: Event }>("/api/events", {
+        title: data.title,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        emoji: "⏰",
+        visibility: "private",
+        isBusy: true,
+      }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Busy block added");
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
+      setShowBusyModal(false);
+      setBusyLabel("Busy");
+      setBusyStartTime(null);
+      setBusyEndTime(null);
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Error", "Failed to create busy block");
+    },
+  });
+
+  const handleOpenBusyModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Default to selected date, 9am-10am
+    const start = new Date(selectedDate);
+    start.setHours(9, 0, 0, 0);
+    const end = new Date(selectedDate);
+    end.setHours(10, 0, 0, 0);
+    setBusyStartTime(start);
+    setBusyEndTime(end);
+    setBusyLabel("Busy");
+    setShowBusyModal(true);
+  };
+
+  const handleCreateBusy = () => {
+    if (!busyStartTime || !busyEndTime) return;
+    createBusyMutation.mutate({
+      title: busyLabel.trim() || "Busy",
+      startTime: busyStartTime.toISOString(),
+      endTime: busyEndTime.toISOString(),
+    });
+  };
+
   const handleDismissGuide = async () => {
     const userId = session?.user?.id;
     if (userId) {
@@ -2314,6 +2370,16 @@ export default function CalendarScreen() {
                 </Text>
                 <View className="flex-row items-center gap-2">
                   <Pressable
+                    onPress={handleOpenBusyModal}
+                    className="flex-row items-center px-2 py-1 rounded-full"
+                    style={{ backgroundColor: "#6B728015" }}
+                  >
+                    <Briefcase size={12} color="#6B7280" />
+                    <Text className="text-xs font-medium ml-1" style={{ color: "#6B7280" }}>
+                      Busy
+                    </Text>
+                  </Pressable>
+                  <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}` as any);
@@ -2631,6 +2697,160 @@ export default function CalendarScreen() {
             </View>
           </Animated.View>
         </View>
+      </Modal>
+
+      {/* Quick Busy Block Modal */}
+      <Modal
+        visible={showBusyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBusyModal(false)}
+      >
+        <Pressable
+          className="flex-1 items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+          onPress={() => setShowBusyModal(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              className="mx-6 rounded-3xl overflow-hidden"
+              style={{
+                backgroundColor: colors.surface,
+                width: 320,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+              }}
+            >
+              {/* Header */}
+              <View className="px-5 pt-5 pb-3">
+                <View className="flex-row items-center">
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: "#6B728020" }}
+                  >
+                    <Briefcase size={20} color="#6B7280" />
+                  </View>
+                  <View>
+                    <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                      Add Busy Block
+                    </Text>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Label Input */}
+              <View className="px-5 py-3">
+                <Text className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
+                  Label (optional)
+                </Text>
+                <TextInput
+                  value={busyLabel}
+                  onChangeText={setBusyLabel}
+                  placeholder="Busy"
+                  placeholderTextColor={colors.textTertiary}
+                  className="px-4 py-3 rounded-xl text-base"
+                  style={{
+                    backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
+                    color: colors.text,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                />
+              </View>
+
+              {/* Time Pickers */}
+              <View className="px-5 py-2">
+                <Text className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
+                  Time
+                </Text>
+                <View className="flex-row items-center">
+                  <Pressable
+                    onPress={() => {
+                      const newTime = new Date(busyStartTime ?? selectedDate);
+                      newTime.setHours(newTime.getHours() - 1);
+                      setBusyStartTime(newTime);
+                    }}
+                    className="px-3 py-2"
+                  >
+                    <ChevronLeft size={16} color={colors.textSecondary} />
+                  </Pressable>
+                  <View className="flex-1 items-center">
+                    <Text className="text-base font-medium" style={{ color: colors.text }}>
+                      {busyStartTime?.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) ?? "9:00 AM"}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      const newTime = new Date(busyStartTime ?? selectedDate);
+                      newTime.setHours(newTime.getHours() + 1);
+                      setBusyStartTime(newTime);
+                    }}
+                    className="px-3 py-2"
+                  >
+                    <ChevronRight size={16} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+                <Text className="text-center text-sm my-1" style={{ color: colors.textSecondary }}>to</Text>
+                <View className="flex-row items-center">
+                  <Pressable
+                    onPress={() => {
+                      const newTime = new Date(busyEndTime ?? selectedDate);
+                      newTime.setHours(newTime.getHours() - 1);
+                      setBusyEndTime(newTime);
+                    }}
+                    className="px-3 py-2"
+                  >
+                    <ChevronLeft size={16} color={colors.textSecondary} />
+                  </Pressable>
+                  <View className="flex-1 items-center">
+                    <Text className="text-base font-medium" style={{ color: colors.text }}>
+                      {busyEndTime?.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) ?? "10:00 AM"}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      const newTime = new Date(busyEndTime ?? selectedDate);
+                      newTime.setHours(newTime.getHours() + 1);
+                      setBusyEndTime(newTime);
+                    }}
+                    className="px-3 py-2"
+                  >
+                    <ChevronRight size={16} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Actions */}
+              <View className="px-5 pb-5 pt-3 flex-row gap-3">
+                <Pressable
+                  onPress={() => setShowBusyModal(false)}
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                >
+                  <Text className="font-semibold" style={{ color: colors.text }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleCreateBusy}
+                  disabled={createBusyMutation.isPending}
+                  className="flex-1 py-3 rounded-xl items-center"
+                  style={{ backgroundColor: "#6B7280", opacity: createBusyMutation.isPending ? 0.6 : 1 }}
+                >
+                  <Text className="font-semibold text-white">
+                    {createBusyMutation.isPending ? "Adding..." : "Add"}
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       </SafeAreaView>
