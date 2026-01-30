@@ -153,12 +153,12 @@
   For submission help, click "Share" on the top right corner on the Vibecode App and select "Submit to App Store".
 </appstore> 
 
-<vibecode_cloud>
+<local_backend>
 - The backend, database, and authentication features are called Vibecode Cloud collectively.
 - Not all apps will have cloud enabled, but if they do, the backend server is in the "/home/user/workspace/backend" directory. 
 - The backend is a TypeScript + Bun backend powered by a simple Hono server, Prisma ORM with SQLite database, and Better Auth authentication. If you are unaware of any packages or libraries, feel free to look up their documentation. 
 - Just like the frontend Expo server, the dev backend server for this backend is automatically running on port 3000. DO NOT attempt to run it manually.
-- Since the Expo frontend app is technically running on the user's phone even though it is bundled and served through a VM, we have created a reverse proxy that replaced the BACKEND_URL and EXPO_PUBLIC_VIBECODE_BACKEND_URL enviroment variables with the actual backend server URL. You can run "env" using bash to view the actual backend server URL. The backend URL looks something like https://[UNIQUE_ID].share.sandbox.dev/
+- Since the Expo frontend app is technically running on the user's phone even though it is bundled and served through a VM, we have created a reverse proxy that replaced the BACKEND_URL and EXPO_PUBLIC_API_URL enviroment variables with the actual backend server URL. You can run "env" using bash to view the actual backend server URL. The backend URL looks something like https://[UNIQUE_ID].share.sandbox.dev/
 - IMPORTANT: Since both the backend and frontend servers are running automatically, DO NOT run "bun start" or "bunx expo start" like that. Just ask the user to refresh the app on the Vibecode app if they do not see the changes.
 - Not all apps will have a database, but if they do, when you update the DB, make sure to create a migration file using "bunx prisma migrate dev --create-only --name <migration-name>" and then run "bunx prisma migrate deploy" to apply the migrations to the database. This will push changes to the database and generate a new typesafe Prisma client that will automatically be consumed by the "server/src/db.ts" file that instantiates the Prisma DB client
 - Unlike the frontend which comes pre-bundled with native code, the backend is pure JavaScript and only runs in the sandbox, so you may install any packages in the "/home/user/workspace/backend" directory.
@@ -167,7 +167,7 @@
 - Use `import { type AppType } from "./types";` for context access for all new routers.
 - Whenever you create a new route, add the types for the request and response to the "/home/user/workspace/shared/contracts.ts" using zod schemas, and then infer the types from the schemas. You can use the zod schema to validate the request in the backend, and you can use the types in the frontend. This makes sure the types are shared between the backend and frontend.
 - Use the API client at src/lib/api.ts for all backend requests from the frontend.
-</vibecode_cloud>
+</local_backend>
 
 <skills>
 You have access to a few skills in the `.claude/skills` folder. Use them to your advantage.

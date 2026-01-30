@@ -18,7 +18,7 @@ const REFERRAL_CODE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
  * Supports:
  * - ?ref=CODE query param (works with any scheme: https://, openinvite://, etc.)
  * - /invite/CODE path
- * - vibecode://invite/CODE scheme (legacy)
+ * - open-invite://invite/CODE scheme (legacy)
  */
 export function parseReferralCodeFromUrl(url: string): string | null {
   try {
@@ -34,8 +34,8 @@ export function parseReferralCodeFromUrl(url: string): string | null {
       return inviteMatch[1];
     }
 
-    // Check for vibecode://invite/CODE scheme
-    const schemeMatch = url.match(/vibecode:\/\/invite\/([a-zA-Z0-9_-]+)/i);
+    // Check for open-invite://invite/CODE scheme
+    const schemeMatch = url.match(/open-invite:\/\/invite\/([a-zA-Z0-9_-]+)/i);
     if (schemeMatch?.[1]) {
       return schemeMatch[1];
     }

@@ -430,7 +430,7 @@ Share events with friends outside the app:
 ### Deep Links
 Smart linking system for seamless sharing:
 - **Universal Links**: Event share links like `https://open-invite-api.onrender.com/share/event/{id}` work from any platform
-- **App Deep Links**: `vibecode://event/{id}` opens events directly in the app
+- **App Deep Links**: `open-invite://event/{id}` opens events directly in the app
 - **Automatic Handling**: Links intelligently detect if the app is installed and redirect appropriately
 - **Preview Cards**: Social media preview cards show event title and emoji when sharing links
 

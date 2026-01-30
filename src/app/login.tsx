@@ -106,10 +106,10 @@ function useLoginTheme(): LoginTheme {
 
 // Backend URL
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
-const vibecodeSandboxUrl = process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
+const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
 const backendUrl =
-  vibecodeSandboxUrl && vibecodeSandboxUrl.length > 0
-    ? vibecodeSandboxUrl
+  apiUrlOverride && apiUrlOverride.length > 0
+    ? apiUrlOverride
     : RENDER_BACKEND_URL;
 
 // ============ ONBOARDING COMPLETION GATE ============

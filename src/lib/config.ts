@@ -8,12 +8,12 @@
 // Production backend URL (Render deployment)
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
 
-// Use Vibecode sandbox URL during development, Render for production
+// Use API URL override during development, Render for production
 // Check for truthy value (not just undefined) to handle empty string case
-const vibecodeSandboxUrl = process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
+const overrideApiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
 const rawBackendUrl =
-  vibecodeSandboxUrl && vibecodeSandboxUrl.length > 0
-    ? vibecodeSandboxUrl
+  overrideApiUrl && overrideApiUrl.length > 0
+    ? overrideApiUrl
     : RENDER_BACKEND_URL;
 
 // Remove trailing slashes to prevent double-slash URLs

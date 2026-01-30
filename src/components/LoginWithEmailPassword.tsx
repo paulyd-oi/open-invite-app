@@ -15,9 +15,9 @@ type AuthView = "login" | "forgotPassword" | "verifyEmail";
 
 // Get backend URL
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
-const vibecodeSandboxUrl = process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
-const backendUrl = vibecodeSandboxUrl && vibecodeSandboxUrl.length > 0
-  ? vibecodeSandboxUrl
+const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
+const backendUrl = apiUrlOverride && apiUrlOverride.length > 0
+  ? apiUrlOverride
   : RENDER_BACKEND_URL;
 
 export default function LoginWithEmailPassword() {

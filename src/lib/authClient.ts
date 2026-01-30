@@ -19,7 +19,7 @@ const TOKEN_KEY = AUTH_TOKEN_KEY;
 
 // Storage prefix consistent with app scheme
 const STORAGE_PREFIX = "open-invite";
-const EXPO_SCHEME = "vibecode"; // Must match app.json scheme
+const EXPO_SCHEME = "open-invite"; // Must match app.json scheme
 
 // Module-level cache for Better Auth cookie token (avoids reading SecureStore on every request)
 let explicitCookieValue: string | null = null;
@@ -59,7 +59,7 @@ const betterAuthClient = createAuthClient({
   baseURL: API_BASE_URL,
   plugins: [
     expoClient({
-      scheme: "vibecode", // Must match app.json scheme
+      scheme: "open-invite", // Must match app.json scheme
       storagePrefix: STORAGE_PREFIX,
       storage: SecureStore,
     }),

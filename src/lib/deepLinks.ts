@@ -2,9 +2,9 @@
  * Deep Linking Configuration for Open Invite
  *
  * Handles incoming deep links to open specific screens:
- * - vibecode://event/{id} - Open event details
- * - vibecode://friend/{id} - Open friend profile
- * - vibecode://invite/{code} - Handle referral invites
+ * - open-invite://event/{id} - Open event details
+ * - open-invite://friend/{id} - Open friend profile
+ * - open-invite://invite/{code} - Handle referral invites
  * - https://open-invite-api.onrender.com/share/event/{id} - Universal link for events
  * - .ics file imports - Calendar event sharing
  */
@@ -20,7 +20,7 @@ import { handleReferralUrl } from './referral';
 export const BACKEND_URL = 'https://open-invite-api.onrender.com';
 
 // Deep link scheme
-export const SCHEME = 'vibecode';
+export const SCHEME = 'open-invite';
 
 // Storage key for pending ICS import
 const PENDING_ICS_IMPORT_KEY = 'pendingIcsImport';
@@ -170,7 +170,7 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
       return { type: 'ics-import' };
     }
 
-    // Handle app scheme links (vibecode://...)
+    // Handle app scheme links (open-invite://...)
     if (url.startsWith(`${SCHEME}://`)) {
       const path = url.replace(`${SCHEME}://`, '');
       const [type, id] = path.split('/');
