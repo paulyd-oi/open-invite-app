@@ -49,6 +49,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("ErrorBoundary caught an error:", error, errorInfo);
+    
+    // DEV-only: Enhanced logging for "Text strings must be rendered" crash
+    if (__DEV__ && error?.message?.includes("Text strings must be rendered")) {
+      console.error("=== TEXT RENDER CRASH DETECTED ===");
+      console.error("Error message:", error.message);
+      console.error("Component stack:", errorInfo?.componentStack);
+      console.error("JS Stack trace:", error.stack);
+      console.error("=================================");
+    }
   }
 
   handleReset = () => {

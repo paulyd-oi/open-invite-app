@@ -47,6 +47,22 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 ExpoSplashScreen.preventAutoHideAsync();
 
+// DEV-only: Intercept console.error to detect "Text strings must be rendered" crash
+// and log a useful stack trace
+if (__DEV__) {
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const message = args[0];
+    if (typeof message === 'string' && message.includes('Text strings must be rendered')) {
+      console.log('=== TEXT RENDER CRASH DETECTED ===');
+      console.log('Error:', message);
+      console.log('Stack:', new Error().stack);
+      console.log('==================================');
+    }
+    originalConsoleError.apply(console, args);
+  };
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
