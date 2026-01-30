@@ -32,7 +32,6 @@ import * as Haptics from "expo-haptics";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
-import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { BadgePill } from "@/components/BadgePill";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
@@ -69,7 +68,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
-  const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
 
@@ -178,48 +176,6 @@ export default function ProfileScreen() {
   // Stats data
   const stats = statsData?.stats;
   const topFriends = statsData?.topFriends ?? [];
-
-  // Build monthly recap data
-  const now = new Date();
-
-  // Check if we should show the monthly recap (last 2 days of month or first 2 days of next month)
-  const currentDay = now.getDate();
-  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const isEndOfMonth = currentDay >= lastDayOfMonth - 1; // Last 2 days
-  const isStartOfMonth = currentDay <= 2; // First 2 days
-  const shouldShowMonthlyRecap = isEndOfMonth || isStartOfMonth;
-
-  // For the recap, use previous month if we're at the start of a new month
-  const recapMonth = isStartOfMonth
-    ? new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    : now;
-
-  const monthlyRecapData: MonthlyRecapData | null = stats && shouldShowMonthlyRecap ? {
-    month: recapMonth.toLocaleString("en-US", { month: "long" }),
-    year: recapMonth.getFullYear(),
-    totalEvents: stats.hostedCount + stats.attendedCount,
-    totalHangouts: stats.attendedCount,
-    uniqueFriendsMetWith: topFriends.length,
-    topCategory: stats.categoryBreakdown && Object.keys(stats.categoryBreakdown).length > 0
-      ? (() => {
-          const sorted = Object.entries(stats.categoryBreakdown).sort((a, b) => b[1] - a[1]);
-          const [category, count] = sorted[0];
-          const catInfo = EVENT_CATEGORIES.find(c => c.value === category);
-          return { name: catInfo?.label ?? category, emoji: catInfo?.emoji ?? "📅", count };
-        })()
-      : null,
-    topFriend: topFriends[0]
-      ? { name: topFriends[0].name ?? "Friend", image: topFriends[0].image, count: topFriends[0].eventsCount }
-      : null,
-    topLocation: null,
-    busiestDay: null,
-    averagePerWeek: Math.round((stats.attendedCount + stats.hostedCount) / 4),
-    streak: stats.currentStreak,
-    rank: stats.currentStreak >= 8 ? "social_butterfly"
-        : stats.currentStreak >= 4 ? "connector"
-        : stats.currentStreak >= 2 ? "rising_star"
-        : "getting_started",
-  } : null;
 
   // Get category info
   const getCategoryInfo = (category: string) => {
@@ -372,16 +328,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Animated.View>
-
-        {/* Monthly Recap Button (Spotify Wrapped style) */}
-        {monthlyRecapData && monthlyRecapData.totalEvents > 0 && (
-          <Animated.View entering={FadeInDown.delay(25).springify()}>
-            <MonthlyRecapButton
-              data={monthlyRecapData}
-              onPress={() => setShowMonthlyRecap(true)}
-            />
-          </Animated.View>
-        )}
 
         {/* Stats Overview */}
         <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
@@ -563,15 +509,6 @@ export default function ProfileScreen() {
         </Modal>
 
       </ScrollView>
-
-      {/* Monthly Recap Modal */}
-      {monthlyRecapData && (
-        <MonthlyRecap
-          data={monthlyRecapData}
-          visible={showMonthlyRecap}
-          onClose={() => setShowMonthlyRecap(false)}
-        />
-      )}
 
       <BottomNavigation />
     </SafeAreaView>
