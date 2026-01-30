@@ -612,6 +612,16 @@ function EventListItem({
   const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? "#6B7280" : getEventColor(event, themeColor);
   const textColor = getTextColorForBackground(eventColor, isDark);
 
+  // DEV logging for busy color decisions
+  if (__DEV__ && (event.isBusy || isWork)) {
+    console.log("[BUSY_COLOR_DECISION]", {
+      eventId: event.id,
+      type: event.isBusy ? "busy" : isWork ? "work" : "regular",
+      paletteName: "grey",
+      leftBarColor: eventColor,
+    });
+  }
+
   // Format time label: birthdays show "All day", all other events show time range
   const timeLabel = isBirthday
     ? "All day"

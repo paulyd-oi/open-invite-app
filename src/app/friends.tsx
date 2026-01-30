@@ -212,6 +212,21 @@ function FriendCard({
     return null;
   }
 
+  // DEV logging for badge data
+  if (__DEV__) {
+    console.log("[FRIEND_BADGE_DATA]", {
+      friendId: friend.id,
+      hasFeaturedBadge: !!friend.featuredBadge,
+      featuredBadge: friend.featuredBadge?.name ?? null,
+      sourceEndpoint: "/api/friends",
+    });
+    console.log("[FRIEND_BADGE_RENDER]", {
+      friendId: friend.id,
+      render: !!friend.featuredBadge,
+      reason: friend.featuredBadge ? "badge_present" : "no_badge_in_response",
+    });
+  }
+
   const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
   
   const handleLongPress = () => {

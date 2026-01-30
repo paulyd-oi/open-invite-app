@@ -394,11 +394,16 @@ export default function FriendDetailScreen() {
   // Use embedded featuredBadge if available, otherwise fallback to separate badge query
   const friendBadge = data?.friend?.featuredBadge ?? badgeData?.badge;
   if (__DEV__ && data?.friend) {
-    console.log("[FriendProfile] Badge source:", {
+    console.log("[FRIEND_BADGE_DATA]", {
       friendId: friendUserId,
-      embeddedBadge: data.friend.featuredBadge ? data.friend.featuredBadge.name : null,
-      queryBadge: badgeData?.badge ? badgeData.badge.name : null,
-      usingBadge: friendBadge ? friendBadge.name : null,
+      hasFeaturedBadge: !!friendBadge,
+      featuredBadge: friendBadge?.name ?? null,
+      sourceEndpoint: data.friend.featuredBadge ? "/api/friends/:id/events" : "/api/achievements/user/:id/badge",
+    });
+    console.log("[FRIEND_BADGE_RENDER]", {
+      friendId: friendUserId,
+      render: !!friendBadge,
+      reason: friendBadge ? "badge_present" : "no_badge_in_response",
     });
   }
 
