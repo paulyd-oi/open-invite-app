@@ -41,7 +41,6 @@ import {
   LayoutGrid,
   Activity,
   Sparkles,
-  Building2,
   BadgeCheck,
   Plus,
   Pin,

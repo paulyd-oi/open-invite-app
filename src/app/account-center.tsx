@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Building2,
   Settings,
   Users,
   Plus,
@@ -356,64 +355,8 @@ export default function AccountCenterScreen() {
           )}
         </SectionCard>
 
-        {/* Owned Business Profiles */}
-        {ownedBusinesses.length > 0 && (
-          <SectionCard isDark={isDark} delay={200}>
-            <View className="px-4 pt-4 pb-2">
-              <Text
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: colors.textTertiary }}
-              >
-                Your Businesses
-              </Text>
-            </View>
-            {ownedBusinesses.map((profile, index) => (
-              <ProfileRow
-                key={profile.id}
-                profile={profile}
-                isActive={activeProfileId === profile.id}
-                onPress={() => handleProfileSettings(profile)}
-                isDark={isDark}
-                themeColor={themeColor}
-                showBorder={index < ownedBusinesses.length - 1}
-              />
-            ))}
-          </SectionCard>
-        )}
-
-        {/* Member Business Profiles (businesses user has access to but doesn't own) */}
-        {memberBusinesses.length > 0 && (
-          <SectionCard isDark={isDark} delay={250}>
-            <View className="px-4 pt-4 pb-2">
-              <Text
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: colors.textTertiary }}
-              >
-                Team Access
-              </Text>
-              <Text
-                className="text-xs mt-1"
-                style={{ color: colors.textSecondary }}
-              >
-                Businesses you have access to manage
-              </Text>
-            </View>
-            {memberBusinesses.map((profile, index) => (
-              <ProfileRow
-                key={profile.id}
-                profile={profile}
-                isActive={activeProfileId === profile.id}
-                onPress={() => handleProfileSettings(profile)}
-                isDark={isDark}
-                themeColor={themeColor}
-                showBorder={index < memberBusinesses.length - 1}
-              />
-            ))}
-          </SectionCard>
-        )}
-
         {/* Account Settings */}
-        <SectionCard isDark={isDark} delay={350}>
+        <SectionCard isDark={isDark} delay={200}>
           <View className="px-4 pt-4 pb-2">
             <Text
               className="text-xs font-semibold uppercase tracking-wider"

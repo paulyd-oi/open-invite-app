@@ -1,100 +1,90 @@
-HANDOFF PACKET — P0 LOCKDOWN PATCH
-===================================
+HANDOFF PACKET — BUSINESS LEGACY COMPLETE PURGE
+================================================
 Date: 2026-01-30
-Commit: 7e236f6
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-- KILLED all getEventColor wrapper functions (calendar.tsx, FeedCalendar.tsx)
-- REPLACED with direct getEventPalette().bar usage at all render sites
-- PURGED business event code from FeedCalendar.tsx (isBusinessEvent, businessName, businessLogo, etc.)
-- REMOVED businessEvents prop from FeedCalendarProps and social.tsx usages
-- DELETED Trophy export from icons.tsx (renamed to comment "Trophy REMOVED")
-- ADDED title "busy" defensive filter in social.tsx (catches legacy data)
-- CLEANED unused getEventBarColor import from calendar.tsx
-- FIXED type in calendar.tsx EventListItem (removed isBusinessEvent from type)
-
-ROOT CAUSES
------------
-1. FeedCalendar.tsx had its own getEventColor function that checked isBusinessEvent
-2. FeedCalendar.tsx had full business event infrastructure (state, props, rendering)
-3. calendar.tsx had a getEventColor wrapper that delegated to getEventBarColor
-4. Trophy was still exported (just deprecated comment, not removed)
-5. social.tsx passed businessEvents={undefined} to FeedCalendar
+Complete purge of ALL "business" legacy from frontend codebase.
+INVARIANT: `rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src` returns ZERO matches.
 
 FILES CHANGED
 -------------
-1. src/app/calendar.tsx
-   - Removed getEventColor function
-   - Replaced getEventColor() calls with getEventPalette().bar
-   - Removed getEventBarColor from import
-   - Removed isBusinessEvent from EventListItem type
+1. src/lib/features.ts
+   - Replaced businessAccounts flag with neutral "reserved" placeholder
+   - Removed business-related comments
 
-2. src/components/FeedCalendar.tsx
-   - Removed Building2 icon import
-   - Removed BusinessEvent type import
-   - Removed getEventColor function entirely
-   - Removed all business fields from CalendarEvent interface
-   - Removed businessEvents from FeedCalendarProps
-   - Removed showBusinessEvents state and toggleBusinessEvents function
-   - Removed convertedBusinessEvents memo
-   - Removed business UI (badge, host info branch)
-   - Simplified eventCountsByDate to use getEventPalette
-   - Removed commented business toggle section
+2. src/lib/activeProfileContext.tsx
+   - Removed businessProfiles, isBusinessProfile fields from context
+   - Removed canManageActiveBusiness, isOwnerOfActiveBusiness, activeBusinessRole
+   - Removed useIsBusinessProfile, useActiveBusinessRole hook exports
+   - Simplified to personal-only profile system
 
-3. src/ui/icons.tsx
-   - Removed Trophy export (changed to comment "Trophy REMOVED")
+3. src/components/ProfileSwitcher.tsx
+   - Removed Building2 import
+   - Removed businessProfiles filtering logic
+   - Removed "Business Profiles" UI section
+   - Simplified ProfileItem to remove isBusiness checks
+   - Changed header from "Switch Profile" to "Profile"
 
-4. src/app/social.tsx
-   - Added shouldOmit helper with title "busy" check
-   - Removed businessEvents prop from FeedCalendar usages
+4. src/app/account-center.tsx
+   - Removed Building2 import
+   - Removed isBusiness variable and conditional logic
+   - Removed businessProfiles, ownedBusinesses, memberBusinesses variables
+   - Removed "Your Businesses" section entirely
+   - Removed "Team Access" section entirely
+   - Simplified ProfileRow to personal-only
 
-HARD GATE RESULTS
------------------
-=== GATE 1: BUSINESS (in scope files) ===
-PASS: No isBusinessEvent
+5. src/app/notification-settings.tsx
+   - Removed businessEvents field from NotificationPreferences interface
 
-=== GATE 2: getEventColor ===
-PASS: No getEventColor
+6. src/app/profile.tsx
+   - Changed comment from "business mode" to neutral wording
 
-=== GATE 3: TROPHY (actual usage) ===
-PASS: No Trophy exports or imports
+7. src/app/create.tsx
+   - Changed comment from "business profile redirect" to neutral wording
 
-VERIFICATION OUTPUTS
---------------------
+8. src/app/social.tsx
+   - Removed businessEventsData variable and comment
+
+9. src/components/MiniCalendar.tsx
+   - Removed "and business cards" from comment
+
+10. src/app/friends.tsx
+    - Removed unused Building2 import
+
+11. src/ui/icons.tsx
+    - Removed duplicate Building2 export at bottom of file (ion("business-outline"))
+
+VERIFICATION
+------------
+$ rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src
+(exit code 1 - ZERO matches) ✓
+
 $ bun run typecheck
 ✓ No errors
 
-$ bash scripts/ai/verify_frontend.sh
-== REPO CONFIRMATION ==
-/Users/paulsmbp/Documents/GitHub/open-invite-app
-origin  https://github.com/paulyd-oi/open-invite-app.git (fetch)
-main
-== INVARIANT CHECK PASSED ==
-== TYPECHECK ==
-PASS: verify_frontend
+HARD GATES
+----------
+=== GATE 1: BUSINESS (word boundary match) ===
+PASS: rg returns zero matches for \bbusiness\b
 
-MANUAL TEST CHECKLIST
----------------------
-[ ] Create Busy event → grey bar (#6B7280) + grey bg (#6B728020) on month view
-[ ] Tap day with busy → grey in day list
-[ ] Work events → grey bar + grey bg (same as busy)
-[ ] Social tab → no busy events appear (including title "busy" legacy)
-[ ] Profile page → badge pills only, no trophy icons, no avatar overlays
-[ ] Friend/user page → badge pills only, no trophy icons
-[ ] Achievements → Award icon used (not Trophy)
+=== GATE 2: businessEvents ===
+PASS: rg returns zero matches
 
-COMMIT DETAILS
---------------
-Hash: 7e236f6
-Message: fix(P0): purge business + kill getEventColor + enforce busy/work grey + ban trophy
-Push: 837b514..7e236f6 main -> main ✓
+=== GATE 3: isBusinessEvent ===
+PASS: rg returns zero matches
+
+INVARIANT
+---------
+"business" is permanently banned from src/**
+Any ripgrep match for the pattern indicates a regression
 
 NOTES
 -----
-- Business profile type system (personal vs business) is PRESERVED - separate concern
-- Building2 icon export preserved (for business-outline icon, not event-related)
-- getEventBarColor still exported from eventPalette.ts (may have other consumers)
-- All Trophy references in comments are INVARIANT documentation (acceptable)
+- Building2 icon removed entirely (was mapped to ion("business-outline"))
+- Briefcase icon still available for work-related UI (separate from business branding)
+- Personal profile system fully intact
+- Circles system untouched
+- Badge pill-only display preserved

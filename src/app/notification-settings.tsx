@@ -82,7 +82,6 @@ interface NotificationPreferences {
   fomoPopularEvents: boolean;
   weeklySummary: boolean;
   reconnectSuggestions: boolean;
-  businessEvents: boolean;
   dailyDigest: boolean;
   dailyDigestTime: string;
   quietHoursEnabled: boolean;

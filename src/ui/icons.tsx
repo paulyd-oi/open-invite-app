@@ -187,9 +187,3 @@ export const Volume2 = ion("volume-high-outline");
 export const VolumeX = ion("volume-mute-outline");
 export const BarChart3 = ion("bar-chart-outline");
 export const Loader2 = ion("reload-outline");
-
-
-
-
-
-export const Building2 = ion("business-outline");

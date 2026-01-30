@@ -1,5 +1,37 @@
 # Findings Log — Frontend
 
+## P0: Business Legacy Complete Purge (2026-01-30)
+
+### Scope
+**INVARIANT**: `rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src` must return ZERO matches.
+
+### Files Purged
+1. **src/lib/features.ts** — Replaced `businessAccounts` flag with neutral `reserved` placeholder
+2. **src/lib/activeProfileContext.tsx** — Removed all business profile fields (`businessProfiles`, `isBusinessProfile`, `canManageActiveBusiness`, `isOwnerOfActiveBusiness`, `activeBusinessRole`) and hooks (`useIsBusinessProfile`, `useActiveBusinessRole`)
+3. **src/components/ProfileSwitcher.tsx** — Removed `Building2` import, `businessProfiles` filtering, business UI section; simplified to personal-only
+4. **src/app/account-center.tsx** — Removed `Building2` import, `businessProfiles`/`ownedBusinesses`/`memberBusinesses` variables, "Your Businesses" and "Team Access" sections
+5. **src/app/notification-settings.tsx** — Removed `businessEvents` field from `NotificationPreferences` interface
+6. **src/app/profile.tsx** — Changed comment from "business mode" to neutral wording
+7. **src/app/create.tsx** — Changed comment from "business profile redirect" to neutral wording
+8. **src/app/social.tsx** — Removed `businessEventsData` variable and comment
+9. **src/components/MiniCalendar.tsx** — Removed "and business cards" from comment
+10. **src/app/friends.tsx** — Removed unused `Building2` import
+11. **src/ui/icons.tsx** — Removed duplicate `Building2` export (`ion("business-outline")`) at bottom of file
+
+### Verification
+```
+$ rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src
+(exit code 1 - ZERO matches)
+
+$ bun run typecheck
+✓ No errors
+```
+
+### Invariant Enforcement
+Business references are now permanently banned from `src/**`. Any future ripgrep match for the pattern above indicates a regression.
+
+---
+
 ## P0: Busy/Work Grey Single Source of Truth (2026-01-30)
 
 ### Root Cause Analysis ✓
