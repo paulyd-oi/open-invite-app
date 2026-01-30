@@ -318,15 +318,7 @@ export default function ProfileScreen() {
                     </View>
                   )}
                 </View>
-                {/* Premium badge on avatar */}
-                {userIsPremium && (
-                  <View 
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
-                    style={{ backgroundColor: "#FFD700" }}
-                  >
-                  </View>
-                )}
-              </View>
+                {/* Premium badge on avatar */}              </View>
               <View className="flex-1 ml-4">
                 <View className="flex-row items-center">
                   <Text className="text-xl font-sora-bold" style={{ color: colors.text }}>
