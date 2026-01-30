@@ -1,95 +1,91 @@
-========================================
-HANDOFF PACKET - P0: Busy Grey + Social Omit + Admin Search
+HANDOFF PACKET - P0: Busy/Work Grey Single Source of Truth + Badge Pill-Only
+============================================================================
 Date: 2026-01-30
-Commit: 82fbaed
-========================================
+Commit: 6494988
+Branch: main
+Repo: open-invite-app (frontend)
 
-SUMMARY
--------
-Fixed three P0 launch blockers:
-1. Busy events always render grey (not theme/orange)
-2. Busy events never appear in Social Calendar
-3. Admin search returns results + badge control works
+1) SUMMARY
+----------
+- Created src/lib/eventPalette.ts as SINGLE SOURCE OF TRUTH for all event color rendering
+- GREY_PALETTE constant: { bar: "#6B7280", bg: "#6B728020" } enforced for isBusy OR isWork
+- All calendar renderers now delegate to shared module (CompactDayCell, StackedDayCell, DetailsDayCell, EventListItem, FeedCalendar)
+- Trophy icon deprecated with "DO NOT USE" comment (badges are pill-only)
+- Badge avatar overlays already removed in previous session (friend/[id].tsx, user/[id].tsx)
+- Social calendar omit busy already in place with DEV logging
+- Busy creation payload verified: sends isBusy: true (calendar.tsx line 1299)
 
-ROOT CAUSES
------------
-P0.1 BUSY GREY: Code was already correct - eventColor computed from isBusy.
-     Minor improvement: created bgColor variable for consistency.
-
-P0.2 SOCIAL OMIT: The allEvents useMemo in social.tsx included myEvents and
-     attendingEvents without filtering out isBusy events. Backend already
-     excludes isBusy from /api/events/feed (line 177: isBusy: false), but
-     user's own events and attending events could leak through.
-
-P0.3 ADMIN SEARCH: Backend endpoint correct at /api/admin/users/search.
-     Frontend correctly calls it. Search uses case-insensitive partial match
-     on email, name, and Profile.handle.
-
-FILES CHANGED (Frontend)
-------------------------
-1. src/app/calendar.tsx
-   - Added bgColor variable (line 614): const bgColor = eventColor + "12"
-   - Updated BUSY_INVARIANT DEV log with eventId, isBusy, leftBarColor, bgColor, sourceComponent
-   - Replaced eventColor+"12" with bgColor in two card background locations
-
-2. src/app/social.tsx
-   - allEvents useMemo now filters: myEvents.filter(e => !e.isBusy)
-   - Same filter for attendingEvents and discoveryEvents
-   - Added SOCIAL_OMIT_BUSY DEV log with inputCount, omittedCount, outputCount, sampleOmittedIds
-
-3. src/components/FeedCalendar.tsx
-   - Defensive filter in allCalendarEvents: events.filter((e) => !(e as any).isBusy)
-   - Comment explains: "Busy events are private and must never appear in social/feed contexts"
-
-4. src/app/admin.tsx
-   - Updated search logging to ADMIN_SEARCH format with q, status, resultCount, firstResultId
-
-5. docs/STATE_OF_THE_APP.md
-   - Added new session "P0 Busy Grey + Social Omit + Admin Search" with fix details
-
-FILES NOT CHANGED (Backend)
----------------------------
-Backend already correct:
-- /api/events/feed: Line 177 has isBusy: false filter
-- /api/admin/users/search: Lines 668-720 implement case-insensitive partial match
-- Admin middleware: isAdminEmail() checks allowlist, requireAdmin() validates session
-
-VERIFICATION
-------------
-npm run typecheck: PASS
-verify_frontend.sh: PASS
-
-MANUAL TEST PLAN
+2) FILES CHANGED
 ----------------
-1. BUSY GREY:
-   - Create a busy block via calendar "Busy" pill
-   - Verify left bar is grey (#6B7280)
-   - Verify background is grey-tinted, not orange/theme
-   - Check DEV console for BUSY_INVARIANT log
+NEW: src/lib/eventPalette.ts        - Single source of truth module
+MOD: src/app/calendar.tsx           - Uses shared module for all color logic
+MOD: src/components/FeedCalendar.tsx - Uses getEventBarColor() from shared module
+MOD: src/ui/icons.tsx               - Trophy export marked DO NOT USE
+MOD: docs/STATE_OF_THE_APP.md       - Updated with fixes
+MOD: docs/FINDINGS_LOG.md           - Documented root cause
 
-2. SOCIAL OMIT:
-   - Create a busy block on your calendar
-   - Switch to Social tab
-   - Tap a day on the FeedCalendar that has your busy block
-   - Verify busy block does NOT appear in day sheet
-   - Check DEV console for SOCIAL_OMIT_BUSY log if busy events were filtered
+3) KEY DIFFS - Busy Grey Single Source of Truth
+-----------------------------------------------
 
-3. ADMIN SEARCH:
-   - Navigate to Admin Console (settings > admin if admin email)
-   - Search for a known user name (e.g., partial name match)
-   - Verify results appear with name/email/username
-   - Select user and grant/revoke a badge
-   - Check DEV console for ADMIN_SEARCH log
+src/lib/eventPalette.ts (NEW):
+  const GREY_PALETTE = { bar: "#6B7280", bg: "#6B728020", icon: "#6B7280", text: "#6B7280" }
+  getEventPalette(event, themeColor) - returns grey if isBusy OR isWork
+  assertGreyPaletteInvariant() - DEV-only logs [BUSY_GREY_INVARIANT_FAIL]
 
-COMMITS
--------
-Frontend: 82fbaed "fix(p0): busy grey + social omit + admin search"
-Pushed: 99d5471..82fbaed main -> main
+src/app/calendar.tsx:
+  Line 44: Import from shared module
+  Line 103-108: getEventColor() delegates to getEventBarColor()
+  Line 603-607: EventListItem uses getEventPalette() for palette
+  Line 609-611: DEV assertion via assertGreyPaletteInvariant()
 
-FOLLOW-UPS (P1)
+src/components/FeedCalendar.tsx:
+  Line 10: Import getEventBarColor from shared module
+  Line 24-34: getEventColor() delegates to getEventBarColor()
+
+4) PROOF - Busy Create API Payload
+----------------------------------
+calendar.tsx line 1294-1300:
+  api.post("/api/events", { ..., isBusy: true })  // CONFIRMED
+
+5) PROOF - getEventPalette Call Sites (3+ locations)
+----------------------------------------------------
+1. calendar.tsx line 107: getEventColor() -> getEventBarColor()
+2. calendar.tsx line 603: EventListItem -> getEventPalette()
+3. FeedCalendar.tsx line 34: getEventColor() -> getEventBarColor()
+
+6) PROOF - Trophy Not Used
+--------------------------
+rg -n "Trophy" src/app src/components src/ui
+-> Only comments and deprecation notice, no actual <Trophy> usage
+
+7) VERIFICATION OUTPUT
+----------------------
+bun run typecheck: No errors
+bash scripts/ai/verify_frontend.sh: PASS
+
+8) ROOT CAUSE (Documented in docs/FINDINGS_LOG.md)
+-------------------------------------------------
+- Multiple divergent render paths for event colors
+- calendar.tsx getEventColor() checked isBusy but NOT isWork
+- FeedCalendar.tsx had its own getEventColor() with different logic
+- Fix: Single source of truth module eliminates divergence
+
+9) COMMANDS RUN
 ---------------
-- None identified - all P0 issues addressed
+bun run typecheck
+bash scripts/ai/verify_frontend.sh
+rg -n "Trophy" src/app src/components src/ui
+git add -A && git commit -m "fix(P0): busy/work grey single source of truth + badge pill-only"
+git push origin main
 
-========================================
+10) MANUAL TEST CHECKLIST
+-------------------------
+[ ] Create busy block -> verify grey bar + grey bg in month view
+[ ] Tap day with busy -> verify grey in day list
+[ ] Check work calendar events -> verify grey rendering
+[ ] Check Social tab -> verify NO busy events appear
+[ ] Check friend profile avatar -> NO badge overlay (pill only)
+[ ] Check user/[id] profile -> NO badge overlay (pill only)
+[ ] Check Profile -> Badges section shows Award icon (not Trophy)
+
 END HANDOFF
-========================================
