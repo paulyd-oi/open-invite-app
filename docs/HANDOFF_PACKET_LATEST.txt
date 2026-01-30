@@ -1,53 +1,84 @@
 ========================================
-HANDOFF PACKET - Friend Badges + Busy Grey Consistency
+HANDOFF PACKET - Badge Normalization Fix
 Date: 2026-01-30
-Commits: 76e08d4 (backend), bd0f36d (frontend)
+Commit: 4e347b1
 ========================================
 
 SUMMARY
 -------
-1. TASK A (COMPLETED): Friend badges now show on friend cards and friend profile
-   - Backend: /api/friends and /api/friends/:id/events return featuredBadge
-   - Frontend: FriendCard and friend profile already render badges
-   - Added DEV logging: [FRIEND_BADGE_DATA] + [FRIEND_BADGE_RENDER]
+Fixed badge rendering by normalizing featuredBadge data before rendering.
+Badges now appear on:
+- My Profile header
+- Friends list cards (FriendCard + FriendListItem)
+- Friend profile page
 
-2. TASK B (VERIFIED): Busy blocks consistently grey
-   - getEventColor() returns #6B7280 for isBusy events
-   - CalendarEventRow forces grey for isBusy || isWork
-   - Added DEV logging: [BUSY_COLOR_DECISION]
+ROOT CAUSE
+----------
+BadgePill requires tierColor prop, but featuredBadge sometimes has
+missing/undefined tierColor, causing silent render failure.
 
-BACKEND CHANGES (my-app-backend repo)
--------------------------------------
-Commit: 76e08d4 fix(friends): return featuredBadge from GET /api/friends and GET /api/friends/:id/events
+SOLUTION
+--------
+Created normalizeFeaturedBadge() helper that:
+- Returns null if badge is falsy
+- Provides default tierColor (#F59E0B gold) if missing
 
-1. src/routes/friends.ts
-   - GET /api/friends: badge_definition select now includes description + tierColor
-   - featuredBadgeMap shape: { badgeKey, name, description, tierColor }
-   - GET /api/friends/:id/events: Added friendBadgeGrant query + friendFeaturedBadge
+FILES CHANGED
+-------------
+1. src/lib/normalizeBadge.ts (NEW)
+   - normalizeFeaturedBadge(badge) -> { name, tierColor } | null
+   - Default tierColor: #F59E0B (gold)
 
-2. src/shared/contracts.ts
-   - friendUserSchema: Added featuredBadge optional field
+2. src/app/profile.tsx
+   - Import normalizeFeaturedBadge
+   - Wrap profileData?.featuredBadge with normalizer before BadgePill
 
-FRONTEND CHANGES (open-invite-app repo)
----------------------------------------
-Commit: bd0f36d fix(badges): add FRIEND_BADGE_DATA + FRIEND_BADGE_RENDER + BUSY_COLOR_DECISION logging
+3. src/app/friends.tsx
+   - Import normalizeFeaturedBadge
+   - FriendCard: Normalize friend.featuredBadge before BadgePill
+   - FriendListItem: Normalize friend.featuredBadge before BadgePill
 
-1. src/app/friends.tsx
-   - Added [FRIEND_BADGE_DATA] logging in FriendCard
-   - Added [FRIEND_BADGE_RENDER] logging in FriendCard
+4. src/app/friend/[id].tsx
+   - Import normalizeFeaturedBadge
+   - Normalize friendBadge before rendering
+   - Keep rawFriendBadge for emoji check
 
-2. src/app/friend/[id].tsx
-   - Changed [FriendProfile] logs to [FRIEND_BADGE_DATA] + [FRIEND_BADGE_RENDER]
+KEY DIFF
+--------
+```typescript
+// src/lib/normalizeBadge.ts
+export function normalizeFeaturedBadge(badge: any): { name: string; tierColor: string } | null {
+  if (!badge) return null;
+  return {
+    name: badge.name ?? "",
+    tierColor: badge.tierColor ?? "#F59E0B",
+  };
+}
 
-3. src/app/calendar.tsx
-   - Added [BUSY_COLOR_DECISION] logging in CalendarEventRow
-
-KEY DIFFS
----------
-Backend friends.ts badge mapping:
+// Usage in all 3 files:
+const featured = normalizeFeaturedBadge(badge);
+return featured ? <BadgePill name={featured.name} tierColor={featured.tierColor} /> : null;
 ```
-- select: { key: true, name: true, emoji: true },
-+ select: { key: true, name: true, description: true, tierColor: true },
+
+VERIFICATION
+------------
+npm run typecheck: PASS
+bash scripts/ai/verify_frontend.sh: PASS
+
+TEST PLAN
+---------
+[ ] 1. Profile screen - badge pill should appear near name if user has badge
+[ ] 2. Friends list - badge pills on friend cards (both FriendCard and FriendListItem views)
+[ ] 3. Friend profile - badge icon on avatar + badge pill next to name
+
+GIT
+---
+Commit: 4e347b1 fix(badges): normalize featuredBadge rendering
+Push: 48740cc..4e347b1 main -> main
+
+========================================
+END HANDOFF
+========================================
 
 - const featuredBadgeMap = new Map<string, { id: string; name: string; icon: string } | null>();
 + const featuredBadgeMap = new Map<string, { badgeKey: string; name: string; description: string; tierColor: string } | null>();
