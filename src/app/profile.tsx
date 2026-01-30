@@ -171,7 +171,9 @@ export default function ProfileScreen() {
   const friends = (friendsData?.friends ?? []).filter(f => f.friend != null);
   const eventsCount = eventsData?.events?.length ?? 0;
   const friendsCount = friends.length;
-  const calendarBio = profileData?.profile?.calendarBio;
+  // Defensive: ensure calendarBio is string or undefined, never other types
+  const rawBio = profileData?.profile?.calendarBio;
+  const calendarBio = typeof rawBio === 'string' && rawBio.length > 0 ? rawBio : undefined;
 
   // Stats data
   const stats = statsData?.stats;
@@ -261,7 +263,9 @@ export default function ProfileScreen() {
   });
 
   // Get handle for secondary display (Instagram-style)
-  const userHandle = user?.handle || profileData?.profile?.handle;
+  // Defensive: ensure userHandle is always string or undefined, never other types
+  const rawHandle = user?.handle || profileData?.profile?.handle;
+  const userHandle = typeof rawHandle === 'string' && rawHandle.length > 0 ? rawHandle : undefined;
 
   // Business mode is hidden for now - will be re-enabled in a future update
   // if (isBusinessMode && activeProfile) { ... }
