@@ -1,59 +1,82 @@
 ========================================
-HANDOFF PACKET - SecureStore Key Delimiter Fix
+HANDOFF PACKET - Onboarding Guide ForceShow Gate
 Date: 2026-01-30
-Commit: 5d0cd8d
+Commit: 7d2f158
 ========================================
 
 SUMMARY
 -------
-Fixed SecureStore crash caused by invalid key characters.
+Fixed onboarding guide popup reappearing for mature accounts after 
+SecureStore key delimiter fix (":" → "_").
 
 ROOT CAUSE
 ----------
-Expo SecureStore keys CANNOT contain ":" character.
-The onboarding guide was building keys like:
-  guide_friends_add_people_v2:<userId>
-  guide_create_first_plan_v2:<userId>
+The previous delimiter fix changed SecureStore keys from:
+  guide_friends_add_people_v2:<userId> → guide_friends_add_people_v2_<userId>
 
-This caused:
-- "Invalid key provided to SecureStore" error
-- Toast errors on app startup
-- Occasional SIGABRT crash
+This meant existing dismissal keys were "lost" - mature accounts appeared
+as "not dismissed" and the guide started showing again inappropriately.
 
-FIX
----
-Changed delimiter from ":" to "_" in buildGuideKey function.
+FIX: FORCESHOW GATE
+-------------------
+Added explicit eligibility gate: guide ONLY shows if forceShow="true" in SecureStore.
+- Mature accounts: No forceShow key → guide never shows
+- New accounts: forceShow set to "true" on signup → guide shows once
+- After dismiss: forceShow deleted → guide never returns
 
-FILE CHANGED
-------------
-src/hooks/useOnboardingGuide.ts (line 12-15)
+FILES CHANGED
+-------------
+1. src/hooks/useOnboardingGuide.ts
+   - Added GUIDE_FORCE_SHOW_KEY_PREFIX = "guide_force_show_v2"
+   - Exported buildGuideKey() and GUIDE_FORCE_SHOW_PREFIX for signup
+   - Added forceShow gate at start of loadState:
+     * If forceShow !== "true" → treat as completed, never show
+     * DEV log: "[GUIDE_DECISION] gate: forceShow disabled -> completed"
+   - dismissGuide() now deletes forceShowKey (disables future showing)
+   - resetGuide() now re-enables forceShow (for DEV testing)
 
-BEFORE:
-  function buildGuideKey(prefix: string, userId: string): string {
-    return `${prefix}:${userId}`;
-  }
+2. src/app/welcome.tsx
+   - Added import: SecureStore, buildGuideKey, GUIDE_FORCE_SHOW_PREFIX
+   - On successful NEW account (isNewAccount=true):
+     * Sets forceShow key to "true"
+     * Log: "[Onboarding] forceShow enabled for new account"
 
-AFTER:
-  // NOTE: SecureStore keys cannot contain ":" - use "_" as delimiter
-  function buildGuideKey(prefix: string, userId: string): string {
-    return `${prefix}_${userId}`;
-  }
+EXACT KEY NAMES
+---------------
+- Force show gate: guide_force_show_v2_<userId>
+- Friends dismissed: guide_friends_add_people_v2_<userId>
+- Create dismissed: guide_create_first_plan_v2_<userId>
 
-KEYS NOW
---------
-Before: guide_friends_add_people_v2:abc123
-After:  guide_friends_add_people_v2_abc123
+FLOW
+----
+NEW ACCOUNT:
+1. User signs up (email) → isNewAccount=true
+2. forceShow key set to "true"
+3. On home, useOnboardingGuide reads forceShow="true" → guide shows
+4. User dismisses → forceShow deleted + dismissal keys set
+5. On relaunch → forceShow !== "true" → guide never shows again
+
+MATURE ACCOUNT:
+1. User logs in
+2. No forceShow key exists
+3. loadState sees forceShow !== "true" → immediately completed
+4. Guide never shows
+
+KNOWN GAP
+---------
+Apple Sign-In first-time accounts do NOT set forceShow because detecting
+first-time vs returning Apple user is unreliable (Apple only gives email
+on first auth). Only email/password signup sets forceShow. Documented here.
 
 VERIFICATION RESULTS
 --------------------
 npm run typecheck: PASS
 bash scripts/ai/verify_frontend.sh: PASS
 
-NOTES
------
-- Existing user state will be "lost" (keys changed), onboarding may re-show
-- This is acceptable - better than crash
-- No backend impact, purely client-side storage
+GIT
+---
+Commit: 7d2f158 fix(onboarding): gate guide to new accounts only
+Push: a67c379..7d2f158 → main
 
 ========================================
 END HANDOFF
