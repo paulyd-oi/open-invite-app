@@ -1,90 +1,131 @@
 ========================================
-HANDOFF PACKET - UX Fixes (Badges, Admin, Busy)
+HANDOFF PACKET - Friend Badges + Busy Grey Consistency
 Date: 2026-01-30
-Commit: 92f6540
+Commits: 76e08d4 (backend), bd0f36d (frontend)
 ========================================
 
 SUMMARY
 -------
-Fixed three UX issues:
-1. Badges - Added DEV logging for fetch + render decisions
-2. Admin button - Added ADMIN_DECISION logging
-3. Busy block - Changed time picker from 1-hour to 15-minute steps
+1. TASK A (COMPLETED): Friend badges now show on friend cards and friend profile
+   - Backend: /api/friends and /api/friends/:id/events return featuredBadge
+   - Frontend: FriendCard and friend profile already render badges
+   - Added DEV logging: [FRIEND_BADGE_DATA] + [FRIEND_BADGE_RENDER]
 
-FILES CHANGED
--------------
-1. src/app/achievements.tsx
-   - Added [BADGES_FETCH] logging with response shape
-   - Added [BADGES_RENDER] logging with render decision
+2. TASK B (VERIFIED): Busy blocks consistently grey
+   - getEventColor() returns #6B7280 for isBusy events
+   - CalendarEventRow forces grey for isBusy || isWork
+   - Added DEV logging: [BUSY_COLOR_DECISION]
 
-2. src/app/settings.tsx
-   - Added [ADMIN_DECISION] logging with userId isAdmin bootStatus
+BACKEND CHANGES (my-app-backend repo)
+-------------------------------------
+Commit: 76e08d4 fix(friends): return featuredBadge from GET /api/friends and GET /api/friends/:id/events
 
-3. src/app/admin.tsx
-   - Added [SEARCH_DECISION] logging with query endpoint status
+1. src/routes/friends.ts
+   - GET /api/friends: badge_definition select now includes description + tierColor
+   - featuredBadgeMap shape: { badgeKey, name, description, tierColor }
+   - GET /api/friends/:id/events: Added friendBadgeGrant query + friendFeaturedBadge
 
-4. src/app/calendar.tsx
-   - Changed busy time picker: setHours() -> setMinutes(+/-15)
-   - Start and end time both use 15-minute steps
+2. src/shared/contracts.ts
+   - friendUserSchema: Added featuredBadge optional field
+
+FRONTEND CHANGES (open-invite-app repo)
+---------------------------------------
+Commit: bd0f36d fix(badges): add FRIEND_BADGE_DATA + FRIEND_BADGE_RENDER + BUSY_COLOR_DECISION logging
+
+1. src/app/friends.tsx
+   - Added [FRIEND_BADGE_DATA] logging in FriendCard
+   - Added [FRIEND_BADGE_RENDER] logging in FriendCard
+
+2. src/app/friend/[id].tsx
+   - Changed [FriendProfile] logs to [FRIEND_BADGE_DATA] + [FRIEND_BADGE_RENDER]
+
+3. src/app/calendar.tsx
+   - Added [BUSY_COLOR_DECISION] logging in CalendarEventRow
+
+KEY DIFFS
+---------
+Backend friends.ts badge mapping:
+```
+- select: { key: true, name: true, emoji: true },
++ select: { key: true, name: true, description: true, tierColor: true },
+
+- const featuredBadgeMap = new Map<string, { id: string; name: string; icon: string } | null>();
++ const featuredBadgeMap = new Map<string, { badgeKey: string; name: string; description: string; tierColor: string } | null>();
+
+- id: grant.badgeKey,
+- icon: grant.badge_definition.emoji,
++ badgeKey: grant.badgeKey,
++ description: grant.badge_definition.description ?? "",
++ tierColor: grant.badge_definition.tierColor,
+```
+
+Frontend logging format:
+```
+[FRIEND_BADGE_DATA] friendId hasFeaturedBadge featuredBadge sourceEndpoint
+[FRIEND_BADGE_RENDER] friendId render=true/false reason
+[BUSY_COLOR_DECISION] eventId type paletteName leftBarColor
+```
 
 DEV LOG TAGS
 ------------
-[BADGES_FETCH] - When fetching /api/badges/catalog
-  Fields: badgesCount responseKeys unlockedCount
+[FRIEND_BADGE_DATA]
+  - friendId: string
+  - hasFeaturedBadge: boolean
+  - featuredBadge: string | null
+  - sourceEndpoint: "/api/friends" or "/api/friends/:id/events"
 
-[BADGES_RENDER] - Render decision
-  Fields: bootStatus isLoading totalBadges unlockedCount lockedCount featuredBadge whyHidden
+[FRIEND_BADGE_RENDER]
+  - friendId: string
+  - render: boolean
+  - reason: "badge_present" | "no_badge_in_response"
 
-[ADMIN_DECISION] - Admin section visibility
-  Fields: userId isAdmin email message adminStatusLoading bootStatus whyShownOrHidden
+[BUSY_COLOR_DECISION]
+  - eventId: string
+  - type: "busy" | "work" | "regular"
+  - paletteName: "grey"
+  - leftBarColor: "#6B7280"
 
-[SEARCH_DECISION] - User search in admin console
-  Fields: queryLength query endpoint status resultCount errorText
-
-BUSY BLOCK COLORS (already correct)
------------------------------------
-Calendar list: #6B7280 (grey)
-Friend profile: isDark ? #6B6B6B : #9CA3AF
-Busy modal button: #6B7280
-
-TIME PICKER CHANGE
-------------------
-Before: newTime.setHours(+/- 1)
-After: newTime.setMinutes(+/- 15)
-User can now set 5:15 5:30 5:45 etc
+BUSY BLOCK COLORS
+-----------------
+- getEventColor(): #6B7280 for isBusy=true
+- CalendarEventRow: #6B7280 for isBusy || isWork
+- Consistency verified: left bar, icon, label all grey
 
 TEST PLAN
 ---------
-1. BADGES:
-   - Log in with known account
-   - Go to Profile -> Badges
-   - Check DEV logs for [BADGES_FETCH] and [BADGES_RENDER]
-   - If badges exist, they should appear
+TASK A - FRIEND BADGES:
+[ ] 1. Grant badge to a test friend (Admin Console -> Search user -> Grant badge "OG")
+[ ] 2. Go to Friends tab
+[ ] 3. Find the friend card - should show badge pill near name
+[ ] 4. Check logs: [FRIEND_BADGE_DATA] hasFeaturedBadge=true
+[ ] 5. Tap friend card to open profile
+[ ] 6. Profile header should show badge near avatar
+[ ] 7. Check logs: [FRIEND_BADGE_RENDER] render=true
 
-2. ADMIN:
-   - Log in with admin account
-   - Go to Settings
-   - Check DEV logs for [ADMIN_DECISION] showing isAdmin=true
-   - Admin Console button should appear at bottom
-   - Go to Admin Console
-   - Search for a user
-   - Check [SEARCH_DECISION] logs show status ok
-
-3. BUSY BLOCK:
-   - Go to Calendar
-   - Tap + and select Add Busy
-   - Tap time arrows - should change by 15 minutes
-   - Verify busy blocks show grey in calendar list
+TASK B - BUSY GREY:
+[ ] 1. Create a busy block (Calendar -> + -> Add Busy)
+[ ] 2. View calendar day list - busy block should be grey
+[ ] 3. Check logs: [BUSY_COLOR_DECISION] type=busy leftBarColor=#6B7280
+[ ] 4. No orange/theme color on busy blocks
 
 VERIFICATION RESULTS
 --------------------
-npm run typecheck: PASS
-bash scripts/ai/verify_frontend.sh: PASS
+Backend (my-app-backend):
+  npm run typecheck: PASS
+  
+Frontend (open-invite-app):
+  npm run typecheck: PASS
+  bash scripts/ai/verify_frontend.sh: PASS
 
 GIT
 ---
-Commit: 92f6540 fix(ux): badges+admin logging, busy time 15min steps
-Push: bac5a03..92f6540 main
+Backend: 76e08d4 -> main (pushed to github.com/paulyd-oi/my-app-backend)
+Frontend: bd0f36d -> main (pushed to github.com/paulyd-oi/open-invite-app)
+
+RENDER DEPLOYMENT NOTE
+----------------------
+Backend changes pushed. Render auto-deploys from main branch.
+Wait ~2 minutes for Render to deploy before testing.
 
 ========================================
 END HANDOFF
