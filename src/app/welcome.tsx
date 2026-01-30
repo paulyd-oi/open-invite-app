@@ -348,6 +348,14 @@ export default function WelcomeOnboardingScreen() {
   // Apple Sign-In availability
   const [isAppleSignInReady, setIsAppleSignInReady] = useState(false);
 
+  // DEV-only: Apple Sign-In debug trace state
+  const [appleAuthDebug, setAppleAuthDebug] = useState<{
+    attemptId: string | null;
+    stage: string;
+    error: string | null;
+    timestamp: number | null;
+  }>({ attemptId: null, stage: "idle", error: null, timestamp: null });
+
   // Auth form state (Slide 2)
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -462,17 +470,49 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const handleAppleSignIn = async () => {
+    // Generate unique attempt ID for trace correlation
+    const attemptId = `apple_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const traceLog = (stage: string, data: Record<string, unknown>) => {
+      if (__DEV__) {
+        console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, ...data }));
+      }
+      setAppleAuthDebug({ attemptId, stage, error: null, timestamp: Date.now() });
+    };
+    const traceError = (stage: string, error: any) => {
+      const errorInfo = {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        domain: error?.domain,
+        stack: error?.stack?.slice?.(0, 500),
+        raw: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800),
+      };
+      if (__DEV__) {
+        console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, error: errorInfo }));
+      }
+      setAppleAuthDebug({ attemptId, stage, error: error?.message || "Unknown error", timestamp: Date.now() });
+    };
+
+    traceLog("tap", { timestamp: new Date().toISOString() });
+
+    // Availability checks
+    traceLog("availability_check", {
+      platform: Platform.OS,
+      modulePresent: !!AppleAuthentication,
+      isAppleSignInReady,
+    });
+
     if (!isAppleSignInReady || !AppleAuthentication) {
+      traceError("availability_fail", { message: "Apple Sign-In not available" });
       safeToast.warning("Apple Sign-In unavailable", "Use email to continue.");
       return;
     }
 
-    console.log("[Onboarding] Starting Apple auth...");
     setIsLoading(true);
     setErrorBanner(null);
 
     try {
-      console.log("[AUTH_TRACE] Apple Sign-In: requesting credential...");
+      traceLog("request_start", { scopes: ["FULL_NAME", "EMAIL"] });
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -480,23 +520,27 @@ export default function WelcomeOnboardingScreen() {
         ],
       });
 
-      // Validate credential has required fields
-      console.log("[AUTH_TRACE] Apple Sign-In: credential received", {
+      // Log credential result (redacted)
+      traceLog("request_result", {
         hasIdentityToken: !!credential.identityToken,
+        identityTokenLength: credential.identityToken?.length || 0,
         hasAuthorizationCode: !!credential.authorizationCode,
         hasEmail: !!credential.email,
+        emailRedacted: credential.email ? `${credential.email.slice(0, 3)}...` : null,
         hasFullName: !!(credential.fullName?.givenName || credential.fullName?.familyName),
       });
       
       if (!credential.identityToken) {
-        console.log("[AUTH_TRACE] Apple Sign-In: MISSING identityToken");
+        traceError("credential_invalid", { message: "Missing identityToken" });
         throw new Error("Apple Sign-In did not return required credentials. Please try again.");
       }
 
       // Send to backend - CRITICAL: React Native doesn't auto-persist Set-Cookie
       // We must manually capture the Set-Cookie header and store it in SecureStore
-      console.log("[AUTH_TRACE] Apple Sign-In: sending to backend...");
-      const response = await fetch(`${BACKEND_URL}/api/auth/apple`, {
+      const backendUrl = `${BACKEND_URL}/api/auth/apple`;
+      traceLog("backend_exchange_start", { url: backendUrl, method: "POST" });
+      
+      const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "omit", // Don't rely on auto cookie handling in RN
@@ -515,27 +559,25 @@ export default function WelcomeOnboardingScreen() {
       // CRITICAL: Capture Set-Cookie header before reading body
       // React Native exposes Set-Cookie via response.headers.get() sometimes
       const setCookieHeader = response.headers.get("set-cookie") || response.headers.get("Set-Cookie");
-      console.log("[AUTH_TRACE] Apple Sign-In: Set-Cookie header present:", !!setCookieHeader);
       
       const data = await response.json();
       
-      console.log("[AUTH_TRACE] Apple Sign-In: backend response", {
+      traceLog("backend_exchange_response", {
         status: response.status,
         ok: response.ok,
         hasToken: !!data.token || !!data.session?.token,
+        hasMobileSessionToken: !!data.mobileSessionToken,
         hasSetCookie: !!setCookieHeader,
         hasSessionInBody: !!data.session,
         success: data.success || data.ok,
+        bodyPreview: JSON.stringify(data).slice(0, 200).replace(/"token":"[^"]+"/g, '"token":"[REDACTED]"'),
       });
 
       if (!response.ok || (!data.success && !data.ok)) {
-        // Enhanced error capture for diagnosability
-        console.log("[AUTH_TRACE] Apple Sign-In BACKEND FAILURE:", {
+        traceError("backend_exchange_fail", {
+          message: data.error || data.message || `HTTP ${response.status}`,
           httpStatus: response.status,
           httpStatusText: response.statusText,
-          responseBody: JSON.stringify(data).slice(0, 500),
-          errorField: data.error,
-          messageField: data.message,
         });
         throw new Error(data.error || data.message || `Apple authentication failed (HTTP ${response.status})`);
       }
@@ -545,60 +587,72 @@ export default function WelcomeOnboardingScreen() {
       // We store in SESSION_COOKIE_KEY and set module cache directly for immediate use
       
       let tokenValue: string | null = null;
+      let tokenSource: string = "none";
       
       // Priority 1: mobileSessionToken (canonical Better Auth format)
       if (data.mobileSessionToken && typeof data.mobileSessionToken === 'string') {
         tokenValue = data.mobileSessionToken;
-        console.log("[AUTH_TRACE] Apple Sign-In: using mobileSessionToken from response");
+        tokenSource = "mobileSessionToken";
       }
       // Priority 2: token field
       else if (data.token && typeof data.token === 'string') {
         tokenValue = data.token;
-        console.log("[AUTH_TRACE] Apple Sign-In: using token from response");
+        tokenSource = "token";
       }
       // Priority 3: session.token field
       else if (data.session?.token && typeof data.session.token === 'string') {
         tokenValue = data.session.token;
-        console.log("[AUTH_TRACE] Apple Sign-In: using session.token from response");
+        tokenSource = "session.token";
       }
       // Priority 4: Extract from Set-Cookie header (if accessible in RN)
       else if (setCookieHeader) {
         const sessionMatch = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
         if (sessionMatch && sessionMatch[1]) {
           tokenValue = sessionMatch[1];
-          console.log("[AUTH_TRACE] Apple Sign-In: extracted token from Set-Cookie header");
+          tokenSource = "Set-Cookie";
         }
       }
       
+      traceLog("token_extraction", {
+        found: !!tokenValue,
+        source: tokenSource,
+        tokenLength: tokenValue?.length || 0,
+        responseKeys: Object.keys(data || {}),
+      });
+      
       if (!tokenValue) {
-        console.log("[AUTH_TRACE] Apple Sign-In: NO TOKEN FOUND IN RESPONSE", {
-          hasData: !!data,
-          keys: Object.keys(data || {}),
+        traceError("token_missing", {
+          message: "No session token in response",
+          responseKeys: Object.keys(data || {}),
           hasSetCookie: !!setCookieHeader,
         });
         throw new Error("Apple Sign-In succeeded but no session token was returned. Please try again.");
       }
       
       // Store token in SecureStore (via setExplicitCookiePair which formats as cookie pair)
-      await setExplicitCookiePair(tokenValue);
-      console.log("[AUTH_TRACE] Apple Sign-In: Cookie stored in SecureStore");
+      try {
+        await setExplicitCookiePair(tokenValue);
+        traceLog("cookie_persist_securestore", { success: true, key: "SESSION_COOKIE_KEY" });
+      } catch (storeErr: any) {
+        traceError("cookie_persist_securestore_fail", storeErr);
+        throw storeErr;
+      }
       
       // Set module cache directly for immediate use (no read-back delay)
       setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
-      console.log("[AUTH_TRACE] Apple Sign-In: Cookie cache set directly");
+      traceLog("cookie_cache_set", { success: true });
       
       // Also store as legacy auth token (for any code still using token auth)
       await setAuthToken(tokenValue);
       
       // Verify cookie cache is working by calling refreshExplicitCookie
       await refreshExplicitCookie();
-      console.log("[AUTH_TRACE] Apple Sign-In: Cookie cache verified after refresh");
+      traceLog("cookie_cache_verified", { success: true });
 
       // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
       // Without this, BootRouter may redirect to /login because bootStatus is stale
-      console.log("[AUTH_TRACE] Apple Sign-In: Requesting bootstrap refresh...");
       requestBootstrapRefreshOnce();
-      console.log("[AUTH_TRACE] Apple Sign-In: Bootstrap refresh requested");
+      traceLog("bootstrap_refresh_requested", { success: true });
 
       // Pre-populate name from Apple
       if (credential.fullName?.givenName) {
@@ -607,36 +661,24 @@ export default function WelcomeOnboardingScreen() {
           credential.fullName.familyName,
         ].filter(Boolean).join(" ");
         setDisplayName(fullName);
-        console.log("[AUTH_TRACE] Apple Sign-In: Display name populated from Apple credential");
       } else if (data.user?.name) {
         setDisplayName(data.user.name);
-        console.log("[AUTH_TRACE] Apple Sign-In: Display name populated from backend response");
       }
 
       // Advance to Slide 3 - auth succeeded (cookie is set)
-      console.log("[AUTH_TRACE] Apple Sign-In: ✓ SUCCESS - advancing to slide 3 (profile setup)");
+      traceLog("final_success", { advancingToSlide: 3 });
       setCurrentSlide(3);
     } catch (error: any) {
       // User cancelled - no error to show
       if (isAppleAuthCancellation(error)) {
-        console.log("[AUTH_TRACE] Apple Sign-In: user cancelled");
+        traceLog("user_cancelled", { cancelled: true });
         return;
       }
       
-      // Enhanced diagnostic logging for all Apple Sign-In errors
-      console.log("[AUTH_TRACE] Apple Sign-In ERROR DIAGNOSTIC:", {
-        // Native error details
-        code: error?.code,
-        message: error?.message,
-        name: error?.name,
-        // For network/fetch errors
-        status: error?.status,
-        statusText: error?.statusText,
-        // Full error object (truncated)
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 1000),
-      });
+      // Log full error for diagnostics
+      traceError("final_fail", error);
       
-      // Decode error to user-friendly message
+      // Decode error to user-friendly message (mom-safe)
       const userMessage = decodeAppleAuthError(error);
       setErrorBanner(userMessage || "Apple Sign-In failed. Please try again.");
     } finally {
@@ -932,6 +974,23 @@ export default function WelcomeOnboardingScreen() {
           {errorBanner && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorBannerText}>{errorBanner}</Text>
+            </View>
+          )}
+
+          {/* DEV-only: Apple Auth Debug Panel */}
+          {__DEV__ && Platform.OS === "ios" && appleAuthDebug.attemptId && (
+            <View style={[styles.errorBanner, { backgroundColor: "#1a1a2e", borderColor: "#4a4a6a" }]}>
+              <Text style={{ color: "#8be9fd", fontSize: 10, fontFamily: "monospace" }}>
+                [APPLE_AUTH_TRACE] {appleAuthDebug.attemptId}
+              </Text>
+              <Text style={{ color: "#50fa7b", fontSize: 10, fontFamily: "monospace" }}>
+                Stage: {appleAuthDebug.stage}
+              </Text>
+              {appleAuthDebug.error && (
+                <Text style={{ color: "#ff5555", fontSize: 10, fontFamily: "monospace" }}>
+                  Error: {appleAuthDebug.error}
+                </Text>
+              )}
             </View>
           )}
 
