@@ -842,7 +842,7 @@ export default function EventDetailScreen() {
                 <MessageCircle size={20} color={themeColor} />
               </Pressable>
               {/* Report Button (only for non-owners) */}
-              {!isMyEvent && (
+              {!isMyEvent && !event?.isBusy && (
                 <Pressable
                   onPress={handleReportEvent}
                   className="p-2"
