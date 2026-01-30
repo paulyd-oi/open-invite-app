@@ -1,111 +1,97 @@
-HANDOFF PACKET — DEV-ONLY TEXT RENDER CRASH DETECTOR
-=====================================================
+HANDOFF PACKET — PROFILE SCREEN TEXT RENDER CRASH FIX
+======================================================
 Date: 2025-01-30
 Branch: main
-Commit: 9c51a12
+Commit: 436c9f5
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Added DEV-only runtime detector for "Text strings must be rendered within
-a <Text> component" crash that occurs in TestFlight. Exhaustive static
-analysis did not find the culprit, so instrumentation was added to capture
-stack traces when the crash occurs at runtime.
+Added defensive string guards in Profile screen to prevent potential
+"Text strings must be rendered within a <Text> component" crash.
 
 PROBLEM
 -------
-TestFlight users experiencing crash with message:
+TestFlight crash reported with message:
   "Text strings must be rendered within a <Text> component"
+Stack trace pointed to: profile.tsx (68:39)
 
-This React Native error occurs when raw strings/numbers are rendered 
-directly inside View components instead of Text components.
+Note: Line 68 in current source is hook code, not JSX. Line number 
+likely from bundled/transpiled code, making exact match impossible.
 
 INVESTIGATION PERFORMED
 -----------------------
-Static needle search across all .tsx files for common patterns:
+Exhaustive static analysis of profile.tsx:
+1. All string renders checked - all properly wrapped in <Text>
+2. All conditional renders checked - proper guards in place
+3. All numeric values checked - inside <Text> components
+4. All IIFEs checked - return View or null
+5. All map() iterations checked - return proper JSX
+6. Component imports verified - all return valid ReactElements
+7. ESLint run - only unused variable warnings
 
-1. `&& "string"` - Found 3 matches, all properly inside <Text>
-2. `return "string"` - Helper functions only, not JSX
-3. View + children patterns - Wrapper components passing React nodes
-4. Ternary `? "string"` - All properly wrapped in <Text>
-5. Template literals `{...}` - All properly wrapped
-6. Number rendering `{0}` or `{count}` - None found raw
-7. Function call results in Views - All return valid ReactNode
+Files checked:
+- src/app/profile.tsx (576 lines)
+- src/components/BottomNavigation.tsx
+- src/components/MonthlyRecap.tsx
+- src/components/StreakCounter.tsx
+- src/components/LoadingTimeoutUI.tsx
+- src/components/BadgePill.tsx
+- src/lib/profileDisplay.ts
+- src/ui/icons.tsx
 
-Files manually inspected:
-- event-request/[id].tsx
-- import-calendar.tsx  
-- settings.tsx
-- notification-settings.tsx
-- activity.tsx
-- CircleCard.tsx
-- EmptyState.tsx
-- Toast.tsx
+ROOT CAUSE (LIKELY)
+-------------------
+Exact culprit not identified in static analysis. Possible causes:
+1. Type coercion edge case where non-string value reaches JSX
+2. Race condition during data loading
+3. Backend returning unexpected data type
+4. Bundler line number offset masking true location
 
-NO CULPRIT FOUND via static analysis.
+FIX APPLIED
+-----------
+Added defensive type guards to ensure string values are truly strings:
 
-SOLUTION IMPLEMENTED
---------------------
-DEV-only runtime detector to capture crash location on reproduction.
+File: src/app/profile.tsx
 
-FILES CHANGED
--------------
-1. src/app/_layout.tsx (lines 52-62)
-   - Added console.error interceptor (DEV only)
-   - Detects "Text strings must be rendered" message
-   - Logs stack trace when triggered
-   
-2. src/components/ErrorBoundary.tsx
-   - Enhanced componentDidCatch
-   - Checks for Text render crash message
-   - Logs component stack + JS stack
+1. userHandle (line 265-267):
+   BEFORE: const userHandle = user?.handle || profileData?.profile?.handle;
+   AFTER:  const rawHandle = user?.handle || profileData?.profile?.handle;
+           const userHandle = typeof rawHandle === 'string' && rawHandle.length > 0 ? rawHandle : undefined;
 
-KEY CODE
---------
-_layout.tsx:
-  if (__DEV__) {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      const message = args[0]?.toString?.() ?? '';
-      if (message.includes('Text strings must be rendered')) {
-        console.warn('🔴 TEXT RENDER CRASH DETECTED');
-        console.warn('Stack:', new Error().stack);
-      }
-      originalConsoleError.apply(console, args);
-    };
-  }
+2. calendarBio (line 174-176):
+   BEFORE: const calendarBio = profileData?.profile?.calendarBio;
+   AFTER:  const rawBio = profileData?.profile?.calendarBio;
+           const calendarBio = typeof rawBio === 'string' && rawBio.length > 0 ? rawBio : undefined;
+
+These guards ensure:
+- Only actual strings pass through
+- Empty strings become undefined (won't render)
+- Numbers/booleans/objects become undefined (won't render)
 
 VERIFICATION
 ------------
 - npm run typecheck: PASSED
 - bash scripts/ai/verify_frontend.sh: PASS
 
-NEXT STEPS FOR FUTURE AGENT
----------------------------
-1. User must REPRODUCE the crash in DEV mode (simulator/Expo Go)
-2. When crash occurs, look for console output:
-   🔴 TEXT RENDER CRASH DETECTED
-   Stack: [full stack trace showing offending component]
-3. Stack trace will reveal exact file + line of bad JSX
-4. Fix the identified code (wrap string/number in <Text>)
-5. Remove DEV-only detector after fix confirmed
-
-POSSIBLE CRASH SOURCES NOT YET EXPLORED
----------------------------------------
-- Third-party library components
-- Race condition in async data loading
-- Platform-specific code paths (iOS-only)
-- Edge case in navigation state
-
-WHY STATIC SEARCH FAILED
+PREVIOUS SESSION CONTEXT
 ------------------------
-The crash may be:
-1. In a code path not exercised during static analysis
-2. A race condition where undefined/null becomes string
-3. In library code we don't control
-4. Platform-specific rendering issue
+DEV-only runtime detector was added in commit 9c51a12:
+- src/app/_layout.tsx: console.error interceptor
+- src/components/ErrorBoundary.tsx: enhanced componentDidCatch
+These remain in place to capture future crashes with stack traces.
 
-IMPORTANT
----------
-DO NOT GUESS at the fix. The detector must capture the exact location.
-The crash is real (TestFlight reports) but source is NOT YET IDENTIFIED.
+NEXT STEPS
+----------
+1. Deploy to TestFlight
+2. Monitor for crash recurrence
+3. If crash still occurs, DEV detector will log exact location
+4. Remove DEV detector after fix confirmed stable
+
+SUCCESS CRITERIA
+----------------
+[x] Static analysis completed
+[x] Defensive guards added
+[x] Typecheck passes
+[x] verify_frontend.sh passes
+[x] Committed and pushed
