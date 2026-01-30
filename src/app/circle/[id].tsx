@@ -718,6 +718,16 @@ export default function CircleScreen() {
   const [showMembersSheet, setShowMembersSheet] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<string | null>(null);
+
+  // DEV: Log when selectedMemberToRemove changes
+  React.useEffect(() => {
+    if (__DEV__) {
+      console.log('[CircleRemoveMember] selectedMemberToRemove changed:', {
+        selectedMemberToRemove,
+        confirmModalShouldBeVisible: !!selectedMemberToRemove,
+      });
+    }
+  }, [selectedMemberToRemove]);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState("");
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
@@ -1864,7 +1874,12 @@ export default function CircleScreen() {
                               safeToast.error("Error", "Unable to identify member. Please try again.");
                               return;
                             }
-                            setSelectedMemberToRemove(targetUserId);
+                            // Close the members sheet FIRST, then show confirmation
+                            setShowMembersSheet(false);
+                            // Small delay to allow sheet animation to start
+                            setTimeout(() => {
+                              setSelectedMemberToRemove(targetUserId);
+                            }, 100);
                           }}
                           style={{
                             width: 32,
@@ -1988,6 +2003,7 @@ export default function CircleScreen() {
         visible={!!selectedMemberToRemove}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setSelectedMemberToRemove(null)}
       >
         <Pressable

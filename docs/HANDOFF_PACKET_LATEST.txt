@@ -1,108 +1,58 @@
 ========================================
-HANDOFF PACKET - Frontend Patch #5 (Busy UX + Friend Badge + Circle Remove + Admin)
-Date: 2026-01-29
+HANDOFF PACKET - Frontend Patch #6 (Circle Member Remove Confirm Modal)
+Date: 2026-01-30
 ========================================
 
 SUMMARY
 -------
-Implemented 5 UX fixes for launch trust:
+Fixed circle member removal confirmation modal not appearing.
 
-1. BUSY BLOCK GREY STYLING (Main Calendar)
-   - getEventColor() now checks isBusy BEFORE custom/group colors
-   - ALL busy blocks (self-created or masked) render grey (#6B7280)
-   - Applies to: month grid dots, stacked bars, details cells, day list cards
+ROOT CAUSE:
+Two React Native <Modal> components cannot stack properly - when members 
+sheet (showMembersSheet) was open and user tapped trash, the confirmation 
+modal (selectedMemberToRemove) was set to visible but rendered BEHIND or 
+blocked by the sheet modal.
 
-2. BUSY EVENT DETAILS UX
-   - Visibility forced to "Only self" for isBusy events
-   - Circle/group visibility NOT leaked (even if stored internally)
-   - Post-event reflection section HIDDEN for busy blocks
+FIX:
+1. Close members sheet FIRST before showing confirmation modal
+2. Use small setTimeout (100ms) to allow sheet animation to start closing
+3. Added statusBarTranslucent to confirmation modal
+4. Added useEffect to log state changes for debugging
 
-3. FRIEND PROFILE BADGE
-   - Uses embedded featuredBadge from friend data (GET /api/friends/:id/events)
-   - Fallback query only if featuredBadge not embedded
-   - Handles both schemas (ProfileBadge with emoji, featuredBadge without)
-   - DEV logs show badge source (embedded vs query)
-
-4. CIRCLE MEMBER REMOVAL
-   - Enhanced DEV logs at every step:
-     * Trash button press: member snapshot (id, userId, name, circleId)
-     * Confirm press: circleId + userId + API path
-     * Mutation: execution + success/error with status + body
-   - Validates userId before setting state (error toast if null)
-
-5. ADMIN CONSOLE
-   - DEV logs for admin status check (isAdmin, email, message)
-   - DEV logs for search button press + results count
-   - AdminMeResponse type extended with email/message fields
+FLOW NOW:
+1. User opens circle → Members sheet → taps trash on member
+2. Sheet closes immediately
+3. After 100ms, confirmation modal appears
+4. User taps Confirm → DELETE mutation fires → member removed → toast
 
 FILES CHANGED
 -------------
-src/app/calendar.tsx
-  - getEventColor(): Added isBusy check BEFORE custom color check (line 107)
-  - Returns "#6B7280" for all isBusy events
-
-src/app/event/[id].tsx
-  - Visibility section: Forces "Only self" for event.isBusy (line 1002)
-  - Group pills: Hidden for isBusy events (line 1021)
-  - Reflection section: Condition now includes !event.isBusy (line 1200)
-
-src/app/friend/[id].tsx
-  - Badge query: enabled only if !friend.featuredBadge (line 392)
-  - friendBadge: Uses embedded badge first, fallback to query (line 396)
-  - Badge emoji: Checks 'emoji' in friendBadge before rendering (line 626)
-  - DEV log for badge source added
-
 src/app/circle/[id].tsx
-  - Trash onPress: Full member snapshot log (line 1843)
-  - Trash onPress: Validates userId before state update (line 1853)
-  - Confirm onPress: Logs circleId + userId + API path (line 2043)
-  - Mutation: Logs execution, success, and error with details (line 816+)
+  - Line 722: Added useEffect to log selectedMemberToRemove state changes
+  - Line 1878: Close showMembersSheet BEFORE setting selectedMemberToRemove
+  - Line 1880: setTimeout to set selectedMemberToRemove after 100ms
+  - Line 2002: Added statusBarTranslucent to confirmation Modal
 
-src/lib/adminApi.ts
-  - AdminMeResponse: Added email + message fields (line 10)
-  - checkAdminStatus: Returns full response, logs all fields (line 58)
+KEY CODE CHANGE
+---------------
+Before (trash press):
+  setSelectedMemberToRemove(targetUserId);
 
-src/app/admin.tsx
-  - Admin status effect: DEV log with full status object (line 49)
-  - handleSearch: DEV log on press + results count (line 66)
+After (trash press):
+  setShowMembersSheet(false);
+  setTimeout(() => {
+    setSelectedMemberToRemove(targetUserId);
+  }, 100);
 
-BUSY BLOCK GREY STYLING RULE
-----------------------------
-In getEventColor():
-1. Check isBirthday first → "#FF69B4"
-2. Check isBusy second → "#6B7280" (grey)
-3. Check event.color third → custom color
-4. Check groupVisibility → group color
-5. Fallback → defaultColor (themeColor)
+DEV LOGS ADDED
+--------------
+1. State change log (useEffect on selectedMemberToRemove):
+   [CircleRemoveMember] selectedMemberToRemove changed: { selectedMemberToRemove, confirmModalShouldBeVisible }
 
-This ensures ALL busy events render grey regardless of any stored color.
-
-CIRCLE REMOVE userId NULL ROOT CAUSE
-------------------------------------
-The previous log showed:
-  [CircleRemoveMember] Opening confirmation modal for: <someId> null
-
-This suggested member.user.name was null (second arg was name, not userId).
-The actual userId (member.userId) was present and valid.
-
-FIX:
-- Enhanced logging to show all ID fields (member.id, member.userId, member.user?.id)
-- Added validation before setState to catch truly null userId
-- Mutation now logs the endpoint being called for debugging
-
-ADMIN CONSOLE GATING
---------------------
-The screen renders when:
-1. adminLoading is false AND adminStatus?.isAdmin is true
-2. Otherwise shows "Checking permissions..." or null (redirect)
-
-Search button:
-- Pressable with onPress={handleSearch}
-- disabled={isSearching || !searchQuery.trim()}
-- Shows haptics + logs on press
-
-"Manage User Badges" is NOT a button - it's a static label.
-The actual interaction is via the search input + button.
+2. Existing logs remain:
+   - Trash pressed: member snapshot
+   - Confirm pressed: circleId + userId + apiPath
+   - Mutation: execution + success/error
 
 VERIFICATION RESULTS
 --------------------
@@ -111,38 +61,17 @@ bash scripts/ai/verify_frontend.sh: PASS
 
 MANUAL PROOF STEPS (cold-start)
 -------------------------------
-A) Busy block grey rendering:
-   1. Create event → toggle "Mark as Busy" in context menu
-   2. Calendar month grid shows grey dot
-   3. Day list shows grey left accent
-
-B) Busy event details:
-   1. Open busy event
-   2. Visibility shows "Only self" (not "All Friends" or group)
-   3. No "Post-event reflection" section visible
-
-C) Friend profile badge:
-   1. View friend with badge
-   2. Badge pill visible below avatar
-   3. DEV log shows "Badge source: embeddedBadge" or "queryBadge"
-
-D) Circle member removal:
-   1. Open circle as host
-   2. Open members sheet
-   3. Tap trash on non-host member
-   4. DEV log shows: [CircleRemoveMember] Trash pressed, member snapshot: {...}
-   5. Tap "Remove" in modal
-   6. DEV log shows: [CircleRemoveMember] Confirm pressed: {...}
-   7. DEV log shows: [CircleRemoveMember] Mutation executing: {...}
-   8. Success toast appears
-
-E) Admin console:
-   1. Open Admin Console (from Settings)
-   2. DEV log shows: [AdminConsole] Admin status check: {isAdmin, email}
-   3. Type search query
-   4. Tap Search button
-   5. DEV log shows: [AdminConsole] Search button pressed: {query}
-   6. Results appear (if admin)
+1. Open app fresh → go to Circles
+2. Open a circle where you are host
+3. Tap on member count to open Members sheet
+4. Tap trash icon on a non-host member
+5. VERIFY: Sheet closes, confirmation modal appears
+6. DEV LOG: [CircleRemoveMember] selectedMemberToRemove changed: {..., confirmModalShouldBeVisible: true}
+7. Tap "Remove" button
+8. DEV LOG: [CircleRemoveMember] Confirm pressed: {circleId, memberUserIdToRemove, apiPath}
+9. DEV LOG: [CircleRemoveMember] Mutation executing: {...}
+10. Toast: "Member has been removed from the circle."
+11. Member disappears from list
 
 ========================================
 END HANDOFF
