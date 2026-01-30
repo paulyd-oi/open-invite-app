@@ -111,6 +111,7 @@ export const EyeOff = ion("eye-off-outline");
 export const ArrowLeft = ion("arrow-back-outline");
 export const ArrowRight = ion("arrow-forward-outline");
 export const StickyNote = ion("document-text-outline");
+// DEPRECATED: DO NOT USE Trophy. Badges are pill-only. Use Award icon instead.
 export const Trophy = ion("trophy-outline");
 export const Medal = ion("medal-outline");
 export const Flame = ion("flame-outline");

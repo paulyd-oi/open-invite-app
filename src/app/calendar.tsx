@@ -45,6 +45,7 @@ import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
+import { getEventPalette, getEventBarColor, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -99,25 +100,11 @@ function formatDateShort(date: Date): string {
   return `${months[date.getMonth()]}. ${day}${getOrdinalSuffix(day)}`;
 }
 
-// Get event color - use first group color or default theme color
-function getEventColor(event: Event & { isBirthday?: boolean }, defaultColor: string): string {
-  // Birthday events get pink color
-  if (event.isBirthday) {
-    return "#FF69B4";
-  }
-  // Busy blocks (self-created or masked) always get grey
-  if (event.isBusy) {
-    return "#6B7280";
-  }
-  // If event has a custom color set, use it
-  if (event.color) {
-    return event.color;
-  }
-  // If event is tied to a group, use the group's color
-  if (event.groupVisibility && event.groupVisibility.length > 0) {
-    return event.groupVisibility[0].group.color;
-  }
-  return defaultColor;
+// DEPRECATED: Use getEventBarColor from @/lib/eventPalette instead
+// This wrapper exists only for backward compatibility during migration
+function getEventColor(event: Event & { isBirthday?: boolean; isWork?: boolean }, defaultColor: string): string {
+  // Delegate to single source of truth
+  return getEventBarColor(event, defaultColor);
 }
 
 // Check if a hex color is light (for determining text contrast)
@@ -140,67 +127,8 @@ function getTextColorForBackground(bgColor: string, isDark: boolean): string {
   return bgColor;
 }
 
-// INVARIANT: Busy blocks must ALWAYS use grey palette, never theme/orange
-// Single source-of-truth for ALL event styling throughout the app
-export interface EventPalette {
-  bar: string;    // Left bar / primary color
-  bg: string;     // Background tint (20% alpha)
-  icon: string;   // Icon color
-  text: string;   // Text color for overlays
-}
-
-// Canonical busy palette - grey only, never theme
-const BUSY_PALETTE: EventPalette = {
-  bar: "#6B7280",
-  bg: "#6B728020",
-  icon: "#6B7280",
-  text: "#6B7280",
-};
-
-// INVARIANT: This is the ONLY function that should determine event colors
-// All render paths must use this function to ensure busy events are ALWAYS grey
-export function getEventPalette(
-  event: { isBusy?: boolean; isBirthday?: boolean; color?: string; groupVisibility?: Array<{ group: { color: string } }> },
-  themeColor: string
-): EventPalette {
-  // INVARIANT: Busy events ALWAYS use grey palette, regardless of any other property
-  if (event.isBusy) {
-    return BUSY_PALETTE;
-  }
-  
-  // Birthday events get pink
-  if (event.isBirthday) {
-    return {
-      bar: "#FF69B4",
-      bg: "#FF69B420",
-      icon: "#FF69B4",
-      text: "#FF69B4",
-    };
-  }
-  
-  // Determine base color from event properties
-  let baseColor = themeColor;
-  if (event.color) {
-    baseColor = event.color;
-  } else if (event.groupVisibility && event.groupVisibility.length > 0) {
-    baseColor = event.groupVisibility[0].group.color;
-  }
-  
-  return {
-    bar: baseColor,
-    bg: `${baseColor}20`,
-    icon: baseColor,
-    text: baseColor,
-  };
-}
-
-// Legacy helper - delegates to getEventPalette
-function getBusyColors(isBusy: boolean, themeColor: string): { bar: string; bg: string } {
-  if (isBusy) {
-    return { bar: BUSY_PALETTE.bar, bg: BUSY_PALETTE.bg };
-  }
-  return { bar: themeColor, bg: `${themeColor}20` };
-}
+// NOTE: getEventPalette, EventPalette, and assertGreyPaletteInvariant are now imported from @/lib/eventPalette
+// This is the single source of truth for busy/work grey rendering
 
 // Helper to format date for calendar URLs
 const formatDateForCalendar = (date: Date): string => {
@@ -670,22 +598,16 @@ function EventListItem({
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
-  // Use pink/magenta for birthdays, gray for work/busy, theme color for regular events
-  // INVARIANT: Busy blocks ALWAYS use getBusyColors() for grey palette
-  const busyPalette = getBusyColors(event.isBusy === true, themeColor);
-  const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? busyPalette.bar : getEventColor(event, themeColor);
-  const bgColor = isBirthday ? "#FF69B420" : (isWork || event.isBusy) ? busyPalette.bg : `${eventColor}20`;
+  
+  // INVARIANT: Use single source of truth for event palette (busy/work = grey)
+  const palette = getEventPalette({ ...event, isWork }, themeColor);
+  const eventColor = isBirthday ? "#FF69B4" : palette.bar;
+  const bgColor = isBirthday ? "#FF69B420" : palette.bg;
   const textColor = getTextColorForBackground(eventColor, isDark);
 
-  // DEV logging for busy invariant: if isBusy, must use grey palette
-  if (__DEV__ && event.isBusy) {
-    console.log("[BUSY_INVARIANT]", {
-      eventId: event.id,
-      isBusy: true,
-      barColor: busyPalette.bar,
-      bgColor: busyPalette.bg,
-      sourceComponent: "EventListItem",
-    });
+  // DEV assertion: verify grey palette invariant
+  if (__DEV__) {
+    assertGreyPaletteInvariant({ ...event, isWork }, palette, "EventListItem");
   }
 
   // Format time label: birthdays show "All day", all other events show time range

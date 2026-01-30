@@ -1,5 +1,48 @@
 # Findings Log — Frontend
 
+## P0: Busy/Work Grey Single Source of Truth (2026-01-30)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Busy and Work events were rendering with orange/theme colors in some calendar views (month bars, dots) instead of grey.
+
+**ROOT CAUSE**: Multiple divergent render paths for event colors:
+1. `calendar.tsx` had `getEventColor()` that checked `isBusy` but NOT `isWork`
+2. `FeedCalendar.tsx` had its own `getEventColor()` with different logic
+3. `EventListItem` used a separate `getBusyColors()` function
+4. Month view cells (CompactDayCell, StackedDayCell, DetailsDayCell) all used `getEventColor()` directly
+
+**FIX**: Created single source of truth module:
+
+### src/lib/eventPalette.ts (NEW)
+- `GREY_PALETTE`: `{ bar: "#6B7280", bg: "#6B728020", icon: "#6B7280", text: "#6B7280" }`
+- `BIRTHDAY_PALETTE`: `{ bar: "#FF69B4", bg: "#FF69B420", ... }`
+- `isGreyPaletteEvent(event)`: Returns true if `isBusy === true OR isWork === true`
+- `getEventPalette(event, themeColor)`: INVARIANT function - checks isBusy/isWork FIRST, returns grey palette
+- `assertGreyPaletteInvariant(event, palette, source)`: DEV-only assertion logs `[BUSY_GREY_INVARIANT_FAIL]`
+- `getEventBarColor(event, themeColor)`: Simplified helper delegates to `getEventPalette().bar`
+
+### src/app/calendar.tsx
+- Line 44: Import `getEventPalette, getEventBarColor, assertGreyPaletteInvariant` from `@/lib/eventPalette`
+- Line 103-108: `getEventColor()` now delegates to `getEventBarColor()` (deprecation wrapper)
+- Line 130-131: Removed old BUSY_PALETTE, getBusyColors, getEventPalette definitions
+- Line 603-607: `EventListItem` now uses `getEventPalette({ ...event, isWork }, themeColor)` for palette
+- Line 609-611: DEV assertion via `assertGreyPaletteInvariant()`
+
+### src/components/FeedCalendar.tsx
+- Line 10: Import `getEventBarColor` from `@/lib/eventPalette`
+- Line 24-34: `getEventColor()` now checks isBusinessEvent first, then delegates to `getEventBarColor()`
+
+### Busy Creation Payload (VERIFIED)
+- Line 1299 in calendar.tsx: `createBusyMutation` sends `isBusy: true` in API payload
+- Field is correctly persisted by backend and returned in event objects
+
+### Badge Pill-Only Invariant
+- **Trophy icon deprecated**: Line 114 in src/ui/icons.tsx has "DO NOT USE" comment
+- **Badge overlays removed**: friend/[id].tsx and user/[id].tsx have INVARIANT comments, pill-only display
+- **Premium overlay kept**: profile.tsx Crown overlay is for premium status (different from badge)
+
+**VERIFICATION**: `bun run typecheck` passes, `verify_frontend.sh` passes, `rg -n "Trophy" src/app src/components src/ui` shows only comments/deprecation
+
 ## Apple Sign-In Cookie Storage Fix (2025-01-29)
 
 ### Root Cause Analysis ✓

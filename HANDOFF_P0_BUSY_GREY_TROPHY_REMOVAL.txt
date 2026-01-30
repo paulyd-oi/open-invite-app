@@ -1,0 +1,140 @@
+HANDOFF PACKET — P0: Busy Grey Everywhere + Remove Trophy Everywhere
+=====================================================================
+Date: 2026-01-30
+Commit: bdaaa3a
+Branch: main
+Repo: open-invite-app (frontend)
+
+1) SUMMARY
+----------
+- Created getEventPalette() as SINGLE SOURCE OF TRUTH for event colors
+- BUSY_PALETTE constant: { bar: "#6B7280", bg: "#6B728020" }
+- Removed ALL Trophy icon usage (replaced with Award)
+- Removed badge overlay from user/[id].tsx avatar (pill-only)
+- Social calendar already filters isBusy events (verified in social.tsx)
+
+2) FILES CHANGED
+----------------
+src/app/calendar.tsx           — getEventPalette() + BUSY_PALETTE
+src/components/FeedCalendar.tsx — isBusy check in getEventColor()
+src/app/user/[id].tsx          — Removed avatar badge overlay, Trophy → Award
+src/app/profile.tsx            — Trophy → Award in badges section
+src/app/achievements.tsx       — Trophy → Award in empty state & modal
+src/app/help-faq.tsx           — Trophy → Award in achievements section  
+src/app/subscription.tsx       — Trophy → Award in features list
+src/app/invite.tsx             — Trophy → Award in reward tiers
+src/components/StreakCounter.tsx — Trophy → Award in best streak badge
+
+3) KEY DIFFS — Busy Grey Single Source of Truth
+-----------------------------------------------
+calendar.tsx (lines 145-195):
+```tsx
+// Canonical busy palette - grey only, never theme
+const BUSY_PALETTE: EventPalette = {
+  bar: "#6B7280",
+  bg: "#6B728020",
+  icon: "#6B7280",
+  text: "#6B7280",
+};
+
+// INVARIANT: This is the ONLY function that should determine event colors
+export function getEventPalette(event, themeColor): EventPalette {
+  // INVARIANT: Busy events ALWAYS use grey palette
+  if (event.isBusy) {
+    return BUSY_PALETTE;
+  }
+  // ...other cases (birthday pink, group colors, etc)
+}
+```
+
+FeedCalendar.tsx (lines 23-35):
+```tsx
+const BUSY_PALETTE = {
+  bar: "#6B7280",
+  bg: "#6B728020",
+};
+
+function getEventColor(event, defaultColor): string {
+  // INVARIANT: Busy events always grey - check first
+  if ('isBusy' in event && event.isBusy) {
+    return BUSY_PALETTE.bar;
+  }
+  // ...
+}
+```
+
+4) BUSY RENDER PATHS UPDATED
+----------------------------
+1. calendar.tsx EventListItem (line 621-624) — uses getBusyColors() -> BUSY_PALETTE
+2. calendar.tsx CompactDayCell (line 351, 391) — uses getEventColor() which respects isBusy
+3. calendar.tsx StackedDayCell (line 434) — uses getEventColor() which respects isBusy  
+4. calendar.tsx DetailsDayCell (line 549-556) — uses getEventColor() which respects isBusy
+5. FeedCalendar.tsx EventListItem (line 87) — uses getEventColor() with isBusy check
+6. FeedCalendar.tsx eventCountsByDate (line 290) — uses getEventColor() with isBusy check
+
+5) SOCIAL CALENDAR OMIT BUSY — ALREADY IN PLACE
+-----------------------------------------------
+social.tsx (lines 952-954):
+```tsx
+myEvents.filter(e => !e.isBusy).forEach(e => eventMap.set(e.id, e));
+attendingEvents.filter(e => !e.isBusy).forEach(e => {...});
+discoveryEvents.filter(e => !e.isBusy).forEach(e => {...});
+```
+
+FeedCalendar.tsx (line 244):
+```tsx
+.filter((e) => !(e as any).isBusy)
+```
+
+6) TROPHY REMOVAL PROOF
+-----------------------
+Command: rg -n "from .*Trophy|<Trophy|Trophy " src | grep -v INVARIANT | grep -v "icons.tsx"
+Result: No matches (exit code 1 = no results)
+
+Trophy export kept in icons.tsx for backwards compatibility but NOT USED anywhere.
+
+7) VERIFICATION OUTPUT
+----------------------
+$ bun run typecheck
+✓ No errors
+
+$ bash scripts/ai/verify_frontend.sh
+== INVARIANT CHECK PASSED ==
+PASS: verify_frontend
+
+$ rg -n "from .*Trophy|<Trophy|Trophy " src
+Only matches: INVARIANT comments and icons.tsx export definition
+
+8) RUNTIME STATUS
+-----------------
+Commands to verify:
+  bun run typecheck
+  bash scripts/ai/verify_frontend.sh
+  npx expo start --ios  (or preview in Expo Go)
+
+Expected behavior:
+- Busy events render with grey bar (#6B7280) and grey bg (#6B728020)
+- No orange/theme color on ANY busy event anywhere
+- Social calendar shows NO busy events
+- No Trophy icons anywhere - all replaced with Award
+
+9) MANUAL TEST CHECKLIST
+------------------------
+[ ] Create a new busy block → verify grey bar + grey bg in calendar list
+[ ] Tap day with busy block → verify grey in day sheet
+[ ] Check Social tab → verify NO busy events appear
+[ ] Check Profile → Badges section shows Award icon (not Trophy)
+[ ] Check Achievements → empty state shows Award icon
+[ ] Check Achievements → badge detail modal shows Award icon
+[ ] Check invite screen → reward tiers show Award icon
+[ ] Check StreakCounter → best streak shows Award icon
+[ ] Check friend profile avatar → NO badge overlay (pill only)
+[ ] Check user/[id].tsx profile → NO badge overlay (pill only)
+
+10) ASSUMPTIONS / UNCERTAINTIES
+-------------------------------
+- Trophy export kept in icons.tsx for backwards compatibility
+- Badge emoji display in user avatar overlay was removed (pill-only now)
+- DEV logging [BUSY_INVARIANT] active for debugging if grey renders fail
+
+END HANDOFF

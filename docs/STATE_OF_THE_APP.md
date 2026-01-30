@@ -77,6 +77,21 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (P0 Busy Grey Single Source of Truth + Badge Pill-Only)
+- Created src/lib/eventPalette.ts: Single source of truth for ALL event color rendering
+- getEventPalette(): Returns { bar, bg, icon, text } palette for any event
+- GREY_PALETTE constant: { bar: "#6B7280", bg: "#6B728020" } for busy/work events
+- isGreyPaletteEvent(): Helper to check if event should use grey palette (isBusy OR isWork)
+- assertGreyPaletteInvariant(): DEV-only assertion that logs [BUSY_GREY_INVARIANT_FAIL] if grey palette violated
+- getEventBarColor(): Simplified helper for month dots/bars that delegates to getEventPalette()
+- calendar.tsx: Updated getEventColor() to delegate to getEventBarColor() from shared module
+- calendar.tsx: EventListItem now uses getEventPalette() for both busy and work events
+- FeedCalendar.tsx: Updated getEventColor() to use getEventBarColor() from shared module
+- Trophy icon deprecated: Added "DO NOT USE" comment in src/ui/icons.tsx export
+- Badge avatar overlays removed: friend/[id].tsx and user/[id].tsx have pill-only badges with INVARIANT comments
+- Busy creation payload verified: calendar.tsx createBusyMutation sends isBusy: true (line 1299)
+- Social omit busy verified: social.tsx filters out e.isBusy from all event sources with DEV logging
+
 ## Fixed This Session (P0 Busy Grey + Social Omit + Admin Search)
 - Busy grey invariant: EventListItem computes bgColor from eventColor, uses bgColor variable for consistency
 - Busy grey logging: [BUSY_INVARIANT] DEV log with eventId, isBusy, leftBarColor, bgColor, sourceComponent

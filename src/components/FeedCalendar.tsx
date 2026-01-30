@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 
 import { type DARK_COLORS } from "@/lib/ThemeContext";
 import { type Event, type BusinessEvent } from "@/shared/contracts";
+import { getEventBarColor, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -22,27 +23,15 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-// INVARIANT: Busy events ALWAYS use grey palette, never theme/orange
-// Single source-of-truth for event colors in FeedCalendar
-const BUSY_PALETTE = {
-  bar: "#6B7280",
-  bg: "#6B728020",
-};
-
-// Get event color - use first group color or default theme color
-// IMPORTANT: This handles isBusy check first for grey palette invariant
+// INVARIANT: Use single source of truth from @/lib/eventPalette
+// Get event color - delegates to shared module which handles busy/work grey
 function getEventColor(event: Event | CalendarEvent, defaultColor: string): string {
-  // INVARIANT: Busy events always grey - check first
-  if ('isBusy' in event && event.isBusy) {
-    return BUSY_PALETTE.bar;
-  }
-  if ('groupVisibility' in event && event.groupVisibility && event.groupVisibility.length > 0) {
-    return event.groupVisibility[0].group.color;
-  }
+  // Business events get purple
   if ('isBusinessEvent' in event && event.isBusinessEvent) {
-    return "#8B5CF6"; // Purple for business events
+    return "#8B5CF6";
   }
-  return defaultColor;
+  // Use shared palette (handles isBusy, isBirthday, groupVisibility)
+  return getEventBarColor(event as any, defaultColor);
 }
 
 interface EventWithMeta extends Event {
