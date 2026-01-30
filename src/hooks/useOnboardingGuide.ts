@@ -10,9 +10,16 @@ const GUIDE_CREATE_EVENT_KEY_PREFIX = "guide_create_first_plan_v2";
 const GUIDE_FORCE_SHOW_KEY_PREFIX = "guide_force_show_v2";
 
 // Helper to build user-scoped keys (exported for signup flow)
-// NOTE: SecureStore keys cannot contain ":" - use "_" as delimiter
+// SecureStore keys must match [A-Za-z0-9._-]+ - sanitize userId to remove invalid chars
 export function buildGuideKey(prefix: string, userId: string): string {
-  return `${prefix}_${userId}`;
+  if (!userId || typeof userId !== "string") {
+    // Return a fallback key that won't crash but won't persist properly
+    console.warn("[buildGuideKey] Invalid userId provided:", userId);
+    return `${prefix}_fallback`;
+  }
+  // Sanitize: replace any character not in [A-Za-z0-9._-] with underscore
+  const sanitized = userId.replace(/[^A-Za-z0-9._-]/g, "_");
+  return `${prefix}_${sanitized}`;
 }
 
 // Export constant for use in signup flow
