@@ -9,8 +9,9 @@ const GUIDE_FRIENDS_ADD_KEY_PREFIX = "guide_friends_add_people_v2";
 const GUIDE_CREATE_EVENT_KEY_PREFIX = "guide_create_first_plan_v2";
 
 // Helper to build user-scoped keys
+// NOTE: SecureStore keys cannot contain ":" - use "_" as delimiter
 function buildGuideKey(prefix: string, userId: string): string {
-  return `${prefix}:${userId}`;
+  return `${prefix}_${userId}`;
 }
 
 // Module-level cache for SYNC reads to prevent flash on remount
