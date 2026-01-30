@@ -17,7 +17,6 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
-import { ProfileSwitcher } from "./ProfileSwitcher";
 import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -189,7 +188,6 @@ export default function BottomNavigation() {
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
-  const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
 
   // Fetch friend requests count for notification badge
   const { data: friendRequestsData } = useQuery({
@@ -283,7 +281,6 @@ export default function BottomNavigation() {
               isDark={isDark}
               inactiveColor={colors.textTertiary}
               badgeCount={item.badgeCount}
-              onLongPress={item.label === "Profile" && hasMultipleProfiles ? () => setShowProfileSwitcher(true) : undefined}
               customImage={item.label === "Profile" ? profileImage : undefined}
               bootStatus={bootStatus}
             />
@@ -292,10 +289,5 @@ export default function BottomNavigation() {
       </View>
 
       {/* Profile Switcher Modal */}
-      <ProfileSwitcher
-        visible={showProfileSwitcher}
-        onClose={() => setShowProfileSwitcher(false)}
-      />
-    </>
   );
 }

@@ -25,3 +25,7 @@
 ## Release / Production Parity
 - Always PUSH FRONTEND after committing changes.
 - iOS production/TestFlight shipping uses scripts/ship-ios-prod.sh (shipios alias).
+
+INVARIANT: “business” is banned from frontend runtime code. (No businessEvents, isBusinessEvent, type: "business", business profile mode, or ProfileSwitcher.)
+
+INVARIANT: Badges are PILL-ONLY. No badge overlays on avatars. No trophy glyphs in UI.
