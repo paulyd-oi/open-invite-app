@@ -45,7 +45,7 @@ import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
-import { getEventPalette, getEventBarColor, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -98,13 +98,6 @@ function formatDateShort(date: Date): string {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const day = date.getDate();
   return `${months[date.getMonth()]}. ${day}${getOrdinalSuffix(day)}`;
-}
-
-// DEPRECATED: Use getEventBarColor from @/lib/eventPalette instead
-// This wrapper exists only for backward compatibility during migration
-function getEventColor(event: Event & { isBirthday?: boolean; isWork?: boolean }, defaultColor: string): string {
-  // Delegate to single source of truth
-  return getEventBarColor(event, defaultColor);
 }
 
 // Check if a hex color is light (for determining text contrast)
@@ -329,7 +322,7 @@ function CompactDayCell({
 
   if (day === null) return <View style={{ flex: 1, height }} />;
 
-  const eventColors = events.slice(0, 3).map((e) => getEventColor(e, themeColor));
+  const eventColors = events.slice(0, 3).map((e) => getEventPalette(e, themeColor).bar);
   const showMoreDots = heightMultiplier > 1.2 && events.length > 3;
   const maxDots = heightMultiplier > 1.5 ? 5 : 3;
 
@@ -369,7 +362,7 @@ function CompactDayCell({
                 height: 4 * Math.min(heightMultiplier, 1.5),
                 borderRadius: 2 * Math.min(heightMultiplier, 1.5),
                 marginHorizontal: 1,
-                backgroundColor: getEventColor(e, themeColor),
+                backgroundColor: getEventPalette(e, themeColor).bar,
               }}
             />
           ))}
@@ -412,7 +405,7 @@ function StackedDayCell({
 
   // Show more bars when expanded
   const maxBars = heightMultiplier > 1.3 ? 5 : heightMultiplier > 1.1 ? 4 : 3;
-  const eventColors = events.slice(0, maxBars).map((e) => getEventColor(e, themeColor));
+  const eventColors = events.slice(0, maxBars).map((e) => getEventPalette(e, themeColor).bar);
   const barHeight = 4 * Math.min(heightMultiplier, 1.5);
 
   return (
@@ -527,7 +520,8 @@ function DetailsDayCell({
           {day}
         </Text>
         {events.slice(0, maxEvents).map((event, idx) => {
-          const eventColor = getEventColor(event, themeColor);
+          const palette = getEventPalette(event, themeColor);
+          const eventColor = palette.bar;
           const textColor = getTextColorForBackground(eventColor, isDark);
           return (
             <View
@@ -577,7 +571,7 @@ function EventListItem({
   onToggleBusy,
   isOwner,
 }: {
-  event: Event & { isBusinessEvent?: boolean; businessEventId?: string };
+  event: Event;
   isAttending?: boolean;
   isBirthday?: boolean;
   isWork?: boolean;

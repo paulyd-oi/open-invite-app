@@ -947,26 +947,35 @@ export default function SocialScreen() {
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
 
+    // Helper: determine if event should be omitted (busy or legacy title "busy")
+    const shouldOmit = (e: Event) => {
+      if (e.isBusy) return true;
+      // Defensive: legacy data may have title "busy" without isBusy flag
+      const t = (e.title ?? "").toLowerCase().trim();
+      if (t === "busy" || t.startsWith("busy ")) return true;
+      return false;
+    };
+
     const eventMap = new Map<string, Event>();
     // Filter out busy events from all sources - busy is private
-    myEvents.filter(e => !e.isBusy).forEach(e => eventMap.set(e.id, e));
-    attendingEvents.filter(e => !e.isBusy).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
-    discoveryEvents.filter(e => !e.isBusy).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    myEvents.filter(e => !shouldOmit(e)).forEach(e => eventMap.set(e.id, e));
+    attendingEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    discoveryEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
 
     const result = Array.from(eventMap.values());
     
     // DEV logging for social busy omit invariant
     if (__DEV__) {
       const totalInput = myEvents.length + attendingEvents.length + discoveryEvents.length;
-      const busyOmittedCount = myEvents.filter(e => e.isBusy).length + 
-        attendingEvents.filter(e => e.isBusy).length + 
-        discoveryEvents.filter(e => e.isBusy).length;
+      const busyOmittedCount = myEvents.filter(e => shouldOmit(e)).length + 
+        attendingEvents.filter(e => shouldOmit(e)).length + 
+        discoveryEvents.filter(e => shouldOmit(e)).length;
       if (busyOmittedCount > 0) {
         console.log("[SOCIAL_OMIT_BUSY]", {
           inputCount: totalInput,
           omittedCount: busyOmittedCount,
           outputCount: result.length,
-          sampleOmittedIds: myEvents.filter(e => e.isBusy).slice(0, 3).map(e => e.id),
+          sampleOmittedIds: myEvents.filter(e => shouldOmit(e)).slice(0, 3).map(e => e.id),
         });
       }
     }
@@ -1160,7 +1169,6 @@ export default function SocialScreen() {
           )}
           <FeedCalendar
             events={calendarEvents}
-            businessEvents={undefined}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
@@ -1223,7 +1231,6 @@ export default function SocialScreen() {
         >
           <FeedCalendar
             events={calendarEvents}
-            businessEvents={undefined}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}

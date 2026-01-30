@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable, Modal, ScrollView, Image } from "react-native";
-import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar, Building2 } from "@/ui/icons";
+import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, SlideInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 
 import { type DARK_COLORS } from "@/lib/ThemeContext";
-import { type Event, type BusinessEvent } from "@/shared/contracts";
-import { getEventBarColor, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { type Event } from "@/shared/contracts";
+import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -21,17 +21,6 @@ function getDaysInMonth(year: number, month: number) {
 
 function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
-}
-
-// INVARIANT: Use single source of truth from @/lib/eventPalette
-// Get event color - delegates to shared module which handles busy/work grey
-function getEventColor(event: Event | CalendarEvent, defaultColor: string): string {
-  // Business events get purple
-  if ('isBusinessEvent' in event && event.isBusinessEvent) {
-    return "#8B5CF6";
-  }
-  // Use shared palette (handles isBusy, isBirthday, groupVisibility)
-  return getEventBarColor(event as any, defaultColor);
 }
 
 interface EventWithMeta extends Event {
@@ -53,16 +42,15 @@ interface CalendarEvent {
   isAttending?: boolean;
   hostName?: string | null;
   hostImage?: string | null;
-  isBusinessEvent?: boolean;
-  businessId?: string;
-  businessName?: string;
-  businessLogo?: string | null;
-  groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }>;
+  isBusy?: boolean;
+  isWork?: boolean;
+  isBirthday?: boolean;
+  color?: string | null;
+  groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }> | null;
 }
 
 interface FeedCalendarProps {
   events: EventWithMeta[];
-  businessEvents?: BusinessEvent[];
   themeColor: string;
   isDark: boolean;
   colors: typeof DARK_COLORS;
@@ -85,7 +73,8 @@ function EventListItem({
   const router = useRouter();
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
-  const eventColor = event.isBusinessEvent ? "#8B5CF6" : getEventColor(event, themeColor);
+  const palette = getEventPalette(event, themeColor);
+  const eventColor = palette.bar;
 
   const timeLabel = endDate
     ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
@@ -129,12 +118,6 @@ function EventListItem({
                 <Text className="text-xs font-medium" style={{ color: themeColor }}>You</Text>
               </View>
             )}
-            {event.isBusinessEvent && (
-              <View className="px-2 py-0.5 rounded-full ml-2 flex-row items-center" style={{ backgroundColor: "#8B5CF620" }}>
-                <Building2 size={10} color="#8B5CF6" />
-                <Text className="text-xs font-medium ml-1" style={{ color: "#8B5CF6" }}>Business</Text>
-              </View>
-            )}
           </View>
 
           {/* Description */}
@@ -149,22 +132,7 @@ function EventListItem({
           )}
 
           {/* Host info */}
-          {event.isBusinessEvent && event.businessName ? (
-            <View className="flex-row items-center mt-1">
-              <View className="w-5 h-5 rounded-full overflow-hidden mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {event.businessLogo ? (
-                  <Image source={{ uri: event.businessLogo }} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: "#8B5CF620" }}>
-                    <Building2 size={10} color="#8B5CF6" />
-                  </View>
-                )}
-              </View>
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                {event.businessName}
-              </Text>
-            </View>
-          ) : !event.isOwn && event.hostName ? (
+          {!event.isOwn && event.hostName ? (
             <View className="flex-row items-center mt-1">
               <View className="w-5 h-5 rounded-full overflow-hidden mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
                 {event.hostImage ? (
@@ -209,50 +177,24 @@ function EventListItem({
   );
 }
 
-export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, colors, userId }: FeedCalendarProps) {
+export function FeedCalendar({ events, themeColor, isDark, colors, userId }: FeedCalendarProps) {
   const router = useRouter();
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
-  // Business events hidden for launch - will be enabled in future update
-  const [showBusinessEvents, setShowBusinessEvents] = useState(false);
-
-  // Convert business events to calendar events format (hidden for now)
-  const convertedBusinessEvents: CalendarEvent[] = useMemo(() => {
-    if (!showBusinessEvents) return [];
-    return businessEvents.map((be) => ({
-      id: be.id,
-      title: be.title,
-      emoji: be.emoji,
-      startTime: be.startTime,
-      endTime: be.endTime,
-      location: be.location,
-      description: be.description,
-      isBusinessEvent: true,
-      businessId: be.businessId,
-      businessName: be.business?.name,
-      businessLogo: be.business?.logoUrl,
-    }));
-  }, [businessEvents, showBusinessEvents]);
 
   // Combine all events - IMPORTANT: filter out any busy events (defensive)
   // Busy events are private and must never appear in social/feed contexts
   const allCalendarEvents: CalendarEvent[] = useMemo(() => {
     // Filter out any events marked as busy (defensive - should already be filtered by caller)
-    const friendEvents: CalendarEvent[] = events
+    return events
       .filter((e) => !(e as any).isBusy)
       .map((e) => ({
         ...e,
-        isBusinessEvent: false,
       }));
-
-    if (showBusinessEvents) {
-      return [...friendEvents, ...convertedBusinessEvents];
-    }
-    return friendEvents;
-  }, [events, convertedBusinessEvents, showBusinessEvents]);
+  }, [events]);
 
   // Get events for a specific date
   const getEventsForDate = useCallback((date: Date) => {
@@ -276,19 +218,16 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
 
   // Get event counts by date for showing dots
   const eventCountsByDate = useMemo(() => {
-    const counts: Record<number, { count: number; colors: string[]; hasBusinessEvent: boolean }> = {};
+    const counts: Record<number, { count: number; colors: string[] }> = {};
     allCalendarEvents.forEach((event) => {
       const eventDate = new Date(event.startTime);
       if (eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear) {
         const day = eventDate.getDate();
         if (!counts[day]) {
-          counts[day] = { count: 0, colors: [], hasBusinessEvent: false };
+          counts[day] = { count: 0, colors: [] };
         }
         counts[day].count++;
-        if (event.isBusinessEvent) {
-          counts[day].hasBusinessEvent = true;
-        }
-        const eventColor = event.isBusinessEvent ? "#8B5CF6" : getEventColor(event, themeColor);
+        const eventColor = getEventPalette(event, themeColor).bar;
         if (counts[day].colors.length < 3 && !counts[day].colors.includes(eventColor)) {
           counts[day].colors.push(eventColor);
         }
@@ -341,18 +280,11 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
     setShowDayModal(true);
   };
 
-  const toggleBusinessEvents = () => {
-    Haptics.selectionAsync();
-    setShowBusinessEvents(!showBusinessEvents);
-  };
-
   const selectedDateEvents = selectedDate
     ? getEventsForDate(selectedDate).sort(
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       )
     : [];
-
-  const businessEventCount = convertedBusinessEvents.length;
 
   return (
     <View className="mb-4">
@@ -381,39 +313,6 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
           </Pressable>
         </View>
       </View>
-
-      {/* Business Events Toggle - Hidden for launch, will be enabled in future update */}
-      {/* {businessEventCount > 0 && (
-        <Pressable
-          onPress={toggleBusinessEvents}
-          className="flex-row items-center justify-between mb-3 px-3 py-2 rounded-xl"
-          style={{ backgroundColor: showBusinessEvents ? "#8B5CF615" : colors.surface, borderWidth: 1, borderColor: showBusinessEvents ? "#8B5CF640" : colors.border }}
-        >
-          <View className="flex-row items-center">
-            <Building2 size={16} color={showBusinessEvents ? "#8B5CF6" : colors.textTertiary} />
-            <Text className="ml-2 font-medium" style={{ color: showBusinessEvents ? "#8B5CF6" : colors.textSecondary }}>
-              Business Events
-            </Text>
-            <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: showBusinessEvents ? "#8B5CF630" : colors.surfaceElevated }}>
-              <Text className="text-xs font-medium" style={{ color: showBusinessEvents ? "#8B5CF6" : colors.textTertiary }}>
-                {businessEventCount}
-              </Text>
-            </View>
-          </View>
-          <View
-            className="w-10 h-6 rounded-full justify-center px-0.5"
-            style={{ backgroundColor: showBusinessEvents ? "#8B5CF6" : isDark ? "#3A3A3C" : "#E5E7EB" }}
-          >
-            <Animated.View
-              className="w-5 h-5 rounded-full"
-              style={{
-                backgroundColor: "#fff",
-                alignSelf: showBusinessEvents ? "flex-end" : "flex-start",
-              }}
-            />
-          </View>
-        </Pressable>
-      )} */}
 
       {/* Calendar Grid */}
       <View
