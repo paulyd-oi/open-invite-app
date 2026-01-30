@@ -1,77 +1,59 @@
 ========================================
-HANDOFF PACKET - Frontend Patch #6 (Circle Member Remove Confirm Modal)
+HANDOFF PACKET - SecureStore Key Delimiter Fix
 Date: 2026-01-30
+Commit: 5d0cd8d
 ========================================
 
 SUMMARY
 -------
-Fixed circle member removal confirmation modal not appearing.
+Fixed SecureStore crash caused by invalid key characters.
 
-ROOT CAUSE:
-Two React Native <Modal> components cannot stack properly - when members 
-sheet (showMembersSheet) was open and user tapped trash, the confirmation 
-modal (selectedMemberToRemove) was set to visible but rendered BEHIND or 
-blocked by the sheet modal.
+ROOT CAUSE
+----------
+Expo SecureStore keys CANNOT contain ":" character.
+The onboarding guide was building keys like:
+  guide_friends_add_people_v2:<userId>
+  guide_create_first_plan_v2:<userId>
 
-FIX:
-1. Close members sheet FIRST before showing confirmation modal
-2. Use small setTimeout (100ms) to allow sheet animation to start closing
-3. Added statusBarTranslucent to confirmation modal
-4. Added useEffect to log state changes for debugging
+This caused:
+- "Invalid key provided to SecureStore" error
+- Toast errors on app startup
+- Occasional SIGABRT crash
 
-FLOW NOW:
-1. User opens circle → Members sheet → taps trash on member
-2. Sheet closes immediately
-3. After 100ms, confirmation modal appears
-4. User taps Confirm → DELETE mutation fires → member removed → toast
+FIX
+---
+Changed delimiter from ":" to "_" in buildGuideKey function.
 
-FILES CHANGED
--------------
-src/app/circle/[id].tsx
-  - Line 722: Added useEffect to log selectedMemberToRemove state changes
-  - Line 1878: Close showMembersSheet BEFORE setting selectedMemberToRemove
-  - Line 1880: setTimeout to set selectedMemberToRemove after 100ms
-  - Line 2002: Added statusBarTranslucent to confirmation Modal
+FILE CHANGED
+------------
+src/hooks/useOnboardingGuide.ts (line 12-15)
 
-KEY CODE CHANGE
----------------
-Before (trash press):
-  setSelectedMemberToRemove(targetUserId);
+BEFORE:
+  function buildGuideKey(prefix: string, userId: string): string {
+    return `${prefix}:${userId}`;
+  }
 
-After (trash press):
-  setShowMembersSheet(false);
-  setTimeout(() => {
-    setSelectedMemberToRemove(targetUserId);
-  }, 100);
+AFTER:
+  // NOTE: SecureStore keys cannot contain ":" - use "_" as delimiter
+  function buildGuideKey(prefix: string, userId: string): string {
+    return `${prefix}_${userId}`;
+  }
 
-DEV LOGS ADDED
---------------
-1. State change log (useEffect on selectedMemberToRemove):
-   [CircleRemoveMember] selectedMemberToRemove changed: { selectedMemberToRemove, confirmModalShouldBeVisible }
-
-2. Existing logs remain:
-   - Trash pressed: member snapshot
-   - Confirm pressed: circleId + userId + apiPath
-   - Mutation: execution + success/error
+KEYS NOW
+--------
+Before: guide_friends_add_people_v2:abc123
+After:  guide_friends_add_people_v2_abc123
 
 VERIFICATION RESULTS
 --------------------
 npm run typecheck: PASS
 bash scripts/ai/verify_frontend.sh: PASS
 
-MANUAL PROOF STEPS (cold-start)
--------------------------------
-1. Open app fresh → go to Circles
-2. Open a circle where you are host
-3. Tap on member count to open Members sheet
-4. Tap trash icon on a non-host member
-5. VERIFY: Sheet closes, confirmation modal appears
-6. DEV LOG: [CircleRemoveMember] selectedMemberToRemove changed: {..., confirmModalShouldBeVisible: true}
-7. Tap "Remove" button
-8. DEV LOG: [CircleRemoveMember] Confirm pressed: {circleId, memberUserIdToRemove, apiPath}
-9. DEV LOG: [CircleRemoveMember] Mutation executing: {...}
-10. Toast: "Member has been removed from the circle."
-11. Member disappears from list
+NOTES
+-----
+- Existing user state will be "lost" (keys changed), onboarding may re-show
+- This is acceptable - better than crash
+- No backend impact, purely client-side storage
 
 ========================================
 END HANDOFF
