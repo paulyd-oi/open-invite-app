@@ -1,90 +1,145 @@
-HANDOFF PACKET — BUSINESS LEGACY COMPLETE PURGE
-================================================
+HANDOFF PACKET — APPLE SIGN-IN PROOF SWEEP
+===========================================
 Date: 2026-01-30
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Complete purge of ALL "business" legacy from frontend codebase.
-INVARIANT: `rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src` returns ZERO matches.
+Added hardened logging and error classification to Apple Sign-In flow.
+- Error bucket classification: user_cancel, native_entitlement_or_provisioning, network_error, backend_rejection, other_native_error
+- Production-safe logging (always logs stage, sensitive data only in __DEV__)
+- DEV-only diagnostic helper function for TestFlight debugging
+- Config proof sweep: all config correct (usesAppleSignIn: true, bundleIdentifier, expo-apple-authentication package)
+
+CONFIG PROOF SWEEP RESULTS
+--------------------------
+OK app.json:
+   - "usesAppleSignIn": true (line 16)
+   - "bundleIdentifier": "com.vibecode.openinvite.0qi5wk" (line 14)
+   - "scheme": "open-invite" (line 5)
+   - No expo-apple-authentication in plugins (correct - auto-configured via usesAppleSignIn)
+
+OK package.json:
+   - "expo-apple-authentication": "~7.2.4" (line 50)
+
+OK eas.json:
+   - Production build config present
+   - No Apple-specific config needed (handled by usesAppleSignIn)
 
 FILES CHANGED
 -------------
-1. src/lib/features.ts
-   - Replaced businessAccounts flag with neutral "reserved" placeholder
-   - Removed business-related comments
+1. src/lib/appleSignIn.ts
+   - Added AppleAuthErrorBucket type for error classification
+   - Added classifyAppleAuthError() function to bucket errors
+   - Added runAppleSignInDiagnostics() DEV helper function
+   - Exported AppleAuthentication module reference
 
-2. src/lib/activeProfileContext.tsx
-   - Removed businessProfiles, isBusinessProfile fields from context
-   - Removed canManageActiveBusiness, isOwnerOfActiveBusiness, activeBusinessRole
-   - Removed useIsBusinessProfile, useActiveBusinessRole hook exports
-   - Simplified to personal-only profile system
+2. src/app/welcome.tsx
+   - Imported classifyAppleAuthError, runAppleSignInDiagnostics, AppleAuthErrorBucket
+   - Added getBucketExplanation() helper for diagnostic logs
+   - Updated traceLog to always log stage (production-safe)
+   - Updated traceError to include bucket classification
+   - Renamed stages: apple_auth_request_start, native_signInAsync_start, native_signInAsync_success, apple_auth_backend_start, apple_auth_backend_response
+   - Enhanced credential logging: hasUser, hasGivenName, hasFamilyName, authorizationCodeLength
+   - Added DEV-only "[DEV] Run Apple Sign-In Diagnostics" button on Slide 2
 
-3. src/components/ProfileSwitcher.tsx
-   - Removed Building2 import
-   - Removed businessProfiles filtering logic
-   - Removed "Business Profiles" UI section
-   - Simplified ProfileItem to remove isBusiness checks
-   - Changed header from "Switch Profile" to "Profile"
-
-4. src/app/account-center.tsx
-   - Removed Building2 import
-   - Removed isBusiness variable and conditional logic
-   - Removed businessProfiles, ownedBusinesses, memberBusinesses variables
-   - Removed "Your Businesses" section entirely
-   - Removed "Team Access" section entirely
-   - Simplified ProfileRow to personal-only
-
-5. src/app/notification-settings.tsx
-   - Removed businessEvents field from NotificationPreferences interface
-
-6. src/app/profile.tsx
-   - Changed comment from "business mode" to neutral wording
-
-7. src/app/create.tsx
-   - Changed comment from "business profile redirect" to neutral wording
-
-8. src/app/social.tsx
-   - Removed businessEventsData variable and comment
-
-9. src/components/MiniCalendar.tsx
-   - Removed "and business cards" from comment
-
-10. src/app/friends.tsx
-    - Removed unused Building2 import
-
-11. src/ui/icons.tsx
-    - Removed duplicate Building2 export at bottom of file (ion("business-outline"))
-
-VERIFICATION
-------------
-$ rg -n "businessEvents|isBusinessEvent|\bbusiness\b" src
-(exit code 1 - ZERO matches) ✓
-
-$ bun run typecheck
-✓ No errors
-
-HARD GATES
-----------
-=== GATE 1: BUSINESS (word boundary match) ===
-PASS: rg returns zero matches for \bbusiness\b
-
-=== GATE 2: businessEvents ===
-PASS: rg returns zero matches
-
-=== GATE 3: isBusinessEvent ===
-PASS: rg returns zero matches
-
-INVARIANT
+KEY DIFFS
 ---------
-"business" is permanently banned from src/**
-Any ripgrep match for the pattern indicates a regression
+appleSignIn.ts:
++export type AppleAuthErrorBucket = "user_cancel" | "native_entitlement_or_provisioning" | "network_error" | "backend_rejection" | "other_native_error";
++export function classifyAppleAuthError(error: any): AppleAuthErrorBucket
++export async function runAppleSignInDiagnostics(): Promise<void>
 
-NOTES
------
-- Building2 icon removed entirely (was mapped to ion("business-outline"))
-- Briefcase icon still available for work-related UI (separate from business branding)
-- Personal profile system fully intact
-- Circles system untouched
-- Badge pill-only display preserved
+welcome.tsx:
++import { ..., classifyAppleAuthError, runAppleSignInDiagnostics } from "@/lib/appleSignIn";
++import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
++function getBucketExplanation(bucket: AppleAuthErrorBucket): string
++const errorBucket = classifyAppleAuthError(error);
++traceError("final_fail", { ...error, bucket: errorBucket, bucketExplanation: ... });
+
+COMMANDS RUN
+------------
+npm run typecheck -> PASS (no errors)
+bash scripts/ai/verify_frontend.sh -> PASS
+
+TESTFLIGHT VERIFICATION CHECKLIST
+---------------------------------
+1. Install TestFlight build on real iOS device (not simulator)
+
+2. Navigate to welcome/onboarding screen (Slide 2)
+
+3. (DEV ONLY) Tap "[DEV] Run Apple Sign-In Diagnostics" link
+   - Check Xcode console for "[APPLE_AUTH_DIAG]" logs
+   - Verify: isAvailableAsync() returns true
+   - If false -> entitlement/provisioning issue
+
+4. Tap "Continue with Apple" button
+
+5. EXPECTED LOGS (check Xcode console):
+   [APPLE_AUTH_TRACE] apple_<id> | apple_auth_request_start
+   [APPLE_AUTH_TRACE] apple_<id> | availability_check
+   [APPLE_AUTH_TRACE] apple_<id> | native_signInAsync_start
+   
+   SUCCESS PATH:
+   [APPLE_AUTH_TRACE] apple_<id> | native_signInAsync_success
+   [APPLE_AUTH_TRACE] apple_<id> | apple_auth_backend_start
+   [APPLE_AUTH_TRACE] apple_<id> | apple_auth_backend_response
+   [APPLE_AUTH_TRACE] apple_<id> | token_extraction
+   [APPLE_AUTH_TRACE] apple_<id> | final_success
+
+   FAILURE PATHS:
+   A) Native entitlement/provisioning:
+      [APPLE_AUTH_TRACE] apple_<id> | final_fail | bucket=native_entitlement_or_provisioning
+      -> CAUSE: Sign in with Apple capability not in provisioning profile
+      -> FIX: Check Apple Developer Console, regenerate provisioning profile
+
+   B) User cancel:
+      [APPLE_AUTH_TRACE] apple_<id> | user_cancelled
+      -> CAUSE: User tapped Cancel
+      -> This is expected behavior, no fix needed
+
+   C) Backend rejection:
+      [APPLE_AUTH_TRACE] apple_<id> | final_fail | bucket=backend_rejection
+      -> CAUSE: Backend rejected Apple identity token
+      -> FIX: Check backend logs, verify /api/auth/apple endpoint
+
+   D) Other native error:
+      [APPLE_AUTH_TRACE] apple_<id> | final_fail | bucket=other_native_error
+      -> CAUSE: Unknown - check error code/message in logs
+
+HOW TO INTERPRET FAILURE MODES
+------------------------------
+bucket=native_entitlement_or_provisioning
+  -> Smoking gun: app binary missing Sign in with Apple entitlement
+  -> Check: Apple Developer Console -> App ID -> Capabilities -> Sign in with Apple
+  -> Check: Provisioning profile was regenerated AFTER adding capability
+  -> Check: EAS build used correct provisioning profile
+
+bucket=user_cancel
+  -> User dismissed Apple sheet - normal behavior
+
+bucket=network_error
+  -> Device connectivity issue - user should retry
+
+bucket=backend_rejection
+  -> Token valid but backend rejected - check backend logs
+  -> Verify /api/auth/apple endpoint is deployed and working
+
+bucket=other_native_error
+  -> Rare - check error.code and error.message for details
+
+RISKS / ROLLBACKS
+-----------------
+- Minimal risk: logging-only changes, no behavioral changes
+- Rollback: revert src/lib/appleSignIn.ts and src/app/welcome.tsx
+- No new dependencies added
+- No navigation architecture changes
+
+NEXT STEPS
+----------
+1. Build new TestFlight with these changes
+2. Test Apple Sign-In on real device
+3. Capture logs to determine failure bucket
+4. If bucket=native_entitlement_or_provisioning -> fix provisioning in Apple Developer Console
+5. If bucket=backend_rejection -> investigate backend /api/auth/apple endpoint

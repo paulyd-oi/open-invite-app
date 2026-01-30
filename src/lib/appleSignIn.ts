@@ -18,6 +18,73 @@ try {
 }
 
 /**
+ * Error classification buckets for Apple Sign-In failures.
+ * Used for diagnostics to distinguish failure modes.
+ */
+export type AppleAuthErrorBucket =
+  | "user_cancel"
+  | "native_entitlement_or_provisioning"
+  | "network_error"
+  | "backend_rejection"
+  | "other_native_error";
+
+/**
+ * Classify an Apple Sign-In error into a diagnostic bucket.
+ * Helps distinguish:
+ * - user_cancel: User tapped cancel on Apple sheet
+ * - native_entitlement_or_provisioning: ERR_REQUEST_UNKNOWN, 1000, or similar (often entitlement/provisioning issue)
+ * - network_error: Connection/timeout issues
+ * - backend_rejection: Server rejected the token (HTTP error from backend)
+ * - other_native_error: Other native errors
+ */
+export function classifyAppleAuthError(error: any): AppleAuthErrorBucket {
+  const code = error?.code ?? error?.errorCode;
+  const message = error?.message?.toLowerCase() ?? "";
+  const name = error?.name?.toLowerCase() ?? "";
+
+  // User cancellation (priority check)
+  if (isAppleAuthCancellation(error)) {
+    return "user_cancel";
+  }
+
+  // Native entitlement/provisioning errors
+  // ERR_REQUEST_UNKNOWN typically indicates Sign in with Apple capability not enabled
+  // Code 1000 = ASAuthorizationError.unknown (often entitlement issue)
+  // Code 1003 = ASAuthorizationError.notHandled (capability not configured)
+  if (
+    code === "ERR_REQUEST_UNKNOWN" ||
+    code === 1000 ||
+    code === 1003 ||
+    message.includes("request unknown") ||
+    message.includes("not handled") ||
+    message.includes("not configured") ||
+    message.includes("entitlement") ||
+    message.includes("capability")
+  ) {
+    return "native_entitlement_or_provisioning";
+  }
+
+  // Network errors
+  if (
+    message.includes("network") ||
+    message.includes("connection") ||
+    message.includes("timeout") ||
+    message.includes("offline") ||
+    name.includes("network")
+  ) {
+    return "network_error";
+  }
+
+  // Backend rejection (if httpStatus is present)
+  if (error?.httpStatus && error.httpStatus >= 400) {
+    return "backend_rejection";
+  }
+
+  // Other native errors
+  return "other_native_error";
+}
+
+/**
  * Check if Apple Sign-In is available on the current device
  * Returns false on:
  * - Non-iOS platforms
@@ -113,3 +180,56 @@ export function decodeAppleAuthError(error: any): string | null {
 
   return "Apple Sign-In failed. Please try again.";
 }
+
+/**
+ * DEV-only diagnostic helper for Apple Sign-In.
+ * Prints comprehensive diagnostic info about the current Apple Sign-In environment.
+ * Can be called from React DevTools console or triggered programmatically in __DEV__.
+ */
+export async function runAppleSignInDiagnostics(): Promise<void> {
+  const prefix = "[APPLE_AUTH_DIAG]";
+
+  console.log(`${prefix} ========== Apple Sign-In Diagnostics ==========`);
+  console.log(`${prefix} Timestamp: ${new Date().toISOString()}`);
+  console.log(`${prefix} Platform: ${Platform.OS}`);
+  console.log(`${prefix} __DEV__: ${__DEV__}`);
+
+  // Module availability
+  const moduleAvailable = !!AppleAuthentication;
+  console.log(`${prefix} expo-apple-authentication module loaded: ${moduleAvailable}`);
+
+  if (!moduleAvailable) {
+    console.log(`${prefix} ISSUE: Module not loaded - requires native build with usesAppleSignIn: true`);
+    console.log(`${prefix} ========== End Diagnostics ==========`);
+    return;
+  }
+
+  // isAvailableAsync check
+  try {
+    const available = await AppleAuthentication.isAvailableAsync();
+    console.log(`${prefix} isAvailableAsync(): ${available}`);
+    if (!available) {
+      console.log(`${prefix} ISSUE: Apple Sign-In not available on this device/simulator`);
+      console.log(`${prefix} Possible causes:`);
+      console.log(`${prefix}   - Running on simulator (not supported)`);
+      console.log(`${prefix}   - Device signed out of iCloud/Apple ID`);
+      console.log(`${prefix}   - Sign in with Apple capability not in provisioning profile`);
+    }
+  } catch (err: any) {
+    console.log(`${prefix} isAvailableAsync() threw: ${err?.message || err}`);
+    console.log(`${prefix} Error bucket: ${classifyAppleAuthError(err)}`);
+  }
+
+  // Config reminders
+  console.log(`${prefix} --- Config Checklist ---`);
+  console.log(`${prefix} ✓ app.json ios.usesAppleSignIn: true (required for native capability)`);
+  console.log(`${prefix} ✓ expo-apple-authentication in package.json`);
+  console.log(`${prefix} ✓ EAS build with Apple Sign-In capability enabled`);
+  console.log(`${prefix} ✓ Apple Developer Console: App ID has Sign in with Apple capability`);
+  console.log(`${prefix} ✓ Provisioning profile includes Sign in with Apple entitlement`);
+
+  console.log(`${prefix} ========== End Diagnostics ==========`);
+}
+
+// Export module reference for direct access in welcome.tsx
+export { AppleAuthentication };

@@ -44,10 +44,11 @@ import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
-import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
+import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, runAppleSignInDiagnostics } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 import { uploadImage } from "@/lib/imageUpload";
 import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
+import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,6 +57,25 @@ try {
   AppleAuthentication = require("expo-apple-authentication");
 } catch {
   console.log("[Apple Auth] expo-apple-authentication not available - requires native build");
+}
+
+/**
+ * Human-readable explanation for each error bucket.
+ * Used in diagnostic logs to help interpret failure mode.
+ */
+function getBucketExplanation(bucket: AppleAuthErrorBucket): string {
+  switch (bucket) {
+    case "user_cancel":
+      return "User tapped Cancel on Apple Sign-In sheet";
+    case "native_entitlement_or_provisioning":
+      return "LIKELY ISSUE: Sign in with Apple capability not in provisioning profile or entitlements. Check EAS build config and Apple Developer Console.";
+    case "network_error":
+      return "Network connectivity issue - check device connection";
+    case "backend_rejection":
+      return "Backend rejected the Apple identity token - check backend logs for details";
+    case "other_native_error":
+      return "Unknown native error - check error code/message for details";
+  }
 }
 
 // ============ THEME HELPERS (LOCAL SCOPE ONLY) ============
@@ -472,28 +492,39 @@ export default function WelcomeOnboardingScreen() {
   const handleAppleSignIn = async () => {
     // Generate unique attempt ID for trace correlation
     const attemptId = `apple_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    
+    // Production-safe logging (always logs, but sensitive data only in __DEV__)
     const traceLog = (stage: string, data: Record<string, unknown>) => {
+      // Always log stage for production debugging
+      console.log(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage}`);
       if (__DEV__) {
+        // Full data only in dev
         console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, ...data }));
       }
       setAppleAuthDebug({ attemptId, stage, error: null, timestamp: Date.now() });
     };
+    
     const traceError = (stage: string, error: any) => {
+      const errorBucket = error?.bucket ?? classifyAppleAuthError(error);
       const errorInfo = {
         name: error?.name,
         message: error?.message,
         code: error?.code,
         domain: error?.domain,
-        stack: error?.stack?.slice?.(0, 500),
-        raw: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800),
+        bucket: errorBucket,
+        bucketExplanation: error?.bucketExplanation ?? getBucketExplanation(errorBucket),
+        stack: __DEV__ ? error?.stack?.slice?.(0, 500) : undefined,
+        raw: __DEV__ ? JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800) : undefined,
       };
+      // Always log error bucket for production debugging
+      console.log(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage} | bucket=${errorBucket}`);
       if (__DEV__) {
         console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, error: errorInfo }));
       }
       setAppleAuthDebug({ attemptId, stage, error: error?.message || "Unknown error", timestamp: Date.now() });
     };
 
-    traceLog("tap", { timestamp: new Date().toISOString() });
+    traceLog("apple_auth_request_start", { timestamp: new Date().toISOString() });
 
     // Availability checks
     traceLog("availability_check", {
@@ -512,7 +543,7 @@ export default function WelcomeOnboardingScreen() {
     setErrorBanner(null);
 
     try {
-      traceLog("request_start", { scopes: ["FULL_NAME", "EMAIL"] });
+      traceLog("native_signInAsync_start", { scopes: ["FULL_NAME", "EMAIL"] });
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
@@ -520,14 +551,18 @@ export default function WelcomeOnboardingScreen() {
         ],
       });
 
-      // Log credential result (redacted)
-      traceLog("request_result", {
+      // Log credential result (redacted) - SAFE: only presence booleans, no tokens
+      traceLog("native_signInAsync_success", {
+        hasUser: !!credential.user,
         hasIdentityToken: !!credential.identityToken,
         identityTokenLength: credential.identityToken?.length || 0,
         hasAuthorizationCode: !!credential.authorizationCode,
+        authorizationCodeLength: credential.authorizationCode?.length || 0,
         hasEmail: !!credential.email,
         emailRedacted: credential.email ? `${credential.email.slice(0, 3)}...` : null,
         hasFullName: !!(credential.fullName?.givenName || credential.fullName?.familyName),
+        hasGivenName: !!credential.fullName?.givenName,
+        hasFamilyName: !!credential.fullName?.familyName,
       });
       
       if (!credential.identityToken) {
@@ -538,7 +573,7 @@ export default function WelcomeOnboardingScreen() {
       // Send to backend - CRITICAL: React Native doesn't auto-persist Set-Cookie
       // We must manually capture the Set-Cookie header and store it in SecureStore
       const backendUrl = `${BACKEND_URL}/api/auth/apple`;
-      traceLog("backend_exchange_start", { url: backendUrl, method: "POST" });
+      traceLog("apple_auth_backend_start", { url: backendUrl, method: "POST" });
       
       const response = await fetch(backendUrl, {
         method: "POST",
@@ -562,7 +597,7 @@ export default function WelcomeOnboardingScreen() {
       
       const data = await response.json();
       
-      traceLog("backend_exchange_response", {
+      traceLog("apple_auth_backend_response", {
         status: response.status,
         ok: response.ok,
         hasToken: !!data.token || !!data.session?.token,
@@ -669,14 +704,21 @@ export default function WelcomeOnboardingScreen() {
       traceLog("final_success", { advancingToSlide: 3 });
       setCurrentSlide(3);
     } catch (error: any) {
+      // Classify the error for diagnostics
+      const errorBucket = classifyAppleAuthError(error);
+      
       // User cancelled - no error to show
-      if (isAppleAuthCancellation(error)) {
-        traceLog("user_cancelled", { cancelled: true });
+      if (errorBucket === "user_cancel") {
+        traceLog("user_cancelled", { cancelled: true, bucket: errorBucket });
         return;
       }
       
-      // Log full error for diagnostics
-      traceError("final_fail", error);
+      // Log full error with classification for diagnostics
+      traceError("final_fail", {
+        ...error,
+        bucket: errorBucket,
+        bucketExplanation: getBucketExplanation(errorBucket),
+      });
       
       // Decode error to user-friendly message (mom-safe)
       const userMessage = decodeAppleAuthError(error);
@@ -992,6 +1034,21 @@ export default function WelcomeOnboardingScreen() {
                 </Text>
               )}
             </View>
+          )}
+
+          {/* DEV-only: Run Apple Sign-In Diagnostics button */}
+          {__DEV__ && Platform.OS === "ios" && (
+            <Pressable
+              onPress={() => {
+                console.log("[APPLE_AUTH_DIAG] Running diagnostics...");
+                runAppleSignInDiagnostics();
+              }}
+              style={{ padding: 8, alignItems: "center" }}
+            >
+              <Text style={{ color: theme.textTertiary, fontSize: 10, textDecorationLine: "underline" }}>
+                [DEV] Run Apple Sign-In Diagnostics
+              </Text>
+            </Pressable>
           )}
 
           {/* Apple Sign In */}
