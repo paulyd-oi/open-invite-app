@@ -303,7 +303,7 @@ export default function CreateEventScreen() {
   // Check if creating from a circle
   const isCircleEvent = !!circleId;
 
-  // Check active profile to redirect business profiles to business event creation
+  // Fetch active profile
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),

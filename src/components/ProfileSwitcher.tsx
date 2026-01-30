@@ -12,7 +12,6 @@ import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   User,
-  Building2,
   Check,
   Plus,
   Settings,
@@ -58,7 +57,6 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["businesses", "owned"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
@@ -91,7 +89,6 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
   };
 
   const personalProfile = profiles.find((p) => p.type === "personal");
-  const businessProfiles = profiles.filter((p) => p.type === "business");
 
   return (
     <Modal
@@ -125,7 +122,7 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
               <View className="px-5 pt-4 pb-3 border-b border-zinc-800">
                 <View className="w-10 h-1 bg-zinc-700 rounded-full self-center mb-3" />
                 <Text className="text-white text-lg font-semibold text-center">
-                  Switch Profile
+                  Profile
                 </Text>
               </View>
 
@@ -148,24 +145,6 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
                   </View>
                 )}
 
-                {/* Business Profiles */}
-                {businessProfiles.length > 0 && (
-                  <View className="px-4 pt-4">
-                    <Text className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2 px-1">
-                      Businesses
-                    </Text>
-                    {businessProfiles.map((profile) => (
-                      <ProfileItem
-                        key={profile.id}
-                        profile={profile}
-                        isActive={activeProfileId === profile.id}
-                        onSelect={() => handleSelectProfile(profile)}
-                        isSwitching={switchMutation.isPending}
-                      />
-                    ))}
-                  </View>
-                )}
-
                 {/* Actions */}
                 <View className="px-4 pt-4 pb-2">
                   <Text className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2 px-1">
@@ -185,7 +164,7 @@ export function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
                         Account Center
                       </Text>
                       <Text className="text-zinc-500 text-sm">
-                        Manage all your profiles & settings
+                        Manage your profile & settings
                       </Text>
                     </View>
                     <ChevronRight size={20} color="#71717a" />
@@ -212,7 +191,6 @@ interface ProfileItemProps {
 
 function ProfileItem({ profile, isActive, onSelect, isSwitching }: ProfileItemProps) {
   const isPersonal = profile.type === "personal";
-  const isBusiness = profile.type === "business";
 
   return (
     <Pressable
@@ -230,11 +208,7 @@ function ProfileItem({ profile, isActive, onSelect, isSwitching }: ProfileItemPr
         />
       ) : (
         <View className="w-12 h-12 rounded-full bg-zinc-800 items-center justify-center">
-          {isPersonal ? (
-            <User size={24} color="#a1a1aa" />
-          ) : (
-            <Building2 size={24} color="#a1a1aa" />
-          )}
+          <User size={24} color="#a1a1aa" />
         </View>
       )}
 
@@ -244,20 +218,10 @@ function ProfileItem({ profile, isActive, onSelect, isSwitching }: ProfileItemPr
           <Text className="text-white font-medium" numberOfLines={1}>
             {profile.name ?? "Personal"}
           </Text>
-          {isBusiness && profile.isVerified && (
-            <BadgeCheck size={16} color="#3b82f6" />
-          )}
         </View>
         <Text className="text-zinc-500 text-sm" numberOfLines={1}>
-          {isPersonal
-            ? profile.handle ? `@${profile.handle}` : "Your personal profile"
-            : `@${profile.handle}`}
+          {profile.handle ? `@${profile.handle}` : "Your personal profile"}
         </Text>
-        {isBusiness && (
-          <Text className="text-zinc-600 text-xs capitalize mt-0.5">
-            {profile.role}
-          </Text>
-        )}
       </View>
 
       {/* Active indicator */}

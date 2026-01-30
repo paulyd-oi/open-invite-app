@@ -72,7 +72,7 @@ export const CheckCircle = ion("checkmark-circle-outline");
 export const X = ion("close-outline");
 export const Star = ion("star-outline");
 export const Gift = ion("gift-outline");
-export const Crown = ion("trophy-outline");
+export const Crown = ion("ribbon-outline");
 export const Zap = ion("flash-outline");
 export const Compass = ion("compass-outline");
 
@@ -99,7 +99,6 @@ export const Copy = ion("copy-outline");
 export const MessageCircle = ion("chatbubble-outline");
 export const Mail = ion("mail-outline");
 
-export const Building2 = ion("business-outline");
 export const Briefcase = ion("briefcase-outline");
 export const Filter = ion("filter-outline");
 export const Search = ion("search-outline");

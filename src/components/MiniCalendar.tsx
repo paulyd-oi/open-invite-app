@@ -2,7 +2,7 @@
  * MiniCalendar Component
  *
  * A compact calendar view showing the current month with event indicators.
- * Used in friend cards and business cards to show upcoming events at a glance.
+ * Used in friend cards to show upcoming events at a glance.
  */
 
 import React from "react";

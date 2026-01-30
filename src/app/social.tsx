@@ -804,10 +804,6 @@ export default function SocialScreen() {
     enabled: isAuthed,
   });
 
-  // Business events feature is disabled (feature flag: businessAccounts = false)
-  // Provide empty fallback to prevent network calls
-  const businessEventsData = undefined;
-
   // Check if user is eligible for first-value nudge
   const isFirstValueNudgeEligible = (() => {
     // Only eligible if authed

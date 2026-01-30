@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -14,14 +14,8 @@ interface ActiveProfileContextType {
   activeProfile: Profile | null;
   activeProfileId: string | null;
 
-  // All available profiles
+  // All available profiles (personal only)
   profiles: Profile[];
-
-  // Business profiles only
-  businessProfiles: Profile[];
-
-  // Whether the active profile is a business
-  isBusinessProfile: boolean;
 
   // Loading state
   isLoading: boolean;
@@ -32,15 +26,6 @@ interface ActiveProfileContextType {
 
   // Refetch profiles
   refetch: () => void;
-
-  // Check if user can manage active business (for showing edit buttons etc.)
-  canManageActiveBusiness: boolean;
-
-  // Check if user is owner of active business
-  isOwnerOfActiveBusiness: boolean;
-
-  // Get role for active business profile
-  activeBusinessRole: "owner" | "admin" | "manager" | null;
 }
 
 const ActiveProfileContext = createContext<ActiveProfileContextType | null>(null);
@@ -68,8 +53,6 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
     onSuccess: () => {
       // Invalidate and refetch profiles
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
-      // Also invalidate any profile-dependent queries
-      queryClient.invalidateQueries({ queryKey: ["businesses", "owned"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
@@ -85,42 +68,14 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
   const activeProfile = data?.activeProfile ?? null;
   const activeProfileId = data?.activeProfileId ?? null;
 
-  const businessProfiles = useMemo(() =>
-    profiles.filter((p: Profile): p is Profile & { type: "business" } => p.type === "business"),
-    [profiles]
-  );
-
-  const isBusinessProfile = activeProfile?.type === "business";
-
-  const canManageActiveBusiness = useMemo(() => {
-    if (!activeProfile || activeProfile.type !== "business") return false;
-    // All roles can manage (create events, etc.)
-    return true;
-  }, [activeProfile]);
-
-  const isOwnerOfActiveBusiness = useMemo(() => {
-    if (!activeProfile || activeProfile.type !== "business") return false;
-    return activeProfile.isOwner;
-  }, [activeProfile]);
-
-  const activeBusinessRole = useMemo(() => {
-    if (!activeProfile || activeProfile.type !== "business") return null;
-    return activeProfile.role;
-  }, [activeProfile]);
-
   const value: ActiveProfileContextType = {
     activeProfile,
     activeProfileId,
     profiles,
-    businessProfiles,
-    isBusinessProfile,
     isLoading,
     switchProfile,
     isSwitching: switchMutation.isPending,
     refetch,
-    canManageActiveBusiness,
-    isOwnerOfActiveBusiness,
-    activeBusinessRole,
   };
 
   return (
@@ -142,14 +97,4 @@ export function useActiveProfile() {
 export function useActiveProfileId() {
   const { activeProfileId } = useActiveProfile();
   return activeProfileId;
-}
-
-export function useIsBusinessProfile() {
-  const { isBusinessProfile } = useActiveProfile();
-  return isBusinessProfile;
-}
-
-export function useActiveBusinessRole() {
-  const { activeBusinessRole } = useActiveProfile();
-  return activeBusinessRole;
 }

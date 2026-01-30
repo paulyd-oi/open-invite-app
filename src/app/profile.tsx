@@ -105,7 +105,7 @@ export default function ProfileScreen() {
     }
   }, [bootStatus, router]);
 
-  // Fetch profiles to check if user is in business mode
+  // Fetch profiles
   // Gate on bootStatus to prevent queries firing during logout/loading
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
     queryKey: ["profiles"],
