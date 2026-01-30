@@ -397,7 +397,7 @@ export default function ProfileScreen() {
             >
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-3xl font-bold" style={{ color: themeColor }}>
-                  {stats?.hostedCount ?? 0}
+                  {String(stats?.hostedCount ?? 0)}
                 </Text>
                 <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
                   <Star size={16} color={themeColor} />
@@ -417,7 +417,7 @@ export default function ProfileScreen() {
             >
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-3xl font-bold" style={{ color: "#4ECDC4" }}>
-                  {stats?.attendedCount ?? 0}
+                  {String(stats?.attendedCount ?? 0)}
                 </Text>
                 <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: "#4ECDC420" }}>
                   <Heart size={16} color="#4ECDC4" />
@@ -460,7 +460,7 @@ export default function ProfileScreen() {
                       >
                         <Text className="text-base mr-1">{catInfo.emoji}</Text>
                         <Text className="text-sm font-medium" style={{ color: catInfo.color }}>
-                          {count}
+                          {String(count)}
                         </Text>
                       </View>
                     );
@@ -509,7 +509,7 @@ export default function ProfileScreen() {
             >
               <View className="flex-row items-center">
                 <Users size={18} color="#4ECDC4" />
-                <Text className="text-2xl font-bold ml-2 text-teal-500">{friendsCount}</Text>
+                <Text className="text-2xl font-bold ml-2 text-teal-500">{String(friendsCount)}</Text>
               </View>
               <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>Friends</Text>
             </Pressable>
