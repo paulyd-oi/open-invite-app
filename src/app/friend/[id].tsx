@@ -21,6 +21,7 @@ import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
+import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 
 // ========================================
 // MASKED BUSY BLOCK HANDLING
@@ -392,7 +393,8 @@ export default function FriendDetailScreen() {
   });
 
   // Use embedded featuredBadge if available, otherwise fallback to separate badge query
-  const friendBadge = data?.friend?.featuredBadge ?? badgeData?.badge;
+  const rawFriendBadge = data?.friend?.featuredBadge ?? badgeData?.badge;
+  const friendBadge = normalizeFeaturedBadge(rawFriendBadge);
   if (__DEV__ && data?.friend) {
     console.log("[FRIEND_BADGE_DATA]", {
       friendId: friendUserId,
@@ -629,8 +631,8 @@ export default function FriendDetailScreen() {
                     }}
                   >
                     {/* Show emoji if available (ProfileBadge), otherwise Trophy icon */}
-                    {'emoji' in friendBadge && friendBadge.emoji ? (
-                      <Text className="text-sm">{friendBadge.emoji}</Text>
+                    {rawFriendBadge && 'emoji' in rawFriendBadge && rawFriendBadge.emoji ? (
+                      <Text className="text-sm">{rawFriendBadge.emoji}</Text>
                     ) : (
                       <Trophy size={14} color="#fff" />
                     )}

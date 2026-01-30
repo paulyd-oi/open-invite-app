@@ -37,6 +37,7 @@ import { StreakCounter } from "@/components/StreakCounter";
 import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { BadgePill } from "@/components/BadgePill";
+import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
@@ -347,15 +348,18 @@ export default function ProfileScreen() {
                   </Text>
                 )}
                 {/* Featured Badge */}
-                {profileData?.featuredBadge && (
-                  <View className="mt-2">
-                    <BadgePill
-                      name={profileData.featuredBadge.name}
-                      tierColor={profileData.featuredBadge.tierColor}
-                      variant="medium"
-                    />
-                  </View>
-                )}
+                {(() => {
+                  const featured = normalizeFeaturedBadge(profileData?.featuredBadge);
+                  return featured ? (
+                    <View className="mt-2">
+                      <BadgePill
+                        name={featured.name}
+                        tierColor={featured.tierColor}
+                        variant="medium"
+                      />
+                    </View>
+                  ) : null;
+                })()}
                 <View className="flex-row items-center mt-1">
                   <Calendar size={14} color={colors.textSecondary} />
                   <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>

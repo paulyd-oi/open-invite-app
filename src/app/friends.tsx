@@ -67,6 +67,7 @@ import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
 import { BadgePill } from "@/components/BadgePill";
+import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
@@ -282,15 +283,18 @@ function FriendCard({
             )}
             {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
             {/* Featured Badge */}
-            {friend.featuredBadge && (
-              <View className="mt-1.5">
-                <BadgePill
-                  name={friend.featuredBadge.name}
-                  tierColor={friend.featuredBadge.tierColor}
-                  variant="small"
-                />
-              </View>
-            )}
+            {(() => {
+              const featured = normalizeFeaturedBadge(friend.featuredBadge);
+              return featured ? (
+                <View className="mt-1.5">
+                  <BadgePill
+                    name={featured.name}
+                    tierColor={featured.tierColor}
+                    variant="small"
+                  />
+                </View>
+              ) : null;
+            })()}
           </View>
         </View>
 
@@ -435,15 +439,18 @@ function FriendListItem({
                     {friend.name ?? friend.email ?? "Unknown"}
                   </Text>
                   {/* Featured Badge */}
-                  {friend.featuredBadge && (
-                    <View className="mt-0.5">
-                      <BadgePill
-                        name={friend.featuredBadge.name}
-                        tierColor={friend.featuredBadge.tierColor}
-                        variant="small"
-                      />
-                    </View>
-                  )}
+                  {(() => {
+                    const featured = normalizeFeaturedBadge(friend.featuredBadge);
+                    return featured ? (
+                      <View className="mt-0.5">
+                        <BadgePill
+                          name={featured.name}
+                          tierColor={featured.tierColor}
+                          variant="small"
+                        />
+                      </View>
+                    ) : null;
+                  })()}
                   {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
                 </View>
               </Pressable>
