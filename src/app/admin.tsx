@@ -63,13 +63,6 @@ export default function AdminConsole() {
   const handleSearch = async () => {
     if (!searchQuery.trim() || isSearching) return;
 
-    if (__DEV__) {
-      console.log('[SEARCH_DECISION] Search initiated:', { 
-        queryLength: searchQuery.length,
-        query: searchQuery.slice(0, 20),
-        endpoint: '/api/admin/users/search',
-      });
-    }
     setIsSearching(true);
     setSelectedUser(null); // Clear selected user on new search
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -77,16 +70,21 @@ export default function AdminConsole() {
     try {
       const response = await searchUsers(searchQuery);
       if (__DEV__) {
-        console.log('[SEARCH_DECISION] Search success:', { 
+        console.log('[ADMIN_SEARCH]', { 
+          q: searchQuery,
           status: 'ok',
           resultCount: response.users.length,
+          firstResultId: response.users[0]?.id ?? null,
         });
       }
       setSearchResults(response.users);
     } catch (error: any) {
       if (__DEV__) {
-        console.log('[SEARCH_DECISION] Search error:', {
-          status: error?.status ?? 'unknown',
+        console.log('[ADMIN_SEARCH]', {
+          q: searchQuery,
+          status: error?.status ?? 'error',
+          resultCount: 0,
+          firstResultId: null,
           errorText: error?.message ?? 'Unknown error',
         });
       }

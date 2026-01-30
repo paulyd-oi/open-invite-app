@@ -942,16 +942,36 @@ export default function SocialScreen() {
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // All events for calendar (includes my events + attending + discovery)
+  // IMPORTANT: Filter out busy events - they are private and must not appear in social view
   const allEvents = useMemo(() => {
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
 
     const eventMap = new Map<string, Event>();
-    myEvents.forEach(e => eventMap.set(e.id, e));
-    attendingEvents.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
-    discoveryEvents.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    // Filter out busy events from all sources - busy is private
+    myEvents.filter(e => !e.isBusy).forEach(e => eventMap.set(e.id, e));
+    attendingEvents.filter(e => !e.isBusy).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    discoveryEvents.filter(e => !e.isBusy).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
 
-    return Array.from(eventMap.values());
+    const result = Array.from(eventMap.values());
+    
+    // DEV logging for social busy omit invariant
+    if (__DEV__) {
+      const totalInput = myEvents.length + attendingEvents.length + discoveryEvents.length;
+      const busyOmittedCount = myEvents.filter(e => e.isBusy).length + 
+        attendingEvents.filter(e => e.isBusy).length + 
+        discoveryEvents.filter(e => e.isBusy).length;
+      if (busyOmittedCount > 0) {
+        console.log("[SOCIAL_OMIT_BUSY]", {
+          inputCount: totalInput,
+          omittedCount: busyOmittedCount,
+          outputCount: result.length,
+          sampleOmittedIds: myEvents.filter(e => e.isBusy).slice(0, 3).map(e => e.id),
+        });
+      }
+    }
+    
+    return result;
   }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
 
   // Prepare events for calendar with metadata

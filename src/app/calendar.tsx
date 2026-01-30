@@ -610,15 +610,17 @@ function EventListItem({
   const endDate = event.endTime ? new Date(event.endTime) : null;
   // Use pink/magenta for birthdays, gray for work/busy, theme color for regular events
   const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? "#6B7280" : getEventColor(event, themeColor);
+  const bgColor = `${eventColor}12`;
   const textColor = getTextColorForBackground(eventColor, isDark);
 
-  // DEV logging for busy color decisions
-  if (__DEV__ && (event.isBusy || isWork)) {
-    console.log("[BUSY_COLOR_DECISION]", {
+  // DEV logging for busy invariant: if isBusy, must use grey palette
+  if (__DEV__ && event.isBusy) {
+    console.log("[BUSY_INVARIANT]", {
       eventId: event.id,
-      type: event.isBusy ? "busy" : isWork ? "work" : "regular",
-      paletteName: "grey",
+      isBusy: true,
       leftBarColor: eventColor,
+      bgColor,
+      sourceComponent: "EventListItem",
     });
   }
 
@@ -746,7 +748,7 @@ function EventListItem({
       <View
         className="flex-row items-center rounded-xl p-3 mb-2"
         style={{
-          backgroundColor: eventColor + "12",
+          backgroundColor: bgColor,
           borderLeftWidth: 4,
           borderLeftColor: eventColor,
           opacity: isWork ? 0.8 : 1,
@@ -806,7 +808,7 @@ function EventListItem({
     <View
       className="flex-row items-center rounded-xl p-3 mb-2"
       style={{
-        backgroundColor: eventColor + "12",
+        backgroundColor: bgColor,
         borderLeftWidth: 4,
         borderLeftColor: eventColor,
       }}

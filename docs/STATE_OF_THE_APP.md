@@ -77,6 +77,14 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (P0 Busy Grey + Social Omit + Admin Search)
+- Busy grey invariant: EventListItem computes bgColor from eventColor, uses bgColor variable for consistency
+- Busy grey logging: [BUSY_INVARIANT] DEV log with eventId, isBusy, leftBarColor, bgColor, sourceComponent
+- Social calendar omit busy: allEvents useMemo now filters out isBusy events from myEvents, attendingEvents, discoveryEvents
+- Social omit logging: [SOCIAL_OMIT_BUSY] DEV log with inputCount, omittedCount, outputCount, sampleOmittedIds
+- FeedCalendar defensive filter: allCalendarEvents filters out any (e as any).isBusy events as defensive layer
+- Admin search logging: [ADMIN_SEARCH] DEV log with q, status, resultCount, firstResultId (matches spec format)
+
 ## Fixed This Session (Frontend Patch #5 - Busy UX + Friend Badge + Circle Remove + Admin)
 - Busy block grey styling: getEventColor() now checks isBusy BEFORE custom color/group color, returns "#6B7280"
 - Busy event details visibility: Forced to "Only self" for isBusy events (not leaking circle/group)

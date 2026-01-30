@@ -236,12 +236,16 @@ export function FeedCalendar({ events, businessEvents = [], themeColor, isDark, 
     }));
   }, [businessEvents, showBusinessEvents]);
 
-  // Combine all events
+  // Combine all events - IMPORTANT: filter out any busy events (defensive)
+  // Busy events are private and must never appear in social/feed contexts
   const allCalendarEvents: CalendarEvent[] = useMemo(() => {
-    const friendEvents: CalendarEvent[] = events.map((e) => ({
-      ...e,
-      isBusinessEvent: false,
-    }));
+    // Filter out any events marked as busy (defensive - should already be filtered by caller)
+    const friendEvents: CalendarEvent[] = events
+      .filter((e) => !(e as any).isBusy)
+      .map((e) => ({
+        ...e,
+        isBusinessEvent: false,
+      }));
 
     if (showBusinessEvents) {
       return [...friendEvents, ...convertedBusinessEvents];
