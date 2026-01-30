@@ -55,7 +55,17 @@ export function getEventPalette(
   themeColor: string
 ): EventPalette {
   // INVARIANT: Busy/Work events ALWAYS use grey palette, regardless of any other property
-  if (event.isBusy === true || event.isWork === true) {
+  const title = (event as any)?.title;
+  const isLegacyBusyTitle =
+    typeof title === "string" && title.trim().toLowerCase() === "busy";
+
+  const isLegacyBusyFlag =
+    (event as any)?.busy === true ||
+    (event as any)?.isBusyBlock === true ||
+    (event as any)?.isBusyEvent === true ||
+    (event as any)?.busyBlock === true;
+
+  if (event.isBusy === true || event.isWork === true || isLegacyBusyTitle || isLegacyBusyFlag) {
     // DEV assertion - this should never fail if called correctly
     if (__DEV__) {
       // Log will be added at call sites for more context
