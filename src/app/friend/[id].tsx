@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Plus, StickyNote, ChevronDown, Trash2, Trophy } from "@/ui/icons";
+import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Plus, StickyNote, ChevronDown, Trash2 } from "@/ui/icons";
 
 // Define the MoreHorizontal icon inline using Ionicons
 import { Ionicons } from "@expo/vector-icons";
@@ -608,34 +608,15 @@ export default function FriendDetailScreen() {
         {friend && (
           <Animated.View entering={FadeInDown.springify()} className="mb-4">
             <View className="rounded-2xl p-5 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-              <View className="relative">
-                <View className="w-20 h-20 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                  {(friend.Profile?.avatarUrl ?? friend.image) ? (
-                    <Image source={{ uri: (friend.Profile?.avatarUrl ?? friend.image)! }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
-                      <Text className="text-3xl font-bold" style={{ color: themeColor }}>
-                        {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {/* Friend's Badge */}
-                {friendBadge && (
-                  <View
-                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full items-center justify-center"
-                    style={{
-                      backgroundColor: friendBadge.tierColor,
-                      borderWidth: 2,
-                      borderColor: colors.surface,
-                    }}
-                  >
-                    {/* Show emoji if available (ProfileBadge), otherwise Trophy icon */}
-                    {rawFriendBadge && 'emoji' in rawFriendBadge && rawFriendBadge.emoji ? (
-                      <Text className="text-sm">{rawFriendBadge.emoji}</Text>
-                    ) : (
-                      <Trophy size={14} color="#fff" />
-                    )}
+              {/* INVARIANT: Badges are pill-only. Never render badge icons on avatars. */}
+              <View className="w-20 h-20 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                {(friend.Profile?.avatarUrl ?? friend.image) ? (
+                  <Image source={{ uri: (friend.Profile?.avatarUrl ?? friend.image)! }} className="w-full h-full" />
+                ) : (
+                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
+                    <Text className="text-3xl font-bold" style={{ color: themeColor }}>
+                      {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -643,13 +624,13 @@ export default function FriendDetailScreen() {
                 <Text className="text-xl font-bold" style={{ color: colors.text }}>
                   {friend.name ?? "No name"}
                 </Text>
+                {/* INVARIANT: Badges are pill-only. Badge displayed as text pill, no icon. */}
                 {friendBadge && (
                   <View
-                    className="ml-2 px-2 py-0.5 rounded-full flex-row items-center"
+                    className="ml-2 px-2 py-0.5 rounded-full"
                     style={{ backgroundColor: friendBadge.tierColor + "20" }}
                   >
-                    <Trophy size={10} color={friendBadge.tierColor} />
-                    <Text className="text-xs font-medium ml-1" style={{ color: friendBadge.tierColor }}>
+                    <Text className="text-xs font-medium" style={{ color: friendBadge.tierColor }}>
                       {friendBadge.name}
                     </Text>
                   </View>

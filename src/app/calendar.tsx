@@ -140,6 +140,15 @@ function getTextColorForBackground(bgColor: string, isDark: boolean): string {
   return bgColor;
 }
 
+// INVARIANT: Busy blocks must ALWAYS use grey palette, never theme/orange
+// Single source-of-truth for busy styling
+function getBusyColors(isBusy: boolean, themeColor: string): { bar: string; bg: string } {
+  if (isBusy) {
+    return { bar: "#6B7280", bg: "#6B728020" };
+  }
+  return { bar: themeColor, bg: `${themeColor}20` };
+}
+
 // Helper to format date for calendar URLs
 const formatDateForCalendar = (date: Date): string => {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -609,8 +618,10 @@ function EventListItem({
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
   // Use pink/magenta for birthdays, gray for work/busy, theme color for regular events
-  const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? "#6B7280" : getEventColor(event, themeColor);
-  const bgColor = `${eventColor}12`;
+  // INVARIANT: Busy blocks ALWAYS use getBusyColors() for grey palette
+  const busyPalette = getBusyColors(event.isBusy === true, themeColor);
+  const eventColor = isBirthday ? "#FF69B4" : (isWork || event.isBusy) ? busyPalette.bar : getEventColor(event, themeColor);
+  const bgColor = isBirthday ? "#FF69B420" : (isWork || event.isBusy) ? busyPalette.bg : `${eventColor}20`;
   const textColor = getTextColorForBackground(eventColor, isDark);
 
   // DEV logging for busy invariant: if isBusy, must use grey palette
@@ -618,8 +629,8 @@ function EventListItem({
     console.log("[BUSY_INVARIANT]", {
       eventId: event.id,
       isBusy: true,
-      leftBarColor: eventColor,
-      bgColor,
+      barColor: busyPalette.bar,
+      bgColor: busyPalette.bg,
       sourceComponent: "EventListItem",
     });
   }
