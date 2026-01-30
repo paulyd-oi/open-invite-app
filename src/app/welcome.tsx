@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as SecureStore from "expo-secure-store";
 import Animated, {
   FadeInUp,
   SlideInRight,
@@ -46,6 +47,7 @@ import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 import { uploadImage } from "@/lib/imageUpload";
+import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -434,6 +436,13 @@ export default function WelcomeOnboardingScreen() {
       }
       
       console.log("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
+
+      // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate
+      if (isNewAccount) {
+        const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_PREFIX, userId);
+        await SecureStore.setItemAsync(forceShowKey, "true");
+        console.log("[Onboarding] forceShow enabled for new account:", forceShowKey);
+      }
 
       // Pre-populate name if available from result
       if (result.data?.user?.name) {

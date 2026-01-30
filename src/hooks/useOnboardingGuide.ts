@@ -7,12 +7,16 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 // SecureStore key prefixes - MUST be user-scoped to prevent cross-account pollution
 const GUIDE_FRIENDS_ADD_KEY_PREFIX = "guide_friends_add_people_v2";
 const GUIDE_CREATE_EVENT_KEY_PREFIX = "guide_create_first_plan_v2";
+const GUIDE_FORCE_SHOW_KEY_PREFIX = "guide_force_show_v2";
 
-// Helper to build user-scoped keys
+// Helper to build user-scoped keys (exported for signup flow)
 // NOTE: SecureStore keys cannot contain ":" - use "_" as delimiter
-function buildGuideKey(prefix: string, userId: string): string {
+export function buildGuideKey(prefix: string, userId: string): string {
   return `${prefix}_${userId}`;
 }
+
+// Export constant for use in signup flow
+export const GUIDE_FORCE_SHOW_PREFIX = GUIDE_FORCE_SHOW_KEY_PREFIX;
 
 // Module-level cache for SYNC reads to prevent flash on remount
 // Key: userId, Value: { friendsDismissed, createDismissed }
@@ -89,6 +93,25 @@ export function useOnboardingGuide() {
 
     const loadState = async () => {
       try {
+        // GATE: Only show guide if forceShow was explicitly set (on new account signup)
+        // This prevents mature accounts from seeing guide even if dismissal keys changed
+        const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_KEY_PREFIX, userId);
+        const forceShow = await SecureStore.getItemAsync(forceShowKey);
+        
+        if (forceShow !== "true") {
+          // Mature account or forceShow disabled - never show guide
+          if (__DEV__) console.log("[GUIDE_DECISION] gate: forceShow disabled -> completed", {
+            mountId: mountIdRef.current,
+            userId: userId.substring(0, 8),
+            forceShowKey,
+            forceShowValue: forceShow,
+          });
+          guideStateCache.set(userId, { friendsDismissed: true, createDismissed: true });
+          setState({ currentStep: "completed", isCompleted: true, isLoading: false });
+          setLoadedOnce(true);
+          return;
+        }
+        
         // Use user-scoped versioned SecureStore keys
         const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
         const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
@@ -224,15 +247,18 @@ export function useOnboardingGuide() {
     try {
       const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
       const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
-      // Dismiss both guides permanently
+      const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_KEY_PREFIX, userId);
+      // Dismiss both guides permanently and disable forceShow
       await SecureStore.setItemAsync(friendsKey, "true");
       await SecureStore.setItemAsync(createKey, "true");
+      await SecureStore.deleteItemAsync(forceShowKey); // Disable forceShow gate
       // Update module cache
       guideStateCache.set(userId, { friendsDismissed: true, createDismissed: true });
       setState(prev => ({ ...prev, isCompleted: true }));
       if (__DEV__) console.log("[GUIDE_DECISION] guide dismissed entirely", { 
         friendsKey,
         createKey,
+        forceShowKey,
         userId: userId.substring(0, 8)
       });
     } catch (error) {
@@ -240,15 +266,18 @@ export function useOnboardingGuide() {
     }
   }, [userId]);
 
-  // Reset guide (for testing only)
+  // Reset guide (for testing only - also enables forceShow to allow guide to appear)
   const resetGuide = useCallback(async () => {
     if (!userId) return;
 
     try {
       const friendsKey = buildGuideKey(GUIDE_FRIENDS_ADD_KEY_PREFIX, userId);
       const createKey = buildGuideKey(GUIDE_CREATE_EVENT_KEY_PREFIX, userId);
+      const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_KEY_PREFIX, userId);
       await SecureStore.deleteItemAsync(friendsKey);
       await SecureStore.deleteItemAsync(createKey);
+      // Re-enable forceShow to allow guide to appear on next load (DEV testing only)
+      await SecureStore.setItemAsync(forceShowKey, "true");
       guideStateCache.delete(userId); // Clear module cache
       setState({
         currentStep: "friends_tab",
@@ -256,7 +285,7 @@ export function useOnboardingGuide() {
         isLoading: false,
       });
       setLoadedOnce(false);
-      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via resetGuide", { userId: userId.substring(0, 8) });
+      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via resetGuide (forceShow re-enabled)", { userId: userId.substring(0, 8) });
     } catch (error) {
       console.error("Failed to reset onboarding guide:", error);
     }
