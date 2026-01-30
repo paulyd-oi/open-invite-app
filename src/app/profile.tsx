@@ -26,9 +26,7 @@ import {
   Award,
   Star,
   Heart,
-  ChevronRight,
-  Crown,
-} from "@/ui/icons";
+  ChevronRight,} from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -326,7 +324,6 @@ export default function ProfileScreen() {
                     className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
                     style={{ backgroundColor: "#FFD700" }}
                   >
-                    <Crown size={12} color="#FFFFFF" />
                   </View>
                 )}
               </View>
