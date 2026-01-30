@@ -466,6 +466,8 @@ export default function EventDetailScreen() {
     myEventsData?.events.find((e) => e.id === id) ??
     feedData?.events.find((e) => e.id === id);
 
+  const isBusyBlock = !!event?.isBusy;
+
   const isMyEvent = event?.userId === session?.user?.id;
   const hasJoinRequest = event?.joinRequests?.some(
     (r) => r.userId === session?.user?.id
@@ -475,8 +477,12 @@ export default function EventDetailScreen() {
   );
 
   const joinMutation = useMutation({
-    mutationFn: (message?: string) =>
-      api.post(`/api/events/${id}/join`, { message }),
+    mutationFn: (message?: string) => {
+      if (isBusyBlock) {
+        throw new Error("BUSY_BLOCK");
+      }
+      return api.post(`/api/events/${id}/join`, { message });
+    },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("You're Attending!", "This event has been added to your calendar.");
@@ -489,8 +495,12 @@ export default function EventDetailScreen() {
   });
 
   const handleJoinRequestAction = useMutation({
-    mutationFn: ({ requestId, status }: { requestId: string; status: "accepted" | "rejected" }) =>
-      api.put(`/api/events/${id}/join/${requestId}`, { status }),
+    mutationFn: ({ requestId, status }: { requestId: string; status: "accepted" | "rejected" }) => {
+      if (isBusyBlock) {
+        throw new Error("BUSY_BLOCK");
+      }
+      return api.put(`/api/events/${id}/join/${requestId}`, { status });
+    },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["events"] });
@@ -528,14 +538,14 @@ export default function EventDetailScreen() {
   const { data: interestsData } = useQuery({
     queryKey: ["events", id, "interests"],
     queryFn: () => api.get<{ event_interest: Array<{ id: string; userId: string; user: { id: string; name: string | null; image: string | null }; status: string; createdAt: string }> }>(`/api/events/${id}/interests`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
   });
 
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
     queryKey: ["events", id, "rsvp"],
     queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
   });
 
   const interests = interestsData?.event_interest ?? [];
@@ -548,7 +558,12 @@ export default function EventDetailScreen() {
   type RsvpStatus = "going" | "interested" | "not_going";
 
   const rsvpMutation = useMutation({
-    mutationFn: (status: RsvpStatus) => api.post(`/api/events/${id}/rsvp`, { status }),
+    mutationFn: (status: RsvpStatus) => {
+      if (isBusyBlock) {
+        throw new Error("BUSY_BLOCK");
+      }
+      return api.post(`/api/events/${id}/rsvp`, { status });
+    },
     onSuccess: async (_, status) => {
       // Haptic feedback only - no intrusive toast popups
       if (status === "going") {
@@ -601,7 +616,12 @@ export default function EventDetailScreen() {
   });
 
   const removeRsvpMutation = useMutation({
-    mutationFn: () => api.delete(`/api/events/${id}/rsvp`),
+    mutationFn: () => {
+      if (isBusyBlock) {
+        throw new Error("BUSY_BLOCK");
+      }
+      return api.delete(`/api/events/${id}/rsvp`);
+    },
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
@@ -614,6 +634,9 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
+    if (isBusyBlock) {
+      return;
+    }
     // Guard: only allow RSVP when authenticated
     if (bootStatus !== 'authed') {
       if (bootStatus === 'onboarding') {
