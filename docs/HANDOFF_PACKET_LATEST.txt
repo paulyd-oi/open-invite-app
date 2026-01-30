@@ -1,91 +1,100 @@
-HANDOFF PACKET - P0: Busy/Work Grey Single Source of Truth + Badge Pill-Only
-============================================================================
+HANDOFF PACKET — P0 LOCKDOWN PATCH
+===================================
 Date: 2026-01-30
-Commit: 6494988
+Commit: 7e236f6
 Branch: main
-Repo: open-invite-app (frontend)
+Repo: github.com/paulyd-oi/open-invite-app.git
 
-1) SUMMARY
-----------
-- Created src/lib/eventPalette.ts as SINGLE SOURCE OF TRUTH for all event color rendering
-- GREY_PALETTE constant: { bar: "#6B7280", bg: "#6B728020" } enforced for isBusy OR isWork
-- All calendar renderers now delegate to shared module (CompactDayCell, StackedDayCell, DetailsDayCell, EventListItem, FeedCalendar)
-- Trophy icon deprecated with "DO NOT USE" comment (badges are pill-only)
-- Badge avatar overlays already removed in previous session (friend/[id].tsx, user/[id].tsx)
-- Social calendar omit busy already in place with DEV logging
-- Busy creation payload verified: sends isBusy: true (calendar.tsx line 1299)
+SUMMARY
+-------
+- KILLED all getEventColor wrapper functions (calendar.tsx, FeedCalendar.tsx)
+- REPLACED with direct getEventPalette().bar usage at all render sites
+- PURGED business event code from FeedCalendar.tsx (isBusinessEvent, businessName, businessLogo, etc.)
+- REMOVED businessEvents prop from FeedCalendarProps and social.tsx usages
+- DELETED Trophy export from icons.tsx (renamed to comment "Trophy REMOVED")
+- ADDED title "busy" defensive filter in social.tsx (catches legacy data)
+- CLEANED unused getEventBarColor import from calendar.tsx
+- FIXED type in calendar.tsx EventListItem (removed isBusinessEvent from type)
 
-2) FILES CHANGED
-----------------
-NEW: src/lib/eventPalette.ts        - Single source of truth module
-MOD: src/app/calendar.tsx           - Uses shared module for all color logic
-MOD: src/components/FeedCalendar.tsx - Uses getEventBarColor() from shared module
-MOD: src/ui/icons.tsx               - Trophy export marked DO NOT USE
-MOD: docs/STATE_OF_THE_APP.md       - Updated with fixes
-MOD: docs/FINDINGS_LOG.md           - Documented root cause
+ROOT CAUSES
+-----------
+1. FeedCalendar.tsx had its own getEventColor function that checked isBusinessEvent
+2. FeedCalendar.tsx had full business event infrastructure (state, props, rendering)
+3. calendar.tsx had a getEventColor wrapper that delegated to getEventBarColor
+4. Trophy was still exported (just deprecated comment, not removed)
+5. social.tsx passed businessEvents={undefined} to FeedCalendar
 
-3) KEY DIFFS - Busy Grey Single Source of Truth
------------------------------------------------
+FILES CHANGED
+-------------
+1. src/app/calendar.tsx
+   - Removed getEventColor function
+   - Replaced getEventColor() calls with getEventPalette().bar
+   - Removed getEventBarColor from import
+   - Removed isBusinessEvent from EventListItem type
 
-src/lib/eventPalette.ts (NEW):
-  const GREY_PALETTE = { bar: "#6B7280", bg: "#6B728020", icon: "#6B7280", text: "#6B7280" }
-  getEventPalette(event, themeColor) - returns grey if isBusy OR isWork
-  assertGreyPaletteInvariant() - DEV-only logs [BUSY_GREY_INVARIANT_FAIL]
+2. src/components/FeedCalendar.tsx
+   - Removed Building2 icon import
+   - Removed BusinessEvent type import
+   - Removed getEventColor function entirely
+   - Removed all business fields from CalendarEvent interface
+   - Removed businessEvents from FeedCalendarProps
+   - Removed showBusinessEvents state and toggleBusinessEvents function
+   - Removed convertedBusinessEvents memo
+   - Removed business UI (badge, host info branch)
+   - Simplified eventCountsByDate to use getEventPalette
+   - Removed commented business toggle section
 
-src/app/calendar.tsx:
-  Line 44: Import from shared module
-  Line 103-108: getEventColor() delegates to getEventBarColor()
-  Line 603-607: EventListItem uses getEventPalette() for palette
-  Line 609-611: DEV assertion via assertGreyPaletteInvariant()
+3. src/ui/icons.tsx
+   - Removed Trophy export (changed to comment "Trophy REMOVED")
 
-src/components/FeedCalendar.tsx:
-  Line 10: Import getEventBarColor from shared module
-  Line 24-34: getEventColor() delegates to getEventBarColor()
+4. src/app/social.tsx
+   - Added shouldOmit helper with title "busy" check
+   - Removed businessEvents prop from FeedCalendar usages
 
-4) PROOF - Busy Create API Payload
-----------------------------------
-calendar.tsx line 1294-1300:
-  api.post("/api/events", { ..., isBusy: true })  // CONFIRMED
+HARD GATE RESULTS
+-----------------
+=== GATE 1: BUSINESS (in scope files) ===
+PASS: No isBusinessEvent
 
-5) PROOF - getEventPalette Call Sites (3+ locations)
-----------------------------------------------------
-1. calendar.tsx line 107: getEventColor() -> getEventBarColor()
-2. calendar.tsx line 603: EventListItem -> getEventPalette()
-3. FeedCalendar.tsx line 34: getEventColor() -> getEventBarColor()
+=== GATE 2: getEventColor ===
+PASS: No getEventColor
 
-6) PROOF - Trophy Not Used
---------------------------
-rg -n "Trophy" src/app src/components src/ui
--> Only comments and deprecation notice, no actual <Trophy> usage
+=== GATE 3: TROPHY (actual usage) ===
+PASS: No Trophy exports or imports
 
-7) VERIFICATION OUTPUT
-----------------------
-bun run typecheck: No errors
-bash scripts/ai/verify_frontend.sh: PASS
+VERIFICATION OUTPUTS
+--------------------
+$ bun run typecheck
+✓ No errors
 
-8) ROOT CAUSE (Documented in docs/FINDINGS_LOG.md)
--------------------------------------------------
-- Multiple divergent render paths for event colors
-- calendar.tsx getEventColor() checked isBusy but NOT isWork
-- FeedCalendar.tsx had its own getEventColor() with different logic
-- Fix: Single source of truth module eliminates divergence
+$ bash scripts/ai/verify_frontend.sh
+== REPO CONFIRMATION ==
+/Users/paulsmbp/Documents/GitHub/open-invite-app
+origin  https://github.com/paulyd-oi/open-invite-app.git (fetch)
+main
+== INVARIANT CHECK PASSED ==
+== TYPECHECK ==
+PASS: verify_frontend
 
-9) COMMANDS RUN
----------------
-bun run typecheck
-bash scripts/ai/verify_frontend.sh
-rg -n "Trophy" src/app src/components src/ui
-git add -A && git commit -m "fix(P0): busy/work grey single source of truth + badge pill-only"
-git push origin main
+MANUAL TEST CHECKLIST
+---------------------
+[ ] Create Busy event → grey bar (#6B7280) + grey bg (#6B728020) on month view
+[ ] Tap day with busy → grey in day list
+[ ] Work events → grey bar + grey bg (same as busy)
+[ ] Social tab → no busy events appear (including title "busy" legacy)
+[ ] Profile page → badge pills only, no trophy icons, no avatar overlays
+[ ] Friend/user page → badge pills only, no trophy icons
+[ ] Achievements → Award icon used (not Trophy)
 
-10) MANUAL TEST CHECKLIST
--------------------------
-[ ] Create busy block -> verify grey bar + grey bg in month view
-[ ] Tap day with busy -> verify grey in day list
-[ ] Check work calendar events -> verify grey rendering
-[ ] Check Social tab -> verify NO busy events appear
-[ ] Check friend profile avatar -> NO badge overlay (pill only)
-[ ] Check user/[id] profile -> NO badge overlay (pill only)
-[ ] Check Profile -> Badges section shows Award icon (not Trophy)
+COMMIT DETAILS
+--------------
+Hash: 7e236f6
+Message: fix(P0): purge business + kill getEventColor + enforce busy/work grey + ban trophy
+Push: 837b514..7e236f6 main -> main ✓
 
-END HANDOFF
+NOTES
+-----
+- Business profile type system (personal vs business) is PRESERVED - separate concern
+- Building2 icon export preserved (for business-outline icon, not event-related)
+- getEventBarColor still exported from eventPalette.ts (may have other consumers)
+- All Trophy references in comments are INVARIANT documentation (acceptable)
