@@ -1,96 +1,111 @@
-HANDOFF PACKET — PUSH DIAGNOSTICS + FORCED TOKEN REGISTRATION
-==============================================================
-Date: 2026-01-30
+HANDOFF PACKET — DEV-ONLY TEXT RENDER CRASH DETECTOR
+=====================================================
+Date: 2025-01-30
 Branch: main
+Commit: 9c51a12
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Added production-safe Push Diagnostics feature for TestFlight testing.
-- New runPushDiagnostics() function in useNotifications hook
-- Settings screen "Push Diagnostics" row (allowlist-gated)
-- Verifies: auth status, permission, token validity, backend registration
-- Returns: permission status, token prefix, backend active count
+Added DEV-only runtime detector for "Text strings must be rendered within
+a <Text> component" crash that occurs in TestFlight. Exhaustive static
+analysis did not find the culprit, so instrumentation was added to capture
+stack traces when the crash occurs at runtime.
 
-PROBLEM SOLVED
---------------
-Backend shows only fake token "ExponentPushToken[test123]" because no real
-device token was ever registered. This feature forces token registration
-and provides proof that the real token is now in backend.
+PROBLEM
+-------
+TestFlight users experiencing crash with message:
+  "Text strings must be rendered within a <Text> component"
+
+This React Native error occurs when raw strings/numbers are rendered 
+directly inside View components instead of Text components.
+
+INVESTIGATION PERFORMED
+-----------------------
+Static needle search across all .tsx files for common patterns:
+
+1. `&& "string"` - Found 3 matches, all properly inside <Text>
+2. `return "string"` - Helper functions only, not JSX
+3. View + children patterns - Wrapper components passing React nodes
+4. Ternary `? "string"` - All properly wrapped in <Text>
+5. Template literals `{...}` - All properly wrapped
+6. Number rendering `{0}` or `{count}` - None found raw
+7. Function call results in Views - All return valid ReactNode
+
+Files manually inspected:
+- event-request/[id].tsx
+- import-calendar.tsx  
+- settings.tsx
+- notification-settings.tsx
+- activity.tsx
+- CircleCard.tsx
+- EmptyState.tsx
+- Toast.tsx
+
+NO CULPRIT FOUND via static analysis.
+
+SOLUTION IMPLEMENTED
+--------------------
+DEV-only runtime detector to capture crash location on reproduction.
 
 FILES CHANGED
 -------------
-1. src/hooks/useNotifications.ts
-   - Added runPushDiagnostics() async function
-   - Returns { ok, reason, permission?, tokenPrefix?, backendActiveCount? }
-   - Production-safe logging (no secrets, no full tokens)
-   - Exported in hook return object
+1. src/app/_layout.tsx (lines 52-62)
+   - Added console.error interceptor (DEV only)
+   - Detects "Text strings must be rendered" message
+   - Logs stack trace when triggered
+   
+2. src/components/ErrorBoundary.tsx
+   - Enhanced componentDidCatch
+   - Checks for Text render crash message
+   - Logs component stack + JS stack
 
-2. src/app/settings.tsx
-   - Imported useNotifications hook
-   - Added PUSH_DIAG_ALLOWLIST for gating visibility
-   - Added isPushDiagRunning state
-   - Added handlePushDiagnostics() handler with safeToast feedback
-   - Added "Push Diagnostics" SettingItem in Notifications section
+KEY CODE
+--------
+_layout.tsx:
+  if (__DEV__) {
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      const message = args[0]?.toString?.() ?? '';
+      if (message.includes('Text strings must be rendered')) {
+        console.warn('🔴 TEXT RENDER CRASH DETECTED');
+        console.warn('Stack:', new Error().stack);
+      }
+      originalConsoleError.apply(console, args);
+    };
+  }
 
-KEY DIFFS
----------
-useNotifications.ts:
-+const runPushDiagnostics = useCallback(async (): Promise<{
-+  ok: boolean; reason: string; permission?: string;
-+  tokenPrefix?: string; backendActiveCount?: number;
-+}> => { ... }, [bootStatus, session?.user, isValidPushToken]);
-+return { ..., runPushDiagnostics };
-
-settings.tsx:
-+import { useNotifications } from "@/hooks/useNotifications";
-+const PUSH_DIAG_ALLOWLIST = ["pauljdal@gmail.com", ...];
-+const { runPushDiagnostics } = useNotifications();
-+const showPushDiagnostics = PUSH_DIAG_ALLOWLIST.some(...)
-+{showPushDiagnostics && <SettingItem ... onPress={handlePushDiagnostics} />}
-
-COMMANDS RUN
+VERIFICATION
 ------------
-npm run typecheck -> PASS
-bash scripts/ai/verify_frontend.sh -> PASS
+- npm run typecheck: PASSED
+- bash scripts/ai/verify_frontend.sh: PASS
 
-TESTFLIGHT VERIFICATION STEPS
------------------------------
-1. Install TestFlight build on real iOS device
-2. Sign in with allowlisted email (pauljdal@gmail.com, etc.)
-3. Navigate: Settings tab (gear icon)
-4. Scroll to NOTIFICATIONS section
-5. Tap "Push Diagnostics" row
-6. Expected toast:
-   - Success: "Push token registered (Active tokens: 1)"
-   - Or appropriate error message
-7. Check Xcode console for logs:
-   [PUSH_DIAG] start
-   [PUSH_DIAG] permission=granted
-   [PUSH_DIAG] tokenPrefix=ExponentPushToken[xxxx...
-   [PUSH_DIAG] backendActiveCount=1
-   [PUSH_DIAG] success
+NEXT STEPS FOR FUTURE AGENT
+---------------------------
+1. User must REPRODUCE the crash in DEV mode (simulator/Expo Go)
+2. When crash occurs, look for console output:
+   🔴 TEXT RENDER CRASH DETECTED
+   Stack: [full stack trace showing offending component]
+3. Stack trace will reveal exact file + line of bad JSX
+4. Fix the identified code (wrap string/number in <Text>)
+5. Remove DEV-only detector after fix confirmed
 
-PROOF VERIFICATION
-------------------
-After tapping Push Diagnostics:
-1. Backend GET /api/notifications/device-tokens should show:
-   - A REAL token (NOT "test123")
-   - Token starting with "ExponentPushToken[" followed by 22+ chars
-2. Active count >= 1 in toast
+POSSIBLE CRASH SOURCES NOT YET EXPLORED
+---------------------------------------
+- Third-party library components
+- Race condition in async data loading
+- Platform-specific code paths (iOS-only)
+- Edge case in navigation state
 
-SUCCESS CRITERIA
-----------------
-[x] runPushDiagnostics() returns structured result
-[x] Allowlist gates visibility (only testers see the row)
-[x] Production-safe logs (no secrets)
-[x] Toast feedback for all outcomes
-[x] Typecheck passes
-[x] verify_frontend.sh passes
+WHY STATIC SEARCH FAILED
+------------------------
+The crash may be:
+1. In a code path not exercised during static analysis
+2. A race condition where undefined/null becomes string
+3. In library code we don't control
+4. Platform-specific rendering issue
 
-RISKS / ROLLBACKS
------------------
-- Minimal risk: feature is allowlist-gated
-- Rollback: revert src/hooks/useNotifications.ts + src/app/settings.tsx
-- No new dependencies
-- No navigation changes
+IMPORTANT
+---------
+DO NOT GUESS at the fix. The detector must capture the exact location.
+The crash is real (TestFlight reports) but source is NOT YET IDENTIFIED.
