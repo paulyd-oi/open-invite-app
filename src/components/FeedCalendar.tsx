@@ -22,8 +22,20 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
+// INVARIANT: Busy events ALWAYS use grey palette, never theme/orange
+// Single source-of-truth for event colors in FeedCalendar
+const BUSY_PALETTE = {
+  bar: "#6B7280",
+  bg: "#6B728020",
+};
+
 // Get event color - use first group color or default theme color
+// IMPORTANT: This handles isBusy check first for grey palette invariant
 function getEventColor(event: Event | CalendarEvent, defaultColor: string): string {
+  // INVARIANT: Busy events always grey - check first
+  if ('isBusy' in event && event.isBusy) {
+    return BUSY_PALETTE.bar;
+  }
   if ('groupVisibility' in event && event.groupVisibility && event.groupVisibility.length > 0) {
     return event.groupVisibility[0].group.color;
   }

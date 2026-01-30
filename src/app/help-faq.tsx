@@ -17,7 +17,7 @@ import {
   Users,
   Bell,
   Sparkles,
-  Trophy,
+  Award,
   UserPlus,
   Clock,
   Shield,
@@ -480,7 +480,7 @@ export default function HelpFAQScreen() {
     {
       id: "achievements",
       title: "Achievements & Gamification",
-      icon: <Trophy size={22} color="#FFD700" />,
+      icon: <Award size={22} color="#FFD700" />,
       iconColor: "#FFD700",
       features: [
         {

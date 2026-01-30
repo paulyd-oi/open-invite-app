@@ -141,10 +141,63 @@ function getTextColorForBackground(bgColor: string, isDark: boolean): string {
 }
 
 // INVARIANT: Busy blocks must ALWAYS use grey palette, never theme/orange
-// Single source-of-truth for busy styling
+// Single source-of-truth for ALL event styling throughout the app
+export interface EventPalette {
+  bar: string;    // Left bar / primary color
+  bg: string;     // Background tint (20% alpha)
+  icon: string;   // Icon color
+  text: string;   // Text color for overlays
+}
+
+// Canonical busy palette - grey only, never theme
+const BUSY_PALETTE: EventPalette = {
+  bar: "#6B7280",
+  bg: "#6B728020",
+  icon: "#6B7280",
+  text: "#6B7280",
+};
+
+// INVARIANT: This is the ONLY function that should determine event colors
+// All render paths must use this function to ensure busy events are ALWAYS grey
+export function getEventPalette(
+  event: { isBusy?: boolean; isBirthday?: boolean; color?: string; groupVisibility?: Array<{ group: { color: string } }> },
+  themeColor: string
+): EventPalette {
+  // INVARIANT: Busy events ALWAYS use grey palette, regardless of any other property
+  if (event.isBusy) {
+    return BUSY_PALETTE;
+  }
+  
+  // Birthday events get pink
+  if (event.isBirthday) {
+    return {
+      bar: "#FF69B4",
+      bg: "#FF69B420",
+      icon: "#FF69B4",
+      text: "#FF69B4",
+    };
+  }
+  
+  // Determine base color from event properties
+  let baseColor = themeColor;
+  if (event.color) {
+    baseColor = event.color;
+  } else if (event.groupVisibility && event.groupVisibility.length > 0) {
+    baseColor = event.groupVisibility[0].group.color;
+  }
+  
+  return {
+    bar: baseColor,
+    bg: `${baseColor}20`,
+    icon: baseColor,
+    text: baseColor,
+  };
+}
+
+// Legacy helper - delegates to getEventPalette
 function getBusyColors(isBusy: boolean, themeColor: string): { bar: string; bg: string } {
   if (isBusy) {
-    return { bar: "#6B7280", bg: "#6B728020" };
+    return { bar: BUSY_PALETTE.bar, bg: BUSY_PALETTE.bg };
   }
   return { bar: themeColor, bg: `${themeColor}20` };
 }

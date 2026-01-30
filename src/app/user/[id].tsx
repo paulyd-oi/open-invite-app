@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl } from "react-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, Trophy, MapPin, Clock } from "@/ui/icons";
+import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -484,29 +484,15 @@ export default function UserProfileScreen() {
             {/* User Info Card */}
             <Animated.View entering={FadeInDown.springify()} className="mb-4">
               <View className="rounded-2xl p-5 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-                <View className="relative">
-                  <View className="w-20 h-20 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                    {(user.Profile?.avatarUrl ?? user.image) ? (
-                      <Image source={{ uri: (user.Profile?.avatarUrl ?? user.image)! }} className="w-full h-full" />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
-                        <Text className="text-3xl font-bold" style={{ color: themeColor }}>
-                          {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  {/* User's Badge */}
-                  {userBadge && (
-                    <View
-                      className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full items-center justify-center"
-                      style={{
-                        backgroundColor: userBadge.tierColor,
-                        borderWidth: 2,
-                        borderColor: colors.surface,
-                      }}
-                    >
-                      <Text className="text-sm">{userBadge.emoji}</Text>
+                {/* INVARIANT: Badges are pill-only. No badge overlay on avatar. */}
+                <View className="w-20 h-20 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                  {(user.Profile?.avatarUrl ?? user.image) ? (
+                    <Image source={{ uri: (user.Profile?.avatarUrl ?? user.image)! }} className="w-full h-full" />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
+                      <Text className="text-3xl font-bold" style={{ color: themeColor }}>
+                        {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -514,13 +500,13 @@ export default function UserProfileScreen() {
                   <Text className="text-xl font-bold" style={{ color: colors.text }}>
                     {user.name ?? "No name"}
                   </Text>
+                {/* INVARIANT: Badges are pill-only. No trophy icons anywhere. */}
                   {userBadge && (
                     <View
-                      className="ml-2 px-2 py-0.5 rounded-full flex-row items-center"
+                      className="ml-2 px-2 py-0.5 rounded-full"
                       style={{ backgroundColor: userBadge.tierColor + "20" }}
                     >
-                      <Trophy size={10} color={userBadge.tierColor} />
-                      <Text className="text-xs font-medium ml-1" style={{ color: userBadge.tierColor }}>
+                      <Text className="text-xs font-medium" style={{ color: userBadge.tierColor }}>
                         {userBadge.name}
                       </Text>
                     </View>

@@ -14,7 +14,7 @@ import {
   Share2,
   Copy,
   Users,
-  Trophy,
+  Award,
   ChevronRight,
   Crown,
   Sparkles,
@@ -107,7 +107,7 @@ export default function InviteScreen() {
 
   const rewardTiers = [
     { count: 3, reward: "1 Month FREE", icon: Gift, color: "#10B981" },
-    { count: 10, reward: "1 Year FREE", icon: Trophy, color: "#8B5CF6" },
+    { count: 10, reward: "1 Year FREE", icon: Award, color: "#8B5CF6" },
     { count: 20, reward: "Lifetime FREE", icon: Crown, color: "#EC4899" },
   ];
 

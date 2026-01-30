@@ -23,7 +23,7 @@ import {
   X,
   Check,
   Calendar,
-  Trophy,
+  Award,
   Star,
   Heart,
   ChevronRight,
@@ -487,7 +487,8 @@ export default function ProfileScreen() {
           >
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
-                <Trophy size={16} color="#FFD700" />
+                {/* INVARIANT: No Trophy icons. Using Award icon for badge section header. */}
+                <Award size={16} color="#FFD700" />
                 <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
                   Badges
                 </Text>

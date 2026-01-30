@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
-import { ChevronLeft, Trophy, Star, Check, X } from "@/ui/icons";
+import { ChevronLeft, Award, Star, Check, X } from "@/ui/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -166,7 +166,8 @@ export default function BadgesScreen() {
           </View>
         ) : badges.length === 0 ? (
           <View className="flex-1 items-center justify-center py-20 px-6">
-            <Trophy size={48} color={colors.textTertiary} />
+            {/* INVARIANT: No Trophy icons anywhere. Using Award for empty state. */}
+            <Award size={48} color={colors.textTertiary} />
             <Text className="text-xl font-bold mt-4 text-center" style={{ color: colors.text }}>
               No Badges Yet
             </Text>
@@ -397,7 +398,8 @@ export default function BadgesScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View className="flex-row items-center justify-between mb-4">
-              <Trophy size={32} color={selectedBadge?.tierColor ?? themeColor} />
+              {/* INVARIANT: No Trophy icons. Using Award for badge modal. */}
+              <Award size={32} color={selectedBadge?.tierColor ?? themeColor} />
               <Pressable
                 onPress={() => setSelectedBadge(null)}
                 className="w-8 h-8 rounded-full items-center justify-center"

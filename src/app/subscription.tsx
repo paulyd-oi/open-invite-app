@@ -27,7 +27,7 @@ import {
   UserPlus,
   Cake,
   BarChart3,
-  Trophy,
+  Award,
   Zap,
   Star,
   Heart,
@@ -400,7 +400,7 @@ export default function SubscriptionScreen() {
         },
         {
           name: "Full Achievements",
-          icon: <Trophy size={16} color={themeColor} />,
+          icon: <Award size={16} color={themeColor} />,
           freeValue: "Basic only",
           proValue: "All badges",
         },

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { Flame, Calendar, Sparkles, Trophy } from "@/ui/icons";
+import { Flame, Calendar, Sparkles, Award } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -92,7 +92,8 @@ export function StreakCounter({
                 className="w-10 h-10 rounded-full items-center justify-center mb-1"
                 style={{ backgroundColor: "#FFD70020" }}
               >
-                <Trophy size={20} color="#FFD700" />
+                {/* INVARIANT: No Trophy icons. Using Award for best streak. */}
+                <Award size={20} color="#FFD700" />
               </View>
               <Text className="text-xs" style={{ color: colors.textTertiary }}>Best</Text>
               <Text className="text-sm font-bold" style={{ color: "#FFD700" }}>
