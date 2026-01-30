@@ -1,72 +1,79 @@
 ========================================
-HANDOFF PACKET - Onboarding Guide ForceShow Gate
+HANDOFF PACKET - Apple Sign-In Trace Logging
 Date: 2026-01-30
-Commit: 7d2f158
+Commit: 32d289e
 ========================================
 
 SUMMARY
 -------
-Fixed onboarding guide popup reappearing for mature accounts after 
-SecureStore key delimiter fix (":" → "_").
-
-ROOT CAUSE
-----------
-The previous delimiter fix changed SecureStore keys from:
-  guide_friends_add_people_v2:<userId> → guide_friends_add_people_v2_<userId>
-
-This meant existing dismissal keys were "lost" - mature accounts appeared
-as "not dismissed" and the guide started showing again inappropriately.
-
-FIX: FORCESHOW GATE
--------------------
-Added explicit eligibility gate: guide ONLY shows if forceShow="true" in SecureStore.
-- Mature accounts: No forceShow key → guide never shows
-- New accounts: forceShow set to "true" on signup → guide shows once
-- After dismiss: forceShow deleted → guide never returns
+Added comprehensive DEV-only trace logging and debug panel for Apple Sign-In
+to diagnose "apple sign in encountered an issue" failures.
 
 FILES CHANGED
 -------------
-1. src/hooks/useOnboardingGuide.ts
-   - Added GUIDE_FORCE_SHOW_KEY_PREFIX = "guide_force_show_v2"
-   - Exported buildGuideKey() and GUIDE_FORCE_SHOW_PREFIX for signup
-   - Added forceShow gate at start of loadState:
-     * If forceShow !== "true" → treat as completed, never show
-     * DEV log: "[GUIDE_DECISION] gate: forceShow disabled -> completed"
-   - dismissGuide() now deletes forceShowKey (disables future showing)
-   - resetGuide() now re-enables forceShow (for DEV testing)
+src/app/welcome.tsx
+  - handleAppleSignIn function instrumented with [APPLE_AUTH_TRACE]
+  - Added appleAuthDebug state for tracking last attempt
+  - Added DEV-only debug panel on iOS in Slide 2 (auth screen)
 
-2. src/app/welcome.tsx
-   - Added import: SecureStore, buildGuideKey, GUIDE_FORCE_SHOW_PREFIX
-   - On successful NEW account (isNewAccount=true):
-     * Sets forceShow key to "true"
-     * Log: "[Onboarding] forceShow enabled for new account"
+CONFIG AUDIT
+------------
+app.json iOS config verified:
+  - bundleIdentifier: com.vibecode.openinvite.0qi5wk
+  - usesAppleSignIn: true (required for native capability)
+  - jsEngine: jsc
 
-EXACT KEY NAMES
+expo-apple-authentication:
+  - Dynamically loaded via require() in welcome.tsx
+  - Availability checked via isAppleSignInAvailable() helper
+
+LOG TAGS AND STAGES
+-------------------
+All logs are JSON lines with tag [APPLE_AUTH_TRACE] and unique attemptId.
+
+Stages in order:
+1. tap - Button pressed
+2. availability_check - Platform module isAppleSignInReady
+3. availability_fail - If checks fail
+4. request_start - signInAsync called
+5. request_result - Credential received (tokens redacted)
+6. credential_invalid - If identityToken missing
+7. backend_exchange_start - Fetch to /api/auth/apple
+8. backend_exchange_response - HTTP status body preview
+9. backend_exchange_fail - If not response.ok
+10. token_extraction - Which token field used
+11. token_missing - If no token found
+12. cookie_persist_securestore - SecureStore write
+13. cookie_persist_securestore_fail - If write fails
+14. cookie_cache_set - Module cache set
+15. cookie_cache_verified - Refresh success
+16. bootstrap_refresh_requested - Boot refresh triggered
+17. final_success - Advancing to slide 3
+18. user_cancelled - User cancelled
+19. final_fail - Error with full object
+
+DEV DEBUG PANEL
 ---------------
-- Force show gate: guide_force_show_v2_<userId>
-- Friends dismissed: guide_friends_add_people_v2_<userId>
-- Create dismissed: guide_create_first_plan_v2_<userId>
+Shows on Slide 2 when attemptId exists:
+- Dark background with monospace text
+- Displays attemptId stage error
 
-FLOW
-----
-NEW ACCOUNT:
-1. User signs up (email) → isNewAccount=true
-2. forceShow key set to "true"
-3. On home, useOnboardingGuide reads forceShow="true" → guide shows
-4. User dismisses → forceShow deleted + dismissal keys set
-5. On relaunch → forceShow !== "true" → guide never shows again
+HOW TO REPRODUCE
+----------------
+1. Build DEV: eas build --profile development --platform ios
+2. Install on physical iOS device
+3. Navigate to Slide 2 Create Account
+4. Tap Continue with Apple
+5. Watch debug panel and console for traces
+6. Check logs: npx react-native log-ios
 
-MATURE ACCOUNT:
-1. User logs in
-2. No forceShow key exists
-3. loadState sees forceShow !== "true" → immediately completed
-4. Guide never shows
-
-KNOWN GAP
----------
-Apple Sign-In first-time accounts do NOT set forceShow because detecting
-first-time vs returning Apple user is unreliable (Apple only gives email
-on first auth). Only email/password signup sets forceShow. Documented here.
+FAILURE INTERPRETATION
+----------------------
+availability_fail: Module not loaded
+request_start then final_fail: Native sheet failed
+backend_exchange_fail: Backend rejected token
+token_missing: No token in response
+cookie_persist_securestore_fail: SecureStore write failed
 
 VERIFICATION RESULTS
 --------------------
@@ -75,8 +82,8 @@ bash scripts/ai/verify_frontend.sh: PASS
 
 GIT
 ---
-Commit: 7d2f158 fix(onboarding): gate guide to new accounts only
-Push: a67c379..7d2f158 → main
+Commit: 32d289e fix(auth): add Apple Sign-In trace logging
+Push: a085a00..32d289e main
 
 ========================================
 END HANDOFF
