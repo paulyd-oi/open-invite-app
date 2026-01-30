@@ -86,7 +86,6 @@ function ProfileRow({
   showBorder = true,
 }: ProfileRowProps) {
   const isPersonal = profile.type === "personal";
-  const isBusiness = profile.type === "business";
 
   return (
     <View
@@ -110,11 +109,7 @@ function ProfileRow({
             className="w-14 h-14 rounded-full items-center justify-center"
             style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
           >
-            {isPersonal ? (
-              <User size={26} color={isDark ? "#8E8E93" : "#6B7280"} />
-            ) : (
-              <Building2 size={26} color={isDark ? "#8E8E93" : "#6B7280"} />
-            )}
+            <User size={26} color={isDark ? "#8E8E93" : "#6B7280"} />
           </View>
         )}
 
@@ -128,36 +123,16 @@ function ProfileRow({
             >
               {profile.name ?? "Personal Account"}
             </Text>
-            {isBusiness && profile.isVerified && (
-              <BadgeCheck size={16} color="#3b82f6" style={{ marginLeft: 4 }} />
-            )}
           </View>
           <Text
             className="text-sm mt-0.5"
             style={{ color: isDark ? "#8E8E93" : "#6B7280" }}
             numberOfLines={1}
           >
-            {isPersonal
-              ? profile.handle
+            {profile.handle
                 ? `@${profile.handle}`
-                : "Your personal profile"
-              : `@${profile.handle}`}
+                : "Your personal profile"}
           </Text>
-          {isBusiness && (
-            <View className="flex-row items-center mt-1">
-              <View
-                className="px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: `${themeColor}20` }}
-              >
-                <Text
-                  className="text-xs font-medium capitalize"
-                  style={{ color: themeColor }}
-                >
-                  {profile.role}
-                </Text>
-              </View>
-            </View>
-          )}
         </View>
 
         {/* Active Indicator & Arrow */}
@@ -201,9 +176,6 @@ export default function AccountCenterScreen() {
   const activeProfileId = profilesData?.activeProfileId ?? null;
 
   const personalProfile = profiles.find((p) => p.type === "personal");
-  const businessProfiles = profiles.filter((p) => p.type === "business");
-  const ownedBusinesses = businessProfiles.filter((p) => p.role === "owner");
-  const memberBusinesses = businessProfiles.filter((p) => p.role !== "owner");
 
   const onRefresh = async () => {
     setRefreshing(true);

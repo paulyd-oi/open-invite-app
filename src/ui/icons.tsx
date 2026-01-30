@@ -191,3 +191,5 @@ export const Loader2 = ion("reload-outline");
 
 
 
+
+export const Building2 = ion("business-outline");
