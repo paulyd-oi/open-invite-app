@@ -58,6 +58,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { resetSession } from "@/lib/authBootstrap";
@@ -81,6 +82,14 @@ import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshEntitlements, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
+
+// Allowlist for Push Diagnostics visibility (TestFlight testers)
+const PUSH_DIAG_ALLOWLIST = [
+  "pauljdal@gmail.com",
+  "paulydal@ymail.com",
+  "cryptopdal@gmail.com",
+  "pauld@awakenchurch.com",
+];
 
 interface SettingItemProps {
   icon: React.ReactNode;
@@ -371,9 +380,57 @@ function ReferralCounterSection({
 export default function SettingsScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
+  const { runPushDiagnostics } = useNotifications();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, setThemeColor, themeColorName, themeMode, setThemeMode, isDark, colors } = useTheme();
+
+  // Push diagnostics state
+  const [isPushDiagRunning, setIsPushDiagRunning] = useState(false);
+
+  // Check if user is in push diagnostics allowlist
+  const userEmail = session?.user?.email?.toLowerCase() ?? "";
+  const showPushDiagnostics = PUSH_DIAG_ALLOWLIST.some(email => email.toLowerCase() === userEmail);
+
+  // Handle push diagnostics tap
+  const handlePushDiagnostics = async () => {
+    if (isPushDiagRunning) return;
+    setIsPushDiagRunning(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      const result = await runPushDiagnostics();
+      
+      if (result.ok) {
+        safeToast.success(
+          "Push token registered ✅",
+          `Active tokens: ${result.backendActiveCount ?? "?"}`
+        );
+      } else {
+        // Map reason to user-friendly message
+        switch (result.reason) {
+          case "not_authed":
+            safeToast.warning("Push: sign in first", "");
+            break;
+          case "permission_not_granted":
+            safeToast.warning("Push: permission not granted", `Status: ${result.permission ?? "unknown"}`);
+            break;
+          case "invalid_token":
+            safeToast.warning("Push: no valid token", "May be simulator or unsupported device");
+            break;
+          case "backend_error":
+            safeToast.error("Push: register failed", "Check console logs");
+            break;
+          default:
+            safeToast.error("Push: unknown error", result.reason);
+        }
+      }
+    } catch (e: any) {
+      safeToast.error("Push diagnostics error", e?.message || "Unknown");
+    } finally {
+      setIsPushDiagRunning(false);
+    }
+  };
 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showThemePicker, setShowThemePicker] = useState(false);
@@ -1441,6 +1498,16 @@ export default function SettingsScreen() {
                 router.push("/notification-settings");
               }}
             />
+            {/* Push Diagnostics - visible only to allowlisted testers */}
+            {showPushDiagnostics && (
+              <SettingItem
+                icon={<Bell size={20} color="#10B981" />}
+                title="Push Diagnostics"
+                subtitle={isPushDiagRunning ? "Running..." : "Test push token registration"}
+                isDark={isDark}
+                onPress={handlePushDiagnostics}
+              />
+            )}
           </View>
         </Animated.View>
 

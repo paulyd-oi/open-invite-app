@@ -384,9 +384,106 @@ export function useNotifications() {
     };
   }, []);
 
+  /**
+   * Production-safe push diagnostics function.
+   * Returns diagnostic info about push token registration without exposing secrets.
+   * Can be called from Settings screen to verify push setup.
+   */
+  const runPushDiagnostics = useCallback(async (): Promise<{
+    ok: boolean;
+    reason: string;
+    permission?: string;
+    tokenPrefix?: string;
+    backendActiveCount?: number;
+  }> => {
+    console.log("[PUSH_DIAG] start");
+
+    // A) Check auth status
+    if (bootStatus !== 'authed' || !session?.user) {
+      console.log("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
+      return { ok: false, reason: "not_authed" };
+    }
+
+    try {
+      // B) Read permission
+      let { status } = await Notifications.getPermissionsAsync();
+      console.log("[PUSH_DIAG] initial_permission=" + status);
+
+      // C) Request permission if undetermined
+      if (status === 'undetermined') {
+        console.log("[PUSH_DIAG] requesting_permission");
+        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        status = newStatus;
+        console.log("[PUSH_DIAG] permission_after_request=" + status);
+      }
+
+      // D) Check if granted
+      if (status !== 'granted') {
+        console.log("[PUSH_DIAG] permission_not_granted=" + status);
+        return { ok: false, reason: "permission_not_granted", permission: status };
+      }
+      console.log("[PUSH_DIAG] permission=granted");
+
+      // E) Get token
+      const token = await registerForPushNotificationsAsync();
+      
+      // F) Validate token
+      if (!token || !isValidPushToken(token)) {
+        console.log("[PUSH_DIAG] invalid_token");
+        return { ok: false, reason: "invalid_token", permission: status };
+      }
+      const tokenPrefix = token.slice(0, 24) + "...";
+      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix);
+
+      // G) POST /api/notifications/register-token
+      console.log("[PUSH_DIAG] registering_token");
+      await api.post("/api/notifications/register-token", {
+        token,
+        platform: "expo",
+      });
+      console.log("[PUSH_DIAG] token_registered");
+
+      // H) POST /api/notifications/status
+      await api.post("/api/notifications/status", {
+        pushPermissionStatus: "granted",
+      });
+      console.log("[PUSH_DIAG] status_updated");
+
+      // I) GET device-tokens for proof
+      let backendActiveCount = 0;
+      try {
+        const tokensResponse = await api.get<{ tokens: unknown[] } | unknown[]>("/api/notifications/device-tokens");
+        // Handle both array and object response formats
+        if (Array.isArray(tokensResponse)) {
+          backendActiveCount = tokensResponse.length;
+        } else if (tokensResponse && typeof tokensResponse === 'object' && 'tokens' in tokensResponse) {
+          backendActiveCount = Array.isArray(tokensResponse.tokens) ? tokensResponse.tokens.length : 0;
+        }
+        console.log("[PUSH_DIAG] backendActiveCount=" + backendActiveCount);
+      } catch (e) {
+        // Non-fatal - endpoint may not exist in prod
+        console.log("[PUSH_DIAG] device-tokens_fetch_skipped");
+      }
+
+      // J) Success
+      console.log("[PUSH_DIAG] success");
+      return {
+        ok: true,
+        reason: "success",
+        permission: status,
+        tokenPrefix,
+        backendActiveCount,
+      };
+    } catch (error: any) {
+      console.log("[PUSH_DIAG] error=" + (error?.message || "unknown"));
+      return { ok: false, reason: "backend_error", permission: undefined };
+    }
+  }, [bootStatus, session?.user, isValidPushToken]);
+
   return {
     expoPushToken,
     notification,
     recheckPermission: checkAndRegisterToken,
+    runPushDiagnostics,
   };
 }
