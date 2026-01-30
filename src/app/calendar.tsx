@@ -2758,6 +2758,11 @@ export default function CalendarScreen() {
                     borderColor: colors.border,
                   }}
                 />
+
+                  <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
+                    Busy blocks are private placeholders and can’t be joined.
+                  </Text>
+
               </View>
 
               {/* Time Pickers */}
