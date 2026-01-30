@@ -1475,7 +1475,7 @@ export default function EventDetailScreen() {
         )}
 
         {/* Join Request Section (for non-owners) */}
-        {!isMyEvent && (
+        {!isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(100).springify()}>
             {hasJoinRequest ? (
               <View className="rounded-2xl p-5 mb-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
