@@ -1,41 +1,67 @@
-HANDOFF PACKET — PROFILE NUMERIC TEXT RENDER CRASH FIX
-=======================================================
+HANDOFF PACKET — MONTHLY RECAP REMOVAL (P0 STABILITY)
+======================================================
 Date: 2025-01-30
 Branch: main
-Commit: a5db9a1
+Commit: d8ce17a
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed "Text strings must be rendered within a <Text> component" crash
-by wrapping all numeric values with String() in Profile screen.
+Removed Monthly Recap feature entirely from Profile screen to eliminate
+crash surface area before TestFlight.
 
-ROOT CAUSE
-----------
-React Native requires explicit string coercion for numbers inside <Text>.
-Numbers were being rendered directly, causing crash on some RN versions.
+FILES CHANGED
+-------------
+src/app/profile.tsx (63 lines deleted)
 
-EXACT LINES CHANGED
+EXACT REMOVALS
+--------------
+1. IMPORT (line 35):
+   - import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
+
+2. STATE (line 72):
+   - const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
+
+3. COMPUTED LOGIC (lines 182-222):
+   - // Build monthly recap data
+   - const now = new Date();
+   - const currentDay = now.getDate();
+   - const lastDayOfMonth = ...
+   - const isEndOfMonth = ...
+   - const isStartOfMonth = ...
+   - const shouldShowMonthlyRecap = ...
+   - const recapMonth = ...
+   - const monthlyRecapData: MonthlyRecapData | null = ...
+
+4. BUTTON RENDER (lines 376-385):
+   - {/* Monthly Recap Button (Spotify Wrapped style) */}
+   - {monthlyRecapData && monthlyRecapData.totalEvents > 0 && (
+       <Animated.View>
+         <MonthlyRecapButton ... />
+       </Animated.View>
+     )}
+
+5. MODAL RENDER (lines 567-574):
+   - {/* Monthly Recap Modal */}
+   - {monthlyRecapData && (
+       <MonthlyRecap
+         data={monthlyRecapData}
+         visible={showMonthlyRecap}
+         onClose={...}
+       />
+     )}
+
+VERIFICATION OUTPUT
 -------------------
-File: src/app/profile.tsx
+grep "MonthlyRecap|monthlyRecapData|showMonthlyRecap" → NO MATCHES
+bash scripts/ai/verify_frontend.sh → PASS
+npm run typecheck → PASS
 
-Line 400: {stats?.hostedCount ?? 0}
-     →    {String(stats?.hostedCount ?? 0)}
-
-Line 420: {stats?.attendedCount ?? 0}
-     →    {String(stats?.attendedCount ?? 0)}
-
-Line 463: {count}
-     →    {String(count)}
-
-Line 512: {friendsCount}
-     →    {String(friendsCount)}
-
-VERIFICATION
+CONFIRMATION
 ------------
-- npm run typecheck: PASSED
-- bash scripts/ai/verify_frontend.sh: PASS
-
-DIFF SUMMARY
-------------
-1 file changed, 4 insertions(+), 4 deletions(-)
+Monthly Recap is FULLY REMOVED from Profile screen.
+- No imports remain
+- No state remains
+- No computed logic remains
+- No JSX renders remain
+- Component file still exists but is now unused
