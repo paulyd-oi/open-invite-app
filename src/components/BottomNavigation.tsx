@@ -252,7 +252,6 @@ export default function BottomNavigation() {
   assertTabOrder(navItems);
 
   return (
-    <>
       <View
         className="absolute bottom-0 left-0 right-0"
         style={{
@@ -288,6 +287,5 @@ export default function BottomNavigation() {
         </View>
       </View>
 
-      {/* Profile Switcher Modal */}
   );
 }
