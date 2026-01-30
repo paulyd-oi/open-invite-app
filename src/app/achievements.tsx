@@ -63,7 +63,20 @@ export default function BadgesScreen() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["badgesCatalog"],
-    queryFn: () => api.get<BadgeCatalogResponse>("/api/badges/catalog"),
+    queryFn: async () => {
+      if (__DEV__) {
+        console.log("[BADGES_FETCH] Fetching badges catalog...");
+      }
+      const response = await api.get<BadgeCatalogResponse>("/api/badges/catalog");
+      if (__DEV__) {
+        console.log("[BADGES_FETCH] Response:", {
+          badgesCount: response?.badges?.length ?? 0,
+          responseKeys: Object.keys(response || {}),
+          unlockedCount: response?.badges?.filter(b => b.unlocked).length ?? 0,
+        });
+      }
+      return response;
+    },
     enabled: bootStatus === 'authed',
   });
 
@@ -100,6 +113,21 @@ export default function BadgesScreen() {
   const unlockedBadges = badges.filter((b) => b.unlocked);
   const lockedBadges = badges.filter((b) => !b.unlocked);
   const featuredBadge = badges.find((b) => b.featured);
+
+  // DEV logging for render decision
+  React.useEffect(() => {
+    if (__DEV__) {
+      console.log("[BADGES_RENDER]", {
+        bootStatus,
+        isLoading,
+        totalBadges: badges.length,
+        unlockedCount: unlockedBadges.length,
+        lockedCount: lockedBadges.length,
+        featuredBadge: featuredBadge?.name ?? null,
+        whyHidden: isLoading ? "loading" : badges.length === 0 ? "no_badges_data" : "showing",
+      });
+    }
+  }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge]);
 
   return (
     <SafeAreaView className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>

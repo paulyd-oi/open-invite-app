@@ -64,7 +64,11 @@ export default function AdminConsole() {
     if (!searchQuery.trim() || isSearching) return;
 
     if (__DEV__) {
-      console.log('[AdminConsole] Search button pressed:', { query: searchQuery });
+      console.log('[SEARCH_DECISION] Search initiated:', { 
+        queryLength: searchQuery.length,
+        query: searchQuery.slice(0, 20),
+        endpoint: '/api/admin/users/search',
+      });
     }
     setIsSearching(true);
     setSelectedUser(null); // Clear selected user on new search
@@ -73,12 +77,18 @@ export default function AdminConsole() {
     try {
       const response = await searchUsers(searchQuery);
       if (__DEV__) {
-        console.log('[AdminConsole] Search results:', { count: response.users.length });
+        console.log('[SEARCH_DECISION] Search success:', { 
+          status: 'ok',
+          resultCount: response.users.length,
+        });
       }
       setSearchResults(response.users);
-    } catch (error) {
+    } catch (error: any) {
       if (__DEV__) {
-        console.log('[AdminConsole] Search error:', error);
+        console.log('[SEARCH_DECISION] Search error:', {
+          status: error?.status ?? 'unknown',
+          errorText: error?.message ?? 'Unknown error',
+        });
       }
       setSearchResults([]);
     } finally {

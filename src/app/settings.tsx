@@ -469,12 +469,27 @@ export default function SettingsScreen() {
 
   // Check admin status (fail safe - returns isAdmin: false on any error)
   // Gate on bootStatus to prevent queries during logout
-  const { data: adminStatus } = useQuery({
+  const { data: adminStatus, isLoading: adminStatusLoading } = useQuery({
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
     enabled: bootStatus === 'authed',
     retry: false,
   });
+
+  // DEV logging for admin decision
+  React.useEffect(() => {
+    if (__DEV__) {
+      console.log("[ADMIN_DECISION]", {
+        userId: session?.user?.id?.slice(0, 8) ?? "none",
+        isAdmin: adminStatus?.isAdmin ?? false,
+        email: adminStatus?.email ?? "unknown",
+        message: adminStatus?.message ?? null,
+        adminStatusLoading,
+        bootStatus,
+        whyShownOrHidden: adminStatusLoading ? "loading" : !adminStatus?.isAdmin ? "not_admin" : "showing_admin_section",
+      });
+    }
+  }, [session?.user?.id, adminStatus, adminStatusLoading, bootStatus]);
 
   // Entitlements for premium status display
   const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = useIsPro();

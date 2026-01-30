@@ -2777,7 +2777,7 @@ export default function CalendarScreen() {
                   <Pressable
                     onPress={() => {
                       const newTime = new Date(busyStartTime ?? selectedDate);
-                      newTime.setHours(newTime.getHours() - 1);
+                      newTime.setMinutes(newTime.getMinutes() - 15);
                       setBusyStartTime(newTime);
                     }}
                     className="px-3 py-2"
@@ -2792,7 +2792,7 @@ export default function CalendarScreen() {
                   <Pressable
                     onPress={() => {
                       const newTime = new Date(busyStartTime ?? selectedDate);
-                      newTime.setHours(newTime.getHours() + 1);
+                      newTime.setMinutes(newTime.getMinutes() + 15);
                       setBusyStartTime(newTime);
                     }}
                     className="px-3 py-2"
@@ -2805,7 +2805,7 @@ export default function CalendarScreen() {
                   <Pressable
                     onPress={() => {
                       const newTime = new Date(busyEndTime ?? selectedDate);
-                      newTime.setHours(newTime.getHours() - 1);
+                      newTime.setMinutes(newTime.getMinutes() - 15);
                       setBusyEndTime(newTime);
                     }}
                     className="px-3 py-2"
@@ -2820,7 +2820,7 @@ export default function CalendarScreen() {
                   <Pressable
                     onPress={() => {
                       const newTime = new Date(busyEndTime ?? selectedDate);
-                      newTime.setHours(newTime.getHours() + 1);
+                      newTime.setMinutes(newTime.getMinutes() + 15);
                       setBusyEndTime(newTime);
                     }}
                     className="px-3 py-2"
