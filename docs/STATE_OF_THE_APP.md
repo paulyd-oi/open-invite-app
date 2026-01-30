@@ -68,11 +68,26 @@
 - Calendar import help screen: Truthful sections (one-time import, not live sync, privacy), Import Calendar + Back buttons
 - Admin console badge grant/revoke: Added haptic feedback and success feedback for badge actions
 - Quick Busy block creation: "Busy" pill next to "Free?" on calendar selected date, opens modal to create busy blocks
-- Circle member removal: Remove button with confirmation modal triggers mutation correctly, DEV logging added
+- Circle member removal: Remove button with confirmation modal, DEV logs for member snapshot + mutation execution
 - Friend calendar masked busy: Grey blocks for backend-masked circle events, no tap navigation, legend includes "Busy"
+- Busy blocks render grey: ALL isBusy events (self-created or masked) render grey in calendar month grid + day list
+- Busy event details: Shows "Only self" for visibility, hides Post-event reflection section
+- Friend profile badge: Uses embedded featuredBadge from friend data, fallback query if not embedded
 
 ## Unstable / Regressions
 - None currently known
+
+## Fixed This Session (Frontend Patch #5 - Busy UX + Friend Badge + Circle Remove + Admin)
+- Busy block grey styling: getEventColor() now checks isBusy BEFORE custom color/group color, returns "#6B7280"
+- Busy event details visibility: Forced to "Only self" for isBusy events (not leaking circle/group)
+- Busy event details reflection: Section hidden for isBusy events (!event.isBusy condition added)
+- Friend profile badge: Uses friend.featuredBadge first, falls back to separate badge query if not embedded
+- Friend badge emoji: Handles both schemas (ProfileBadge with emoji, featuredBadge without) gracefully
+- Circle member remove: Enhanced DEV logs with member snapshot (memberId, userId, name, circleId)
+- Circle member remove: Confirm action logs circleId + userId + API path before mutation
+- Circle member remove: Mutation logs execution and success/error with full details
+- Admin console: DEV logs for admin status check (isAdmin, email, message)
+- Admin console: DEV logs for search button press + results count
 
 ## Fixed This Session (Revision Patch #1 - Launch Trust Fixes)
 - Admin Console badge grant/revoke: Added Haptics.impactAsync on button press, Haptics.notificationAsync on success/error, DEV logging for successful badge actions

@@ -1,66 +1,148 @@
 ========================================
-HANDOFF PACKET - Frontend Patch #4 (Masked Busy Blocks)
+HANDOFF PACKET - Frontend Patch #5 (Busy UX + Friend Badge + Circle Remove + Admin)
 Date: 2026-01-29
 ========================================
 
 SUMMARY
 -------
-Implemented frontend support for masked busy blocks from backend:
+Implemented 5 UX fixes for launch trust:
 
-Backend Patch #3 sends masked busy blocks for circle events that
-friends cannot see with the contract:
-{ id: "busy_<cuid>", startAt, endAt, isBusy: true }
+1. BUSY BLOCK GREY STYLING (Main Calendar)
+   - getEventColor() now checks isBusy BEFORE custom/group colors
+   - ALL busy blocks (self-created or masked) render grey (#6B7280)
+   - Applies to: month grid dots, stacked bars, details cells, day list cards
 
-This patch handles those items in the friend calendar view:
-1. Type guard to detect masked busy items (isBusy=true, no title)
-2. Field normalization (startAt→startTime, endAt→endTime)
-3. Grey rendering in friend calendar (not theme color)
-4. Tap protection (no navigation for busy-only days)
-5. Legend updated to show "Busy" indicator
+2. BUSY EVENT DETAILS UX
+   - Visibility forced to "Only self" for isBusy events
+   - Circle/group visibility NOT leaked (even if stored internally)
+   - Post-event reflection section HIDDEN for busy blocks
 
-KEY IMPLEMENTATION DETAILS
---------------------------
-- isMaskedBusy(item): Checks isBusy===true && !item.title
-- normalizeBusyItem(): Maps startAt/endAt to startTime/endTime, fills required Event fields
-- normalizeEventsWithBusy(): Processes entire events array
-- busyColor: isDark ? "#6B6B6B" : "#9CA3AF" (consistent with main calendar)
-- Busy items filtered before groupEventsIntoSeries() to prevent crash
-- Events take priority over busy (if both exist, theme color used)
+3. FRIEND PROFILE BADGE
+   - Uses embedded featuredBadge from friend data (GET /api/friends/:id/events)
+   - Fallback query only if featuredBadge not embedded
+   - Handles both schemas (ProfileBadge with emoji, featuredBadge without)
+   - DEV logs show badge source (embedded vs query)
+
+4. CIRCLE MEMBER REMOVAL
+   - Enhanced DEV logs at every step:
+     * Trash button press: member snapshot (id, userId, name, circleId)
+     * Confirm press: circleId + userId + API path
+     * Mutation: execution + success/error with status + body
+   - Validates userId before setting state (error toast if null)
+
+5. ADMIN CONSOLE
+   - DEV logs for admin status check (isAdmin, email, message)
+   - DEV logs for search button press + results count
+   - AdminMeResponse type extended with email/message fields
 
 FILES CHANGED
 -------------
-src/app/friend/[id].tsx:
-  - Added isMaskedBusy() type guard
-  - Added normalizeBusyItem() normalizer
-  - Added normalizeEventsWithBusy() processor
-  - FriendCalendar: Separate eventsByDate/busyByDate maps
-  - FriendCalendar: busyColor constant for grey rendering
-  - FriendCalendar: Updated renderDays() for grey busy dots
-  - FriendCalendar: Updated legend with "Busy" entry
-  - FriendCalendar: handleDayPress prevents navigation for busy-only days
-  - events normalized with useMemo + normalizeEventsWithBusy()
-  - eventSeries filters out busy before grouping
+src/app/calendar.tsx
+  - getEventColor(): Added isBusy check BEFORE custom color check (line 107)
+  - Returns "#6B7280" for all isBusy events
 
-docs/STATE_OF_THE_APP.md - Updated with masked busy handling
+src/app/event/[id].tsx
+  - Visibility section: Forces "Only self" for event.isBusy (line 1002)
+  - Group pills: Hidden for isBusy events (line 1021)
+  - Reflection section: Condition now includes !event.isBusy (line 1200)
 
-ALSO IN THIS SESSION (Patch #1)
--------------------------------
-src/app/admin.tsx - handleBadgeToggle with haptics
-src/app/calendar.tsx - Busy pill and modal added  
-src/app/circle/[id].tsx - DEV logging for remove button
+src/app/friend/[id].tsx
+  - Badge query: enabled only if !friend.featuredBadge (line 392)
+  - friendBadge: Uses embedded badge first, fallback to query (line 396)
+  - Badge emoji: Checks 'emoji' in friendBadge before rendering (line 626)
+  - DEV log for badge source added
+
+src/app/circle/[id].tsx
+  - Trash onPress: Full member snapshot log (line 1843)
+  - Trash onPress: Validates userId before state update (line 1853)
+  - Confirm onPress: Logs circleId + userId + API path (line 2043)
+  - Mutation: Logs execution, success, and error with details (line 816+)
+
+src/lib/adminApi.ts
+  - AdminMeResponse: Added email + message fields (line 10)
+  - checkAdminStatus: Returns full response, logs all fields (line 58)
+
+src/app/admin.tsx
+  - Admin status effect: DEV log with full status object (line 49)
+  - handleSearch: DEV log on press + results count (line 66)
+
+BUSY BLOCK GREY STYLING RULE
+----------------------------
+In getEventColor():
+1. Check isBirthday first → "#FF69B4"
+2. Check isBusy second → "#6B7280" (grey)
+3. Check event.color third → custom color
+4. Check groupVisibility → group color
+5. Fallback → defaultColor (themeColor)
+
+This ensures ALL busy events render grey regardless of any stored color.
+
+CIRCLE REMOVE userId NULL ROOT CAUSE
+------------------------------------
+The previous log showed:
+  [CircleRemoveMember] Opening confirmation modal for: <someId> null
+
+This suggested member.user.name was null (second arg was name, not userId).
+The actual userId (member.userId) was present and valid.
+
+FIX:
+- Enhanced logging to show all ID fields (member.id, member.userId, member.user?.id)
+- Added validation before setState to catch truly null userId
+- Mutation now logs the endpoint being called for debugging
+
+ADMIN CONSOLE GATING
+--------------------
+The screen renders when:
+1. adminLoading is false AND adminStatus?.isAdmin is true
+2. Otherwise shows "Checking permissions..." or null (redirect)
+
+Search button:
+- Pressable with onPress={handleSearch}
+- disabled={isSearching || !searchQuery.trim()}
+- Shows haptics + logs on press
+
+"Manage User Badges" is NOT a button - it's a static label.
+The actual interaction is via the search input + button.
 
 VERIFICATION RESULTS
 --------------------
 npm run typecheck: PASS
 bash scripts/ai/verify_frontend.sh: PASS
 
-TESTING NOTES
--------------
-To test masked busy blocks:
-1. Create a circle with friend A
-2. Create a circle event as friend B (not in that circle with A)
-3. View friend B's calendar as friend A
-4. Should see grey "Busy" block, tapping does nothing
+MANUAL PROOF STEPS (cold-start)
+-------------------------------
+A) Busy block grey rendering:
+   1. Create event → toggle "Mark as Busy" in context menu
+   2. Calendar month grid shows grey dot
+   3. Day list shows grey left accent
+
+B) Busy event details:
+   1. Open busy event
+   2. Visibility shows "Only self" (not "All Friends" or group)
+   3. No "Post-event reflection" section visible
+
+C) Friend profile badge:
+   1. View friend with badge
+   2. Badge pill visible below avatar
+   3. DEV log shows "Badge source: embeddedBadge" or "queryBadge"
+
+D) Circle member removal:
+   1. Open circle as host
+   2. Open members sheet
+   3. Tap trash on non-host member
+   4. DEV log shows: [CircleRemoveMember] Trash pressed, member snapshot: {...}
+   5. Tap "Remove" in modal
+   6. DEV log shows: [CircleRemoveMember] Confirm pressed: {...}
+   7. DEV log shows: [CircleRemoveMember] Mutation executing: {...}
+   8. Success toast appears
+
+E) Admin console:
+   1. Open Admin Console (from Settings)
+   2. DEV log shows: [AdminConsole] Admin status check: {isAdmin, email}
+   3. Type search query
+   4. Tap Search button
+   5. DEV log shows: [AdminConsole] Search button pressed: {query}
+   6. Results appear (if admin)
 
 ========================================
 END HANDOFF

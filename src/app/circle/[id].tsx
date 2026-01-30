@@ -812,9 +812,20 @@ export default function CircleScreen() {
 
   // Remove member mutation (host only)
   const removeMemberMutation = useMutation({
-    mutationFn: (memberUserId: string) =>
-      api.delete(`/api/circles/${id}/members/${memberUserId}`),
-    onSuccess: async () => {
+    mutationFn: (memberUserId: string) => {
+      if (__DEV__) {
+        console.log('[CircleRemoveMember] Mutation executing:', {
+          circleId: id,
+          memberUserId,
+          endpoint: `/api/circles/${id}/members/${memberUserId}`,
+        });
+      }
+      return api.delete(`/api/circles/${id}/members/${memberUserId}`);
+    },
+    onSuccess: async (_data, memberUserId) => {
+      if (__DEV__) {
+        console.log('[CircleRemoveMember] Mutation SUCCESS:', { circleId: id, memberUserId });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Removed", "Member has been removed from the circle.");
       setSelectedMemberToRemove(null);
@@ -823,7 +834,16 @@ export default function CircleScreen() {
       await queryClient.invalidateQueries({ queryKey: ["circles"] });
       await refetch();
     },
-    onError: (error: any) => {
+    onError: (error: any, memberUserId) => {
+      if (__DEV__) {
+        console.log('[CircleRemoveMember] Mutation ERROR:', {
+          circleId: id,
+          memberUserId,
+          status: error?.status,
+          message: error?.message,
+          body: error?.body,
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error?.status === 403) {
         safeToast.error("Not Allowed", "Only the host can remove members.");
@@ -1829,9 +1849,22 @@ export default function CircleScreen() {
                             e.stopPropagation();
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             if (__DEV__) {
-                              console.log('[CircleRemoveMember] Opening confirmation modal for:', member.userId, member.user.name);
+                              console.log('[CircleRemoveMember] Trash pressed, member snapshot:', {
+                                memberId: member.id,
+                                memberUserId: member.userId,
+                                memberUserIdFromUser: member.user?.id,
+                                memberName: member.user?.name,
+                                circleId: id,
+                              });
                             }
-                            setSelectedMemberToRemove(member.userId);
+                            // Use member.userId (from schema) for the mutation
+                            const targetUserId = member.userId;
+                            if (!targetUserId) {
+                              console.error('[CircleRemoveMember] ERROR: No userId found for member');
+                              safeToast.error("Error", "Unable to identify member. Please try again.");
+                              return;
+                            }
+                            setSelectedMemberToRemove(targetUserId);
                           }}
                           style={{
                             width: 32,
@@ -2015,6 +2048,13 @@ export default function CircleScreen() {
                 <Pressable
                   onPress={() => {
                     if (selectedMemberToRemove) {
+                      if (__DEV__) {
+                        console.log('[CircleRemoveMember] Confirm pressed:', {
+                          circleId: id,
+                          memberUserIdToRemove: selectedMemberToRemove,
+                          apiPath: `/api/circles/${id}/members/${selectedMemberToRemove}`,
+                        });
+                      }
                       removeMemberMutation.mutate(selectedMemberToRemove);
                     }
                   }}

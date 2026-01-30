@@ -9,6 +9,8 @@ import { api } from "./api";
 
 export interface AdminMeResponse {
   isAdmin: boolean;
+  email?: string;
+  message?: string;
 }
 
 export interface UserSearchResult {
@@ -58,11 +60,15 @@ export interface AdminBadgeActionResponse {
  * Check if current user has admin privileges
  * Returns { isAdmin: false } on any error to fail safe
  */
-export async function checkAdminStatus(): Promise<{ isAdmin: boolean }> {
+export async function checkAdminStatus(): Promise<AdminMeResponse> {
   try {
     const response = await api.get<AdminMeResponse>("/api/admin/me");
     if (__DEV__) {
-      console.log("[Admin] Status check:", response.isAdmin ? "Admin" : "Not admin");
+      console.log("[Admin] Status check:", {
+        isAdmin: response.isAdmin,
+        email: response.email,
+        message: response.message,
+      });
     }
     return response;
   } catch (error: any) {

@@ -105,6 +105,10 @@ function getEventColor(event: Event & { isBirthday?: boolean }, defaultColor: st
   if (event.isBirthday) {
     return "#FF69B4";
   }
+  // Busy blocks (self-created or masked) always get grey
+  if (event.isBusy) {
+    return "#6B7280";
+  }
   // If event has a custom color set, use it
   if (event.color) {
     return event.color;

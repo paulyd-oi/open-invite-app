@@ -38,6 +38,18 @@ export default function AdminConsole() {
     retry: false,
   });
 
+  // DEV logging for admin gating
+  React.useEffect(() => {
+    if (__DEV__ && !adminLoading) {
+      console.log('[AdminConsole] Admin status check:', {
+        isAdmin: adminStatus?.isAdmin,
+        email: adminStatus?.email,
+        message: adminStatus?.message,
+        loading: adminLoading,
+      });
+    }
+  }, [adminStatus, adminLoading]);
+
   // Redirect non-admins back to settings
   React.useEffect(() => {
     if (!adminLoading && adminStatus && !adminStatus.isAdmin) {
@@ -51,14 +63,23 @@ export default function AdminConsole() {
   const handleSearch = async () => {
     if (!searchQuery.trim() || isSearching) return;
 
+    if (__DEV__) {
+      console.log('[AdminConsole] Search button pressed:', { query: searchQuery });
+    }
     setIsSearching(true);
     setSelectedUser(null); // Clear selected user on new search
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
       const response = await searchUsers(searchQuery);
+      if (__DEV__) {
+        console.log('[AdminConsole] Search results:', { count: response.users.length });
+      }
       setSearchResults(response.users);
     } catch (error) {
+      if (__DEV__) {
+        console.log('[AdminConsole] Search error:', error);
+      }
       setSearchResults([]);
     } finally {
       setIsSearching(false);

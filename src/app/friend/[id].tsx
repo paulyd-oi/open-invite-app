@@ -380,17 +380,27 @@ export default function FriendDetailScreen() {
     enabled: bootStatus === 'authed' && !!id,
   });
 
-  // Fetch the friend's userId from the friendship to get their badge
+  // Fetch the friend's userId from the friendship to get their badge (fallback)
   const friendUserId = data?.friend?.id;
 
-  // Fetch friend's badge
+  // Fetch friend's badge (fallback if not embedded in friend data)
   const { data: badgeData } = useQuery({
     queryKey: ["userBadge", friendUserId],
     queryFn: () => api.get<{ badge: ProfileBadge | null }>(`/api/achievements/user/${friendUserId}/badge`),
-    enabled: bootStatus === 'authed' && !!friendUserId,
+    // Only fetch if friend doesn't have embedded featuredBadge
+    enabled: bootStatus === 'authed' && !!friendUserId && !data?.friend?.featuredBadge,
   });
 
-  const friendBadge = badgeData?.badge;
+  // Use embedded featuredBadge if available, otherwise fallback to separate badge query
+  const friendBadge = data?.friend?.featuredBadge ?? badgeData?.badge;
+  if (__DEV__ && data?.friend) {
+    console.log("[FriendProfile] Badge source:", {
+      friendId: friendUserId,
+      embeddedBadge: data.friend.featuredBadge ? data.friend.featuredBadge.name : null,
+      queryBadge: badgeData?.badge ? badgeData.badge.name : null,
+      usingBadge: friendBadge ? friendBadge.name : null,
+    });
+  }
 
   const notes = notesData?.notes ?? [];
 
@@ -613,7 +623,12 @@ export default function FriendDetailScreen() {
                       borderColor: colors.surface,
                     }}
                   >
-                    <Text className="text-sm">{friendBadge.emoji}</Text>
+                    {/* Show emoji if available (ProfileBadge), otherwise Trophy icon */}
+                    {'emoji' in friendBadge && friendBadge.emoji ? (
+                      <Text className="text-sm">{friendBadge.emoji}</Text>
+                    ) : (
+                      <Trophy size={14} color="#fff" />
+                    )}
                   </View>
                 )}
               </View>

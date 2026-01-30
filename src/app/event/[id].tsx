@@ -994,7 +994,10 @@ export default function EventDetailScreen() {
             {/* Visibility */}
             <View className="py-3 border-t" style={{ borderColor: colors.border }}>
               <View className="flex-row items-center">
-                {event.visibility === "all_friends" ? (
+                {/* Busy blocks always show "Only self" regardless of stored visibility */}
+                {event.isBusy ? (
+                  <Users size={20} color="#9CA3AF" />
+                ) : event.visibility === "all_friends" ? (
                   <Compass size={20} color="#9CA3AF" />
                 ) : (
                   <Users size={20} color="#9CA3AF" />
@@ -1002,13 +1005,13 @@ export default function EventDetailScreen() {
                 <View className="ml-3 flex-1">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
                   <Text className="font-semibold" style={{ color: colors.text }}>
-                    {event.visibility === "all_friends" ? "All Friends" : "Specific Groups"}
+                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : "Specific Groups"}
                   </Text>
                 </View>
               </View>
 
-              {/* Show tagged groups if visibility is specific_groups */}
-              {event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
+              {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
+              {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
                 <View className="mt-3 ml-8">
                   <View className="flex-row flex-wrap">
                     {event.groupVisibility.map((gv) => (
@@ -1191,8 +1194,8 @@ export default function EventDetailScreen() {
           />
         </Animated.View>
 
-        {/* Host Event Summary/Reflection Section */}
-        {isMyEvent && (
+        {/* Host Event Summary/Reflection Section - Hidden for busy blocks */}
+        {isMyEvent && !event.isBusy && (
           <Animated.View entering={FadeInDown.delay(60).springify()}>
             {(() => {
               const eventEndTime = event.endTime ? new Date(event.endTime) : new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
