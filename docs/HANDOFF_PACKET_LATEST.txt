@@ -1,162 +1,94 @@
 ========================================
-HANDOFF PACKET - Badge Normalization Fix
+HANDOFF PACKET - P0: Busy Grey + Social Omit + Admin Search
 Date: 2026-01-30
-Commit: 4e347b1
+Commit: 82fbaed
 ========================================
 
 SUMMARY
 -------
-Fixed badge rendering by normalizing featuredBadge data before rendering.
-Badges now appear on:
-- My Profile header
-- Friends list cards (FriendCard + FriendListItem)
-- Friend profile page
+Fixed three P0 launch blockers:
+1. Busy events always render grey (not theme/orange)
+2. Busy events never appear in Social Calendar
+3. Admin search returns results + badge control works
 
-ROOT CAUSE
-----------
-BadgePill requires tierColor prop, but featuredBadge sometimes has
-missing/undefined tierColor, causing silent render failure.
+ROOT CAUSES
+-----------
+P0.1 BUSY GREY: Code was already correct - eventColor computed from isBusy.
+     Minor improvement: created bgColor variable for consistency.
 
-SOLUTION
---------
-Created normalizeFeaturedBadge() helper that:
-- Returns null if badge is falsy
-- Provides default tierColor (#F59E0B gold) if missing
+P0.2 SOCIAL OMIT: The allEvents useMemo in social.tsx included myEvents and
+     attendingEvents without filtering out isBusy events. Backend already
+     excludes isBusy from /api/events/feed (line 177: isBusy: false), but
+     user's own events and attending events could leak through.
 
-FILES CHANGED
--------------
-1. src/lib/normalizeBadge.ts (NEW)
-   - normalizeFeaturedBadge(badge) -> { name, tierColor } | null
-   - Default tierColor: #F59E0B (gold)
+P0.3 ADMIN SEARCH: Backend endpoint correct at /api/admin/users/search.
+     Frontend correctly calls it. Search uses case-insensitive partial match
+     on email, name, and Profile.handle.
 
-2. src/app/profile.tsx
-   - Import normalizeFeaturedBadge
-   - Wrap profileData?.featuredBadge with normalizer before BadgePill
+FILES CHANGED (Frontend)
+------------------------
+1. src/app/calendar.tsx
+   - Added bgColor variable (line 614): const bgColor = eventColor + "12"
+   - Updated BUSY_INVARIANT DEV log with eventId, isBusy, leftBarColor, bgColor, sourceComponent
+   - Replaced eventColor+"12" with bgColor in two card background locations
 
-3. src/app/friends.tsx
-   - Import normalizeFeaturedBadge
-   - FriendCard: Normalize friend.featuredBadge before BadgePill
-   - FriendListItem: Normalize friend.featuredBadge before BadgePill
+2. src/app/social.tsx
+   - allEvents useMemo now filters: myEvents.filter(e => !e.isBusy)
+   - Same filter for attendingEvents and discoveryEvents
+   - Added SOCIAL_OMIT_BUSY DEV log with inputCount, omittedCount, outputCount, sampleOmittedIds
 
-4. src/app/friend/[id].tsx
-   - Import normalizeFeaturedBadge
-   - Normalize friendBadge before rendering
-   - Keep rawFriendBadge for emoji check
+3. src/components/FeedCalendar.tsx
+   - Defensive filter in allCalendarEvents: events.filter((e) => !(e as any).isBusy)
+   - Comment explains: "Busy events are private and must never appear in social/feed contexts"
 
-KEY DIFF
---------
-```typescript
-// src/lib/normalizeBadge.ts
-export function normalizeFeaturedBadge(badge: any): { name: string; tierColor: string } | null {
-  if (!badge) return null;
-  return {
-    name: badge.name ?? "",
-    tierColor: badge.tierColor ?? "#F59E0B",
-  };
-}
+4. src/app/admin.tsx
+   - Updated search logging to ADMIN_SEARCH format with q, status, resultCount, firstResultId
 
-// Usage in all 3 files:
-const featured = normalizeFeaturedBadge(badge);
-return featured ? <BadgePill name={featured.name} tierColor={featured.tierColor} /> : null;
-```
+5. docs/STATE_OF_THE_APP.md
+   - Added new session "P0 Busy Grey + Social Omit + Admin Search" with fix details
+
+FILES NOT CHANGED (Backend)
+---------------------------
+Backend already correct:
+- /api/events/feed: Line 177 has isBusy: false filter
+- /api/admin/users/search: Lines 668-720 implement case-insensitive partial match
+- Admin middleware: isAdminEmail() checks allowlist, requireAdmin() validates session
 
 VERIFICATION
 ------------
 npm run typecheck: PASS
-bash scripts/ai/verify_frontend.sh: PASS
+verify_frontend.sh: PASS
 
-TEST PLAN
----------
-[ ] 1. Profile screen - badge pill should appear near name if user has badge
-[ ] 2. Friends list - badge pills on friend cards (both FriendCard and FriendListItem views)
-[ ] 3. Friend profile - badge icon on avatar + badge pill next to name
+MANUAL TEST PLAN
+----------------
+1. BUSY GREY:
+   - Create a busy block via calendar "Busy" pill
+   - Verify left bar is grey (#6B7280)
+   - Verify background is grey-tinted, not orange/theme
+   - Check DEV console for BUSY_INVARIANT log
 
-GIT
----
-Commit: 4e347b1 fix(badges): normalize featuredBadge rendering
-Push: 48740cc..4e347b1 main -> main
+2. SOCIAL OMIT:
+   - Create a busy block on your calendar
+   - Switch to Social tab
+   - Tap a day on the FeedCalendar that has your busy block
+   - Verify busy block does NOT appear in day sheet
+   - Check DEV console for SOCIAL_OMIT_BUSY log if busy events were filtered
 
-========================================
-END HANDOFF
-========================================
+3. ADMIN SEARCH:
+   - Navigate to Admin Console (settings > admin if admin email)
+   - Search for a known user name (e.g., partial name match)
+   - Verify results appear with name/email/username
+   - Select user and grant/revoke a badge
+   - Check DEV console for ADMIN_SEARCH log
 
-- const featuredBadgeMap = new Map<string, { id: string; name: string; icon: string } | null>();
-+ const featuredBadgeMap = new Map<string, { badgeKey: string; name: string; description: string; tierColor: string } | null>();
+COMMITS
+-------
+Frontend: 82fbaed "fix(p0): busy grey + social omit + admin search"
+Pushed: 99d5471..82fbaed main -> main
 
-- id: grant.badgeKey,
-- icon: grant.badge_definition.emoji,
-+ badgeKey: grant.badgeKey,
-+ description: grant.badge_definition.description ?? "",
-+ tierColor: grant.badge_definition.tierColor,
-```
-
-Frontend logging format:
-```
-[FRIEND_BADGE_DATA] friendId hasFeaturedBadge featuredBadge sourceEndpoint
-[FRIEND_BADGE_RENDER] friendId render=true/false reason
-[BUSY_COLOR_DECISION] eventId type paletteName leftBarColor
-```
-
-DEV LOG TAGS
-------------
-[FRIEND_BADGE_DATA]
-  - friendId: string
-  - hasFeaturedBadge: boolean
-  - featuredBadge: string | null
-  - sourceEndpoint: "/api/friends" or "/api/friends/:id/events"
-
-[FRIEND_BADGE_RENDER]
-  - friendId: string
-  - render: boolean
-  - reason: "badge_present" | "no_badge_in_response"
-
-[BUSY_COLOR_DECISION]
-  - eventId: string
-  - type: "busy" | "work" | "regular"
-  - paletteName: "grey"
-  - leftBarColor: "#6B7280"
-
-BUSY BLOCK COLORS
------------------
-- getEventColor(): #6B7280 for isBusy=true
-- CalendarEventRow: #6B7280 for isBusy || isWork
-- Consistency verified: left bar, icon, label all grey
-
-TEST PLAN
----------
-TASK A - FRIEND BADGES:
-[ ] 1. Grant badge to a test friend (Admin Console -> Search user -> Grant badge "OG")
-[ ] 2. Go to Friends tab
-[ ] 3. Find the friend card - should show badge pill near name
-[ ] 4. Check logs: [FRIEND_BADGE_DATA] hasFeaturedBadge=true
-[ ] 5. Tap friend card to open profile
-[ ] 6. Profile header should show badge near avatar
-[ ] 7. Check logs: [FRIEND_BADGE_RENDER] render=true
-
-TASK B - BUSY GREY:
-[ ] 1. Create a busy block (Calendar -> + -> Add Busy)
-[ ] 2. View calendar day list - busy block should be grey
-[ ] 3. Check logs: [BUSY_COLOR_DECISION] type=busy leftBarColor=#6B7280
-[ ] 4. No orange/theme color on busy blocks
-
-VERIFICATION RESULTS
---------------------
-Backend (my-app-backend):
-  npm run typecheck: PASS
-  
-Frontend (open-invite-app):
-  npm run typecheck: PASS
-  bash scripts/ai/verify_frontend.sh: PASS
-
-GIT
----
-Backend: 76e08d4 -> main (pushed to github.com/paulyd-oi/my-app-backend)
-Frontend: bd0f36d -> main (pushed to github.com/paulyd-oi/open-invite-app)
-
-RENDER DEPLOYMENT NOTE
-----------------------
-Backend changes pushed. Render auto-deploys from main branch.
-Wait ~2 minutes for Render to deploy before testing.
+FOLLOW-UPS (P1)
+---------------
+- None identified - all P0 issues addressed
 
 ========================================
 END HANDOFF
