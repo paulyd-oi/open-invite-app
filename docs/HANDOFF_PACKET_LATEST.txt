@@ -1,79 +1,80 @@
 ========================================
-HANDOFF PACKET - Apple Sign-In Trace Logging
+HANDOFF PACKET - UX Fixes (Badges, Admin, Busy)
 Date: 2026-01-30
-Commit: 32d289e
+Commit: 92f6540
 ========================================
 
 SUMMARY
 -------
-Added comprehensive DEV-only trace logging and debug panel for Apple Sign-In
-to diagnose "apple sign in encountered an issue" failures.
+Fixed three UX issues:
+1. Badges - Added DEV logging for fetch + render decisions
+2. Admin button - Added ADMIN_DECISION logging
+3. Busy block - Changed time picker from 1-hour to 15-minute steps
 
 FILES CHANGED
 -------------
-src/app/welcome.tsx
-  - handleAppleSignIn function instrumented with [APPLE_AUTH_TRACE]
-  - Added appleAuthDebug state for tracking last attempt
-  - Added DEV-only debug panel on iOS in Slide 2 (auth screen)
+1. src/app/achievements.tsx
+   - Added [BADGES_FETCH] logging with response shape
+   - Added [BADGES_RENDER] logging with render decision
 
-CONFIG AUDIT
+2. src/app/settings.tsx
+   - Added [ADMIN_DECISION] logging with userId isAdmin bootStatus
+
+3. src/app/admin.tsx
+   - Added [SEARCH_DECISION] logging with query endpoint status
+
+4. src/app/calendar.tsx
+   - Changed busy time picker: setHours() -> setMinutes(+/-15)
+   - Start and end time both use 15-minute steps
+
+DEV LOG TAGS
 ------------
-app.json iOS config verified:
-  - bundleIdentifier: com.vibecode.openinvite.0qi5wk
-  - usesAppleSignIn: true (required for native capability)
-  - jsEngine: jsc
+[BADGES_FETCH] - When fetching /api/badges/catalog
+  Fields: badgesCount responseKeys unlockedCount
 
-expo-apple-authentication:
-  - Dynamically loaded via require() in welcome.tsx
-  - Availability checked via isAppleSignInAvailable() helper
+[BADGES_RENDER] - Render decision
+  Fields: bootStatus isLoading totalBadges unlockedCount lockedCount featuredBadge whyHidden
 
-LOG TAGS AND STAGES
--------------------
-All logs are JSON lines with tag [APPLE_AUTH_TRACE] and unique attemptId.
+[ADMIN_DECISION] - Admin section visibility
+  Fields: userId isAdmin email message adminStatusLoading bootStatus whyShownOrHidden
 
-Stages in order:
-1. tap - Button pressed
-2. availability_check - Platform module isAppleSignInReady
-3. availability_fail - If checks fail
-4. request_start - signInAsync called
-5. request_result - Credential received (tokens redacted)
-6. credential_invalid - If identityToken missing
-7. backend_exchange_start - Fetch to /api/auth/apple
-8. backend_exchange_response - HTTP status body preview
-9. backend_exchange_fail - If not response.ok
-10. token_extraction - Which token field used
-11. token_missing - If no token found
-12. cookie_persist_securestore - SecureStore write
-13. cookie_persist_securestore_fail - If write fails
-14. cookie_cache_set - Module cache set
-15. cookie_cache_verified - Refresh success
-16. bootstrap_refresh_requested - Boot refresh triggered
-17. final_success - Advancing to slide 3
-18. user_cancelled - User cancelled
-19. final_fail - Error with full object
+[SEARCH_DECISION] - User search in admin console
+  Fields: queryLength query endpoint status resultCount errorText
 
-DEV DEBUG PANEL
----------------
-Shows on Slide 2 when attemptId exists:
-- Dark background with monospace text
-- Displays attemptId stage error
+BUSY BLOCK COLORS (already correct)
+-----------------------------------
+Calendar list: #6B7280 (grey)
+Friend profile: isDark ? #6B6B6B : #9CA3AF
+Busy modal button: #6B7280
 
-HOW TO REPRODUCE
-----------------
-1. Build DEV: eas build --profile development --platform ios
-2. Install on physical iOS device
-3. Navigate to Slide 2 Create Account
-4. Tap Continue with Apple
-5. Watch debug panel and console for traces
-6. Check logs: npx react-native log-ios
+TIME PICKER CHANGE
+------------------
+Before: newTime.setHours(+/- 1)
+After: newTime.setMinutes(+/- 15)
+User can now set 5:15 5:30 5:45 etc
 
-FAILURE INTERPRETATION
-----------------------
-availability_fail: Module not loaded
-request_start then final_fail: Native sheet failed
-backend_exchange_fail: Backend rejected token
-token_missing: No token in response
-cookie_persist_securestore_fail: SecureStore write failed
+TEST PLAN
+---------
+1. BADGES:
+   - Log in with known account
+   - Go to Profile -> Badges
+   - Check DEV logs for [BADGES_FETCH] and [BADGES_RENDER]
+   - If badges exist, they should appear
+
+2. ADMIN:
+   - Log in with admin account
+   - Go to Settings
+   - Check DEV logs for [ADMIN_DECISION] showing isAdmin=true
+   - Admin Console button should appear at bottom
+   - Go to Admin Console
+   - Search for a user
+   - Check [SEARCH_DECISION] logs show status ok
+
+3. BUSY BLOCK:
+   - Go to Calendar
+   - Tap + and select Add Busy
+   - Tap time arrows - should change by 15 minutes
+   - Verify busy blocks show grey in calendar list
 
 VERIFICATION RESULTS
 --------------------
@@ -82,8 +83,8 @@ bash scripts/ai/verify_frontend.sh: PASS
 
 GIT
 ---
-Commit: 32d289e fix(auth): add Apple Sign-In trace logging
-Push: a085a00..32d289e main
+Commit: 92f6540 fix(ux): badges+admin logging, busy time 15min steps
+Push: bac5a03..92f6540 main
 
 ========================================
 END HANDOFF
