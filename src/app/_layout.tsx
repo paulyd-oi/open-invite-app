@@ -63,6 +63,104 @@ if (__DEV__) {
   };
 }
 
+// DEV-only: Patch React.createElement to detect text children outside <Text> components
+// This fires BEFORE the crash, giving us the exact callsite
+if (__DEV__) {
+  const React = require('react');
+  const patchedFlag = '__TEXT_CHILD_DETECTOR_PATCHED__';
+  
+  if (!(global as any)[patchedFlag]) {
+    (global as any)[patchedFlag] = true;
+    
+    const originalCreateElement = React.createElement;
+    let detectionCount = 0;
+    const MAX_DETECTIONS = 5; // Limit spam
+    
+    // Types that are allowed to have string/number children
+    const TEXT_LIKE_TYPES = new Set([
+      'Text', 'RCTText', 'AnimatedText', 'TextInput', 'RCTTextInput',
+      'title', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'label',
+    ]);
+    
+    function getTypeName(type: any): string {
+      if (typeof type === 'string') return type;
+      if (typeof type === 'function') {
+        return type.displayName || type.name || 'AnonymousComponent';
+      }
+      if (type && typeof type === 'object') {
+        // Handle forwardRef, memo, etc.
+        if (type.displayName) return type.displayName;
+        if (type.render?.displayName) return type.render.displayName;
+        if (type.render?.name) return type.render.name;
+        if (type.type?.displayName) return type.type.displayName;
+        if (type.type?.name) return type.type.name;
+      }
+      return 'unknown';
+    }
+    
+    function isTextLike(typeName: string): boolean {
+      // Check exact match or if name contains "Text"
+      if (TEXT_LIKE_TYPES.has(typeName)) return true;
+      if (typeName.includes('Text')) return true;
+      return false;
+    }
+    
+    function flattenChildren(children: any): any[] {
+      if (children == null) return [];
+      if (Array.isArray(children)) {
+        return children.flatMap(flattenChildren);
+      }
+      return [children];
+    }
+    
+    function hasInvalidTextChild(children: any[], typeName: string): { found: boolean; value?: any } {
+      if (isTextLike(typeName)) return { found: false };
+      
+      for (const child of children) {
+        if (typeof child === 'string' && child.trim() !== '') {
+          return { found: true, value: child };
+        }
+        if (typeof child === 'number') {
+          return { found: true, value: child };
+        }
+      }
+      return { found: false };
+    }
+    
+    React.createElement = function patchedCreateElement(type: any, props: any, ...children: any[]) {
+      if (detectionCount < MAX_DETECTIONS) {
+        try {
+          const typeName = getTypeName(type);
+          const allChildren = flattenChildren(children);
+          
+          // Also check props.children
+          if (props?.children != null) {
+            allChildren.push(...flattenChildren(props.children));
+          }
+          
+          const check = hasInvalidTextChild(allChildren, typeName);
+          if (check.found) {
+            detectionCount++;
+            console.log('\n=== INVALID TEXT CHILD DETECTED ===');
+            console.log('Component:', typeName);
+            console.log('Offending child:', JSON.stringify(check.value), `(typeof: ${typeof check.value})`);
+            console.log('Props keys:', props ? Object.keys(props).join(', ') : 'none');
+            console.log('Stack trace:');
+            console.log(new Error().stack?.split('\n').slice(1, 10).join('\n'));
+            console.log(`=== Detection ${detectionCount}/${MAX_DETECTIONS} ===\n`);
+          }
+        } catch (e) {
+          // Don't let detector errors break the app
+        }
+      }
+      
+      return originalCreateElement.apply(React, [type, props, ...children]);
+    };
+    
+    console.log('[DEV] React.createElement text-child detector installed');
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

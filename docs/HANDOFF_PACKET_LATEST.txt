@@ -1,67 +1,93 @@
-HANDOFF PACKET — MONTHLY RECAP REMOVAL (P0 STABILITY)
-======================================================
+HANDOFF PACKET — CREATEELEMENT TEXT-CHILD DETECTOR (DEV-ONLY)
+==============================================================
 Date: 2025-01-30
 Branch: main
-Commit: d8ce17a
+Commit: (see git log)
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Removed Monthly Recap feature entirely from Profile screen to eliminate
-crash surface area before TestFlight.
+Added a DEV-only React.createElement patch that detects when string or number
+children are rendered inside non-Text components BEFORE the crash happens.
+This gives us the exact component name and callsite stack trace.
 
 FILES CHANGED
 -------------
-src/app/profile.tsx (63 lines deleted)
+src/app/_layout.tsx (added ~80 lines after existing console.error interceptor)
 
-EXACT REMOVALS
---------------
-1. IMPORT (line 35):
-   - import { MonthlyRecap, MonthlyRecapButton, type MonthlyRecapData } from "@/components/MonthlyRecap";
+KEY IMPLEMENTATION
+------------------
+1. Patches React.createElement once (uses global flag to prevent double-patch)
+2. For every element creation:
+   - Derives typeName from type (string, function.displayName, function.name)
+   - Flattens all children (including props.children)
+   - If any child is string/number AND type is NOT Text-like, logs detection
+3. Text-like types allowed: Text, RCTText, AnimatedText, TextInput, or any
+   component with "Text" in the name
+4. Limits to first 5 detections to prevent console spam
+5. Wrapped in if (__DEV__) so prod is untouched
 
-2. STATE (line 72):
-   - const [showMonthlyRecap, setShowMonthlyRecap] = useState(false);
+WHAT THE DETECTOR PRINTS
+------------------------
+When a text child is rendered in a non-Text component:
 
-3. COMPUTED LOGIC (lines 182-222):
-   - // Build monthly recap data
-   - const now = new Date();
-   - const currentDay = now.getDate();
-   - const lastDayOfMonth = ...
-   - const isEndOfMonth = ...
-   - const isStartOfMonth = ...
-   - const shouldShowMonthlyRecap = ...
-   - const recapMonth = ...
-   - const monthlyRecapData: MonthlyRecapData | null = ...
+=== INVALID TEXT CHILD DETECTED ===
+Component: View
+Offending child: "some string" (typeof: string)
+Props keys: className, style
+Stack trace:
+    at patchedCreateElement (_layout.tsx:XX)
+    at SomeComponent (SomeFile.tsx:YY)
+    at renderWithHooks (...)
+    ...
+=== Detection 1/5 ===
 
-4. BUTTON RENDER (lines 376-385):
-   - {/* Monthly Recap Button (Spotify Wrapped style) */}
-   - {monthlyRecapData && monthlyRecapData.totalEvents > 0 && (
-       <Animated.View>
-         <MonthlyRecapButton ... />
-       </Animated.View>
-     )}
+HOW TO USE IT
+-------------
+1. Clear cache and start dev server:
+   npx expo start -c
 
-5. MODAL RENDER (lines 567-574):
-   - {/* Monthly Recap Modal */}
-   - {monthlyRecapData && (
-       <MonthlyRecap
-         data={monthlyRecapData}
-         visible={showMonthlyRecap}
-         onClose={...}
-       />
-     )}
+2. Navigate to screen that causes crash
+
+3. Check Metro console for:
+   "[DEV] React.createElement text-child detector installed"
+   
+4. When crash occurs, look for:
+   "=== INVALID TEXT CHILD DETECTED ==="
+   The "Component:" line shows the parent receiving the bad child
+   The "Stack trace:" shows the exact file/line of the render
+
+5. Fix the file by wrapping the string/number in <Text>
 
 VERIFICATION OUTPUT
 -------------------
-grep "MonthlyRecap|monthlyRecapData|showMonthlyRecap" → NO MATCHES
-bash scripts/ai/verify_frontend.sh → PASS
-npm run typecheck → PASS
+$ npm run typecheck
+> tsc -p tsconfig.frontend.json --noEmit
+(no errors)
 
-CONFIRMATION
+$ bash scripts/ai/verify_frontend.sh
+== INVARIANT CHECK PASSED ==
+== TYPECHECK ==
+PASS: verify_frontend
+
+EXISTING DETECTORS (KEPT)
+-------------------------
+1. console.error interceptor (lines 51-62) - catches error message
+2. ErrorBoundary componentDidCatch (src/components/ErrorBoundary.tsx)
+3. NEW: React.createElement patch (lines 66-159) - catches BEFORE crash
+
+DIFF SUMMARY
 ------------
-Monthly Recap is FULLY REMOVED from Profile screen.
-- No imports remain
-- No state remains
-- No computed logic remains
-- No JSX renders remain
-- Component file still exists but is now unused
+src/app/_layout.tsx:
+  - Added ~80 lines after the existing console.error interceptor
+  - No existing code modified
+  - DEV-only (if (__DEV__) wrapper)
+  - Uses global flag to prevent double-patching on hot reload
+
+NOTES
+-----
+- This detector fires BEFORE the actual crash, giving actionable callsite info
+- The existing console.error interceptor still works as a secondary catch
+- Detector is completely inert in production builds
+- If crash still happens without detector logs, the issue may be in a library
+  or in code that doesn't go through React.createElement (rare)
