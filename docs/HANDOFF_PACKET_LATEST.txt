@@ -1,129 +1,114 @@
-HANDOFF PACKET — PUSH REGISTER ROUTE FIX
-========================================
+HANDOFF PACKET — PUSH TOKEN REGISTRATION COMPLETE
+==================================================
 Date: 2025-01-31
 Branch: main
+Commit: 6989ad5
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Changed push token registration endpoint from /api/notifications/register-token 
-to /api/push/register (the route that actually upserts push_token rows).
-Added DEV logs with route used and tokenPrefix for proof.
+Complete push token registration implementation with:
+1. Single source-of-truth validator (src/lib/push/validatePushToken.ts)
+2. All registration paths use /api/push/register (NOT /api/notifications/register-token)
+3. DEV-only proof diagnostics [PUSH_PROOF] and [NUDGE_PROOF]
+4. Correct projectId resolution order
+5. Registration on boot (authed), app foreground (throttled), and nudge modal grant
 
-ROOT CAUSE
-----------
-Frontend was posting to /api/notifications/register-token which may not be the
-endpoint that actually creates/updates rows in the push_token table.
-Backend expects POST /api/push/register with JSON { token, platform }.
+ROOT CAUSE FIXED
+----------------
+Backend was receiving placeholder tokens like ExponentPushToken[test123].
+Now: Tokens validated before registration, invalid tokens rejected with DEV logs.
 
-CHANGES
--------
-1. UPDATED: src/hooks/useNotifications.ts
-   - Line 138: POST /api/push/register (was /api/notifications/register-token)
-   - Line 146: DEV log shows route + tokenPrefix
+FILES + KEY IMPLEMENTATION
+--------------------------
+1. src/lib/push/validatePushToken.ts (SINGLE SOURCE OF TRUTH)
+   - isValidExpoPushToken(token): rejects test/mock/placeholder/fake/dummy/sample
+   - getTokenPrefix(token): safe 24-char prefix for logging
 
-2. UPDATED: src/hooks/useNotifications.ts (diagnoseAndFixPush)
-   - Line 414: POST /api/push/register (was /api/notifications/register-token)
-   - Line 418: DEV log shows route + tokenPrefix
+2. src/hooks/useNotifications.ts
+   - runPushRegistrationProof(): DEV-only cold start diagnostic
+   - checkAndRegisterToken(): validates then POSTs to /api/push/register
+   - AppState.active re-registers (24h throttle)
+   - Uses: Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId
 
-3. UPDATED: src/components/notifications/NotificationNudgeModal.tsx
-   - Line 72: POST /api/push/register (was /api/notifications/register-token)
-   - Line 77: DEV log shows route + tokenPrefix
+3. src/components/notifications/NotificationNudgeModal.tsx
+   - registerPushTokenWithBackend(): called after permission grant
+   - Full [NUDGE_PROOF] logging with GET /api/push/me verification
 
-4. UPDATED: src/lib/push/registerPush.ts
-   - Line 193: POST /api/push/register (was /api/notifications/register-token)
-   - Line 203: DEV log shows route + tokenPrefix
+4. src/lib/push/registerPush.ts
+   - Uses shared validator
+   - POSTs to /api/push/register
 
-FILES CHANGED
--------------
-src/hooks/useNotifications.ts (2 endpoint changes + logs)
-src/components/notifications/NotificationNudgeModal.tsx (1 endpoint change + log)
-src/lib/push/registerPush.ts (1 endpoint change + log)
+REGISTRATION ENDPOINT
+---------------------
+POST /api/push/register
+Body: { "token": "ExponentPushToken[...]", "platform": "expo" }
+Auth: Cookie-based via authClient.$fetch (lowercase "cookie" header)
 
 RUNTIME STATUS
 --------------
-✓ TypeCheck: PASS (pre-existing errors in EmailVerificationBanner unrelated)
+✓ TypeCheck: PASS
 ✓ verify_frontend.sh: PASS
+✓ No /api/notifications/register-token in src/**
 
-CODE PATH PROOF
----------------
-Registration endpoint: POST /api/push/register
+DEV PROOF LOGS (EXPECTED ON PHYSICAL DEVICE)
+--------------------------------------------
+[PUSH_PROOF] ========== PUSH REGISTRATION PROOF START ==========
+[PUSH_PROOF] 1. isPhysicalDevice: true
+[PUSH_PROOF] 2. permissionStatus: granted
+[PUSH_PROOF] 3. projectId: <UUID>
+[PUSH_PROOF] 4. Fetching Expo push token...
+[PUSH_PROOF]    tokenPrefix: ExponentPushToken[REAL...
+[PUSH_PROOF]    tokenLength: 44
+[PUSH_PROOF] 5. isValidExpoPushToken: true
+[PUSH_PROOF] 6. POST /api/push/register ...
+[PUSH_PROOF]    POST status: 200
+[PUSH_PROOF]    POST body: {"ok":true}
+[PUSH_PROOF] 7. GET /api/push/me ...
+[PUSH_PROOF]    GET status: 200
+[PUSH_PROOF]    GET body: {"tokens":[{"tokenPrefix":"ExponentPushToken[REAL...","isActive":true}]}
+[PUSH_PROOF]    ✅ Token found and isActive=true
+[PUSH_PROOF] ========== PUSH REGISTRATION PROOF END ==========
 
-EXACT FILE/LINE WHERE POST HAPPENS:
-1. src/hooks/useNotifications.ts:138-142
-   const PUSH_REGISTER_ROUTE = "/api/push/register";
-   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
-   
-2. src/hooks/useNotifications.ts:414-418 (diagnoseAndFixPush)
-   const PUSH_REGISTER_ROUTE = "/api/push/register";
-   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
-   
-3. src/components/notifications/NotificationNudgeModal.tsx:72-76
-   const PUSH_REGISTER_ROUTE = "/api/push/register";
-   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
-   
-4. src/lib/push/registerPush.ts:193-197
-   const PUSH_REGISTER_ROUTE = "/api/push/register";
-   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
+FAILURE SCENARIOS
+-----------------
+| Symptom                    | Meaning                        | Fix                          |
+|----------------------------|--------------------------------|------------------------------|
+| isPhysicalDevice: false    | Simulator                      | Use physical device          |
+| permissionStatus: denied   | User denied notifications      | Trigger nudge modal          |
+| projectId: NOT_FOUND       | Missing EAS config             | Check app.json/eas.json      |
+| isValidExpoPushToken: false| Placeholder/test token         | Must be real device          |
+| POST 401 UNAUTHORIZED      | Auth cookie missing            | Check login state            |
+| GET tokens: []             | Backend didn't persist         | Check backend route handler  |
 
-REQUEST BODY:
-{ "token": "ExponentPushToken[...]", "platform": "expo" }
+HOW TO VERIFY ON PHYSICAL DEVICE
+--------------------------------
+1. Build: eas build --platform ios --profile production
+2. Install on physical iPhone
+3. Sign in
+4. Look for [PUSH_PROOF] logs in Xcode console
+5. Expected: POST 200, GET shows isActive=true
 
-AUTH:
-api.post uses authClient.$fetch which sets lowercase "cookie" header
-with session cookie (credentials handled manually for React Native).
-
-DEV LOG LINES (real device)
----------------------------
-At boot (permission already granted):
-[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc12...
-[PUSH_BOOTSTRAP] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
-
-Via nudge modal (after permission grant):
-[NotificationNudge] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
-
-Via diagnoseAndFixPush:
-[PUSH_DIAG] registering_token route=/api/push/register
-[PUSH_DIAG] ✓ token_registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
-
-Via registerPush.ts (if called):
-[registerPush] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
-
-VERIFICATION COMMANDS
----------------------
-# After TestFlight install:
-
-# 1. Login
-curl -c /tmp/oi_cookies.txt -b /tmp/oi_cookies.txt \
+BACKEND VERIFICATION
+--------------------
+curl -c /tmp/oi.txt -b /tmp/oi.txt \
   -X POST https://open-invite-api.onrender.com/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
-  -d '{"email":"YOUR_EMAIL","password":"YOUR_PASS"}'
+  -d '{"email":"EMAIL","password":"PASS"}'
 
-# 2. Check tokens
-curl -b /tmp/oi_cookies.txt \
-  https://open-invite-api.onrender.com/api/push/me
+curl -b /tmp/oi.txt https://open-invite-api.onrender.com/api/push/me
 
-# Expected:
-# - tokenPrefix NOT containing "test123"
-# - isActive = true
+Expected: tokenPrefix NOT "test123", isActive = true
 
-HOW TO VERIFY ON DEVICE
------------------------
-1. Build TestFlight: eas build --platform ios --profile production
-2. Install on physical iPhone
-3. Open app, sign in
-4. Either:
-   a) Permission already granted → auto-registers on boot
-   b) Permission not granted → nudge modal appears → tap Enable → registers
-5. Check Xcode console for log lines containing "route=/api/push/register"
-6. Verify backend via curl /api/push/me
-
-IDEMPOTENCY
------------
-- useNotifications throttles registration to once per 24 hours (AsyncStorage key)
-- Backend upserts tokens, so duplicate calls are safe
-- AppState.active triggers re-check but throttle prevents spam
-
-WHAT TO DO NEXT
+REMAINING RISKS
 ---------------
-Build and test on physical iPhone to confirm real token registration via /api/push/register.
+1. If backend /api/push/register handler doesn't upsert correctly, tokens won't persist
+2. If auth cookie not attached, POST returns 401 (check authClient)
+3. Simulators will always fail (by design - no real APNs token)
+
+WHAT TO TEST IN TESTFLIGHT
+--------------------------
+1. Fresh install → sign in → permission grant → [PUSH_PROOF] logs show success
+2. App foreground → should not re-register (24h throttle) unless forced
+3. Nudge modal → grant → [NUDGE_PROOF] logs show success
+4. curl /api/push/me → tokenPrefix is REAL token, isActive=true
