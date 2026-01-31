@@ -49,10 +49,11 @@ import {
   Heart,
   ChevronRight,
   X,
+  Crown,
 } from "@/ui/icons";
 
 /**
- * INVARIANT:
+ * INVARIANT: Crash-proof string coercion.
  * Never render unknown values directly inside <Text>.
  * Always coerce via StringSafe().
  */
@@ -96,6 +97,20 @@ export default function ProfileScreen() {
     setTimeout(() => setIsRetrying(false), 1500);
   }, [resetTimeout, retryBootstrap]);
 
+  // Avatar source with auth headers
+  const [avatarSource, setAvatarSource] = useState<any>(null);
+
+  // Badge modal state
+  const [selectedBadge, setSelectedBadge] = useState<{
+    achievementId: string;
+    name: string;
+    description: string | null;
+    emoji: string;
+    tier: string;
+    tierColor: string;
+    grantedAt: string;
+  } | null>(null);
+
   // Redirects
   useEffect(() => {
     if (bootStatus === "onboarding") router.replace("/welcome");
@@ -133,6 +148,21 @@ export default function ProfileScreen() {
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: bootStatus === "authed",
   });
+
+  // Load avatar source with auth headers (must be after profileData query)
+  useEffect(() => {
+    const loadAvatar = async () => {
+      try {
+        const { avatarUri } = getProfileDisplay({ profileData, session });
+        const safeUri = typeof avatarUri === "string" ? avatarUri : undefined;
+        const source = await getImageSource(safeUri);
+        setAvatarSource(source ?? null);
+      } catch {
+        setAvatarSource(null);
+      }
+    };
+    loadAvatar();
+  }, [profileData, session]);
 
   // Pull to refresh
   const onRefresh = useCallback(async () => {
@@ -216,26 +246,6 @@ export default function ProfileScreen() {
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
 
-  // Avatar
-  const [avatarSource, setAvatarSource] = useState<any>(null);
-
-  useEffect(() => {
-    const loadAvatar = async () => {
-      try {
-        const safeUri =
-          typeof profileDisplay.avatarUri === "string"
-            ? profileDisplay.avatarUri
-            : undefined;
-
-        const source = await getImageSource(safeUri);
-        setAvatarSource(source ?? null);
-      } catch {
-        setAvatarSource(null);
-      }
-    };
-    loadAvatar();
-  }, [profileDisplay.avatarUri]);
-
   // Category helper
   const getCategoryInfo = (category: string) => {
     return (
@@ -247,8 +257,8 @@ export default function ProfileScreen() {
     );
   };
 
-  // Badge modal
-  const [selectedBadge, setSelectedBadge] = useState<any>(null);
+  // Featured badge (normalized)
+  const featuredBadge = normalizeFeaturedBadge(profileData?.featuredBadge);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -280,7 +290,7 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* Profile Card */}
+        {/* Profile Card - Premium users get gold border */}
         <Animated.View entering={FadeInDown.springify()}>
           <View
             className="rounded-2xl p-5 border mb-4"
@@ -291,37 +301,75 @@ export default function ProfileScreen() {
             }}
           >
             <View className="flex-row items-center">
-              {/* Avatar */}
-              <View className="w-16 h-16 rounded-full overflow-hidden">
-                {avatarSource ? (
-                  <Image source={avatarSource} className="w-full h-full" />
-                ) : (
+              {/* Avatar with premium crown overlay */}
+              <View className="relative">
+                <View className="w-16 h-16 rounded-full overflow-hidden">
+                  {avatarSource ? (
+                    <Image source={avatarSource} className="w-full h-full" />
+                  ) : (
+                    <View
+                      className="w-full h-full items-center justify-center"
+                      style={{
+                        backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5",
+                      }}
+                    >
+                      <Text style={{ color: themeColor, fontSize: 22 }}>
+                        {StringSafe(getProfileInitial({ profileData, session }))}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {/* Premium crown on avatar */}
+                {userIsPremium && (
                   <View
-                    className="w-full h-full items-center justify-center"
-                    style={{
-                      backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5",
-                    }}
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
+                    style={{ backgroundColor: "#FFD700" }}
                   >
-                    <Text style={{ color: themeColor, fontSize: 22 }}>
-                      {StringSafe(getProfileInitial({ profileData, session }))}
-                    </Text>
+                    <Crown size={12} color="#FFFFFF" />
                   </View>
                 )}
               </View>
 
-              {/* Name */}
+              {/* Name + Handle + Badge */}
               <View className="flex-1 ml-4">
-                <Text
-                  className="text-xl font-sora-bold"
-                  style={{ color: colors.text }}
-                >
-                  {displayName}
-                </Text>
+                <View className="flex-row items-center">
+                  <Text
+                    className="text-xl font-sora-bold"
+                    style={{ color: colors.text }}
+                  >
+                    {displayName}
+                  </Text>
+                  {/* PRO pill next to name */}
+                  {userIsPremium && (
+                    <View
+                      className="ml-2 px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: "#FFD70020" }}
+                    >
+                      <Text
+                        className="text-xs font-semibold"
+                        style={{ color: "#B8860B" }}
+                      >
+                        PRO
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 {userHandle && (
                   <Text style={{ color: colors.textSecondary }}>
-                    @{StringSafe(userHandle)}
+                    {`@${StringSafe(userHandle)}`}
                   </Text>
+                )}
+
+                {/* Featured Badge */}
+                {featuredBadge && (
+                  <View className="mt-2">
+                    <BadgePill
+                      name={StringSafe(featuredBadge.name)}
+                      tierColor={StringSafe(featuredBadge.tierColor, "#78909C")}
+                      variant="medium"
+                    />
+                  </View>
                 )}
 
                 {/* Bio */}
@@ -343,69 +391,250 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Stats */}
-        <Animated.View entering={FadeInDown.delay(50).springify()}>
-          <View className="flex-row mb-4">
-            <View
+        {/* Stats Overview */}
+        <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
+          <View className="flex-row">
+            {/* Hosted Events */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/calendar");
+              }}
               className="flex-1 rounded-xl p-4 mr-2 border"
               style={{
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               }}
             >
-              <Text style={{ fontSize: 28, color: themeColor }}>
-                {StringSafe(stats?.hostedCount ?? 0)}
+              <View className="flex-row items-center justify-between mb-2">
+                <Text
+                  className="text-3xl font-bold"
+                  style={{ color: themeColor }}
+                >
+                  {StringSafe(stats?.hostedCount ?? 0)}
+                </Text>
+                <View
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: `${themeColor}20` }}
+                >
+                  <Star size={16} color={themeColor} />
+                </View>
+              </View>
+              <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                Hosted
               </Text>
-              <Text style={{ color: colors.textSecondary }}>Hosted</Text>
-            </View>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                events
+              </Text>
+            </Pressable>
 
-            <View
+            {/* Attended Events */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               className="flex-1 rounded-xl p-4 border"
               style={{
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               }}
             >
-              <Text style={{ fontSize: 28, color: "#4ECDC4" }}>
-                {StringSafe(stats?.attendedCount ?? 0)}
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-3xl font-bold" style={{ color: "#4ECDC4" }}>
+                  {StringSafe(stats?.attendedCount ?? 0)}
+                </Text>
+                <View
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  style={{ backgroundColor: "#4ECDC420" }}
+                >
+                  <Heart size={16} color="#4ECDC4" />
+                </View>
+              </View>
+              <Text className="text-sm font-medium" style={{ color: colors.text }}>
+                Attended
               </Text>
-              <Text style={{ color: colors.textSecondary }}>Attended</Text>
-            </View>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                events
+              </Text>
+            </Pressable>
           </View>
         </Animated.View>
 
-        {/* Friends */}
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
+        {/* Streak Counter - Full Width */}
+        {(stats?.currentStreak ?? 0) > 0 && (
+          <Animated.View entering={FadeInDown.delay(75).springify()} className="mb-4">
+            <StreakCounter
+              currentStreak={stats?.currentStreak ?? 0}
+              longestStreak={stats?.currentStreak ?? 0}
+              totalHangouts={stats?.attendedCount ?? 0}
+            />
+          </Animated.View>
+        )}
+
+        {/* Event Types Breakdown */}
+        {stats?.categoryBreakdown &&
+          Object.keys(stats.categoryBreakdown).length > 0 && (
+            <Animated.View
+              entering={FadeInDown.delay(100).springify()}
+              className="mb-4"
+            >
+              <Text
+                className="text-sm font-medium mb-2"
+                style={{ color: colors.textSecondary }}
+              >
+                Types of Events Hosted
+              </Text>
+              <View
+                className="rounded-xl p-4 border"
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                }}
+              >
+                <View className="flex-row flex-wrap">
+                  {Object.entries(stats.categoryBreakdown)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([category, count]) => {
+                      const catInfo = getCategoryInfo(category);
+                      return (
+                        <View
+                          key={category}
+                          className="flex-row items-center mr-4 mb-2 px-3 py-1.5 rounded-full"
+                          style={{ backgroundColor: `${catInfo.color}20` }}
+                        >
+                          <Text className="text-base mr-1">
+                            {StringSafe(catInfo.emoji)}
+                          </Text>
+                          <Text
+                            className="text-sm font-medium"
+                            style={{ color: catInfo.color }}
+                          >
+                            {StringSafe(count)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+        {/* Badges - INVARIANT: Use Award icon, NOT Trophy */}
+        <Animated.View entering={FadeInDown.delay(150).springify()} className="mb-4">
           <Pressable
-            onPress={() => router.push("/friends")}
-            className="rounded-xl p-4 border items-center mb-6"
-            style={{
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/achievements");
             }}
           >
-            <Users size={18} color="#4ECDC4" />
-            <Text style={{ fontSize: 22, marginTop: 6 }}>
-              {StringSafe(friendsCount)}
-            </Text>
-            <Text style={{ color: colors.textSecondary }}>Friends</Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Award size={16} color="#FFD700" />
+                <Text
+                  className="text-sm font-medium ml-2"
+                  style={{ color: colors.textSecondary }}
+                >
+                  Badges
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-sm mr-1" style={{ color: themeColor }}>
+                  View All
+                </Text>
+                <ChevronRight size={16} color={themeColor} />
+              </View>
+            </View>
           </Pressable>
         </Animated.View>
 
-        {/* Streak */}
-        {(stats?.currentStreak ?? 0) > 0 && (
-          <StreakCounter
-            currentStreak={stats?.currentStreak ?? 0}
-            longestStreak={stats?.currentStreak ?? 0}
-            totalHangouts={stats?.attendedCount ?? 0}
-          />
-        )}
+        {/* Quick Stats Row - Friends */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
+          <View className="flex-row">
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/friends");
+              }}
+              className="flex-1 rounded-xl p-4 border items-center"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <View className="flex-row items-center">
+                <Users size={18} color="#4ECDC4" />
+                <Text className="text-2xl font-bold ml-2" style={{ color: "#4ECDC4" }}>
+                  {StringSafe(friendsCount)}
+                </Text>
+              </View>
+              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                Friends
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
       </ScrollView>
 
-      <BottomNavigation />
+      {/* Badge Details Modal */}
+      <Modal
+        visible={selectedBadge !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedBadge(null)}
+      >
+        <Pressable
+          className="flex-1 bg-black/50 items-center justify-center"
+          onPress={() => setSelectedBadge(null)}
+        >
+          <Pressable
+            className="rounded-2xl p-6 mx-6 w-80 max-w-full"
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Pressable
+              className="absolute top-4 right-4 w-8 h-8 rounded-full items-center justify-center"
+              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+              onPress={() => setSelectedBadge(null)}
+            >
+              <X size={16} color={colors.textSecondary} />
+            </Pressable>
+            {selectedBadge && (
+              <View className="items-center">
+                <Text className="text-5xl mb-3">
+                  {StringSafe(selectedBadge.emoji)}
+                </Text>
+                <Text
+                  className="text-xl font-sora-bold text-center mb-2"
+                  style={{ color: colors.text }}
+                >
+                  {StringSafe(selectedBadge.name)}
+                </Text>
+                <View
+                  className="px-3 py-1 rounded-full mb-4"
+                  style={{
+                    backgroundColor: `${StringSafe(selectedBadge.tierColor, "#78909C")}20`,
+                  }}
+                >
+                  <Text
+                    className="text-xs font-semibold"
+                    style={{ color: StringSafe(selectedBadge.tierColor, "#78909C") }}
+                  >
+                    {StringSafe(selectedBadge.tier)}
+                  </Text>
+                </View>
+                <Text
+                  className="text-sm text-center"
+                  style={{ color: colors.textSecondary }}
+                >
+                  {StringSafe(selectedBadge.description, "A special achievement badge.")}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
-      {/* Badge Modal Placeholder */}
-      <Modal visible={false} transparent />
+      <BottomNavigation />
     </SafeAreaView>
   );
 }
