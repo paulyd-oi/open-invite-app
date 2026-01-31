@@ -28,12 +28,15 @@ export type NudgeState = "none" | "nudged_once" | "nudged_twice" | "never_nudge"
 
 /**
  * Register push token with backend after permission is granted
+ * Includes DEV-only proof logging for debugging
  */
 async function registerPushTokenWithBackend(): Promise<boolean> {
+  const LOG_PREFIX = "[NUDGE_PROOF]";
+  
   // Only run on physical device
   if (!Device.isDevice) {
     if (__DEV__) {
-      console.log('[NotificationNudge] Skipping token registration - not a physical device');
+      console.log(`${LOG_PREFIX} Skipping - not a physical device`);
     }
     return false;
   }
@@ -44,44 +47,86 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
       Constants?.easConfig?.projectId ??
       Constants?.expoConfig?.extra?.eas?.projectId;
 
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} projectId: ${projectId || "NOT_FOUND"}`);
+    }
+
     if (!projectId) {
-      if (__DEV__) {
-        console.log('[NotificationNudge] No projectId found');
-      }
       return false;
     }
 
     // Get token
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData.data;
+    const tokenPrefix = getTokenPrefix(token);
+    const tokenLength = token?.length ?? 0;
 
     if (__DEV__) {
-      console.log('[NotificationNudge] Got token:', getTokenPrefix(token));
+      console.log(`${LOG_PREFIX} tokenPrefix: ${tokenPrefix}`);
+      console.log(`${LOG_PREFIX} tokenLength: ${tokenLength}`);
     }
 
     // Validate token (uses shared validator)
-    if (!isValidExpoPushToken(token)) {
-      if (__DEV__) {
-        console.log('[NotificationNudge] Token failed validation');
-      }
+    const isValid = isValidExpoPushToken(token);
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} isValidExpoPushToken: ${isValid}`);
+    }
+    if (!isValid) {
       return false;
     }
 
     // Register with backend
     const PUSH_REGISTER_ROUTE = "/api/push/register";
-    await api.post(PUSH_REGISTER_ROUTE, {
-      token,
-      platform: "expo",
-    });
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} POST ${PUSH_REGISTER_ROUTE} ...`);
+    }
+
+    try {
+      const response = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
+        token,
+        platform: "expo",
+      });
+
+      if (__DEV__) {
+        console.log(`${LOG_PREFIX} POST status: 200`);
+        console.log(`${LOG_PREFIX} POST body: ${JSON.stringify(response)}`);
+      }
+    } catch (postErr: any) {
+      const status = postErr?.status ?? postErr?.statusCode ?? "unknown";
+      const body = postErr?.data ?? postErr?.message ?? String(postErr);
+      if (__DEV__) {
+        if (status === 401) {
+          console.log(`${LOG_PREFIX} POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
+        } else {
+          console.log(`${LOG_PREFIX} POST status: ${status}`);
+        }
+        console.log(`${LOG_PREFIX} POST error: ${JSON.stringify(body)}`);
+      }
+      return false;
+    }
+
+    // Verify with GET /api/push/me
+    if (__DEV__) {
+      console.log(`${LOG_PREFIX} GET /api/push/me ...`);
+      try {
+        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+        console.log(`${LOG_PREFIX} GET body: ${JSON.stringify(meResponse)}`);
+        const tokens = meResponse?.tokens ?? [];
+        const hasActiveToken = tokens.some((t) => t.isActive === true);
+        console.log(`${LOG_PREFIX} hasActiveToken: ${hasActiveToken}`);
+      } catch (getErr: any) {
+        console.log(`${LOG_PREFIX} GET error: ${getErr?.status ?? getErr}`);
+      }
+    }
 
     if (__DEV__) {
-      console.log(`[NotificationNudge] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
+      console.log(`${LOG_PREFIX} ✅ Registration complete`);
     }
 
     return true;
   } catch (error) {
     if (__DEV__) {
-      console.error('[NotificationNudge] Token registration error:', error);
+      console.error(`${LOG_PREFIX} Unexpected error:`, error);
     }
     return false;
   }

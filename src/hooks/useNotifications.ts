@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
@@ -17,6 +19,136 @@ import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushTok
 // Throttle token registration to once per 24 hours
 const TOKEN_REGISTRATION_KEY = "push_token_last_registered";
 const TOKEN_REGISTRATION_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Track if push proof diagnostic has run this session (cold start only)
+let pushProofDiagnosticRan = false;
+
+/**
+ * DEV ONLY: Push Registration Proof Diagnostic
+ * 
+ * Runs ONCE per cold start when user is authed.
+ * Produces detailed console logs proving:
+ * 1. Permission status
+ * 2. ProjectId used
+ * 3. Token obtained (prefix + length only)
+ * 4. Token validation result
+ * 5. POST /api/push/register result (status + body)
+ * 6. GET /api/push/me result (status + body)
+ * 
+ * Look for lines starting with [PUSH_PROOF] in console.
+ */
+async function runPushRegistrationProof(): Promise<void> {
+  if (!__DEV__) return;
+  if (pushProofDiagnosticRan) return;
+  pushProofDiagnosticRan = true;
+
+  const LOG_PREFIX = "[PUSH_PROOF]";
+  console.log(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF START ==========`);
+
+  try {
+    // Step 1: Device check
+    const isPhysicalDevice = Device.isDevice;
+    console.log(`${LOG_PREFIX} 1. isPhysicalDevice: ${isPhysicalDevice}`);
+    if (!isPhysicalDevice) {
+      console.log(`${LOG_PREFIX} ❌ ABORT: Not a physical device (simulator cannot get real tokens)`);
+      return;
+    }
+
+    // Step 2: Permission status
+    const { status: permissionStatus } = await Notifications.getPermissionsAsync();
+    console.log(`${LOG_PREFIX} 2. permissionStatus: ${permissionStatus}`);
+    if (permissionStatus !== "granted") {
+      console.log(`${LOG_PREFIX} ❌ ABORT: Permission not granted (cannot fetch token)`);
+      return;
+    }
+
+    // Step 3: ProjectId
+    const projectId =
+      Constants?.easConfig?.projectId ??
+      Constants?.expoConfig?.extra?.eas?.projectId;
+    console.log(`${LOG_PREFIX} 3. projectId: ${projectId || "NOT_FOUND"}`);
+    if (!projectId) {
+      console.log(`${LOG_PREFIX} ❌ ABORT: No projectId found`);
+      return;
+    }
+
+    // Step 4: Get token
+    console.log(`${LOG_PREFIX} 4. Fetching Expo push token...`);
+    let token: string;
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+      token = tokenData.data;
+    } catch (tokenErr) {
+      console.log(`${LOG_PREFIX} ❌ ABORT: getExpoPushTokenAsync failed:`, tokenErr);
+      return;
+    }
+
+    const tokenPrefix = getTokenPrefix(token);
+    const tokenLength = token?.length ?? 0;
+    console.log(`${LOG_PREFIX}    tokenPrefix: ${tokenPrefix}`);
+    console.log(`${LOG_PREFIX}    tokenLength: ${tokenLength}`);
+
+    // Step 5: Validate token
+    const isValid = isValidExpoPushToken(token);
+    console.log(`${LOG_PREFIX} 5. isValidExpoPushToken: ${isValid}`);
+    if (!isValid) {
+      console.log(`${LOG_PREFIX} ❌ ABORT: Token failed validation (placeholder/mock/too-short)`);
+      return;
+    }
+
+    // Step 6: POST /api/push/register
+    console.log(`${LOG_PREFIX} 6. POST /api/push/register ...`);
+    const PUSH_REGISTER_ROUTE = "/api/push/register";
+    let postResult: { status: number; body: unknown };
+    try {
+      const response = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
+        token,
+        platform: "expo",
+      });
+      postResult = { status: 200, body: response };
+      console.log(`${LOG_PREFIX}    POST status: 200`);
+      console.log(`${LOG_PREFIX}    POST body: ${JSON.stringify(response)}`);
+    } catch (postErr: any) {
+      const status = postErr?.status ?? postErr?.statusCode ?? "unknown";
+      const body = postErr?.data ?? postErr?.message ?? String(postErr);
+      postResult = { status: typeof status === "number" ? status : 500, body };
+      if (status === 401) {
+        console.log(`${LOG_PREFIX}    POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
+      } else {
+        console.log(`${LOG_PREFIX}    POST status: ${status}`);
+      }
+      console.log(`${LOG_PREFIX}    POST error body: ${JSON.stringify(body)}`);
+    }
+
+    // Step 7: GET /api/push/me (verify backend state)
+    console.log(`${LOG_PREFIX} 7. GET /api/push/me ...`);
+    try {
+      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+      console.log(`${LOG_PREFIX}    GET status: 200`);
+      console.log(`${LOG_PREFIX}    GET body: ${JSON.stringify(meResponse)}`);
+
+      // Check for expected token
+      const tokens = meResponse?.tokens ?? [];
+      const matchingToken = tokens.find((t) => tokenPrefix.includes(t.tokenPrefix?.substring(0, 20) ?? ""));
+      if (tokens.length === 0) {
+        console.log(`${LOG_PREFIX}    ⚠️ No tokens in response`);
+      } else if (matchingToken?.isActive) {
+        console.log(`${LOG_PREFIX}    ✅ Token found and isActive=true`);
+      } else {
+        console.log(`${LOG_PREFIX}    ⚠️ Token found but isActive=${matchingToken?.isActive ?? "N/A"}`);
+      }
+    } catch (getErr: any) {
+      const status = getErr?.status ?? getErr?.statusCode ?? "unknown";
+      const body = getErr?.data ?? getErr?.message ?? String(getErr);
+      console.log(`${LOG_PREFIX}    GET status: ${status}`);
+      console.log(`${LOG_PREFIX}    GET error body: ${JSON.stringify(body)}`);
+    }
+
+    console.log(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF END ==========`);
+  } catch (err) {
+    console.log(`${LOG_PREFIX} UNEXPECTED ERROR:`, err);
+  }
+}
 
 export function useNotifications() {
   const { data: session } = useSession();
@@ -202,6 +334,8 @@ export function useNotifications() {
     // Initial check (force register on first mount to ensure token is sent)
     if (__DEV__) {
       console.log("[PUSH_BOOTSTRAP] Boot complete, initiating push registration");
+      // Run proof diagnostic ONCE on cold start (DEV only)
+      runPushRegistrationProof();
     }
     checkAndRegisterToken(true);
 
