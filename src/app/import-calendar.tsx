@@ -686,7 +686,7 @@ export default function ImportCalendarScreen() {
                         </Text>
                         <Text className="text-xs" style={{ color: colors.textTertiary }}>
                           {calendar.source}
-                          {calendar.isPrimary ? " • Primary" : ""}
+                          {calendar.isPrimary && " • Primary"}
                         </Text>
                       </View>
                       <View

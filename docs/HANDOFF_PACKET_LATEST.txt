@@ -1,17 +1,22 @@
-HANDOFF PACKET — TEXT CHILD CRASH FIX
-=====================================
+HANDOFF PACKET — TEXT CHILD CRASH FIX (P0)
+==========================================
 Date: 2025-01-30
 Branch: main
-Commit: 41c3b78
+Commit: d94744d
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed "Text strings must be rendered within a <Text> component" crash by
-converting && short-circuit to ternary operators for conditional strings.
+Fixed "Text strings must be rendered within a <Text> component" crash.
+Reverted ternary pattern back to && pattern since strings are INSIDE <Text>.
 
-The issue: `{condition && " string"}` renders `false` when condition is falsy,
-which React Native cannot render outside of Text. Ternary returns "" instead.
+ROOT CAUSE
+----------
+Previous fix used ternary returning empty string: `{cond ? "str" : ""}`
+This was unnecessary since the conditional is INSIDE a <Text> component.
+The && pattern `{cond && "str"}` is safe inside <Text> because:
+- true && "str" → "str" (valid string child of Text)
+- false && "str" → false (React ignores false in render)
 
 FILES CHANGED
 -------------
@@ -20,46 +25,34 @@ src/app/event-request/[id].tsx (lines 475, 537)
 
 EXACT DIFFS
 -----------
-1. import-calendar.tsx line 689:
-   BEFORE: {calendar.isPrimary && " • Primary"}
-   AFTER:  {calendar.isPrimary ? " • Primary" : ""}
+1. import-calendar.tsx:
+   BEFORE: {calendar.isPrimary ? " • Primary" : ""}
+   AFTER:  {calendar.isPrimary && " • Primary"}
 
-2. event-request/[id].tsx line 475:
-   BEFORE: {eventRequest.creatorId === session.user?.id && " (You)"}
-   AFTER:  {eventRequest.creatorId === session.user?.id ? " (You)" : ""}
+2. event-request/[id].tsx (line 475):
+   BEFORE: {eventRequest.creatorId === session.user?.id ? " (You)" : ""}
+   AFTER:  {eventRequest.creatorId === session.user?.id && " (You)"}
 
-3. event-request/[id].tsx line 537:
-   BEFORE: {member.userId === session.user?.id && " (You)"}
-   AFTER:  {member.userId === session.user?.id ? " (You)" : ""}
+3. event-request/[id].tsx (line 537):
+   BEFORE: {member.userId === session.user?.id ? " (You)" : ""}
+   AFTER:  {member.userId === session.user?.id && " (You)"}
 
 VERIFICATION OUTPUT
 -------------------
-$ npm run typecheck
-> tsc -p tsconfig.frontend.json --noEmit
-(no errors)
+$ npm run typecheck → PASS (no errors)
+$ bash scripts/ai/verify_frontend.sh → PASS
 
-$ bash scripts/ai/verify_frontend.sh
-== INVARIANT CHECK PASSED ==
-== TYPECHECK ==
-PASS: verify_frontend
+KEY INSIGHT
+-----------
+The crash rule is: strings outside <Text> crash.
+Inside <Text>, both patterns work:
+- {cond && "str"} ✓
+- {cond ? "str" : ""} ✓
 
-WHY THIS FIXES THE CRASH
-------------------------
-In React Native, the && pattern can return `false` when condition is falsy:
-  {false && " string"} → renders `false` (invalid outside Text)
-  
-Ternary always returns a string:
-  {false ? " string" : ""} → renders "" (valid)
+Outside <Text> (in View), NEITHER works:
+- <View>{cond && "str"}</View> ✗ CRASH
+- <View>{cond ? "str" : ""}</View> ✗ CRASH
 
-PREVIOUS COMMITS (SAME SESSION)
--------------------------------
-- 8df6104: fix(dev): add createElement text-child detector
-- d8ce17a: fix(profile): remove monthly recap (stability)
-- a5db9a1: fix(crash): wrap numeric values with String() in Profile
-
-DEV DETECTOR STILL ACTIVE
--------------------------
-The createElement detector from commit 8df6104 remains in _layout.tsx.
-If any NEW text-child issues appear, it will log them before crash.
+Must use: <View>{cond ? <Text>str</Text> : null}</View>
 - If crash still happens without detector logs, the issue may be in a library
   or in code that doesn't go through React.createElement (rare)
