@@ -50,15 +50,19 @@ function ToastItem({
       onPress={() => onDismiss?.(toast.id)}
       style={[styles.toast, { backgroundColor: bg }]}
       accessibilityRole="button"
-      accessibilityLabel={toast.title ? `${toast.title}. ${toast.message}` : toast.message}
+      accessibilityLabel={
+        toast.title
+          ? `${String(toast.title)}. ${String(toast.message ?? "")}`
+          : String(toast.message ?? "")
+      }
     >
       <View style={styles.iconWrap}>
         <Ionicons name={icon} size={20} color="#fff" />
       </View>
 
       <View style={styles.textWrap}>
-        {!!toast.title && <Text style={styles.title}>{toast.title}</Text>}
-        <Text style={styles.message}>{toast.message}</Text>
+        {!!toast.title && <Text style={styles.title}>{String(toast.title)}</Text>}
+        <Text style={styles.message}>{String(toast.message ?? "")}</Text>
       </View>
 
       <View style={styles.closeWrap}>

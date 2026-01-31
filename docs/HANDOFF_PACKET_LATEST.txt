@@ -1,58 +1,60 @@
-HANDOFF PACKET — TEXT CHILD CRASH FIX (P0)
-==========================================
+HANDOFF PACKET — TOAST RENDERING HARDENING (P0)
+================================================
 Date: 2025-01-30
 Branch: main
-Commit: d94744d
+Commit: 2ab1466
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed "Text strings must be rendered within a <Text> component" crash.
-Reverted ternary pattern back to && pattern since strings are INSIDE <Text>.
+Hardened Toast component to prevent crash when toast.message or toast.title
+are not strings (object, boolean, number, null, undefined).
 
 ROOT CAUSE
 ----------
-Previous fix used ternary returning empty string: `{cond ? "str" : ""}`
-This was unnecessary since the conditional is INSIDE a <Text> component.
-The && pattern `{cond && "str"}` is safe inside <Text> because:
-- true && "str" → "str" (valid string child of Text)
-- false && "str" → false (React ignores false in render)
+Toast.tsx rendered toast.message directly without String() coercion.
+If any code passed a non-string value, React Native would crash:
+"Text strings must be rendered within a <Text> component"
 
 FILES CHANGED
 -------------
-src/app/import-calendar.tsx (line 689)
-src/app/event-request/[id].tsx (lines 475, 537)
+src/components/Toast.tsx
 
 EXACT DIFFS
 -----------
-1. import-calendar.tsx:
-   BEFORE: {calendar.isPrimary ? " • Primary" : ""}
-   AFTER:  {calendar.isPrimary && " • Primary"}
+BEFORE (line 52):
+  accessibilityLabel={toast.title ? `${toast.title}. ${toast.message}` : toast.message}
 
-2. event-request/[id].tsx (line 475):
-   BEFORE: {eventRequest.creatorId === session.user?.id ? " (You)" : ""}
-   AFTER:  {eventRequest.creatorId === session.user?.id && " (You)"}
+AFTER:
+  accessibilityLabel={
+    toast.title
+      ? `${String(toast.title)}. ${String(toast.message ?? "")}`
+      : String(toast.message ?? "")
+  }
 
-3. event-request/[id].tsx (line 537):
-   BEFORE: {member.userId === session.user?.id ? " (You)" : ""}
-   AFTER:  {member.userId === session.user?.id && " (You)"}
+BEFORE (line 59):
+  {!!toast.title && <Text style={styles.title}>{toast.title}</Text>}
+  <Text style={styles.message}>{toast.message}</Text>
+
+AFTER:
+  {!!toast.title && <Text style={styles.title}>{String(toast.title)}</Text>}
+  <Text style={styles.message}>{String(toast.message ?? "")}</Text>
 
 VERIFICATION OUTPUT
 -------------------
-$ npm run typecheck → PASS (no errors)
+$ npm run typecheck → PASS
 $ bash scripts/ai/verify_frontend.sh → PASS
 
-KEY INSIGHT
------------
-The crash rule is: strings outside <Text> crash.
-Inside <Text>, both patterns work:
-- {cond && "str"} ✓
-- {cond ? "str" : ""} ✓
+PROTECTION ADDED
+----------------
+1. String(toast.title) - coerces any type to string
+2. String(toast.message ?? "") - handles null/undefined → ""
+3. accessibilityLabel also hardened for screen readers
 
-Outside <Text> (in View), NEITHER works:
-- <View>{cond && "str"}</View> ✗ CRASH
-- <View>{cond ? "str" : ""}</View> ✗ CRASH
-
-Must use: <View>{cond ? <Text>str</Text> : null}</View>
+RELATED SESSION COMMITS
+-----------------------
+- d48414a: fix(p0): wrap conditional strings in Text
+- 8df6104: fix(dev): add createElement text-child detector
+- a5db9a1: fix(crash): wrap numeric values with String() in Profile
 - If crash still happens without detector logs, the issue may be in a library
   or in code that doesn't go through React.createElement (rare)
