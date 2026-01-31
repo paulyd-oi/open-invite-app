@@ -73,9 +73,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
     }
 
     try {
+      // INVARIANT: Prefer easConfig.projectId (set in eas.json), fallback to expoConfig.extra
       const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
+        Constants?.easConfig?.projectId ??
+        Constants?.expoConfig?.extra?.eas?.projectId;
 
       if (!projectId) {
         if (__DEV__) {
@@ -86,7 +87,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       if (__DEV__) {
-        console.log("Push token:", token);
+        console.log("Push token:", token.substring(0, 30) + "...");
       }
 
       // Store the token locally

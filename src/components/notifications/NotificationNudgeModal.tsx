@@ -10,6 +10,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeIn, FadeInUp, SlideInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { X, Bell, MessageCircle, CalendarCheck, Users, BellOff, AlertCircle } from "@/ui/icons";
 
@@ -22,6 +24,84 @@ const NUDGE_COUNT_KEY = "notification_nudge_count";
 
 // Notification nudge state type
 export type NudgeState = "none" | "nudged_once" | "nudged_twice" | "never_nudge";
+
+/**
+ * INVARIANT: Validate push token before sending to backend
+ * Rejects placeholder/test tokens like ExponentPushToken[test123]
+ */
+function isValidPushToken(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
+  const lowerToken = token.toLowerCase();
+  if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
+    if (__DEV__) {
+      console.log('[NotificationNudge] Rejected placeholder token:', token);
+    }
+    return false;
+  }
+  if (token.length < 30) return false;
+  return true;
+}
+
+/**
+ * Register push token with backend after permission is granted
+ */
+async function registerPushTokenWithBackend(): Promise<boolean> {
+  // Only run on physical device
+  if (!Device.isDevice) {
+    if (__DEV__) {
+      console.log('[NotificationNudge] Skipping token registration - not a physical device');
+    }
+    return false;
+  }
+
+  try {
+    // Get project ID
+    const projectId =
+      Constants?.easConfig?.projectId ??
+      Constants?.expoConfig?.extra?.eas?.projectId;
+
+    if (!projectId) {
+      if (__DEV__) {
+        console.log('[NotificationNudge] No projectId found');
+      }
+      return false;
+    }
+
+    // Get token
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenData.data;
+
+    if (__DEV__) {
+      console.log('[NotificationNudge] Got token:', token.substring(0, 30) + '...');
+    }
+
+    // Validate token
+    if (!isValidPushToken(token)) {
+      if (__DEV__) {
+        console.log('[NotificationNudge] Token failed validation');
+      }
+      return false;
+    }
+
+    // Register with backend
+    await api.post("/api/notifications/register-token", {
+      token,
+      platform: "expo",
+    });
+
+    if (__DEV__) {
+      console.log('[NotificationNudge] Token registered successfully');
+    }
+
+    return true;
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[NotificationNudge] Token registration error:', error);
+    }
+    return false;
+  }
+}
 
 /**
  * Check if auto-nudge should be shown based on nudge history
@@ -173,6 +253,11 @@ export function NotificationNudgeModal({
         pushPermissionStatus,
         notifNudgeState: finalStatus === "granted" ? "granted" : "denied",
       });
+
+      // CRITICAL: If permission granted, register the push token with backend
+      if (finalStatus === "granted") {
+        await registerPushTokenWithBackend();
+      }
 
       // Track analytics
       if (finalStatus === "granted") {

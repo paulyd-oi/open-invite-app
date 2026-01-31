@@ -14,6 +14,27 @@ const PUSH_TOKEN_KEY = "expo_push_token";
 const PUSH_PERMISSION_PROMPTED_KEY = "push_permission_prompted";
 
 /**
+ * Validate that a token is a real Expo push token (not a placeholder/test)
+ * INVARIANT: Never send placeholder tokens like "ExponentPushToken[test123]" to backend
+ */
+function isValidPushToken(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  // Must start with valid prefix
+  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
+  // Reject placeholder/test tokens
+  const lowerToken = token.toLowerCase();
+  if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
+    if (__DEV__) {
+      console.log('[registerPush] Rejected placeholder token:', token);
+    }
+    return false;
+  }
+  // Real tokens are ~40+ chars
+  if (token.length < 30) return false;
+  return true;
+}
+
+/**
  * Check if push permission has already been prompted
  * (to avoid prompting on cold launch)
  */
@@ -145,9 +166,10 @@ export async function registerPushToken(): Promise<{
     }
 
     // Get project ID for Expo push token
+    // INVARIANT: Prefer easConfig.projectId (set in eas.json), fallback to expoConfig.extra
     const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ??
-      Constants?.easConfig?.projectId;
+      Constants?.easConfig?.projectId ??
+      Constants?.expoConfig?.extra?.eas?.projectId;
 
     if (!projectId) {
       if (__DEV__) {
@@ -167,7 +189,19 @@ export async function registerPushToken(): Promise<{
     const token = tokenData.data;
 
     if (__DEV__) {
-      console.log("[registerPush] Got token:", token);
+      console.log("[registerPush] Got token:", token.substring(0, 30) + "...");
+    }
+
+    // INVARIANT: Validate token before sending to backend
+    if (!isValidPushToken(token)) {
+      if (__DEV__) {
+        console.log("[registerPush] Token failed validation, not registering");
+      }
+      return {
+        success: false,
+        error: "Invalid or placeholder token",
+        permissionStatus: "granted",
+      };
     }
 
     // Store token locally

@@ -1,71 +1,113 @@
-HANDOFF PACKET — SAFETOAST HARDENING (P0)
-==========================================
-Date: 2025-01-30
+HANDOFF PACKET — PUSH TOKEN REGISTRATION FIX
+=============================================
+Date: 2025-01-31
 Branch: main
-Commit: d95e8dd
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Hardened safeToast to accept ANY input type without crashing.
-Added normalize() helper that converts all inputs to safe strings.
+Fixed push notification token registration to reject placeholder tokens
+and properly register real device tokens with backend.
 
 ROOT CAUSE
 ----------
-src/app/friends.tsx:829 called:
-  safeToast.info("Info", data.message);
+Backend showed: GET /api/push/me
+  tokens[0].tokenPrefix = "ExponentPushToken[test123]"
+  tokens[0].isActive = false
 
-data.message was sometimes not a string (object/null/etc).
-safeToast passed it directly to Alert.alert which expects strings.
+This indicates a placeholder token was registered at some point.
+The app had validation in useNotifications.ts but NOT in:
+- registerPush.ts (unguarded registration path)
+- NotificationNudgeModal.tsx (no registration after permission grant)
 
 FIX APPLIED
 -----------
-Added normalize() helper in src/lib/safeToast.ts:
-- null/undefined → ""
-- string → passthrough
-- number/boolean → String()
-- Error → error.message
-- object → JSON.stringify (with try/catch fallback)
+1. Added isValidPushToken() validation to registerPush.ts
+   - Rejects tokens containing 'test', 'placeholder', 'mock'
+   - Rejects tokens shorter than 30 chars
+   - Only accepts valid ExponentPushToken/ExpoPushToken prefixes
 
-Changed all safeToast method signatures from:
-  (title: string, message?: string)
-to:
-  (title: unknown, message?: unknown)
+2. Fixed projectId lookup order in registerPush.ts and notifications.ts
+   - BEFORE: Constants.expoConfig.extra.eas.projectId ?? Constants.easConfig.projectId
+   - AFTER:  Constants.easConfig.projectId ?? Constants.expoConfig.extra.eas.projectId
+   - Prefers eas.json projectId which is the correct source
 
-All inputs now pass through normalize() before Alert.alert.
+3. Added token registration to NotificationNudgeModal.tsx
+   - When user grants permission via nudge modal, token is now registered
+   - Previously only updated permission status, never registered token
+   - Added registerPushTokenWithBackend() function with full validation
 
 FILES CHANGED
 -------------
-src/lib/safeToast.ts (+39 lines, -12 lines)
+src/lib/push/registerPush.ts
+  - Added isValidPushToken() validation function
+  - Fixed projectId lookup order
+  - Added validation before backend registration
 
-KEY DIFF
---------
-BEFORE:
-  success(title: string, message?: string) {
-    Alert.alert(title, message ?? "");
-  }
+src/lib/notifications.ts
+  - Fixed projectId lookup order
+  - Truncated token in DEV log output
 
-AFTER:
-  success(title: unknown, message?: unknown) {
-    const safeTitle = normalize(title);
-    const safeMessage = normalize(message);
-    Alert.alert(safeTitle, safeMessage);
-  }
+src/components/notifications/NotificationNudgeModal.tsx
+  - Added Device and Constants imports
+  - Added isValidPushToken() and registerPushTokenWithBackend()
+  - Call registerPushTokenWithBackend() after permission granted
 
-VERIFICATION OUTPUT
--------------------
-$ npm run typecheck → PASS
-$ bash scripts/ai/verify_frontend.sh → PASS
+RUNTIME STATUS
+--------------
+TypeCheck: PASS
+verify_frontend.sh: PASS
 
-INVARIANT
----------
-safeToast NEVER crashes regardless of input type.
-Callers can pass Error objects, nulls, objects, etc.
+KEY VALIDATION LOGIC
+--------------------
+function isValidPushToken(token: string): boolean {
+  if (!token || typeof token !== 'string') return false;
+  if (!token.startsWith("ExponentPushToken[") && 
+      !token.startsWith("ExpoPushToken[") && 
+      !token.startsWith("ExpoToken[")) return false;
+  const lowerToken = token.toLowerCase();
+  if (lowerToken.includes('test') || 
+      lowerToken.includes('placeholder') || 
+      lowerToken.includes('mock')) return false;
+  if (token.length < 30) return false;
+  return true;
+}
 
-RELATED SESSION COMMITS
------------------------
-- 8c44d77: fix(crash): harden toast message/title in Toast.tsx
-- d48414a: fix(p0): wrap conditional strings in Text
-- 8df6104: fix(dev): add createElement text-child detector
-- If crash still happens without detector logs, the issue may be in a library
-  or in code that doesn't go through React.createElement (rare)
+DEV LOG LINES TO EXPECT (on real device)
+----------------------------------------
+[NotificationNudge] Got token: ExponentPushToken[abc1...
+[NotificationNudge] Token registered successfully
+-- OR --
+[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc1...
+[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
+
+PROOF COMMANDS (after TestFlight build)
+---------------------------------------
+# 1. Login and get cookie
+curl -c /tmp/oi_cookies.txt -b /tmp/oi_cookies.txt \
+  -X POST https://open-invite-api.onrender.com/api/auth/sign-in/email \
+  -H "Content-Type: application/json" \
+  -d '{"email":"YOUR_EMAIL","password":"YOUR_PASS"}'
+
+# 2. Check push tokens
+curl -b /tmp/oi_cookies.txt \
+  https://open-invite-api.onrender.com/api/push/me
+
+# Expected: tokenPrefix starts with ExponentPushToken[ and NOT test123
+# Expected: isActive=true for the real device token
+
+WHAT TO DO NEXT
+---------------
+1. Build new TestFlight release (eas build --platform ios --profile production)
+2. Install on physical iPhone
+3. Open app and grant notification permission when nudge modal appears
+4. Check Xcode console for "[NotificationNudge] Token registered successfully"
+5. Verify via curl /api/push/me that tokenPrefix is real and isActive=true
+6. Test receiving a push notification
+
+INVARIANTS PRESERVED
+--------------------
+- No new dependencies added
+- Uses existing expo-notifications, expo-device, expo-constants
+- Better Auth cookie-based auth (credentials: "include")
+- All token validation uses consistent isValidPushToken() logic
