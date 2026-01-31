@@ -1,60 +1,71 @@
-HANDOFF PACKET — TOAST RENDERING HARDENING (P0)
-================================================
+HANDOFF PACKET — SAFETOAST HARDENING (P0)
+==========================================
 Date: 2025-01-30
 Branch: main
-Commit: 2ab1466
+Commit: d95e8dd
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Hardened Toast component to prevent crash when toast.message or toast.title
-are not strings (object, boolean, number, null, undefined).
+Hardened safeToast to accept ANY input type without crashing.
+Added normalize() helper that converts all inputs to safe strings.
 
 ROOT CAUSE
 ----------
-Toast.tsx rendered toast.message directly without String() coercion.
-If any code passed a non-string value, React Native would crash:
-"Text strings must be rendered within a <Text> component"
+src/app/friends.tsx:829 called:
+  safeToast.info("Info", data.message);
+
+data.message was sometimes not a string (object/null/etc).
+safeToast passed it directly to Alert.alert which expects strings.
+
+FIX APPLIED
+-----------
+Added normalize() helper in src/lib/safeToast.ts:
+- null/undefined → ""
+- string → passthrough
+- number/boolean → String()
+- Error → error.message
+- object → JSON.stringify (with try/catch fallback)
+
+Changed all safeToast method signatures from:
+  (title: string, message?: string)
+to:
+  (title: unknown, message?: unknown)
+
+All inputs now pass through normalize() before Alert.alert.
 
 FILES CHANGED
 -------------
-src/components/Toast.tsx
+src/lib/safeToast.ts (+39 lines, -12 lines)
 
-EXACT DIFFS
------------
-BEFORE (line 52):
-  accessibilityLabel={toast.title ? `${toast.title}. ${toast.message}` : toast.message}
-
-AFTER:
-  accessibilityLabel={
-    toast.title
-      ? `${String(toast.title)}. ${String(toast.message ?? "")}`
-      : String(toast.message ?? "")
+KEY DIFF
+--------
+BEFORE:
+  success(title: string, message?: string) {
+    Alert.alert(title, message ?? "");
   }
 
-BEFORE (line 59):
-  {!!toast.title && <Text style={styles.title}>{toast.title}</Text>}
-  <Text style={styles.message}>{toast.message}</Text>
-
 AFTER:
-  {!!toast.title && <Text style={styles.title}>{String(toast.title)}</Text>}
-  <Text style={styles.message}>{String(toast.message ?? "")}</Text>
+  success(title: unknown, message?: unknown) {
+    const safeTitle = normalize(title);
+    const safeMessage = normalize(message);
+    Alert.alert(safeTitle, safeMessage);
+  }
 
 VERIFICATION OUTPUT
 -------------------
 $ npm run typecheck → PASS
 $ bash scripts/ai/verify_frontend.sh → PASS
 
-PROTECTION ADDED
-----------------
-1. String(toast.title) - coerces any type to string
-2. String(toast.message ?? "") - handles null/undefined → ""
-3. accessibilityLabel also hardened for screen readers
+INVARIANT
+---------
+safeToast NEVER crashes regardless of input type.
+Callers can pass Error objects, nulls, objects, etc.
 
 RELATED SESSION COMMITS
 -----------------------
+- 8c44d77: fix(crash): harden toast message/title in Toast.tsx
 - d48414a: fix(p0): wrap conditional strings in Text
 - 8df6104: fix(dev): add createElement text-child detector
-- a5db9a1: fix(crash): wrap numeric values with String() in Profile
 - If crash still happens without detector logs, the issue may be in a library
   or in code that doesn't go through React.createElement (rare)

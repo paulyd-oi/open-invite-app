@@ -2,27 +2,54 @@
 import { Alert } from "react-native";
 
 /**
+ * Normalize any input to a safe string for display.
+ * Handles null, undefined, objects, errors, numbers, booleans.
+ */
+function normalize(input: unknown): string {
+  if (input == null) return "";
+  if (typeof input === "string") return input;
+  if (typeof input === "number" || typeof input === "boolean") return String(input);
+  if (input instanceof Error) return input.message;
+  try {
+    return JSON.stringify(input);
+  } catch {
+    return String(input);
+  }
+}
+
+/**
  * Safe toast API that never crashes.
  * Uses Alert.alert as fallback to guarantee runtime safety.
  * All screens can safely call safeToast.success/error/warning/info.
  * 
  * In __DEV__, logs to console for debugging.
+ * 
+ * INVARIANT: All inputs are normalized to strings before display.
+ * Callers can pass any type without risk of crash.
  */
 export const safeToast = {
-  success(title: string, message?: string) {
-    if (__DEV__) console.log('[Toast Success]', title, message);
-    Alert.alert(title, message ?? "");
+  success(title: unknown, message?: unknown) {
+    const safeTitle = normalize(title);
+    const safeMessage = normalize(message);
+    if (__DEV__) console.log('[Toast Success]', safeTitle, safeMessage);
+    Alert.alert(safeTitle, safeMessage);
   },
-  error(title: string, message?: string) {
-    if (__DEV__) console.error('[Toast Error]', title, message);
-    Alert.alert(title, message ?? "");
+  error(title: unknown, message?: unknown) {
+    const safeTitle = normalize(title);
+    const safeMessage = normalize(message);
+    if (__DEV__) console.error('[Toast Error]', safeTitle, safeMessage);
+    Alert.alert(safeTitle, safeMessage);
   },
-  warning(title: string, message?: string) {
-    if (__DEV__) console.warn('[Toast Warning]', title, message);
-    Alert.alert(title, message ?? "");
+  warning(title: unknown, message?: unknown) {
+    const safeTitle = normalize(title);
+    const safeMessage = normalize(message);
+    if (__DEV__) console.warn('[Toast Warning]', safeTitle, safeMessage);
+    Alert.alert(safeTitle, safeMessage);
   },
-  info(title: string, message?: string) {
-    if (__DEV__) console.log('[Toast Info]', title, message);
-    Alert.alert(title, message ?? "");
+  info(title: unknown, message?: unknown) {
+    const safeTitle = normalize(title);
+    const safeMessage = normalize(message);
+    if (__DEV__) console.log('[Toast Info]', safeTitle, safeMessage);
+    Alert.alert(safeTitle, safeMessage);
   },
 };
