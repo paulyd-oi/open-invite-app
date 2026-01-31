@@ -4,82 +4,91 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   Image,
   Modal,
   RefreshControl,
 } from "react-native";
-import { safeToast } from "@/lib/safeToast";
-import { ConfirmModal } from "@/components/ConfirmModal";
+
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import {
-  Settings,
-  Users,
-  Plus,
-  Trash2,
-  UserPlus,
-  X,
-  Check,
-  Calendar,
-  Award,
-  Star,
-  Heart,
-  ChevronRight,} from "@/ui/icons";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { BadgePill } from "@/components/BadgePill";
+
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
-import { resolveImageUrl } from "@/lib/imageUrl";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { useIsPro } from "@/lib/entitlements";
+
 import {
-  type GetGroupsResponse,
   type GetFriendsResponse,
   type GetProfileResponse,
   type GetProfilesResponse,
-  type FriendGroup,
-  type Friendship,
   type GetEventsResponse,
   type GetProfileStatsResponse,
   EVENT_CATEGORIES,
-  TIER_COLORS,
 } from "../../shared/contracts";
 
-const GROUP_COLORS = [
-  "#FF6B4A", "#4ECDC4", "#45B7D1", "#96CEB4", "#E6A700",
-  "#DDA0DD", "#98D8C8", "#D4A017", "#BB8FCE", "#85C1E9",
-];
+import {
+  Settings,
+  Users,
+  Calendar,
+  Award,
+  Star,
+  Heart,
+  ChevronRight,
+  X,
+} from "@/ui/icons";
+
+/**
+ * INVARIANT:
+ * Never render unknown values directly inside <Text>.
+ * Always coerce via StringSafe().
+ */
+function StringSafe(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (value instanceof Error) return value.message;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
 
 export default function ProfileScreen() {
   const { data: session } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+
   const [refreshing, setRefreshing] = useState(false);
+
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
 
-  // Entitlements for premium badge
   const { isPro: userIsPremium } = useIsPro();
 
-  // Timeout for graceful degraded mode when loading takes too long
-  const isBootLoading = bootStatus === 'loading';
-  const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, { timeout: 3000 });
+  // Timeout safety
+  const isBootLoading = bootStatus === "loading";
+  const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading, {
+    timeout: 3000,
+  });
+
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Handle retry from timeout UI
   const handleRetry = useCallback(() => {
     setIsRetrying(true);
     resetTimeout();
@@ -87,68 +96,49 @@ export default function ProfileScreen() {
     setTimeout(() => setIsRetrying(false), 1500);
   }, [resetTimeout, retryBootstrap]);
 
-  // Avatar source with auth headers
-  const [avatarSource, setAvatarSource] = useState<{ uri: string; headers?: { Authorization: string } } | null>(null);
-  const [selectedBadge, setSelectedBadge] = useState<{ achievementId: string; name: string; description: string | null; emoji: string; tier: string; tierColor: string; grantedAt: string } | null>(null);
-
-
-  // Redirect to appropriate auth screen based on bootStatus (aligns with BootRouter)
+  // Redirects
   useEffect(() => {
-    if (bootStatus === 'onboarding') {
-      router.replace("/welcome");
-    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+    if (bootStatus === "onboarding") router.replace("/welcome");
+    if (bootStatus === "loggedOut" || bootStatus === "error")
       router.replace("/login");
-    }
   }, [bootStatus, router]);
 
-  // Fetch profiles
-  // Gate on bootStatus to prevent queries firing during logout/loading
+  // Queries (authed only)
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: bootStatus === "authed",
   });
-
-  const activeProfile = profilesData?.activeProfile;
 
   const { data: profileData, refetch: refetchProfile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: bootStatus === "authed",
   });
-
-  // Load avatar source with auth headers
-  useEffect(() => {
-    const loadAvatar = async () => {
-      const { avatarUri } = getProfileDisplay({ profileData, session });
-      const source = await getImageSource(avatarUri);
-      setAvatarSource(source);
-    };
-    loadAvatar();
-  }, [profileData, session]);
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
+    enabled: bootStatus === "authed",
   });
 
   const { data: eventsData, refetch: refetchEvents } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: bootStatus === 'authed',
+    enabled: bootStatus === "authed",
   });
 
   const { data: statsData, refetch: refetchStats } = useQuery({
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
-    enabled: bootStatus === 'authed',
+    enabled: bootStatus === "authed",
   });
 
-  // Pull to refresh handler
+  // Pull to refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
       await Promise.all([
         refetchProfiles(),
@@ -156,36 +146,28 @@ export default function ProfileScreen() {
         refetchFriends(),
         refetchEvents(),
         refetchStats(),
-        // Also invalidate session to get updated user image
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ]);
-    } catch (error) {
-      console.error("Error refreshing profile:", error);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchProfiles, refetchProfile, refetchFriends, refetchEvents, refetchStats, queryClient]);
+  }, [
+    refetchProfiles,
+    refetchProfile,
+    refetchFriends,
+    refetchEvents,
+    refetchStats,
+    queryClient,
+  ]);
 
-  const friends = (friendsData?.friends ?? []).filter(f => f.friend != null);
-  const eventsCount = eventsData?.events?.length ?? 0;
-  const friendsCount = friends.length;
-  // Defensive: ensure calendarBio is string or undefined, never other types
-  const rawBio = profileData?.profile?.calendarBio;
-  const calendarBio = typeof rawBio === 'string' && rawBio.length > 0 ? rawBio : undefined;
-
-  // Stats data
-  const stats = statsData?.stats;
-  const topFriends = statsData?.topFriends ?? [];
-
-  // Get category info
-  const getCategoryInfo = (category: string) => {
-    return EVENT_CATEGORIES.find(c => c.value === category) ?? { emoji: "📅", label: "Other", color: "#78909C" };
-  };
-
-  // Only render Profile for fully authenticated users ('authed' status)
-  if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
-    // If loading has timed out, show user-friendly timeout UI with escape routes
-    if (isTimedOut || bootStatus === 'error') {
+  // Loading gate
+  if (
+    bootStatus === "loading" ||
+    bootStatus === "loggedOut" ||
+    bootStatus === "error" ||
+    bootStatus === "onboarding"
+  ) {
+    if (isTimedOut || bootStatus === "error") {
       return (
         <LoadingTimeoutUI
           context="profile"
@@ -196,45 +178,91 @@ export default function ProfileScreen() {
       );
     }
 
-    // Still within timeout window - show minimal loading state with navigation
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Loading profile...</Text>
+          <Text style={{ color: colors.textSecondary }}>
+            Loading profile...
+          </Text>
         </View>
         <BottomNavigation />
       </SafeAreaView>
     );
   }
 
-  // Derive user safely - user may be null/undefined in some auth states
-  const user = session?.user ?? null;
+  // Safe derived values
+  const friends = (friendsData?.friends ?? []).filter((f) => f.friend != null);
+  const friendsCount = friends.length;
 
-  // Use shared helper for consistent precedence across app
-  const { displayName } = getProfileDisplay({
+  const stats = statsData?.stats;
+
+  const profileDisplay = getProfileDisplay({
     profileData,
     session,
     fallbackName: "Account",
     includeEmailPrefix: true,
   });
 
-  // Get handle for secondary display (Instagram-style)
-  // Defensive: ensure userHandle is always string or undefined, never other types
-  const rawHandle = user?.handle || profileData?.profile?.handle;
-  const userHandle = typeof rawHandle === 'string' && rawHandle.length > 0 ? rawHandle : undefined;
+  const displayName = StringSafe(profileDisplay.displayName, "Account");
 
-  // Business mode is hidden for now - will be re-enabled in a future update
-  // if (isBusinessMode && activeProfile) { ... }
+  const rawHandle =
+    session?.user?.handle || profileData?.profile?.handle || "";
+  const userHandle =
+    typeof rawHandle === "string" && rawHandle.length > 0
+      ? rawHandle
+      : undefined;
+
+  const rawBio = profileData?.profile?.calendarBio;
+  const calendarBio =
+    typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
+
+  // Avatar
+  const [avatarSource, setAvatarSource] = useState<any>(null);
+
+  useEffect(() => {
+    const loadAvatar = async () => {
+      try {
+        const safeUri =
+          typeof profileDisplay.avatarUri === "string"
+            ? profileDisplay.avatarUri
+            : undefined;
+
+        const source = await getImageSource(safeUri);
+        setAvatarSource(source ?? null);
+      } catch {
+        setAvatarSource(null);
+      }
+    };
+    loadAvatar();
+  }, [profileDisplay.avatarUri]);
+
+  // Category helper
+  const getCategoryInfo = (category: string) => {
+    return (
+      EVENT_CATEGORIES.find((c) => c.value === category) ?? {
+        emoji: "📅",
+        label: "Other",
+        color: "#78909C",
+      }
+    );
+  };
+
+  // Badge modal
+  const [selectedBadge, setSelectedBadge] = useState<any>(null);
 
   return (
-    <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Header */}
       <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-        <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Profile</Text>
+        <Text
+          className="text-3xl font-sora-bold"
+          style={{ color: colors.text }}
+        >
+          Profile
+        </Text>
+
         <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push("/settings");
-          }}
+          onPress={() => router.push("/settings")}
           className="w-10 h-10 rounded-full items-center justify-center"
           style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
         >
@@ -243,274 +271,141 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={themeColor}
-            colors={[themeColor]}
           />
         }
       >
-        {/* Profile Card - Premium users get gold border */}
-        <Animated.View entering={FadeInDown.delay(0).springify()}>
-          <View 
-            className="rounded-2xl p-5 border mb-4" 
-            style={{ 
-              backgroundColor: colors.surface, 
+        {/* Profile Card */}
+        <Animated.View entering={FadeInDown.springify()}>
+          <View
+            className="rounded-2xl p-5 border mb-4"
+            style={{
+              backgroundColor: colors.surface,
               borderColor: userIsPremium ? "#FFD700" : colors.border,
               borderWidth: userIsPremium ? 2 : 1,
             }}
           >
             <View className="flex-row items-center">
-              <View className="relative">
-                <View className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden">
-                  {avatarSource ? (
-                    <Image source={avatarSource} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5" }}>
-                      <Text className="text-2xl font-bold" style={{ color: themeColor }}>
-                        {getProfileInitial({ profileData, session })}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                {/* Premium badge on avatar */}              </View>
+              {/* Avatar */}
+              <View className="w-16 h-16 rounded-full overflow-hidden">
+                {avatarSource ? (
+                  <Image source={avatarSource} className="w-full h-full" />
+                ) : (
+                  <View
+                    className="w-full h-full items-center justify-center"
+                    style={{
+                      backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5",
+                    }}
+                  >
+                    <Text style={{ color: themeColor, fontSize: 22 }}>
+                      {StringSafe(getProfileInitial({ profileData, session }))}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Name */}
               <View className="flex-1 ml-4">
-                <View className="flex-row items-center">
-                  <Text className="text-xl font-sora-bold" style={{ color: colors.text }}>
-                    {displayName}
-                  </Text>
-                  {/* Premium badge next to name */}
-                  {userIsPremium && (
-                    <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FFD70020" }}>
-                      <Text className="text-xs font-semibold" style={{ color: "#B8860B" }}>PRO</Text>
-                    </View>
-                  )}
-                </View>
+                <Text
+                  className="text-xl font-sora-bold"
+                  style={{ color: colors.text }}
+                >
+                  {displayName}
+                </Text>
+
                 {userHandle && (
-                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                    @{userHandle}
+                  <Text style={{ color: colors.textSecondary }}>
+                    @{StringSafe(userHandle)}
                   </Text>
                 )}
-                {/* Featured Badge */}
-                {(() => {
-                  const featured = normalizeFeaturedBadge(profileData?.featuredBadge);
-                  return featured ? (
-                    <View className="mt-2">
-                      <BadgePill
-                        name={featured.name}
-                        tierColor={featured.tierColor}
-                        variant="medium"
-                      />
-                    </View>
-                  ) : null;
-                })()}
-                <View className="flex-row items-center mt-1">
+
+                {/* Bio */}
+                <View className="flex-row items-center mt-2">
                   <Calendar size={14} color={colors.textSecondary} />
-                  <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>
+                  <Text
+                    className="ml-2 text-sm"
+                    style={{ color: colors.textSecondary }}
+                  >
                     My calendar looks like...
                   </Text>
                 </View>
-                {calendarBio ? (
-                  <Text className="text-sm mt-1" style={{ color: colors.text }} numberOfLines={2}>
-                    {calendarBio}
-                  </Text>
-                ) : (
-                  <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
-                    Not set yet
-                  </Text>
-                )}
+
+                <Text style={{ marginTop: 4, color: colors.text }}>
+                  {calendarBio ? StringSafe(calendarBio) : "Not set yet"}
+                </Text>
               </View>
             </View>
           </View>
         </Animated.View>
 
-        {/* Stats Overview */}
-        <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
-          <View className="flex-row">
-            {/* Hosted Events */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/calendar");
-              }}
+        {/* Stats */}
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <View className="flex-row mb-4">
+            <View
               className="flex-1 rounded-xl p-4 mr-2 border"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-            >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-3xl font-bold" style={{ color: themeColor }}>
-                  {String(stats?.hostedCount ?? 0)}
-                </Text>
-                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
-                  <Star size={16} color={themeColor} />
-                </View>
-              </View>
-              <Text className="text-sm font-medium" style={{ color: colors.text }}>Hosted</Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>events</Text>
-            </Pressable>
-
-            {/* Attended Events */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
               }}
-              className="flex-1 rounded-xl p-4 border"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-3xl font-bold" style={{ color: "#4ECDC4" }}>
-                  {String(stats?.attendedCount ?? 0)}
-                </Text>
-                <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: "#4ECDC420" }}>
-                  <Heart size={16} color="#4ECDC4" />
-                </View>
-              </View>
-              <Text className="text-sm font-medium" style={{ color: colors.text }}>Attended</Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>events</Text>
-            </Pressable>
+              <Text style={{ fontSize: 28, color: themeColor }}>
+                {StringSafe(stats?.hostedCount ?? 0)}
+              </Text>
+              <Text style={{ color: colors.textSecondary }}>Hosted</Text>
+            </View>
+
+            <View
+              className="flex-1 rounded-xl p-4 border"
+              style={{
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 28, color: "#4ECDC4" }}>
+                {StringSafe(stats?.attendedCount ?? 0)}
+              </Text>
+              <Text style={{ color: colors.textSecondary }}>Attended</Text>
+            </View>
           </View>
         </Animated.View>
 
-        {/* Streak Counter - Full Width */}
-        {(stats?.currentStreak ?? 0) > 0 && (
-          <Animated.View entering={FadeInDown.delay(75).springify()} className="mb-4">
-            <StreakCounter
-              currentStreak={stats?.currentStreak ?? 0}
-              longestStreak={stats?.currentStreak ?? 0}
-              totalHangouts={stats?.attendedCount ?? 0}
-            />
-          </Animated.View>
-        )}
-
-        {/* Event Types Breakdown */}
-        {stats?.categoryBreakdown && Object.keys(stats.categoryBreakdown).length > 0 && (
-          <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
-            <Text className="text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
-              Types of Events Hosted
-            </Text>
-            <View className="rounded-xl p-4 border" style={{ backgroundColor: colors.surface, borderColor: colors.border }}>
-              <View className="flex-row flex-wrap">
-                {Object.entries(stats.categoryBreakdown)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([category, count]) => {
-                    const catInfo = getCategoryInfo(category);
-                    return (
-                      <View
-                        key={category}
-                        className="flex-row items-center mr-4 mb-2 px-3 py-1.5 rounded-full"
-                        style={{ backgroundColor: catInfo.color + "20" }}
-                      >
-                        <Text className="text-base mr-1">{catInfo.emoji}</Text>
-                        <Text className="text-sm font-medium" style={{ color: catInfo.color }}>
-                          {String(count)}
-                        </Text>
-                      </View>
-                    );
-                  })}
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Badges */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
+        {/* Friends */}
+        <Animated.View entering={FadeInDown.delay(100).springify()}>
           <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/achievements");
+            onPress={() => router.push("/friends")}
+            className="rounded-xl p-4 border items-center mb-6"
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
             }}
           >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                {/* INVARIANT: No Trophy icons. Using Award icon for badge section header. */}
-                <Award size={16} color="#FFD700" />
-                <Text className="text-sm font-medium ml-2" style={{ color: colors.textSecondary }}>
-                  Badges
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-sm mr-1" style={{ color: themeColor }}>View All</Text>
-                <ChevronRight size={16} color={themeColor} />
-              </View>
-            </View>
+            <Users size={18} color="#4ECDC4" />
+            <Text style={{ fontSize: 22, marginTop: 6 }}>
+              {StringSafe(friendsCount)}
+            </Text>
+            <Text style={{ color: colors.textSecondary }}>Friends</Text>
           </Pressable>
         </Animated.View>
 
-        {/* Social Insights - Hidden for now (will be enabled in future release) */}
-
-        {/* Quick Stats Row */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} className="mb-4">
-          <View className="flex-row">
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/friends");
-              }}
-              className="flex-1 rounded-xl p-4 border items-center"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-            >
-              <View className="flex-row items-center">
-                <Users size={18} color="#4ECDC4" />
-                <Text className="text-2xl font-bold ml-2 text-teal-500">{String(friendsCount)}</Text>
-              </View>
-              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>Friends</Text>
-            </Pressable>
-          </View>
-        </Animated.View>
-
-        {/* Badge Details Modal */}
-        <Modal
-          visible={selectedBadge !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSelectedBadge(null)}
-        >
-          <Pressable
-            className="flex-1 bg-black/50 items-center justify-center"
-            onPress={() => setSelectedBadge(null)}
-          >
-            <Pressable
-              className="bg-white dark:bg-gray-800 rounded-2xl p-6 mx-6 w-80 max-w-full"
-              onPress={(e) => e.stopPropagation()}
-              style={{ backgroundColor: colors.surface }}
-            >
-              <Pressable
-                className="absolute top-4 right-4 w-8 h-8 rounded-full items-center justify-center"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-                onPress={() => setSelectedBadge(null)}
-              >
-                <X size={16} color={colors.textSecondary} />
-              </Pressable>
-              {selectedBadge && (
-                <View className="items-center">
-                  <Text className="text-5xl mb-3">{selectedBadge.emoji}</Text>
-                  <Text className="text-xl font-sora-bold text-center mb-2" style={{ color: colors.text }}>
-                    {selectedBadge.name}
-                  </Text>
-                  <View
-                    className="px-3 py-1 rounded-full mb-4"
-                    style={{ backgroundColor: selectedBadge.tierColor + "20" }}
-                  >
-                    <Text className="text-xs font-semibold" style={{ color: selectedBadge.tierColor }}>
-                      {selectedBadge.tier}
-                    </Text>
-                  </View>
-                  <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
-                    {selectedBadge.description || "A special achievement badge."}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          </Pressable>
-        </Modal>
-
+        {/* Streak */}
+        {(stats?.currentStreak ?? 0) > 0 && (
+          <StreakCounter
+            currentStreak={stats?.currentStreak ?? 0}
+            longestStreak={stats?.currentStreak ?? 0}
+            totalHangouts={stats?.attendedCount ?? 0}
+          />
+        )}
       </ScrollView>
 
       <BottomNavigation />
+
+      {/* Badge Modal Placeholder */}
+      <Modal visible={false} transparent />
     </SafeAreaView>
   );
 }
