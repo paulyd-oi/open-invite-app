@@ -472,7 +472,7 @@ export default function EventRequestDetailScreen() {
               <View className="flex-1">
                 <Text className="font-semibold" style={{ color: colors.text }}>
                   {eventRequest.creator?.name ?? "Unknown"}
-                  {eventRequest.creatorId === session.user?.id && " (You)"}
+                  {eventRequest.creatorId === session.user?.id ? " (You)" : ""}
                 </Text>
                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
                   Host
@@ -534,7 +534,7 @@ export default function EventRequestDetailScreen() {
                   <View className="flex-1">
                     <Text className="font-semibold" style={{ color: colors.text }}>
                       {member.user?.name ?? "Unknown"}
-                      {member.userId === session.user?.id && " (You)"}
+                      {member.userId === session.user?.id ? " (You)" : ""}
                     </Text>
                     {member.respondedAt && (
                       <Text className="text-xs" style={{ color: colors.textTertiary }}>
