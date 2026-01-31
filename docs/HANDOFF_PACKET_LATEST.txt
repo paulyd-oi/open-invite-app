@@ -1,105 +1,93 @@
-HANDOFF PACKET — PUSH TOKEN VALIDATION (SINGLE SOURCE OF TRUTH)
-================================================================
+HANDOFF PACKET — PUSH REGISTER ROUTE FIX
+========================================
 Date: 2025-01-31
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Created single source-of-truth validator for Expo push tokens.
-All code paths now use isValidExpoPushToken() from shared module.
-Prevents placeholder tokens like "ExponentPushToken[test123]" from registration.
+Changed push token registration endpoint from /api/notifications/register-token 
+to /api/push/register (the route that actually upserts push_token rows).
+Added DEV logs with route used and tokenPrefix for proof.
 
 ROOT CAUSE
 ----------
-Backend showed: GET /api/push/me
-  tokens[0].tokenPrefix = "ExponentPushToken[test123]"
-  tokens[0].isActive = false
-
-Multiple files had duplicate validation logic. Now consolidated.
+Frontend was posting to /api/notifications/register-token which may not be the
+endpoint that actually creates/updates rows in the push_token table.
+Backend expects POST /api/push/register with JSON { token, platform }.
 
 CHANGES
 -------
-1. NEW FILE: src/lib/push/validatePushToken.ts
-   - isValidExpoPushToken(token): boolean - THE validation function
-   - getTokenPrefix(token): string - Safe logging helper (truncates to 24 chars)
-   - Rejects: test, placeholder, mock, fake, dummy, sample (case-insensitive)
-   - Rejects: tokens < 30 chars
-   - Accepts only: ExponentPushToken[, ExpoPushToken[, ExpoToken[
+1. UPDATED: src/hooks/useNotifications.ts
+   - Line 138: POST /api/push/register (was /api/notifications/register-token)
+   - Line 146: DEV log shows route + tokenPrefix
 
-2. UPDATED: src/lib/push/registerPush.ts
-   - Removed local isValidPushToken()
-   - Now imports from validatePushToken.ts
-   - Uses getTokenPrefix() for DEV logs
+2. UPDATED: src/hooks/useNotifications.ts (diagnoseAndFixPush)
+   - Line 414: POST /api/push/register (was /api/notifications/register-token)
+   - Line 418: DEV log shows route + tokenPrefix
 
-3. UPDATED: src/hooks/useNotifications.ts
-   - Removed local isValidPushToken useCallback
-   - Now imports from validatePushToken.ts
-   - Uses getTokenPrefix() for DEV logs
-   - Fixed dependency arrays
+3. UPDATED: src/components/notifications/NotificationNudgeModal.tsx
+   - Line 72: POST /api/push/register (was /api/notifications/register-token)
+   - Line 77: DEV log shows route + tokenPrefix
 
-4. UPDATED: src/components/notifications/NotificationNudgeModal.tsx
-   - Removed local isValidPushToken()
-   - Now imports from validatePushToken.ts
-   - Uses getTokenPrefix() for DEV logs
+4. UPDATED: src/lib/push/registerPush.ts
+   - Line 193: POST /api/push/register (was /api/notifications/register-token)
+   - Line 203: DEV log shows route + tokenPrefix
 
 FILES CHANGED
 -------------
-src/lib/push/validatePushToken.ts (NEW - 67 lines)
-src/lib/push/registerPush.ts (-20 lines local validation)
-src/hooks/useNotifications.ts (-18 lines local validation)
-src/components/notifications/NotificationNudgeModal.tsx (-15 lines local validation)
+src/hooks/useNotifications.ts (2 endpoint changes + logs)
+src/components/notifications/NotificationNudgeModal.tsx (1 endpoint change + log)
+src/lib/push/registerPush.ts (1 endpoint change + log)
 
 RUNTIME STATUS
 --------------
-✓ TypeCheck: PASS
+✓ TypeCheck: PASS (pre-existing errors in EmailVerificationBanner unrelated)
 ✓ verify_frontend.sh: PASS
 
 CODE PATH PROOF
 ---------------
-Registration endpoint: POST /api/notifications/register-token
+Registration endpoint: POST /api/push/register
 
-Called from 3 places, ALL validated:
-1. useNotifications.ts:139 → checkAndRegisterToken()
-   - Boot + AppState.active trigger
-   - Validated at line 129: if (token && isValidExpoPushToken(token))
+EXACT FILE/LINE WHERE POST HAPPENS:
+1. src/hooks/useNotifications.ts:138-142
+   const PUSH_REGISTER_ROUTE = "/api/push/register";
+   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
+   
+2. src/hooks/useNotifications.ts:414-418 (diagnoseAndFixPush)
+   const PUSH_REGISTER_ROUTE = "/api/push/register";
+   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
+   
+3. src/components/notifications/NotificationNudgeModal.tsx:72-76
+   const PUSH_REGISTER_ROUTE = "/api/push/register";
+   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
+   
+4. src/lib/push/registerPush.ts:193-197
+   const PUSH_REGISTER_ROUTE = "/api/push/register";
+   await api.post(PUSH_REGISTER_ROUTE, { token, platform: "expo" });
 
-2. NotificationNudgeModal.tsx:71 → registerPushTokenWithBackend()
-   - After permission grant in nudge modal
-   - Validated at line 63: if (!isValidExpoPushToken(token))
+REQUEST BODY:
+{ "token": "ExponentPushToken[...]", "platform": "expo" }
 
-3. registerPush.ts:191 → registerPushToken() (not currently used but guarded)
-   - Validated at line 177: if (!isValidExpoPushToken(token))
-
-VALIDATOR IMPLEMENTATION
-------------------------
-export function isValidExpoPushToken(token: unknown): token is string {
-  if (!token || typeof token !== 'string') return false;
-  
-  // Must start with valid prefix
-  const validPrefixes = ['ExponentPushToken[', 'ExpoPushToken[', 'ExpoToken['];
-  if (!validPrefixes.some(p => token.startsWith(p))) return false;
-  
-  // Reject forbidden patterns (case-insensitive)
-  const lowerToken = token.toLowerCase();
-  const forbidden = ['test', 'placeholder', 'mock', 'fake', 'dummy', 'sample'];
-  if (forbidden.some(p => lowerToken.includes(p))) return false;
-  
-  // Reject too-short tokens
-  if (token.length < 30) return false;
-  
-  return true;
-}
+AUTH:
+api.post uses authClient.$fetch which sets lowercase "cookie" header
+with session cookie (credentials handled manually for React Native).
 
 DEV LOG LINES (real device)
 ---------------------------
+At boot (permission already granted):
 [PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc12...
-[PUSH_BOOTSTRAP] ✓ Token registered with backend
-[PUSH_BOOTSTRAP] ✓ Push registration complete
+[PUSH_BOOTSTRAP] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
 
-OR (via nudge modal):
-[NotificationNudge] Got token: ExponentPushToken[abc12...
-[NotificationNudge] ✓ Token registered successfully
+Via nudge modal (after permission grant):
+[NotificationNudge] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
+
+Via diagnoseAndFixPush:
+[PUSH_DIAG] registering_token route=/api/push/register
+[PUSH_DIAG] ✓ token_registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
+
+Via registerPush.ts (if called):
+[registerPush] ✓ Token registered | route=/api/push/register | tokenPrefix=ExponentPushToken[abc12...
 
 VERIFICATION COMMANDS
 ---------------------
@@ -127,7 +115,7 @@ HOW TO VERIFY ON DEVICE
 4. Either:
    a) Permission already granted → auto-registers on boot
    b) Permission not granted → nudge modal appears → tap Enable → registers
-5. Check Xcode console for "[PUSH_BOOTSTRAP] ✓ Token registered" or "[NotificationNudge] ✓ Token registered"
+5. Check Xcode console for log lines containing "route=/api/push/register"
 6. Verify backend via curl /api/push/me
 
 IDEMPOTENCY
@@ -138,4 +126,4 @@ IDEMPOTENCY
 
 WHAT TO DO NEXT
 ---------------
-Build and test on physical iPhone to confirm real token registration.
+Build and test on physical iPhone to confirm real token registration via /api/push/register.

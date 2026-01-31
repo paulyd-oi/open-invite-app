@@ -68,13 +68,14 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     }
 
     // Register with backend
-    await api.post("/api/notifications/register-token", {
+    const PUSH_REGISTER_ROUTE = "/api/push/register";
+    await api.post(PUSH_REGISTER_ROUTE, {
       token,
       platform: "expo",
     });
 
     if (__DEV__) {
-      console.log('[NotificationNudge] ✓ Token registered successfully');
+      console.log(`[NotificationNudge] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
     }
 
     return true;

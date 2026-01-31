@@ -189,7 +189,8 @@ export async function registerPushToken(): Promise<{
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
 
     // Register token with backend
-    await api.post("/api/notifications/register-token", {
+    const PUSH_REGISTER_ROUTE = "/api/push/register";
+    await api.post(PUSH_REGISTER_ROUTE, {
       token,
       platform: "expo",
     });
@@ -200,7 +201,7 @@ export async function registerPushToken(): Promise<{
     });
 
     if (__DEV__) {
-      console.log("[registerPush] ✓ Token registered successfully");
+      console.log(`[registerPush] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
     }
 
     return {

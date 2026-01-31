@@ -134,13 +134,14 @@ export function useNotifications() {
           }
 
           // Send token to backend (backend upserts)
-          await api.post("/api/notifications/register-token", {
+          const PUSH_REGISTER_ROUTE = "/api/push/register";
+          await api.post(PUSH_REGISTER_ROUTE, {
             token,
             platform: "expo",
           });
 
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] ✓ Token registered with backend");
+            console.log(`[PUSH_BOOTSTRAP] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
           }
 
           // Update backend with permission status
@@ -411,13 +412,14 @@ export function useNotifications() {
       const tokenPrefix = getTokenPrefix(token);
       console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix);
 
-      // G) POST /api/notifications/register-token
-      console.log("[PUSH_DIAG] registering_token");
-      await api.post("/api/notifications/register-token", {
+      // G) POST /api/push/register
+      const PUSH_REGISTER_ROUTE = "/api/push/register";
+      console.log("[PUSH_DIAG] registering_token route=" + PUSH_REGISTER_ROUTE);
+      await api.post(PUSH_REGISTER_ROUTE, {
         token,
         platform: "expo",
       });
-      console.log("[PUSH_DIAG] token_registered");
+      console.log(`[PUSH_DIAG] ✓ token_registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${tokenPrefix}`);
 
       // H) POST /api/notifications/status
       await api.post("/api/notifications/status", {
