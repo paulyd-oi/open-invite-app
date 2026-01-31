@@ -9,30 +9,10 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api";
+import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 
 const PUSH_TOKEN_KEY = "expo_push_token";
 const PUSH_PERMISSION_PROMPTED_KEY = "push_permission_prompted";
-
-/**
- * Validate that a token is a real Expo push token (not a placeholder/test)
- * INVARIANT: Never send placeholder tokens like "ExponentPushToken[test123]" to backend
- */
-function isValidPushToken(token: string): boolean {
-  if (!token || typeof token !== 'string') return false;
-  // Must start with valid prefix
-  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
-  // Reject placeholder/test tokens
-  const lowerToken = token.toLowerCase();
-  if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
-    if (__DEV__) {
-      console.log('[registerPush] Rejected placeholder token:', token);
-    }
-    return false;
-  }
-  // Real tokens are ~40+ chars
-  if (token.length < 30) return false;
-  return true;
-}
 
 /**
  * Check if push permission has already been prompted
@@ -183,17 +163,18 @@ export async function registerPushToken(): Promise<{
     }
 
     // Get the Expo push token
-    console.log("[PUSH_DEBUG] projectId=", projectId);
+    if (__DEV__) {
+      console.log("[registerPush] Getting token with projectId:", projectId);
+    }
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-    console.log("[PUSH_DEBUG] tokenData=", tokenData);
     const token = tokenData.data;
 
     if (__DEV__) {
-      console.log("[registerPush] Got token:", token.substring(0, 30) + "...");
+      console.log("[registerPush] Got token:", getTokenPrefix(token));
     }
 
-    // INVARIANT: Validate token before sending to backend
-    if (!isValidPushToken(token)) {
+    // INVARIANT: Validate token before sending to backend (uses shared validator)
+    if (!isValidExpoPushToken(token)) {
       if (__DEV__) {
         console.log("[registerPush] Token failed validation, not registering");
       }
@@ -219,7 +200,7 @@ export async function registerPushToken(): Promise<{
     });
 
     if (__DEV__) {
-      console.log("[registerPush] Token registered successfully");
+      console.log("[registerPush] ✓ Token registered successfully");
     }
 
     return {

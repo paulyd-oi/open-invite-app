@@ -12,6 +12,7 @@ import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 
 // Throttle token registration to once per 24 hours
 const TOKEN_REGISTRATION_KEY = "push_token_last_registered";
@@ -53,27 +54,6 @@ export function useNotifications() {
     } catch {
       // Ignore storage errors
     }
-  }, []);
-
-  /**
-   * Validate that a token is a real Expo push token (not a placeholder)
-   */
-  const isValidPushToken = useCallback((token: string): boolean => {
-    // Reject obviously invalid tokens
-    if (!token || typeof token !== 'string') return false;
-    // Must start with ExponentPushToken[
-    if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
-    // Reject placeholder/test tokens
-    const lowerToken = token.toLowerCase();
-    if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
-      if (__DEV__) {
-        console.log('[PUSH_BOOTSTRAP] Rejected placeholder token:', token);
-      }
-      return false;
-    }
-    // Must have reasonable length (real tokens are ~40+ chars)
-    if (token.length < 30) return false;
-    return true;
   }, []);
 
   /**
@@ -145,12 +125,12 @@ export function useNotifications() {
 
         const token = await registerForPushNotificationsAsync();
         
-        // Validate token before sending to backend
-        if (token && isValidPushToken(token)) {
+        // Validate token before sending to backend (uses shared validator)
+        if (token && isValidExpoPushToken(token)) {
           setExpoPushToken(token);
 
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Got valid token:", token.substring(0, 30) + "...");
+            console.log("[PUSH_BOOTSTRAP] Got valid token:", getTokenPrefix(token));
           }
 
           // Send token to backend (backend upserts)
@@ -160,17 +140,13 @@ export function useNotifications() {
           });
 
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token");
+            console.log("[PUSH_BOOTSTRAP] ✓ Token registered with backend");
           }
 
           // Update backend with permission status
           await api.post("/api/notifications/status", {
             pushPermissionStatus: "granted",
           });
-
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Permission status updated to granted");
-          }
 
           // Mark as registered for throttling
           await markTokenRegistered();
@@ -182,7 +158,7 @@ export function useNotifications() {
         } else if (token) {
           // Token exists but failed validation (placeholder/invalid)
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Token failed validation, not sending to backend:", token);
+            console.log("[PUSH_BOOTSTRAP] Token failed validation:", getTokenPrefix(token));
           }
           // Still update permission status even if token is invalid
           await api.post("/api/notifications/status", {
@@ -210,7 +186,7 @@ export function useNotifications() {
         console.error("[PUSH_BOOTSTRAP] Error:", error);
       }
     }
-  }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered, isValidPushToken]);
+  }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered]);
 
   // Initial registration and AppState listener for foreground permission re-check
   // CRITICAL: Gate on bootStatus === 'authed' to prevent network calls when logged out
@@ -427,12 +403,12 @@ export function useNotifications() {
       // E) Get token
       const token = await registerForPushNotificationsAsync();
       
-      // F) Validate token
-      if (!token || !isValidPushToken(token)) {
+      // F) Validate token (uses shared validator)
+      if (!token || !isValidExpoPushToken(token)) {
         console.log("[PUSH_DIAG] invalid_token");
         return { ok: false, reason: "invalid_token", permission: status };
       }
-      const tokenPrefix = token.slice(0, 24) + "...";
+      const tokenPrefix = getTokenPrefix(token);
       console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix);
 
       // G) POST /api/notifications/register-token
@@ -478,7 +454,7 @@ export function useNotifications() {
       console.log("[PUSH_DIAG] error=" + (error?.message || "unknown"));
       return { ok: false, reason: "backend_error", permission: undefined };
     }
-  }, [bootStatus, session?.user, isValidPushToken]);
+  }, [bootStatus, session?.user]);
 
   return {
     expoPushToken,

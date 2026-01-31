@@ -1,13 +1,14 @@
-HANDOFF PACKET — PUSH TOKEN REGISTRATION FIX
-=============================================
+HANDOFF PACKET — PUSH TOKEN VALIDATION (SINGLE SOURCE OF TRUTH)
+================================================================
 Date: 2025-01-31
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed push notification token registration to reject placeholder tokens
-and properly register real device tokens with backend.
+Created single source-of-truth validator for Expo push tokens.
+All code paths now use isValidExpoPushToken() from shared module.
+Prevents placeholder tokens like "ExponentPushToken[test123]" from registration.
 
 ROOT CAUSE
 ----------
@@ -15,99 +16,126 @@ Backend showed: GET /api/push/me
   tokens[0].tokenPrefix = "ExponentPushToken[test123]"
   tokens[0].isActive = false
 
-This indicates a placeholder token was registered at some point.
-The app had validation in useNotifications.ts but NOT in:
-- registerPush.ts (unguarded registration path)
-- NotificationNudgeModal.tsx (no registration after permission grant)
+Multiple files had duplicate validation logic. Now consolidated.
 
-FIX APPLIED
------------
-1. Added isValidPushToken() validation to registerPush.ts
-   - Rejects tokens containing 'test', 'placeholder', 'mock'
-   - Rejects tokens shorter than 30 chars
-   - Only accepts valid ExponentPushToken/ExpoPushToken prefixes
+CHANGES
+-------
+1. NEW FILE: src/lib/push/validatePushToken.ts
+   - isValidExpoPushToken(token): boolean - THE validation function
+   - getTokenPrefix(token): string - Safe logging helper (truncates to 24 chars)
+   - Rejects: test, placeholder, mock, fake, dummy, sample (case-insensitive)
+   - Rejects: tokens < 30 chars
+   - Accepts only: ExponentPushToken[, ExpoPushToken[, ExpoToken[
 
-2. Fixed projectId lookup order in registerPush.ts and notifications.ts
-   - BEFORE: Constants.expoConfig.extra.eas.projectId ?? Constants.easConfig.projectId
-   - AFTER:  Constants.easConfig.projectId ?? Constants.expoConfig.extra.eas.projectId
-   - Prefers eas.json projectId which is the correct source
+2. UPDATED: src/lib/push/registerPush.ts
+   - Removed local isValidPushToken()
+   - Now imports from validatePushToken.ts
+   - Uses getTokenPrefix() for DEV logs
 
-3. Added token registration to NotificationNudgeModal.tsx
-   - When user grants permission via nudge modal, token is now registered
-   - Previously only updated permission status, never registered token
-   - Added registerPushTokenWithBackend() function with full validation
+3. UPDATED: src/hooks/useNotifications.ts
+   - Removed local isValidPushToken useCallback
+   - Now imports from validatePushToken.ts
+   - Uses getTokenPrefix() for DEV logs
+   - Fixed dependency arrays
+
+4. UPDATED: src/components/notifications/NotificationNudgeModal.tsx
+   - Removed local isValidPushToken()
+   - Now imports from validatePushToken.ts
+   - Uses getTokenPrefix() for DEV logs
 
 FILES CHANGED
 -------------
-src/lib/push/registerPush.ts
-  - Added isValidPushToken() validation function
-  - Fixed projectId lookup order
-  - Added validation before backend registration
-
-src/lib/notifications.ts
-  - Fixed projectId lookup order
-  - Truncated token in DEV log output
-
-src/components/notifications/NotificationNudgeModal.tsx
-  - Added Device and Constants imports
-  - Added isValidPushToken() and registerPushTokenWithBackend()
-  - Call registerPushTokenWithBackend() after permission granted
+src/lib/push/validatePushToken.ts (NEW - 67 lines)
+src/lib/push/registerPush.ts (-20 lines local validation)
+src/hooks/useNotifications.ts (-18 lines local validation)
+src/components/notifications/NotificationNudgeModal.tsx (-15 lines local validation)
 
 RUNTIME STATUS
 --------------
-TypeCheck: PASS
-verify_frontend.sh: PASS
+✓ TypeCheck: PASS
+✓ verify_frontend.sh: PASS
 
-KEY VALIDATION LOGIC
---------------------
-function isValidPushToken(token: string): boolean {
+CODE PATH PROOF
+---------------
+Registration endpoint: POST /api/notifications/register-token
+
+Called from 3 places, ALL validated:
+1. useNotifications.ts:139 → checkAndRegisterToken()
+   - Boot + AppState.active trigger
+   - Validated at line 129: if (token && isValidExpoPushToken(token))
+
+2. NotificationNudgeModal.tsx:71 → registerPushTokenWithBackend()
+   - After permission grant in nudge modal
+   - Validated at line 63: if (!isValidExpoPushToken(token))
+
+3. registerPush.ts:191 → registerPushToken() (not currently used but guarded)
+   - Validated at line 177: if (!isValidExpoPushToken(token))
+
+VALIDATOR IMPLEMENTATION
+------------------------
+export function isValidExpoPushToken(token: unknown): token is string {
   if (!token || typeof token !== 'string') return false;
-  if (!token.startsWith("ExponentPushToken[") && 
-      !token.startsWith("ExpoPushToken[") && 
-      !token.startsWith("ExpoToken[")) return false;
+  
+  // Must start with valid prefix
+  const validPrefixes = ['ExponentPushToken[', 'ExpoPushToken[', 'ExpoToken['];
+  if (!validPrefixes.some(p => token.startsWith(p))) return false;
+  
+  // Reject forbidden patterns (case-insensitive)
   const lowerToken = token.toLowerCase();
-  if (lowerToken.includes('test') || 
-      lowerToken.includes('placeholder') || 
-      lowerToken.includes('mock')) return false;
+  const forbidden = ['test', 'placeholder', 'mock', 'fake', 'dummy', 'sample'];
+  if (forbidden.some(p => lowerToken.includes(p))) return false;
+  
+  // Reject too-short tokens
   if (token.length < 30) return false;
+  
   return true;
 }
 
-DEV LOG LINES TO EXPECT (on real device)
-----------------------------------------
-[NotificationNudge] Got token: ExponentPushToken[abc1...
-[NotificationNudge] Token registered successfully
--- OR --
-[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc1...
-[PUSH_BOOTSTRAP] Token registered with /api/notifications/register-token
+DEV LOG LINES (real device)
+---------------------------
+[PUSH_BOOTSTRAP] Got valid token: ExponentPushToken[abc12...
+[PUSH_BOOTSTRAP] ✓ Token registered with backend
+[PUSH_BOOTSTRAP] ✓ Push registration complete
 
-PROOF COMMANDS (after TestFlight build)
----------------------------------------
-# 1. Login and get cookie
+OR (via nudge modal):
+[NotificationNudge] Got token: ExponentPushToken[abc12...
+[NotificationNudge] ✓ Token registered successfully
+
+VERIFICATION COMMANDS
+---------------------
+# After TestFlight install:
+
+# 1. Login
 curl -c /tmp/oi_cookies.txt -b /tmp/oi_cookies.txt \
   -X POST https://open-invite-api.onrender.com/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
   -d '{"email":"YOUR_EMAIL","password":"YOUR_PASS"}'
 
-# 2. Check push tokens
+# 2. Check tokens
 curl -b /tmp/oi_cookies.txt \
   https://open-invite-api.onrender.com/api/push/me
 
-# Expected: tokenPrefix starts with ExponentPushToken[ and NOT test123
-# Expected: isActive=true for the real device token
+# Expected:
+# - tokenPrefix NOT containing "test123"
+# - isActive = true
+
+HOW TO VERIFY ON DEVICE
+-----------------------
+1. Build TestFlight: eas build --platform ios --profile production
+2. Install on physical iPhone
+3. Open app, sign in
+4. Either:
+   a) Permission already granted → auto-registers on boot
+   b) Permission not granted → nudge modal appears → tap Enable → registers
+5. Check Xcode console for "[PUSH_BOOTSTRAP] ✓ Token registered" or "[NotificationNudge] ✓ Token registered"
+6. Verify backend via curl /api/push/me
+
+IDEMPOTENCY
+-----------
+- useNotifications throttles registration to once per 24 hours (AsyncStorage key)
+- Backend upserts tokens, so duplicate calls are safe
+- AppState.active triggers re-check but throttle prevents spam
 
 WHAT TO DO NEXT
 ---------------
-1. Build new TestFlight release (eas build --platform ios --profile production)
-2. Install on physical iPhone
-3. Open app and grant notification permission when nudge modal appears
-4. Check Xcode console for "[NotificationNudge] Token registered successfully"
-5. Verify via curl /api/push/me that tokenPrefix is real and isActive=true
-6. Test receiving a push notification
-
-INVARIANTS PRESERVED
---------------------
-- No new dependencies added
-- Uses existing expo-notifications, expo-device, expo-constants
-- Better Auth cookie-based auth (credentials: "include")
-- All token validation uses consistent isValidPushToken() logic
+Build and test on physical iPhone to confirm real token registration.

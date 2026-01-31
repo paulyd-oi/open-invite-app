@@ -18,30 +18,13 @@ import { X, Bell, MessageCircle, CalendarCheck, Users, BellOff, AlertCircle } fr
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { trackAnalytics } from "@/lib/entitlements";
+import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 
 // Nudge state storage key
 const NUDGE_COUNT_KEY = "notification_nudge_count";
 
 // Notification nudge state type
 export type NudgeState = "none" | "nudged_once" | "nudged_twice" | "never_nudge";
-
-/**
- * INVARIANT: Validate push token before sending to backend
- * Rejects placeholder/test tokens like ExponentPushToken[test123]
- */
-function isValidPushToken(token: string): boolean {
-  if (!token || typeof token !== 'string') return false;
-  if (!token.startsWith("ExponentPushToken[") && !token.startsWith("ExpoPushToken[") && !token.startsWith("ExpoToken[")) return false;
-  const lowerToken = token.toLowerCase();
-  if (lowerToken.includes('test') || lowerToken.includes('placeholder') || lowerToken.includes('mock')) {
-    if (__DEV__) {
-      console.log('[NotificationNudge] Rejected placeholder token:', token);
-    }
-    return false;
-  }
-  if (token.length < 30) return false;
-  return true;
-}
 
 /**
  * Register push token with backend after permission is granted
@@ -56,7 +39,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
   }
 
   try {
-    // Get project ID
+    // Get project ID (prefer easConfig, fallback to expoConfig.extra)
     const projectId =
       Constants?.easConfig?.projectId ??
       Constants?.expoConfig?.extra?.eas?.projectId;
@@ -73,11 +56,11 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     const token = tokenData.data;
 
     if (__DEV__) {
-      console.log('[NotificationNudge] Got token:', token.substring(0, 30) + '...');
+      console.log('[NotificationNudge] Got token:', getTokenPrefix(token));
     }
 
-    // Validate token
-    if (!isValidPushToken(token)) {
+    // Validate token (uses shared validator)
+    if (!isValidExpoPushToken(token)) {
       if (__DEV__) {
         console.log('[NotificationNudge] Token failed validation');
       }
@@ -91,7 +74,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     });
 
     if (__DEV__) {
-      console.log('[NotificationNudge] Token registered successfully');
+      console.log('[NotificationNudge] ✓ Token registered successfully');
     }
 
     return true;
