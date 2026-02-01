@@ -1,5 +1,41 @@
 # Findings Log — Frontend
 
+## P1: Event Details Visibility Row — Host-Only (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Non-host viewers of an event can see the "Visibility" row (All Friends / Specific Groups), which is only relevant to the event host.
+
+**ROOT CAUSE**: The Visibility section in `src/app/event/[id].tsx` (lines 1017-1056) was unconditionally rendered for all viewers.
+
+### Solution
+Wrapped the Visibility section in an `isMyEvent` conditional:
+```tsx
+{/* Visibility - Host only */}
+{isMyEvent && (
+  <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+    {/* ... visibility row content ... */}
+  </View>
+)}
+```
+
+### Host Identification
+- `isMyEvent = event?.userId === session?.user?.id` (line 471)
+- This matches the existing pattern used for edit buttons, delete, etc.
+
+### Layout Integrity
+- Divider line (`border-t`) is inside the conditional, so no orphan lines
+- Next section (Spots/Capacity) gets border-t from its own View
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## P1-B: Founder Badge Visibility — Hide if Ineligible (2026-02-01)
 
 ### Root Cause Analysis ✓

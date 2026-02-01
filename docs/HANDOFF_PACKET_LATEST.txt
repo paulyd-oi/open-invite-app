@@ -1,4 +1,4 @@
-HANDOFF PACKET — P1-B FOUNDER BADGE VISIBILITY
+HANDOFF PACKET — P1 EVENT DETAILS VISIBILITY ROW HOST-ONLY
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,36 +6,41 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Founder badge is now hidden from users who cannot earn it.
+Visibility row on Event Details screen is now hidden for non-host viewers.
 
-- If user does NOT have Founder badge unlocked → badge is NOT shown in Locked section
-- If user DOES have Founder badge unlocked → shows normally in Unlocked section
-- No "locked state" UI introduced (badge simply omitted)
-- @paul (founder account) still sees it (earned)
+- Host viewing their event: sees Visibility row (All Friends / Specific Groups)
+- Non-host viewing event: Visibility row hidden
+- No layout spacing issues (border-t inside conditional)
 
 FILES CHANGED
 -------------
-1. src/app/achievements.tsx (MODIFIED)
-   - Line 114: Added filter to exclude "founder" from lockedBadges
+1. src/app/event/[id].tsx (MODIFIED)
+   - Lines 1017-1058: Wrapped Visibility section in isMyEvent conditional
 
 2. docs/FINDINGS_LOG.md (MODIFIED)
-   - Added P1-B entry with root cause + fix notes
+   - Added P1 Event Details Visibility Row entry
 
-BADGE IDENTIFIER
-----------------
-Key: "founder" (badgeKey field, case-sensitive)
-Match type: Exact string equality check
+HOST IDENTIFICATION
+-------------------
+Variable: isMyEvent (line 471)
+Logic: event?.userId === session?.user?.id
+Pattern: Same as edit/delete button gating
 
 KEY DIFF
 --------
-src/app/achievements.tsx:
+src/app/event/[id].tsx:
 
-// Before (line 114):
-const lockedBadges = badges.filter((b) => !b.unlocked);
+// Before (line 1017):
+{/* Visibility */}
+<View className="py-3 border-t" ...>
 
-// After (line 114-115):
-// Hide Founder badge from locked section (not earnable by regular users)
-const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
+// After (lines 1017-1018):
+{/* Visibility - Host only */}
+{isMyEvent && (
+<View className="py-3 border-t" ...>
+  ...
+</View>
+)}
 
 RUNTIME STATUS
 --------------
@@ -44,24 +49,22 @@ npm run typecheck                    PASS
 
 ACCEPTANCE CHECKLIST
 -------------------
-[x] Non-founder accounts do not see Founder badge in Locked section
-[x] Founder account (@paul) still sees Founder badge in Unlocked section
-[x] No layout break / empty state still works fine
+[x] Non-host viewing event: no Visibility row
+[x] Host viewing event: Visibility row still present
+[x] Layout spacing clean (no extra divider lines)
 [x] typecheck PASS
 [x] verify_frontend.sh PASS
 
 MANUAL TEST NOTES
 -----------------
-1. Sign in with non-founder account
-2. Go to Profile → Badges (achievements.tsx screen)
-3. Verify Founder badge is NOT in Locked section
-4. Sign in with @paul (founder account)
-5. Go to Badges → verify Founder badge IS in Unlocked section
-6. Verify Set Featured / Remove Featured works on Founder badge
+1. Create an event as User A
+2. View event as User A → Visibility row visible
+3. View same event as User B (friend) → Visibility row hidden
+4. Check for orphan borders or spacing issues
 
 CONSTRAINTS MET
 ---------------
-- Minimal diff (1 line logic change + 1 comment)
+- Minimal diff (+3 lines: comment, opening conditional, closing paren)
 - No new dependencies
-- Icons: unchanged (Ionicons only via @/ui/icons)
+- Icons: unchanged
 - Navigation architecture preserved

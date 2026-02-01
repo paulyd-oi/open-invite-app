@@ -1014,7 +1014,8 @@ export default function EventDetailScreen() {
               </View>
             )}
 
-            {/* Visibility */}
+            {/* Visibility - Host only */}
+            {isMyEvent && (
             <View className="py-3 border-t" style={{ borderColor: colors.border }}>
               <View className="flex-row items-center">
                 {/* Busy blocks always show "Only self" regardless of stored visibility */}
@@ -1056,6 +1057,7 @@ export default function EventDetailScreen() {
                 </View>
               )}
             </View>
+            )}
 
             {/* Spots (Capacity) */}
             {event.capacity != null && (
