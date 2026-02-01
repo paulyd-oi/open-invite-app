@@ -1,5 +1,42 @@
 # Findings Log — Frontend
 
+## P1-B: Founder Badge Visibility — Hide if Ineligible (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Founder badge appears in the "Locked" section for users who cannot earn it.
+
+**ROOT CAUSE**: The badge catalog filter at line 114 of achievements.tsx did not exclude the Founder badge from `lockedBadges`. Founder badge is manually granted to early adopters and should not be visible to users who don't have it.
+
+### Solution
+**One-line change** in `src/app/achievements.tsx`:
+```typescript
+// Before:
+const lockedBadges = badges.filter((b) => !b.unlocked);
+
+// After:
+const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
+```
+
+### Badge Identifier
+- Key: `founder` (case-sensitive badgeKey match)
+- The filter excludes Founder badge from locked section only
+- If user HAS the badge unlocked, it shows in "Unlocked" section normally
+
+### No Layout Break
+- Empty state handles 0 badges gracefully (existing logic)
+- Footer shows `{badges.length}` which reflects total catalog (unchanged)
+- Locked section simply omits Founder if user lacks it
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## P1-A: First-Login Welcome Modal (2026-02-01)
 
 ### Implementation ✓

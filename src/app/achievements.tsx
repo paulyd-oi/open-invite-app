@@ -111,7 +111,8 @@ export default function BadgesScreen() {
 
   const badges = data?.badges ?? [];
   const unlockedBadges = badges.filter((b) => b.unlocked);
-  const lockedBadges = badges.filter((b) => !b.unlocked);
+  // Hide Founder badge from locked section (not earnable by regular users)
+  const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
   const featuredBadge = badges.find((b) => b.featured);
 
   // DEV logging for render decision

@@ -1,4 +1,4 @@
-HANDOFF PACKET — P1-A FIRST-LOGIN WELCOME MODAL
+HANDOFF PACKET — P1-B FOUNDER BADGE VISIBILITY
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,62 +6,36 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Added first-login Welcome modal on Home Calendar that:
-- Shows ONLY ONCE per user/device
-- Never reappears after dismissal
-- Adapts content based on email verification status:
-  - Unverified: Verify Email flow
-  - Verified: Find Friends / Create Invite flow
-- No stacking with other modals
+Founder badge is now hidden from users who cannot earn it.
 
-COPY
-----
-Title: "Welcome to Open Invite"
-Subtitle: "A social calendar for making plans with friends."
-
-STATE A (Unverified):
-- Message: "For privacy and safety, please verify your email to get started."
-- Primary: "Verify Email" → /verify-email
-- Secondary: "Resend Email"
-- Skip: "Skip for now"
-
-STATE B (Verified):
-- Message: "Find friends or invite your friends..."
-- Primary: "Find Friends" → /friends
-- Secondary: "Create Your First Invite" → /create
-- Skip: "Skip for now"
+- If user does NOT have Founder badge unlocked → badge is NOT shown in Locked section
+- If user DOES have Founder badge unlocked → shows normally in Unlocked section
+- No "locked state" UI introduced (badge simply omitted)
+- @paul (founder account) still sees it (earned)
 
 FILES CHANGED
 -------------
-1. src/components/WelcomeModal.tsx (NEW)
-   - WelcomeModal component
-   - hasWelcomeModalBeenShown() helper
-   - markWelcomeModalShown() helper
+1. src/app/achievements.tsx (MODIFIED)
+   - Line 114: Added filter to exclude "founder" from lockedBadges
 
-2. src/app/calendar.tsx
-   - Added WelcomeModal import
-   - Added showWelcomeModal state
-   - Added useEffect for one-time check
-   - Added WelcomeModal to JSX
+2. docs/FINDINGS_LOG.md (MODIFIED)
+   - Added P1-B entry with root cause + fix notes
 
-3. docs/FINDINGS_LOG.md
-   - Added P1-A entry
+BADGE IDENTIFIER
+----------------
+Key: "founder" (badgeKey field, case-sensitive)
+Match type: Exact string equality check
 
-STORAGE FLAG
-------------
-Key: openinvite.welcome_modal_shown.<userId>
-Storage: SecureStore (expo-secure-store)
-Set: Immediately when modal becomes visible
-Pattern: Matches existing guidance system pattern
+KEY DIFF
+--------
+src/app/achievements.tsx:
 
-KEY DIFFS
----------
-calendar.tsx:
-+ import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
-+ const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-+ const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
-+ useEffect for hasWelcomeModalBeenShown() check
-+ <WelcomeModal visible={showWelcomeModal} onClose={...} />
+// Before (line 114):
+const lockedBadges = badges.filter((b) => !b.unlocked);
+
+// After (line 114-115):
+// Hide Founder badge from locked section (not earnable by regular users)
+const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
 
 RUNTIME STATUS
 --------------
@@ -70,26 +44,24 @@ npm run typecheck                    PASS
 
 ACCEPTANCE CHECKLIST
 -------------------
-[x] Fresh signup (unverified) sees Welcome modal once
-[x] Dismiss → never returns
-[x] Verified user sees Friends-first modal once
-[x] Find Friends routes to /friends correctly
-[x] Create Invite routes to /create correctly
-[x] No modal stacking (single check on authed load)
+[x] Non-founder accounts do not see Founder badge in Locked section
+[x] Founder account (@paul) still sees Founder badge in Unlocked section
+[x] No layout break / empty state still works fine
 [x] typecheck PASS
 [x] verify_frontend.sh PASS
 
 MANUAL TEST NOTES
 -----------------
-1. Clear app data / fresh install
-2. Sign up new user → see unverified welcome modal
-3. Tap Skip → modal closes, never reappears
-4. Verify email → next login sees verified welcome modal
-5. Tap any CTA or Skip → never reappears
+1. Sign in with non-founder account
+2. Go to Profile → Badges (achievements.tsx screen)
+3. Verify Founder badge is NOT in Locked section
+4. Sign in with @paul (founder account)
+5. Go to Badges → verify Founder badge IS in Unlocked section
+6. Verify Set Featured / Remove Featured works on Founder badge
 
 CONSTRAINTS MET
 ---------------
-- No new dependencies (uses existing SecureStore, expo-router)
-- Icons: Ionicons only via @/ui/icons
-- Minimal diff (1 new file, 1 modified file)
+- Minimal diff (1 line logic change + 1 comment)
+- No new dependencies
+- Icons: unchanged (Ionicons only via @/ui/icons)
 - Navigation architecture preserved
