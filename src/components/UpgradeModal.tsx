@@ -275,7 +275,7 @@ export function UpgradeModal({
                   className="mt-4 items-center"
                 >
                   <Text className="text-white/40 text-sm">
-                    ${PRICING.proYearly}/year • 2-week free trial
+                    ${PRICING.proYearly}/year
                   </Text>
                   <Text className="text-white/30 text-xs mt-1">
                     Cancel anytime

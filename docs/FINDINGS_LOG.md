@@ -1,5 +1,47 @@
 # Findings Log — Frontend
 
+## P1-C: Subscription UI Cleanup — No Trial + Simplified Features (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Subscription screens promised features not actually enforced and mentioned "free trial" which doesn't exist in current App Store config.
+
+**ROOT CAUSE**:
+1. UI copy mentioned "14-day free trial" and "2-week free trial" when no trial is configured
+2. Feature comparison tables listed many features (circles, insights, analytics, etc.) that aren't actually enforced
+3. Co-hosts listed as Pro feature but was removed from codebase
+
+### FIX: Align UI with Reality
+
+**UpgradeModal.tsx**: Removed "• 2-week free trial" from pricing info
+**subscription.tsx**: 
+- Changed "14-day free trial" to "Unlimited hosting" on yearly plan
+- Changed CTA "Start Pro Trial" to "Subscribe Now"
+- Simplified featureCategories from 4 groups (16 features) to 1 group (1 feature): Events per Month
+- Removed unused icon imports
+**paywall.tsx**:
+- Removed "Add co-hosts" from FREE_FEATURES
+- Removed "Unlimited co-hosts" from PREMIUM_FEATURES
+- Updated copy to "Host up to 3 events per month"
+**invite.tsx**: Removed "They get 1 week free trial" from referral rewards
+
+### Current Enforced Reality
+- Free: Host up to 3 events per 30-day rolling window
+- Founder Pro: Unlimited hosting
+- That's it. Everything else is aspirational.
+
+### Apple StoreKit Note
+If App Store purchase sheet shows old icon/description, that's App Store Connect metadata - cannot be fixed in app code. Only the in-app copy is corrected.
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## P0: Apple Login Cookie Overwrite Bug (2026-01-31)
 
 ### Root Cause Analysis ✓

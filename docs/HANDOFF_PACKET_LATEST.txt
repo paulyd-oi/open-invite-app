@@ -1,112 +1,90 @@
-HANDOFF PACKET — P0 LAUNCH BLOCKER FIXES
+HANDOFF PACKET — P1-C SUBSCRIPTION CLEANUP (NO TRIAL + SIMPLE PAYWALL)
 ====================================================================
 Date: 2026-02-01
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
-Commit: 0f8e26d
 
 SUMMARY
 -------
-Fixed 4 P0 launch blockers for email verification flow and new user
-onboarding experience:
+Removed all free trial language and simplified subscription UI to
+only promise what's actually enforced today:
+- Free: Host up to 3 events per month
+- Founder Pro: Unlimited hosting
 
-1. FIX 1: Email verification deep link 404
-2. FIX 2: Startup modals stacking (verification takes priority)
-3. FIX 3: Signup sends verification email immediately
-4. FIX 4: "Find friends" routes to correct destination
+Removed unenforced feature promises (circles, insights, analytics,
+co-hosts, etc.) from comparison tables.
 
-ROOT CAUSE ANALYSIS
--------------------
-FIX 1: deepLinks.ts parseDeepLink didn't recognize verify-email URLs
-       and handleDeepLink had no case to route them.
-
-FIX 2: FirstValueNudge showed for all users regardless of email
-       verification status, causing modal stacking with verification
-       banner.
-
-FIX 3: Verification email was only sent during completeOnboarding(),
-       not immediately after signup. Users had to tap Resend.
-
-FIX 4: FirstValueNudge "Find friends" button routed to /discover
-       instead of /friends.
+ROOT CAUSE
+----------
+1. UI mentioned "14-day free trial" when no trial is configured
+2. Feature tables listed many aspirational features not enforced
+3. Co-hosts was listed but had been removed from codebase
 
 FILES CHANGED
 -------------
-1. src/lib/deepLinks.ts (+22 lines)
-   - parseDeepLink: Added verify-email URL pattern matching
-   - handleDeepLink: Added verify-email case routing
+1. src/components/UpgradeModal.tsx
+   - Removed "• 2-week free trial" from pricing info
 
-2. src/app/social.tsx (+4 lines)
-   - isFirstValueNudgeEligible: Added emailVerified check
-   - FirstValueNudge onPrimary: /discover → /friends
+2. src/app/subscription.tsx
+   - Changed "14-day free trial" → "Unlimited hosting"
+   - Changed CTA "Start Pro Trial" → "Subscribe Now"  
+   - Simplified featureCategories: 4 groups → 1 group
+   - Removed unused icon imports
 
-3. src/app/welcome.tsx (+23 lines)
-   - Added triggerVerificationCooldown import
-   - Added immediate email send after signup success
+3. src/app/paywall.tsx
+   - Removed "Add co-hosts" from FREE_FEATURES
+   - Removed "Unlimited co-hosts" from PREMIUM_FEATURES
+   - Updated copy: "Host up to 3 events per month"
+
+4. src/app/invite.tsx
+   - Removed "They get 1 week free trial" from referral rewards
+
+5. docs/FINDINGS_LOG.md
+   - Added P1-C entry with root cause + fix notes
 
 KEY DIFFS
 ---------
-deepLinks.ts parseDeepLink:
-+ if (type === 'verify-email' || type === 'verify' || path.startsWith('auth/verify')) {
-+   const tokenMatch = url.match(/[?&]token=([^&]+)/);
-+   return { type: 'verify-email', token: tokenMatch?.[1] || undefined };
-+ }
+UpgradeModal.tsx:
+- ${PRICING.proYearly}/year • 2-week free trial
++ ${PRICING.proYearly}/year
 
-deepLinks.ts handleDeepLink:
-+ case 'verify-email':
-+   router.push('/verify-email');
-+   return true;
+subscription.tsx:
+- {PRICING.trialDays}-day free trial
++ Unlimited hosting
 
-social.tsx isFirstValueNudgeEligible:
-+ if (session?.user?.emailVerified === false) return false;
+- return "Start Pro Trial";
++ return "Subscribe Now";
 
-social.tsx FirstValueNudge:
-- onPrimary={() => router.push("/discover")}
-+ onPrimary={() => router.push("/friends")}
+paywall.tsx:
+- { text: "Add co-hosts", included: false },
++ (removed)
 
-welcome.tsx handleEmailAuth (after signup success):
-+ if (userEmail) {
-+   await authClient.$fetch("/api/email-verification/resend", {
-+     method: "POST",
-+     body: { email: userEmail },
-+   });
-+   triggerVerificationCooldown();
-+ }
+- { text: "Unlimited co-hosts", included: true },
++ (removed)
 
 RUNTIME STATUS
 --------------
 npm run typecheck                    PASS
 ./scripts/ai/verify_frontend.sh      PASS
 
-VERIFICATION PROOF CHECKLIST
-----------------------------
-[x] Verify-email deep links route to /verify-email screen (no 404)
-[x] FirstValueNudge hidden for unverified users (no stacking)
-[x] Verification email sent immediately on signup (not on Resend)
-[x] "Find friends" routes to /friends (not /discover)
+ACCEPTANCE CHECKLIST
+-------------------
+[x] No "free trial" text anywhere in app
+[x] Membership page only lists: Free = 3 events/month, Pro = unlimited
+[x] No promises of unenforced benefits
+[x] Founder Pro naming consistent
+[x] typecheck PASS
+[x] verify_frontend.sh PASS
 
-WHAT TO TEST (Manual QA)
-------------------------
-1. Fresh signup with new email:
-   - Submit account creation form
-   - Email arrives WITHOUT tapping Resend
-   - Check Resend logs: first send = signup submit
+APPLE STOREKIT NOTE
+-------------------
+If App Store purchase sheet shows old icon or stale description,
+that's App Store Connect product metadata - cannot be fixed in app
+code. Only in-app copy has been corrected.
 
-2. Tap verification link in email:
-   - Opens app to verify-email screen (no 404)
-   - Completes verification successfully
-
-3. After verified:
-   - Can create events
-   - FirstValueNudge shows (doesn't stack with verify banner)
-
-4. Social screen:
-   - "Find friends" tap → lands on Friends screen
-
-CONSTRAINTS MET
----------------
-- Minimal diffs only (3 files, 48 lines added)
-- No new dependencies
-- No backend changes required
-- Navigation architecture preserved
-- Icons: Ionicons only (no changes)
+WHAT TO TEST
+------------
+1. Paywall screen: No trial mention, simple Free vs Pro comparison
+2. Subscription screen: No trial mention, "Subscribe Now" button
+3. UpgradeModal: No trial mention in pricing
+4. Invite screen: Referral rewards text simplified

@@ -321,7 +321,7 @@ export default function InviteScreen() {
             {[
               { step: "1", text: "Share your unique invite code with friends" },
               { step: "2", text: "They sign up using your code" },
-              { step: "3", text: "You both get rewards! They get 1 week free trial" },
+              { step: "3", text: "You both get rewards!" },
             ].map((item, index) => (
               <View
                 key={item.step}

@@ -17,20 +17,11 @@ import {
   Crown,
   Check,
   X,
-  Clock,
   Gift,
-  Sparkles,
-  RotateCcw,
   ExternalLink,
-  Users,
   CalendarDays,
-  UserPlus,
-  Cake,
-  BarChart3,
-  Award,
-  Zap,
-  Star,
   Heart,
+  RotateCcw,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -47,7 +38,7 @@ import {
   REVENUECAT_OFFERING_ID,
 } from "@/lib/revenuecatClient";
 import { safeToast } from "@/lib/safeToast";
-import { useSubscription, FREE_TIER_LIMITS, PRO_TIER_LIMITS, PRICING } from "@/lib/useSubscription";
+import { useSubscription, PRICING } from "@/lib/useSubscription";
 import type { PurchasesPackage } from "react-native-purchases";
 
 // Types for subscription details from backend
@@ -318,103 +309,17 @@ export default function SubscriptionScreen() {
 
   const sourceCopy = getSourceCopy();
 
-  // Grouped comparison features
+  // Grouped comparison features - ONLY show what's actually enforced today
+  // Currently enforced: hosting limits (3 events / 30 days for free, unlimited for Pro)
   const featureCategories: FeatureCategory[] = [
-    {
-      title: "Planning",
-      features: [
-        {
-          name: "Who's Free?",
-          icon: <Users size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.whosFreeAheadDays} days`,
-          proValue: `${PRO_TIER_LIMITS.whosFreeAheadDays} days`,
-        },
-        {
-          name: "Upcoming Birthdays",
-          icon: <Cake size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.birthdaysAheadDays} days`,
-          proValue: `${PRO_TIER_LIMITS.birthdaysAheadDays} days`,
-        },
-        {
-          name: "Recurring Events",
-          icon: <RotateCcw size={16} color={themeColor} />,
-          freeValue: "No",
-          proValue: "Unlimited",
-        },
-      ],
-    },
     {
       title: "Hosting",
       features: [
         {
-          name: "Active Events",
+          name: "Events per Month",
           icon: <CalendarDays size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.maxActiveEvents} max`,
+          freeValue: "3 max",
           proValue: "Unlimited",
-        },
-        {
-          name: "Event History",
-          icon: <Clock size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.eventHistoryDays} days`,
-          proValue: "Full history",
-        },
-      ],
-    },
-    {
-      title: "Circles",
-      features: [
-        {
-          name: "Create Circles",
-          icon: <UserPlus size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.maxCircles} max`,
-          proValue: "Unlimited",
-        },
-        {
-          name: "Members per Circle",
-          icon: <Users size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.maxCircleMembers} max`,
-          proValue: "Unlimited",
-        },
-        {
-          name: "Circle Insights",
-          icon: <BarChart3 size={16} color={themeColor} />,
-          freeValue: "No",
-          proValue: "Yes",
-        },
-      ],
-    },
-    {
-      title: "Insights",
-      features: [
-        {
-          name: "Friend Notes",
-          icon: <Sparkles size={16} color={themeColor} />,
-          freeValue: `${FREE_TIER_LIMITS.maxFriendNotes} max`,
-          proValue: "Unlimited",
-        },
-        {
-          name: "Top Friends Analytics",
-          icon: <BarChart3 size={16} color={themeColor} />,
-          freeValue: "No",
-          proValue: "Yes",
-        },
-        {
-          name: "Full Achievements",
-          icon: <Award size={16} color={themeColor} />,
-          freeValue: "Basic only",
-          proValue: "All badges",
-        },
-        {
-          name: "Priority Sync",
-          icon: <Zap size={16} color={themeColor} />,
-          freeValue: "No",
-          proValue: "Yes",
-        },
-        {
-          name: "Early Access",
-          icon: <Star size={16} color={themeColor} />,
-          freeValue: "No",
-          proValue: "Yes",
         },
       ],
     },
@@ -424,7 +329,7 @@ export default function SubscriptionScreen() {
   const getCTAText = () => {
     if (isLifetime) return "Lifetime Pro Active";
     if (isPremium && !isTrial) return "Manage Subscription";
-    return "Start Pro Trial";
+    return "Subscribe Now";
   };
 
   if (isLoading) {
@@ -629,7 +534,7 @@ export default function SubscriptionScreen() {
                       ${PRICING.proYearly} / year
                     </Text>
                     <Text style={{ color: "#10B981" }} className="text-xs mt-1">
-                      {PRICING.trialDays}-day free trial
+                      Unlimited hosting
                     </Text>
                   </View>
                   <View

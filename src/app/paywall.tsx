@@ -41,19 +41,17 @@ import {
 // Beta mode - set to false for production (payments are active)
 const BETA_MODE = false;
 
-// Free tier features
+// Free tier features - only list what is actually enforced
 const FREE_FEATURES = [
-  { text: "3 hosted events per month", included: true },
+  { text: "Host up to 3 events per month", included: true },
   { text: "Unlimited friends", included: true },
   { text: "RSVP to any event", included: true },
   { text: "Unlimited hosting", included: false },
-  { text: "Add co-hosts", included: false },
 ];
 
-// Founder Pro v1 features
+// Founder Pro v1 features - only list what is actually enforced
 const PREMIUM_FEATURES = [
   { text: "Unlimited hosting", included: true },
-  { text: "Unlimited co-hosts", included: true },
   { text: "Everything in Free", included: true },
 ];
 
