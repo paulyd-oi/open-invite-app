@@ -809,6 +809,9 @@ export default function SocialScreen() {
     // Only eligible if authed
     if (bootStatus !== 'authed') return false;
     
+    // MUST be email verified - verification takes priority over nudge
+    if (session?.user?.emailVerified === false) return false;
+    
     // Check if user has zero social connections and events
     const hasFriends = (friendsData?.friends?.length ?? 0) > 0;
     const hasCreatedEvents = (myEventsData?.events?.length ?? 0) > 0;
@@ -1320,7 +1323,7 @@ export default function SocialScreen() {
       <FirstValueNudge
         visible={showFirstValueNudge}
         onClose={() => setShowFirstValueNudge(false)}
-        onPrimary={() => router.push("/discover")}
+        onPrimary={() => router.push("/friends")}
         onSecondary={() => {
           if (!guardEmailVerification(session)) return;
           router.push("/create");

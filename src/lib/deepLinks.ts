@@ -163,7 +163,7 @@ async function handleIcsImport(url: string): Promise<boolean> {
 /**
  * Parse an incoming deep link URL and return the route info
  */
-export function parseDeepLink(url: string): { type: string; id?: string; code?: string } | null {
+export function parseDeepLink(url: string): { type: string; id?: string; code?: string; token?: string } | null {
   try {
     // Handle .ics file imports
     if (url.endsWith('.ics') || url.includes('.ics?') || url.startsWith('content://')) {
@@ -174,6 +174,14 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
     if (url.startsWith(`${SCHEME}://`)) {
       const path = url.replace(`${SCHEME}://`, '');
       const [type, id] = path.split('/');
+      
+      // Handle verify-email deep links (e.g., open-invite://verify-email?token=xxx)
+      // Also handle variations: verify, auth/verify-email, etc.
+      if (type === 'verify-email' || type === 'verify' || path.startsWith('auth/verify')) {
+        // Extract token from query string if present
+        const tokenMatch = url.match(/[?&]token=([^&]+)/);
+        return { type: 'verify-email', token: tokenMatch?.[1] || undefined };
+      }
 
       if (type === 'event' && id) {
         return { type: 'event', id };
@@ -187,6 +195,12 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
     }
 
     // Handle universal links (https://...)
+    // Handle verify-email universal links
+    if (url.includes('/verify-email') || url.includes('/auth/verify')) {
+      const tokenMatch = url.match(/[?&]token=([^&]+)/);
+      return { type: 'verify-email', token: tokenMatch?.[1] || undefined };
+    }
+    
     if (url.includes('/share/event/')) {
       const match = url.match(/\/share\/event\/([a-zA-Z0-9_-]+)/);
       if (match?.[1]) {
@@ -254,6 +268,12 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         return true;
       }
       break;
+
+    case 'verify-email':
+      // FIX 1: Handle email verification deep links - route to verify-email screen
+      // The verify-email screen will handle displaying the code input
+      router.push('/verify-email');
+      return true;
   }
 
   return false;

@@ -54,6 +54,7 @@ import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError, 
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 import { uploadImage } from "@/lib/imageUpload";
 import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
+import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
@@ -484,11 +485,32 @@ export default function WelcomeOnboardingScreen() {
       
       console.log("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
 
-      // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate
+      // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate + send verification email
       if (isNewAccount) {
         const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_PREFIX, userId);
         await SecureStore.setItemAsync(forceShowKey, "true");
         console.log("[Onboarding] forceShow enabled for new account:", forceShowKey);
+        
+        // FIX 3: Send verification email IMMEDIATELY on signup (not later in onboarding)
+        const userEmail = session?.user?.email;
+        if (userEmail) {
+          console.log("[Onboarding] Sending verification email immediately after signup");
+          try {
+            await authClient.$fetch("/api/email-verification/resend", {
+              method: "POST",
+              body: {
+                email: userEmail.toLowerCase(),
+                name: session?.user?.name || session?.user?.displayName || undefined,
+              },
+            });
+            console.log("[Onboarding] Verification email sent successfully");
+            // Trigger 30-second cooldown in banner so user doesn't immediately hit resend
+            triggerVerificationCooldown();
+          } catch (verifyErr: any) {
+            // Don't block signup flow - just log warning
+            console.warn("[Onboarding] Failed to send verification email:", verifyErr?.message ?? verifyErr);
+          }
+        }
       }
 
       // Pre-populate name if available from result
