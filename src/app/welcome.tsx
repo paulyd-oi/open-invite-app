@@ -29,10 +29,9 @@ import Animated, {
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
-// Configure FadeInUp with high damping to prevent overshoot/snap
-// Default springify() can cause "bounce then snap" on some devices
+// Duration-based entrance animation - no spring overshoot possible
 const smoothFadeIn = (delayMs = 0) =>
-  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90);
+  FadeInUp.delay(delayMs).duration(280);
 
 import {
   Calendar as CalendarIcon,

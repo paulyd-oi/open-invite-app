@@ -1,4 +1,4 @@
-HANDOFF PACKET — WELCOME SCREEN ANIMATION FIX
+HANDOFF PACKET — WELCOME ANIMATION OVERSHOOT FIX
 ====================================================================
 Date: 2026-02-01
 Branch: main
@@ -6,73 +6,59 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed Welcome screen animation "bounce then snap" issue by configuring
-FadeInUp springs with higher damping to prevent overshoot.
+Removed "swings down then swings up" animation artifact on Welcome
+screen load by replacing spring-based animation with duration-based.
 
 ROOT CAUSE
 ----------
-Default FadeInUp.springify() uses low damping which causes:
-1. Spring overshoots final position (bounce)
-2. Animation clips/snaps when settling, especially on slower devices
-3. Combined with SlideInRight/SlideOutLeft transitions, timing conflicts
+FadeInUp.springify().damping(20).stiffness(90) still allowed spring
+overshoot on translateY, causing visible swing/rebound on load.
 
-SOLUTION
---------
-Created smoothFadeIn() helper that applies:
-- damping(20): High damping prevents overshoot
-- stiffness(90): Moderate stiffness for smooth motion
-- No more "bounce then teleport to final position"
+FIX
+---
+Replaced springify() chain with duration-based entrance animation:
+
+FROM:
+  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90)
+
+TO:
+  FadeInUp.delay(delayMs).duration(280)
+
+Duration-based animation cannot overshoot - it interpolates linearly
+from start to end position over 280ms.
 
 FILES CHANGED
 -------------
 1. src/app/welcome.tsx
-   - Added smoothFadeIn() helper function after imports
-   - Replaced all 12 FadeInUp.springify() calls with smoothFadeIn()
+   - smoothFadeIn helper: 1 line change
 
-KEY DIFFS
----------
-+// ============ ANIMATION HELPERS ============
-+// Configure FadeInUp with high damping to prevent overshoot/snap
-+// Default springify() can cause "bounce then snap" on some devices
+KEY DIFF
+--------
+-// Configure FadeInUp with high damping to prevent overshoot/snap
+-// Default springify() can cause "bounce then snap" on some devices
+-const smoothFadeIn = (delayMs = 0) =>
+-  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90);
+
++// Duration-based entrance animation - no spring overshoot possible
 +const smoothFadeIn = (delayMs = 0) =>
-+  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90);
-
-All Animated.View entering= props changed from:
-  FadeInUp.delay(X).springify()
-To:
-  smoothFadeIn(X)
++  FadeInUp.delay(delayMs).duration(280);
 
 RUNTIME STATUS
 --------------
 npm run typecheck                    PASS
 ./scripts/ai/verify_frontend.sh      PASS
 
-WHY THIS WORKS
---------------
-- damping(20) prevents spring overshoot (default is ~10-15)
-- stiffness(90) maintains responsiveness without being too stiff
-- Animation ends at exact final position without "snap"
-- All motion is transform-based (translateY, opacity) - no layout props
-- No setState during animation window
-
-TEST PLAN
----------
-1. Launch app on iOS simulator/device
-2. Go through all 4 welcome slides:
-   - Slide 1: "Your Social Calendar" with icon/buttons
-   - Slide 2: Create Account form
-   - Slide 3: Set Up Profile form
-   - Slide 4: Quote card
-3. Verify smooth fade-in animation on each slide
-4. No "bounce then snap" at end of animation
-5. Slide transitions (swipe between slides) smooth
-6. Email login flow still works end-to-end
+iOS TEST NOTE
+-------------
+On iOS simulator/device:
+- Welcome slides should fade in smoothly from below
+- No visible swing down then swing up
+- No bounce/rebound at end of animation
+- 280ms duration feels responsive but not abrupt
 
 CONSTRAINTS MET
 ---------------
-- Minimal diff (1 file, +19/-12 lines)
+- Minimal diff (1 file, 3 lines changed)
 - No new dependencies
-- Reanimated already configured in repo
+- No usage sites changed
 - Navigation architecture unchanged
-- Icon system untouched
-- Only transform + opacity animations (no layout props)
