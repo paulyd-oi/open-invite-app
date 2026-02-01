@@ -500,30 +500,52 @@ export default function SettingsScreen() {
   // Actually run the diagnostics (called from modal)
   const doRunPushDiagnostics = async () => {
     if (isPushDiagRunning) return;
+    
+    // PROOF LOG: Handler executed
+    console.log("[PUSH_DIAG_UI] pressed register");
+    
     setIsPushDiagRunning(true);
     setPushDiagResult(null);
     setPushDiagReport("Running diagnostics...");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    let finalResult: typeof pushDiagResult = null;
+    
     try {
       const result = await runPushDiagnostics();
-      setPushDiagResult(result);
+      finalResult = result;
       setPushDiagReport(formatDiagReport(result));
       
       if (result.ok) {
         safeToast.success("Push registered ✅", `Active: ${result.backendActiveCount ?? 0}`);
       }
     } catch (e: any) {
-      const errorResult = {
+      // Capture exception details for debugging
+      const exceptionMessage = e?.message || String(e) || "Unknown exception";
+      const exceptionStack = e?.stack || "No stack available";
+      
+      console.log("[PUSH_DIAG_UI] exception caught:", exceptionMessage);
+      
+      finalResult = {
         ok: false,
-        reason: "exception: " + (e?.message || "Unknown"),
+        reason: "exception",
         isPhysicalDevice: false,
+        exceptionMessage,
+        exceptionStack,
       };
-      setPushDiagResult(errorResult);
-      setPushDiagReport(formatDiagReport(errorResult));
-      safeToast.error("Push diagnostics error", e?.message || "Unknown");
+      setPushDiagReport(formatDiagReport(finalResult));
+      safeToast.error("Push diagnostics error", exceptionMessage);
     } finally {
+      // ALWAYS set result in finally block to guarantee UI update
+      setPushDiagResult(finalResult);
       setIsPushDiagRunning(false);
+      
+      // PROOF LOG: Result set
+      console.log("[PUSH_DIAG_UI] result set", JSON.stringify({
+        ok: finalResult?.ok,
+        reason: finalResult?.reason,
+        hasResult: !!finalResult,
+      }));
     }
   };
 
@@ -2445,6 +2467,30 @@ export default function SettingsScreen() {
                     📋 Copy JSON Report
                   </Text>
                 </Pressable>
+              )}
+
+              {/* No Results Yet State */}
+              {!pushDiagResult && !isPushDiagRunning && (
+                <View 
+                  className="rounded-xl p-4 mb-4"
+                  style={{ backgroundColor: colors.separator }}
+                >
+                  <Text className="text-center" style={{ color: colors.textSecondary }}>
+                    No results yet. Tap "Register Now" to run diagnostics.
+                  </Text>
+                </View>
+              )}
+
+              {/* Running State */}
+              {isPushDiagRunning && (
+                <View 
+                  className="rounded-xl p-4 mb-4"
+                  style={{ backgroundColor: colors.separator }}
+                >
+                  <Text className="text-center" style={{ color: colors.textSecondary }}>
+                    Running diagnostics...
+                  </Text>
+                </View>
               )}
 
               {/* Results Panel */}

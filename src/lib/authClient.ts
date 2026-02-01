@@ -612,6 +612,89 @@ async function verifySessionAfterAuth(context: string): Promise<void> {
 }
 
 /**
+ * Result type for ensureSessionReady
+ */
+export type SessionReadyResult = {
+  ok: boolean;
+  status: number | null;
+  userId: string | null;
+  attempt: number;
+  error?: string;
+};
+
+/**
+ * Ensure session is ready after login by verifying /api/auth/session.
+ * Retries once after 300ms if first attempt fails.
+ * 
+ * Use this after Apple or Email sign-in to guarantee session is established
+ * before proceeding with authed requests.
+ * 
+ * @returns SessionReadyResult with ok, status, userId, and attempt info
+ */
+export async function ensureSessionReady(): Promise<SessionReadyResult> {
+  const RETRY_DELAY_MS = 300;
+  const MAX_ATTEMPTS = 2;
+  
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const sessionData = await $fetch<{ user?: { id: string }; session?: { userId: string } }>('/api/auth/session', {
+        method: 'GET',
+      });
+      
+      const userId = sessionData?.user?.id || sessionData?.session?.userId || null;
+      const result: SessionReadyResult = {
+        ok: !!userId,
+        status: 200,
+        userId,
+        attempt,
+      };
+      
+      console.log(`[AUTH_BARRIER] ok=${result.ok} status=200 userId=${userId ? userId.substring(0, 8) + '...' : 'null'} attempt=${attempt}`);
+      
+      if (userId) {
+        return result;
+      }
+      
+      // No userId but request succeeded - might be race condition, retry
+      if (attempt < MAX_ATTEMPTS) {
+        console.log(`[AUTH_BARRIER] no userId, retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    } catch (error: any) {
+      const status = error?.status || error?.response?.status || null;
+      const errorMsg = error?.message || String(error);
+      
+      console.log(`[AUTH_BARRIER] ok=false status=${status} error=${errorMsg} attempt=${attempt}`);
+      
+      // If we have more attempts, retry after delay
+      if (attempt < MAX_ATTEMPTS) {
+        console.log(`[AUTH_BARRIER] retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        continue;
+      }
+      
+      // Final attempt failed
+      return {
+        ok: false,
+        status,
+        userId: null,
+        attempt,
+        error: errorMsg,
+      };
+    }
+  }
+  
+  // Should not reach here, but handle gracefully
+  return {
+    ok: false,
+    status: null,
+    userId: null,
+    attempt: MAX_ATTEMPTS,
+    error: 'Max attempts reached without userId',
+  };
+}
+
+/**
  * Exported authClient shim with the surfaces your code is calling:
  * - getToken/setToken
  * - $fetch
