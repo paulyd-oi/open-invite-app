@@ -1,4 +1,4 @@
-HANDOFF PACKET — DISABLE APPLE SIGN-IN FOR LAUNCH
+HANDOFF PACKET — WELCOME SCREEN ANIMATION FIX
 ====================================================================
 Date: 2026-02-01
 Branch: main
@@ -6,55 +6,73 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Temporarily disabled Apple Sign-In UI + handler for launch build.
-Email login remains fully functional. Apple code preserved (not deleted).
+Fixed Welcome screen animation "bounce then snap" issue by configuring
+FadeInUp springs with higher damping to prevent overshoot.
+
+ROOT CAUSE
+----------
+Default FadeInUp.springify() uses low damping which causes:
+1. Spring overshoots final position (bounce)
+2. Animation clips/snaps when settling, especially on slower devices
+3. Combined with SlideInRight/SlideOutLeft transitions, timing conflicts
+
+SOLUTION
+--------
+Created smoothFadeIn() helper that applies:
+- damping(20): High damping prevents overshoot
+- stiffness(90): Moderate stiffness for smooth motion
+- No more "bounce then teleport to final position"
 
 FILES CHANGED
 -------------
 1. src/app/welcome.tsx
-   - Added APPLE_SIGNIN_ENABLED = false feature flag
-   - Apple button no longer renders (flag guards condition)
-   - "or" divider no longer renders (flag guards condition)
-   - handleAppleSignIn cannot be triggered (no button to call it)
+   - Added smoothFadeIn() helper function after imports
+   - Replaced all 12 FadeInUp.springify() calls with smoothFadeIn()
 
 KEY DIFFS
 ---------
-After Apple import block:
-+ // Feature flag: disable Apple Sign-In for launch build
-+ // Set to true to re-enable, or wire to EXPO_PUBLIC_ENABLE_APPLE_SIGNIN
-+ const APPLE_SIGNIN_ENABLED = false;
++// ============ ANIMATION HELPERS ============
++// Configure FadeInUp with high damping to prevent overshoot/snap
++// Default springify() can cause "bounce then snap" on some devices
++const smoothFadeIn = (delayMs = 0) =>
++  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90);
 
-Apple button render:
-- {Platform.OS === "ios" && isAppleSignInReady && AppleAuthentication && (
-+ {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && AppleAuthentication && (
-
-"or" divider render:
-- {Platform.OS === "ios" && isAppleSignInReady && (
-+ {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && (
-
-COMMANDS RUN + RESULTS
-----------------------
-npm run typecheck                    PASS
+All Animated.View entering= props changed from:
+  FadeInUp.delay(X).springify()
+To:
+  smoothFadeIn(X)
 
 RUNTIME STATUS
 --------------
-- Typecheck: PASS
+npm run typecheck                    PASS
+./scripts/ai/verify_frontend.sh      PASS
+
+WHY THIS WORKS
+--------------
+- damping(20) prevents spring overshoot (default is ~10-15)
+- stiffness(90) maintains responsiveness without being too stiff
+- Animation ends at exact final position without "snap"
+- All motion is transform-based (translateY, opacity) - no layout props
+- No setState during animation window
+
+TEST PLAN
+---------
+1. Launch app on iOS simulator/device
+2. Go through all 4 welcome slides:
+   - Slide 1: "Your Social Calendar" with icon/buttons
+   - Slide 2: Create Account form
+   - Slide 3: Set Up Profile form
+   - Slide 4: Quote card
+3. Verify smooth fade-in animation on each slide
+4. No "bounce then snap" at end of animation
+5. Slide transitions (swipe between slides) smooth
+6. Email login flow still works end-to-end
+
+CONSTRAINTS MET
+---------------
+- Minimal diff (1 file, +19/-12 lines)
 - No new dependencies
-- appleSignIn.ts preserved (not deleted)
+- Reanimated already configured in repo
 - Navigation architecture unchanged
 - Icon system untouched
-
-WHAT TO TEST
-------------
-1. Launch app on iOS device/simulator
-2. Verify welcome screen loads
-3. Verify NO Apple Sign-In button visible
-4. Verify NO "or" divider visible
-5. Enter email + password
-6. Tap Sign In / Sign Up
-7. Verify email login flow works end-to-end
-
-TO RE-ENABLE APPLE SIGN-IN
---------------------------
-Change in src/app/welcome.tsx:
-  const APPLE_SIGNIN_ENABLED = true;
+- Only transform + opacity animations (no layout props)

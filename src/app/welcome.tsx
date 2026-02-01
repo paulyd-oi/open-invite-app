@@ -27,6 +27,13 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+
+// ============ ANIMATION HELPERS ============
+// Configure FadeInUp with high damping to prevent overshoot/snap
+// Default springify() can cause "bounce then snap" on some devices
+const smoothFadeIn = (delayMs = 0) =>
+  FadeInUp.delay(delayMs).springify().damping(20).stiffness(90);
+
 import {
   Calendar as CalendarIcon,
   ArrowRight,
@@ -1050,7 +1057,7 @@ export default function WelcomeOnboardingScreen() {
   const renderSlide1 = () => (
     <OnboardingLayout theme={theme}>
       <View style={styles.slideContent}>
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.centeredContent}>
+        <Animated.View entering={smoothFadeIn(100)} style={styles.centeredContent}>
           <View style={[styles.iconContainer, { backgroundColor: `${theme.accent}20` }]}>
             <CalendarIcon size={48} color={theme.accent} />
           </View>
@@ -1064,7 +1071,7 @@ export default function WelcomeOnboardingScreen() {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.buttonGroup}>
+        <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
           <PrimaryButton
             title="Continue"
             onPress={() => setCurrentSlide(2)}
@@ -1090,7 +1097,7 @@ export default function WelcomeOnboardingScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View entering={FadeInUp.springify()} style={styles.formHeader}>
+          <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
             <Text style={[styles.title, { color: theme.text }]}>
               Create Account
             </Text>
@@ -1139,7 +1146,7 @@ export default function WelcomeOnboardingScreen() {
 
           {/* Apple Sign In - gated by canShowAppleSignIn (APPLE_SIGNIN_ENABLED=false for launch) */}
           {canShowAppleSignIn && (
-            <Animated.View entering={FadeInUp.delay(100).springify()}>
+            <Animated.View entering={smoothFadeIn(100)}>
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
                 buttonStyle={
@@ -1162,7 +1169,7 @@ export default function WelcomeOnboardingScreen() {
             </View>
           )}
 
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.inputGroup}>
+          <Animated.View entering={smoothFadeIn(200)} style={styles.inputGroup}>
             <StyledInput
               value={email}
               onChangeText={setEmail}
@@ -1182,7 +1189,7 @@ export default function WelcomeOnboardingScreen() {
             />
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(300).springify()}>
+          <Animated.View entering={smoothFadeIn(300)}>
             <Text style={[styles.termsText, { color: theme.textTertiary }]}>
               By continuing, you agree to our Terms of Service and Privacy Policy.
             </Text>
@@ -1215,7 +1222,7 @@ export default function WelcomeOnboardingScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View entering={FadeInUp.springify()} style={styles.formHeader}>
+          <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
             <Text style={[styles.title, { color: theme.text }]}>
               Set Up Your Profile
             </Text>
@@ -1231,7 +1238,7 @@ export default function WelcomeOnboardingScreen() {
           )}
 
           {/* Photo picker (optional) */}
-          <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.photoSection}>
+          <Animated.View entering={smoothFadeIn(100)} style={styles.photoSection}>
             <Pressable onPress={handlePickPhoto} disabled={uploadBusy}>
               <View style={[styles.photoPlaceholder, { borderColor: theme.accent }]}>
                 {avatarLocalUri ? (
@@ -1253,7 +1260,7 @@ export default function WelcomeOnboardingScreen() {
             </Pressable>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.inputGroup}>
+          <Animated.View entering={smoothFadeIn(200)} style={styles.inputGroup}>
             <StyledInput
               value={displayName}
               onChangeText={(text) => {
@@ -1292,7 +1299,7 @@ export default function WelcomeOnboardingScreen() {
             </View>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.buttonGroup}>
+          <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
             <PrimaryButton
               title="Continue"
               onPress={handleSlide3Continue}
@@ -1308,7 +1315,7 @@ export default function WelcomeOnboardingScreen() {
   const renderSlide4 = () => (
     <OnboardingLayout theme={theme}>
       <View style={styles.slideContent}>
-        <Animated.View entering={FadeInUp.springify()} style={styles.centeredContent}>
+        <Animated.View entering={smoothFadeIn()} style={styles.centeredContent}>
           <View style={[styles.iconContainer, { backgroundColor: `${theme.accent}20` }]}>
             <Sparkles size={36} color={theme.accent} />
           </View>
@@ -1323,7 +1330,7 @@ export default function WelcomeOnboardingScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.buttonGroup}>
+        <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
           <PrimaryButton
             title="Continue"
             onPress={handleFinishOnboarding}
