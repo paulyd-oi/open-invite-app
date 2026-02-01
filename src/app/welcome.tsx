@@ -59,6 +59,10 @@ try {
   console.log("[Apple Auth] expo-apple-authentication not available - requires native build");
 }
 
+// Feature flag: disable Apple Sign-In for launch build
+// Set to true to re-enable, or wire to EXPO_PUBLIC_ENABLE_APPLE_SIGNIN
+const APPLE_SIGNIN_ENABLED = false;
+
 /**
  * Human-readable explanation for each error bucket.
  * Used in diagnostic logs to help interpret failure mode.
@@ -1126,8 +1130,8 @@ export default function WelcomeOnboardingScreen() {
             </Pressable>
           )}
 
-          {/* Apple Sign In */}
-          {Platform.OS === "ios" && isAppleSignInReady && AppleAuthentication && (
+          {/* Apple Sign In - disabled via APPLE_SIGNIN_ENABLED flag */}
+          {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && AppleAuthentication && (
             <Animated.View entering={FadeInUp.delay(100).springify()}>
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
@@ -1143,7 +1147,7 @@ export default function WelcomeOnboardingScreen() {
             </Animated.View>
           )}
 
-          {Platform.OS === "ios" && isAppleSignInReady && (
+          {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && (
             <View style={styles.divider}>
               <View style={[styles.dividerLine, { backgroundColor: theme.surfaceBorder }]} />
               <Text style={[styles.dividerText, { color: theme.textTertiary }]}>or</Text>
