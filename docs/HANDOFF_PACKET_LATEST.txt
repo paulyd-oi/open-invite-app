@@ -1,130 +1,93 @@
-HANDOFF PACKET — PUSH DIAGNOSTICS UI + PRODUCTION REGISTRATION
-================================================================
-Date: 2025-01-31
+HANDOFF PACKET — APPLE LOGIN COOKIE FIX + LEGACY ONBOARDING REMOVAL
+====================================================================
+Date: 2026-01-31
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Added user-visible Push Diagnostics panel in Settings that works in TestFlight.
-Users can now:
-1. Tap "Register Now" to run full push registration with on-screen results
-2. Tap "Clear My Tokens" to delete all tokens and verify empty state
-3. See detailed diagnostic info: device, permission, projectId, token prefix/length,
-   validation result, POST status, GET /api/push/me response with all tokens
-
-This is NOT DEV-only - it runs in production TestFlight builds for allowlisted users.
+TASK A: Fixed Apple Sign-In "session expired" bug caused by invalid tokens being stored.
+TASK B: Disabled legacy "Get Started Guide" modal; only new interactive onboarding shows.
 
 FILES CHANGED
 -------------
-1. src/hooks/useNotifications.ts
-   - Enhanced runPushDiagnostics() to return comprehensive diagnostic info:
-     * isPhysicalDevice, permission, projectId
-     * tokenPrefix, tokenLength, isValidToken
-     * postStatus, postBody, getStatus, getBody
-     * backendActiveCount, backendTokens array
-   - Added clearMyPushTokens() function: POST /api/push/clear-mine then GET /api/push/me
+1. src/lib/authClient.ts
+   - Added isValidBetterAuthToken() validator function (exported)
+   - Updated captureAndStoreCookie(): removed substring fallback, validates before store
+   - Updated setExplicitCookieValueDirectly(): validates token, returns boolean
 
-2. src/app/settings.tsx
-   - Added Push Diagnostics Modal with:
-     * "Register Now" button - runs full registration flow
-     * "Clear Tokens" button - clears all user tokens from backend
-     * Results panel showing all diagnostic values
-     * Backend tokens list with ACTIVE/INACTIVE status
-     * POST response preview
-   - Updated state management for modal and results
+2. src/lib/sessionCookie.ts
+   - Added isValidSessionToken() local validator (same logic)
+   - Updated setExplicitCookiePair(): validates token, returns Promise<boolean>
 
-KEY IMPLEMENTATION
-------------------
-useNotifications.ts runPushDiagnostics() returns:
-{
-  ok: boolean;
-  reason: string;
-  isPhysicalDevice: boolean;
-  permission?: string;
-  projectId?: string;
-  tokenPrefix?: string;
-  tokenLength?: number;
-  isValidToken?: boolean;
-  postStatus?: number | string;
-  postBody?: unknown;
-  getStatus?: number | string;
-  getBody?: unknown;
-  backendActiveCount?: number;
-  backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
-}
+3. src/app/welcome.tsx
+   - Imports isValidBetterAuthToken from authClient
+   - Validates tokenValue before storage in Apple Sign-In flow
+   - Handles validation failures with user-friendly error
 
-clearMyPushTokens() returns:
-{
-  ok: boolean;
-  error?: string;
-  tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
-}
+4. src/app/calendar.tsx
+   - Disabled checkFirstLogin useEffect (legacy modal trigger)
+   - Added one-time migration to set get_started_dismissed flag for all users
+
+KEY DIFFS
+---------
+authClient.ts:
++ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
++ export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reason: string }
++ // REMOVED: fallback logic looking for any key containing 'session_token'
++ // ADDED: validation before storing in captureAndStoreCookie()
++ // CHANGED: setExplicitCookieValueDirectly() returns boolean
+
+sessionCookie.ts:
++ function isValidSessionToken(token: string): { isValid: boolean; reason: string }
++ // CHANGED: setExplicitCookiePair() returns Promise<boolean>
+
+welcome.tsx:
++ import { ..., isValidBetterAuthToken } from "@/lib/authClient";
++ const tokenValidation = isValidBetterAuthToken(tokenValue);
++ if (!tokenValidation.isValid) { throw new Error("...invalid session token..."); }
++ const stored = await setExplicitCookiePair(tokenValue); if (!stored) { throw ... }
++ const cacheSet = setExplicitCookieValueDirectly(...); if (!cacheSet) { throw ... }
+
+calendar.tsx:
+- // Old checkFirstLogin logic that showed modal for new users
++ // DISABLED: Legacy first login guide modal
++ // Added one-time migration to set legacy flag as dismissed
 
 RUNTIME STATUS
 --------------
-✓ npm run typecheck: PASS
-✓ bash scripts/ai/verify_frontend.sh: PASS
+npm run typecheck: PASS
+bash scripts/ai/verify_frontend.sh: PASS
 
-TESTFLIGHT VERIFICATION STEPS
------------------------------
-1. Install TestFlight build on physical iPhone
-2. Sign in with allowlisted email (pauljdal@gmail.com, paulydal@ymail.com, etc.)
-3. Go to Settings → scroll to Notifications section → tap "Push Diagnostics"
-4. Modal opens showing instructions
+TEST PLAN
+---------
+Task A (Apple Login):
+1. Build TestFlight with this commit
+2. Fresh Apple Sign-In on physical device
+3. Complete profile setup (name, photo)
+4. Confirm NO "session expired" error appears
+5. Confirm /api/auth/session returns 200 (check DEV logs or network inspector)
+6. Regression: Email/password login still works
 
-5. Tap "Clear Tokens" first (to test fresh state)
-   - Should show "Tokens cleared" toast
-   - Results panel shows backendTokens: [] or count 0
+Task B (Legacy Onboarding):
+1. Sign in with a fresh account (0 friends, 0 events)
+2. Confirm the OLD modal ("Welcome to Open Invite! / Get Started Guide / Maybe later") does NOT appear
+3. Confirm the NEW interactive onboarding (if triggered) still works
+4. Regression: Settings > "Get Started Guide" still navigates to /onboarding
 
-6. Tap "Register Now"
-   - Should show "Running..." then results
-   - Expected SUCCESS results:
-     * Physical Device: Yes ✓
-     * Permission: granted
-     * Project ID: <UUID> (not NOT_FOUND)
-     * Token Prefix: ExponentPushToken[REAL... (NOT containing "test")
-     * Token Length: 44+ (not < 30)
-     * Valid Token: Yes ✓
-     * POST Status: 200
-     * GET Status: 200
-     * Active Tokens: 1+
-   - Backend Tokens list shows your real token with ACTIVE badge
+NOTES / RISKS
+-------------
+- Token validator rejects any token without a dot - this assumes Better Auth tokens are always signed/JWT-like
+- If backend ever returns unsigned tokens, validator will reject them (safe failure mode)
+- Legacy modal is disabled but code remains (safe to remove entirely in future cleanup)
+- One-time migration sets flag for all users - idempotent, runs on every calendar mount
 
-7. Verify backend directly:
-   curl -b /tmp/oi.txt https://open-invite-api.onrender.com/api/push/me
-   Expected: tokenPrefix NOT "test123", isActive = true
-
-FAILURE SCENARIOS
------------------
-| Screen Shows                | Meaning                          | Fix                    |
-|-----------------------------|----------------------------------|------------------------|
-| Physical Device: No         | Running on simulator             | Use real iPhone        |
-| Permission: denied          | User denied notifications        | Grant in iOS Settings  |
-| Project ID: NOT_FOUND       | Missing EAS config               | Check app.json/eas     |
-| Token Prefix: ...test...    | Placeholder token                | Real device required   |
-| Valid Token: No             | Token failed validation          | Check logs for reason  |
-| POST Status: 401            | Auth cookie missing              | Re-sign in             |
-| POST Status: 404/500        | Backend route issue              | Check backend logs     |
-| Active Tokens: 0            | Backend didn't persist           | Check POST response    |
-
-ENDPOINTS USED
---------------
-- POST /api/push/register { token, platform: "expo" }
-- POST /api/push/clear-mine {}
-- GET /api/push/me
-
-WHAT'S NOT CHANGED
-------------------
-- Navigation architecture
-- Icon system
-- Auth flow
-- Other settings items
-- No new dependencies
-
-PREVIOUS WORK (still in place)
-------------------------------
-- Shared validator: src/lib/push/validatePushToken.ts
-- DEV-only [PUSH_PROOF] logs on cold start
-- DEV-only [NUDGE_PROOF] logs in NotificationNudgeModal
-- 24h throttle for foreground re-registration
+VALIDATOR REJECTION REASONS
+---------------------------
+| Reason              | Meaning                           | Action      |
+|---------------------|-----------------------------------|-------------|
+| empty_or_not_string | Token is null/undefined/not string| Reject      |
+| too_short           | Token length < 20 chars           | Reject      |
+| uuid_pattern        | Token matches UUID format         | Reject      |
+| no_dot_not_signed   | Token has no "." character        | Reject      |
+| valid               | Token passes all checks           | Accept      |

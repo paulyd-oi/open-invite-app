@@ -1,5 +1,77 @@
 # Findings Log — Frontend
 
+## P0: Apple Login Cookie Overwrite Bug (2026-01-31)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Apple Sign-In succeeded but users got "Your session expired" during onboarding/profile setup.
+
+**ROOT CAUSE**: Cookie capture code had a **substring fallback** that could match ANY key containing "session_token":
+```typescript
+// DANGEROUS FALLBACK (REMOVED):
+const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
+```
+This could capture UUID session IDs (like `abc123-def456-...`) instead of actual signed session tokens.
+
+**SYMPTOM CHAIN**:
+1. Apple auth backend returns mobileSessionToken (valid) but also stores session ID somewhere
+2. Substring fallback picks up the wrong value
+3. UUID stored as session token
+4. /api/auth/session returns 401 missing_token
+5. User sees "session expired" error
+
+### FIX: Token Validation + Exact Key Matching
+
+**New validator: `isValidBetterAuthToken(token)`** in authClient.ts:
+- Rejects empty/non-string values
+- Rejects tokens shorter than 20 chars
+- Rejects UUID pattern (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`)
+- Rejects strings without a dot (Better Auth tokens are signed like JWTs)
+
+**captureAndStoreCookie()**: Removed substring fallback, uses EXACT key match only, validates before storing
+
+**setExplicitCookieValueDirectly()**: Now validates and returns boolean (false = rejected)
+
+**setExplicitCookiePair()**: Now validates and returns Promise<boolean> (false = rejected)
+
+**welcome.tsx**: Validates tokenValue before any storage, shows user-friendly error on validation failure
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+### Test Plan
+1. Apple Sign-In on physical device → complete profile → no "session expired"
+2. Confirm /api/auth/session stays 200 during onboarding
+3. Email/password login still works (regression check)
+
+---
+
+## P0: Legacy Onboarding Modal Still Showing (2026-01-31)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Old "Welcome to Open Invite! / Get Started Guide / Maybe later" modal still appeared for new users.
+
+**ROOT CAUSE**: calendar.tsx had a `checkFirstLogin` useEffect that showed the old modal for users with 0 friends AND 0 events, even though the new interactive onboarding (useOnboardingGuide) was supposed to be the only prompt.
+
+### FIX: Disable Legacy Modal + Migration
+
+**calendar.tsx**: 
+- `checkFirstLogin` useEffect now returns early (disabled)
+- Added one-time migration: sets `get_started_dismissed:userId` flag for all users
+- Added DEV log explaining legacy guide is disabled
+
+**Active onboarding**: `useOnboardingGuide` in src/hooks/useOnboardingGuide.ts remains the ONLY onboarding system
+
+### Verification
+- Old "Welcome to Open Invite" modal never shows
+- New interactive onboarding ("Start with one action") still works
+
+---
+
 ## P0: Business Legacy Complete Purge (2026-01-30)
 
 ### Scope

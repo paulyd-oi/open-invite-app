@@ -77,6 +77,17 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Apple Login Cookie Fix + Legacy Onboarding Removal)
+- Token validator added: isValidBetterAuthToken() in authClient.ts rejects UUIDs, short strings, strings without dots
+- Cookie capture hardened: captureAndStoreCookie() removed substring fallback, validates tokens before storing
+- setExplicitCookieValueDirectly(): Now validates token and returns boolean success status
+- setExplicitCookiePair(): Now validates token and returns Promise<boolean> success status
+- welcome.tsx Apple flow: Validates tokenValue with isValidBetterAuthToken() before any storage
+- welcome.tsx error handling: Shows user-friendly error if token validation fails
+- Legacy onboarding disabled: calendar.tsx "Welcome to Open Invite / Get Started Guide" modal no longer shows
+- Legacy flag migration: Existing users get get_started_dismissed flag auto-set to prevent future re-enablement
+- New interactive onboarding: useOnboardingGuide remains the ONLY active onboarding system
+
 ## Fixed This Session (P0 Busy Grey Single Source of Truth + Badge Pill-Only)
 - Created src/lib/eventPalette.ts: Single source of truth for ALL event color rendering
 - getEventPalette(): Returns { bar, bg, icon, text } palette for any event

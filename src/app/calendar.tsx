@@ -1569,56 +1569,28 @@ export default function CalendarScreen() {
   const eventRequests = eventRequestsData?.eventRequests ?? [];
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
-  // Check if this is a true new user (per-user key + usage signals + defensive heuristic) - moved after calendarData definition
+  // LEGACY ONBOARDING DISABLED: The old "Welcome to Open Invite / Get Started Guide" modal
+  // has been replaced by the new interactive onboarding in useOnboardingGuide.
+  // This useEffect is kept but disabled to prevent the old modal from showing.
   useEffect(() => {
-    const checkFirstLogin = async () => {
-      // Must have a valid user ID to check/set guide seen status
+    // DISABLED: Legacy first login guide modal
+    // The new interactive onboarding (useOnboardingGuide) is the only onboarding prompt.
+    // See: src/hooks/useOnboardingGuide.ts for the active onboarding system.
+    if (__DEV__) console.log('[GUIDE_DECISION] Legacy guide check DISABLED - using new interactive onboarding only');
+    
+    // Clean up any old flags for existing users (one-time migration)
+    const cleanupLegacyFlags = async () => {
       const userId = session?.user?.id;
-      if (!userId || bootStatus !== 'authed') {
-        if (__DEV__) console.log('[GUIDE_DECISION] Skip: not authed or no userId', { userId, bootStatus });
-        return;
-      }
-      
-      // STRUCTURAL FIX: Use isFetched to ensure data has actually loaded
-      // This prevents false positives from empty arrays during loading
-      if (!isFriendsFetched || !isCalendarFetched) {
-        if (__DEV__) console.log('[GUIDE_DECISION] Skip: data not yet fetched', { isFriendsFetched, isCalendarFetched });
-        return;
-      }
-      
+      if (!userId) return;
+      // Mark old guide as dismissed to prevent any future re-enablement
       const guideSeenKey = `get_started_dismissed:${userId}`;
-      const hasDismissed = await AsyncStorage.getItem(guideSeenKey);
-      if (hasDismissed) {
-        if (__DEV__) console.log('[GUIDE_DECISION] Skip: already dismissed', { guideSeenKey });
-        return;
-      }
-
-      // Only show for true new users: no friends AND no calendar events
-      const friendsCount = friendsData?.friends?.length ?? 0;
-      const createdEventsCount = calendarData?.createdEvents?.length ?? 0;
-      const goingEventsCount = calendarData?.goingEvents?.length ?? 0;
-      const totalEventsCount = createdEventsCount + goingEventsCount;
-      
-      const isTrueNewUser = friendsCount === 0 && totalEventsCount === 0;
-      
-      if (__DEV__) console.log('[GUIDE_DECISION] Evaluation', { 
-        userId, 
-        friendsCount, 
-        createdEventsCount, 
-        goingEventsCount, 
-        totalEventsCount, 
-        isTrueNewUser,
-        willShowGuide: isTrueNewUser
-      });
-      
-      if (isTrueNewUser) {
-        // Show the popup after a small delay for smoother UX
-        setTimeout(() => {
-          setShowFirstLoginGuide(true);
-        }, 500);
+      const alreadyDismissed = await AsyncStorage.getItem(guideSeenKey);
+      if (!alreadyDismissed) {
+        await AsyncStorage.setItem(guideSeenKey, "true");
+        if (__DEV__) console.log('[GUIDE_DECISION] Migrated: set legacy flag to dismissed', { guideSeenKey });
       }
     };
-    checkFirstLogin();
+    cleanupLegacyFlags();
   }, [session?.user?.id, bootStatus, isFriendsFetched, isCalendarFetched, friendsData, calendarData]);
 
   // Determine empty state logic (fixed bug: account for loading states)

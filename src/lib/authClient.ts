@@ -33,6 +33,43 @@ function authTrace(event: string, data: Record<string, boolean | string | number
   console.log(`[AUTH_TRACE] ${event}`, data);
 }
 
+// UUID regex pattern for rejection
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a token is a plausible Better Auth session token.
+ * Rejects UUIDs, short strings, and strings without a dot (not signed JWT-like).
+ * 
+ * CRITICAL: Used to prevent storing invalid values (e.g., session IDs) as session tokens.
+ * 
+ * @param token The token value to validate
+ * @returns Object with isValid boolean and reason string
+ */
+export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reason: string } {
+  if (!token || typeof token !== "string") {
+    return { isValid: false, reason: "empty_or_not_string" };
+  }
+  
+  const trimmed = token.trim();
+  
+  // Minimum length check (Better Auth tokens are typically much longer)
+  if (trimmed.length < 20) {
+    return { isValid: false, reason: "too_short" };
+  }
+  
+  // Reject UUID pattern (session IDs are UUIDs, not session tokens)
+  if (UUID_PATTERN.test(trimmed)) {
+    return { isValid: false, reason: "uuid_pattern" };
+  }
+  
+  // Better Auth tokens are signed and contain at least one dot (like JWTs)
+  if (!trimmed.includes(".")) {
+    return { isValid: false, reason: "no_dot_not_signed" };
+  }
+  
+  return { isValid: true, reason: "valid" };
+}
+
 // Prefer explicit EXPO_PUBLIC_API_URL, then fall back to the centralized BACKEND_URL
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -414,17 +451,40 @@ export async function refreshExplicitCookie(): Promise<void> {
 /**
  * Set the explicit cookie value directly in module cache.
  * Use this after storing to SecureStore to avoid read-back delay.
+ * CRITICAL: Validates token before setting to prevent storing invalid values.
  * @param cookiePair The full cookie pair: "__Secure-better-auth.session_token=TOKEN"
+ * @returns true if set successfully, false if validation failed
  */
-export function setExplicitCookieValueDirectly(cookiePair: string): void {
+export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   if (!cookiePair) {
     explicitCookieValue = null;
-    return;
+    return false;
   }
+  
+  // Extract token value from cookie pair for validation
+  const parts = cookiePair.split('=');
+  if (parts.length < 2) {
+    if (__DEV__) {
+      console.log('[AUTH_TRACE] setExplicitCookieValueDirectly: rejected, invalid format (no =)');
+    }
+    return false;
+  }
+  
+  const tokenValue = parts.slice(1).join('='); // Handle tokens with = in them
+  const validation = isValidBetterAuthToken(tokenValue);
+  
+  if (!validation.isValid) {
+    if (__DEV__) {
+      console.log(`[AUTH_TRACE] setExplicitCookieValueDirectly: rejected token, reason=${validation.reason}`);
+    }
+    return false; // Do NOT set invalid token
+  }
+  
   explicitCookieValue = cookiePair;
   if (__DEV__) {
-    console.log('[setExplicitCookieValueDirectly] Cookie cache set directly');
+    console.log('[setExplicitCookieValueDirectly] Cookie cache set directly (validated)');
   }
+  return true;
 }
 
 async function captureAndStoreCookie(): Promise<void> {
@@ -443,9 +503,9 @@ async function captureAndStoreCookie(): Promise<void> {
     }
     
     if (rawCookie && rawCookie !== '{}') {
-      // Target cookie name
+      // Target cookie name - EXACT match only, no fallbacks
       const targetCookieName = '__Secure-better-auth.session_token';
-      let cookieValue: string | null = null;
+      let tokenValue: string | null = null;
       
       try {
         // Try parsing as JSON (Better Auth format)
@@ -455,27 +515,19 @@ async function captureAndStoreCookie(): Promise<void> {
         }
         
         if (typeof parsed === 'object') {
-          // Look for the exact session token key
+          // Look for the EXACT session token key ONLY (no substring fallback)
           if (parsed[targetCookieName]) {
             // Extract just the value (strip any attributes after ";")
             const rawValue = parsed[targetCookieName];
-            const cleanValue = rawValue.split(';')[0].split(',')[0].trim();
-            cookieValue = `${targetCookieName}=${cleanValue}`;
+            tokenValue = typeof rawValue === 'string' 
+              ? rawValue.split(';')[0].split(',')[0].trim()
+              : rawValue?.value ?? null;
             if (__DEV__) {
-              console.log('[captureAndStoreCookie] Found target cookie, extracted name=value pair');
-            }
-          } else {
-            // Fallback: look for any key containing session_token
-            const sessionKey = Object.keys(parsed).find(k => k.includes('session_token'));
-            if (sessionKey && parsed[sessionKey]) {
-              const rawValue = parsed[sessionKey];
-              const cleanValue = rawValue.split(';')[0].split(',')[0].trim();
-              cookieValue = `${sessionKey}=${cleanValue}`;
-              if (__DEV__) {
-                console.log('[captureAndStoreCookie] Found fallback session key:', sessionKey);
-              }
+              console.log('[captureAndStoreCookie] Found exact target cookie key');
             }
           }
+          // REMOVED: Fallback logic that looked for any key containing 'session_token'
+          // This was incorrectly capturing UUID session IDs
         }
       } catch {
         // Not JSON, might be raw cookie string (Set-Cookie format)
@@ -483,7 +535,7 @@ async function captureAndStoreCookie(): Promise<void> {
           // Parse Set-Cookie format: "__Secure-better-auth.session_token=VALUE; Path=/; ..."
           const match = rawCookie.match(new RegExp(`${targetCookieName}=([^;]+)`));
           if (match && match[1]) {
-            const cleanedMatch = match[1].split(",")[0].trim(); cookieValue = `${targetCookieName}=${cleanedMatch}`;
+            tokenValue = match[1].split(",")[0].trim();
             if (__DEV__) {
               console.log('[captureAndStoreCookie] Extracted from raw Set-Cookie format');
             }
@@ -491,24 +543,27 @@ async function captureAndStoreCookie(): Promise<void> {
         }
       }
       
-      if (cookieValue) {
-        // Verify format: should be "name=value" without attributes
-        if (cookieValue.includes(';')) {
-          cookieValue = cookieValue.split(';')[0].trim();
+      // CRITICAL: Validate token before storing
+      if (tokenValue) {
+        const validation = isValidBetterAuthToken(tokenValue);
+        
+        if (!validation.isValid) {
+          // REJECT: Do not store invalid token
+          if (__DEV__) {
+            console.log(`[AUTH_TRACE] captureAndStoreCookie: rejected token, reason=${validation.reason}`);
+          }
+          return; // Do not overwrite existing cookie with invalid value
         }
-        // Final safety: strip anything after a comma (extra cookies)
-        if (cookieValue.includes(',')) {
-          cookieValue = cookieValue.split(',')[0].trim();
-        }
+        
+        // Token is valid - construct full cookie pair and store
+        const cookieValue = `${targetCookieName}=${tokenValue}`;
         await setSessionCookie(cookieValue);
         if (__DEV__) {
-          const cookieName = cookieValue.split('=')[0];
-          console.log('[captureAndStoreCookie] Cookie captured and stored explicitly');
-          console.log('[captureAndStoreCookie] Stored cookie name:', cookieName);
+          console.log('[captureAndStoreCookie] Cookie captured and stored explicitly (validated)');
         }
       } else if (__DEV__) {
         console.log('[captureAndStoreCookie] Could not extract session token from Better Auth storage');
-        console.log('[captureAndStoreCookie] Available keys/format did not match expected pattern');
+        console.log('[captureAndStoreCookie] EXACT key __Secure-better-auth.session_token not found');
       }
     } else if (__DEV__) {
       console.log('[captureAndStoreCookie] No Better Auth cookie found to capture');

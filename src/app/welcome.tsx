@@ -38,7 +38,7 @@ import {
 import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
-import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly } from "@/lib/authClient";
+import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken } from "@/lib/authClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
@@ -664,9 +664,26 @@ export default function WelcomeOnboardingScreen() {
         throw new Error("Apple Sign-In succeeded but no session token was returned. Please try again.");
       }
       
+      // CRITICAL: Validate token before storing to prevent UUID/invalid values
+      const tokenValidation = isValidBetterAuthToken(tokenValue);
+      if (!tokenValidation.isValid) {
+        traceError("token_validation_failed", {
+          reason: tokenValidation.reason,
+          source: tokenSource,
+          tokenLength: tokenValue.length,
+        });
+        throw new Error("Apple Sign-In returned an invalid session token. Please try again.");
+      }
+      
+      traceLog("token_validated", { reason: tokenValidation.reason, source: tokenSource });
+      
       // Store token in SecureStore (via setExplicitCookiePair which formats as cookie pair)
       try {
-        await setExplicitCookiePair(tokenValue);
+        const stored = await setExplicitCookiePair(tokenValue);
+        if (!stored) {
+          traceError("cookie_persist_rejected", { message: "setExplicitCookiePair rejected token" });
+          throw new Error("Failed to store session token. Please try again.");
+        }
         traceLog("cookie_persist_securestore", { success: true, key: "SESSION_COOKIE_KEY" });
       } catch (storeErr: any) {
         traceError("cookie_persist_securestore_fail", storeErr);
@@ -674,7 +691,11 @@ export default function WelcomeOnboardingScreen() {
       }
       
       // Set module cache directly for immediate use (no read-back delay)
-      setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
+      const cacheSet = setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
+      if (!cacheSet) {
+        traceError("cookie_cache_rejected", { message: "setExplicitCookieValueDirectly rejected token" });
+        throw new Error("Failed to cache session token. Please try again.");
+      }
       traceLog("cookie_cache_set", { success: true });
       
       // Also store as legacy auth token (for any code still using token auth)

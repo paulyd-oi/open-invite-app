@@ -17,6 +17,30 @@ export const SESSION_COOKIE_KEY = "open-invite_session_cookie";
 // Cookie name used by Better Auth
 const COOKIE_NAME = "__Secure-better-auth.session_token";
 
+// UUID regex pattern for rejection (same as authClient.ts)
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a token is a plausible Better Auth session token.
+ * DUPLICATE: Same logic as authClient.ts isValidBetterAuthToken (avoid circular imports)
+ */
+function isValidSessionToken(token: string): { isValid: boolean; reason: string } {
+  if (!token || typeof token !== "string") {
+    return { isValid: false, reason: "empty_or_not_string" };
+  }
+  const trimmed = token.trim();
+  if (trimmed.length < 20) {
+    return { isValid: false, reason: "too_short" };
+  }
+  if (UUID_PATTERN.test(trimmed)) {
+    return { isValid: false, reason: "uuid_pattern" };
+  }
+  if (!trimmed.includes(".")) {
+    return { isValid: false, reason: "no_dot_not_signed" };
+  }
+  return { isValid: true, reason: "valid" };
+}
+
 /**
  * Get the stored session cookie pair
  * @returns The full cookie string or null if not set
@@ -120,14 +144,25 @@ export async function getSessionTokenValue(): Promise<string | null> {
 /**
  * Set explicit cookie pair from backend-provided mobileSessionToken.
  * This is the preferred method for storing the session token deterministically.
+ * CRITICAL: Validates token before storing to prevent UUID/invalid values.
  * @param tokenValue The raw session token value from backend's mobileSessionToken field
+ * @returns Promise<boolean> - true if stored, false if validation failed
  */
-export async function setExplicitCookiePair(tokenValue: string): Promise<void> {
+export async function setExplicitCookiePair(tokenValue: string): Promise<boolean> {
   if (!tokenValue) {
     if (__DEV__) {
       console.log("[sessionCookie] setExplicitCookiePair called with empty token");
     }
-    return;
+    return false;
+  }
+  
+  // CRITICAL: Validate token before storing
+  const validation = isValidSessionToken(tokenValue);
+  if (!validation.isValid) {
+    if (__DEV__) {
+      console.log(`[AUTH_TRACE] setExplicitCookiePair: rejected token, reason=${validation.reason}`);
+    }
+    return false; // Do NOT store invalid token
   }
   
   // Format as full cookie pair
@@ -137,9 +172,9 @@ export async function setExplicitCookiePair(tokenValue: string): Promise<void> {
     await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
     
     if (__DEV__) {
-      console.log("[sessionCookie] Explicit cookie pair stored successfully");
-      console.log("[sessionCookie] Explicit cookie stored: true");
+      console.log("[sessionCookie] Explicit cookie pair stored successfully (validated)");
     }
+    return true;
   } catch (error) {
     if (__DEV__) {
       console.log("[sessionCookie] Error setting explicit cookie pair:", error);
