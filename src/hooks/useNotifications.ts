@@ -497,30 +497,45 @@ export function useNotifications() {
 
   /**
    * Production-safe push diagnostics function.
-   * Returns diagnostic info about push token registration without exposing secrets.
-   * Can be called from Settings screen to verify push setup.
+   * Returns comprehensive diagnostic info about push token registration.
+   * Can be called from Settings screen to verify push setup in TestFlight.
+   * 
+   * IMPORTANT: Never returns full token, only prefix + length for safety.
    */
   const runPushDiagnostics = useCallback(async (): Promise<{
     ok: boolean;
     reason: string;
+    isPhysicalDevice: boolean;
     permission?: string;
+    projectId?: string;
     tokenPrefix?: string;
+    tokenLength?: number;
+    isValidToken?: boolean;
+    postStatus?: number | string;
+    postBody?: unknown;
+    getStatus?: number | string;
+    getBody?: unknown;
     backendActiveCount?: number;
+    backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
   }> => {
     console.log("[PUSH_DIAG] start");
 
-    // A) Check auth status
+    // A) Check physical device
+    const isPhysicalDevice = Device.isDevice;
+    console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice);
+
+    // B) Check auth status
     if (bootStatus !== 'authed' || !session?.user) {
       console.log("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
-      return { ok: false, reason: "not_authed" };
+      return { ok: false, reason: "not_authed", isPhysicalDevice };
     }
 
     try {
-      // B) Read permission
+      // C) Read permission
       let { status } = await Notifications.getPermissionsAsync();
       console.log("[PUSH_DIAG] initial_permission=" + status);
 
-      // C) Request permission if undetermined
+      // D) Request permission if undetermined
       if (status === 'undetermined') {
         console.log("[PUSH_DIAG] requesting_permission");
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
@@ -528,67 +543,150 @@ export function useNotifications() {
         console.log("[PUSH_DIAG] permission_after_request=" + status);
       }
 
-      // D) Check if granted
+      // E) Get projectId
+      const projectId =
+        Constants?.easConfig?.projectId ??
+        Constants?.expoConfig?.extra?.eas?.projectId;
+      console.log("[PUSH_DIAG] projectId=" + (projectId || "NOT_FOUND"));
+
+      // F) Check if permission granted
       if (status !== 'granted') {
         console.log("[PUSH_DIAG] permission_not_granted=" + status);
-        return { ok: false, reason: "permission_not_granted", permission: status };
+        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId: projectId || "NOT_FOUND" };
       }
       console.log("[PUSH_DIAG] permission=granted");
 
-      // E) Get token
+      // G) Get token
       const token = await registerForPushNotificationsAsync();
-      
-      // F) Validate token (uses shared validator)
-      if (!token || !isValidExpoPushToken(token)) {
-        console.log("[PUSH_DIAG] invalid_token");
-        return { ok: false, reason: "invalid_token", permission: status };
-      }
       const tokenPrefix = getTokenPrefix(token);
-      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix);
+      const tokenLength = token?.length ?? 0;
+      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix + " tokenLength=" + tokenLength);
+      
+      // H) Validate token (uses shared validator)
+      const isValidToken = isValidExpoPushToken(token);
+      console.log("[PUSH_DIAG] isValidToken=" + isValidToken);
 
-      // G) POST /api/push/register
+      if (!token || !isValidToken) {
+        console.log("[PUSH_DIAG] invalid_token");
+        return { 
+          ok: false, 
+          reason: "invalid_token", 
+          isPhysicalDevice, 
+          permission: status, 
+          projectId: projectId || "NOT_FOUND",
+          tokenPrefix,
+          tokenLength,
+          isValidToken,
+        };
+      }
+
+      // I) POST /api/push/register
       const PUSH_REGISTER_ROUTE = "/api/push/register";
       console.log("[PUSH_DIAG] registering_token route=" + PUSH_REGISTER_ROUTE);
-      await api.post(PUSH_REGISTER_ROUTE, {
-        token,
-        platform: "expo",
-      });
-      console.log(`[PUSH_DIAG] ✓ token_registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${tokenPrefix}`);
+      
+      let postStatus: number | string = 200;
+      let postBody: unknown = null;
+      try {
+        const postResponse = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
+          token,
+          platform: "expo",
+        });
+        postBody = postResponse;
+        console.log("[PUSH_DIAG] POST status=200 body=" + JSON.stringify(postResponse));
+      } catch (postErr: any) {
+        postStatus = postErr?.status ?? postErr?.statusCode ?? "error";
+        postBody = postErr?.data ?? postErr?.message ?? String(postErr);
+        console.log("[PUSH_DIAG] POST status=" + postStatus + " error=" + JSON.stringify(postBody));
+        return {
+          ok: false,
+          reason: "backend_error",
+          isPhysicalDevice,
+          permission: status,
+          projectId: projectId || "NOT_FOUND",
+          tokenPrefix,
+          tokenLength,
+          isValidToken,
+          postStatus,
+          postBody,
+        };
+      }
 
-      // H) POST /api/notifications/status
+      // J) POST /api/notifications/status
       await api.post("/api/notifications/status", {
         pushPermissionStatus: "granted",
       });
       console.log("[PUSH_DIAG] status_updated");
 
-      // I) GET device-tokens for proof
+      // K) GET /api/push/me for proof
+      let getStatus: number | string = 200;
+      let getBody: unknown = null;
       let backendActiveCount = 0;
+      let backendTokens: Array<{ tokenPrefix?: string; isActive?: boolean }> = [];
       try {
-        const tokensResponse = await api.get<{ tokens: unknown[] } | unknown[]>("/api/notifications/device-tokens");
-        // Handle both array and object response formats
-        if (Array.isArray(tokensResponse)) {
-          backendActiveCount = tokensResponse.length;
-        } else if (tokensResponse && typeof tokensResponse === 'object' && 'tokens' in tokensResponse) {
-          backendActiveCount = Array.isArray(tokensResponse.tokens) ? tokensResponse.tokens.length : 0;
-        }
-        console.log("[PUSH_DIAG] backendActiveCount=" + backendActiveCount);
-      } catch (e) {
-        // Non-fatal - endpoint may not exist in prod
-        console.log("[PUSH_DIAG] device-tokens_fetch_skipped");
+        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+        getBody = meResponse;
+        backendTokens = meResponse?.tokens ?? [];
+        backendActiveCount = backendTokens.filter(t => t.isActive).length;
+        console.log("[PUSH_DIAG] GET /api/push/me status=200 tokens=" + backendTokens.length + " active=" + backendActiveCount);
+      } catch (getErr: any) {
+        getStatus = getErr?.status ?? getErr?.statusCode ?? "error";
+        getBody = getErr?.data ?? getErr?.message ?? String(getErr);
+        console.log("[PUSH_DIAG] GET /api/push/me error=" + JSON.stringify(getBody));
       }
 
-      // J) Success
+      // L) Success
       console.log("[PUSH_DIAG] success");
       return {
         ok: true,
         reason: "success",
+        isPhysicalDevice,
         permission: status,
+        projectId: projectId || "NOT_FOUND",
         tokenPrefix,
+        tokenLength,
+        isValidToken,
+        postStatus,
+        postBody,
+        getStatus,
+        getBody,
         backendActiveCount,
+        backendTokens,
       };
     } catch (error: any) {
       console.log("[PUSH_DIAG] error=" + (error?.message || "unknown"));
-      return { ok: false, reason: "backend_error", permission: undefined };
+      return { ok: false, reason: "backend_error", isPhysicalDevice: Device.isDevice };
+    }
+  }, [bootStatus, session?.user]);
+
+  /**
+   * Clear all push tokens for the current user from backend.
+   * Returns the updated token list (should be empty).
+   */
+  const clearMyPushTokens = useCallback(async (): Promise<{
+    ok: boolean;
+    error?: string;
+    tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+  }> => {
+    console.log("[PUSH_DIAG] clearMyPushTokens start");
+    
+    if (bootStatus !== 'authed' || !session?.user) {
+      return { ok: false, error: "not_authed" };
+    }
+
+    try {
+      // POST to clear endpoint
+      await api.post("/api/push/clear-mine", {});
+      console.log("[PUSH_DIAG] clear-mine POST success");
+
+      // GET updated token list
+      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+      const tokens = meResponse?.tokens ?? [];
+      console.log("[PUSH_DIAG] after clear, tokens=" + tokens.length);
+
+      return { ok: true, tokens };
+    } catch (error: any) {
+      console.log("[PUSH_DIAG] clearMyPushTokens error=" + (error?.message || "unknown"));
+      return { ok: false, error: error?.message || "Unknown error" };
     }
   }, [bootStatus, session?.user]);
 
@@ -597,5 +695,6 @@ export function useNotifications() {
     notification,
     recheckPermission: checkAndRegisterToken,
     runPushDiagnostics,
+    clearMyPushTokens,
   };
 }

@@ -1,114 +1,130 @@
-HANDOFF PACKET — PUSH TOKEN REGISTRATION COMPLETE
-==================================================
+HANDOFF PACKET — PUSH DIAGNOSTICS UI + PRODUCTION REGISTRATION
+================================================================
 Date: 2025-01-31
 Branch: main
-Commit: 6989ad5
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Complete push token registration implementation with:
-1. Single source-of-truth validator (src/lib/push/validatePushToken.ts)
-2. All registration paths use /api/push/register (NOT /api/notifications/register-token)
-3. DEV-only proof diagnostics [PUSH_PROOF] and [NUDGE_PROOF]
-4. Correct projectId resolution order
-5. Registration on boot (authed), app foreground (throttled), and nudge modal grant
+Added user-visible Push Diagnostics panel in Settings that works in TestFlight.
+Users can now:
+1. Tap "Register Now" to run full push registration with on-screen results
+2. Tap "Clear My Tokens" to delete all tokens and verify empty state
+3. See detailed diagnostic info: device, permission, projectId, token prefix/length,
+   validation result, POST status, GET /api/push/me response with all tokens
 
-ROOT CAUSE FIXED
-----------------
-Backend was receiving placeholder tokens like ExponentPushToken[test123].
-Now: Tokens validated before registration, invalid tokens rejected with DEV logs.
+This is NOT DEV-only - it runs in production TestFlight builds for allowlisted users.
 
-FILES + KEY IMPLEMENTATION
---------------------------
-1. src/lib/push/validatePushToken.ts (SINGLE SOURCE OF TRUTH)
-   - isValidExpoPushToken(token): rejects test/mock/placeholder/fake/dummy/sample
-   - getTokenPrefix(token): safe 24-char prefix for logging
+FILES CHANGED
+-------------
+1. src/hooks/useNotifications.ts
+   - Enhanced runPushDiagnostics() to return comprehensive diagnostic info:
+     * isPhysicalDevice, permission, projectId
+     * tokenPrefix, tokenLength, isValidToken
+     * postStatus, postBody, getStatus, getBody
+     * backendActiveCount, backendTokens array
+   - Added clearMyPushTokens() function: POST /api/push/clear-mine then GET /api/push/me
 
-2. src/hooks/useNotifications.ts
-   - runPushRegistrationProof(): DEV-only cold start diagnostic
-   - checkAndRegisterToken(): validates then POSTs to /api/push/register
-   - AppState.active re-registers (24h throttle)
-   - Uses: Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId
+2. src/app/settings.tsx
+   - Added Push Diagnostics Modal with:
+     * "Register Now" button - runs full registration flow
+     * "Clear Tokens" button - clears all user tokens from backend
+     * Results panel showing all diagnostic values
+     * Backend tokens list with ACTIVE/INACTIVE status
+     * POST response preview
+   - Updated state management for modal and results
 
-3. src/components/notifications/NotificationNudgeModal.tsx
-   - registerPushTokenWithBackend(): called after permission grant
-   - Full [NUDGE_PROOF] logging with GET /api/push/me verification
+KEY IMPLEMENTATION
+------------------
+useNotifications.ts runPushDiagnostics() returns:
+{
+  ok: boolean;
+  reason: string;
+  isPhysicalDevice: boolean;
+  permission?: string;
+  projectId?: string;
+  tokenPrefix?: string;
+  tokenLength?: number;
+  isValidToken?: boolean;
+  postStatus?: number | string;
+  postBody?: unknown;
+  getStatus?: number | string;
+  getBody?: unknown;
+  backendActiveCount?: number;
+  backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+}
 
-4. src/lib/push/registerPush.ts
-   - Uses shared validator
-   - POSTs to /api/push/register
-
-REGISTRATION ENDPOINT
----------------------
-POST /api/push/register
-Body: { "token": "ExponentPushToken[...]", "platform": "expo" }
-Auth: Cookie-based via authClient.$fetch (lowercase "cookie" header)
+clearMyPushTokens() returns:
+{
+  ok: boolean;
+  error?: string;
+  tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+}
 
 RUNTIME STATUS
 --------------
-✓ TypeCheck: PASS
-✓ verify_frontend.sh: PASS
-✓ No /api/notifications/register-token in src/**
+✓ npm run typecheck: PASS
+✓ bash scripts/ai/verify_frontend.sh: PASS
 
-DEV PROOF LOGS (EXPECTED ON PHYSICAL DEVICE)
---------------------------------------------
-[PUSH_PROOF] ========== PUSH REGISTRATION PROOF START ==========
-[PUSH_PROOF] 1. isPhysicalDevice: true
-[PUSH_PROOF] 2. permissionStatus: granted
-[PUSH_PROOF] 3. projectId: <UUID>
-[PUSH_PROOF] 4. Fetching Expo push token...
-[PUSH_PROOF]    tokenPrefix: ExponentPushToken[REAL...
-[PUSH_PROOF]    tokenLength: 44
-[PUSH_PROOF] 5. isValidExpoPushToken: true
-[PUSH_PROOF] 6. POST /api/push/register ...
-[PUSH_PROOF]    POST status: 200
-[PUSH_PROOF]    POST body: {"ok":true}
-[PUSH_PROOF] 7. GET /api/push/me ...
-[PUSH_PROOF]    GET status: 200
-[PUSH_PROOF]    GET body: {"tokens":[{"tokenPrefix":"ExponentPushToken[REAL...","isActive":true}]}
-[PUSH_PROOF]    ✅ Token found and isActive=true
-[PUSH_PROOF] ========== PUSH REGISTRATION PROOF END ==========
+TESTFLIGHT VERIFICATION STEPS
+-----------------------------
+1. Install TestFlight build on physical iPhone
+2. Sign in with allowlisted email (pauljdal@gmail.com, paulydal@ymail.com, etc.)
+3. Go to Settings → scroll to Notifications section → tap "Push Diagnostics"
+4. Modal opens showing instructions
+
+5. Tap "Clear Tokens" first (to test fresh state)
+   - Should show "Tokens cleared" toast
+   - Results panel shows backendTokens: [] or count 0
+
+6. Tap "Register Now"
+   - Should show "Running..." then results
+   - Expected SUCCESS results:
+     * Physical Device: Yes ✓
+     * Permission: granted
+     * Project ID: <UUID> (not NOT_FOUND)
+     * Token Prefix: ExponentPushToken[REAL... (NOT containing "test")
+     * Token Length: 44+ (not < 30)
+     * Valid Token: Yes ✓
+     * POST Status: 200
+     * GET Status: 200
+     * Active Tokens: 1+
+   - Backend Tokens list shows your real token with ACTIVE badge
+
+7. Verify backend directly:
+   curl -b /tmp/oi.txt https://open-invite-api.onrender.com/api/push/me
+   Expected: tokenPrefix NOT "test123", isActive = true
 
 FAILURE SCENARIOS
 -----------------
-| Symptom                    | Meaning                        | Fix                          |
-|----------------------------|--------------------------------|------------------------------|
-| isPhysicalDevice: false    | Simulator                      | Use physical device          |
-| permissionStatus: denied   | User denied notifications      | Trigger nudge modal          |
-| projectId: NOT_FOUND       | Missing EAS config             | Check app.json/eas.json      |
-| isValidExpoPushToken: false| Placeholder/test token         | Must be real device          |
-| POST 401 UNAUTHORIZED      | Auth cookie missing            | Check login state            |
-| GET tokens: []             | Backend didn't persist         | Check backend route handler  |
+| Screen Shows                | Meaning                          | Fix                    |
+|-----------------------------|----------------------------------|------------------------|
+| Physical Device: No         | Running on simulator             | Use real iPhone        |
+| Permission: denied          | User denied notifications        | Grant in iOS Settings  |
+| Project ID: NOT_FOUND       | Missing EAS config               | Check app.json/eas     |
+| Token Prefix: ...test...    | Placeholder token                | Real device required   |
+| Valid Token: No             | Token failed validation          | Check logs for reason  |
+| POST Status: 401            | Auth cookie missing              | Re-sign in             |
+| POST Status: 404/500        | Backend route issue              | Check backend logs     |
+| Active Tokens: 0            | Backend didn't persist           | Check POST response    |
 
-HOW TO VERIFY ON PHYSICAL DEVICE
---------------------------------
-1. Build: eas build --platform ios --profile production
-2. Install on physical iPhone
-3. Sign in
-4. Look for [PUSH_PROOF] logs in Xcode console
-5. Expected: POST 200, GET shows isActive=true
+ENDPOINTS USED
+--------------
+- POST /api/push/register { token, platform: "expo" }
+- POST /api/push/clear-mine {}
+- GET /api/push/me
 
-BACKEND VERIFICATION
---------------------
-curl -c /tmp/oi.txt -b /tmp/oi.txt \
-  -X POST https://open-invite-api.onrender.com/api/auth/sign-in/email \
-  -H "Content-Type: application/json" \
-  -d '{"email":"EMAIL","password":"PASS"}'
+WHAT'S NOT CHANGED
+------------------
+- Navigation architecture
+- Icon system
+- Auth flow
+- Other settings items
+- No new dependencies
 
-curl -b /tmp/oi.txt https://open-invite-api.onrender.com/api/push/me
-
-Expected: tokenPrefix NOT "test123", isActive = true
-
-REMAINING RISKS
----------------
-1. If backend /api/push/register handler doesn't upsert correctly, tokens won't persist
-2. If auth cookie not attached, POST returns 401 (check authClient)
-3. Simulators will always fail (by design - no real APNs token)
-
-WHAT TO TEST IN TESTFLIGHT
---------------------------
-1. Fresh install → sign in → permission grant → [PUSH_PROOF] logs show success
-2. App foreground → should not re-register (24h throttle) unless forced
-3. Nudge modal → grant → [NUDGE_PROOF] logs show success
-4. curl /api/push/me → tokenPrefix is REAL token, isActive=true
+PREVIOUS WORK (still in place)
+------------------------------
+- Shared validator: src/lib/push/validatePushToken.ts
+- DEV-only [PUSH_PROOF] logs on cold start
+- DEV-only [NUDGE_PROOF] logs in NotificationNudgeModal
+- 24h throttle for foreground re-registration

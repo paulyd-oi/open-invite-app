@@ -380,55 +380,92 @@ function ReferralCounterSection({
 export default function SettingsScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
-  const { runPushDiagnostics } = useNotifications();
+  const { runPushDiagnostics, clearMyPushTokens } = useNotifications();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, setThemeColor, themeColorName, themeMode, setThemeMode, isDark, colors } = useTheme();
 
   // Push diagnostics state
   const [isPushDiagRunning, setIsPushDiagRunning] = useState(false);
+  const [showPushDiagModal, setShowPushDiagModal] = useState(false);
+  const [pushDiagResult, setPushDiagResult] = useState<{
+    ok: boolean;
+    reason: string;
+    isPhysicalDevice?: boolean;
+    permission?: string;
+    projectId?: string;
+    tokenPrefix?: string;
+    tokenLength?: number;
+    isValidToken?: boolean;
+    postStatus?: number | string;
+    postBody?: unknown;
+    getStatus?: number | string;
+    getBody?: unknown;
+    backendActiveCount?: number;
+    backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+  } | null>(null);
+  const [isClearingTokens, setIsClearingTokens] = useState(false);
 
   // Check if user is in push diagnostics allowlist
   const userEmail = session?.user?.email?.toLowerCase() ?? "";
   const showPushDiagnostics = PUSH_DIAG_ALLOWLIST.some(email => email.toLowerCase() === userEmail);
 
-  // Handle push diagnostics tap
+  // Handle push diagnostics tap - opens modal and runs diagnostic
   const handlePushDiagnostics = async () => {
     if (isPushDiagRunning) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPushDiagResult(null);
+    setShowPushDiagModal(true);
+  };
+
+  // Actually run the diagnostics (called from modal)
+  const doRunPushDiagnostics = async () => {
+    if (isPushDiagRunning) return;
     setIsPushDiagRunning(true);
+    setPushDiagResult(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
       const result = await runPushDiagnostics();
+      setPushDiagResult(result);
       
       if (result.ok) {
-        safeToast.success(
-          "Push token registered ✅",
-          `Active tokens: ${result.backendActiveCount ?? "?"}`
-        );
-      } else {
-        // Map reason to user-friendly message
-        switch (result.reason) {
-          case "not_authed":
-            safeToast.warning("Push: sign in first", "");
-            break;
-          case "permission_not_granted":
-            safeToast.warning("Push: permission not granted", `Status: ${result.permission ?? "unknown"}`);
-            break;
-          case "invalid_token":
-            safeToast.warning("Push: no valid token", "May be simulator or unsupported device");
-            break;
-          case "backend_error":
-            safeToast.error("Push: register failed", "Check console logs");
-            break;
-          default:
-            safeToast.error("Push: unknown error", result.reason);
-        }
+        safeToast.success("Push registered ✅", `Active: ${result.backendActiveCount ?? 0}`);
       }
     } catch (e: any) {
+      setPushDiagResult({
+        ok: false,
+        reason: "exception",
+        isPhysicalDevice: false,
+      });
       safeToast.error("Push diagnostics error", e?.message || "Unknown");
     } finally {
       setIsPushDiagRunning(false);
+    }
+  };
+
+  // Handle clear tokens
+  const handleClearTokens = async () => {
+    if (isClearingTokens) return;
+    setIsClearingTokens(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const result = await clearMyPushTokens();
+      if (result.ok) {
+        setPushDiagResult(prev => prev ? {
+          ...prev,
+          backendTokens: result.tokens ?? [],
+          backendActiveCount: 0,
+        } : null);
+        safeToast.success("Tokens cleared", `Remaining: ${result.tokens?.length ?? 0}`);
+      } else {
+        safeToast.error("Clear failed", result.error || "Unknown");
+      }
+    } catch (e: any) {
+      safeToast.error("Clear error", e?.message || "Unknown");
+    } finally {
+      setIsClearingTokens(false);
     }
   };
 
@@ -2262,6 +2299,156 @@ export default function SettingsScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Push Diagnostics Modal - Production-safe diagnostic panel */}
+      <Modal
+        visible={showPushDiagModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPushDiagModal(false)}
+      >
+        <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.surface, maxHeight: "85%" }}
+          >
+            {/* Header */}
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-xl font-bold" style={{ color: colors.text }}>
+                Push Diagnostics
+              </Text>
+              <Pressable
+                onPress={() => setShowPushDiagModal(false)}
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: colors.separator }}
+              >
+                <X size={18} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+              {/* Action Buttons */}
+              <View className="flex-row gap-3 mb-6">
+                <Pressable
+                  onPress={doRunPushDiagnostics}
+                  disabled={isPushDiagRunning}
+                  className="flex-1 rounded-xl py-3 items-center"
+                  style={{ backgroundColor: isPushDiagRunning ? colors.separator : "#10B981" }}
+                >
+                  <Text className="font-semibold" style={{ color: isPushDiagRunning ? colors.textSecondary : "#FFFFFF" }}>
+                    {isPushDiagRunning ? "Running..." : "🚀 Register Now"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleClearTokens}
+                  disabled={isClearingTokens}
+                  className="flex-1 rounded-xl py-3 items-center"
+                  style={{ backgroundColor: isClearingTokens ? colors.separator : "#EF4444" }}
+                >
+                  <Text className="font-semibold" style={{ color: isClearingTokens ? colors.textSecondary : "#FFFFFF" }}>
+                    {isClearingTokens ? "Clearing..." : "🗑️ Clear Tokens"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Results Panel */}
+              {pushDiagResult && (
+                <View 
+                  className="rounded-xl p-4 mb-4"
+                  style={{ backgroundColor: pushDiagResult.ok ? "#10B98120" : "#EF444420" }}
+                >
+                  {/* Status */}
+                  <View className="flex-row items-center mb-3">
+                    <Text className="text-2xl mr-2">{pushDiagResult.ok ? "✅" : "❌"}</Text>
+                    <Text className="text-lg font-bold" style={{ color: pushDiagResult.ok ? "#10B981" : "#EF4444" }}>
+                      {pushDiagResult.ok ? "Registration Successful" : `Failed: ${pushDiagResult.reason}`}
+                    </Text>
+                  </View>
+
+                  {/* Diagnostic Details */}
+                  <View className="gap-y-1">
+                    <DiagRow label="Physical Device" value={pushDiagResult.isPhysicalDevice ? "Yes ✓" : "No (simulator)"} good={pushDiagResult.isPhysicalDevice} colors={colors} />
+                    <DiagRow label="Permission" value={pushDiagResult.permission ?? "N/A"} good={pushDiagResult.permission === "granted"} colors={colors} />
+                    <DiagRow label="Project ID" value={pushDiagResult.projectId ?? "NOT_FOUND"} good={!!pushDiagResult.projectId && pushDiagResult.projectId !== "NOT_FOUND"} colors={colors} />
+                    <DiagRow label="Token Prefix" value={pushDiagResult.tokenPrefix ?? "N/A"} good={!!pushDiagResult.tokenPrefix && !pushDiagResult.tokenPrefix.includes("test")} colors={colors} />
+                    <DiagRow label="Token Length" value={String(pushDiagResult.tokenLength ?? 0)} good={(pushDiagResult.tokenLength ?? 0) >= 30} colors={colors} />
+                    <DiagRow label="Valid Token" value={pushDiagResult.isValidToken ? "Yes ✓" : "No"} good={pushDiagResult.isValidToken} colors={colors} />
+                    <DiagRow label="POST Status" value={String(pushDiagResult.postStatus ?? "N/A")} good={pushDiagResult.postStatus === 200} colors={colors} />
+                    <DiagRow label="GET Status" value={String(pushDiagResult.getStatus ?? "N/A")} good={pushDiagResult.getStatus === 200} colors={colors} />
+                    <DiagRow label="Active Tokens" value={String(pushDiagResult.backendActiveCount ?? 0)} good={(pushDiagResult.backendActiveCount ?? 0) > 0} colors={colors} />
+                  </View>
+
+                  {/* Backend Tokens List */}
+                  {pushDiagResult.backendTokens && pushDiagResult.backendTokens.length > 0 && (
+                    <View className="mt-4 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
+                      <Text className="font-semibold mb-2" style={{ color: colors.text }}>
+                        Backend Tokens ({pushDiagResult.backendTokens.length}):
+                      </Text>
+                      {pushDiagResult.backendTokens.map((t, i) => (
+                        <View key={i} className="flex-row items-center py-1">
+                          <Text className="text-xs font-mono flex-1" style={{ color: colors.textSecondary }}>
+                            {t.tokenPrefix ?? "?"}
+                          </Text>
+                          <Text 
+                            className="text-xs font-semibold px-2 py-0.5 rounded"
+                            style={{ 
+                              backgroundColor: t.isActive ? "#10B98120" : "#EF444420",
+                              color: t.isActive ? "#10B981" : "#EF4444"
+                            }}
+                          >
+                            {t.isActive ? "ACTIVE" : "INACTIVE"}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* POST/GET Bodies (collapsed by default) */}
+                  {pushDiagResult.postBody ? (
+                    <View className="mt-4 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
+                      <View className="mb-2">
+                        <Text className="text-xs font-semibold mb-1" style={{ color: colors.textSecondary }}>POST Response:</Text>
+                        <Text className="text-xs font-mono" style={{ color: colors.textTertiary }}>
+                          {JSON.stringify(pushDiagResult.postBody, null, 2).substring(0, 200)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              )}
+
+              {/* Instructions */}
+              {!pushDiagResult && (
+                <View className="rounded-xl p-4" style={{ backgroundColor: colors.background }}>
+                  <Text className="text-sm font-medium mb-2" style={{ color: colors.text }}>
+                    How to use:
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    1. Tap "Register Now" to fetch token and register with backend{"\n"}
+                    2. Check results show valid token + POST 200 + active token in backend{"\n"}
+                    3. If testing fresh, tap "Clear Tokens" first, then "Register Now"
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+// Helper component for diagnostic rows
+function DiagRow({ label, value, good, colors }: { label: string; value: string; good?: boolean; colors: any }) {
+  return (
+    <View className="flex-row items-center justify-between py-1">
+      <Text className="text-sm" style={{ color: colors.textSecondary }}>{label}:</Text>
+      <Text 
+        className="text-sm font-mono"
+        style={{ color: good === undefined ? colors.text : good ? "#10B981" : "#EF4444" }}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
