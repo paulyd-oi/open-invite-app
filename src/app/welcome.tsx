@@ -374,6 +374,13 @@ export default function WelcomeOnboardingScreen() {
   // Apple Sign-In availability
   const [isAppleSignInReady, setIsAppleSignInReady] = useState(false);
 
+  // Derived: can show Apple Sign-In UI (gated by launch flag)
+  const canShowAppleSignIn =
+    APPLE_SIGNIN_ENABLED &&
+    Platform.OS === "ios" &&
+    isAppleSignInReady &&
+    !!AppleAuthentication;
+
   // DEV-only: Apple Sign-In debug trace state
   const [appleAuthDebug, setAppleAuthDebug] = useState<{
     attemptId: string | null;
@@ -1130,8 +1137,8 @@ export default function WelcomeOnboardingScreen() {
             </Pressable>
           )}
 
-          {/* Apple Sign In - disabled via APPLE_SIGNIN_ENABLED flag */}
-          {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && AppleAuthentication && (
+          {/* Apple Sign In - gated by canShowAppleSignIn (APPLE_SIGNIN_ENABLED=false for launch) */}
+          {canShowAppleSignIn && (
             <Animated.View entering={FadeInUp.delay(100).springify()}>
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
@@ -1147,7 +1154,7 @@ export default function WelcomeOnboardingScreen() {
             </Animated.View>
           )}
 
-          {APPLE_SIGNIN_ENABLED && Platform.OS === "ios" && isAppleSignInReady && (
+          {canShowAppleSignIn && (
             <View style={styles.divider}>
               <View style={[styles.dividerLine, { backgroundColor: theme.surfaceBorder }]} />
               <Text style={[styles.dividerText, { color: theme.textTertiary }]}>or</Text>
