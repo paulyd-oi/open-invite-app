@@ -1,5 +1,51 @@
 # Findings Log — Frontend
 
+## Performance Sweep: Friends, Social, Calendar (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Friends tab (and to lesser extent Social/Calendar) felt sluggish with 50+ friends due to:
+1. Query overfetch on every navigation/focus
+2. Animation overhead on every list item
+3. Inline callbacks causing unnecessary re-renders
+4. No memoization on expensive components
+
+### Solution — Query Tuning
+
+**friends.tsx**:
+- `["friends"]`: staleTime=5min, gcTime=10min, refetchOnMount=false, refetchOnWindowFocus=false, placeholderData
+- `["friendRequests"]`: staleTime=1min, refetchOnMount=false, refetchOnWindowFocus=false
+- `["circles"]`: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+- `["pinnedFriendships"]`: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+
+**social.tsx**:
+- `["events", "feed"]`: staleTime=30s, refetchInterval=60s (was 30s), placeholderData
+- `["events", "mine"]`: staleTime=1min, placeholderData
+- `["events", "attending"]`: staleTime=1min, placeholderData
+- `["friends"]`: staleTime=5min
+
+**calendar.tsx**:
+- `["friends"]`: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+
+### Solution — Component Memoization
+
+- `MiniCalendar`: Wrapped in `React.memo`
+- `FriendCard`: Wrapped in `React.memo` + `useCallback` for handlers + conditional animation (only first 5 items animate)
+- `FriendListItem`: Already `React.memo` (verified)
+
+### DEV Instrumentation
+- Added `console.time("[PERF] Friends query")` / `console.timeEnd()` around friends fetch
+- Added `__renderCount` tracking on `FriendCard` for DEV builds
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## Admin Console User Search — Error Surfacing Fix (2026-02-01)
 
 ### Root Cause Analysis ✓

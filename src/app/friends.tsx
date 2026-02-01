@@ -95,8 +95,13 @@ import {
 import { useNetworkStatus } from "@/lib/networkStatus";
 
 // Mini calendar component for friend cards
-function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; bootStatus: string }) {
+const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; bootStatus: string }) {
   const { themeColor, isDark, colors } = useTheme();
+
+  // DEV: Track renders
+  if (__DEV__) {
+    (MiniCalendar as any).__renderCount = ((MiniCalendar as any).__renderCount || 0) + 1;
+  }
 
   const { data } = useQuery({
     queryKey: ["friendEvents", friendshipId],
@@ -187,10 +192,10 @@ function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; boot
       )}
     </View>
   );
-}
+});
 
 
-function FriendCard({ 
+const FriendCard = React.memo(function FriendCard({ 
   friendship, 
   index, 
   bootStatus,
@@ -207,47 +212,41 @@ function FriendCard({
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
 
+  // DEV: Track renders (for perf measurement)
+  if (__DEV__) {
+    (FriendCard as any).__renderCount = ((FriendCard as any).__renderCount || 0) + 1;
+  }
+
   // Guard against undefined friend
   if (!friend) {
     return null;
   }
 
-  // DEV logging for badge data
-  if (__DEV__) {
-    console.log("[FRIEND_BADGE_DATA]", {
-      friendId: friend.id,
-      hasFeaturedBadge: !!friend.featuredBadge,
-      featuredBadge: friend.featuredBadge?.name ?? null,
-      sourceEndpoint: "/api/friends",
-    });
-    console.log("[FRIEND_BADGE_RENDER]", {
-      friendId: friend.id,
-      render: !!friend.featuredBadge,
-      reason: friend.featuredBadge ? "badge_present" : "no_badge_in_response",
-    });
-  }
-
   const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
   
-  const handleLongPress = () => {
+  const handleLongPress = useCallback(() => {
     if (onPin) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onPin(friendship.id);
     }
-  };
+  }, [onPin, friendship.id]);
 
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          router.push(`/friend/${friendship.id}` as any);
-        }}
-        onLongPress={handleLongPress}
-        delayLongPress={500}
-        className="rounded-xl p-3 mb-2"
-        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
-      >
+  const handlePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/friend/${friendship.id}` as any);
+  }, [router, friendship.id]);
+
+  // Only animate first 5 items to reduce initial render cost
+  const shouldAnimate = index < 5;
+
+  const content = (
+    <Pressable
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+      delayLongPress={500}
+      className="rounded-xl p-3 mb-2"
+      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
+    >
         <View className="flex-row items-start">
           {/* Pin indicator */}
           {isPinned && (
@@ -300,12 +299,22 @@ function FriendCard({
         {/* Mini Calendar */}
         <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
       </Pressable>
-    </Animated.View>
   );
-}
+
+  // Wrap in animation only for first items
+  if (shouldAnimate) {
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50).springify()}>
+        {content}
+      </Animated.View>
+    );
+  }
+
+  return content;
+});
 
 // Collapsible List Item for "list" view mode - with swipe-to-pin
-function FriendListItem({ 
+const FriendListItem = React.memo(function FriendListItem({ 
   friendship, 
   index, 
   bootStatus,
@@ -477,7 +486,7 @@ function FriendListItem({
       </View>
     </Animated.View>
   );
-}
+});
 
 function FriendRequestCard({
   request,
@@ -808,16 +817,37 @@ export default function FriendsScreen() {
     gcTime: 60000, // Keep in cache for 1 minute
   });
 
+  // DEV: Measure friends query performance
+  if (__DEV__) {
+    console.time("[PERF] Friends query");
+  }
+
   const { data: friendsData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: bootStatus === 'authed',
+    staleTime: 5 * 60 * 1000, // 5 min - friends list is stable
+    gcTime: 10 * 60 * 1000, // 10 min garbage collection
+    refetchOnMount: false, // Don't refetch if data exists
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
+    placeholderData: (prev) => prev, // Keep previous data during refetch
   });
+
+  // DEV: Log when friends data arrives
+  useEffect(() => {
+    if (__DEV__ && friendsData) {
+      console.timeEnd("[PERF] Friends query");
+      console.log("[PERF] Friends count:", friendsData.friends?.length ?? 0);
+    }
+  }, [friendsData]);
 
   const { data: requestsData, refetch: refetchRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
     enabled: bootStatus === 'authed',
+    staleTime: 60 * 1000, // 1 min - requests can change more often
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const sendRequestMutation = useMutation({
@@ -989,6 +1019,9 @@ export default function FriendsScreen() {
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: bootStatus === 'authed',
+    staleTime: 5 * 60 * 1000, // 5 min - circles rarely change
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const circles = circlesData?.circles ?? [];
@@ -998,6 +1031,9 @@ export default function FriendsScreen() {
     queryKey: ["pinnedFriendships"],
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
     enabled: bootStatus === 'authed',
+    staleTime: 5 * 60 * 1000, // 5 min
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Update local state when pinned data loads

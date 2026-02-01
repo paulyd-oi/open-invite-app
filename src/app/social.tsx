@@ -735,8 +735,12 @@ export default function SocialScreen() {
     queryKey: ["events", "feed"],
     queryFn: () => api.get<GetEventsFeedResponse>("/api/events/feed"),
     enabled: isAuthed,
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: 30 * 1000, // 30s - feed changes often but not instantly
+    refetchInterval: 60000, // Auto-refresh every 60 seconds (reduced from 30)
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
+    refetchOnMount: false, // Don't refetch if we have recent data
+    refetchOnWindowFocus: false, // Don't refetch on tab focus
+    placeholderData: (prev) => prev, // Keep previous data during refetch
   });
 
   // Also fetch user's own events
@@ -749,8 +753,12 @@ export default function SocialScreen() {
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthed,
-    refetchInterval: 30000,
+    staleTime: 60 * 1000, // 1 min - user's own events change less often
+    refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   // Fetch events user is attending
@@ -763,8 +771,12 @@ export default function SocialScreen() {
     queryKey: ["events", "attending"],
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
     enabled: isAuthed,
-    refetchInterval: 30000,
+    staleTime: 60 * 1000, // 1 min
+    refetchInterval: 60000,
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev) => prev,
   });
 
   // RSVP mutation for swipe actions
@@ -802,6 +814,9 @@ export default function SocialScreen() {
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthed,
+    staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Check if user is eligible for first-value nudge

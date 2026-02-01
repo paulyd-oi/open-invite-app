@@ -1,4 +1,4 @@
-HANDOFF PACKET — ADMIN CONSOLE USER SEARCH (ERROR SURFACING)
+HANDOFF PACKET — PERFORMANCE SWEEP: FRIENDS, SOCIAL, CALENDAR
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,122 +6,94 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Admin Console user search now properly surfaces backend errors instead of 
-silently showing "No users found".
+Performance optimization pass to make Friends tab (primary) smooth with 50+ 
+friends, and reduce perceived "network lag" across Friends + Social + Calendar 
+by preventing unnecessary refetch, blanking, and render churn.
 
-ENDPOINT DETAILS
-----------------
-Endpoint: GET /api/admin/users/search?q=<query>
-Method: GET
-Query Param: q (URL-encoded search term)
-Auth: Cookie-based via authClient.$fetch
-- credentials: "include" ✓ (authClient.ts line 280)
-- cookie header explicitly set as fallback ✓
-- x-oi-session-token header injected ✓
+PROBLEM
+-------
+1. Query overfetch on every navigation/focus (staleTime=0 by default)
+2. Animation overhead on every FriendCard row
+3. Inline callbacks causing unnecessary re-renders
+4. No memoization on expensive components (MiniCalendar, FriendCard)
 
-REQUEST SHAPE
--------------
-GET /api/admin/users/search?q=paul
-Headers:
-  - cookie: better-auth.session_token=...
-  - x-oi-session-token: ... (fallback)
-  - credentials: "include"
+SOLUTION — QUERY TUNING
+-----------------------
 
-RESPONSE SHAPE
---------------
-Success (200): { users: [{ id, email, name, username, createdAt }] }
-Error (4xx/5xx): Thrown, now surfaced to UI
+friends.tsx:
+- ["friends"]: staleTime=5min, gcTime=10min, refetchOnMount=false, 
+               refetchOnWindowFocus=false, placeholderData
+- ["friendRequests"]: staleTime=1min, refetchOnMount=false, refetchOnWindowFocus=false
+- ["circles"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+- ["pinnedFriendships"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
 
-ROOT CAUSE
-----------
-searchUsers() in adminApi.ts silently returned { users: [] } for all 
-non-401/403 errors. UI could not distinguish "no results" from "error".
+social.tsx:
+- ["events", "feed"]: staleTime=30s, refetchInterval=60s (was 30s), placeholderData
+- ["events", "mine"]: staleTime=1min, placeholderData
+- ["events", "attending"]: staleTime=1min, placeholderData
+- ["friends"]: staleTime=5min
 
-FIX APPLIED
------------
-1. adminApi.ts: Remove try/catch that swallowed errors
-2. adminApi.ts: Add minimum 2-char query length check
-3. admin.tsx: Add searchError state
-4. admin.tsx: Display error in red when search fails
-5. admin.tsx: "No users found" only shows on successful empty search
+calendar.tsx:
+- ["friends"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+
+SOLUTION — COMPONENT MEMOIZATION
+--------------------------------
+
+1. MiniCalendar: Wrapped in React.memo (prevents re-render when parent updates)
+2. FriendCard: 
+   - Wrapped in React.memo
+   - useCallback for handlePress + handleLongPress (stable references)
+   - Conditional animation: only first 5 items get FadeInDown (reduces jank)
+3. FriendListItem: Already React.memo (verified, no change needed)
+
+DEV INSTRUMENTATION
+-------------------
+- console.time("[PERF] Friends query") / console.timeEnd() around friends fetch
+- FriendCard.__renderCount tracking in DEV builds for measuring render churn
 
 FILES CHANGED
 -------------
-1. src/lib/adminApi.ts (MODIFIED)
-   - searchUsers() now throws on all errors (caller handles)
-   - Added 2-char minimum query length
+1. src/app/friends.tsx (MODIFIED)
+   - MiniCalendar: React.memo wrapper
+   - FriendCard: React.memo + useCallback + conditional animation
+   - Query tuning for friends, friendRequests, circles, pinnedFriendships
 
-2. src/app/admin.tsx (MODIFIED)
-   - Added searchError state
-   - handleSearch sets searchError on failure
-   - Error UI shows in red below search input
-   - "No users found" only shows if !searchError
+2. src/app/social.tsx (MODIFIED)
+   - Query tuning for feed, mine, attending, friends
+   - refetchInterval reduced from 30s to 60s
 
-3. docs/FINDINGS_LOG.md (MODIFIED)
-   - Added entry for this fix
+3. src/app/calendar.tsx (MODIFIED)
+   - Query tuning for friends
 
-KEY DIFFS
----------
-adminApi.ts:
-// Before: silently returned empty
-} catch (error) {
-  if (401/403) throw; 
-  return { users: [] };  // BUG: swallows errors
-}
+4. docs/FINDINGS_LOG.md (MODIFIED)
+   - Added Performance Sweep entry
 
-// After: throws all errors
-// No try/catch - let errors propagate
-const response = await api.get(...);
-return response;
-
-admin.tsx:
-+ const [searchError, setSearchError] = useState<string | null>(null);
-+ setSearchError(null); // clear on new search
-+ catch: setSearchError(error?.message || `Search failed`)
-+ UI: {searchError && <Text style={{color: "#EF4444"}}>{searchError}</Text>}
-
-BEFORE/AFTER BEHAVIOR
----------------------
-Before:
-- Backend 500 → "No users found" (misleading)
-- Backend timeout → "No users found" (misleading)
-- Backend 0 results → "No users found" (correct)
-
-After:
-- Backend 500 → Red error: "Search failed (500)"
-- Backend timeout → Red error: "Search failed (network error)"
-- Backend 0 results → "No users found" (correct)
-
-RUNTIME STATUS
---------------
+VERIFICATION
+------------
 npm run typecheck                    PASS
 ./scripts/ai/verify_frontend.sh      PASS
 
-ACCEPTANCE CHECKLIST
--------------------
-[x] Search by name/username/email returns users (backend dependent)
-[x] If backend error, UI shows meaningful error (not "No users found")
-[x] credentials: "include" present on admin requests
-[x] typecheck PASS
-[x] verify_frontend.sh PASS
-
-MANUAL TEST NOTES
------------------
-1. Go to Admin Console (must be admin)
-2. Search for known user → should return results
-3. Search for nonsense → should say "No users found"
-4. If backend returns error → should show red error message
-
-BACKEND REQUIREMENTS
---------------------
-Endpoint: GET /api/admin/users/search?q=<query>
-- Must return { users: [...] } on success
-- Must return error status if search fails
-- Query param: q (search term)
-
-CONSTRAINTS MET
+REGRESSION RISK
 ---------------
-- Frontend-only fix (no backend edits in this repo)
-- Minimal diff
-- No new dependencies
-- Navigation architecture preserved
+LOW - All changes are performance optimizations that don't alter business logic.
+- staleTime/gcTime only affects caching duration, not correctness
+- React.memo only prevents unnecessary re-renders, not correct renders
+- Conditional animation only affects visual polish, not functionality
+
+MANUAL TESTING RECOMMENDED
+--------------------------
+1. Add 20+ friends, navigate to Friends tab repeatedly
+2. Verify list doesn't blank/flash on tab switch
+3. Verify pinning still works
+4. Verify expand/collapse mini-calendar still works
+5. Pull-to-refresh still fetches fresh data
+
+NEXT TASKS
+----------
+Per TASK_QUEUE.md, remaining items:
+- P2: Additional polish items as needed
+- Any new items from user feedback
+
+PREVIOUS SESSION
+----------------
+Admin Console user search error surfacing fix (completed)

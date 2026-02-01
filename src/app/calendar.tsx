@@ -1213,6 +1213,9 @@ export default function CalendarScreen() {
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: bootStatus === 'authed',
+    staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // First login guide popup
