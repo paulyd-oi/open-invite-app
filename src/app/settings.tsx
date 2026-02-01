@@ -392,19 +392,29 @@ export default function SettingsScreen() {
   const [pushDiagResult, setPushDiagResult] = useState<{
     ok: boolean;
     reason: string;
+    startedAt?: string;
+    completedAt?: string;
+    platform?: string;
     isPhysicalDevice?: boolean;
     permission?: string;
+    permissionRequest?: string;
     projectId?: string;
+    projectIdSource?: string;
     tokenPrefix?: string;
     tokenLength?: number;
+    tokenError?: string;
     isValidToken?: boolean;
+    registerUrl?: string;
     postStatus?: number | string;
     postBody?: unknown;
+    postError?: string;
     getStatus?: number | string;
     getBody?: unknown;
     backendActiveCount?: number;
     backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
     lastRegistrationTime?: string;
+    exceptionMessage?: string;
+    exceptionStack?: string;
   } | null>(null);
   const [isClearingTokens, setIsClearingTokens] = useState(false);
 
@@ -424,19 +434,34 @@ export default function SettingsScreen() {
   const formatDiagReport = (r: typeof pushDiagResult): string => {
     if (!r) return "";
     const lines: string[] = [
-      `=== PUSH DIAGNOSTICS REPORT ===`,
+      `=== PUSH DIAGNOSTICS PROOF REPORT ===`,
       `Status: ${r.ok ? "✅ SUCCESS" : "❌ FAILED: " + r.reason}`,
+      `Started: ${r.startedAt ?? "N/A"}`,
+      `Completed: ${r.completedAt ?? "N/A"}`,
+      `Platform: ${r.platform ?? "N/A"}`,
       `Physical Device: ${r.isPhysicalDevice ? "Yes" : "No (simulator)"}`,
       `Permission: ${r.permission ?? "N/A"}`,
+      `Permission Requested: ${r.permissionRequest ?? "No"}`,
       `Project ID: ${r.projectId ?? "NOT_FOUND"}`,
+      `Project ID Source: ${r.projectIdSource ?? "N/A"}`,
       `Token Prefix: ${r.tokenPrefix ?? "N/A"}`,
       `Token Length: ${r.tokenLength ?? 0}`,
+      `Token Error: ${r.tokenError ?? "None"}`,
       `Valid Token: ${r.isValidToken ? "Yes" : "No"}`,
+      `Register URL: ${r.registerUrl ?? "/api/push/register"}`,
       `POST Status: ${r.postStatus ?? "N/A"}`,
+      `POST Error: ${r.postError ?? "None"}`,
       `GET Status: ${r.getStatus ?? "N/A"}`,
       `Active Tokens: ${r.backendActiveCount ?? 0}`,
       `Last Registration: ${r.lastRegistrationTime ?? "Never"}`,
     ];
+    if (r.exceptionMessage) {
+      lines.push(`--- EXCEPTION ---`);
+      lines.push(`Message: ${r.exceptionMessage}`);
+      if (r.exceptionStack) {
+        lines.push(`Stack: ${r.exceptionStack.substring(0, 200)}`);
+      }
+    }
     if (r.backendTokens && r.backendTokens.length > 0) {
       lines.push(`--- Backend Tokens (${r.backendTokens.length}) ---`);
       r.backendTokens.forEach((t, i) => {
@@ -447,7 +472,29 @@ export default function SettingsScreen() {
       lines.push(`--- POST Response ---`);
       lines.push(JSON.stringify(r.postBody, null, 2).substring(0, 300));
     }
+    if (r.getBody) {
+      lines.push(`--- GET /api/push/me Response ---`);
+      lines.push(JSON.stringify(r.getBody, null, 2).substring(0, 300));
+    }
     return lines.join("\n");
+  };
+
+  // Generate JSON report for copying
+  const getJsonReport = (): string => {
+    if (!pushDiagResult) return "{}";
+    return JSON.stringify(pushDiagResult, null, 2);
+  };
+
+  // Copy report to clipboard
+  const handleCopyReport = async () => {
+    const jsonReport = getJsonReport();
+    try {
+      await Clipboard.setStringAsync(jsonReport);
+      safeToast.success("Copied!", "JSON report copied to clipboard");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      safeToast.error("Copy failed", "Could not copy to clipboard");
+    }
   };
 
   // Actually run the diagnostics (called from modal)
@@ -2364,7 +2411,7 @@ export default function SettingsScreen() {
 
             <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
               {/* Action Buttons */}
-              <View className="flex-row gap-3 mb-6">
+              <View className="flex-row gap-3 mb-4">
                 <Pressable
                   onPress={doRunPushDiagnostics}
                   disabled={isPushDiagRunning}
@@ -2387,6 +2434,19 @@ export default function SettingsScreen() {
                 </Pressable>
               </View>
 
+              {/* Copy Report Button - shown when we have results */}
+              {pushDiagResult && (
+                <Pressable
+                  onPress={handleCopyReport}
+                  className="rounded-xl py-3 items-center mb-4"
+                  style={{ backgroundColor: colors.separator }}
+                >
+                  <Text className="font-semibold" style={{ color: colors.text }}>
+                    📋 Copy JSON Report
+                  </Text>
+                </Pressable>
+              )}
+
               {/* Results Panel */}
               {pushDiagResult && (
                 <View 
@@ -2397,19 +2457,44 @@ export default function SettingsScreen() {
                   <View className="flex-row items-center mb-3">
                     <Text className="text-2xl mr-2">{pushDiagResult.ok ? "✅" : "❌"}</Text>
                     <Text className="text-lg font-bold" style={{ color: pushDiagResult.ok ? "#10B981" : "#EF4444" }}>
-                      {pushDiagResult.ok ? "Registration Successful" : `Failed: ${pushDiagResult.reason}`}
+                      {pushDiagResult.ok ? "Registration Successful" : `Failed`}
                     </Text>
                   </View>
+                  
+                  {/* Failure reason (if any) */}
+                  {!pushDiagResult.ok && (
+                    <View className="mb-3 p-2 rounded-lg" style={{ backgroundColor: "#EF444410" }}>
+                      <Text className="text-sm font-mono" style={{ color: "#EF4444" }}>
+                        {pushDiagResult.reason}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Exception details (if any) */}
+                  {pushDiagResult.exceptionMessage && (
+                    <View className="mb-3 p-2 rounded-lg" style={{ backgroundColor: "#EF444410" }}>
+                      <Text className="text-xs font-semibold mb-1" style={{ color: "#EF4444" }}>Exception:</Text>
+                      <Text className="text-xs font-mono" style={{ color: "#EF4444" }}>
+                        {pushDiagResult.exceptionMessage}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Diagnostic Details */}
                   <View className="gap-y-1">
+                    <DiagRow label="Started" value={pushDiagResult.startedAt ?? "N/A"} colors={colors} />
+                    <DiagRow label="Platform" value={pushDiagResult.platform ?? "N/A"} colors={colors} />
                     <DiagRow label="Physical Device" value={pushDiagResult.isPhysicalDevice ? "Yes ✓" : "No (simulator)"} good={pushDiagResult.isPhysicalDevice} colors={colors} />
                     <DiagRow label="Permission" value={pushDiagResult.permission ?? "N/A"} good={pushDiagResult.permission === "granted"} colors={colors} />
-                    <DiagRow label="Project ID" value={pushDiagResult.projectId ?? "NOT_FOUND"} good={!!pushDiagResult.projectId && pushDiagResult.projectId !== "NOT_FOUND"} colors={colors} />
+                    <DiagRow label="Project ID" value={(pushDiagResult.projectId ?? "NOT_FOUND").substring(0, 20) + "..."} good={!!pushDiagResult.projectId && pushDiagResult.projectId !== "NOT_FOUND" && pushDiagResult.projectId !== "projectId_missing"} colors={colors} />
+                    <DiagRow label="ProjectID Source" value={pushDiagResult.projectIdSource ?? "N/A"} good={!!pushDiagResult.projectIdSource && pushDiagResult.projectIdSource !== "not_found"} colors={colors} />
                     <DiagRow label="Token Prefix" value={pushDiagResult.tokenPrefix ?? "N/A"} good={!!pushDiagResult.tokenPrefix && !pushDiagResult.tokenPrefix.includes("test")} colors={colors} />
                     <DiagRow label="Token Length" value={String(pushDiagResult.tokenLength ?? 0)} good={(pushDiagResult.tokenLength ?? 0) >= 30} colors={colors} />
+                    {pushDiagResult.tokenError && <DiagRow label="Token Error" value={pushDiagResult.tokenError.substring(0, 50)} good={false} colors={colors} />}
                     <DiagRow label="Valid Token" value={pushDiagResult.isValidToken ? "Yes ✓" : "No"} good={pushDiagResult.isValidToken} colors={colors} />
+                    <DiagRow label="Register URL" value={pushDiagResult.registerUrl ?? "/api/push/register"} colors={colors} />
                     <DiagRow label="POST Status" value={String(pushDiagResult.postStatus ?? "N/A")} good={pushDiagResult.postStatus === 200} colors={colors} />
+                    {pushDiagResult.postError && <DiagRow label="POST Error" value={pushDiagResult.postError.substring(0, 50)} good={false} colors={colors} />}
                     <DiagRow label="GET Status" value={String(pushDiagResult.getStatus ?? "N/A")} good={pushDiagResult.getStatus === 200} colors={colors} />
                     <DiagRow label="Active Tokens" value={String(pushDiagResult.backendActiveCount ?? 0)} good={(pushDiagResult.backendActiveCount ?? 0) > 0} colors={colors} />
                     <DiagRow label="Last Registration" value={pushDiagResult.lastRegistrationTime ?? "Never"} good={!!pushDiagResult.lastRegistrationTime} colors={colors} />

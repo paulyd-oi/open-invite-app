@@ -548,25 +548,37 @@ export function useNotifications() {
   const runPushDiagnostics = useCallback(async (): Promise<{
     ok: boolean;
     reason: string;
+    startedAt: string;
+    completedAt?: string;
+    platform: string;
     isPhysicalDevice: boolean;
     permission?: string;
+    permissionRequest?: string;
     projectId?: string;
+    projectIdSource?: string;
     tokenPrefix?: string;
     tokenLength?: number;
+    tokenError?: string;
     isValidToken?: boolean;
+    registerUrl?: string;
     postStatus?: number | string;
     postBody?: unknown;
+    postError?: string;
     getStatus?: number | string;
     getBody?: unknown;
     backendActiveCount?: number;
     backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
     lastRegistrationTime?: string;
+    exceptionMessage?: string;
+    exceptionStack?: string;
   }> => {
-    console.log("[PUSH_DIAG] start");
+    const startedAt = new Date().toISOString();
+    console.log("[PUSH_DIAG] start at " + startedAt);
 
-    // A) Check physical device
+    // A) Check physical device and platform
     const isPhysicalDevice = Device.isDevice;
-    console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice);
+    const platform = `${Device.osName ?? "unknown"} ${Device.osVersion ?? ""} (${Device.modelName ?? "unknown"})`;
+    console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice + " platform=" + platform);
     
     // A.1) Get last registration time
     let lastRegistrationTime: string | undefined;
@@ -586,35 +598,52 @@ export function useNotifications() {
     // B) Check auth status
     if (bootStatus !== 'authed' || !session?.user) {
       console.log("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
-      return { ok: false, reason: "not_authed", isPhysicalDevice, lastRegistrationTime };
+      return { ok: false, reason: "not_authed", startedAt, completedAt: new Date().toISOString(), platform, isPhysicalDevice, lastRegistrationTime };
     }
 
     try {
       // C) Read permission
       let { status } = await Notifications.getPermissionsAsync();
       console.log("[PUSH_DIAG] initial_permission=" + status);
+      const initialPermission = status;
 
       // D) Request permission if undetermined
+      let permissionRequest: string | undefined;
       if (status === 'undetermined') {
         console.log("[PUSH_DIAG] requesting_permission");
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
         status = newStatus;
+        permissionRequest = newStatus;
         console.log("[PUSH_DIAG] permission_after_request=" + status);
       }
 
       // E) Get projectId (using shared resolver with all fallbacks)
       const projectId = resolveProjectId();
-      console.log("[PUSH_DIAG] projectId=" + (projectId || "projectId_missing"));
+      // Determine source of projectId
+      let projectIdSource = "not_found";
+      if (Constants?.easConfig?.projectId) {
+        projectIdSource = "easConfig.projectId";
+      } else if (Constants?.expoConfig?.extra?.eas?.projectId) {
+        projectIdSource = "expoConfig.extra.eas.projectId";
+      } else if (Constants?.expoConfig?.extra?.projectId) {
+        projectIdSource = "expoConfig.extra.projectId";
+      }
+      console.log("[PUSH_DIAG] projectId=" + (projectId || "projectId_missing") + " source=" + projectIdSource);
 
       // E.1) Abort if projectId missing
       if (!projectId) {
         console.log("[PUSH_DIAG] ABORT: projectId_missing");
         return { 
           ok: false, 
-          reason: "projectId_missing", 
+          reason: "projectId_missing - Set 'extra.eas.projectId' in app.json or ensure EAS build", 
+          startedAt,
+          completedAt: new Date().toISOString(),
+          platform,
           isPhysicalDevice, 
-          permission: status, 
+          permission: status,
+          permissionRequest,
           projectId: "projectId_missing",
+          projectIdSource,
           lastRegistrationTime 
         };
       }
@@ -622,7 +651,7 @@ export function useNotifications() {
       // F) Check if permission granted
       if (status !== 'granted') {
         console.log("[PUSH_DIAG] permission_not_granted=" + status);
-        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId, lastRegistrationTime };
+        return { ok: false, reason: "permission_not_granted", startedAt, completedAt: new Date().toISOString(), platform, isPhysicalDevice, permission: status, permissionRequest, projectId, projectIdSource, lastRegistrationTime };
       }
       console.log("[PUSH_DIAG] permission=granted");
 
@@ -648,12 +677,18 @@ export function useNotifications() {
         console.log("[PUSH_DIAG] invalid_token" + (tokenError ? " tokenError=" + tokenError : ""));
         return { 
           ok: false, 
-          reason: tokenError ? "token_acquisition_failed" : "invalid_token", 
+          reason: tokenError ? "token_acquisition_failed: " + tokenError : "invalid_token", 
+          startedAt,
+          completedAt: new Date().toISOString(),
+          platform,
           isPhysicalDevice, 
-          permission: status, 
+          permission: status,
+          permissionRequest,
           projectId,
+          projectIdSource,
           tokenPrefix,
           tokenLength,
+          tokenError,
           isValidToken,
           lastRegistrationTime,
           postBody: tokenError ? { error: tokenError } : undefined,
@@ -666,21 +701,22 @@ export function useNotifications() {
       
       let postStatus: number | string = 200;
       let postBody: unknown = null;
-      let postAttempts = 0;
+      let postError: string | undefined;
       
       for (let attempt = 1; attempt <= 2; attempt++) {
-        postAttempts = attempt;
         try {
           const postResponse = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
             token,
             platform: "expo",
           });
           postBody = postResponse;
+          postStatus = 200;
           console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=200 body=" + JSON.stringify(postResponse));
           break;
         } catch (postErr: any) {
           postStatus = postErr?.status ?? postErr?.statusCode ?? "error";
           postBody = postErr?.data ?? postErr?.message ?? String(postErr);
+          postError = typeof postBody === "string" ? postBody : JSON.stringify(postBody);
           console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=" + postStatus + " error=" + JSON.stringify(postBody));
           if (attempt < 2) {
             await new Promise(r => setTimeout(r, 1000));
@@ -691,15 +727,22 @@ export function useNotifications() {
       if (postStatus !== 200) {
         return {
           ok: false,
-          reason: "backend_error",
+          reason: "backend_error: POST " + PUSH_REGISTER_ROUTE + " returned " + postStatus,
+          startedAt,
+          completedAt: new Date().toISOString(),
+          platform,
           isPhysicalDevice,
           permission: status,
-          projectId: projectId || "NOT_FOUND",
+          permissionRequest,
+          projectId,
+          projectIdSource,
           tokenPrefix,
           tokenLength,
           isValidToken,
+          registerUrl: PUSH_REGISTER_ROUTE,
           postStatus,
           postBody,
+          postError,
           lastRegistrationTime,
         };
       }
@@ -736,12 +779,18 @@ export function useNotifications() {
       return {
         ok: true,
         reason: "success",
+        startedAt,
+        completedAt: new Date().toISOString(),
+        platform,
         isPhysicalDevice,
         permission: status,
-        projectId: projectId || "NOT_FOUND",
+        permissionRequest,
+        projectId,
+        projectIdSource,
         tokenPrefix,
         tokenLength,
         isValidToken,
+        registerUrl: PUSH_REGISTER_ROUTE,
         postStatus,
         postBody,
         getStatus,
@@ -751,8 +800,17 @@ export function useNotifications() {
         lastRegistrationTime: newLastRegTime,
       };
     } catch (error: any) {
-      console.log("[PUSH_DIAG] error=" + (error?.message || "unknown"));
-      return { ok: false, reason: "backend_error", isPhysicalDevice: Device.isDevice };
+      console.log("[PUSH_DIAG] exception=" + (error?.message || "unknown"));
+      return { 
+        ok: false, 
+        reason: "exception", 
+        startedAt,
+        completedAt: new Date().toISOString(),
+        platform: `${Device.osName ?? "unknown"} ${Device.osVersion ?? ""}`,
+        isPhysicalDevice: Device.isDevice,
+        exceptionMessage: error?.message || "Unknown error",
+        exceptionStack: error?.stack?.substring(0, 500),
+      };
     }
   }, [bootStatus, session?.user]);
 
