@@ -1,4 +1,4 @@
-HANDOFF PACKET — PERFORMANCE SWEEP: FRIENDS, SOCIAL, CALENDAR
+HANDOFF PACKET — FRIENDS FLATLIST VIRTUALIZATION TUNING
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,94 +6,126 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Performance optimization pass to make Friends tab (primary) smooth with 50+ 
-friends, and reduce perceived "network lag" across Friends + Social + Calendar 
-by preventing unnecessary refetch, blanking, and render churn.
+Improved Friends list smoothness with 50+ friends by converting from 
+ScrollView + .map() to FlatList with proper virtualization tuning.
 
-PROBLEM
--------
-1. Query overfetch on every navigation/focus (staleTime=0 by default)
-2. Animation overhead on every FriendCard row
-3. Inline callbacks causing unnecessary re-renders
-4. No memoization on expensive components (MiniCalendar, FriendCard)
+CHANGES — BEFORE/AFTER
+----------------------
 
-SOLUTION — QUERY TUNING
------------------------
+### Friends List (Main Change)
 
-friends.tsx:
-- ["friends"]: staleTime=5min, gcTime=10min, refetchOnMount=false, 
-               refetchOnWindowFocus=false, placeholderData
-- ["friendRequests"]: staleTime=1min, refetchOnMount=false, refetchOnWindowFocus=false
-- ["circles"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
-- ["pinnedFriendships"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+BEFORE (src/app/friends.tsx lines 1618-1639):
+```tsx
+viewMode === "list" ? (
+  filteredFriends.map((friendship, index) => (
+    <FriendListItem key={friendship.id} ... />
+  ))
+) : (
+  filteredFriends.map((friendship, index) => (
+    <FriendCard key={friendship.id} ... />
+  ))
+)
+```
 
-social.tsx:
-- ["events", "feed"]: staleTime=30s, refetchInterval=60s (was 30s), placeholderData
-- ["events", "mine"]: staleTime=1min, placeholderData
-- ["events", "attending"]: staleTime=1min, placeholderData
-- ["friends"]: staleTime=5min
+AFTER:
+```tsx
+<FlatList
+  data={filteredFriends}
+  keyExtractor={friendKeyExtractor}
+  renderItem={viewMode === "list" ? renderFriendListItem : renderFriendCard}
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  windowSize={9}
+  updateCellsBatchingPeriod={50}
+  removeClippedSubviews={Platform.OS === 'android'}
+  nestedScrollEnabled
+  scrollEnabled={false}
+  extraData={pinnedFriendshipIds}
+/>
+```
 
-calendar.tsx:
-- ["friends"]: staleTime=5min, refetchOnMount=false, refetchOnWindowFocus=false
+### FlatList Props Added
 
-SOLUTION — COMPONENT MEMOIZATION
---------------------------------
+| Prop | Value | Why |
+|------|-------|-----|
+| initialNumToRender | 10 | Render ~1 viewport initially |
+| maxToRenderPerBatch | 10 | Limit batch size, prevent frame drops |
+| windowSize | 9 | ~4.5 viewports above/below |
+| updateCellsBatchingPeriod | 50 | 50ms batching reduces re-renders |
+| removeClippedSubviews | Android only | iOS can have clipping bugs |
+| scrollEnabled | false | Parent ScrollView handles scroll |
+| nestedScrollEnabled | true | Required for nested FlatList |
+| extraData | pinnedFriendshipIds | Re-render when pins change |
 
-1. MiniCalendar: Wrapped in React.memo (prevents re-render when parent updates)
-2. FriendCard: 
-   - Wrapped in React.memo
-   - useCallback for handlePress + handleLongPress (stable references)
-   - Conditional animation: only first 5 items get FadeInDown (reduces jank)
-3. FriendListItem: Already React.memo (verified, no change needed)
+### getItemLayout
+NOT ADDED - Row heights are variable:
+- FriendCard: optional bio (numberOfLines=2), optional badge, MiniCalendar
+- FriendListItem: collapsible calendar section, optional badge
+getItemLayout requires fixed heights; cannot use here.
+
+### Memoization Added
+- friendKeyExtractor: useCallback((item) => item.id, [])
+- handlePinFriend: useCallback wrapper for mutation
+- renderFriendListItem: useCallback with [bootStatus, handlePinFriend, pinnedFriendshipIds]
+- renderFriendCard: useCallback with [bootStatus, handlePinFriend, pinnedFriendshipIds]
+
+### Contacts Modal (Secondary)
+Same virtualization props applied:
+- initialNumToRender={12}
+- maxToRenderPerBatch={10}
+- windowSize={9}
+- updateCellsBatchingPeriod={50}
+- removeClippedSubviews={Platform.OS === 'android'}
 
 DEV INSTRUMENTATION
 -------------------
-- console.time("[PERF] Friends query") / console.timeEnd() around friends fetch
-- FriendCard.__renderCount tracking in DEV builds for measuring render churn
+```tsx
+// On mount:
+console.time("[PERF] Friends screen first render");
+
+// After data loads:
+console.timeEnd("[PERF] Friends screen first render");
+console.log(`[PERF] Friends list count: ${filteredFriends.length}`);
+```
 
 FILES CHANGED
 -------------
 1. src/app/friends.tsx (MODIFIED)
-   - MiniCalendar: React.memo wrapper
-   - FriendCard: React.memo + useCallback + conditional animation
-   - Query tuning for friends, friendRequests, circles, pinnedFriendships
+   - Added DEV timing instrumentation
+   - Added memoized keyExtractor and renderItem callbacks
+   - Converted friends list from .map() to FlatList
+   - Added virtualization props to contacts modal FlatList
 
-2. src/app/social.tsx (MODIFIED)
-   - Query tuning for feed, mine, attending, friends
-   - refetchInterval reduced from 30s to 60s
-
-3. src/app/calendar.tsx (MODIFIED)
-   - Query tuning for friends
-
-4. docs/FINDINGS_LOG.md (MODIFIED)
-   - Added Performance Sweep entry
+2. docs/FINDINGS_LOG.md (MODIFIED)
+   - Added Friends FlatList Virtualization entry
 
 VERIFICATION
 ------------
-npm run typecheck                    PASS
-./scripts/ai/verify_frontend.sh      PASS
+$ npm run typecheck
+(no errors)
+
+$ bash scripts/ai/verify_frontend.sh
+PASS: verify_frontend
 
 REGRESSION RISK
 ---------------
-LOW - All changes are performance optimizations that don't alter business logic.
-- staleTime/gcTime only affects caching duration, not correctness
-- React.memo only prevents unnecessary re-renders, not correct renders
-- Conditional animation only affects visual polish, not functionality
+LOW - FlatList inside ScrollView with scrollEnabled={false} preserves existing 
+scroll behavior. Virtualization only affects mount + off-screen items.
 
 MANUAL TESTING RECOMMENDED
 --------------------------
-1. Add 20+ friends, navigate to Friends tab repeatedly
-2. Verify list doesn't blank/flash on tab switch
-3. Verify pinning still works
-4. Verify expand/collapse mini-calendar still works
-5. Pull-to-refresh still fetches fresh data
+1. Add 30+ friends
+2. Navigate to Friends tab
+3. Scroll through list - should feel smooth
+4. Toggle between List/Detailed view modes
+5. Expand/collapse friends section
+6. Verify no visual clipping issues
+7. Pin/unpin friends - should still work
 
-NEXT TASKS
-----------
-Per TASK_QUEUE.md, remaining items:
-- P2: Additional polish items as needed
-- Any new items from user feedback
+COMMIT
+------
+perf(friends): tune FlatList virtualization for smoother scroll
 
 PREVIOUS SESSION
 ----------------
-Admin Console user search error surfacing fix (completed)
+Frontend full audit (launch readiness) - audit-only, no fixes needed

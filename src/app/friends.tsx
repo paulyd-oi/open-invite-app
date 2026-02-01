@@ -613,6 +613,15 @@ function FriendRequestCard({
 }
 
 export default function FriendsScreen() {
+  // DEV: Track first render timing
+  const firstRenderTimeRef = React.useRef<number | null>(null);
+  const hasLoggedFirstRenderRef = React.useRef(false);
+  
+  if (__DEV__ && firstRenderTimeRef.current === null) {
+    firstRenderTimeRef.current = Date.now();
+    console.time("[PERF] Friends screen first render");
+  }
+
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
@@ -1108,6 +1117,42 @@ export default function FriendsScreen() {
       return 0;
     });
   }, [friends, pinnedFriendshipIds]);
+
+  // DEV: Log first render timing after data loads
+  React.useEffect(() => {
+    if (__DEV__ && !hasLoggedFirstRenderRef.current && filteredFriends.length > 0) {
+      hasLoggedFirstRenderRef.current = true;
+      console.timeEnd("[PERF] Friends screen first render");
+      console.log(`[PERF] Friends list count: ${filteredFriends.length}`);
+    }
+  }, [filteredFriends.length]);
+
+  // FlatList callbacks - memoized to prevent unnecessary re-renders
+  const friendKeyExtractor = useCallback((item: Friendship) => item.id, []);
+  
+  const handlePinFriend = useCallback((id: string) => {
+    pinFriendshipMutation.mutate(id);
+  }, [pinFriendshipMutation]);
+  
+  const renderFriendListItem = useCallback(({ item, index }: { item: Friendship; index: number }) => (
+    <FriendListItem 
+      friendship={item} 
+      index={index} 
+      bootStatus={bootStatus} 
+      onPin={handlePinFriend}
+      isPinned={pinnedFriendshipIds.has(item.id)}
+    />
+  ), [bootStatus, handlePinFriend, pinnedFriendshipIds]);
+  
+  const renderFriendCard = useCallback(({ item, index }: { item: Friendship; index: number }) => (
+    <FriendCard 
+      friendship={item} 
+      index={index} 
+      bootStatus={bootStatus}
+      onPin={handlePinFriend}
+      isPinned={pinnedFriendshipIds.has(item.id)}
+    />
+  ), [bootStatus, handlePinFriend, pinnedFriendshipIds]);
 
   // [LEGACY_GROUPS_PURGED] selectedGroup memo removed
 
@@ -1614,28 +1659,23 @@ export default function FriendsScreen() {
                 </Text>
                 <ShareAppButton variant="full" />
               </View>
-            ) : viewMode === "list" ? (
-              filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendListItem 
-                  key={friendship.id} 
-                  friendship={friendship} 
-                  index={index} 
-                  bootStatus={bootStatus} 
-                  onPin={(id) => pinFriendshipMutation.mutate(id)}
-                  isPinned={pinnedFriendshipIds.has(friendship.id)}
-                />
-              ))
             ) : (
-              filteredFriends.map((friendship: Friendship, index: number) => (
-                <FriendCard 
-                  key={friendship.id} 
-                  friendship={friendship} 
-                  index={index} 
-                  bootStatus={bootStatus}
-                  onPin={(id) => pinFriendshipMutation.mutate(id)}
-                  isPinned={pinnedFriendshipIds.has(friendship.id)}
-                />
-              ))
+              <FlatList
+                data={filteredFriends}
+                keyExtractor={friendKeyExtractor}
+                renderItem={viewMode === "list" ? renderFriendListItem : renderFriendCard}
+                // Virtualization tuning for smooth scroll with 50+ friends
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={9}
+                updateCellsBatchingPeriod={50}
+                removeClippedSubviews={Platform.OS === 'android'} // Safe on Android, can cause issues on iOS
+                // Allow nested scrolling inside parent ScrollView
+                nestedScrollEnabled
+                scrollEnabled={false} // Let parent ScrollView handle scrolling
+                // Stable list - avoid re-renders
+                extraData={pinnedFriendshipIds}
+              />
             )}
           </Animated.View>
         )}
@@ -1704,6 +1744,12 @@ export default function FriendsScreen() {
             data={filteredContacts}
             keyExtractor={(item) => item.id ?? item.name ?? Math.random().toString()}
             contentContainerStyle={{ paddingVertical: 8 }}
+            // Virtualization tuning for contacts (can have hundreds)
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={9}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={Platform.OS === 'android'}
             renderItem={({ item: contact }) => {
               const hasEmail = contact.emails && contact.emails.length > 0;
               const hasPhone = contact.phoneNumbers && contact.phoneNumbers.length > 0;

@@ -1,5 +1,192 @@
 # Findings Log — Frontend
 
+## Friends FlatList Virtualization Tuning (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Friends list with 50+ friends caused scroll jank due to rendering all items at once.
+
+**ROOT CAUSE**: Friends list was using `.map()` inside a ScrollView instead of FlatList, which:
+1. Renders all items immediately on mount
+2. No virtualization (items outside viewport stay in memory)
+3. No batching of render cycles
+
+### Solution — FlatList Conversion + Virtualization
+
+**BEFORE** (lines 1618-1639):
+```tsx
+viewMode === "list" ? (
+  filteredFriends.map((friendship, index) => (
+    <FriendListItem ... />
+  ))
+) : (
+  filteredFriends.map((friendship, index) => (
+    <FriendCard ... />
+  ))
+)
+```
+
+**AFTER**:
+```tsx
+<FlatList
+  data={filteredFriends}
+  keyExtractor={friendKeyExtractor}  // memoized
+  renderItem={viewMode === "list" ? renderFriendListItem : renderFriendCard}  // memoized
+  initialNumToRender={10}
+  maxToRenderPerBatch={10}
+  windowSize={9}
+  updateCellsBatchingPeriod={50}
+  removeClippedSubviews={Platform.OS === 'android'}
+  nestedScrollEnabled
+  scrollEnabled={false}  // Parent ScrollView handles scrolling
+  extraData={pinnedFriendshipIds}
+/>
+```
+
+### Virtualization Props Explained
+| Prop | Value | Rationale |
+|------|-------|-----------|
+| `initialNumToRender` | 10 | Render ~1 viewport worth initially |
+| `maxToRenderPerBatch` | 10 | Limit batch size to prevent frame drops |
+| `windowSize` | 9 | ~4.5 viewports above/below (balance memory vs scroll responsiveness) |
+| `updateCellsBatchingPeriod` | 50 | 50ms batching to reduce re-render frequency |
+| `removeClippedSubviews` | Android only | iOS can have clipping bugs; Android is safe |
+| `scrollEnabled` | false | Nested inside ScrollView; parent handles scroll |
+
+### Why NO getItemLayout
+Row heights are **variable** due to:
+- `FriendCard`: Optional bio (numberOfLines={2}), optional badge, MiniCalendar
+- `FriendListItem`: Collapsible calendar section, optional badge
+
+`getItemLayout` requires fixed/predictable heights; cannot use here.
+
+### Memoization Added
+- `friendKeyExtractor`: `useCallback((item) => item.id, [])`
+- `handlePinFriend`: `useCallback` wrapper for mutation
+- `renderFriendListItem`: `useCallback` with deps
+- `renderFriendCard`: `useCallback` with deps
+
+### Contacts Modal Also Tuned
+Same virtualization props applied to contacts FlatList (can have hundreds of contacts).
+
+### DEV Instrumentation
+```tsx
+console.time("[PERF] Friends screen first render");
+// ... on data load:
+console.timeEnd("[PERF] Friends screen first render");
+console.log(`[PERF] Friends list count: ${filteredFriends.length}`);
+```
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
+## Frontend Full Audit — Launch Readiness (2026-02-01)
+
+### AUDIT SUMMARY
+Full walkthrough audit of frontend for launch readiness. No P0 blockers found.
+
+### ROUTING + NAVIGATION MAP ✓
+**Key Screens Verified**:
+| Route | File | Purpose |
+|-------|------|---------|
+| `/` → `/social` | `index.tsx` | Redirect to Social (default tab) |
+| `/login` | `login.tsx` | Authentication |
+| `/welcome` | `welcome.tsx` | Onboarding flow |
+| `/verify-email` | `verify-email.tsx` | Email verification |
+| `/calendar` | `calendar.tsx` | Personal calendar (center tab) |
+| `/social` | `social.tsx` | Social feed |
+| `/discover` | `discover.tsx` | Reconnect/Popular/Streaks |
+| `/friends` | `friends.tsx` | Friends list |
+| `/profile` | `profile.tsx` | User profile |
+| `/settings` | `settings.tsx` | Account settings |
+
+**Tab Navigation** (`constants/navigation.ts`):
+- Order: Discover → Calendar → Social (center) → Friends → Profile
+- Routing via `BOTTOM_NAV_TABS` - single source of truth ✓
+- All hrefs match Expo Router file paths ✓
+
+### DEEP LINKS ✓
+**File**: `src/lib/deepLinks.ts`
+
+**Verified Handlers**:
+- `open-invite://event/{id}` → `/event/{id}` ✓
+- `open-invite://friend/{id}` → `/friend/{id}` ✓
+- `open-invite://invite/{code}` → stores referral, routes to `/calendar` ✓
+- `open-invite://verify-email` → `/verify-email` ✓
+- Universal links (`/verify-email`, `/auth/verify`) → token extraction ✓
+- `.ics` file imports → `/create?fromImport=true` ✓
+
+**Cold Start**: `Linking.getInitialURL()` handled in `_layout.tsx:660`
+
+### ONBOARDING MODALS / GUIDES ✓
+**No stacking issue** - both modals are properly gated:
+
+1. **EmailVerificationGateModal** (`_layout.tsx`):
+   - Shows 800ms after `bootStatus === 'authed'`
+   - Key: `email_verification_gate_shown:{userId}` (user-scoped) ✓
+   - Only shows if `emailVerified === false`
+
+2. **WelcomeModal** (`calendar.tsx`):
+   - Shows 500ms after `bootStatus === 'authed'`
+   - Key: `openinvite.welcome_modal_shown.{userId}` (SecureStore, user-scoped) ✓
+   - Marks shown immediately on visibility
+
+Both use per-user keys and won't re-show after dismissal.
+
+### AUTH + REQUEST CONTRACT ✓
+**Auth Pattern**: Cookie-based via Better Auth
+
+**Verified in `authClient.ts`**:
+- `credentials: "include"` at line 285 ✓
+- `x-oi-session-token` header injection ✓
+- Cookie fallback for mobile reliability ✓
+
+**No Bearer usage** for main app-auth (only for image requests via RN Image headers - acceptable).
+
+**Error Handling** (after admin fix):
+- `api.ts` line 85: 404 on GET returns `null` (acceptable for resource lookups)
+- `adminApi.ts`: now throws errors instead of swallowing ✓
+
+### LOADING INVARIANTS ✓
+**placeholderData** used in:
+- `social.tsx`: feed, mine, attending queries ✓
+- `friends.tsx`: friends query ✓
+
+**Auth Gating**:
+- All main screens gate on `bootStatus` before showing login prompt
+- Show skeleton during `bootStatus === 'loading'` to prevent flash ✓
+
+### PERFORMANCE HOTSPOTS ✓
+**Already addressed in previous sweep**:
+- `MiniCalendar`: React.memo ✓
+- `FriendCard`: React.memo + useCallback ✓
+- Query staleTime tuning across all main tabs ✓
+
+### DEV / DEBUG SCREENS (P2 - Acceptable)
+| Route | Accessibility | Risk |
+|-------|--------------|------|
+| `/debug/health` | Long-press "Settings" title | Low - hidden |
+| `/design-showcase` | No route links in app | Low - unreachable |
+| `/dev-smoke-tests` | No route links in app | Low - unreachable |
+
+**Recommendation**: No action needed. Routes exist in `_layout.tsx` Stack but have no in-app navigation paths.
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS: verify_frontend
+```
+
+---
+
 ## Performance Sweep: Friends, Social, Calendar (2026-02-01)
 
 ### Root Cause Analysis ✓
