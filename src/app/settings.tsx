@@ -388,6 +388,7 @@ export default function SettingsScreen() {
   // Push diagnostics state
   const [isPushDiagRunning, setIsPushDiagRunning] = useState(false);
   const [showPushDiagModal, setShowPushDiagModal] = useState(false);
+  const [pushDiagReport, setPushDiagReport] = useState<string>("");  // Always-visible text report
   const [pushDiagResult, setPushDiagResult] = useState<{
     ok: boolean;
     reason: string;
@@ -403,6 +404,7 @@ export default function SettingsScreen() {
     getBody?: unknown;
     backendActiveCount?: number;
     backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+    lastRegistrationTime?: string;
   } | null>(null);
   const [isClearingTokens, setIsClearingTokens] = useState(false);
 
@@ -418,26 +420,60 @@ export default function SettingsScreen() {
     setShowPushDiagModal(true);
   };
 
+  // Convert diagnostic result to readable text report
+  const formatDiagReport = (r: typeof pushDiagResult): string => {
+    if (!r) return "";
+    const lines: string[] = [
+      `=== PUSH DIAGNOSTICS REPORT ===`,
+      `Status: ${r.ok ? "✅ SUCCESS" : "❌ FAILED: " + r.reason}`,
+      `Physical Device: ${r.isPhysicalDevice ? "Yes" : "No (simulator)"}`,
+      `Permission: ${r.permission ?? "N/A"}`,
+      `Project ID: ${r.projectId ?? "NOT_FOUND"}`,
+      `Token Prefix: ${r.tokenPrefix ?? "N/A"}`,
+      `Token Length: ${r.tokenLength ?? 0}`,
+      `Valid Token: ${r.isValidToken ? "Yes" : "No"}`,
+      `POST Status: ${r.postStatus ?? "N/A"}`,
+      `GET Status: ${r.getStatus ?? "N/A"}`,
+      `Active Tokens: ${r.backendActiveCount ?? 0}`,
+      `Last Registration: ${r.lastRegistrationTime ?? "Never"}`,
+    ];
+    if (r.backendTokens && r.backendTokens.length > 0) {
+      lines.push(`--- Backend Tokens (${r.backendTokens.length}) ---`);
+      r.backendTokens.forEach((t, i) => {
+        lines.push(`  ${i + 1}. ${t.tokenPrefix ?? "?"} [${t.isActive ? "ACTIVE" : "INACTIVE"}]`);
+      });
+    }
+    if (r.postBody) {
+      lines.push(`--- POST Response ---`);
+      lines.push(JSON.stringify(r.postBody, null, 2).substring(0, 300));
+    }
+    return lines.join("\n");
+  };
+
   // Actually run the diagnostics (called from modal)
   const doRunPushDiagnostics = async () => {
     if (isPushDiagRunning) return;
     setIsPushDiagRunning(true);
     setPushDiagResult(null);
+    setPushDiagReport("Running diagnostics...");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
       const result = await runPushDiagnostics();
       setPushDiagResult(result);
+      setPushDiagReport(formatDiagReport(result));
       
       if (result.ok) {
         safeToast.success("Push registered ✅", `Active: ${result.backendActiveCount ?? 0}`);
       }
     } catch (e: any) {
-      setPushDiagResult({
+      const errorResult = {
         ok: false,
-        reason: "exception",
+        reason: "exception: " + (e?.message || "Unknown"),
         isPhysicalDevice: false,
-      });
+      };
+      setPushDiagResult(errorResult);
+      setPushDiagReport(formatDiagReport(errorResult));
       safeToast.error("Push diagnostics error", e?.message || "Unknown");
     } finally {
       setIsPushDiagRunning(false);
@@ -2376,7 +2412,7 @@ export default function SettingsScreen() {
                     <DiagRow label="POST Status" value={String(pushDiagResult.postStatus ?? "N/A")} good={pushDiagResult.postStatus === 200} colors={colors} />
                     <DiagRow label="GET Status" value={String(pushDiagResult.getStatus ?? "N/A")} good={pushDiagResult.getStatus === 200} colors={colors} />
                     <DiagRow label="Active Tokens" value={String(pushDiagResult.backendActiveCount ?? 0)} good={(pushDiagResult.backendActiveCount ?? 0) > 0} colors={colors} />
-                    <DiagRow label="Last Registration" value={(pushDiagResult as any).lastRegistrationTime ? new Date((pushDiagResult as any).lastRegistrationTime).toLocaleString() : "Never"} good={!!(pushDiagResult as any).lastRegistrationTime} colors={colors} />
+                    <DiagRow label="Last Registration" value={pushDiagResult.lastRegistrationTime ?? "Never"} good={!!pushDiagResult.lastRegistrationTime} colors={colors} />
                   </View>
 
                   {/* Backend Tokens List */}
@@ -2419,7 +2455,7 @@ export default function SettingsScreen() {
               )}
 
               {/* Instructions */}
-              {!pushDiagResult && (
+              {!pushDiagResult && !pushDiagReport && (
                 <View className="rounded-xl p-4" style={{ backgroundColor: colors.background }}>
                   <Text className="text-sm font-medium mb-2" style={{ color: colors.text }}>
                     How to use:
@@ -2431,6 +2467,28 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               )}
+
+              {/* Text Report - Always visible after running */}
+              {pushDiagReport ? (
+                <View className="rounded-xl p-4 mt-4" style={{ backgroundColor: colors.background }}>
+                  <Text className="text-sm font-semibold mb-2" style={{ color: colors.text }}>
+                    📋 Text Report (Copy for Debug):
+                  </Text>
+                  <ScrollView 
+                    horizontal={false} 
+                    style={{ maxHeight: 200 }}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    <Text 
+                      className="text-xs font-mono" 
+                      style={{ color: colors.textSecondary }}
+                      selectable={true}
+                    >
+                      {pushDiagReport}
+                    </Text>
+                  </ScrollView>
+                </View>
+              ) : null}
             </ScrollView>
           </View>
         </View>

@@ -147,9 +147,11 @@ export async function registerPushToken(): Promise<{
 
     // Get project ID for Expo push token
     // INVARIANT: Prefer easConfig.projectId (set in eas.json), fallback to expoConfig.extra
+    // Uses 3-level fallback chain for maximum compatibility across build configurations
     const projectId =
       Constants?.easConfig?.projectId ??
-      Constants?.expoConfig?.extra?.eas?.projectId;
+      Constants?.expoConfig?.extra?.eas?.projectId ??
+      Constants?.expoConfig?.extra?.projectId;
 
     if (!projectId) {
       if (__DEV__) {

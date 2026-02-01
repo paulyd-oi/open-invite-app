@@ -24,6 +24,30 @@ const TOKEN_REGISTRATION_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 let pushProofDiagnosticRan = false;
 
 /**
+ * Resolve EAS projectId with explicit fallback chain.
+ * Used for getExpoPushTokenAsync({ projectId }).
+ * 
+ * Fallback order:
+ * 1. Constants.easConfig?.projectId (set by EAS build)
+ * 2. Constants.expoConfig?.extra?.eas?.projectId (app.json extra)
+ * 3. Constants.expoConfig?.extra?.projectId (legacy fallback)
+ * 
+ * @returns projectId string or undefined if not found
+ */
+function resolveProjectId(): string | undefined {
+  const p1 = Constants?.easConfig?.projectId;
+  if (p1) return p1;
+  
+  const p2 = Constants?.expoConfig?.extra?.eas?.projectId;
+  if (p2) return p2;
+  
+  const p3 = Constants?.expoConfig?.extra?.projectId;
+  if (p3) return p3;
+  
+  return undefined;
+}
+
+/**
  * DEV ONLY: Push Registration Proof Diagnostic
  * 
  * Runs ONCE per cold start when user is authed.
@@ -62,10 +86,8 @@ async function runPushRegistrationProof(): Promise<void> {
       return;
     }
 
-    // Step 3: ProjectId
-    const projectId =
-      Constants?.easConfig?.projectId ??
-      Constants?.expoConfig?.extra?.eas?.projectId;
+    // Step 3: ProjectId (using shared resolver)
+    const projectId = resolveProjectId();
     console.log(`${LOG_PREFIX} 3. projectId: ${projectId || "NOT_FOUND"}`);
     if (!projectId) {
       console.log(`${LOG_PREFIX} ❌ ABORT: No projectId found`);
@@ -580,41 +602,61 @@ export function useNotifications() {
         console.log("[PUSH_DIAG] permission_after_request=" + status);
       }
 
-      // E) Get projectId
-      const projectId =
-        Constants?.easConfig?.projectId ??
-        Constants?.expoConfig?.extra?.eas?.projectId;
-      console.log("[PUSH_DIAG] projectId=" + (projectId || "NOT_FOUND"));
+      // E) Get projectId (using shared resolver with all fallbacks)
+      const projectId = resolveProjectId();
+      console.log("[PUSH_DIAG] projectId=" + (projectId || "projectId_missing"));
+
+      // E.1) Abort if projectId missing
+      if (!projectId) {
+        console.log("[PUSH_DIAG] ABORT: projectId_missing");
+        return { 
+          ok: false, 
+          reason: "projectId_missing", 
+          isPhysicalDevice, 
+          permission: status, 
+          projectId: "projectId_missing",
+          lastRegistrationTime 
+        };
+      }
 
       // F) Check if permission granted
       if (status !== 'granted') {
         console.log("[PUSH_DIAG] permission_not_granted=" + status);
-        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId: projectId || "NOT_FOUND", lastRegistrationTime };
+        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId, lastRegistrationTime };
       }
       console.log("[PUSH_DIAG] permission=granted");
 
-      // G) Get token
-      const token = await registerForPushNotificationsAsync();
+      // G) Get token directly from expo-notifications (not via registerForPushNotificationsAsync)
+      let token: string | undefined;
+      let tokenError: string | undefined;
+      try {
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        token = tokenData.data;
+      } catch (tokenErr: any) {
+        tokenError = tokenErr?.message || String(tokenErr);
+        console.log("[PUSH_DIAG] getExpoPushTokenAsync error=" + tokenError);
+      }
       const tokenPrefix = getTokenPrefix(token);
       const tokenLength = token?.length ?? 0;
-      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix + " tokenLength=" + tokenLength);
+      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix + " tokenLength=" + tokenLength + (tokenError ? " error=" + tokenError : ""));
       
       // H) Validate token (uses shared validator)
       const isValidToken = isValidExpoPushToken(token);
       console.log("[PUSH_DIAG] isValidToken=" + isValidToken);
 
       if (!token || !isValidToken) {
-        console.log("[PUSH_DIAG] invalid_token");
+        console.log("[PUSH_DIAG] invalid_token" + (tokenError ? " tokenError=" + tokenError : ""));
         return { 
           ok: false, 
-          reason: "invalid_token", 
+          reason: tokenError ? "token_acquisition_failed" : "invalid_token", 
           isPhysicalDevice, 
           permission: status, 
-          projectId: projectId || "NOT_FOUND",
+          projectId,
           tokenPrefix,
           tokenLength,
           isValidToken,
           lastRegistrationTime,
+          postBody: tokenError ? { error: tokenError } : undefined,
         };
       }
 

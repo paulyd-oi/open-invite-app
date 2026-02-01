@@ -74,9 +74,11 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
     try {
       // INVARIANT: Prefer easConfig.projectId (set in eas.json), fallback to expoConfig.extra
+      // Uses 3-level fallback chain for maximum compatibility across build configurations
       const projectId =
         Constants?.easConfig?.projectId ??
-        Constants?.expoConfig?.extra?.eas?.projectId;
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.expoConfig?.extra?.projectId;
 
       if (!projectId) {
         if (__DEV__) {
