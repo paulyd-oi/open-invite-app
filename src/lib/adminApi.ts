@@ -82,29 +82,24 @@ export async function checkAdminStatus(): Promise<AdminMeResponse> {
 
 /**
  * Search for users (admin-only endpoint)
- * Returns object with users array on success, throws/returns empty on auth errors
+ * Returns object with users array on success, throws on errors (including network errors)
+ * Caller MUST handle errors to show meaningful UI feedback
  */
 export async function searchUsers(q: string): Promise<{ users: UserSearchResult[] }> {
   if (!q.trim()) {
     return { users: [] };
   }
 
-  try {
-    const response = await api.get<AdminUserSearchResponse>(`/api/admin/users/search?q=${encodeURIComponent(q.trim())}`);
-    if (__DEV__) {
-      console.log(`[Admin] User search returned ${response.users.length} results for "${q}"`);
-    }
-    return response;
-  } catch (error: any) {
-    if (__DEV__) {
-      console.log("[Admin] User search failed:", error?.message);
-    }
-    // Safe handling for auth errors
-    if (error?.status === 401 || error?.status === 403) {
-      throw error;
-    }
+  // Require minimum 2 characters for search
+  if (q.trim().length < 2) {
     return { users: [] };
   }
+
+  const response = await api.get<AdminUserSearchResponse>(`/api/admin/users/search?q=${encodeURIComponent(q.trim())}`);
+  if (__DEV__) {
+    console.log(`[Admin] User search returned ${response.users.length} results for "${q}"`);
+  }
+  return response;
 }
 
 /**

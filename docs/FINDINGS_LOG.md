@@ -1,5 +1,46 @@
 # Findings Log — Frontend
 
+## Admin Console User Search — Error Surfacing Fix (2026-02-01)
+
+### Root Cause Analysis ✓
+**PROBLEM**: Admin Console "Manage User Badges" user search silently shows "No users found" when backend errors occur.
+
+**ROOT CAUSE**: `searchUsers()` in `src/lib/adminApi.ts` was catching all non-401/403 errors and returning `{ users: [] }` instead of throwing. This made it impossible for the UI to distinguish between:
+- Backend returned 0 results (legitimate empty search)
+- Backend returned error (500, 502, network failure, etc.)
+
+### Solution
+**adminApi.ts**:
+- Remove try/catch that silently swallowed errors
+- Let all errors propagate to caller
+- Added minimum 2-character query length requirement
+
+**admin.tsx**:
+- Added `searchError` state to track search failures
+- Error UI displays in red when search fails
+- "No users found" only shows when search succeeds with 0 results
+
+### Auth Verification
+- `credentials: "include"` is correctly set in `authClient.$fetch` (line 280)
+- Cookie header is explicitly set as fallback
+- x-oi-session-token header is injected for mobile reliability
+
+### Endpoint Details
+- Endpoint: `GET /api/admin/users/search?q=<query>`
+- Method: GET
+- Auth: Cookie-based via authClient (credentials: include)
+- Response: `{ users: UserSearchResult[] }`
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## P1: Event Details Visibility Row — Host-Only (2026-02-01)
 
 ### Root Cause Analysis ✓

@@ -1,4 +1,4 @@
-HANDOFF PACKET — P1 EVENT DETAILS VISIBILITY ROW HOST-ONLY
+HANDOFF PACKET — ADMIN CONSOLE USER SEARCH (ERROR SURFACING)
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,41 +6,91 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Visibility row on Event Details screen is now hidden for non-host viewers.
+Admin Console user search now properly surfaces backend errors instead of 
+silently showing "No users found".
 
-- Host viewing their event: sees Visibility row (All Friends / Specific Groups)
-- Non-host viewing event: Visibility row hidden
-- No layout spacing issues (border-t inside conditional)
+ENDPOINT DETAILS
+----------------
+Endpoint: GET /api/admin/users/search?q=<query>
+Method: GET
+Query Param: q (URL-encoded search term)
+Auth: Cookie-based via authClient.$fetch
+- credentials: "include" ✓ (authClient.ts line 280)
+- cookie header explicitly set as fallback ✓
+- x-oi-session-token header injected ✓
+
+REQUEST SHAPE
+-------------
+GET /api/admin/users/search?q=paul
+Headers:
+  - cookie: better-auth.session_token=...
+  - x-oi-session-token: ... (fallback)
+  - credentials: "include"
+
+RESPONSE SHAPE
+--------------
+Success (200): { users: [{ id, email, name, username, createdAt }] }
+Error (4xx/5xx): Thrown, now surfaced to UI
+
+ROOT CAUSE
+----------
+searchUsers() in adminApi.ts silently returned { users: [] } for all 
+non-401/403 errors. UI could not distinguish "no results" from "error".
+
+FIX APPLIED
+-----------
+1. adminApi.ts: Remove try/catch that swallowed errors
+2. adminApi.ts: Add minimum 2-char query length check
+3. admin.tsx: Add searchError state
+4. admin.tsx: Display error in red when search fails
+5. admin.tsx: "No users found" only shows on successful empty search
 
 FILES CHANGED
 -------------
-1. src/app/event/[id].tsx (MODIFIED)
-   - Lines 1017-1058: Wrapped Visibility section in isMyEvent conditional
+1. src/lib/adminApi.ts (MODIFIED)
+   - searchUsers() now throws on all errors (caller handles)
+   - Added 2-char minimum query length
 
-2. docs/FINDINGS_LOG.md (MODIFIED)
-   - Added P1 Event Details Visibility Row entry
+2. src/app/admin.tsx (MODIFIED)
+   - Added searchError state
+   - handleSearch sets searchError on failure
+   - Error UI shows in red below search input
+   - "No users found" only shows if !searchError
 
-HOST IDENTIFICATION
--------------------
-Variable: isMyEvent (line 471)
-Logic: event?.userId === session?.user?.id
-Pattern: Same as edit/delete button gating
+3. docs/FINDINGS_LOG.md (MODIFIED)
+   - Added entry for this fix
 
-KEY DIFF
---------
-src/app/event/[id].tsx:
+KEY DIFFS
+---------
+adminApi.ts:
+// Before: silently returned empty
+} catch (error) {
+  if (401/403) throw; 
+  return { users: [] };  // BUG: swallows errors
+}
 
-// Before (line 1017):
-{/* Visibility */}
-<View className="py-3 border-t" ...>
+// After: throws all errors
+// No try/catch - let errors propagate
+const response = await api.get(...);
+return response;
 
-// After (lines 1017-1018):
-{/* Visibility - Host only */}
-{isMyEvent && (
-<View className="py-3 border-t" ...>
-  ...
-</View>
-)}
+admin.tsx:
++ const [searchError, setSearchError] = useState<string | null>(null);
++ setSearchError(null); // clear on new search
++ catch: setSearchError(error?.message || `Search failed`)
++ UI: {searchError && <Text style={{color: "#EF4444"}}>{searchError}</Text>}
+
+BEFORE/AFTER BEHAVIOR
+---------------------
+Before:
+- Backend 500 → "No users found" (misleading)
+- Backend timeout → "No users found" (misleading)
+- Backend 0 results → "No users found" (correct)
+
+After:
+- Backend 500 → Red error: "Search failed (500)"
+- Backend timeout → Red error: "Search failed (network error)"
+- Backend 0 results → "No users found" (correct)
 
 RUNTIME STATUS
 --------------
@@ -49,22 +99,29 @@ npm run typecheck                    PASS
 
 ACCEPTANCE CHECKLIST
 -------------------
-[x] Non-host viewing event: no Visibility row
-[x] Host viewing event: Visibility row still present
-[x] Layout spacing clean (no extra divider lines)
+[x] Search by name/username/email returns users (backend dependent)
+[x] If backend error, UI shows meaningful error (not "No users found")
+[x] credentials: "include" present on admin requests
 [x] typecheck PASS
 [x] verify_frontend.sh PASS
 
 MANUAL TEST NOTES
 -----------------
-1. Create an event as User A
-2. View event as User A → Visibility row visible
-3. View same event as User B (friend) → Visibility row hidden
-4. Check for orphan borders or spacing issues
+1. Go to Admin Console (must be admin)
+2. Search for known user → should return results
+3. Search for nonsense → should say "No users found"
+4. If backend returns error → should show red error message
+
+BACKEND REQUIREMENTS
+--------------------
+Endpoint: GET /api/admin/users/search?q=<query>
+- Must return { users: [...] } on success
+- Must return error status if search fails
+- Query param: q (search term)
 
 CONSTRAINTS MET
 ---------------
-- Minimal diff (+3 lines: comment, opening conditional, closing paren)
+- Frontend-only fix (no backend edits in this repo)
+- Minimal diff
 - No new dependencies
-- Icons: unchanged
 - Navigation architecture preserved

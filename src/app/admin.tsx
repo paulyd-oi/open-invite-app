@@ -24,6 +24,7 @@ export default function AdminConsole() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
   const [availableBadges, setAvailableBadges] = useState<BadgeDef[]>([]);
   const [userBadges, setUserBadges] = useState<GrantedBadge[]>([]);
@@ -65,6 +66,7 @@ export default function AdminConsole() {
 
     setIsSearching(true);
     setSelectedUser(null); // Clear selected user on new search
+    setSearchError(null); // Clear previous error
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
@@ -86,9 +88,17 @@ export default function AdminConsole() {
           resultCount: 0,
           firstResultId: null,
           errorText: error?.message ?? 'Unknown error',
+          rawData: error?.data ?? null,
         });
       }
       setSearchResults([]);
+      // Surface error to UI - distinguish auth errors from other errors
+      if (error?.status === 401 || error?.status === 403) {
+        setSearchError("Not authorized for admin access");
+        router.replace("/settings");
+      } else {
+        setSearchError(error?.message || `Search failed (${error?.status || 'network error'})`);
+      }
     } finally {
       setIsSearching(false);
     }
@@ -344,7 +354,17 @@ export default function AdminConsole() {
               </View>
             )}
 
-            {searchResults.length === 0 && searchQuery && !isSearching && (
+            {/* Search Error */}
+            {searchError && !isSearching && (
+              <View className="px-4 py-6 border-t" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                <Text style={{ color: "#EF4444" }} className="text-center font-medium">
+                  {searchError}
+                </Text>
+              </View>
+            )}
+
+            {/* No Results (only show if no error) */}
+            {searchResults.length === 0 && searchQuery && !isSearching && !searchError && (
               <View className="px-4 py-6 border-t" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
                 <Text style={{ color: colors.textSecondary }} className="text-center">
                   No users found for "{searchQuery}"
