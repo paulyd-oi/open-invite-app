@@ -567,6 +567,7 @@ export async function clearOiSessionToken(): Promise<void> {
     // Ignore - key may not exist
   }
   oiSessionToken = null;
+  oiSessionTokenInitialized = true; // Mark initialized to prevent rehydrating stale values
   console.log('[OI_TOKEN] cleared');
 }
 

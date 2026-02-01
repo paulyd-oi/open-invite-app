@@ -38,7 +38,7 @@ import {
 import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
-import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken } from "@/lib/authClient";
+import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
@@ -729,35 +729,30 @@ export default function WelcomeOnboardingScreen() {
       // Calling refreshExplicitCookie() can CLEAR the cache if SecureStore read
       // happens before the write is committed (race condition).
       
-      // ============ COOKIE SYNC BARRIER ============
-      // CRITICAL: Verify session works BEFORE proceeding. This blocks until we have proof
-      // that the cookie is working, preventing race conditions with subsequent requests.
-      traceLog("cookie_barrier_start", { tokenLength: tokenValue.length });
-      let barrier200 = false;
-      let userIdPresent = false;
-      try {
-        const { authClient } = await import("@/lib/authClient");
-        const sessionCheck = await authClient.$fetch<{ user?: { id: string } }>("/api/auth/session");
-        const userId = sessionCheck?.user?.id;
-        barrier200 = true;
-        userIdPresent = !!userId;
-        if (!userId) {
-          traceError("cookie_barrier_no_user", { hasResponse: !!sessionCheck });
-          throw new Error("Session verification failed. Please try again.");
-        }
-        // PROOF LOG with required format
-        console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=${barrier200} userIdPresent=${userIdPresent}`);
-        traceLog("cookie_barrier_success", { userId: userId.substring(0, 8) });
-      } catch (sessionErr: any) {
-        traceError("cookie_barrier_fail", { 
-          message: sessionErr?.message,
-          status: sessionErr?.status,
+      // ============ SESSION BARRIER ============
+      // CRITICAL: Use ensureSessionReady() to verify session works BEFORE proceeding.
+      // This blocks until we have proof that x-oi-session-token is working.
+      traceLog("session_barrier_start", { tokenLength: tokenValue.length });
+      const barrierResult = await ensureSessionReady();
+      
+      // Log the AUTH_BARRIER result explicitly
+      console.log(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);
+      
+      if (!barrierResult.ok) {
+        traceError("session_barrier_fail", { 
+          status: barrierResult.status,
+          attempt: barrierResult.attempt,
+          error: barrierResult.error,
         });
-        // PROOF LOG on failure
-        console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=${barrier200} userIdPresent=${userIdPresent}`);
-        console.error("[APPLE_COOKIE_PROOF] BARRIER FAILED:", sessionErr?.message || sessionErr);
+        // Log clearly and throw - do NOT proceed silently
+        console.error("[APPLE_AUTH] Session barrier FAILED - cannot proceed:", barrierResult);
+        throw new Error("Session verification failed after Apple Sign-In. Please try again.");
       }
-      // ============ END COOKIE SYNC BARRIER ============
+      
+      // PROOF LOG with required format
+      console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=true userIdPresent=true`);
+      traceLog("session_barrier_success", { userId: barrierResult.userId?.substring(0, 8) });
+      // ============ END SESSION BARRIER ============
       
       // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
       // Without this, BootRouter may redirect to /login because bootStatus is stale

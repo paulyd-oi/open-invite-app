@@ -1,142 +1,68 @@
-HANDOFF PACKET — APPLE SIGN-IN COOKIE LOSS FIX (DETERMINISTIC)
+HANDOFF PACKET — APPLE SESSION TOKEN FIX
 ====================================================================
-Date: 2026-01-31
+Date: 2026-02-01
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed Apple Sign-In cookie loss bug where session was created but subsequent
-requests had COOKIE HEADER PRESENT: false and /api/auth/session returned 401.
+Fixed Apple Sign-In so that after POST /api/auth/apple returns { token },
+every subsequent request includes x-oi-session-token header and
+/api/auth/session returns 200.
 
-ROOT CAUSE
-----------
-After Apple login, the following sequence caused a race condition:
-1. setExplicitCookiePair(tokenValue) - stores to SecureStore (async)
-2. setExplicitCookieValueDirectly() - sets memory cache (sync) - WORKS
-3. refreshExplicitCookie() - reads from SecureStore, CAN CLEAR memory cache!
+KEY CHANGES
+-----------
+1. clearOiSessionToken() now sets oiSessionTokenInitialized = true
+   - Prevents rehydrating stale values after sign out
+   - setOiSessionToken() already correctly sets memory + initialized flag
 
-The bug: refreshExplicitCookie() reads from SecureStore. If the SecureStore
-write hasn't committed yet due to async timing, it won't find the cookie
-and will SET explicitCookieValue = null, CLEARING the memory cache!
-
-This caused subsequent requests to have no cookie attached.
-
-STRUCTURAL FIX
---------------
-1. REMOVED the problematic refreshExplicitCookie() call after Apple login.
-   The memory cache is already set by setExplicitCookieValueDirectly().
-
-2. ADDED "Cookie Sync Barrier" - verifies session works BEFORE proceeding:
-   - Calls /api/auth/session with the cookie
-   - If 200 + has userId -> cookie works, proceed
-   - If fails -> logs error but allows user to proceed (can retry)
+2. welcome.tsx now uses ensureSessionReady() for session barrier
+   - Replaces inline barrier with proper function call
+   - Logs AUTH_BARRIER_RESULT with ok/status/userId/attempt
+   - Throws and does NOT proceed silently if barrier fails
 
 FILES CHANGED
 -------------
-1. src/app/welcome.tsx (handleAppleSignIn function)
-   - Removed: await refreshExplicitCookie()  
-   - Added: Cookie Sync Barrier that calls /api/auth/session to verify
-   - Added: [APPLE_COOKIE_PROOF] log line for proof
+1. src/lib/authClient.ts
+   - clearOiSessionToken(): Added oiSessionTokenInitialized = true
 
-PROOF LOGS
-----------
-Frontend: [APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true userId=...
-Backend:  COOKIE HEADER PRESENT: true | GET /api/auth/session 200
+2. src/app/welcome.tsx
+   - Added ensureSessionReady to imports
+   - Replaced inline cookie barrier with ensureSessionReady() call
+   - Added AUTH_BARRIER_RESULT log line
+
+PROOF LOGS (Expected on Device)
+-------------------------------
+After Apple Sign-In:
+  [OI_TOKEN] stored len=N
+  [AUTH_BARRIER] ok=true status=200 userId=abc12345... attempt=1
+  [AUTH_BARRIER_RESULT] ok=true status=200 userId=abc12345... attempt=1
+  [APPLE_TOKEN_PROOF] tokenFound=true tokenLen=N barrier200=true userIdPresent=true
+
+Subsequent authed calls (e.g., /api/app-config or /api/push/me):
+  [AUTH_HDR] x-oi-session-token len=N hadCookie=true
+  (No 401 errors)
 
 TEST PLAN
 ---------
-1. Delete app, fresh install on physical iPhone
-2. Apple Sign-In  
-3. Check logs for [APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true
-4. Check Render logs for COOKIE HEADER PRESENT: true
-5. Continue through onboarding, land in calendar
+1. Delete app from physical iPhone
+2. Fresh install from TestFlight
+3. Apple Sign-In
+4. Check device logs for:
+   - [OI_TOKEN] stored len=N (token persisted)
+   - [AUTH_BARRIER_RESULT] ok=true status=200 userId=... attempt=1
+   - [APPLE_TOKEN_PROOF] tokenFound=true tokenLen=N barrier200=true userIdPresent=true
+5. Navigate through app - confirm no 401 errors
+6. Check Render logs for x-oi-session-token header presence
 
 VERIFICATION
 ------------
-npm run typecheck - PASS
-bash scripts/ai/verify_frontend.sh - PASS
-  GET /api/auth/session 401 missing_token
+npm run typecheck                    PASS
+git status --porcelain              (clean after commit)
 
-After fix:
-  [AUTH] COOKIE HEADER PRESENT true | COOKIE LENGTH > 0
-  GET /api/auth/session 200 (with user data)
-
-TEST PLAN
----------
-1. Fresh install app on device
-2. Sign in with Apple
-3. Observe Render logs for:
-   - POST /api/auth/apple 200 (session created)
-   - GET /api/auth/session 200 (cookie present)
-4. Navigate to calendar - should load without 401 errors
-5. Push diagnostics should work (if allowlisted)
-
-VERIFICATION COMMANDS RUN
--------------------------
-npm run typecheck                    ✓ PASS (no errors)
-bash scripts/ai/verify_frontend.sh  ✓ PASS (all checks)
-
-COMMIT MESSAGE
---------------
-fix(auth): restore cookie auth with credentials: "include"
-
-- Change credentials from "omit" to "include" in authClient.$fetch
-- Fix cookie header format (remove leading semicolon)
-- Update Apple sign-in to use credentials: "include"
-- Enables browser/RN cookie jar to store and send session cookies
-
-NEXT STEPS
-----------
-1. Deploy to TestFlight
-2. Test Apple sign-in on physical device
-3. Verify Render logs show COOKIE HEADER PRESENT true
-4. Verify push notification registration works after auth
-
-REMAINING CONCERNS
-------------------
-- If RN cookie jar doesn't work cross-origin, may need CORS adjustment on backend
-- If still failing, fallback is to add Authorization: Bearer header alongside cookie
-
-calendar.tsx:
-- // Old checkFirstLogin logic that showed modal for new users
-+ // DISABLED: Legacy first login guide modal
-+ // Added one-time migration to set legacy flag as dismissed
-
-RUNTIME STATUS
---------------
-npm run typecheck: PASS
-bash scripts/ai/verify_frontend.sh: PASS
-
-TEST PLAN
----------
-Task A (Apple Login):
-1. Build TestFlight with this commit
-2. Fresh Apple Sign-In on physical device
-3. Complete profile setup (name, photo)
-4. Confirm NO "session expired" error appears
-5. Confirm /api/auth/session returns 200 (check DEV logs or network inspector)
-6. Regression: Email/password login still works
-
-Task B (Legacy Onboarding):
-1. Sign in with a fresh account (0 friends, 0 events)
-2. Confirm the OLD modal ("Welcome to Open Invite! / Get Started Guide / Maybe later") does NOT appear
-3. Confirm the NEW interactive onboarding (if triggered) still works
-4. Regression: Settings > "Get Started Guide" still navigates to /onboarding
-
-NOTES / RISKS
--------------
-- Token validator rejects any token without a dot - this assumes Better Auth tokens are always signed/JWT-like
-- If backend ever returns unsigned tokens, validator will reject them (safe failure mode)
-- Legacy modal is disabled but code remains (safe to remove entirely in future cleanup)
-- One-time migration sets flag for all users - idempotent, runs on every calendar mount
-
-VALIDATOR REJECTION REASONS
----------------------------
-| Reason              | Meaning                           | Action      |
-|---------------------|-----------------------------------|-------------|
-| empty_or_not_string | Token is null/undefined/not string| Reject      |
-| too_short           | Token length < 20 chars           | Reject      |
-| uuid_pattern        | Token matches UUID format         | Reject      |
-| no_dot_not_signed   | Token has no "." character        | Reject      |
-| valid               | Token passes all checks           | Accept      |
+CONSTRAINTS
+-----------
+- Minimal diff (2 files, less than 20 lines changed)
+- No new dependencies
+- Icon system untouched
+- Navigation architecture preserved
