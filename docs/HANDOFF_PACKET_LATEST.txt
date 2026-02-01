@@ -1,4 +1,4 @@
-HANDOFF PACKET — APPLE SESSION TOKEN FIX
+HANDOFF PACKET — APPLE AUTH ORIGIN + AUTHCODE FIX
 ====================================================================
 Date: 2026-02-01
 Branch: main
@@ -6,63 +6,64 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed Apple Sign-In so that after POST /api/auth/apple returns { token },
-every subsequent request includes x-oi-session-token header and
-/api/auth/session returns 200.
-
-KEY CHANGES
------------
-1. clearOiSessionToken() now sets oiSessionTokenInitialized = true
-   - Prevents rehydrating stale values after sign out
-   - setOiSessionToken() already correctly sets memory + initialized flag
-
-2. welcome.tsx now uses ensureSessionReady() for session barrier
-   - Replaces inline barrier with proper function call
-   - Logs AUTH_BARRIER_RESULT with ok/status/userId/attempt
-   - Throws and does NOT proceed silently if barrier fails
+Updated Apple Sign-In backend exchange to match cookie/trusted-origin
+behavior used by email sign-in:
+  - Added Origin: "open-invite://" header
+  - Added authorizationCode to JSON body (alongside identityToken)
+  - Kept credentials: "include"
 
 FILES CHANGED
 -------------
-1. src/lib/authClient.ts
-   - clearOiSessionToken(): Added oiSessionTokenInitialized = true
+1. src/app/welcome.tsx
+   - handleAppleSignIn fetch() call updated
 
-2. src/app/welcome.tsx
-   - Added ensureSessionReady to imports
-   - Replaced inline cookie barrier with ensureSessionReady() call
-   - Added AUTH_BARRIER_RESULT log line
+KEY DIFF
+--------
+  const response = await fetch(backendUrl, {
+    method: "POST",
+-   headers: { "Content-Type": "application/json" },
++   headers: {
++     "Content-Type": "application/json",
++     "Origin": "open-invite://",
++   },
+    credentials: "include",
+    body: JSON.stringify({
+      identityToken: credential.identityToken,
++     authorizationCode: credential.authorizationCode,
+      user: { ... },
+    }),
+  });
 
-PROOF LOGS (Expected on Device)
--------------------------------
-After Apple Sign-In:
-  [OI_TOKEN] stored len=N
-  [AUTH_BARRIER] ok=true status=200 userId=abc12345... attempt=1
-  [AUTH_BARRIER_RESULT] ok=true status=200 userId=abc12345... attempt=1
-  [APPLE_TOKEN_PROOF] tokenFound=true tokenLen=N barrier200=true userIdPresent=true
+RUNTIME STATUS
+--------------
+npm run typecheck                    PASS
 
-Subsequent authed calls (e.g., /api/app-config or /api/push/me):
-  [AUTH_HDR] x-oi-session-token len=N hadCookie=true
-  (No 401 errors)
-
-TEST PLAN
----------
+HOW TO VERIFY ON-DEVICE
+-----------------------
 1. Delete app from physical iPhone
 2. Fresh install from TestFlight
 3. Apple Sign-In
-4. Check device logs for:
-   - [OI_TOKEN] stored len=N (token persisted)
-   - [AUTH_BARRIER_RESULT] ok=true status=200 userId=... attempt=1
-   - [APPLE_TOKEN_PROOF] tokenFound=true tokenLen=N barrier200=true userIdPresent=true
-5. Navigate through app - confirm no 401 errors
-6. Check Render logs for x-oi-session-token header presence
+4. Check device logs for APPLE_AUTH_TRACE stages:
+   - [APPLE_AUTH_TRACE] apple_auth_start
+   - [APPLE_AUTH_TRACE] apple_credential_received
+   - [APPLE_AUTH_TRACE] apple_auth_backend_start { url, method: "POST" }
+   - [APPLE_AUTH_TRACE] apple_auth_backend_response { status: 200, ok: true, hasToken: true }
+   - [APPLE_AUTH_TRACE] token_stored_success
+   - [AUTH_BARRIER_RESULT] ok=true status=200 userId=...
 
-VERIFICATION
-------------
-npm run typecheck                    PASS
-git status --porcelain              (clean after commit)
+5. Check Render backend logs for:
+   - Origin header present: "open-invite://"
+   - authorizationCode present in request body
+   - Session cookie set in response
 
-CONSTRAINTS
------------
-- Minimal diff (2 files, less than 20 lines changed)
+6. Subsequent authed calls should show:
+   - [AUTH_HDR] x-oi-session-token len=N hadCookie=true
+   - No 401 errors
+
+CONSTRAINTS MET
+---------------
+- Minimal diff (1 file, ~5 lines changed)
 - No new dependencies
+- Expo + RN + Expo Router only
 - Icon system untouched
 - Navigation architecture preserved

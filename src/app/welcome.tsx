@@ -574,15 +574,20 @@ export default function WelcomeOnboardingScreen() {
 
       // Send to backend - use credentials: "include" to allow cookie jar storage
       // If backend sends Set-Cookie, it will be stored in the cookie jar
+      // Origin header matches trusted-origin behavior used by email sign-in
       const backendUrl = `${BACKEND_URL}/api/auth/apple`;
       traceLog("apple_auth_backend_start", { url: backendUrl, method: "POST" });
       
       const response = await fetch(backendUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Origin": "open-invite://",
+        },
         credentials: "include", // Allow cookie jar to receive Set-Cookie
         body: JSON.stringify({
           identityToken: credential.identityToken,
+          authorizationCode: credential.authorizationCode,
           user: {
             email: credential.email,
             name: credential.fullName ? {
