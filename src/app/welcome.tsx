@@ -572,15 +572,15 @@ export default function WelcomeOnboardingScreen() {
         throw new Error("Apple Sign-In did not return required credentials. Please try again.");
       }
 
-      // Send to backend - CRITICAL: React Native doesn't auto-persist Set-Cookie
-      // We must manually capture the Set-Cookie header and store it in SecureStore
+      // Send to backend - use credentials: "include" to allow cookie jar storage
+      // If backend sends Set-Cookie, it will be stored in the cookie jar
       const backendUrl = `${BACKEND_URL}/api/auth/apple`;
       traceLog("apple_auth_backend_start", { url: backendUrl, method: "POST" });
       
       const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "omit", // Don't rely on auto cookie handling in RN
+        credentials: "include", // Allow cookie jar to receive Set-Cookie
         body: JSON.stringify({
           identityToken: credential.identityToken,
           user: {

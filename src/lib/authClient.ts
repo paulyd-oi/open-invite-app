@@ -232,18 +232,7 @@ async function $fetch<T = any>(
     let finalBody: any = init?.body;
     const finalHeaders = new Headers(init?.headers as HeadersInit | undefined);
     
-    // CRITICAL: Attach session cookie header explicitly
-    // Better Auth expo uses LOWERCASE 'cookie' header with credentials: 'omit'
-    // React Native drops uppercase 'Cookie' header silently
-    if (explicitCookieValue) {
-      // Better Auth expo format: "; name=value" (leading semicolon-space)
-      finalHeaders.set("cookie", `; ${explicitCookieValue}`);
-      if (__DEV__) {
-        console.log(`[authClient.$fetch] cookie header SET (lowercase)`);
-      }
-    }
-    
-    // Add expo-origin header like Better Auth expo client does
+    // Add expo-origin header for Better Auth expo compatibility
     const expoOrigin = `${EXPO_SCHEME}://`;
     finalHeaders.set("expo-origin", expoOrigin);
     finalHeaders.set("x-skip-oauth-proxy", "true");
@@ -253,13 +242,23 @@ async function $fetch<T = any>(
       finalHeaders.set('Content-Type', 'application/json');
     }
     
-    // Use native fetch with explicit cookie header (more reliable in React Native)
-    // credentials: 'omit' is required - Better Auth expo handles cookies manually
+    // CRITICAL: Use credentials: "include" to send cookies automatically
+    // React Native's fetch with credentials: "include" uses the cookie jar
+    // We also set the cookie header explicitly as fallback for RN environments
+    // where the cookie jar may not work reliably across domains
+    if (explicitCookieValue) {
+      // Standard cookie format: "name=value" (no leading semicolon)
+      finalHeaders.set("cookie", explicitCookieValue);
+      if (__DEV__) {
+        console.log(`[authClient.$fetch] cookie header SET: ${explicitCookieValue.split('=')[0]}`);
+      }
+    }
+    
     const response = await fetch(url, {
       method: init?.method || "GET",
       body: finalBody,
       headers: finalHeaders,
-      credentials: "omit",
+      credentials: "include",
     });
     
     // Log response status for every request (helps debug auth issues)

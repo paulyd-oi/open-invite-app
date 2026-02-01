@@ -1,4 +1,4 @@
-HANDOFF PACKET — APPLE LOGIN COOKIE FIX + LEGACY ONBOARDING REMOVAL
+HANDOFF PACKET — COOKIE AUTH REGRESSION FIX (credentials: "include")
 ====================================================================
 Date: 2026-01-31
 Branch: main
@@ -6,48 +6,89 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-TASK A: Fixed Apple Sign-In "session expired" bug caused by invalid tokens being stored.
-TASK B: Disabled legacy "Get Started Guide" modal; only new interactive onboarding shows.
+Fixed cookie auth regression where authenticated requests showed "COOKIE HEADER PRESENT false"
+in Render logs. After Apple sign-in, GET /api/auth/session was returning 401 missing_token.
+
+ROOT CAUSE:
+- authClient.$fetch used credentials: "omit" with manual cookie header injection
+- Cookie header format was "; name=value" (with leading semicolon) which is non-standard
+- React Native fetch may strip manually-set cookie headers for security
+
+FIX:
+1. Changed credentials: "omit" → credentials: "include" in authClient.$fetch
+2. Changed cookie header format from "; name=value" → "name=value" (standard format)
+3. Changed Apple sign-in POST to use credentials: "include" for cookie jar storage
 
 FILES CHANGED
 -------------
 1. src/lib/authClient.ts
-   - Added isValidBetterAuthToken() validator function (exported)
-   - Updated captureAndStoreCookie(): removed substring fallback, validates before store
-   - Updated setExplicitCookieValueDirectly(): validates token, returns boolean
+   - Line ~257: credentials: "omit" → credentials: "include"
+   - Line ~240: Cookie header format changed from `; ${explicitCookieValue}` to `${explicitCookieValue}`
+   - Moved expo-origin header setup before cookie header for logical grouping
+   - Updated comments to reflect new approach
 
-2. src/lib/sessionCookie.ts
-   - Added isValidSessionToken() local validator (same logic)
-   - Updated setExplicitCookiePair(): validates token, returns Promise<boolean>
-
-3. src/app/welcome.tsx
-   - Imports isValidBetterAuthToken from authClient
-   - Validates tokenValue before storage in Apple Sign-In flow
-   - Handles validation failures with user-friendly error
-
-4. src/app/calendar.tsx
-   - Disabled checkFirstLogin useEffect (legacy modal trigger)
-   - Added one-time migration to set get_started_dismissed flag for all users
+2. src/app/welcome.tsx
+   - Line ~583: credentials: "omit" → credentials: "include" for Apple sign-in POST
+   - Updated comments to reflect cookie jar usage
 
 KEY DIFFS
 ---------
-authClient.ts:
-+ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-+ export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reason: string }
-+ // REMOVED: fallback logic looking for any key containing 'session_token'
-+ // ADDED: validation before storing in captureAndStoreCookie()
-+ // CHANGED: setExplicitCookieValueDirectly() returns boolean
+authClient.ts $fetch:
+- credentials: "omit",
++ credentials: "include",
 
-sessionCookie.ts:
-+ function isValidSessionToken(token: string): { isValid: boolean; reason: string }
-+ // CHANGED: setExplicitCookiePair() returns Promise<boolean>
+- finalHeaders.set("cookie", `; ${explicitCookieValue}`);
++ finalHeaders.set("cookie", explicitCookieValue);
 
-welcome.tsx:
-+ import { ..., isValidBetterAuthToken } from "@/lib/authClient";
-+ const tokenValidation = isValidBetterAuthToken(tokenValue);
-+ if (!tokenValidation.isValid) { throw new Error("...invalid session token..."); }
-+ const stored = await setExplicitCookiePair(tokenValue); if (!stored) { throw ... }
-+ const cacheSet = setExplicitCookieValueDirectly(...); if (!cacheSet) { throw ... }
+welcome.tsx handleAppleSignIn:
+- credentials: "omit", // Don't rely on auto cookie handling in RN
++ credentials: "include", // Allow cookie jar to receive Set-Cookie
+
+PROOF EXPECTED (Render logs after deploy)
+-----------------------------------------
+Before fix:
+  [AUTH] COOKIE HEADER PRESENT false | COOKIE LENGTH 0
+  GET /api/auth/session 401 missing_token
+
+After fix:
+  [AUTH] COOKIE HEADER PRESENT true | COOKIE LENGTH > 0
+  GET /api/auth/session 200 (with user data)
+
+TEST PLAN
+---------
+1. Fresh install app on device
+2. Sign in with Apple
+3. Observe Render logs for:
+   - POST /api/auth/apple 200 (session created)
+   - GET /api/auth/session 200 (cookie present)
+4. Navigate to calendar - should load without 401 errors
+5. Push diagnostics should work (if allowlisted)
+
+VERIFICATION COMMANDS RUN
+-------------------------
+npm run typecheck                    ✓ PASS (no errors)
+bash scripts/ai/verify_frontend.sh  ✓ PASS (all checks)
+
+COMMIT MESSAGE
+--------------
+fix(auth): restore cookie auth with credentials: "include"
+
+- Change credentials from "omit" to "include" in authClient.$fetch
+- Fix cookie header format (remove leading semicolon)
+- Update Apple sign-in to use credentials: "include"
+- Enables browser/RN cookie jar to store and send session cookies
+
+NEXT STEPS
+----------
+1. Deploy to TestFlight
+2. Test Apple sign-in on physical device
+3. Verify Render logs show COOKIE HEADER PRESENT true
+4. Verify push notification registration works after auth
+
+REMAINING CONCERNS
+------------------
+- If RN cookie jar doesn't work cross-origin, may need CORS adjustment on backend
+- If still failing, fallback is to add Authorization: Bearer header alongside cookie
 
 calendar.tsx:
 - // Old checkFirstLogin logic that showed modal for new users
