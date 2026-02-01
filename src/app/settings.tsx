@@ -2376,6 +2376,7 @@ export default function SettingsScreen() {
                     <DiagRow label="POST Status" value={String(pushDiagResult.postStatus ?? "N/A")} good={pushDiagResult.postStatus === 200} colors={colors} />
                     <DiagRow label="GET Status" value={String(pushDiagResult.getStatus ?? "N/A")} good={pushDiagResult.getStatus === 200} colors={colors} />
                     <DiagRow label="Active Tokens" value={String(pushDiagResult.backendActiveCount ?? 0)} good={(pushDiagResult.backendActiveCount ?? 0) > 0} colors={colors} />
+                    <DiagRow label="Last Registration" value={(pushDiagResult as any).lastRegistrationTime ? new Date((pushDiagResult as any).lastRegistrationTime).toLocaleString() : "Never"} good={!!(pushDiagResult as any).lastRegistrationTime} colors={colors} />
                   </View>
 
                   {/* Backend Tokens List */}

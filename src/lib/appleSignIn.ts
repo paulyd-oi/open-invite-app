@@ -26,6 +26,7 @@ export type AppleAuthErrorBucket =
   | "native_entitlement_or_provisioning"
   | "network_error"
   | "backend_rejection"
+  | "missing_email"
   | "other_native_error";
 
 /**
@@ -73,6 +74,19 @@ export function classifyAppleAuthError(error: any): AppleAuthErrorBucket {
     name.includes("network")
   ) {
     return "network_error";
+  }
+
+  // Missing email - Apple didn't provide email (common after account deletion/re-auth)
+  // Backend typically rejects with 400/422 and message about missing email
+  if (
+    message.includes("email") && (
+      message.includes("missing") ||
+      message.includes("required") ||
+      message.includes("not provided") ||
+      message.includes("no email")
+    )
+  ) {
+    return "missing_email";
   }
 
   // Backend rejection (if httpStatus is present)
@@ -155,7 +169,30 @@ export function decodeAppleAuthError(error: any): string | null {
     return "Apple Sign-In encountered an issue. Please try again.";
   }
   if (code === 1002 || message.includes("invalid")) {
+    // Check if this is specifically about missing email
+    if (
+      message.includes("email") && (
+        message.includes("missing") ||
+        message.includes("required") ||
+        message.includes("not provided") ||
+        message.includes("no email")
+      )
+    ) {
+      return "Apple didn't share your email. Go to iOS Settings → Apple ID → Sign-In & Security → Sign in with Apple → Open Invite → Stop Using Apple ID, then try again.";
+    }
     return "Apple Sign-In request was invalid. Please try again.";
+  }
+  
+  // Explicit missing email check (for backend rejection with email-related message)
+  if (
+    message.includes("email") && (
+      message.includes("missing") ||
+      message.includes("required") ||
+      message.includes("not provided") ||
+      message.includes("no email")
+    )
+  ) {
+    return "Apple didn't share your email. Go to iOS Settings → Apple ID → Sign-In & Security → Sign in with Apple → Open Invite → Stop Using Apple ID, then try again.";
   }
   if (code === 1003 || message.includes("not handled")) {
     return "Apple Sign-In is not configured properly.";

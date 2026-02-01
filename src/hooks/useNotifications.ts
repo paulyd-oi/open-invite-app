@@ -265,15 +265,36 @@ export function useNotifications() {
             console.log("[PUSH_BOOTSTRAP] Got valid token:", getTokenPrefix(token));
           }
 
-          // Send token to backend (backend upserts)
+          // Send token to backend (backend upserts) with retry
           const PUSH_REGISTER_ROUTE = "/api/push/register";
-          await api.post(PUSH_REGISTER_ROUTE, {
-            token,
-            platform: "expo",
-          });
-
-          if (__DEV__) {
-            console.log(`[PUSH_BOOTSTRAP] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
+          let registerSuccess = false;
+          let lastError: any = null;
+          
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              await api.post(PUSH_REGISTER_ROUTE, {
+                token,
+                platform: "expo",
+              });
+              registerSuccess = true;
+              if (__DEV__) {
+                console.log(`[PUSH_BOOTSTRAP] ✓ Token registered | attempt=${attempt} | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
+              }
+              break;
+            } catch (regErr: any) {
+              lastError = regErr;
+              if (__DEV__) {
+                console.log(`[PUSH_BOOTSTRAP] Registration attempt ${attempt} failed:`, regErr?.message || regErr);
+              }
+              if (attempt < 2) {
+                // Wait 1 second before retry
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            }
+          }
+          
+          if (!registerSuccess && __DEV__) {
+            console.log("[PUSH_BOOTSTRAP] ❌ Token registration failed after retry:", lastError?.message || "unknown");
           }
 
           // Update backend with permission status
@@ -281,12 +302,12 @@ export function useNotifications() {
             pushPermissionStatus: "granted",
           });
 
-          // Mark as registered for throttling
+          // Mark as registered for throttling (even if registration failed, to prevent spam)
           await markTokenRegistered();
           registrationAttempted.current = true;
 
           if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] ✓ Push registration complete");
+            console.log("[PUSH_BOOTSTRAP] ✓ Push registration complete, success=" + registerSuccess);
           }
         } else if (token) {
           // Token exists but failed validation (placeholder/invalid)
@@ -517,17 +538,33 @@ export function useNotifications() {
     getBody?: unknown;
     backendActiveCount?: number;
     backendTokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
+    lastRegistrationTime?: string;
   }> => {
     console.log("[PUSH_DIAG] start");
 
     // A) Check physical device
     const isPhysicalDevice = Device.isDevice;
     console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice);
+    
+    // A.1) Get last registration time
+    let lastRegistrationTime: string | undefined;
+    try {
+      const lastRegTs = await AsyncStorage.getItem(TOKEN_REGISTRATION_KEY);
+      if (lastRegTs) {
+        const ts = parseInt(lastRegTs, 10);
+        lastRegistrationTime = new Date(ts).toISOString();
+        console.log("[PUSH_DIAG] lastRegistrationTime=" + lastRegistrationTime);
+      } else {
+        console.log("[PUSH_DIAG] lastRegistrationTime=never");
+      }
+    } catch {
+      console.log("[PUSH_DIAG] lastRegistrationTime=error");
+    }
 
     // B) Check auth status
     if (bootStatus !== 'authed' || !session?.user) {
       console.log("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
-      return { ok: false, reason: "not_authed", isPhysicalDevice };
+      return { ok: false, reason: "not_authed", isPhysicalDevice, lastRegistrationTime };
     }
 
     try {
@@ -552,7 +589,7 @@ export function useNotifications() {
       // F) Check if permission granted
       if (status !== 'granted') {
         console.log("[PUSH_DIAG] permission_not_granted=" + status);
-        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId: projectId || "NOT_FOUND" };
+        return { ok: false, reason: "permission_not_granted", isPhysicalDevice, permission: status, projectId: projectId || "NOT_FOUND", lastRegistrationTime };
       }
       console.log("[PUSH_DIAG] permission=granted");
 
@@ -577,26 +614,39 @@ export function useNotifications() {
           tokenPrefix,
           tokenLength,
           isValidToken,
+          lastRegistrationTime,
         };
       }
 
-      // I) POST /api/push/register
+      // I) POST /api/push/register (with retry)
       const PUSH_REGISTER_ROUTE = "/api/push/register";
       console.log("[PUSH_DIAG] registering_token route=" + PUSH_REGISTER_ROUTE);
       
       let postStatus: number | string = 200;
       let postBody: unknown = null;
-      try {
-        const postResponse = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
-          token,
-          platform: "expo",
-        });
-        postBody = postResponse;
-        console.log("[PUSH_DIAG] POST status=200 body=" + JSON.stringify(postResponse));
-      } catch (postErr: any) {
-        postStatus = postErr?.status ?? postErr?.statusCode ?? "error";
-        postBody = postErr?.data ?? postErr?.message ?? String(postErr);
-        console.log("[PUSH_DIAG] POST status=" + postStatus + " error=" + JSON.stringify(postBody));
+      let postAttempts = 0;
+      
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        postAttempts = attempt;
+        try {
+          const postResponse = await api.post<{ ok?: boolean; error?: string }>(PUSH_REGISTER_ROUTE, {
+            token,
+            platform: "expo",
+          });
+          postBody = postResponse;
+          console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=200 body=" + JSON.stringify(postResponse));
+          break;
+        } catch (postErr: any) {
+          postStatus = postErr?.status ?? postErr?.statusCode ?? "error";
+          postBody = postErr?.data ?? postErr?.message ?? String(postErr);
+          console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=" + postStatus + " error=" + JSON.stringify(postBody));
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+      }
+      
+      if (postStatus !== 200) {
         return {
           ok: false,
           reason: "backend_error",
@@ -608,6 +658,7 @@ export function useNotifications() {
           isValidToken,
           postStatus,
           postBody,
+          lastRegistrationTime,
         };
       }
 
@@ -617,7 +668,11 @@ export function useNotifications() {
       });
       console.log("[PUSH_DIAG] status_updated");
 
-      // K) GET /api/push/me for proof
+      // K) Update lastRegistrationTime
+      await AsyncStorage.setItem(TOKEN_REGISTRATION_KEY, Date.now().toString());
+      const newLastRegTime = new Date().toISOString();
+
+      // L) GET /api/push/me for proof
       let getStatus: number | string = 200;
       let getBody: unknown = null;
       let backendActiveCount = 0;
@@ -634,7 +689,7 @@ export function useNotifications() {
         console.log("[PUSH_DIAG] GET /api/push/me error=" + JSON.stringify(getBody));
       }
 
-      // L) Success
+      // M) Success
       console.log("[PUSH_DIAG] success");
       return {
         ok: true,
@@ -651,6 +706,7 @@ export function useNotifications() {
         getBody,
         backendActiveCount,
         backendTokens,
+        lastRegistrationTime: newLastRegTime,
       };
     } catch (error: any) {
       console.log("[PUSH_DIAG] error=" + (error?.message || "unknown"));

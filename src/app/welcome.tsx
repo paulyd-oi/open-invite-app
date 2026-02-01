@@ -73,6 +73,8 @@ function getBucketExplanation(bucket: AppleAuthErrorBucket): string {
       return "Network connectivity issue - check device connection";
     case "backend_rejection":
       return "Backend rejected the Apple identity token - check backend logs for details";
+    case "missing_email":
+      return "Apple didn't share email - user needs to revoke Apple ID access in iOS Settings and try again";
     case "other_native_error":
       return "Unknown native error - check error code/message for details";
   }
@@ -609,12 +611,16 @@ export default function WelcomeOnboardingScreen() {
       });
 
       if (!response.ok || (!data.success && !data.ok)) {
+        const errorMessage = data.error || data.message || `HTTP ${response.status}`;
         traceError("backend_exchange_fail", {
-          message: data.error || data.message || `HTTP ${response.status}`,
+          message: errorMessage,
           httpStatus: response.status,
           httpStatusText: response.statusText,
         });
-        throw new Error(data.error || data.message || `Apple authentication failed (HTTP ${response.status})`);
+        // Throw error with message that decodeAppleAuthError can parse
+        const error = new Error(errorMessage);
+        (error as any).httpStatus = response.status;
+        throw error;
       }
 
       // CRITICAL: Store session cookie for React Native
