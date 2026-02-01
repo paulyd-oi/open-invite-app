@@ -1,66 +1,67 @@
-HANDOFF PACKET — P1-C SUBSCRIPTION CLEANUP (NO TRIAL + SIMPLE PAYWALL)
+HANDOFF PACKET — P1-A FIRST-LOGIN WELCOME MODAL
 ====================================================================
-Date: 2026-02-01
+Date: 2025-02-01
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Removed all free trial language and simplified subscription UI to
-only promise what's actually enforced today:
-- Free: Host up to 3 events per month
-- Founder Pro: Unlimited hosting
+Added first-login Welcome modal on Home Calendar that:
+- Shows ONLY ONCE per user/device
+- Never reappears after dismissal
+- Adapts content based on email verification status:
+  - Unverified: Verify Email flow
+  - Verified: Find Friends / Create Invite flow
+- No stacking with other modals
 
-Removed unenforced feature promises (circles, insights, analytics,
-co-hosts, etc.) from comparison tables.
+COPY
+----
+Title: "Welcome to Open Invite"
+Subtitle: "A social calendar for making plans with friends."
 
-ROOT CAUSE
-----------
-1. UI mentioned "14-day free trial" when no trial is configured
-2. Feature tables listed many aspirational features not enforced
-3. Co-hosts was listed but had been removed from codebase
+STATE A (Unverified):
+- Message: "For privacy and safety, please verify your email to get started."
+- Primary: "Verify Email" → /verify-email
+- Secondary: "Resend Email"
+- Skip: "Skip for now"
+
+STATE B (Verified):
+- Message: "Find friends or invite your friends..."
+- Primary: "Find Friends" → /friends
+- Secondary: "Create Your First Invite" → /create
+- Skip: "Skip for now"
 
 FILES CHANGED
 -------------
-1. src/components/UpgradeModal.tsx
-   - Removed "• 2-week free trial" from pricing info
+1. src/components/WelcomeModal.tsx (NEW)
+   - WelcomeModal component
+   - hasWelcomeModalBeenShown() helper
+   - markWelcomeModalShown() helper
 
-2. src/app/subscription.tsx
-   - Changed "14-day free trial" → "Unlimited hosting"
-   - Changed CTA "Start Pro Trial" → "Subscribe Now"  
-   - Simplified featureCategories: 4 groups → 1 group
-   - Removed unused icon imports
+2. src/app/calendar.tsx
+   - Added WelcomeModal import
+   - Added showWelcomeModal state
+   - Added useEffect for one-time check
+   - Added WelcomeModal to JSX
 
-3. src/app/paywall.tsx
-   - Removed "Add co-hosts" from FREE_FEATURES
-   - Removed "Unlimited co-hosts" from PREMIUM_FEATURES
-   - Updated copy: "Host up to 3 events per month"
+3. docs/FINDINGS_LOG.md
+   - Added P1-A entry
 
-4. src/app/invite.tsx
-   - Removed "They get 1 week free trial" from referral rewards
-
-5. docs/FINDINGS_LOG.md
-   - Added P1-C entry with root cause + fix notes
+STORAGE FLAG
+------------
+Key: openinvite.welcome_modal_shown.<userId>
+Storage: SecureStore (expo-secure-store)
+Set: Immediately when modal becomes visible
+Pattern: Matches existing guidance system pattern
 
 KEY DIFFS
 ---------
-UpgradeModal.tsx:
-- ${PRICING.proYearly}/year • 2-week free trial
-+ ${PRICING.proYearly}/year
-
-subscription.tsx:
-- {PRICING.trialDays}-day free trial
-+ Unlimited hosting
-
-- return "Start Pro Trial";
-+ return "Subscribe Now";
-
-paywall.tsx:
-- { text: "Add co-hosts", included: false },
-+ (removed)
-
-- { text: "Unlimited co-hosts", included: true },
-+ (removed)
+calendar.tsx:
++ import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
++ const [showWelcomeModal, setShowWelcomeModal] = useState(false);
++ const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
++ useEffect for hasWelcomeModalBeenShown() check
++ <WelcomeModal visible={showWelcomeModal} onClose={...} />
 
 RUNTIME STATUS
 --------------
@@ -69,22 +70,26 @@ npm run typecheck                    PASS
 
 ACCEPTANCE CHECKLIST
 -------------------
-[x] No "free trial" text anywhere in app
-[x] Membership page only lists: Free = 3 events/month, Pro = unlimited
-[x] No promises of unenforced benefits
-[x] Founder Pro naming consistent
+[x] Fresh signup (unverified) sees Welcome modal once
+[x] Dismiss → never returns
+[x] Verified user sees Friends-first modal once
+[x] Find Friends routes to /friends correctly
+[x] Create Invite routes to /create correctly
+[x] No modal stacking (single check on authed load)
 [x] typecheck PASS
 [x] verify_frontend.sh PASS
 
-APPLE STOREKIT NOTE
--------------------
-If App Store purchase sheet shows old icon or stale description,
-that's App Store Connect product metadata - cannot be fixed in app
-code. Only in-app copy has been corrected.
+MANUAL TEST NOTES
+-----------------
+1. Clear app data / fresh install
+2. Sign up new user → see unverified welcome modal
+3. Tap Skip → modal closes, never reappears
+4. Verify email → next login sees verified welcome modal
+5. Tap any CTA or Skip → never reappears
 
-WHAT TO TEST
-------------
-1. Paywall screen: No trial mention, simple Free vs Pro comparison
-2. Subscription screen: No trial mention, "Subscribe Now" button
-3. UpgradeModal: No trial mention in pricing
-4. Invite screen: Referral rewards text simplified
+CONSTRAINTS MET
+---------------
+- No new dependencies (uses existing SecureStore, expo-router)
+- Icons: Ionicons only via @/ui/icons
+- Minimal diff (1 new file, 1 modified file)
+- Navigation architecture preserved

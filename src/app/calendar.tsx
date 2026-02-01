@@ -46,6 +46,7 @@ import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -1173,6 +1174,26 @@ export default function CalendarScreen() {
     setGuidanceUserId(session?.user?.id ?? null);
     loadGuidanceState().then(() => setGuidanceLoaded(true));
   }, [session?.user?.id]);
+
+  // First-login welcome modal state (shows only once per user)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
+
+  // Check if welcome modal should be shown on first authed load
+  useEffect(() => {
+    // Only check once after user is authed
+    if (bootStatus !== 'authed' || !session?.user?.id || welcomeModalChecked) return;
+    
+    setWelcomeModalChecked(true);
+    
+    // Check if modal has been shown before for this user
+    hasWelcomeModalBeenShown(session.user.id).then((alreadyShown) => {
+      if (!alreadyShown) {
+        // Small delay to let the screen settle before showing modal
+        setTimeout(() => setShowWelcomeModal(true), 500);
+      }
+    });
+  }, [bootStatus, session?.user?.id, welcomeModalChecked]);
 
   // Handle retry from timeout UI
   const handleRetry = useCallback(() => {
@@ -2825,6 +2846,12 @@ export default function CalendarScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* First-login Welcome Modal - shows only once per user */}
+      <WelcomeModal
+        visible={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+      />
 
       </SafeAreaView>
     </GestureHandlerRootView>

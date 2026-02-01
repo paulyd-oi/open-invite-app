@@ -1,5 +1,47 @@
 # Findings Log — Frontend
 
+## P1-A: First-Login Welcome Modal (2026-02-01)
+
+### Implementation ✓
+**GOAL**: Add single first-login Welcome modal on Home Calendar that shows ONLY ONCE per user, adapts content based on email verification status, and never reappears.
+
+### Solution
+
+**Created new component**: `src/components/WelcomeModal.tsx`
+- Uses SecureStore with user-scoped key: `openinvite.welcome_modal_shown.<userId>`
+- Key is set immediately when modal becomes visible (ensures persistence even if user kills app)
+- Adapts content based on `session?.user?.emailVerified`:
+  - **Unverified**: Verify Email CTA, Resend Email secondary, Skip
+  - **Verified**: Find Friends CTA, Create Your First Invite secondary, Skip
+
+**Integration in calendar.tsx**:
+- Added state: `showWelcomeModal`, `welcomeModalChecked`
+- useEffect checks `hasWelcomeModalBeenShown()` once after `bootStatus === 'authed'`
+- 500ms delay before showing to let screen settle
+- Modal placed after Busy Modal in JSX
+
+### Persistence Pattern
+```typescript
+// SecureStore key format (matches existing guidance pattern)
+const WELCOME_MODAL_SHOWN_PREFIX = "openinvite.welcome_modal_shown.";
+// Key sanitized for SecureStore: [A-Za-z0-9._-]+
+```
+
+### No Modal Stacking
+- Welcome modal only checks on first authed load (`welcomeModalChecked` guard)
+- Once shown, flag is immediately persisted
+- Existing verification gating (social.tsx) is separate concern
+
+### Verification
+```
+$ npm run typecheck
+(no errors)
+$ bash scripts/ai/verify_frontend.sh
+PASS
+```
+
+---
+
 ## P1-C: Subscription UI Cleanup — No Trial + Simplified Features (2026-02-01)
 
 ### Root Cause Analysis ✓
