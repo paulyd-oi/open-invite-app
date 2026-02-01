@@ -38,7 +38,7 @@ import {
 import { useFonts } from "expo-font";
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 
-import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken } from "@/lib/authClient";
+import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken } from "@/lib/authClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
@@ -645,7 +645,17 @@ export default function WelcomeOnboardingScreen() {
         tokenValue = data.session.token;
         tokenSource = "session.token";
       }
-      // Priority 4: Extract from Set-Cookie header (if accessible in RN)
+      // Priority 4: sessionToken field (alternate shape)
+      else if (data.sessionToken && typeof data.sessionToken === 'string') {
+        tokenValue = data.sessionToken;
+        tokenSource = "sessionToken";
+      }
+      // Priority 5: session.sessionToken field (alternate shape)
+      else if (data.session?.sessionToken && typeof data.session.sessionToken === 'string') {
+        tokenValue = data.session.sessionToken;
+        tokenSource = "session.sessionToken";
+      }
+      // Priority 6: Extract from Set-Cookie header (if accessible in RN)
       else if (setCookieHeader) {
         const sessionMatch = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
         if (sessionMatch && sessionMatch[1]) {
@@ -660,6 +670,9 @@ export default function WelcomeOnboardingScreen() {
         tokenLength: tokenValue?.length || 0,
         responseKeys: Object.keys(data || {}),
       });
+      
+      // PROOF LOG: Token extraction result (never log token value)
+      console.log(`[APPLE_TOKEN_PROOF] ok=true tokenFound=${!!tokenValue} keys=${JSON.stringify(Object.keys(data || {}))}`);
       
       if (!tokenValue) {
         traceError("token_missing", {
@@ -707,6 +720,10 @@ export default function WelcomeOnboardingScreen() {
       // Also store as legacy auth token (for any code still using token auth)
       await setAuthToken(tokenValue);
       
+      // CRITICAL: Store OI session token for header fallback (iOS cookie jar is unreliable)
+      await setOiSessionToken(tokenValue);
+      traceLog("oi_token_stored", { tokenLength: tokenValue.length });
+      
       // NOTE: We deliberately do NOT call refreshExplicitCookie() here!
       // The memory cache is already set by setExplicitCookieValueDirectly.
       // Calling refreshExplicitCookie() can CLEAR the cache if SecureStore read
@@ -716,23 +733,28 @@ export default function WelcomeOnboardingScreen() {
       // CRITICAL: Verify session works BEFORE proceeding. This blocks until we have proof
       // that the cookie is working, preventing race conditions with subsequent requests.
       traceLog("cookie_barrier_start", { tokenLength: tokenValue.length });
+      let barrier200 = false;
+      let userIdPresent = false;
       try {
         const { authClient } = await import("@/lib/authClient");
         const sessionCheck = await authClient.$fetch<{ user?: { id: string } }>("/api/auth/session");
         const userId = sessionCheck?.user?.id;
+        barrier200 = true;
+        userIdPresent = !!userId;
         if (!userId) {
           traceError("cookie_barrier_no_user", { hasResponse: !!sessionCheck });
           throw new Error("Session verification failed. Please try again.");
         }
-        console.log(`[APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true userId=${userId.substring(0, 8)}...`);
+        // PROOF LOG with required format
+        console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=${barrier200} userIdPresent=${userIdPresent}`);
         traceLog("cookie_barrier_success", { userId: userId.substring(0, 8) });
       } catch (sessionErr: any) {
         traceError("cookie_barrier_fail", { 
           message: sessionErr?.message,
           status: sessionErr?.status,
         });
-        // Don't throw - allow user to proceed, they can retry
-        // But log prominently for debugging
+        // PROOF LOG on failure
+        console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=${barrier200} userIdPresent=${userIdPresent}`);
         console.error("[APPLE_COOKIE_PROOF] BARRIER FAILED:", sessionErr?.message || sessionErr);
       }
       // ============ END COOKIE SYNC BARRIER ============

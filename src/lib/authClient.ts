@@ -24,6 +24,12 @@ const EXPO_SCHEME = "open-invite"; // Must match app.json scheme
 // Module-level cache for Better Auth cookie token (avoids reading SecureStore on every request)
 let explicitCookieValue: string | null = null;
 
+// OI Session Token - header fallback for unreliable iOS cookie jar
+// Single source of truth for mobile session token
+export const OI_SESSION_TOKEN_KEY = "oi_session_token_v1";
+let oiSessionToken: string | null = null;
+let oiSessionTokenInitialized = false;
+
 /**
  * DEV-only trace helper for auth token flow tracing.
  * Never logs token content - only booleans, keys, and function names.
@@ -118,6 +124,7 @@ let cookieInitPromise: Promise<void> | null = null;
  * Ensure cookie cache is initialized before making authenticated requests.
  * This MUST be awaited before bootstrap starts to prevent race conditions.
  * On cold start, the cookie must be read from SecureStore before any API calls.
+ * Also loads OI session token for header fallback.
  */
 export async function ensureCookieInitialized(): Promise<void> {
   if (cookieInitialized) {
@@ -132,7 +139,11 @@ export async function ensureCookieInitialized(): Promise<void> {
     if (__DEV__) {
       console.log('[authClient] Initializing cookie cache from SecureStore...');
     }
-    await refreshExplicitCookie();
+    // Load both cookie and OI session token in parallel
+    await Promise.all([
+      refreshExplicitCookie(),
+      loadOiSessionToken(),
+    ]);
     cookieInitialized = true;
     if (__DEV__) {
       console.log('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
@@ -242,14 +253,27 @@ async function $fetch<T = any>(
       finalHeaders.set('Content-Type', 'application/json');
     }
     
+    // CRITICAL: Inject x-oi-session-token header for deterministic auth
+    // iOS cookie jar is unreliable - this header provides a fallback
+    const hasOiToken = !!oiSessionToken;
+    if (oiSessionToken) {
+      finalHeaders.set("x-oi-session-token", oiSessionToken);
+    }
+    
     // CRITICAL: Use credentials: "include" to send cookies automatically
     // React Native's fetch with credentials: "include" uses the cookie jar
     // We also set the cookie header explicitly as fallback for RN environments
     // where the cookie jar may not work reliably across domains
+    const hadCookie = !!explicitCookieValue;
     if (explicitCookieValue) {
       // Standard cookie format: "name=value" (no leading semicolon)
       finalHeaders.set("cookie", explicitCookieValue);
-      if (__DEV__) {
+    }
+    
+    // DEV-only: Log auth header state (never log token values)
+    if (__DEV__) {
+      console.log(`[AUTH_HDR] x-oi-session-token len=${oiSessionToken?.length ?? 0} hadCookie=${hadCookie}`);
+      if (hadCookie && explicitCookieValue) {
         console.log(`[authClient.$fetch] cookie header SET: ${explicitCookieValue.split('=')[0]}`);
       }
     }
@@ -485,6 +509,75 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   }
   return true;
 }
+
+// ============ OI SESSION TOKEN FUNCTIONS ============
+// These provide a deterministic header fallback for unreliable iOS cookie jar
+
+/**
+ * Store OI session token to SecureStore and memory cache.
+ * Call this after successful Apple sign-in with the session token.
+ * @param token The raw session token value (not the cookie pair)
+ */
+export async function setOiSessionToken(token: string): Promise<void> {
+  if (!token) {
+    console.log('[OI_TOKEN] setOiSessionToken: empty token, skipping');
+    return;
+  }
+  
+  // Store in SecureStore for persistence across app restarts
+  await SecureStore.setItemAsync(OI_SESSION_TOKEN_KEY, token);
+  
+  // Set in memory cache immediately for same-run requests
+  oiSessionToken = token;
+  oiSessionTokenInitialized = true;
+  
+  console.log(`[OI_TOKEN] stored len=${token.length}`);
+}
+
+/**
+ * Load OI session token from SecureStore into memory cache.
+ * Call this on cold start before any authenticated requests.
+ * Safe to call multiple times - will only load once.
+ */
+export async function loadOiSessionToken(): Promise<void> {
+  if (oiSessionTokenInitialized) {
+    return; // Already initialized
+  }
+  
+  try {
+    const token = await SecureStore.getItemAsync(OI_SESSION_TOKEN_KEY);
+    oiSessionToken = token;
+    oiSessionTokenInitialized = true;
+    
+    console.log(`[BOOT_TOKEN] loaded=${!!token} len=${token?.length ?? 0}`);
+  } catch (error) {
+    oiSessionTokenInitialized = true; // Mark as initialized even on error
+    console.log('[BOOT_TOKEN] loaded=false error=true');
+  }
+}
+
+/**
+ * Clear OI session token from SecureStore and memory cache.
+ * Call this on sign out.
+ */
+export async function clearOiSessionToken(): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(OI_SESSION_TOKEN_KEY);
+  } catch {
+    // Ignore - key may not exist
+  }
+  oiSessionToken = null;
+  console.log('[OI_TOKEN] cleared');
+}
+
+/**
+ * Get OI session token from memory cache.
+ * Returns null if not loaded or not set.
+ */
+export function getOiSessionTokenCached(): string | null {
+  return oiSessionToken;
+}
+// ============ END OI SESSION TOKEN FUNCTIONS ============
 
 async function captureAndStoreCookie(): Promise<void> {
   try {
@@ -749,6 +842,8 @@ export const authClient = {
       await clearAuthToken();
       // Clear explicit session cookie
       await clearSessionCookie();
+      // Clear OI session token (header fallback)
+      await clearOiSessionToken();
       // Also clear Better Auth's stored cookies (legacy)
       try {
         await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_cookie`);
@@ -761,6 +856,7 @@ export const authClient = {
       // Still clear local state even if server call fails
       await clearAuthToken();
       await clearSessionCookie();
+      await clearOiSessionToken();
       explicitCookieValue = null;
       return { ok: false, error: e } as any;
     } finally {
