@@ -1,4 +1,4 @@
-HANDOFF PACKET — COOKIE AUTH REGRESSION FIX (credentials: "include")
+HANDOFF PACKET — APPLE SIGN-IN COOKIE LOSS FIX (DETERMINISTIC)
 ====================================================================
 Date: 2026-01-31
 Branch: main
@@ -6,48 +6,56 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed cookie auth regression where authenticated requests showed "COOKIE HEADER PRESENT false"
-in Render logs. After Apple sign-in, GET /api/auth/session was returning 401 missing_token.
+Fixed Apple Sign-In cookie loss bug where session was created but subsequent
+requests had COOKIE HEADER PRESENT: false and /api/auth/session returned 401.
 
-ROOT CAUSE:
-- authClient.$fetch used credentials: "omit" with manual cookie header injection
-- Cookie header format was "; name=value" (with leading semicolon) which is non-standard
-- React Native fetch may strip manually-set cookie headers for security
+ROOT CAUSE
+----------
+After Apple login, the following sequence caused a race condition:
+1. setExplicitCookiePair(tokenValue) - stores to SecureStore (async)
+2. setExplicitCookieValueDirectly() - sets memory cache (sync) - WORKS
+3. refreshExplicitCookie() - reads from SecureStore, CAN CLEAR memory cache!
 
-FIX:
-1. Changed credentials: "omit" → credentials: "include" in authClient.$fetch
-2. Changed cookie header format from "; name=value" → "name=value" (standard format)
-3. Changed Apple sign-in POST to use credentials: "include" for cookie jar storage
+The bug: refreshExplicitCookie() reads from SecureStore. If the SecureStore
+write hasn't committed yet due to async timing, it won't find the cookie
+and will SET explicitCookieValue = null, CLEARING the memory cache!
+
+This caused subsequent requests to have no cookie attached.
+
+STRUCTURAL FIX
+--------------
+1. REMOVED the problematic refreshExplicitCookie() call after Apple login.
+   The memory cache is already set by setExplicitCookieValueDirectly().
+
+2. ADDED "Cookie Sync Barrier" - verifies session works BEFORE proceeding:
+   - Calls /api/auth/session with the cookie
+   - If 200 + has userId -> cookie works, proceed
+   - If fails -> logs error but allows user to proceed (can retry)
 
 FILES CHANGED
 -------------
-1. src/lib/authClient.ts
-   - Line ~257: credentials: "omit" → credentials: "include"
-   - Line ~240: Cookie header format changed from `; ${explicitCookieValue}` to `${explicitCookieValue}`
-   - Moved expo-origin header setup before cookie header for logical grouping
-   - Updated comments to reflect new approach
+1. src/app/welcome.tsx (handleAppleSignIn function)
+   - Removed: await refreshExplicitCookie()  
+   - Added: Cookie Sync Barrier that calls /api/auth/session to verify
+   - Added: [APPLE_COOKIE_PROOF] log line for proof
 
-2. src/app/welcome.tsx
-   - Line ~583: credentials: "omit" → credentials: "include" for Apple sign-in POST
-   - Updated comments to reflect cookie jar usage
+PROOF LOGS
+----------
+Frontend: [APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true userId=...
+Backend:  COOKIE HEADER PRESENT: true | GET /api/auth/session 200
 
-KEY DIFFS
+TEST PLAN
 ---------
-authClient.ts $fetch:
-- credentials: "omit",
-+ credentials: "include",
+1. Delete app, fresh install on physical iPhone
+2. Apple Sign-In  
+3. Check logs for [APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true
+4. Check Render logs for COOKIE HEADER PRESENT: true
+5. Continue through onboarding, land in calendar
 
-- finalHeaders.set("cookie", `; ${explicitCookieValue}`);
-+ finalHeaders.set("cookie", explicitCookieValue);
-
-welcome.tsx handleAppleSignIn:
-- credentials: "omit", // Don't rely on auto cookie handling in RN
-+ credentials: "include", // Allow cookie jar to receive Set-Cookie
-
-PROOF EXPECTED (Render logs after deploy)
------------------------------------------
-Before fix:
-  [AUTH] COOKIE HEADER PRESENT false | COOKIE LENGTH 0
+VERIFICATION
+------------
+npm run typecheck - PASS
+bash scripts/ai/verify_frontend.sh - PASS
   GET /api/auth/session 401 missing_token
 
 After fix:

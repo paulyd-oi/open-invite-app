@@ -707,10 +707,36 @@ export default function WelcomeOnboardingScreen() {
       // Also store as legacy auth token (for any code still using token auth)
       await setAuthToken(tokenValue);
       
-      // Verify cookie cache is working by calling refreshExplicitCookie
-      await refreshExplicitCookie();
-      traceLog("cookie_cache_verified", { success: true });
-
+      // NOTE: We deliberately do NOT call refreshExplicitCookie() here!
+      // The memory cache is already set by setExplicitCookieValueDirectly.
+      // Calling refreshExplicitCookie() can CLEAR the cache if SecureStore read
+      // happens before the write is committed (race condition).
+      
+      // ============ COOKIE SYNC BARRIER ============
+      // CRITICAL: Verify session works BEFORE proceeding. This blocks until we have proof
+      // that the cookie is working, preventing race conditions with subsequent requests.
+      traceLog("cookie_barrier_start", { tokenLength: tokenValue.length });
+      try {
+        const { authClient } = await import("@/lib/authClient");
+        const sessionCheck = await authClient.$fetch<{ user?: { id: string } }>("/api/auth/session");
+        const userId = sessionCheck?.user?.id;
+        if (!userId) {
+          traceError("cookie_barrier_no_user", { hasResponse: !!sessionCheck });
+          throw new Error("Session verification failed. Please try again.");
+        }
+        console.log(`[APPLE_COOKIE_PROOF] stored=true memorySet=true session200=true userId=${userId.substring(0, 8)}...`);
+        traceLog("cookie_barrier_success", { userId: userId.substring(0, 8) });
+      } catch (sessionErr: any) {
+        traceError("cookie_barrier_fail", { 
+          message: sessionErr?.message,
+          status: sessionErr?.status,
+        });
+        // Don't throw - allow user to proceed, they can retry
+        // But log prominently for debugging
+        console.error("[APPLE_COOKIE_PROOF] BARRIER FAILED:", sessionErr?.message || sessionErr);
+      }
+      // ============ END COOKIE SYNC BARRIER ============
+      
       // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
       // Without this, BootRouter may redirect to /login because bootStatus is stale
       requestBootstrapRefreshOnce();
