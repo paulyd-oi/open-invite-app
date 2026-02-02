@@ -89,9 +89,16 @@ export default function BadgesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Featured badge updated");
     },
-    onError: () => {
+    onError: (error: unknown) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Failed to update featured badge");
+      // Check for specific "badge not unlocked" error from backend
+      const errorData = error && typeof error === "object" && "data" in error
+        ? (error as { data?: { error?: string } }).data
+        : null;
+      const message = errorData?.error?.toLowerCase().includes("not unlocked")
+        ? "Badge not unlocked yet"
+        : "Failed to update featured badge";
+      safeToast.error(message);
     },
   });
 
