@@ -30,17 +30,17 @@ const BIRTHDAY_PALETTE: EventPalette = {
 };
 
 /**
- * Determine if an event should use grey palette (busy or work)
+ * Determine if an event should use grey palette (busy, work, or imported)
  */
-export function isGreyPaletteEvent(event: { isBusy?: boolean; isWork?: boolean }): boolean {
-  return event.isBusy === true || event.isWork === true;
+export function isGreyPaletteEvent(event: { isBusy?: boolean; isWork?: boolean; isImported?: boolean; deviceCalendarId?: string | null }): boolean {
+  return event.isBusy === true || event.isWork === true || event.isImported === true || (event.deviceCalendarId != null && event.deviceCalendarId !== "");
 }
 
 /**
  * INVARIANT: This is the ONLY function that should determine event colors.
- * All render paths must use this function to ensure busy/work events are ALWAYS grey.
+ * All render paths must use this function to ensure busy/work/imported events are ALWAYS grey.
  * 
- * @param event - Event object with optional isBusy, isWork, isBirthday, color, groupVisibility
+ * @param event - Event object with optional isBusy, isWork, isImported, deviceCalendarId, isBirthday, color, groupVisibility
  * @param themeColor - User's theme color (orange default)
  * @returns EventPalette with bar, bg, icon, and text colors
  */
@@ -48,13 +48,15 @@ export function getEventPalette(
   event: {
     isBusy?: boolean;
     isWork?: boolean;
+    isImported?: boolean;
+    deviceCalendarId?: string | null;
     isBirthday?: boolean;
     color?: string | null;
     groupVisibility?: Array<{ group: { color: string } }> | null;
   },
   themeColor: string
 ): EventPalette {
-  // INVARIANT: Busy/Work events ALWAYS use grey palette, regardless of any other property
+  // INVARIANT: Busy/Work/Imported events ALWAYS use grey palette, regardless of any other property
   const title = (event as any)?.title;
   const isLegacyBusyTitle =
     typeof title === "string" && title.trim().toLowerCase() === "busy";
@@ -65,7 +67,10 @@ export function getEventPalette(
     (event as any)?.isBusyEvent === true ||
     (event as any)?.busyBlock === true;
 
-  if (event.isBusy === true || event.isWork === true || isLegacyBusyTitle || isLegacyBusyFlag) {
+  // Imported events (from Apple/Google Calendar) should render as grey busy blocks
+  const isImportedEvent = event.isImported === true || (event.deviceCalendarId != null && event.deviceCalendarId !== "");
+
+  if (event.isBusy === true || event.isWork === true || isLegacyBusyTitle || isLegacyBusyFlag || isImportedEvent) {
     // DEV assertion - this should never fail if called correctly
     if (__DEV__) {
       // Log will be added at call sites for more context
@@ -96,16 +101,17 @@ export function getEventPalette(
 
 /**
  * DEV-only assertion for grey palette invariant.
- * Call this after getting palette to verify busy/work events got grey.
+ * Call this after getting palette to verify busy/work/imported events got grey.
  */
 export function assertGreyPaletteInvariant(
-  event: { id?: string; isBusy?: boolean; isWork?: boolean },
+  event: { id?: string; isBusy?: boolean; isWork?: boolean; isImported?: boolean; deviceCalendarId?: string | null },
   palette: EventPalette,
   source: string
 ): void {
   if (!__DEV__) return;
 
-  const shouldBeGrey = event.isBusy === true || event.isWork === true;
+  const isImportedEvent = event.isImported === true || (event.deviceCalendarId != null && event.deviceCalendarId !== "");
+  const shouldBeGrey = event.isBusy === true || event.isWork === true || isImportedEvent;
   const isGrey = palette.bar === GREY_PALETTE.bar;
 
   if (shouldBeGrey && !isGrey) {
@@ -113,6 +119,8 @@ export function assertGreyPaletteInvariant(
       eventId: event.id,
       isBusy: event.isBusy,
       isWork: event.isWork,
+      isImported: event.isImported,
+      deviceCalendarId: event.deviceCalendarId,
       actualBar: palette.bar,
       expectedBar: GREY_PALETTE.bar,
       source,
@@ -122,12 +130,14 @@ export function assertGreyPaletteInvariant(
 
 /**
  * Get just the bar color for simple use cases (month dots/bars).
- * Still respects busy/work grey invariant.
+ * Still respects busy/work/imported grey invariant.
  */
 export function getEventBarColor(
   event: {
     isBusy?: boolean;
     isWork?: boolean;
+    isImported?: boolean;
+    deviceCalendarId?: string | null;
     isBirthday?: boolean;
     color?: string | null;
     groupVisibility?: Array<{ group: { color: string } }> | null;

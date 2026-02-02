@@ -1,4 +1,4 @@
-HANDOFF PACKET — FRIENDS FLATLIST VIRTUALIZATION TUNING
+HANDOFF PACKET — TRUST + POLISH SWEEP
 ====================================================================
 Date: 2025-02-01
 Branch: main
@@ -6,126 +6,46 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Improved Friends list smoothness with 50+ friends by converting from 
-ScrollView + .map() to FlatList with proper virtualization tuning.
+Three trust/polish fixes for launch readiness:
+1. Removed choppy bounce animations from welcome/onboarding screens
+2. Fixed Settings "Import Calendar" button navigation
+3. Ensured imported events render as grey busy blocks
 
-CHANGES — BEFORE/AFTER
-----------------------
+CHANGES
+-------
 
-### Friends List (Main Change)
+ITEM 1: ONBOARDING ANIMATION REMOVAL (src/app/welcome.tsx)
+  - smoothFadeIn() now returns undefined (no animation)
+  - Removed SlideInRight/SlideOutLeft from main render wrapper
+  EFFECT: All welcome slides transition instantly (no bounce/motion)
 
-BEFORE (src/app/friends.tsx lines 1618-1639):
-```tsx
-viewMode === "list" ? (
-  filteredFriends.map((friendship, index) => (
-    <FriendListItem key={friendship.id} ... />
-  ))
-) : (
-  filteredFriends.map((friendship, index) => (
-    <FriendCard key={friendship.id} ... />
-  ))
-)
-```
+ITEM 2: SETTINGS IMPORT CALENDAR NAVIGATION (src/app/settings.tsx)
+  - Changed route from /calendar-import-help to /import-calendar
+  - Updated title: "Import Calendar"
+  - Updated subtitle: "Add events from Apple or Google Calendar"
+  EFFECT: Settings > Calendar > "Import Calendar" navigates to import screen
 
-AFTER:
-```tsx
-<FlatList
-  data={filteredFriends}
-  keyExtractor={friendKeyExtractor}
-  renderItem={viewMode === "list" ? renderFriendListItem : renderFriendCard}
-  initialNumToRender={10}
-  maxToRenderPerBatch={10}
-  windowSize={9}
-  updateCellsBatchingPeriod={50}
-  removeClippedSubviews={Platform.OS === 'android'}
-  nestedScrollEnabled
-  scrollEnabled={false}
-  extraData={pinnedFriendshipIds}
-/>
-```
-
-### FlatList Props Added
-
-| Prop | Value | Why |
-|------|-------|-----|
-| initialNumToRender | 10 | Render ~1 viewport initially |
-| maxToRenderPerBatch | 10 | Limit batch size, prevent frame drops |
-| windowSize | 9 | ~4.5 viewports above/below |
-| updateCellsBatchingPeriod | 50 | 50ms batching reduces re-renders |
-| removeClippedSubviews | Android only | iOS can have clipping bugs |
-| scrollEnabled | false | Parent ScrollView handles scroll |
-| nestedScrollEnabled | true | Required for nested FlatList |
-| extraData | pinnedFriendshipIds | Re-render when pins change |
-
-### getItemLayout
-NOT ADDED - Row heights are variable:
-- FriendCard: optional bio (numberOfLines=2), optional badge, MiniCalendar
-- FriendListItem: collapsible calendar section, optional badge
-getItemLayout requires fixed heights; cannot use here.
-
-### Memoization Added
-- friendKeyExtractor: useCallback((item) => item.id, [])
-- handlePinFriend: useCallback wrapper for mutation
-- renderFriendListItem: useCallback with [bootStatus, handlePinFriend, pinnedFriendshipIds]
-- renderFriendCard: useCallback with [bootStatus, handlePinFriend, pinnedFriendshipIds]
-
-### Contacts Modal (Secondary)
-Same virtualization props applied:
-- initialNumToRender={12}
-- maxToRenderPerBatch={10}
-- windowSize={9}
-- updateCellsBatchingPeriod={50}
-- removeClippedSubviews={Platform.OS === 'android'}
-
-DEV INSTRUMENTATION
--------------------
-```tsx
-// On mount:
-console.time("[PERF] Friends screen first render");
-
-// After data loads:
-console.timeEnd("[PERF] Friends screen first render");
-console.log(`[PERF] Friends list count: ${filteredFriends.length}`);
-```
+ITEM 3: IMPORTED EVENTS AS GREY BUSY BLOCKS (src/lib/eventPalette.ts)
+  - Added isImported and deviceCalendarId to type signatures
+  - Updated isGreyPaletteEvent(), getEventPalette(), assertGreyPaletteInvariant()
+  - Updated getEventBarColor()
+  EFFECT: Events with isImported=true OR deviceCalendarId render grey (#6B7280)
 
 FILES CHANGED
 -------------
-1. src/app/friends.tsx (MODIFIED)
-   - Added DEV timing instrumentation
-   - Added memoized keyExtractor and renderItem callbacks
-   - Converted friends list from .map() to FlatList
-   - Added virtualization props to contacts modal FlatList
-
-2. docs/FINDINGS_LOG.md (MODIFIED)
-   - Added Friends FlatList Virtualization entry
+1. src/app/welcome.tsx - Removed all entrance animations
+2. src/app/settings.tsx - Fixed Calendar import navigation
+3. src/lib/eventPalette.ts - Extended grey palette for imported events
+4. docs/FINDINGS_LOG.md - Added Trust + Polish Sweep entry
 
 VERIFICATION
 ------------
-$ npm run typecheck
-(no errors)
+npm run typecheck: PASS
+bash scripts/ai/verify_frontend.sh: PASS
+No new dependencies
 
-$ bash scripts/ai/verify_frontend.sh
-PASS: verify_frontend
-
-REGRESSION RISK
----------------
-LOW - FlatList inside ScrollView with scrollEnabled={false} preserves existing 
-scroll behavior. Virtualization only affects mount + off-screen items.
-
-MANUAL TESTING RECOMMENDED
---------------------------
-1. Add 30+ friends
-2. Navigate to Friends tab
-3. Scroll through list - should feel smooth
-4. Toggle between List/Detailed view modes
-5. Expand/collapse friends section
-6. Verify no visual clipping issues
-7. Pin/unpin friends - should still work
-
-COMMIT
-------
-perf(friends): tune FlatList virtualization for smoother scroll
-
-PREVIOUS SESSION
-----------------
-Frontend full audit (launch readiness) - audit-only, no fixes needed
+TESTING CHECKLIST
+-----------------
+[ ] Welcome: Slides transition instantly
+[ ] Settings > Calendar > Import: Navigates to import-calendar.tsx
+[ ] Imported events: Render as grey blocks

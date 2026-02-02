@@ -29,9 +29,9 @@ import Animated, {
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
-// Duration-based entrance animation - no spring overshoot possible
-const smoothFadeIn = (delayMs = 0) =>
-  FadeInUp.delay(delayMs).duration(280);
+// REMOVED: Duration-based entrance animation for static welcome screens
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const smoothFadeIn = (_delayMs = 0) => undefined;
 
 import {
   Calendar as CalendarIcon,
@@ -1389,14 +1389,10 @@ export default function WelcomeOnboardingScreen() {
 
   return (
     <>
-      <Animated.View
-        key={currentSlide}
-        entering={SlideInRight.duration(250)}
-        exiting={SlideOutLeft.duration(200)}
-        style={styles.flex1}
-      >
+      {/* REMOVED: SlideInRight/SlideOutLeft animations for instant slide transitions */}
+      <View key={currentSlide} style={styles.flex1}>
         {renderCurrentSlide()}
-      </Animated.View>
+      </View>
 
       {/* REMOVED: NotificationNudgeModal - now triggered at Aha moments */}
     </>

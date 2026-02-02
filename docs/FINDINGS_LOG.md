@@ -1,5 +1,41 @@
 # Findings Log — Frontend
 
+## Trust + Polish Sweep: Static Onboarding + Import Calendar + Busy Blocks (2026-02-01)
+
+### ITEM 1: Onboarding Animation Removal
+
+**PROBLEM**: Welcome/onboarding screens had choppy bounce/spring animations that felt jarring.
+
+**FIX**: Removed all entrance animations by:
+- Changing `smoothFadeIn()` to return `undefined` (no Reanimated entering animation)
+- Removed `SlideInRight`/`SlideOutLeft` from main slide wrapper - now instant transitions
+
+**FILES**: `src/app/welcome.tsx`
+
+### ITEM 2: Settings "Import Calendar" Navigation
+
+**PROBLEM**: Settings → Calendar → "Import Calendar" button navigated to help screen (`/calendar-import-help`) instead of actual import screen.
+
+**FIX**: Changed route from `/calendar-import-help` to `/import-calendar` and updated title/subtitle to be clearer.
+
+**FILES**: `src/app/settings.tsx`
+
+### ITEM 3: Imported Events → Busy Block Display (eventPalette)
+
+**PROBLEM**: Imported events from Apple/Google Calendar could display as regular colored events instead of grey busy blocks.
+
+**FIX**: Extended `eventPalette.ts` to treat `isImported === true` OR `deviceCalendarId` present as busy events:
+- Added `isImported?: boolean` and `deviceCalendarId?: string | null` to type signatures
+- Updated `isGreyPaletteEvent()`, `getEventPalette()`, `assertGreyPaletteInvariant()`, `getEventBarColor()`
+- All imported events now render with GREY_PALETTE (#6B7280 bar, #6B728020 bg)
+
+**FILES**: `src/lib/eventPalette.ts`
+
+### Invariant Preserved
+Grey palette invariant now covers: `isBusy`, `isWork`, `isImported`, `deviceCalendarId != null`, legacy title="Busy", legacy flags.
+
+---
+
 ## Friends FlatList Virtualization Tuning (2026-02-01)
 
 ### Root Cause Analysis ✓

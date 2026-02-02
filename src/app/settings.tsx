@@ -2195,12 +2195,12 @@ export default function SettingsScreen() {
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
             <SettingItem
               icon={<CalendarDays size={20} color={themeColor} />}
-              title="Add events from Apple or Google Calendar"
-              subtitle="Share calendar events with friends"
+              title="Import Calendar"
+              subtitle="Add events from Apple or Google Calendar"
               isDark={isDark}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/calendar-import-help");
+                router.push("/import-calendar");
               }}
             />
           </View>
