@@ -1,55 +1,77 @@
-HANDOFF PACKET: Update Legal Links to openinvite.cloud
-=======================================================
+HANDOFF PACKET: Fix Notification Permission Popup Regression (Build 227)
+===========================================================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Updated Privacy Policy and Terms of Service links in Settings screen
-to open live website URLs at openinvite.cloud instead of openinvite.app.
-Uses Linking.openURL for external browser navigation.
+Fixed regression in Build 227 where iOS notification permission popup appeared
+when entering Settings screen. Root cause: mount effect called checkAndRegisterToken(true)
+which triggered requestPermissionsAsync when status was undetermined.
 
-TARGET URLS
------------
-- Privacy Policy: https://www.openinvite.cloud/privacy
-- Terms of Service: https://www.openinvite.cloud/terms
+Solution: Changed mount call to checkAndRegisterToken(false) and gated permission
+request to only occur when forceRegister=true (explicit user action only).
+
+HARD INVARIANT ENFORCED
+-----------------------
+Entering Settings must NEVER trigger iOS notification permission prompt.
+Permission requests may only occur on explicit user action or onboarding.
+
+ROOT CAUSE
+----------
+src/hooks/useNotifications.ts:
+- Mount useEffect (line 383) called checkAndRegisterToken(true)
+- checkAndRegisterToken requested permission if status==='undetermined' (line 241)
+- This triggered OS permission prompt on Settings entry
 
 FILES CHANGED
 -------------
-- src/app/settings.tsx (lines 2303, 2314)
+- src/hooks/useNotifications.ts (2 changes)
 
 EXACT CHANGES
 -------------
-Line 2303: Linking.openURL("https://www.openinvite.cloud/privacy")
-  (was: https://openinvite.app/privacy)
+1. Lines 224-247 (checkAndRegisterToken function):
+   Added forceRegister check:
+   - if status==='undetermined' AND forceRegister → request permission
+   - if status==='undetermined' AND !forceRegister → skip, log, return early
+   
+2. Line 383 (mount effect):
+   Changed: checkAndRegisterToken(true)
+   To:      checkAndRegisterToken(false)
 
-Line 2314: Linking.openURL("https://www.openinvite.cloud/terms")
-  (was: https://openinvite.app/terms)
+DEV LOGGING
+-----------
+When permission not granted on mount/AppState active:
+[PUSH_BOOTSTRAP] Permission not granted; skipping auto registration (no prompt)
 
-IMPLEMENTATION DETAILS
-----------------------
-- Linking already imported from "react-native"
-- ExternalLink icon already present in UI
-- Haptics feedback preserved
-- No new dependencies
-- iOS + Android compatible
+BEHAVIOR PRESERVED
+------------------
+✓ Token registration when permission already granted
+✓ Throttling behavior (24h)
+✓ AppState active recheck (non-requesting)
+✓ Logout stability
+✓ Explicit permission request flows (onboarding)
 
-MANUAL TEST CHECKLIST
-----------------------
-iOS:
-[ ] Open Settings screen
-[ ] Tap "Privacy Policy" row
-[ ] Verify opens https://www.openinvite.cloud/privacy in Safari
-[ ] Tap "Terms of Service" row
-[ ] Verify opens https://www.openinvite.cloud/terms in Safari
+TEST CHECKLIST (MANDATORY)
+--------------------------
+iOS device / TestFlight:
 
-Android:
-[ ] Open Settings screen
-[ ] Tap "Privacy Policy" row
-[ ] Verify opens https://www.openinvite.cloud/privacy in Chrome/default browser
-[ ] Tap "Terms of Service" row
-[ ] Verify opens https://www.openinvite.cloud/terms in Chrome/default browser
+1. Permission not determined:
+   [ ] Open Settings → NO popup
+   [ ] Tap explicit enable button (if exists) → popup expected
+   
+2. Permission already granted:
+   [ ] Open Settings → no popup
+   [ ] Token registration happens silently
+   
+3. Background → foreground:
+   [ ] Resume app → no popup
+   [ ] Permission recheck happens
+   
+4. Logout:
+   [ ] Logout → no crashes
+   [ ] No network calls
 
 VERIFICATION
 ------------
@@ -58,6 +80,6 @@ bash scripts/ai/verify_frontend.sh - PASS
 
 NO NEW DEPENDENCIES
 -------------------
-Used existing Linking from react-native
+No changes to imports or dependencies
 
 

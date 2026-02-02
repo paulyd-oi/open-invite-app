@@ -233,8 +233,9 @@ export function useNotifications() {
         console.log("[PUSH_BOOTSTRAP] Initial permission status:", status);
       }
 
-      // Step 2: If undetermined, REQUEST permission (not just read)
-      if (status === 'undetermined') {
+      // Step 2: If undetermined AND forceRegister, REQUEST permission (not just read)
+      // NOTE: Mount and AppState active checks use forceRegister=false to avoid prompts
+      if (status === 'undetermined' && forceRegister) {
         if (__DEV__) {
           console.log("[PUSH_BOOTSTRAP] Requesting permission from OS...");
         }
@@ -243,6 +244,13 @@ export function useNotifications() {
         if (__DEV__) {
           console.log("[PUSH_BOOTSTRAP] Permission after request:", status);
         }
+      } else if (status === 'undetermined' && !forceRegister) {
+        // Permission undetermined and not forcing - skip without prompting
+        if (__DEV__) {
+          console.log("[PUSH_BOOTSTRAP] Permission not granted; skipping auto registration (no prompt)");
+        }
+        lastPermissionStatus.current = status;
+        return;
       }
 
       const permissionChanged = status !== lastPermissionStatus.current;
@@ -374,13 +382,13 @@ export function useNotifications() {
       return;
     }
 
-    // Initial check (force register on first mount to ensure token is sent)
+    // Initial check (do not request permission on mount - read only)
     if (__DEV__) {
       console.log("[PUSH_BOOTSTRAP] Boot complete, initiating push registration");
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
-    checkAndRegisterToken(true);
+    checkAndRegisterToken(false);
 
     // Re-check permission when app comes to foreground (throttled)
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
