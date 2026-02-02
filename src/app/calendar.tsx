@@ -1185,7 +1185,13 @@ export default function CalendarScreen() {
   const [showCalendarImportNudge, setShowCalendarImportNudge] = useState(false);
   const [calendarImportNudgeChecked, setCalendarImportNudgeChecked] = useState(false);
 
+  // INVARIANT LOG PREFIX for calendar import nudge
+  const CAL_NUDGE_LOG = "[CAL_IMPORT_INVARIANT]";
+
   // Check calendar import nudge visibility
+  // INVARIANTS:
+  // 1. If calendar permission granted → NEVER show banner
+  // 2. Dismissals are USER-SCOPED (key includes userId)
   useEffect(() => {
     if (bootStatus !== 'authed' || !session?.user?.id || calendarImportNudgeChecked) return;
     
@@ -1196,16 +1202,29 @@ export default function CalendarScreen() {
       if (!userId) return;
       const dismissedKey = `calendar_import_nudge_dismissed:${userId}`;
       
-      // Check if user has dismissed the nudge
+      // INVARIANT 2: User-scoped dismissal check
       const dismissed = await AsyncStorage.getItem(dismissedKey);
-      if (dismissed === "true") return;
-      
-      // Check calendar permission status
-      const permResult = await checkCalendarPermission();
-      if (!permResult.granted) {
-        // Small delay to let screen settle
-        setTimeout(() => setShowCalendarImportNudge(true), 800);
+      if (dismissed === "true") {
+        if (__DEV__) {
+          console.log(`${CAL_NUDGE_LOG} ❌ BLOCKED: User dismissed nudge (key=${dismissedKey})`);
+        }
+        return;
       }
+      
+      // INVARIANT 1: If calendar permission granted, NEVER show
+      const permResult = await checkCalendarPermission();
+      if (permResult.granted) {
+        if (__DEV__) {
+          console.log(`${CAL_NUDGE_LOG} ❌ BLOCKED: Calendar permission already granted (status=${permResult.status})`);
+        }
+        return;
+      }
+      
+      if (__DEV__) {
+        console.log(`${CAL_NUDGE_LOG} ✅ ALLOWED: Showing calendar import nudge (userId=${userId})`);
+      }
+      // Small delay to let screen settle
+      setTimeout(() => setShowCalendarImportNudge(true), 800);
     };
     
     checkNudge();
@@ -1215,7 +1234,11 @@ export default function CalendarScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowCalendarImportNudge(false);
     if (session?.user?.id) {
-      await AsyncStorage.setItem(`calendar_import_nudge_dismissed:${session.user.id}`, "true");
+      const dismissedKey = `calendar_import_nudge_dismissed:${session.user.id}`;
+      await AsyncStorage.setItem(dismissedKey, "true");
+      if (__DEV__) {
+        console.log(`${CAL_NUDGE_LOG} 📝 Marked nudge dismissed (key=${dismissedKey})`);
+      }
     }
   };
 

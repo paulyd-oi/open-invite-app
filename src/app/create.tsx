@@ -589,7 +589,8 @@ export default function CreateEventScreen() {
   // Check notification pre-prompt eligibility after successful create (Aha moment)
   const checkNotificationNudge = async () => {
     try {
-      const shouldShow = await shouldShowNotificationPrompt();
+      const userId = session?.user?.id;
+      const shouldShow = await shouldShowNotificationPrompt(userId);
       if (shouldShow) {
         // Wait 600ms before showing modal (after router.back() completes)
         setTimeout(() => {
@@ -1365,6 +1366,7 @@ export default function CreateEventScreen() {
       <NotificationPrePromptModal
         visible={showNotificationPrePrompt}
         onClose={() => setShowNotificationPrePrompt(false)}
+        userId={session?.user?.id}
       />
 
       {/* Soft-Limit Modal */}

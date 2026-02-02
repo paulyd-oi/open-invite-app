@@ -584,7 +584,8 @@ export default function EventDetailScreen() {
       
       // Check if we should show notification pre-prompt (Aha moment: first RSVP going/interested)
       if (bootStatus === 'authed' && (status === "going" || status === "interested")) {
-        const shouldShow = await shouldShowNotificationPrompt();
+        const userId = session?.user?.id;
+        const shouldShow = await shouldShowNotificationPrompt(userId);
         if (shouldShow) {
           // Wait 600ms before showing modal
           setTimeout(() => {
@@ -2045,6 +2046,7 @@ export default function EventDetailScreen() {
       <NotificationPrePromptModal
         visible={showNotificationPrePrompt}
         onClose={() => setShowNotificationPrePrompt(false)}
+        userId={session?.user?.id}
       />
 
       {/* Report Event Modal */}

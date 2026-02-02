@@ -2,7 +2,10 @@
  * Notification Permission Pre-Prompt Modal
  * 
  * Soft pre-permission modal shown at Aha moments (before OS prompt).
- * Respects user choice and 14-day cooldown.
+ * Respects user choice and 14-day cooldown (user-scoped).
+ * 
+ * INVARIANT: If OS permission granted, caller should never show this modal.
+ * The shouldShowNotificationPrompt() helper enforces this.
  */
 
 import React from "react";
@@ -22,19 +25,21 @@ import { api } from "@/lib/api";
 interface NotificationPrePromptModalProps {
   visible: boolean;
   onClose: () => void;
+  userId?: string; // Required for user-scoped cooldown tracking
 }
 
 export function NotificationPrePromptModal({
   visible,
   onClose,
+  userId,
 }: NotificationPrePromptModalProps) {
   const { themeColor, colors, isDark } = useTheme();
 
   const handleEnable = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Mark as asked (14-day cooldown starts)
-    await markNotificationPromptAsked();
+    // Mark as asked (14-day cooldown starts, user-scoped)
+    await markNotificationPromptAsked(userId);
     
     // Request OS permission
     const granted = await requestNotificationPermission();
@@ -54,8 +59,8 @@ export function NotificationPrePromptModal({
   const handleNotNow = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Mark as asked (14-day cooldown starts)
-    await markNotificationPromptAsked();
+    // Mark as asked (14-day cooldown starts, user-scoped)
+    await markNotificationPromptAsked(userId);
     
     onClose();
   };
