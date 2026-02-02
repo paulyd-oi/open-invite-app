@@ -11,6 +11,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useMinuteTick } from "@/lib/useMinuteTick";
 import { type FriendUser, type ProfileBadge, type Event } from "@/shared/contracts";
 
 // Minimal Calendar Component (no events visible for privacy)
@@ -383,13 +384,19 @@ export default function UserProfileScreen() {
     enabled: bootStatus === 'authed' && !!data?.friendshipId && data.isFriend,
   });
 
-  // Filter to only show today + future events (exclude past)
+  // Minute tick to force rerender when events pass their end time
+  const minuteTick = useMinuteTick(true);
+
+  // Filter to only show upcoming events (exclude past - event still shows if endTime not yet passed)
   const friendEvents = useMemo(() => {
     const events = friendEventsData?.events ?? [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return events.filter(event => new Date(event.startTime) >= today);
-  }, [friendEventsData?.events]);
+    const now = new Date();
+    return events.filter(event => {
+      // Use endTime if available, otherwise fall back to startTime
+      const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
+      return relevantTime >= now;
+    });
+  }, [friendEventsData?.events, minuteTick]);
 
   // Send friend request mutation
   const sendRequestMutation = useMutation({

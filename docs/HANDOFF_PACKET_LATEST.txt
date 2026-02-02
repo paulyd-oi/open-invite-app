@@ -1,63 +1,71 @@
-HANDOFF PACKET: In-App Announcement Banner v1 (Frontend)
-========================================================
-Date: 2026-02-01
+HANDOFF PACKET: Minute-Tick Rerender for Open Invites Filter
+=============================================================
+Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
-Commit: 76b8b7c
 
 SUMMARY
 -------
-Added AnnouncementBanner component that shows server-driven announcements.
-Dismissal is user-scoped AND message-scoped (new message = new banner).
-Banner appears below UpdateBanner in global layout.
+Added useMinuteTick hook to force periodic recalculation of Open Invites
+filter. Events now automatically drop from count/list once they end,
+even if user is sitting on the screen with no interaction.
 
 FILES CHANGED
 -------------
-- src/components/AnnouncementBanner.tsx (NEW) - Banner component
-- src/app/_layout.tsx - Import + render AnnouncementBanner
-- src/ui/icons.tsx - Added Megaphone icon
+- src/lib/useMinuteTick.ts (NEW) - Minute ticker hook
+- src/app/user/[id].tsx - Wire minuteTick into friendEvents useMemo
+- src/app/friend/[id].tsx - Wire minuteTick into eventSeries useMemo
 
-COMPONENT DETAILS
------------------
-AnnouncementBanner:
-- Fetches config from /api/app-config (shared query with UpdateBanner)
-- Shows message text with optional CTA button
-- Dismissible X button (if dismissible=true)
-- CTA button navigates to ctaRoute
-
-DISMISSAL LOGIC
----------------
-AsyncStorage key: announcement_dismissed:{userId}:{messageHash}
-- userId: from session.user.id (no userId = no banner)
-- messageHash: simple hash of message text (8 char hex)
-- New message = new key = banner shows again
-
-INVARIANTS ENFORCED
+HOOK IMPLEMENTATION
 -------------------
-- If announcement.enabled is false -> never show
-- If message is empty -> never show
-- If no userId (not logged in) -> never show
-- If already dismissed this message -> never show
+src/lib/useMinuteTick.ts:
+  export function useMinuteTick(enabled: boolean = true): number
+  - Returns tick number that increments every 60 seconds
+  - If enabled=false, returns stable tick and does not set interval
+  - Cleans up interval on unmount
+  - No console logs in prod
 
-DEV LOGGING
------------
-[ANNOUNCEMENT_BANNER] logs in __DEV__ mode for debugging
+WIRING DETAILS
+--------------
+user/[id].tsx:
+  const minuteTick = useMinuteTick(true);
+  const friendEvents = useMemo(() => {
+    ...filter logic...
+  }, [friendEventsData?.events, minuteTick]);
+
+friend/[id].tsx:
+  const minuteTick = useMinuteTick(true);
+  const eventSeries = useMemo(() => {
+    ...groupEventsIntoSeries...
+  }, [events, minuteTick]);
+
+FILTER LOGIC (unchanged)
+------------------------
+(endTime ?? startTime) >= now
+- Events that have started but not yet ended still show
+- Events automatically disappear once endTime (or startTime) passes
 
 VERIFICATION
 ------------
 npm run typecheck - PASS
 bash scripts/ai/verify_frontend.sh - PASS
 
-HOW TO TEST
+MANUAL TEST PLAN
+----------------
+1. Open simulator, navigate to profile with open invites
+2. Set device time forward OR create event ending within 1-2 minutes
+3. Leave screen open without interaction
+4. After minute tick, event should disappear from count/list
+5. Confirm no crashes, no flashing, no extra prompts
+
+RISKS/NOTES
 -----------
-1. Set Render env vars (see backend handoff)
-2. App fetches /api/app-config on boot
-3. If announcement.enabled=true and message non-empty:
-   - Banner shows below UpdateBanner
-   - CTA button navigates to ctaRoute
-   - X button dismisses (persisted per user+message)
-4. Change message in Render -> new banner shows
+- Interval only runs while screen is mounted (one per screen)
+- 60-second tick is lightweight, no per-second ticking
+- No console logs in production
 
 NO NEW DEPENDENCIES
 -------------------
-Uses existing: AsyncStorage, useQuery, Ionicons (megaphone-outline)
+Pure React hooks (useState, useEffect, useRef)
+
+

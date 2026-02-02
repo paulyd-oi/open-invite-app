@@ -59,9 +59,13 @@ export function groupEventsIntoSeries(events: Event[]): EventSeries[] {
   const seriesMap = new Map<string, EventSeries>();
   const now = new Date();
 
-  // Filter to future events only and sort by start time
+  // Filter to upcoming events only (use endTime if available, otherwise startTime)
+  // An event that has started but not yet ended should still be shown
   const futureEvents = events
-    .filter((e) => new Date(e.startTime) >= now)
+    .filter((e) => {
+      const relevantTime = e.endTime ? new Date(e.endTime) : new Date(e.startTime);
+      return relevantTime >= now;
+    })
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
   for (const event of futureEvents) {

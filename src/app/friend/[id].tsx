@@ -17,6 +17,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useMinuteTick } from "@/lib/useMinuteTick";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
@@ -547,6 +548,9 @@ export default function FriendDetailScreen() {
   // [LEGACY_GROUPS_PURGED] friendship and groups variables removed - no longer needed
 
   const friend = data?.friend;
+  // Minute tick to force rerender when events pass their end time
+  const minuteTick = useMinuteTick(true);
+
   // Normalize events to handle masked busy blocks from backend
   const events = useMemo(() => {
     return normalizeEventsWithBusy(data?.events ?? []);
@@ -556,7 +560,7 @@ export default function FriendDetailScreen() {
   const eventSeries = useMemo(() => {
     const nonBusyEvents = events.filter((e) => !e.isBusy);
     return groupEventsIntoSeries(nonBusyEvents);
-  }, [events]);
+  }, [events, minuteTick]);
 
   // [LEGACY_ADD_TO_GROUPS_MODAL_REMOVED] Mutations/helpers deleted - modal fully removed
 
