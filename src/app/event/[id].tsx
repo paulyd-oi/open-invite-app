@@ -42,6 +42,7 @@ import {
   NotebookPen,
   CalendarCheck,
   RefreshCw,
+  Lock,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -410,23 +411,36 @@ export default function EventDetailScreen() {
   };
 
   // Fetch single event by ID directly - this handles past events too
-  const { data: singleEventData, isLoading: isLoadingEvent } = useQuery({
+  const { data: singleEventData, isLoading: isLoadingEvent, error: eventError } = useQuery({
     queryKey: ["events", "single", id],
     queryFn: () => api.get<{ event: Event }>(`/api/events/${id}`),
     enabled: bootStatus === 'authed' && !!id,
+    retry: false, // Don't retry on 403/404 privacy errors
   });
+
+  // Check if event is privacy-restricted (403 or similar)
+  const isPrivacyRestricted = !!(eventError && (
+    (eventError as any)?.status === 403 ||
+    (eventError as any)?.status === 404 ||
+    (eventError as any)?.data?.code === 'EVENT_NOT_VISIBLE' ||
+    (eventError as any)?.data?.code === 'NOT_FRIEND' ||
+    (eventError as any)?.data?.code === 'FORBIDDEN'
+  ));
+
+  // Extract host info from error payload if available
+  const restrictedHostInfo = isPrivacyRestricted ? (eventError as any)?.data?.host : null;
 
   // Fallback: Also fetch from lists in case the single endpoint fails
   const { data: myEventsData } = useQuery({
     queryKey: ["events", "mine"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: bootStatus === 'authed' && !singleEventData?.event,
+    enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   const { data: feedData } = useQuery({
     queryKey: ["events", "feed"],
     queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
-    enabled: bootStatus === 'authed' && !singleEventData?.event,
+    enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   // Fetch comments
@@ -815,11 +829,90 @@ export default function EventDetailScreen() {
   }
 
   if (!event) {
+    // Privacy-restricted event: show explainer with CTA to view host profile
+    if (isPrivacyRestricted) {
+      return (
+        <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+          <Stack.Screen options={{ title: "Event" }} />
+          <View className="flex-1 items-center justify-center px-6">
+            <View 
+              className="w-16 h-16 rounded-full items-center justify-center mb-4"
+              style={{ backgroundColor: colors.surface }}
+            >
+              <Lock size={28} color={colors.textSecondary} />
+            </View>
+            <Text 
+              className="text-xl font-semibold text-center mb-2"
+              style={{ color: colors.text }}
+            >
+              Event details limited
+            </Text>
+            <Text 
+              className="text-center mb-6"
+              style={{ color: colors.textSecondary, lineHeight: 22 }}
+            >
+              This event is hosted by someone you're not friends with yet.{'\n'}
+              Connect with the host to see full event details.
+            </Text>
+            <View className="gap-3 w-full max-w-xs">
+              {restrictedHostInfo?.id && (
+                <Pressable
+                  onPress={() => router.push(`/user/${restrictedHostInfo.id}`)}
+                  className="py-3 px-6 rounded-full items-center"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <Text className="font-semibold" style={{ color: '#FFFFFF' }}>
+                    View Host Profile
+                  </Text>
+                </Pressable>
+              )}
+              <Pressable
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/friends')}
+                className="py-3 px-6 rounded-full items-center"
+                style={{ backgroundColor: colors.surface }}
+              >
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  Go Back
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    // Generic not found (event truly doesn't exist)
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event" }} />
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Event not found</Text>
+        <View className="flex-1 items-center justify-center px-6">
+          <View 
+            className="w-16 h-16 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Calendar size={28} color={colors.textSecondary} />
+          </View>
+          <Text 
+            className="text-xl font-semibold text-center mb-2"
+            style={{ color: colors.text }}
+          >
+            Event not found
+          </Text>
+          <Text 
+            className="text-center mb-6"
+            style={{ color: colors.textSecondary }}
+          >
+            This event may have been deleted or is no longer available.
+          </Text>
+          <Pressable
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/friends')}
+            className="py-3 px-6 rounded-full items-center"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Text className="font-medium" style={{ color: colors.text }}>
+              Go Back
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
