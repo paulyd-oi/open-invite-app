@@ -17,6 +17,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { useSubscription } from "@/lib/SubscriptionContext";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function RedeemCodeScreen() {
@@ -24,6 +25,7 @@ export default function RedeemCodeScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
+  const { refresh: refreshSubscription } = useSubscription();
 
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,6 +64,9 @@ export default function RedeemCodeScreen() {
       // Refresh entitlements if query exists
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
+
+      // Also refresh SubscriptionContext state directly
+      refreshSubscription();
 
       // Navigate back after a delay
       setTimeout(() => {
