@@ -27,20 +27,25 @@ export interface AdminUserSearchResponse {
 
 export interface BadgeDef {
   id: string;
+  badgeKey: string;
   name: string;
   description?: string;
   emoji: string;
   tier: string;
   tierColor: string;
+  isExclusive?: boolean; // true = gift/exclusive, false = public
+  isActive?: boolean;
 }
 
 export interface GrantedBadge {
   achievementId: string;
+  badgeKey?: string;
   name: string;
   emoji: string;
   tier: string;
   tierColor: string;
   grantedAt: string;
+  note?: string;
 }
 
 export interface AdminBadgesResponse {
@@ -54,6 +59,30 @@ export interface AdminUserBadgesResponse {
 export interface AdminBadgeActionResponse {
   success: boolean;
   message?: string;
+}
+
+export interface CreateBadgePayload {
+  badgeKey: string;
+  name: string;
+  description?: string;
+  emoji?: string;
+  tierColor: string;
+  isExclusive?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateBadgePayload {
+  name?: string;
+  description?: string;
+  emoji?: string;
+  tierColor?: string;
+  isExclusive?: boolean;
+  isActive?: boolean;
+}
+
+export interface GrantBadgePayload {
+  badgeKey: string;
+  note?: string;
 }
 
 /**
@@ -185,5 +214,101 @@ export async function revokeUserBadge(userId: string, badgeId: string): Promise<
       throw error;
     }
     return { success: false, message: "Network error - please try again" };
+  }
+}
+
+/**
+ * Create a new badge definition (admin-only)
+ * Throws on errors for caller handling
+ */
+export async function createBadge(payload: CreateBadgePayload): Promise<{ success: boolean; badge?: BadgeDef; message?: string }> {
+  try {
+    const response = await api.post<{ success: boolean; badge?: BadgeDef; message?: string }>("/api/admin/badges", payload);
+    if (__DEV__) {
+      console.log(`[Admin] Create badge ${payload.badgeKey}: ${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[Admin] Create badge failed:`, error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    return { success: false, message: error?.message || "Failed to create badge" };
+  }
+}
+
+/**
+ * Update an existing badge definition (admin-only)
+ * Throws on errors for caller handling
+ */
+export async function updateBadge(badgeKey: string, payload: UpdateBadgePayload): Promise<{ success: boolean; badge?: BadgeDef; message?: string }> {
+  try {
+    const response = await api.patch<{ success: boolean; badge?: BadgeDef; message?: string }>(`/api/admin/badges/${badgeKey}`, payload);
+    if (__DEV__) {
+      console.log(`[Admin] Update badge ${badgeKey}: ${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[Admin] Update badge failed:`, error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    return { success: false, message: error?.message || "Failed to update badge" };
+  }
+}
+
+/**
+ * Grant a badge to a user by badgeKey (admin-only)
+ * This is the new endpoint that uses badgeKey instead of badgeId
+ */
+export async function grantBadgeByKey(userId: string, badgeKey: string, note?: string): Promise<AdminBadgeActionResponse> {
+  try {
+    const response = await api.post<AdminBadgeActionResponse>(`/api/admin/users/${userId}/badges/grant`, {
+      badgeKey,
+      note,
+    });
+    if (__DEV__) {
+      console.log(`[Admin] Grant badge ${badgeKey} to user ${userId}: ${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[Admin] Grant badge by key failed:`, error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    return { success: false, message: error?.message || "Network error - please try again" };
+  }
+}
+
+/**
+ * Revoke a badge from a user by badgeKey (admin-only)
+ * This is the new endpoint that uses badgeKey instead of badgeId
+ */
+export async function revokeBadgeByKey(userId: string, badgeKey: string): Promise<AdminBadgeActionResponse> {
+  try {
+    const response = await api.post<AdminBadgeActionResponse>(`/api/admin/users/${userId}/badges/revoke`, {
+      badgeKey,
+    });
+    if (__DEV__) {
+      console.log(`[Admin] Revoke badge ${badgeKey} from user ${userId}: ${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[Admin] Revoke badge by key failed:`, error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    if (error?.status === 404) {
+      return { success: false, message: `This action requires backend endpoint: POST /api/admin/users/:userId/badges/revoke` };
+    }
+    return { success: false, message: error?.message || "Network error - please try again" };
   }
 }
