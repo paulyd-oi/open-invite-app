@@ -1,51 +1,88 @@
-HANDOFF PACKET — TRUST + POLISH SWEEP
-====================================================================
-Date: 2025-02-01
+HANDOFF PACKET: Admin Badge Studio Cleanup
+==========================================
+Date: 2026-02-01
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Three trust/polish fixes for launch readiness:
-1. Removed choppy bounce animations from welcome/onboarding screens
-2. Fixed Settings "Import Calendar" button navigation
-3. Ensured imported events render as grey busy blocks
+Cleanup of Admin Console to focus ONLY on badge functionality:
+1. Removed out-of-scope Pro override, ban, delete UI and API functions
+2. Kept badge definitions panel (create/edit badges via CRUD modals)
+3. Kept manual grant/revoke badges to users functionality
+4. Uses existing backend badge endpoints (no backend changes required)
+5. Removed dead code (handleBadgeToggle using deprecated badge ID-based functions)
+6. All typechecks pass; verify_frontend.sh PASS
 
 CHANGES
 -------
 
-ITEM 1: ONBOARDING ANIMATION REMOVAL (src/app/welcome.tsx)
-  - smoothFadeIn() now returns undefined (no animation)
-  - Removed SlideInRight/SlideOutLeft from main render wrapper
-  EFFECT: All welcome slides transition instantly (no bounce/motion)
+FILE 1: src/lib/adminApi.ts
+  REMOVED TYPES:
+  - UserAdminStatus
+  - SetProOverridePayload
+  - AdminActionResponse
+  - BanUserPayload
+  
+  REMOVED FUNCTIONS:
+  - getUserAdminStatus()
+  - setProOverride()
+  - banUser()
+  - unbanUser()
+  - deleteUser()
 
-ITEM 2: SETTINGS IMPORT CALENDAR NAVIGATION (src/app/settings.tsx)
-  - Changed route from /calendar-import-help to /import-calendar
-  - Updated title: "Import Calendar"
-  - Updated subtitle: "Add events from Apple or Google Calendar"
-  EFFECT: Settings > Calendar > "Import Calendar" navigates to import screen
+FILE 2: src/app/admin.tsx
+  REMOVED IMPORTS:
+  - getUserAdminStatus, setProOverride, banUser, unbanUser, deleteUser
+  - AlertCircle, Trash2 icons
+  - type UserAdminStatus
 
-ITEM 3: IMPORTED EVENTS AS GREY BUSY BLOCKS (src/lib/eventPalette.ts)
-  - Added isImported and deviceCalendarId to type signatures
-  - Updated isGreyPaletteEvent(), getEventPalette(), assertGreyPaletteInvariant()
-  - Updated getEventBarColor()
-  EFFECT: Events with isImported=true OR deviceCalendarId render grey (#6B7280)
+  REMOVED STATE:
+  - userAdminStatus, isLoadingUserStatus
+  - proOverrideNote, isSavingProOverride
+  - showBanModal, banReason, banConfirmText, isBanning
+  - showDeleteModal, deleteConfirmEmail, isDeleting
 
-FILES CHANGED
--------------
-1. src/app/welcome.tsx - Removed all entrance animations
-2. src/app/settings.tsx - Fixed Calendar import navigation
-3. src/lib/eventPalette.ts - Extended grey palette for imported events
-4. docs/FINDINGS_LOG.md - Added Trust + Polish Sweep entry
+  REMOVED UI SECTIONS:
+  - Ban Status Indicator
+  - PRO STATUS section
+  - USER ACTIONS section (Ban/Delete buttons)
+  - Ban Modal
+  - Delete Modal
+
+  REMOVED HANDLERS:
+  - handleSaveProOverride()
+  - handleBanUser()
+  - handleUnbanUser()
+  - handleDeleteUser()
+  - handleBadgeToggle() (dead code using deprecated badge ID functions)
+
+REMAINING BADGE STUDIO FEATURES
+-------------------------------
+1. BADGE DEFINITIONS panel - List all badges with New Badge button
+2. Create/Edit Badge Modal - badgeKey, name, description, emoji, tierColor, isExclusive, isActive
+3. USER LOOKUP - Search users by name/username/email
+4. USER DETAIL - Show selected user info
+5. GRANTED BADGES - Show user's current badges with Revoke buttons
+6. GRANT A BADGE - Horizontal badge picker + note field + Grant button
+
+BACKEND ENDPOINTS USED (existing - no changes required)
+-------------------------------------------------------
+- GET /api/admin/badges - List badge definitions
+- POST /api/admin/badges - Create badge
+- PATCH /api/admin/badges/:badgeKey - Update badge
+- GET /api/admin/users/:userId/badges - Get user badges
+- POST /api/admin/users/:userId/badges/grant - Grant badge by key
+- POST /api/admin/users/:userId/badges/revoke - Revoke badge by key
 
 VERIFICATION
 ------------
 npm run typecheck: PASS
 bash scripts/ai/verify_frontend.sh: PASS
-No new dependencies
+Commit: 4ad8e83 pushed to origin/main
 
-TESTING CHECKLIST
------------------
-[ ] Welcome: Slides transition instantly
-[ ] Settings > Calendar > Import: Navigates to import-calendar.tsx
-[ ] Imported events: Render as grey blocks
+ASSUMPTIONS
+-----------
+- Badge doctrine: OG badges = earnable via rank, Gift badges = isExclusive + manual only
+- Pro trio badges (pro, pro_silver, pro_gold) = public + auto-granted via RevenueCat
+- Old handleBadgeToggle function was dead code - UI uses handleGrantBadge and handleRevokeBadgeByKey

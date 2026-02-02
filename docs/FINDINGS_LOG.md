@@ -1,5 +1,66 @@
 # Findings Log — Frontend
 
+## Admin Console: Badge Studio + Pro Override + Ban/Delete (2026-02-01)
+
+### BadgeKey Validation Parity (Hyphens)
+
+**PROBLEM**: Frontend badgeKey validation regex didn't match backend, which allows hyphens.
+
+**FIX**: Updated validation regex from `/^[a-z][a-z0-9_]*$/` to `/^[a-z0-9_-]{2,32}$/` matching backend.
+
+**FILES**: `src/app/admin.tsx`
+
+### Admin: Manual Badge Grant/Revoke UX
+
+**CHANGE**: Replaced the old "all badges with toggle" UI with a more usable workflow:
+- "GRANTED BADGES" section shows user's current badges with Revoke button for each
+- "GRANT A BADGE" section with horizontal scrollable badge picker (active badges only)
+- Already-granted badges are dimmed with checkmark
+- Optional note field for gift context
+- Uses `grantBadgeByKey` and `revokeBadgeByKey` endpoints
+
+**FILES**: `src/app/admin.tsx`, `src/lib/adminApi.ts`
+
+### Admin: Pro Override Controls
+
+**CHANGE**: Added Pro Status section in user detail panel showing:
+- RevenueCat Pro: Yes/No/Unknown
+- Admin Override: ON/OFF  
+- Effective Pro: computed result
+- Enable/Disable override buttons with optional reason note
+- Confirmation text: "RevenueCat remains source of truth. Override is for gifts/testing only."
+
+**ENDPOINTS**: `getUserAdminStatus(userId)` → GET `/api/admin/users/:userId`, `setProOverride(userId, enabled, note?)` → POST `/api/admin/users/:userId/pro-override`
+
+**FILES**: `src/app/admin.tsx`, `src/lib/adminApi.ts`
+
+### Admin: Ban/Delete Confirmations
+
+**CHANGE**: Added "USER ACTIONS" section with:
+- Ban: Modal requiring reason text AND typing "BAN" to confirm
+- Unban: Direct button (only shown if user is banned)
+- Delete: DANGER ZONE with modal requiring typing user's email exactly to confirm
+- All actions show toast feedback and refresh user status
+
+**ENDPOINTS**: 
+- `banUser(userId, reason)` → POST `/api/admin/users/:userId/ban`
+- `unbanUser(userId)` → POST `/api/admin/users/:userId/unban`
+- `deleteUser(userId)` → DELETE `/api/admin/users/:userId`
+
+**FILES**: `src/app/admin.tsx`, `src/lib/adminApi.ts`
+
+### Badge Type Alignment (isExclusive)
+
+**CHANGE**: Replaced `isPublic` with `isExclusive` to match backend badge doctrine:
+- `isExclusive: true` = Gift/exclusive badge (hidden unless granted)
+- `isExclusive: false` = Public badge (visible to all)
+- Updated badge definitions list to show "Exclusive" or "Public" chip
+- Updated create/edit modal toggle with correct labeling
+
+**FILES**: `src/app/admin.tsx`, `src/lib/adminApi.ts`
+
+---
+
 ## Trust + Polish Sweep: Static Onboarding + Import Calendar + Busy Blocks (2026-02-01)
 
 ### ITEM 1: Onboarding Animation Removal
