@@ -98,6 +98,7 @@ export const Share2 = ion("share-social-outline");
 export const Copy = ion("copy-outline");
 export const MessageCircle = ion("chatbubble-outline");
 export const Mail = ion("mail-outline");
+export const MoreHorizontal = ion("ellipsis-horizontal");
 
 export const Briefcase = ion("briefcase-outline");
 export const Filter = ion("filter-outline");

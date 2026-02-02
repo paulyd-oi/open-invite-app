@@ -1,74 +1,71 @@
-HANDOFF PACKET: V1 Privacy Hardening — Import Calendar defaults to Busy (private)
-===================================================================================
+HANDOFF PACKET: Event Detail "More" Bottom Sheet (V1 UX)
+=========================================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Made "Import Calendar" privacy-first by default:
-1. Imported events default to PRIVATE visibility (busy blocks, not shared details)
-2. "Let friends see when you're free" now defaults to OFF when settings missing/loading
-
-ROOT CAUSE
-----------
-Privacy defaults were permissive:
-- Import Calendar defaulted to "all_friends" (everyone sees event details)
-- shareCalendarAvailability fallback was `true` when settings not loaded
-
-This meant new users or users with missing settings had their calendar info
-shared by default, violating privacy-first principles.
+Replaced multiple headerRight icon buttons (Edit, Duplicate, Share, Report) in
+the Event Detail screen with a single "More" ellipsis button that opens a
+context-aware bottom sheet modal.
 
 FILES CHANGED
 -------------
-1. src/app/import-calendar.tsx (line 127)
-   BEFORE: useState<VisibilityOption>("all_friends")
-   AFTER:  useState<VisibilityOption>("private")
+1. src/ui/icons.tsx
+   - Added: MoreHorizontal icon (ellipsis-horizontal)
 
-2. src/app/privacy-settings.tsx (line 338)
-   BEFORE: settings?.shareCalendarAvailability ?? true
-   AFTER:  settings?.shareCalendarAvailability ?? false
+2. src/app/event/[id].tsx
+   - Added: MoreHorizontal to icon imports
+   - Added: showEventActionsSheet state
+   - Replaced: headerRight from 4 buttons to single MoreHorizontal button
+   - Added: Event Actions Bottom Sheet Modal with context-aware actions
 
-REGRESSION SCAN
----------------
-Searched for other `shareCalendarAvailability ?? true` occurrences.
-Result: Only 1 occurrence found (in privacy-settings.tsx) — now fixed.
+BEHAVIOR
+--------
+Header:
+- Single "..." (MoreHorizontal) icon in top-right
+- Tapping opens bottom sheet with haptic feedback
 
-BEHAVIOR CHANGE
----------------
-Import Calendar screen:
-- BEFORE: "Open to Friends" selected by default
-- AFTER: "Private" selected by default (busy block, no details shared)
+Bottom Sheet (Owner - isMyEvent === true):
+- Edit Event -> navigates to /event/edit/${id}
+- Duplicate Event -> calls handleDuplicateEvent
+- Share Event -> calls shareEvent(event)
+- Cancel -> closes sheet
 
-Privacy Settings screen:
-- BEFORE: "Let friends see when you're free" toggle ON when settings loading/missing
-- AFTER: Toggle OFF by default until settings explicitly enable it
+Bottom Sheet (Non-Owner - isMyEvent === false, not busy):
+- Share Event -> calls shareEvent(event)
+- Report Event -> opens Report Modal
+- Cancel -> closes sheet
+
+Busy blocks only show Cancel (no actions exposed).
+
+UI DETAILS
+----------
+- Sheet slides up with FadeInDown animation
+- Rounded top corners (24px radius)
+- Drag handle at top
+- "Event Options" title
+- Each action row has icon in circle + label
+- Cancel button centered at bottom
 
 TESTS RUN
 ---------
-✓ npm run typecheck - PASS (no errors)
-✓ bash scripts/ai/verify_frontend.sh - PASS
-✓ VSCode diagnostics - No errors in edited files
+- npm run typecheck: PASS
+- bash scripts/ai/verify_frontend.sh: PASS
 
-HOW TO VERIFY IN APP
---------------------
-1. Import Calendar:
-   - Open Import Calendar screen
-   - Confirm "Private" is pre-selected in visibility picker (lock icon)
-   - Import an event without changing visibility
-   - Verify imported event shows as busy block to friends, not full details
+HOW TO VERIFY
+-------------
+1. Open any event you own
+   - Tap "..." in header
+   - See: Edit Event, Duplicate Event, Share Event, Cancel
 
-2. Privacy Settings:
-   - Fresh install or clear user settings
-   - Navigate to Privacy Settings
-   - "Share Calendar Availability" toggle should be OFF by default
-   - Enable it explicitly to share availability
+2. Open an event you don't own
+   - Tap "..." in header
+   - See: Share Event, Report Event, Cancel
+
+3. Tap overlay or Cancel to close sheet
 
 COMMIT
 ------
-bc40590 fix(privacy): import calendar defaults to private busy blocks
-
-COMMIT
-------
-fix(events): replace non-friend event dead page with privacy explainer
-(commit already pushed: 36762d3)
+33ee8e0 fix(event): move header actions into more sheet

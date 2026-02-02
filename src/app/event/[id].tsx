@@ -43,6 +43,7 @@ import {
   CalendarCheck,
   RefreshCw,
   Lock,
+  MoreHorizontal,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -277,6 +278,9 @@ export default function EventDetailScreen() {
   const [selectedReportReason, setSelectedReportReason] = useState<EventReportReason | null>(null);
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  // Event Actions Sheet state
+  const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -940,46 +944,15 @@ export default function EventDetailScreen() {
           title: event.title,
           headerStyle: { backgroundColor: colors.background },
           headerRight: () => (
-            <View className="flex-row items-center">
-              {/* Duplicate Button */}
-              <Pressable
-                onPress={handleDuplicateEvent}
-                className="p-2"
-              >
-                <Copy size={20} color={themeColor} />
-              </Pressable>
-              {/* Share Button */}
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  shareEvent(event);
-                }}
-                className="p-2"
-              >
-                <MessageCircle size={20} color={themeColor} />
-              </Pressable>
-              {/* Report Button (only for non-owners) */}
-              {!isMyEvent && !event?.isBusy && (
-                <Pressable
-                  onPress={handleReportEvent}
-                  className="p-2"
-                >
-                  <AlertTriangle size={20} color={colors.textSecondary} />
-                </Pressable>
-              )}
-              {/* Edit Button (only for owner) */}
-              {isMyEvent && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    router.push(`/event/edit/${id}`);
-                  }}
-                  className="mr-2 p-2"
-                >
-                  <Pencil size={20} color={themeColor} />
-                </Pressable>
-              )}
-            </View>
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowEventActionsSheet(true);
+              }}
+              className="p-2 mr-2"
+            >
+              <MoreHorizontal size={24} color={themeColor} />
+            </Pressable>
           ),
         }}
       />
@@ -2141,6 +2114,148 @@ export default function EventDetailScreen() {
         onClose={() => setShowNotificationPrePrompt(false)}
         userId={session?.user?.id}
       />
+
+      {/* Event Actions Bottom Sheet */}
+      <Modal
+        visible={showEventActionsSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEventActionsSheet(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowEventActionsSheet(false)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingBottom: 40,
+              }}
+            >
+              {/* Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.textTertiary,
+                    opacity: 0.4,
+                  }}
+                />
+              </View>
+
+              {/* Title */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                  Event Options
+                </Text>
+              </View>
+
+              {/* Actions */}
+              <View style={{ paddingHorizontal: 20 }}>
+                {/* Owner Actions */}
+                {isMyEvent && (
+                  <>
+                    <Pressable
+                      className="flex-row items-center py-4"
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      onPress={() => {
+                        setShowEventActionsSheet(false);
+                        Haptics.selectionAsync();
+                        router.push(`/event/edit/${id}`);
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                      >
+                        <Pencil size={20} color={themeColor} />
+                      </View>
+                      <Text style={{ color: colors.text, fontSize: 16 }}>Edit Event</Text>
+                    </Pressable>
+
+                    <Pressable
+                      className="flex-row items-center py-4"
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      onPress={() => {
+                        setShowEventActionsSheet(false);
+                        handleDuplicateEvent();
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                      >
+                        <Copy size={20} color={themeColor} />
+                      </View>
+                      <Text style={{ color: colors.text, fontSize: 16 }}>Duplicate Event</Text>
+                    </Pressable>
+                  </>
+                )}
+
+                {/* Share - available to everyone (unless busy block) */}
+                {!event?.isBusy && (
+                  <Pressable
+                    className="flex-row items-center py-4"
+                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                    onPress={() => {
+                      setShowEventActionsSheet(false);
+                      Haptics.selectionAsync();
+                      shareEvent(event);
+                    }}
+                  >
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                    >
+                      <Share2 size={20} color={themeColor} />
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 16 }}>Share Event</Text>
+                  </Pressable>
+                )}
+
+                {/* Report - only for non-owners, non-busy */}
+                {!isMyEvent && !event?.isBusy && (
+                  <Pressable
+                    className="flex-row items-center py-4"
+                    style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                    onPress={() => {
+                      setShowEventActionsSheet(false);
+                      handleReportEvent();
+                    }}
+                  >
+                    <View
+                      className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                      style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                    >
+                      <AlertTriangle size={20} color={colors.textSecondary} />
+                    </View>
+                    <Text style={{ color: colors.text, fontSize: 16 }}>Report Event</Text>
+                  </Pressable>
+                )}
+
+                {/* Cancel */}
+                <Pressable
+                  className="flex-row items-center justify-center py-4 mt-2"
+                  onPress={() => setShowEventActionsSheet(false)}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                    Cancel
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Report Event Modal */}
       <Modal
