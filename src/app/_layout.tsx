@@ -24,6 +24,7 @@ import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { ToastContainer } from '@/components/Toast';
 import { AutoSyncProvider } from '@/components/AutoSyncProvider';
 import { setupDeepLinkListener } from '@/lib/deepLinks';
@@ -690,6 +691,7 @@ export default function RootLayout() {
                   <View style={{ flex: 1 }}>
                     <NetworkStatusBanner />
                     <UpdateBanner />
+                    <AnnouncementBanner />
                     <ToastContainer />
                     <BootRouter />
                     <RootLayoutNav />
