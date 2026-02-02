@@ -1,85 +1,56 @@
-HANDOFF PACKET: Fix Notification Permission Popup Regression (Build 227)
-===========================================================================
+HANDOFF PACKET: Fix Dead Event Page for Non-Friend Host Events
+===============================================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed regression in Build 227 where iOS notification permission popup appeared
-when entering Settings screen. Root cause: mount effect called checkAndRegisterToken(true)
-which triggered requestPermissionsAsync when status was undetermined.
+Replaced the dead/blank "Event not found" experience when a user taps an event
+whose host is not their friend (e.g., Circles calendar). Now shows a clear
+privacy explainer screen with a CTA to view the host profile (when available),
+instead of rendering a dead page.
 
-Solution: Changed mount call to checkAndRegisterToken(false) and gated permission
-request to only occur when forceRegister=true (explicit user action only).
-
-HARD INVARIANT ENFORCED
------------------------
-Entering Settings must NEVER trigger iOS notification permission prompt.
-Permission requests may only occur on explicit user action or onboarding.
+HARD INVARIANTS ENFORCED
+------------------------
+✓ No dead event page UX for non-friend host events
+✓ Do not leak private event details to non-friends
+✓ Preserve existing privacy doctrine: full event details only between friends
+✓ No retry loops on privacy-restricted errors
 
 ROOT CAUSE
 ----------
-src/hooks/useNotifications.ts:
-- Mount useEffect (line 383) called checkAndRegisterToken(true)
-- checkAndRegisterToken requested permission if status==='undetermined' (line 241)
-- This triggered OS permission prompt on Settings entry
+The event details screen relied on the normal event fetch path. When backend
+privacy gating blocked access (often 403/404), the UI fell through to a generic
+"not found" / empty state that looked broken (dead page), with no explanation
+or next action for the user.
+
+FIX
+---
+src/app/event/[id].tsx:
+1) Enhanced event query error handling:
+   - Captured eventError from the event query
+   - Set retry: false to avoid retry loops on privacy errors
+   - Added isPrivacyRestricted detection for 403/404 and known backend codes
+   - Extracted restrictedHostInfo (hostId/hostName) from error payload when present
+   - Prevented fallback queries from running when privacy-restricted
+
+2) Added a dedicated privacy explainer UI:
+   - Locked "Event details limited" screen explaining friend-only visibility
+   - Primary CTA: "View Host Profile" (only if hostId is available)
+   - Secondary CTA: "Go Back"
+   - Separate polished "Event not found" view for truly missing/deleted events
 
 FILES CHANGED
 -------------
-- src/hooks/useNotifications.ts (2 changes)
+- src/app/event/[id].tsx
 
-EXACT CHANGES
--------------
-1. Lines 224-247 (checkAndRegisterToken function):
-   Added forceRegister check:
-   - if status==='undetermined' AND forceRegister → request permission
-   - if status==='undetermined' AND !forceRegister → skip, log, return early
-   
-2. Line 383 (mount effect):
-   Changed: checkAndRegisterToken(true)
-   To:      checkAndRegisterToken(false)
+TESTS RUN
+---------
+- npm run typecheck: PASS
+- bash scripts/ai/verify_frontend.sh: PASS
 
-DEV LOGGING
------------
-When permission not granted on mount/AppState active:
-[PUSH_BOOTSTRAP] Permission not granted; skipping auto registration (no prompt)
-
-BEHAVIOR PRESERVED
-------------------
-✓ Token registration when permission already granted
-✓ Throttling behavior (24h)
-✓ AppState active recheck (non-requesting)
-✓ Logout stability
-✓ Explicit permission request flows (onboarding)
-
-TEST CHECKLIST (MANDATORY)
---------------------------
-iOS device / TestFlight:
-
-1. Permission not determined:
-   [ ] Open Settings → NO popup
-   [ ] Tap explicit enable button (if exists) → popup expected
-   
-2. Permission already granted:
-   [ ] Open Settings → no popup
-   [ ] Token registration happens silently
-   
-3. Background → foreground:
-   [ ] Resume app → no popup
-   [ ] Permission recheck happens
-   
-4. Logout:
-   [ ] Logout → no crashes
-   [ ] No network calls
-
-VERIFICATION
-------------
-npm run typecheck - PASS
-bash scripts/ai/verify_frontend.sh - PASS
-
-NO NEW DEPENDENCIES
--------------------
-No changes to imports or dependencies
-
-
+COMMIT
+------
+fix(events): replace non-friend event dead page with privacy explainer
+(commit already pushed: 36762d3)
