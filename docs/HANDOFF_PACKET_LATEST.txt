@@ -1,54 +1,72 @@
-HANDOFF PACKET: Fix Dead Event Page for Non-Friend Host Events
-===============================================================
+HANDOFF PACKET: V1 Privacy Hardening — Import Calendar defaults to Busy (private)
+===================================================================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Replaced the dead/blank "Event not found" experience when a user taps an event
-whose host is not their friend (e.g., Circles calendar). Now shows a clear
-privacy explainer screen with a CTA to view the host profile (when available),
-instead of rendering a dead page.
-
-HARD INVARIANTS ENFORCED
-------------------------
-✓ No dead event page UX for non-friend host events
-✓ Do not leak private event details to non-friends
-✓ Preserve existing privacy doctrine: full event details only between friends
-✓ No retry loops on privacy-restricted errors
+Made "Import Calendar" privacy-first by default:
+1. Imported events default to PRIVATE visibility (busy blocks, not shared details)
+2. "Let friends see when you're free" now defaults to OFF when settings missing/loading
 
 ROOT CAUSE
 ----------
-The event details screen relied on the normal event fetch path. When backend
-privacy gating blocked access (often 403/404), the UI fell through to a generic
-"not found" / empty state that looked broken (dead page), with no explanation
-or next action for the user.
+Privacy defaults were permissive:
+- Import Calendar defaulted to "all_friends" (everyone sees event details)
+- shareCalendarAvailability fallback was `true` when settings not loaded
 
-FIX
----
-src/app/event/[id].tsx:
-1) Enhanced event query error handling:
-   - Captured eventError from the event query
-   - Set retry: false to avoid retry loops on privacy errors
-   - Added isPrivacyRestricted detection for 403/404 and known backend codes
-   - Extracted restrictedHostInfo (hostId/hostName) from error payload when present
-   - Prevented fallback queries from running when privacy-restricted
-
-2) Added a dedicated privacy explainer UI:
-   - Locked "Event details limited" screen explaining friend-only visibility
-   - Primary CTA: "View Host Profile" (only if hostId is available)
-   - Secondary CTA: "Go Back"
-   - Separate polished "Event not found" view for truly missing/deleted events
+This meant new users or users with missing settings had their calendar info
+shared by default, violating privacy-first principles.
 
 FILES CHANGED
 -------------
-- src/app/event/[id].tsx
+1. src/app/import-calendar.tsx (line 127)
+   BEFORE: useState<VisibilityOption>("all_friends")
+   AFTER:  useState<VisibilityOption>("private")
+
+2. src/app/privacy-settings.tsx (line 338)
+   BEFORE: settings?.shareCalendarAvailability ?? true
+   AFTER:  settings?.shareCalendarAvailability ?? false
+
+REGRESSION SCAN
+---------------
+Searched for other `shareCalendarAvailability ?? true` occurrences.
+Result: Only 1 occurrence found (in privacy-settings.tsx) — now fixed.
+
+BEHAVIOR CHANGE
+---------------
+Import Calendar screen:
+- BEFORE: "Open to Friends" selected by default
+- AFTER: "Private" selected by default (busy block, no details shared)
+
+Privacy Settings screen:
+- BEFORE: "Let friends see when you're free" toggle ON when settings loading/missing
+- AFTER: Toggle OFF by default until settings explicitly enable it
 
 TESTS RUN
 ---------
-- npm run typecheck: PASS
-- bash scripts/ai/verify_frontend.sh: PASS
+✓ npm run typecheck - PASS (no errors)
+✓ bash scripts/ai/verify_frontend.sh - PASS
+✓ VSCode diagnostics - No errors in edited files
+
+HOW TO VERIFY IN APP
+--------------------
+1. Import Calendar:
+   - Open Import Calendar screen
+   - Confirm "Private" is pre-selected in visibility picker (lock icon)
+   - Import an event without changing visibility
+   - Verify imported event shows as busy block to friends, not full details
+
+2. Privacy Settings:
+   - Fresh install or clear user settings
+   - Navigate to Privacy Settings
+   - "Share Calendar Availability" toggle should be OFF by default
+   - Enable it explicitly to share availability
+
+COMMIT
+------
+bc40590 fix(privacy): import calendar defaults to private busy blocks
 
 COMMIT
 ------

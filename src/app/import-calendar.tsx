@@ -124,7 +124,7 @@ export default function ImportCalendarScreen() {
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [showEvents, setShowEvents] = useState(false);
-  const [defaultVisibility, setDefaultVisibility] = useState<VisibilityOption>("all_friends");
+  const [defaultVisibility, setDefaultVisibility] = useState<VisibilityOption>("private");
   const [showVisibilityModal, setShowVisibilityModal] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     imported: number;

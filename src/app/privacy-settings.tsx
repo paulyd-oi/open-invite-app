@@ -335,7 +335,7 @@ export default function PrivacySettingsScreen() {
                 </Text>
               </View>
               <Switch
-                value={settings?.shareCalendarAvailability ?? true}
+                value={settings?.shareCalendarAvailability ?? false}
                 onValueChange={(value) => handleUpdateSetting("shareCalendarAvailability", value)}
                 trackColor={{ false: "#767577", true: themeColor }}
                 thumbColor="#FFFFFF"
