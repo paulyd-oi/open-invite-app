@@ -2162,7 +2162,7 @@ export default function EventDetailScreen() {
               {/* Actions */}
               <View style={{ paddingHorizontal: 20 }}>
                 {/* Owner Actions */}
-                {isMyEvent && (
+                {isMyEvent && !event?.isBusy && (
                   <>
                     <Pressable
                       className="flex-row items-center py-4"

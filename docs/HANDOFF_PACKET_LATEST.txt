@@ -38,6 +38,8 @@ Bottom Sheet (Non-Owner - isMyEvent === false, not busy):
 - Report Event -> opens Report Modal
 - Cancel -> closes sheet
 
+Busy blocks now show Cancel only (owner actions hidden when event.isBusy).
+
 Busy blocks only show Cancel (no actions exposed).
 
 UI DETAILS
