@@ -2303,7 +2303,7 @@ export default function SettingsScreen() {
               rightElement={<ExternalLink size={16} color={colors.textTertiary} />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Linking.openURL("https://openinvite.app/privacy");
+                Linking.openURL("https://www.openinvite.cloud/privacy");
               }}
             />
             <SettingItem
@@ -2314,7 +2314,7 @@ export default function SettingsScreen() {
               rightElement={<ExternalLink size={16} color={colors.textTertiary} />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Linking.openURL("https://openinvite.app/terms");
+                Linking.openURL("https://www.openinvite.cloud/terms");
               }}
             />
           </View>

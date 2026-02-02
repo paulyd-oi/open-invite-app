@@ -1,58 +1,55 @@
-HANDOFF PACKET: Badge Pill Consistency Audit
-=============================================
+HANDOFF PACKET: Update Legal Links to openinvite.cloud
+=======================================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Audited and normalized badge pill rendering across all surfaces.
-Replaced inline badge rendering with BadgePill component for consistency.
-Verified badge data sources and selection flow.
+Updated Privacy Policy and Terms of Service links in Settings screen
+to open live website URLs at openinvite.cloud instead of openinvite.app.
+Uses Linking.openURL for external browser navigation.
 
-BADGE DATA SOURCES (CONFIRMED)
-------------------------------
-- profile.tsx: profileData?.featuredBadge from /api/profile
-- friends.tsx: friend.featuredBadge from friends list response
-- friend/[id].tsx: friend.featuredBadge from /api/friends/:id/events (fallback query)
-- user/[id].tsx: badgeData?.badge from /api/achievements/user/:id/badge
-- event/[id].tsx: event.user?.featuredBadge from event response
-
-BACKEND FIELD SHAPE (CONFIRMED)
--------------------------------
-featuredBadge: { badgeKey, name, description, tierColor }
-Frontend expects: { name, tierColor } via normalizeFeaturedBadge helper
-ProfileBadge type: { name, tierColor, emoji?, ... }
-All compatible - no field mismatch.
+TARGET URLS
+-----------
+- Privacy Policy: https://www.openinvite.cloud/privacy
+- Terms of Service: https://www.openinvite.cloud/terms
 
 FILES CHANGED
 -------------
-- src/app/friend/[id].tsx - Added BadgePill import, replaced inline badge
-- src/app/user/[id].tsx - Added BadgePill + normalizeFeaturedBadge imports,
-                          replaced inline badge, added normalizedBadge var
+- src/app/settings.tsx (lines 2303, 2314)
 
-BADGE SELECTION FLOW (CONFIRMED)
---------------------------------
-achievements.tsx: api.put("/api/profile/featured-badge", { badgeKey })
-- Sets/removes featured flag via backend
-- Invalidates badgesCatalog + profile queries on success
-- featured field identifies selected badge
+EXACT CHANGES
+-------------
+Line 2303: Linking.openURL("https://www.openinvite.cloud/privacy")
+  (was: https://openinvite.app/privacy)
 
-SCREENS VERIFIED
-----------------
-1. Friend Profile Header (/friend/[id]) - BadgePill variant="small"
-2. Friends Card (Detailed) - BadgePill variant="small"
-3. Friends Card (List) - BadgePill variant="small"
-4. User Profile (/user/[id]) - BadgePill variant="small"
-5. Own Profile (/profile) - BadgePill variant="medium"
-6. Event Detail (/event/[id]) - BadgePill component
+Line 2314: Linking.openURL("https://www.openinvite.cloud/terms")
+  (was: https://openinvite.app/terms)
 
-BADGE DOCTRINE (CONFIRMED)
---------------------------
-- OG badge = public + computed rank-based unlock (first 500)
-- Gift badges = exclusive + manual grant
-- Pro trio = public + auto-unlock when Pro
-- Only user-selected featured badge displays (not first unlocked fallback)
+IMPLEMENTATION DETAILS
+----------------------
+- Linking already imported from "react-native"
+- ExternalLink icon already present in UI
+- Haptics feedback preserved
+- No new dependencies
+- iOS + Android compatible
+
+MANUAL TEST CHECKLIST
+----------------------
+iOS:
+[ ] Open Settings screen
+[ ] Tap "Privacy Policy" row
+[ ] Verify opens https://www.openinvite.cloud/privacy in Safari
+[ ] Tap "Terms of Service" row
+[ ] Verify opens https://www.openinvite.cloud/terms in Safari
+
+Android:
+[ ] Open Settings screen
+[ ] Tap "Privacy Policy" row
+[ ] Verify opens https://www.openinvite.cloud/privacy in Chrome/default browser
+[ ] Tap "Terms of Service" row
+[ ] Verify opens https://www.openinvite.cloud/terms in Chrome/default browser
 
 VERIFICATION
 ------------
@@ -61,6 +58,6 @@ bash scripts/ai/verify_frontend.sh - PASS
 
 NO NEW DEPENDENCIES
 -------------------
-Used existing: BadgePill, normalizeFeaturedBadge
+Used existing Linking from react-native
 
 
