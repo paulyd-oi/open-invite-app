@@ -1,101 +1,63 @@
-HANDOFF PACKET: Permission Prompt Invariants
-=============================================
+HANDOFF PACKET: In-App Announcement Banner v1 (Frontend)
+========================================================
 Date: 2026-02-01
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
+Commit: 76b8b7c
 
 SUMMARY
 -------
-Enforced strict invariants for notification + calendar permission prompts:
-1. If permission GRANTED -> NEVER show nudge (even if cooldown expired)
-2. Dismissals are USER-SCOPED (AsyncStorage keys include userId)
-3. Added DEV proof logs to verify every decision
+Added AnnouncementBanner component that shows server-driven announcements.
+Dismissal is user-scoped AND message-scoped (new message = new banner).
+Banner appears below UpdateBanner in global layout.
 
 FILES CHANGED
 -------------
-- src/lib/notificationPrompt.ts - User-scoped keys + DEV logs
-- src/components/NotificationPrePromptModal.tsx - Accept userId prop
-- src/app/event/[id].tsx - Pass userId to prompt check + modal
-- src/app/create.tsx - Pass userId to prompt check + modal
-- src/app/calendar.tsx - Added DEV logs for calendar nudge
+- src/components/AnnouncementBanner.tsx (NEW) - Banner component
+- src/app/_layout.tsx - Import + render AnnouncementBanner
+- src/ui/icons.tsx - Added Megaphone icon
 
-INVARIANT 1: GRANTED -> NEVER SHOW
-----------------------------------
-Notification Prompt (src/lib/notificationPrompt.ts):
-- shouldShowNotificationPrompt() checks Notifications.getPermissionsAsync()
-- If status === "granted" -> returns false IMMEDIATELY
-- DEV log: "[NOTIF_PROMPT_INVARIANT] BLOCKED: OS permission already granted"
+COMPONENT DETAILS
+-----------------
+AnnouncementBanner:
+- Fetches config from /api/app-config (shared query with UpdateBanner)
+- Shows message text with optional CTA button
+- Dismissible X button (if dismissible=true)
+- CTA button navigates to ctaRoute
 
-Calendar Import Nudge (src/app/calendar.tsx):
-- checkNudge() calls checkCalendarPermission()
-- If permResult.granted -> returns early (no banner)
-- DEV log: "[CAL_IMPORT_INVARIANT] BLOCKED: Calendar permission already granted"
+DISMISSAL LOGIC
+---------------
+AsyncStorage key: announcement_dismissed:{userId}:{messageHash}
+- userId: from session.user.id (no userId = no banner)
+- messageHash: simple hash of message text (8 char hex)
+- New message = new key = banner shows again
 
-INVARIANT 2: USER-SCOPED KEYS
------------------------------
-Notification Prompt:
-- OLD: "notification_prompt_asked_at" (global)
-- NEW: "notification_prompt_asked_at:{userId}" (user-scoped)
-- getPromptKey(userId) helper constructs the key
-- markNotificationPromptAsked(userId) stores timestamp with user-scoped key
-- shouldShowNotificationPrompt(userId) reads with user-scoped key
+INVARIANTS ENFORCED
+-------------------
+- If announcement.enabled is false -> never show
+- If message is empty -> never show
+- If no userId (not logged in) -> never show
+- If already dismissed this message -> never show
 
-Calendar Import Nudge (already user-scoped):
-- Key: "calendar_import_nudge_dismissed:{userId}"
-- Confirmed in handleDismissCalendarImportNudge()
-
-TRIGGER SITES UPDATED
----------------------
-src/app/event/[id].tsx:
-- Line 587: const userId = session?.user?.id
-- Line 588: await shouldShowNotificationPrompt(userId)
-- Line 2049: userId={session?.user?.id} passed to modal
-
-src/app/create.tsx:
-- Line 594: const userId = session?.user?.id
-- Line 595: await shouldShowNotificationPrompt(userId)
-- Line 1369: userId={session?.user?.id} passed to modal
-
-src/components/NotificationPrePromptModal.tsx:
-- Props: added userId?: string
-- handleEnable(): await markNotificationPromptAsked(userId)
-- handleNotNow(): await markNotificationPromptAsked(userId)
-
-DEV PROOF LOGS
---------------
-Console prefixes (only in __DEV__):
-- [NOTIF_PROMPT_INVARIANT] - for notification prompt decisions
-- [CAL_IMPORT_INVARIANT] - for calendar nudge decisions
-
-Log patterns:
-- BLOCKED: <reason> - when nudge suppressed
-- ALLOWED: <reason> - when nudge shown
-- Marked: <action> - when state persisted
-
-Example output:
-  [NOTIF_PROMPT_INVARIANT] BLOCKED: OS permission already granted (status=granted)
-  [CAL_IMPORT_INVARIANT] ALLOWED: Showing calendar import nudge (userId=abc123)
-  [NOTIF_PROMPT_INVARIANT] Marked prompt asked (key=notification_prompt_asked_at:abc123)
+DEV LOGGING
+-----------
+[ANNOUNCEMENT_BANNER] logs in __DEV__ mode for debugging
 
 VERIFICATION
 ------------
-- npm run typecheck - PASS
-- bash scripts/ai/verify_frontend.sh - PASS
+npm run typecheck - PASS
+bash scripts/ai/verify_frontend.sh - PASS
 
-ACCEPTANCE CRITERIA PROVEN
---------------------------
-[x] If notifications granted -> nudge modal never shows
-    - shouldShowNotificationPrompt() returns false immediately
-    - DEV log proves decision
+HOW TO TEST
+-----------
+1. Set Render env vars (see backend handoff)
+2. App fetches /api/app-config on boot
+3. If announcement.enabled=true and message non-empty:
+   - Banner shows below UpdateBanner
+   - CTA button navigates to ctaRoute
+   - X button dismisses (persisted per user+message)
+4. Change message in Render -> new banner shows
 
-[x] If calendar granted -> import banner never shows
-    - checkNudge() returns early
-    - DEV log proves decision
-
-[x] Dismissals are user-scoped
-    - notification_prompt_asked_at:{userId}
-    - calendar_import_nudge_dismissed:{userId}
-
-[x] DEV logs prove all decisions
-    - [NOTIF_PROMPT_INVARIANT] prefix
-    - [CAL_IMPORT_INVARIANT] prefix
+NO NEW DEPENDENCIES
+-------------------
+Uses existing: AsyncStorage, useQuery, Ionicons (megaphone-outline)
