@@ -20,6 +20,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { BadgePill } from "@/components/BadgePill";
 import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
@@ -630,13 +631,12 @@ export default function FriendDetailScreen() {
                 </Text>
                 {/* INVARIANT: Badges are pill-only. Badge displayed as text pill, no icon. */}
                 {friendBadge && (
-                  <View
-                    className="ml-2 px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: friendBadge.tierColor + "20" }}
-                  >
-                    <Text className="text-xs font-medium" style={{ color: friendBadge.tierColor }}>
-                      {friendBadge.name}
-                    </Text>
+                  <View className="ml-2">
+                    <BadgePill
+                      name={friendBadge.name}
+                      tierColor={friendBadge.tierColor}
+                      variant="small"
+                    />
                   </View>
                 )}
               </View>

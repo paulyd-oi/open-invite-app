@@ -12,6 +12,8 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useMinuteTick } from "@/lib/useMinuteTick";
+import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
+import { BadgePill } from "@/components/BadgePill";
 import { type FriendUser, type ProfileBadge, type Event } from "@/shared/contracts";
 
 // Minimal Calendar Component (no events visible for privacy)
@@ -376,6 +378,7 @@ export default function UserProfileScreen() {
   });
 
   const userBadge = badgeData?.badge;
+  const normalizedBadge = normalizeFeaturedBadge(userBadge);
 
   // Fetch friend events when isFriend=true (unlocked state)
   const { data: friendEventsData } = useQuery({
@@ -508,14 +511,13 @@ export default function UserProfileScreen() {
                     {user.name ?? "No name"}
                   </Text>
                 {/* INVARIANT: Badges are pill-only. No trophy icons anywhere. */}
-                  {userBadge && (
-                    <View
-                      className="ml-2 px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: userBadge.tierColor + "20" }}
-                    >
-                      <Text className="text-xs font-medium" style={{ color: userBadge.tierColor }}>
-                        {userBadge.name}
-                      </Text>
+                  {normalizedBadge && (
+                    <View className="ml-2">
+                      <BadgePill
+                        name={normalizedBadge.name}
+                        tierColor={normalizedBadge.tierColor}
+                        variant="small"
+                      />
                     </View>
                   )}
                 </View>

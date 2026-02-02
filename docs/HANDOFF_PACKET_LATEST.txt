@@ -1,71 +1,66 @@
-HANDOFF PACKET: Minute-Tick Rerender for Open Invites Filter
-=============================================================
+HANDOFF PACKET: Badge Pill Consistency Audit
+=============================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Added useMinuteTick hook to force periodic recalculation of Open Invites
-filter. Events now automatically drop from count/list once they end,
-even if user is sitting on the screen with no interaction.
+Audited and normalized badge pill rendering across all surfaces.
+Replaced inline badge rendering with BadgePill component for consistency.
+Verified badge data sources and selection flow.
+
+BADGE DATA SOURCES (CONFIRMED)
+------------------------------
+- profile.tsx: profileData?.featuredBadge from /api/profile
+- friends.tsx: friend.featuredBadge from friends list response
+- friend/[id].tsx: friend.featuredBadge from /api/friends/:id/events (fallback query)
+- user/[id].tsx: badgeData?.badge from /api/achievements/user/:id/badge
+- event/[id].tsx: event.user?.featuredBadge from event response
+
+BACKEND FIELD SHAPE (CONFIRMED)
+-------------------------------
+featuredBadge: { badgeKey, name, description, tierColor }
+Frontend expects: { name, tierColor } via normalizeFeaturedBadge helper
+ProfileBadge type: { name, tierColor, emoji?, ... }
+All compatible - no field mismatch.
 
 FILES CHANGED
 -------------
-- src/lib/useMinuteTick.ts (NEW) - Minute ticker hook
-- src/app/user/[id].tsx - Wire minuteTick into friendEvents useMemo
-- src/app/friend/[id].tsx - Wire minuteTick into eventSeries useMemo
+- src/app/friend/[id].tsx - Added BadgePill import, replaced inline badge
+- src/app/user/[id].tsx - Added BadgePill + normalizeFeaturedBadge imports,
+                          replaced inline badge, added normalizedBadge var
 
-HOOK IMPLEMENTATION
--------------------
-src/lib/useMinuteTick.ts:
-  export function useMinuteTick(enabled: boolean = true): number
-  - Returns tick number that increments every 60 seconds
-  - If enabled=false, returns stable tick and does not set interval
-  - Cleans up interval on unmount
-  - No console logs in prod
+BADGE SELECTION FLOW (CONFIRMED)
+--------------------------------
+achievements.tsx: api.put("/api/profile/featured-badge", { badgeKey })
+- Sets/removes featured flag via backend
+- Invalidates badgesCatalog + profile queries on success
+- featured field identifies selected badge
 
-WIRING DETAILS
---------------
-user/[id].tsx:
-  const minuteTick = useMinuteTick(true);
-  const friendEvents = useMemo(() => {
-    ...filter logic...
-  }, [friendEventsData?.events, minuteTick]);
+SCREENS VERIFIED
+----------------
+1. Friend Profile Header (/friend/[id]) - BadgePill variant="small"
+2. Friends Card (Detailed) - BadgePill variant="small"
+3. Friends Card (List) - BadgePill variant="small"
+4. User Profile (/user/[id]) - BadgePill variant="small"
+5. Own Profile (/profile) - BadgePill variant="medium"
+6. Event Detail (/event/[id]) - BadgePill component
 
-friend/[id].tsx:
-  const minuteTick = useMinuteTick(true);
-  const eventSeries = useMemo(() => {
-    ...groupEventsIntoSeries...
-  }, [events, minuteTick]);
-
-FILTER LOGIC (unchanged)
-------------------------
-(endTime ?? startTime) >= now
-- Events that have started but not yet ended still show
-- Events automatically disappear once endTime (or startTime) passes
+BADGE DOCTRINE (CONFIRMED)
+--------------------------
+- OG badge = public + computed rank-based unlock (first 500)
+- Gift badges = exclusive + manual grant
+- Pro trio = public + auto-unlock when Pro
+- Only user-selected featured badge displays (not first unlocked fallback)
 
 VERIFICATION
 ------------
 npm run typecheck - PASS
 bash scripts/ai/verify_frontend.sh - PASS
 
-MANUAL TEST PLAN
-----------------
-1. Open simulator, navigate to profile with open invites
-2. Set device time forward OR create event ending within 1-2 minutes
-3. Leave screen open without interaction
-4. After minute tick, event should disappear from count/list
-5. Confirm no crashes, no flashing, no extra prompts
-
-RISKS/NOTES
------------
-- Interval only runs while screen is mounted (one per screen)
-- 60-second tick is lightweight, no per-second ticking
-- No console logs in production
-
 NO NEW DEPENDENCIES
 -------------------
-Pure React hooks (useState, useEffect, useRef)
+Used existing: BadgePill, normalizeFeaturedBadge
 
 
