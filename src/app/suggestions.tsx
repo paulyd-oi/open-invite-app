@@ -22,6 +22,7 @@ import {
   Info,
   X,
   Sparkles,
+  Search,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -405,7 +406,16 @@ export default function SuggestionsScreen() {
         <Text className="text-lg font-semibold" style={{ color: colors.text }}>
           Suggestions
         </Text>
-        <View className="w-10" />
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            router.push("/friends?search=true" as any);
+          }}
+          className="w-10 h-10 items-center justify-center rounded-full"
+          style={{ backgroundColor: colors.surface }}
+        >
+          <Search size={20} color={colors.text} />
+        </Pressable>
       </View>
 
       {/* Segmented Control */}

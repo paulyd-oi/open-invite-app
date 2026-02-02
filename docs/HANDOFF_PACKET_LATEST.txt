@@ -1,4 +1,4 @@
-HANDOFF PACKET: Admin Badge Studio Cleanup
+HANDOFF PACKET: Pre-TestFlight Final Pass
 ==========================================
 Date: 2026-02-01
 Branch: main
@@ -6,48 +6,43 @@ Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Cleanup of Admin Console to focus ONLY on badge functionality:
-1. Removed out-of-scope Pro override, ban, delete UI and API functions
-2. Kept badge definitions panel (create/edit badges via CRUD modals)
-3. Kept manual grant/revoke badges to users functionality
-4. Uses existing backend badge endpoints (no backend changes required)
-5. Removed dead code (handleBadgeToggle using deprecated badge ID-based functions)
-6. All typechecks pass; verify_frontend.sh PASS
+Final polish pass before TestFlight build covering tasks A-H.
+All typechecks pass; verify_frontend.sh PASS
 
-CHANGES
--------
+TASK A: PUSH DIAGNOSTICS - ALREADY GATED
+Location: src/app/settings.tsx lines 86-92
+PUSH_DIAG_ALLOWLIST gates visibility to specific emails only.
 
-FILE 1: src/lib/adminApi.ts
-  REMOVED TYPES:
-  - UserAdminStatus
-  - SetProOverridePayload
-  - AdminActionResponse
-  - BanUserPayload
-  
-  REMOVED FUNCTIONS:
-  - getUserAdminStatus()
-  - setProOverride()
-  - banUser()
-  - unbanUser()
-  - deleteUser()
+TASK B: NOTIFICATION TOGGLES - ALL WIRED
+File: src/app/notification-settings.tsx
+Pattern: All 30+ toggles use updatePreference(key, value) to PUT /api/notifications/preferences
 
-FILE 2: src/app/admin.tsx
-  REMOVED IMPORTS:
-  - getUserAdminStatus, setProOverride, banUser, unbanUser, deleteUser
-  - AlertCircle, Trash2 icons
-  - type UserAdminStatus
+TASK C: ACTIVITY FEED CATEGORY TINTS - IMPLEMENTED
+File: src/app/activity.tsx
+NotificationCard now uses config.color + "08" for category-specific background tints.
 
-  REMOVED STATE:
-  - userAdminStatus, isLoadingUserStatus
-  - proOverrideNote, isSavingProOverride
-  - showBanModal, banReason, banConfirmText, isBanning
-  - showDeleteModal, deleteConfirmEmail, isDeleting
+TASK D: PRIVACY SETTINGS - ALL WIRED
+File: src/app/privacy-settings.tsx
+Toggles -> PUT /api/privacy, Export -> GET /api/privacy/export, Delete -> DELETE /api/privacy/account
 
-  REMOVED UI SECTIONS:
-  - Ban Status Indicator
-  - PRO STATUS section
-  - USER ACTIONS section (Ban/Delete buttons)
-  - Ban Modal
+TASK E: BLOCK CONTRACTS - VERIFIED
+File: src/app/blocked-contacts.tsx
+GET /api/blocked, POST /api/blocked, DELETE /api/blocked/:id all wired.
+
+TASK F: FRIEND CARD BADGE - ALREADY EXISTS
+src/app/friends.tsx uses BadgePill, src/app/friend/[id].tsx shows inline badge.
+
+TASK G: SUGGESTIONS ALGORITHM - DOCUMENTED
+GET /api/friends/suggestions, useSuggestionsFeed() hook provides personalized feed.
+
+TASK H: SUGGESTIONS ADD-FRIEND ENTRY - IMPLEMENTED
+Search icon added to suggestions header, navigates to /friends?search=true.
+
+FILES CHANGED
+-------------
+1. src/app/activity.tsx - Category-based tints
+2. src/app/suggestions.tsx - Search icon in header
+3. src/app/friends.tsx - Auto-open search from URL param
   - Delete Modal
 
   REMOVED HANDLERS:

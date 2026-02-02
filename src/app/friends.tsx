@@ -625,6 +625,7 @@ export default function FriendsScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
+  const params = useLocalSearchParams<{ search?: string }>();
   // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -634,6 +635,13 @@ export default function FriendsScreen() {
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
+
+  // Auto-open search modal if navigated with ?search=true
+  useEffect(() => {
+    if (params.search === "true") {
+      setShowAddFriend(true);
+    }
+  }, [params.search]);
 
   // Live search state
   const [debouncedQuery, setDebouncedQuery] = useState("");

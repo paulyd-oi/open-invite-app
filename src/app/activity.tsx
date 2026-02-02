@@ -152,6 +152,10 @@ function NotificationCard({
   const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith('http');
   const hasInitials = !!displayName && displayName.length > 0;
 
+  // Category-based background tint for unread notifications
+  const categoryTint = notification.read ? colors.surface : config.color + "08";
+  const categoryBorder = notification.read ? "transparent" : config.color + "20";
+
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 300)).springify()}>
       <Pressable
@@ -161,9 +165,9 @@ function NotificationCard({
         }}
         className="mx-4 mb-2 px-4 py-3 rounded-2xl flex-row items-center"
         style={{
-          backgroundColor: notification.read ? colors.surface : themeColor + "08",
+          backgroundColor: categoryTint,
           borderWidth: notification.read ? 0 : 1,
-          borderColor: notification.read ? "transparent" : themeColor + "20",
+          borderColor: categoryBorder,
         }}
       >
         {/* Avatar or Icon - always shows something (never blank) */}
