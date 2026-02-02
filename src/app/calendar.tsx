@@ -24,6 +24,7 @@ import {
   Trash2,
   Palette,
   Briefcase,
+  CalendarDays,
 } from "@/ui/icons";
 import Animated, { FadeIn, FadeInDown, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -47,6 +48,7 @@ import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
+import { checkCalendarPermission } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -1179,6 +1181,50 @@ export default function CalendarScreen() {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [welcomeModalChecked, setWelcomeModalChecked] = useState(false);
 
+  // Calendar import nudge state (shows banner if permission not granted and not dismissed)
+  const [showCalendarImportNudge, setShowCalendarImportNudge] = useState(false);
+  const [calendarImportNudgeChecked, setCalendarImportNudgeChecked] = useState(false);
+
+  // Check calendar import nudge visibility
+  useEffect(() => {
+    if (bootStatus !== 'authed' || !session?.user?.id || calendarImportNudgeChecked) return;
+    
+    setCalendarImportNudgeChecked(true);
+    
+    const checkNudge = async () => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      const dismissedKey = `calendar_import_nudge_dismissed:${userId}`;
+      
+      // Check if user has dismissed the nudge
+      const dismissed = await AsyncStorage.getItem(dismissedKey);
+      if (dismissed === "true") return;
+      
+      // Check calendar permission status
+      const permResult = await checkCalendarPermission();
+      if (!permResult.granted) {
+        // Small delay to let screen settle
+        setTimeout(() => setShowCalendarImportNudge(true), 800);
+      }
+    };
+    
+    checkNudge();
+  }, [bootStatus, session?.user?.id, calendarImportNudgeChecked]);
+
+  const handleDismissCalendarImportNudge = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowCalendarImportNudge(false);
+    if (session?.user?.id) {
+      await AsyncStorage.setItem(`calendar_import_nudge_dismissed:${session.user.id}`, "true");
+    }
+  };
+
+  const handleCalendarImportNudgePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCalendarImportNudge(false);
+    router.push("/import-calendar");
+  };
+
   // Check if welcome modal should be shown on first authed load
   useEffect(() => {
     // Only check once after user is authed
@@ -2252,6 +2298,41 @@ export default function CalendarScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Calendar Import Nudge Banner - shown if permission not granted and not dismissed */}
+      {showCalendarImportNudge && (
+        <Animated.View
+          entering={FadeInDown.springify()}
+          className="mx-4 mb-3 p-4 rounded-2xl flex-row items-center"
+          style={{ backgroundColor: themeColor + "15", borderWidth: 1, borderColor: themeColor + "30" }}
+        >
+          <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
+            <CalendarDays size={20} color={themeColor} />
+          </View>
+          <View className="flex-1 mr-2">
+            <Text className="font-semibold text-sm" style={{ color: colors.text }}>
+              Import your calendar
+            </Text>
+            <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+              One-time import. Your data stays private.
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleCalendarImportNudgePress}
+            className="px-3 py-1.5 rounded-full mr-1"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white text-xs font-semibold">Import</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleDismissCalendarImportNudge}
+            className="p-1.5"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <X size={16} color={colors.textTertiary} />
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Global Empty State - When user has no events at all */}
       <ScrollView

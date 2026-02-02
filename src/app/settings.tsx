@@ -2195,8 +2195,8 @@ export default function SettingsScreen() {
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
             <SettingItem
               icon={<CalendarDays size={20} color={themeColor} />}
-              title="Import Calendar"
-              subtitle="Add events from Apple or Google Calendar"
+              title="Import Device Calendar"
+              subtitle="One-time import from Apple or Google Calendar"
               isDark={isDark}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
