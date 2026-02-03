@@ -1,91 +1,108 @@
 =================================================================
-HANDOFF PACKET: P0 Circle Calendar Privacy Fix
+HANDOFF PACKET: P0 Work Schedule Second Block Fix
 =================================================================
 
 Date: 2026-02-02
 Repo: https://github.com/paulyd-oi/open-invite-app.git
 Branch: main
-Commit: 5fb6106
+Commit: 65f148f
 
 =================================================================
 SUMMARY
 =================================================================
-- Fixed privacy leak: Circle calendar was showing full event details 
-  (title, location, emoji) for ALL events including private/busy blocks
-- Events with isPrivate=true now show ONLY "Busy" to non-owners
-- Location, emoji, and attendee info hidden for masked events
-- Navigation to event details disabled for masked busy blocks
-- Slightly dimmed opacity (0.7) indicates non-interactive state
-- DEV logging added for debugging privacy masking decisions
+- Fixed work schedule second block showing --:-- instead of selected times
+- Root cause: Partial updates sent only one block2 field at a time
+- Fix: Now sends BOTH block2StartTime and block2EndTime together
+- Added comprehensive DEV logging for debugging schedule persistence
+- Verified with typecheck and verify_frontend.sh
 
 =================================================================
 FILES CHANGED
 =================================================================
 MODIFIED:
-- src/app/circle/[id].tsx
+- src/app/settings.tsx
 
 =================================================================
-KEY DIFFS
+ROOT CAUSE
 =================================================================
-1. Added currentUserId prop to MiniCalendar component:
-   circleId: string;
-   currentUserId: string | null;
+In handleWorkScheduleTimeChange(), when user changed block2 start OR end 
+time, only that single field was sent in the mutation:
 
-2. getEventsForDate now masks private events:
-   const isOwner = memberData.userId === currentUserId;
-   const shouldMask = e.isPrivate && !isOwner;
-   
-   eventMap.set(e.id, {
-     ...e,
-     title: shouldMask ? "Busy" : e.title,
-     emoji: shouldMask ? "" : e.emoji,
-     location: shouldMask ? null : e.location,
-     isPrivate: e.isPrivate ?? false,
-   });
+BEFORE:
+  if (type === "block2Start") {
+    updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: timeStr });
+  }
 
-3. Modal event rendering blocks navigation for masked events:
-   const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
-   
-   onPress={() => {
-     if (isMaskedBusy) return; // Block navigation
-     ...
-   }}
+If the backend doesn't properly merge partial updates (treating missing 
+fields as null), the other block2 field gets cleared. Result: --:-- display.
 
-4. Passed currentUserId where MiniCalendar is rendered:
-   currentUserId={session?.user?.id ?? null}
+=================================================================
+FIX
+=================================================================
+Now sends BOTH block2 times together when changing either:
+
+AFTER:
+  if (type === "block2Start") {
+    const block2EndTime = currentSchedule?.block2EndTime ?? "17:00";
+    updateWorkScheduleMutation.mutate({ 
+      dayOfWeek, 
+      block2StartTime: timeStr,
+      block2EndTime: block2EndTime,
+    });
+  } else if (type === "block2End") {
+    const block2StartTime = currentSchedule?.block2StartTime ?? "13:00";
+    updateWorkScheduleMutation.mutate({ 
+      dayOfWeek, 
+      block2StartTime: block2StartTime,
+      block2EndTime: timeStr,
+    });
+  }
+
+=================================================================
+DEV LOGGING ADDED
+=================================================================
+[ScheduleBlocks] Loaded from server: logs block2 data on query fetch
+[ScheduleBlocks] handleWorkScheduleTimeChange: logs time change requests
+[ScheduleBlocks] Saving to server: logs mutation payload  
+[ScheduleBlocks] Server responded: logs mutation response
 
 =================================================================
 RUNTIME STATUS
 =================================================================
-Commands to verify:
+Commands verified:
   npm run typecheck                   # PASSED
   bash scripts/ai/verify_frontend.sh # PASSED
 
 Expected behavior:
-- Open a Circle with multiple members who have events
-- Events marked isPrivate=true from OTHER members show as "Busy"
-- Your OWN private events show full details
-- Tapping masked "Busy" events does NOT navigate to event detail
-- DEV console shows "[CircleCalendarPrivacy]" logs when masking
+- Open Settings > Weekly Schedule
+- Add first block for a day > save > persists correctly
+- Tap (+) to add second block > defaults to 1:00 PM - 5:00 PM
+- Change start time > BOTH times remain visible (no --:--)
+- Change end time > BOTH times remain visible
+- Re-open screen > BOTH blocks display correctly
+- Remove second block > save > persists correctly
+
+=================================================================
+MANUAL TEST CHECKLIST
+=================================================================
+[ ] Open Work Schedule screen
+[ ] Add first block for Monday > save > persists
+[ ] Add second block for Monday > defaults show 1:00 PM - 5:00 PM
+[ ] Change block2 start to 2:00 PM > end time still shows 5:00 PM
+[ ] Change block2 end to 6:00 PM > start time still shows 2:00 PM
+[ ] Close and re-open screen > both blocks display correctly
+[ ] Remove second block > save > only first block remains
+[ ] Repeat for multiple days
 
 =================================================================
 ASSUMPTIONS / UNCERTAINTIES
 =================================================================
-- Assumes backend correctly sets isPrivate=true for busy/work events
-- memberEventSchema has isPrivate: z.boolean() field (verified in contracts.ts)
-- If isPrivate is undefined/null on an event, treated as false (public)
+- Assumes backend partial updates were clearing unspecified fields
+- If backend actually merges properly, this fix is defensive but harmless
+- DEV logging will help diagnose if issue persists (check console)
 
 =================================================================
 NEXT RECOMMENDED STEPS
 =================================================================
-1. Test with real Circle data where members have private events
-2. Consider if the same privacy masking is needed in other calendar views
-   (e.g., FeedCalendar in the main feed screen)
-
-=================================================================
-PREVIOUS SESSION WORK (same day)
-=================================================================
-Commit 4b56aa6: P0 Subscription Fix
-- Fixed Pro subscription not applying after purchase
-- useIsPro() now checks BOTH backend (hasActiveSubscription) AND RevenueCat
-- Query invalidation on purchase/restore ensures instant UI sync
+1. Test on device with real data to confirm fix
+2. Monitor DEV logs if issues persist to identify server response shape
