@@ -1,13 +1,14 @@
-HANDOFF PACKET: Build 231 Trust Regressions + Structural Invariants
-====================================================================
-Date: 2025-02-02
+HANDOFF PACKET: Build 231 Trust Regressions + Structural Invariants (Final)
+============================================================================
+Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Fixed 5 trust regressions from Build 231 review. All P0 (data-leaks) and P1 (UX polish)
-items addressed. TypeScript passes. Ready for QA verification.
+Completed all Build 231 trust regressions. Change Color now available on ALL events
+(no legacy gating). Private/busy events properly guard navigation and show friendly
+UX messages. TypeScript passes. Ready for QA verification.
 
 P0 FIXES (TRUST/DATA)
 ---------------------
@@ -38,10 +39,19 @@ P0 FIXES (TRUST/DATA)
         If user enables toggle while OS denied, request permission first.
    Invariant: Push toggle reflects ACTUAL OS permission state, not just backend pref.
 
+4. Event Not Found → Private/Busy Safety Net
+   Files: src/app/event/[id].tsx, src/app/event/edit/[id].tsx
+   Issue: 403/404 errors showed "Event not found" which exposes route structure
+   Fix: Replaced with friendly UX:
+        - Title: "This time is blocked"
+        - Body: "This event is private, or you're marked as busy at this time."
+        - Go Back button (no route strings exposed)
+   Invariant: 403/404 on event detail = non-visible state, NOT "missing" state.
+
 P1 FIXES (UX POLISH)
 --------------------
 
-4. Suggestions Cards: @username + Bio + Muted Mutual Friends
+5. Suggestions Cards: @username + Bio + Muted Mutual Friends
    File: src/app/suggestions.tsx (SuggestionCard)
    Issue: Cards showed only display name, no @handle or bio
    Fix: Now displays:
@@ -51,16 +61,21 @@ P1 FIXES (UX POLISH)
         - "N mutual friends" text (textTertiary, muted)
         - Removed cluttered mutual friend avatar stack
    
-5. Change Color Available on ALL Events
+6. Change Color Available on ALL Events
    File: src/app/calendar.tsx (~line 862)
-   Issue: "Change Color" context menu only appeared for own events
-   Fix: Removed `isOwner` gate. Now shows on all events that aren't group-tied.
-        Color changes are local/cosmetic, no backend write needed.
-   Invariant: Change Color available on ANY event (unless group-tied).
+   Issue: "Change Color" context menu had legacy gating (isOwner, group-tied)
+   Fix: Removed ALL gates. Change Color now appears for:
+        - Own events
+        - Friend events
+        - Circle events
+        - ANY event with long-press context menu
+   Doctrine: Color is viewer-local cosmetic only, no backend write needed.
+   Invariant: Change Color available on EVERY event card that supports long-press.
 
 VERIFICATION
 ------------
-✅ yarn typecheck PASS (tsc -p tsconfig.frontend.json --noEmit)
+✅ yarn typecheck PASS
+✅ bash scripts/ai/verify_frontend.sh PASS
 
 QA CHECKLIST
 ------------
@@ -69,7 +84,8 @@ QA CHECKLIST
 [ ] Activity tab first open: Prompts for notification permission if undetermined
 [ ] Notification settings: Toggle reflects actual OS permission status
 [ ] Suggestions cards: Show @username and bio when available
-[ ] Calendar: Long-press friend's event → "Change Color" option appears
+[ ] Calendar: Long-press ANY event → "Change Color" option appears
+[ ] Navigate to non-visible event → "This time is blocked" message, Go Back button
 
 FILES MODIFIED
 --------------
@@ -78,4 +94,7 @@ FILES MODIFIED
 - src/app/activity.tsx (first-open permission request)
 - src/app/notification-settings.tsx (OS permission state sync)
 - src/app/suggestions.tsx (SuggestionCard @username + bio)
+- src/app/calendar.tsx (Change Color ungated - available everywhere)
+- src/app/event/[id].tsx (private/busy UX message)
+- src/app/event/edit/[id].tsx (private/busy UX message)
 - src/app/calendar.tsx (Change Color ungated from isOwner)

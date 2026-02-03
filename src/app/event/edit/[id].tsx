@@ -215,8 +215,28 @@ export default function EditEventScreen() {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Event not found</Text>
+        <View className="flex-1 items-center justify-center px-6">
+          <Text 
+            className="text-xl font-semibold text-center mb-2"
+            style={{ color: colors.text }}
+          >
+            This time is blocked
+          </Text>
+          <Text 
+            className="text-center mb-4"
+            style={{ color: colors.textSecondary }}
+          >
+            This event is private, or you're marked as busy at this time.
+          </Text>
+          <Pressable
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
+            className="py-3 px-6 rounded-full items-center"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Text className="font-medium" style={{ color: colors.text }}>
+              Go Back
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );

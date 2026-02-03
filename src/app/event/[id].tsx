@@ -893,7 +893,7 @@ export default function EventDetailScreen() {
       );
     }
 
-    // Generic not found (event truly doesn't exist)
+    // Non-visible event fallback (privacy/busy/deleted - treat 403/404 as non-visible)
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event" }} />
@@ -902,19 +902,19 @@ export default function EventDetailScreen() {
             className="w-16 h-16 rounded-full items-center justify-center mb-4"
             style={{ backgroundColor: colors.surface }}
           >
-            <Calendar size={28} color={colors.textSecondary} />
+            <Lock size={28} color={colors.textSecondary} />
           </View>
           <Text 
             className="text-xl font-semibold text-center mb-2"
             style={{ color: colors.text }}
           >
-            Event not found
+            This time is blocked
           </Text>
           <Text 
             className="text-center mb-6"
             style={{ color: colors.textSecondary }}
           >
-            This event may have been deleted or is no longer available.
+            This event is private, or you're marked as busy at this time.
           </Text>
           <Pressable
             onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
