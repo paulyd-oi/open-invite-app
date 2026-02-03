@@ -219,13 +219,13 @@ export default function EditEventScreen() {
             className="text-xl font-semibold text-center mb-2"
             style={{ color: colors.text }}
           >
-            This time is blocked
+            Event not available
           </Text>
           <Text 
             className="text-center mb-4"
             style={{ color: colors.textSecondary }}
           >
-            This event is private, or you're marked as busy at this time.
+            This event may have been deleted or is no longer available.
           </Text>
           <Pressable
             onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}

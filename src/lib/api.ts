@@ -85,8 +85,14 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
 
     // Special case: Treat 404 on GET requests as empty state (not an error)
     // This prevents console spam when querying for resources that don't exist yet
+    // EXCEPTION: Event detail endpoints need the error preserved for privacy handling
     if (error.status === 404 && method === "GET") {
-      return null as T;
+      // Check if this is an event detail endpoint - these need 404 errors preserved
+      const isEventDetailEndpoint = /^\/api\/events\/[^/]+$/.test(path);
+      if (!isEventDetailEndpoint) {
+        return null as T;
+      }
+      // For event detail endpoints, re-throw to let caller handle privacy logic
     }
 
     // Re-throw the error so the calling code can handle it appropriately

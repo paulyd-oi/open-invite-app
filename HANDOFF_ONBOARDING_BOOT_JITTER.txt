@@ -1,0 +1,205 @@
+# HANDOFF: P0 Onboarding + Boot Router Jitter Sweep (SSOT)
+
+**Commit**: `8780d53` "fix(p0): onboarding boot router jitter + login flash fix (SSOT)"
+**Branch**: main (pushed to origin/main)
+**Status**: ✅ COMPLETE
+
+---
+
+## Root Cause
+
+Three issues causing boot/onboarding instability:
+
+1. **Login Flash**: `_layout.tsx` routed `loggedOut` → `/login` instead of `/welcome`
+2. **Double Screen Load**: `index.tsx` used `<Redirect href="/social" />` racing with BootRouter
+3. **Animation Jitter**: `smoothFadeIn()` returned `undefined`, completely disabling animations
+
+---
+
+## Screens Changed
+
+| File | Change |
+|------|--------|
+| `src/app/_layout.tsx` | Route `loggedOut` → `/welcome` instead of `/login` |
+| `src/app/index.tsx` | Defer to BootRouter - no immediate Redirect |
+| `src/app/welcome.tsx` | Re-enabled animations + mount-once log |
+| `src/app/login.tsx` | Added back button → `/welcome` |
+
+---
+
+## Before/After Boot Flow
+
+### BEFORE (Broken)
+
+```
+bootStatus: loggedOut
+  → BootRouter routes to /login ❌
+  → User sees Login screen first
+  → Then redirected to Getting Started
+  → DOUBLE SCREEN FLASH
+```
+
+### AFTER (Fixed)
+
+```
+bootStatus: loggedOut
+  → BootRouter routes to /welcome ✅
+  → User sees only Getting Started
+  → Tap "Log In" → /login
+  → Tap Back → /welcome
+  → SINGLE STABLE ENTRY
+```
+
+---
+
+## Canonical Boot Decision Tree (SSOT)
+
+| bootStatus | Route | Notes |
+|------------|-------|-------|
+| `loading` | (none) | Splash screen shown |
+| `loggedOut` | `/welcome` | **FIXED**: Was `/login` |
+| `error` | `/welcome` | Treat same as loggedOut |
+| `onboarding` | `/welcome` | Token exists, profile incomplete |
+| `authed` | `/calendar` | Fully authenticated |
+| `degraded` | (stay) | Network error, no redirect |
+
+---
+
+## Animation Fix Explanation
+
+### Before (Broken)
+```typescript
+// welcome.tsx - animations disabled
+const smoothFadeIn = (_delayMs = 0) => undefined;
+// Result: <Animated.View entering={undefined}> = no animation
+```
+
+### After (Fixed)
+```typescript
+// welcome.tsx - stable run-once animations
+const smoothFadeIn = (delayMs = 0) => FadeIn.delay(delayMs).duration(400);
+const stableFadeInDown = (delayMs = 0) => FadeInDown.delay(delayMs).duration(350).springify().damping(15);
+// Result: Smooth opacity fade, no layout jumps
+```
+
+**Key principles:**
+- Use `FadeIn` and `FadeInDown` (opacity + translateY only)
+- Never animate height (causes layout jumps)
+- Reanimated's `entering` prop handles run-once automatically
+
+---
+
+## Proof Logs
+
+### Mount-Once Detection
+```typescript
+// welcome.tsx
+useEffect(() => {
+  if (!hasLoggedMountRef.current) {
+    hasLoggedMountRef.current = true;
+    if (__DEV__) {
+      console.log("[ONBOARDING_BOOT] GettingStarted mounted once");
+    }
+  }
+}, []);
+```
+
+### Boot Routing Logs
+```
+[ONBOARDING_BOOT] Routing decision: { bootStatus: "loggedOut", currentPath: "/" }
+[ONBOARDING_BOOT] → Routing to /welcome (no valid token - Getting Started)
+```
+
+If `[ONBOARDING_BOOT] GettingStarted mounted once` prints twice → remount bug detected.
+
+---
+
+## Verification
+
+```
+✅ npm run typecheck         → PASS
+✅ verify_frontend.sh        → PASS
+✅ git push origin main      → 8780d53 pushed
+```
+
+---
+
+## git show --stat HEAD
+
+```
+commit 8780d53fce056f70df731445325fee4df5091c1d (HEAD -> main, origin/main, origin/HEAD)
+Author: paulyd-oi <pauljdal@gmail.com>
+Date:   Tue Feb 3 08:41:38 2026 -0800
+
+    fix(p0): onboarding boot router jitter + login flash fix (SSOT)
+    
+    BOOT ROUTING FIX:
+    - _layout.tsx: Route loggedOut to /welcome (Getting Started) NOT /login
+    - index.tsx: Defer to BootRouter - no Redirect race condition
+    - INVARIANT: Boot decides once - all logs now use ONBOARDING_BOOT tag
+    
+    ANIMATION STABILITY FIX:
+    - welcome.tsx: Re-enabled stable animations with FadeIn + FadeInDown
+    - smoothFadeIn now returns proper Reanimated entering animation
+    - stableFadeInDown added for layout-stable opacity+translateY animations
+    - Mount-once log guard to detect remount bugs
+    
+    LOGIN SCREEN FIX:
+    - login.tsx: Added back button ArrowLeft to router.replace /welcome
+    - Users can now properly navigate back from Login to Getting Started
+    
+    No login flash. No double screens. Animations run once.
+
+ HANDOFF_PRODUCTION_LOCKDOWN.txt | 93 ++++++++
+ src/app/_layout.tsx             | 19 +-
+ src/app/index.tsx               | 22 +-
+ src/app/login.tsx               | 14 +-
+ src/app/welcome.tsx             | 23 +-
+ 5 files changed, 152 insertions(+), 19 deletions(-)
+```
+
+---
+
+## git show --name-only HEAD
+
+```
+commit 8780d53fce056f70df731445325fee4df5091c1d (HEAD -> main, origin/main, origin/HEAD)
+Author: paulyd-oi <pauljdal@gmail.com>
+Date:   Tue Feb 3 08:41:38 2026 -0800
+
+    fix(p0): onboarding boot router jitter + login flash fix (SSOT)
+
+HANDOFF_PRODUCTION_LOCKDOWN.txt
+src/app/_layout.tsx
+src/app/index.tsx
+src/app/login.tsx
+src/app/welcome.tsx
+```
+
+---
+
+## Manual Test Plan
+
+1. **Cold launch logged out**:
+   - ✅ Should land ONLY on Getting Started (`/welcome`)
+   - ❌ Should NOT see Login first
+
+2. **Tap Login**:
+   - ✅ Navigate to `/login`
+   - ✅ See back arrow in header
+
+3. **Tap Back**:
+   - ✅ Return to Getting Started (`/welcome`)
+   - ✅ No flashes, no jumps
+
+4. **Logged in user**:
+   - ✅ Never sees onboarding again
+   - ✅ Goes directly to `/calendar`
+
+---
+
+## Continuation Hints
+
+- If animations still jitter: Check for `entering` prop being undefined
+- If screen remounts: Look for `[ONBOARDING_BOOT] GettingStarted mounted once` printed twice
+- All boot routing must use `router.replace()` never `push()`

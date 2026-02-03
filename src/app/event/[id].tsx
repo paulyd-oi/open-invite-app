@@ -451,17 +451,39 @@ export default function EventDetailScreen() {
     retry: false, // Don't retry on 403/404 privacy errors
   });
 
-  // Check if event is privacy-restricted (403 or similar)
+  // ============================================
+  // P0 FIX: Event Visibility Classification (SSOT)
+  // ============================================
+  // Classify why an event is not visible to properly show copy + CTAs
+  // Types: 'private_event' (need to add host) | 'busy_block' | 'authorized' | 'unknown'
+  
+  const eventErrorStatus = (eventError as any)?.status;
+  const eventErrorCode = (eventError as any)?.data?.code;
+  
+  // Check if event is privacy-restricted (403/404 with specific codes)
   const isPrivacyRestricted = !!(eventError && (
-    (eventError as any)?.status === 403 ||
-    (eventError as any)?.status === 404 ||
-    (eventError as any)?.data?.code === 'EVENT_NOT_VISIBLE' ||
-    (eventError as any)?.data?.code === 'NOT_FRIEND' ||
-    (eventError as any)?.data?.code === 'FORBIDDEN'
+    eventErrorStatus === 403 ||
+    eventErrorStatus === 404 ||
+    eventErrorCode === 'EVENT_NOT_VISIBLE' ||
+    eventErrorCode === 'NOT_FRIEND' ||
+    eventErrorCode === 'FORBIDDEN'
   ));
 
   // Extract host info from error payload if available
   const restrictedHostInfo = isPrivacyRestricted ? (eventError as any)?.data?.host : null;
+  const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'this person';
+
+  // DEV logging for blocked event debugging
+  if (__DEV__ && !isLoadingEvent && eventError) {
+    console.log('[P0_BLOCKED_EVENT] Event fetch error:', {
+      eventId: id,
+      status: eventErrorStatus,
+      code: eventErrorCode,
+      hasHostInfo: !!restrictedHostInfo,
+      hostName: restrictedHostName,
+      isPrivacyRestricted,
+    });
+  }
 
   // Fallback: Also fetch from lists in case the single endpoint fails
   const { data: myEventsData } = useQuery({
@@ -514,6 +536,42 @@ export default function EventDetailScreen() {
     feedData?.events.find((e) => e.id === id);
 
   const isBusyBlock = !!event?.isBusy;
+
+  // ============================================
+  // P0 FIX: Final event visibility classification
+  // ============================================
+  type EventBlockedReason = 'private_event' | 'busy_block' | 'authorized' | 'unknown';
+  
+  const getBlockedReason = (): { reason: EventBlockedReason; authorized: boolean } => {
+    // If we have an event, check if it's a busy block
+    if (event) {
+      if (isBusyBlock) {
+        return { reason: 'busy_block', authorized: false };
+      }
+      return { reason: 'authorized', authorized: true };
+    }
+    
+    // No event - check why
+    if (isPrivacyRestricted) {
+      return { reason: 'private_event', authorized: false };
+    }
+    
+    // Unknown reason (deleted, network error, etc.)
+    return { reason: 'unknown', authorized: false };
+  };
+  
+  const blockedState = getBlockedReason();
+  
+  // DEV logging for visibility decision
+  if (__DEV__ && !isLoadingEvent) {
+    console.log('[P0_BLOCKED_EVENT] Visibility decision:', {
+      eventId: id,
+      hasEvent: !!event,
+      eventType: event?.isBusy ? 'busy_block' : 'open_invite',
+      authorized: blockedState.authorized,
+      reason: blockedState.reason,
+    });
+  }
 
   const isMyEvent = event?.userId === session?.user?.id;
   const hasJoinRequest = event?.joinRequests?.some(
@@ -874,14 +932,13 @@ export default function EventDetailScreen() {
               className="text-xl font-semibold text-center mb-2"
               style={{ color: colors.text }}
             >
-              Event details limited
+              This event is private
             </Text>
             <Text 
               className="text-center mb-6"
               style={{ color: colors.textSecondary, lineHeight: 22 }}
             >
-              This event is hosted by someone you're not friends with yet.{'\n'}
-              Connect with the host to see full event details.
+              Add {restrictedHostName} to see event details.
             </Text>
             <View className="gap-3 w-full max-w-xs">
               {restrictedHostInfo?.id && (
@@ -891,7 +948,7 @@ export default function EventDetailScreen() {
                   style={{ backgroundColor: themeColor }}
                 >
                   <Text className="font-semibold" style={{ color: '#FFFFFF' }}>
-                    View Host Profile
+                    View Profile
                   </Text>
                 </Pressable>
               )}
@@ -910,7 +967,7 @@ export default function EventDetailScreen() {
       );
     }
 
-    // Non-visible event fallback (privacy/busy/deleted - treat 403/404 as non-visible)
+    // Unknown/deleted event fallback - could be network error or deleted event
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event" }} />
@@ -925,13 +982,13 @@ export default function EventDetailScreen() {
             className="text-xl font-semibold text-center mb-2"
             style={{ color: colors.text }}
           >
-            This time is blocked
+            Event not available
           </Text>
           <Text 
             className="text-center mb-6"
             style={{ color: colors.textSecondary }}
           >
-            This event is private, or you're marked as busy at this time.
+            This event may have been deleted or is no longer available.
           </Text>
           <Pressable
             onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
