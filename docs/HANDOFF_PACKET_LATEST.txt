@@ -3,7 +3,7 @@ HANDOFF PACKET: P0 SUGGESTIONS BIO ON PEOPLE CARDS
 Date: 2026-02-03
 Commit: f602384 (fix(p0): show bio on people suggestion cards)
 Branch: main
-Status: COMPLETE ✅
+Status: COMPLETE
 
 SUMMARY
 -------
@@ -12,9 +12,9 @@ on their profile but it wasn't shown on the suggestion card).
 
 ROOT CAUSE
 ----------
-The `publicUserSchema` in shared/contracts.ts did not include `bio` or `calendarBio`
-fields. The code in suggestions.tsx used `as any` type cast to access these fields,
-but without the schema including them, the types weren't propagated properly.
+The publicUserSchema in shared/contracts.ts did not include bio or calendarBio fields.
+The code in suggestions.tsx used "as any" type cast to access these fields, but without
+the schema including them, the types weren't propagated properly.
 
 FILES CHANGED (2 files, +10/-1)
 -------------------------------
@@ -22,11 +22,11 @@ shared/contracts.ts     | 3 +++
 src/app/suggestions.tsx | 8 +++++++-
 
 1. shared/contracts.ts:
-   - Added `bio: z.string().nullable().optional()` to publicUserSchema
-   - Added `calendarBio: z.string().nullable().optional()` to publicUserSchema
+   - Added bio: z.string().nullable().optional() to publicUserSchema
+   - Added calendarBio: z.string().nullable().optional() to publicUserSchema
 
 2. src/app/suggestions.tsx:
-   - Removed `as any` type cast for bio access
+   - Removed "as any" type cast for bio access
    - Added [P0_SUGGESTIONS_BIO] DEV log for debugging
 
 PROOF LOGS (SAMPLE)
@@ -54,232 +54,3 @@ QA STEPS
 3. Find a user with a bio (e.g., carlifornia16)
 4. Verify bio text appears below @username, truncated to 1 line
 5. Check DEV console for [P0_SUGGESTIONS_BIO] logs
-  - Added [P0_EVENT_SYNC] DEV logs throughout
-
-QUERY KEY MAP
--------------
-Event Details fetch keys:
-  ["events", "single", id]    → /api/events/{id}          → event core data, joinRequests
-  ["events", id, "interests"] → /api/events/{id}/interests → RSVP list (going/interested)
-  ["events", id, "comments"]  → /api/events/{id}/comments  → discussion messages
-  ["events", id, "rsvp"]      → /api/events/{id}/rsvp      → viewer's RSVP status
-
-INVALIDATION MAP
-----------------
-rsvpMutation (RSVP join):
-  ✅ ["events", id, "interests"]
-  ✅ ["events", id, "rsvp"]
-  ✅ ["events", "single", id]
-  ✅ ["events", "calendar"]
-  ✅ ["events", "attending"]
-  ✅ ["events", id]
-  ✅ ["events", "feed"]
-  ✅ ["events", "my-events"]
-
-removeRsvpMutation (RSVP leave):
-  ✅ ["events", id, "interests"]
-  ✅ ["events", id, "rsvp"]
-  ✅ ["events", "single", id]      <- ADDED
-  ✅ ["events", "calendar"]
-  ✅ ["events", "attending"]
-  ✅ ["events", "feed"]
-  ✅ ["events", "my-events"]
-
-joinMutation (join event):
-  ✅ ["events", "single", id]      <- FIXED (was wildcard)
-  ✅ ["events", id, "interests"]   <- FIXED
-  ✅ ["events", "feed"]
-  ✅ ["events", "my-events"]
-  ✅ ["events", "calendar"]
-
-handleJoinRequestAction (accept/reject):
-  ✅ ["events", "single", id]      <- FIXED (was wildcard)
-  ✅ ["events", id, "interests"]   <- FIXED
-  ✅ ["events", "feed"]
-  ✅ ["events", "my-events"]
-
-createCommentMutation:
-  ✅ ["events", id, "comments"]
-
-Focus refetch (useFocusEffect):
-  ✅ ["events", "single", id]
-  ✅ ["events", id, "interests"]
-  ✅ ["events", id, "comments"]
-  ✅ ["events", id, "rsvp"]
-
-BLAST-RADIUS PROOF
-------------------
-rg -n '"events".*"single"' src/ | wc -l → 8
-rg -n 'invalidateQueries' src/app/event/[id].tsx | wc -l → 34
-rg -n 'comments' src/app/event/[id].tsx | wc -l → 17
-rg -n 'P0_EVENT_SYNC' src/app/event/[id].tsx | wc -l → 7
-
-PROOF LOGS (SAMPLE)
--------------------
-[P0_EVENT_SYNC] focus refetch fired for event: abc123
-[P0_EVENT_SYNC] fetch keys: [events,single,id], [events,id,interests], [events,id,comments], [events,id,rsvp]
-[P0_EVENT_SYNC] RSVP success invalidated: [events,id,interests], [events,id,rsvp], [events,single,id], ...
-[P0_EVENT_SYNC] join success invalidated: [events,single,id], [events,id,interests], feed, my-events, calendar
-[P0_EVENT_SYNC] comment success invalidated: [events,id,comments]
-
-VERIFICATION OUTPUTS
---------------------
-npm run typecheck → PASS (no errors)
-bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
-
-QA STEPS
---------
-1. Account A: Create event, note event ID
-2. Account B: RSVP "going" on the event
-3. Account A: Open Event Details → Should see B in attendee list (not "No one has joined")
-4. Account B: Post a comment in Discussion
-5. Account A: Return to Event Details → Should see comment (not "No messages yet")
-6. Check DEV console for [P0_EVENT_SYNC] logs on each action
-
-KNOWN GOOD STATE
-----------------
-- TypeScript: PASS
-- verify_frontend.sh: PASS
-- Git: Pushed to main
-  ✅ ["events", id]
-  ✅ ["events", "feed"]
-  ✅ ["events", "my-events"]
-
-removeRsvpMutation (leave):
-  ✅ ["events", id, "interests"]
-  ✅ ["events", id, "rsvp"]
-  ✅ ["events", "calendar"]
-  ✅ ["events", "attending"]
-  ✅ ["events", "feed"]      <- ADDED
-  ✅ ["events", "my-events"] <- ADDED
-
-BLAST-RADIUS PROOF
-------------------
-rg -n "Popular" src/ | wc -l → 21
-rg -n '"events", "feed"' src/ | wc -l → 13
-rg -n "goingCount" src/ | wc -l → 12
-rg -n 'invalidateQueries\(' src/ | rg "events" | wc -l → 55
-
-All query keys audited and corrected.
-
-DEV PROOF LOGS
---------------
-Tag: [P0_POPULAR]
-Sample output:
-  [P0_POPULAR] fetched=5
-  [P0_POPULAR] filtered=2
-  [P0_POPULAR] exclude id=abc123 reason=attendeeCount=1 < 2
-  [P0_POPULAR] exclude id=def456 reason=past (2026-01-15T10:00:00Z)
-  [P0_POPULAR] removeRsvp invalidated: feed, my-events
-
-VERIFICATION OUTPUTS
---------------------
-npm run typecheck → PASS (no errors)
-bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
-
-QA STEPS
---------
-1. Create event with 2+ attendees (host + 1 accepted RSVP)
-2. Go to Discover > Popular tab
-3. Should see the event (not empty state)
-4. Leave event via RSVP remove
-5. Verify Popular tab refreshes (event count updates)
-6. Check DEV console for [P0_POPULAR] logs
-
-KNOWN GOOD STATE
-----------------
-- TypeScript: PASS
-- verify_frontend.sh: PASS
-- Git: Pushed to main
-
-BLAST-RADIUS PROOF
-------------------
-grep -rn "event\.title" --include="*.tsx" src/ | wc -l → 33 usages audited
-
-All calendar render paths verified:
-- calendar.tsx EventListItem ✅
-- circle/[id].tsx MiniCalendar ✅  
-- friend/[id].tsx EventCard ✅
-- FeedCalendar.tsx EventListItem ✅
-
-VERIFICATION PROOF
-------------------
-npm run typecheck → PASS (no errors)
-bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
-
-DEV LOGGING
------------
-Tag: [P0_PRIVACY_BUSY]
-Sample: [P0_PRIVACY_BUSY] Masking event "Real Title" (isBusy=true, isOwner=false)
-
-REPRO STEPS FOR VERIFICATION
-----------------------------
-1. Create event with isBusy=true
-2. View from another user's friend calendar or circle calendar
-3. Should see "Busy" with 🔒, NOT real title
-4. Tap should NOT navigate to event details
-
-PREVIOUS FIXES (PRESERVED)
---------------------------
-- Subscription section always renders card (Free/Pro), never blank
-- Notification toggle reflects OS permission state (granted/denied/undetermined)
-- useFocusEffect refreshes permission status when returning from Settings
-- Toggle cannot be ON when OS permission not granted
-- Change Color available on ALL events
-- Private/busy event detail shows "This time is blocked" message
-
-KEY DIFFS
----------
-SubscriptionContext.tsx:
-+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-+  useEffect(() => {
-+    loadingTimeoutRef.current = setTimeout(() => {
-+      if (isLoading) setIsLoading(false);
-+    }, 5000);
-+    return () => { clearTimeout(...) };
-+  }, []);
-
-activity.tsx:
--  const ACTIVITY_PERMISSION_ASKED_KEY = "@openinvite_activity_permission_asked";
-+  const getActivityPermissionKey = (userId: string) => 
-+    `@openinvite_activity_permission_asked_${userId}`;
-
-notification-settings.tsx:
-+  {osPermissionStatus === "denied" && (
-+    <Pressable onPress={() => Linking.openSettings()}>
-+      <Settings size={16} /> Enable in Settings
-+    </Pressable>
-+  )}
-
-VERIFICATION
-------------
-✅ yarn typecheck PASS
-✅ bash scripts/ai/verify_frontend.sh PASS
-
-QA TEST PLAN
-------------
-[ ] Settings: Subscription section renders immediately (no blank), updates to Pro if Pro
-[ ] Settings: Wait 5+ seconds with network issues → still shows Free card (not stuck loading)
-[ ] Activity: First open triggers permission request only if undetermined, only once per user
-[ ] Activity: Switch accounts → permission prompt can appear for new user
-[ ] Notification settings: Toggle reflects OS permission state
-[ ] Notification settings: Toggle updates after changing permission in iOS Settings
-[ ] Notification settings: Toggle cannot be ON when OS permission denied/undetermined
-[ ] Notification settings: "Enable in Settings" button visible when permission denied
-[ ] Notification settings: Clicking "Enable in Settings" opens device Settings
-
-FILES MODIFIED
---------------
-- src/lib/SubscriptionContext.tsx (loading timeout fallback)
-- src/app/activity.tsx (user-scoped permission tracking)
-- src/app/notification-settings.tsx (Enable in Settings CTA + Settings icon import)
---------------
-- src/app/settings.tsx (subscription block loading state)
-- src/components/FeedCalendar.tsx (EventListItem busy/private handling)
-- src/app/activity.tsx (first-open permission request)
-- src/app/notification-settings.tsx (OS permission state sync)
-- src/app/suggestions.tsx (SuggestionCard @username + bio)
-- src/app/calendar.tsx (Change Color ungated - available everywhere)
-- src/app/event/[id].tsx (private/busy UX message)
-- src/app/event/edit/[id].tsx (private/busy UX message)
-- src/app/calendar.tsx (Change Color ungated from isOwner)
