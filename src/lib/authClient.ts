@@ -30,12 +30,17 @@ export const OI_SESSION_TOKEN_KEY = "oi_session_token_v1";
 let oiSessionToken: string | null = null;
 let oiSessionTokenInitialized = false;
 
+// AUTH_DEBUG: Gate verbose auth logs behind explicit env flag
+// Set EXPO_PUBLIC_AUTH_DEBUG=1 in .env to enable per-request logging
+const AUTH_DEBUG = __DEV__ && process.env.EXPO_PUBLIC_AUTH_DEBUG === "1";
+
 /**
  * DEV-only trace helper for auth token flow tracing.
  * Never logs token content - only booleans, keys, and function names.
+ * Gated behind AUTH_DEBUG to silence per-request log firehose.
  */
 function authTrace(event: string, data: Record<string, boolean | string | number>): void {
-  if (!__DEV__) return;
+  if (!AUTH_DEBUG) return;
   console.log(`[AUTH_TRACE] ${event}`, data);
 }
 
@@ -109,8 +114,8 @@ const betterAuthClient = createAuthClient({
   ],
 });
 
-// DEV: Log cookie storage key for debugging
-if (__DEV__) {
+// DEV: Log cookie storage key for debugging (gated behind AUTH_DEBUG)
+if (AUTH_DEBUG) {
   const cookieKey = `${STORAGE_PREFIX}_cookie`;
   console.log(`[authClient] Cookie storage key: ${cookieKey}`);
   void debugDumpBetterAuthCookieOnce();
@@ -136,7 +141,7 @@ export async function ensureCookieInitialized(): Promise<void> {
   }
   
   cookieInitPromise = (async () => {
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[authClient] Initializing cookie cache from SecureStore...');
     }
     // Load both cookie and OI session token in parallel
@@ -145,7 +150,7 @@ export async function ensureCookieInitialized(): Promise<void> {
       loadOiSessionToken(),
     ]);
     cookieInitialized = true;
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
     }
   })();
@@ -223,7 +228,7 @@ async function $fetch<T = any>(
   // Use cached Better Auth cookie (refreshed after signIn)
   const hasCookie = !!explicitCookieValue;
 
-  if (__DEV__) {
+  if (AUTH_DEBUG) {
     console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
     console.log(`[authClient.$fetch] Explicit cookie cached: ${hasCookie}`);
     if (hasCookie && explicitCookieValue) {
@@ -271,7 +276,7 @@ async function $fetch<T = any>(
     }
     
     // DEV-only: Log auth header state (never log token values)
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log(`[AUTH_HDR] x-oi-session-token len=${oiSessionToken?.length ?? 0} hadCookie=${hadCookie}`);
       if (hadCookie && explicitCookieValue) {
         console.log(`[authClient.$fetch] cookie header SET: ${explicitCookieValue.split('=')[0]}`);
@@ -286,14 +291,14 @@ async function $fetch<T = any>(
     });
     
     // Log response status for every request (helps debug auth issues)
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log(`[authClient.$fetch] Response status for ${path}: ${response.status}`);
     }
     
     if (!response.ok) {
       // Read raw text once for both logging and parsing
       const rawText = await response.text().catch(() => '');
-      if (__DEV__) {
+      if (AUTH_DEBUG) {
         console.log(`[authClient.$fetch] Non-OK ${response.status} raw body preview: ${rawText.slice(0, 120)}`);
       }
       let errorData: any = null;
@@ -318,7 +323,7 @@ async function $fetch<T = any>(
       console.log(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
     }
     
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log(`[authClient.$fetch] Success for ${path}`);
       authTrace("authFetch:success", { endpoint: path, hadCookie: hasCookie });
     }
@@ -348,7 +353,7 @@ async function $fetch<T = any>(
       method: init?.method || "GET",
     };
 
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log(`[authClient.$fetch] Error for ${path}:`, details.message);
       
       // Known optional endpoints - treat 404 as non-error in logs
@@ -384,7 +389,7 @@ async function $fetch<T = any>(
 }
 
 // Log resolved API base URL in development for easier debugging
-if (__DEV__) {
+if (AUTH_DEBUG) {
   try {
     console.log("[authClient] Resolved API_BASE_URL:", API_BASE_URL);
     console.log("[authClient] Using Better Auth expoClient with storagePrefix:", STORAGE_PREFIX);
@@ -422,7 +427,7 @@ export async function refreshExplicitCookie(): Promise<void> {
     const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
     const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
     
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
       console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
     }
@@ -436,13 +441,13 @@ export async function refreshExplicitCookie(): Promise<void> {
         if (parsed[targetCookieName]?.value) {
           const token = parsed[targetCookieName].value;
           explicitCookieValue = `${targetCookieName}=${token}`;
-          if (__DEV__) {
+          if (AUTH_DEBUG) {
             console.log('[refreshExplicitCookie] Cookie cached from Better Auth storage');
           }
           return; // Success - done
         }
       } catch (parseError) {
-        if (__DEV__) {
+        if (AUTH_DEBUG) {
           console.log('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
         }
       }
@@ -452,7 +457,7 @@ export async function refreshExplicitCookie(): Promise<void> {
     const explicitCookie = await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
     if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
       explicitCookieValue = explicitCookie;
-      if (__DEV__) {
+      if (AUTH_DEBUG) {
         console.log('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
       }
       return; // Success - done
@@ -460,12 +465,12 @@ export async function refreshExplicitCookie(): Promise<void> {
     
     // No cookie found in either location
     explicitCookieValue = null;
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[refreshExplicitCookie] No cookie found in any location - cache cleared');
     }
   } catch (error) {
     explicitCookieValue = null;
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[refreshExplicitCookie] Error:', error);
     }
   }
@@ -487,7 +492,7 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   // Extract token value from cookie pair for validation
   const parts = cookiePair.split('=');
   if (parts.length < 2) {
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log('[AUTH_TRACE] setExplicitCookieValueDirectly: rejected, invalid format (no =)');
     }
     return false;
@@ -497,14 +502,14 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   const validation = isValidBetterAuthToken(tokenValue);
   
   if (!validation.isValid) {
-    if (__DEV__) {
+    if (AUTH_DEBUG) {
       console.log(`[AUTH_TRACE] setExplicitCookieValueDirectly: rejected token, reason=${validation.reason}`);
     }
     return false; // Do NOT set invalid token
   }
   
   explicitCookieValue = cookiePair;
-  if (__DEV__) {
+  if (AUTH_DEBUG) {
     console.log('[setExplicitCookieValueDirectly] Cookie cache set directly (validated)');
   }
   return true;
