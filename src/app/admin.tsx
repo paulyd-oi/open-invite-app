@@ -766,6 +766,109 @@ export default function AdminConsole() {
               )}
             </View>
 
+            {/* Quick Grant Connect Leader */}
+            {(() => {
+              const connectLeaderBadge = allBadgeDefinitions.find(b => b.badgeKey === "connect_leader");
+              const hasConnectLeader = userBadges.some(ub => ub.badgeKey === "connect_leader");
+              
+              if (!connectLeaderBadge) {
+                return (
+                  <View className="mb-4">
+                    <View style={{ backgroundColor: "#F59E0B20" }} className="rounded-2xl p-3">
+                      <Text style={{ color: "#F59E0B" }} className="text-sm font-medium">
+                        ⚠️ connect_leader not found in badge catalog
+                      </Text>
+                      <Text style={{ color: colors.textSecondary }} className="text-xs mt-1">
+                        Backend migration not deployed yet
+                      </Text>
+                    </View>
+                  </View>
+                );
+              }
+              
+              return (
+                <View className="mb-4">
+                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">QUICK GRANT</Text>
+                  <Pressable
+                    onPress={async () => {
+                      if (hasConnectLeader || isGrantingBadge) return;
+                      
+                      setIsGrantingBadge(true);
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setBadgeError(null);
+                      
+                      try {
+                        const response = await grantBadgeByKey(selectedUser.id, "connect_leader");
+                        if (response.success) {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          safeToast.success("Connect Leader granted", `Badge granted to ${selectedUser.name || selectedUser.email}`);
+                          const userBadgesResponse = await getUserBadges(selectedUser.id);
+                          setUserBadges(userBadgesResponse.badges);
+                        } else {
+                          setBadgeError(response.message || "Failed to grant Connect Leader");
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                          safeToast.error("Grant failed", response.message || "Failed to grant Connect Leader");
+                        }
+                      } catch (error: any) {
+                        if (error?.status === 401 || error?.status === 403) {
+                          setBadgeError("Not authorized");
+                          router.replace("/settings");
+                        } else {
+                          setBadgeError(error?.message || "Network error - please try again");
+                          safeToast.error("Grant failed", error?.message || "Network error");
+                        }
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                      } finally {
+                        setIsGrantingBadge(false);
+                      }
+                    }}
+                    disabled={hasConnectLeader || isGrantingBadge}
+                    style={{ backgroundColor: colors.surface }}
+                    className="rounded-2xl p-4"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center flex-1">
+                        <View 
+                          className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                          style={{ backgroundColor: `${connectLeaderBadge.tierColor}20` }}
+                        >
+                          <Text className="text-xl">{connectLeaderBadge.emoji}</Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text style={{ color: colors.text }} className="font-semibold">
+                            {connectLeaderBadge.name}
+                          </Text>
+                          <Text style={{ color: colors.textSecondary }} className="text-xs mt-0.5">
+                            1-click grant
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {hasConnectLeader ? (
+                        <View 
+                          className="px-3 py-1.5 rounded-lg"
+                          style={{ backgroundColor: "#10B98120" }}
+                        >
+                          <Text style={{ color: "#10B981" }} className="text-sm font-medium">
+                            Already Granted ✓
+                          </Text>
+                        </View>
+                      ) : (
+                        <View 
+                          className="px-4 py-2 rounded-lg"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          <Text className="text-white font-medium">
+                            {isGrantingBadge ? "Granting..." : "Grant"}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </Pressable>
+                </View>
+              );
+            })()}
+
             {/* Grant Badge Section */}
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">GRANT A BADGE</Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl p-4 mb-4">
