@@ -275,8 +275,8 @@ const FriendCard = React.memo(function FriendCard({
             )}
           </View>
           <View className="flex-1">
-            <View className="flex-row items-center flex-wrap gap-1.5">
-              <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+            <View className="flex-row items-center flex-nowrap gap-1.5">
+              <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                 {friend.name ?? friend.email ?? "Unknown"}
               </Text>
               {/* Featured Badge - inline with name */}
@@ -451,8 +451,8 @@ const FriendListItem = React.memo(function FriendListItem({
                   )}
                 </View>
                 <View className="flex-1">
-                  <View className="flex-row items-center flex-wrap gap-1.5">
-                    <Text className="text-base font-sora-medium" style={{ color: colors.text }}>
+                  <View className="flex-row items-center flex-nowrap gap-1.5">
+                    <Text className="text-base font-sora-medium" style={{ color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                       {friend.name ?? friend.email ?? "Unknown"}
                     </Text>
                     {/* Featured Badge - inline with name */}
