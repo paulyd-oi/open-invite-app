@@ -1,47 +1,63 @@
-HANDOFF PACKET: P0 Subscription Fallback + Notification Permission Truth
-=========================================================================
-Date: 2026-02-03
+HANDOFF PACKET: P0 PRIVACY SWEEP - BUSY MUST MASK TITLE EVERYWHERE
+===================================================================
+Date: 2025-01-XX
+Commit: d7c2545 (fix(privacy): P0 centralized busy event masking)
 Branch: main
-Repo: github.com/paulyd-oi/open-invite-app.git
+Status: COMPLETE ✅
 
-SUMMARY
--------
-Hardened P0 invariants for subscription loading and notification permission state.
-Added timeout fallback to prevent stuck loading, user-scoped permission tracking,
-and explicit "Enable in Settings" CTA for denied permission state.
+ROOT CAUSE
+----------
+1. circle/[id].tsx line ~146: MiniCalendar only checked isPrivate, not isBusy/isWork
+2. friend/[id].tsx EventCard: NO masking at all - showed real titles for all events
 
-P0 FIXES (THIS SESSION)
------------------------
+FIX SUMMARY
+-----------
+Created centralized masking helper in /src/lib/eventVisibility.ts:
+- shouldMaskEvent(event, isOwner) → boolean
+- getEventDisplayFields(event, isOwner) → {displayTitle, displayEmoji, displayLocation, displayDescription, isMasked}
 
-1. Subscription Loading Timeout Fallback
-   File: src/lib/SubscriptionContext.tsx
-   Issue: isLoading could stay true indefinitely if RevenueCat/backend fails
-   Fix: Added 5-second timeout that forces isLoading=false if still loading
-        - UI will show Free tier as safe default rather than blank/loading forever
-        - Logs warning in DEV mode when timeout triggers
-   Invariant: Subscription loading MUST resolve within 5 seconds.
+Masking Logic:
+  isMasked = (isBusy || isWork) && !isOwner
+  masked → title="Busy", emoji="🔒", location=undefined, description=undefined
 
-2. User-Scoped Notification Permission Tracking
-   File: src/app/activity.tsx
-   Issue: Permission asked flag was global, not per-user
-   Fix: Changed key from global to user-scoped:
-        - OLD: @openinvite_activity_permission_asked
-        - NEW: @openinvite_activity_permission_asked_{userId}
-   Invariant: Permission prompt tracking is per-user to handle multi-account.
+FILES CHANGED (5 files, +165/-42)
+---------------------------------
+1. src/lib/eventVisibility.ts - NEW: Centralized masking helpers (88 lines)
+2. src/app/calendar.tsx - EventListItem uses getEventDisplayFields()
+3. src/app/circle/[id].tsx - MiniCalendar now checks isBusy/isWork (was only isPrivate)
+4. src/app/friend/[id].tsx - EventCard has masking + navigation blocked for masked
+5. src/components/FeedCalendar.tsx - EventListItem uses centralized helper
 
-3. "Enable in Settings" CTA for Denied Permission
-   File: src/app/notification-settings.tsx
-   Issue: When OS permission denied, no clear action path shown
-   Fix: Added explicit "Enable in Settings" button that:
-        - Only appears when osPermissionStatus === "denied"
-        - Opens device Settings via Linking.openSettings()
-        - Uses Settings icon with themeColor styling
-   Invariant: Denied permission state shows clear remediation path.
+BLAST-RADIUS PROOF
+------------------
+grep -rn "event\.title" --include="*.tsx" src/ | wc -l → 33 usages audited
+
+All calendar render paths verified:
+- calendar.tsx EventListItem ✅
+- circle/[id].tsx MiniCalendar ✅  
+- friend/[id].tsx EventCard ✅
+- FeedCalendar.tsx EventListItem ✅
+
+VERIFICATION PROOF
+------------------
+npm run typecheck → PASS (no errors)
+bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
+
+DEV LOGGING
+-----------
+Tag: [P0_PRIVACY_BUSY]
+Sample: [P0_PRIVACY_BUSY] Masking event "Real Title" (isBusy=true, isOwner=false)
+
+REPRO STEPS FOR VERIFICATION
+----------------------------
+1. Create event with isBusy=true
+2. View from another user's friend calendar or circle calendar
+3. Should see "Busy" with 🔒, NOT real title
+4. Tap should NOT navigate to event details
 
 PREVIOUS FIXES (PRESERVED)
 --------------------------
 - Subscription section always renders card (Free/Pro), never blank
-- Busy/private events hide titles and disable navigation
 - Notification toggle reflects OS permission state (granted/denied/undetermined)
 - useFocusEffect refreshes permission status when returning from Settings
 - Toggle cannot be ON when OS permission not granted
