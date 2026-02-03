@@ -70,6 +70,13 @@ export default function AdminConsole() {
   const [selectedBadgeToGrant, setSelectedBadgeToGrant] = useState<string>("");
   const [grantBadgeNote, setGrantBadgeNote] = useState("");
   const [isGrantingBadge, setIsGrantingBadge] = useState(false);
+  
+  // Endpoint health state
+  const [endpointHealth, setEndpointHealth] = useState<{
+    adminMe: boolean | null;
+    badges: boolean | null;
+    badgeCount: number;
+  }>({ adminMe: null, badges: null, badgeCount: 0 });
 
   // Check admin status and redirect if not admin
   const { data: adminStatus, isLoading: adminLoading } = useQuery({
@@ -81,12 +88,19 @@ export default function AdminConsole() {
   // DEV logging for admin gating
   React.useEffect(() => {
     if (__DEV__ && !adminLoading) {
-      console.log('[AdminConsole] Admin status check:', {
+      console.log('[P0_ADMIN_CONSOLE] adminCheck:', {
         isAdmin: adminStatus?.isAdmin,
         email: adminStatus?.email,
         message: adminStatus?.message,
         loading: adminLoading,
       });
+    }
+    // Track endpoint health
+    if (!adminLoading) {
+      setEndpointHealth(prev => ({
+        ...prev,
+        adminMe: adminStatus?.isAdmin !== undefined,
+      }));
     }
   }, [adminStatus, adminLoading]);
 
@@ -94,7 +108,7 @@ export default function AdminConsole() {
   React.useEffect(() => {
     if (!adminLoading && adminStatus && !adminStatus.isAdmin) {
       if (__DEV__) {
-        console.log("[Admin] Access denied - redirecting to settings");
+        console.log("[P0_ADMIN_CONSOLE] Access denied - redirecting to settings");
       }
       router.replace("/settings");
     }
@@ -111,7 +125,7 @@ export default function AdminConsole() {
     try {
       const response = await searchUsers(searchQuery);
       if (__DEV__) {
-        console.log('[ADMIN_SEARCH]', { 
+        console.log('[P0_ADMIN_CONSOLE] handleSearch:', { 
           q: searchQuery,
           status: 'ok',
           resultCount: response.users.length,
@@ -121,7 +135,7 @@ export default function AdminConsole() {
       setSearchResults(response.users);
     } catch (error: any) {
       if (__DEV__) {
-        console.log('[ADMIN_SEARCH]', {
+        console.log('[P0_ADMIN_CONSOLE] handleSearch FAILED:', {
           q: searchQuery,
           status: error?.status ?? 'error',
           resultCount: 0,
@@ -177,10 +191,25 @@ export default function AdminConsole() {
     try {
       const response = await listBadges();
       setAllBadgeDefinitions(response.badges);
+      // Track endpoint health
+      setEndpointHealth(prev => ({
+        ...prev,
+        badges: response.badges.length >= 0,
+        badgeCount: response.badges.length,
+      }));
+      if (__DEV__) {
+        const hasConnectLeader = response.badges.some(b => b.badgeKey === 'connect_leader');
+        console.log(`[P0_ADMIN_CONSOLE] loadBadgeDefinitions: count=${response.badges.length} hasConnectLeader=${hasConnectLeader}`);
+      }
     } catch (error: any) {
       if (__DEV__) {
-        console.log("[Admin] Failed to load badge definitions:", error?.message);
+        console.log("[P0_ADMIN_CONSOLE] loadBadgeDefinitions FAILED:", error?.message);
       }
+      setEndpointHealth(prev => ({
+        ...prev,
+        badges: false,
+        badgeCount: 0,
+      }));
     } finally {
       setIsLoadingDefinitions(false);
     }
@@ -948,10 +977,25 @@ export default function AdminConsole() {
         <Animated.View entering={FadeInDown.delay(250).springify()} className="mx-4 mt-6 mb-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">STATUS</Text>
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl p-4">
-            <Text style={{ color: "#10B981" }} className="text-sm font-medium">
-              ✓ Admin endpoints available
-            </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-xs mt-1">
+            {/* Admin Me Endpoint */}
+            <View className="flex-row items-center mb-1">
+              <Text 
+                style={{ color: endpointHealth.adminMe === true ? "#10B981" : endpointHealth.adminMe === false ? "#EF4444" : colors.textSecondary }} 
+                className="text-sm font-medium"
+              >
+                {endpointHealth.adminMe === true ? "✓" : endpointHealth.adminMe === false ? "✗" : "◯"} /api/admin/me
+              </Text>
+            </View>
+            {/* Badges Endpoint */}
+            <View className="flex-row items-center mb-2">
+              <Text 
+                style={{ color: endpointHealth.badges === true ? "#10B981" : endpointHealth.badges === false ? "#EF4444" : colors.textSecondary }} 
+                className="text-sm font-medium"
+              >
+                {endpointHealth.badges === true ? "✓" : endpointHealth.badges === false ? "✗" : "◯"} /api/admin/badges ({endpointHealth.badgeCount})
+              </Text>
+            </View>
+            <Text style={{ color: colors.textSecondary }} className="text-xs">
               Connected to {BACKEND_URL}
             </Text>
           </View>
