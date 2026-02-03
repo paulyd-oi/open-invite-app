@@ -643,6 +643,22 @@ export default function SettingsScreen() {
   const workSchedules = workScheduleData?.schedules ?? [];
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
 
+  // DEV: Log schedule data when it changes
+  useEffect(() => {
+    if (__DEV__ && workScheduleData?.schedules) {
+      const block2Data = workScheduleData.schedules
+        .filter(s => s.block2StartTime || s.block2EndTime)
+        .map(s => ({
+          day: s.dayName,
+          block2Start: s.block2StartTime,
+          block2End: s.block2EndTime,
+        }));
+      if (block2Data.length > 0) {
+        console.log("[ScheduleBlocks] Loaded from server:", block2Data);
+      }
+    }
+  }, [workScheduleData?.schedules]);
+
   // Track if we've done initial block2 expansion sync (prevents overwriting user changes)
   const didSyncBlock2Ref = useRef(false);
 
@@ -879,10 +895,25 @@ export default function SettingsScreen() {
   });
 
   const updateWorkScheduleMutation = useMutation({
-    mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string; block2StartTime?: string | null; block2EndTime?: string | null }) =>
-      api.put<{ schedule: WorkScheduleDay }>(`/api/work-schedule/${data.dayOfWeek}`, data),
-    onSuccess: () => {
+    mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string; block2StartTime?: string | null; block2EndTime?: string | null }) => {
+      if (__DEV__ && (data.block2StartTime !== undefined || data.block2EndTime !== undefined)) {
+        console.log("[ScheduleBlocks] Saving to server:", {
+          dayOfWeek: data.dayOfWeek,
+          block2StartTime: data.block2StartTime,
+          block2EndTime: data.block2EndTime,
+        });
+      }
+      return api.put<{ schedule: WorkScheduleDay }>(`/api/work-schedule/${data.dayOfWeek}`, data);
+    },
+    onSuccess: (response) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (__DEV__ && response?.schedule) {
+        console.log("[ScheduleBlocks] Server responded:", {
+          day: response.schedule.dayName,
+          block2StartTime: response.schedule.block2StartTime,
+          block2EndTime: response.schedule.block2EndTime,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
     },
     onError: () => {
@@ -1127,14 +1158,40 @@ export default function SettingsScreen() {
 
   const handleWorkScheduleTimeChange = (dayOfWeek: number, type: "start" | "end" | "block2Start" | "block2End", date: Date) => {
     const timeStr = formatDateToTime(date);
+    
+    // Find current schedule to get existing values for complete updates
+    const currentSchedule = workSchedules.find(s => s.dayOfWeek === dayOfWeek);
+    
+    if (__DEV__) {
+      console.log("[ScheduleBlocks] handleWorkScheduleTimeChange", {
+        dayOfWeek,
+        type,
+        newTimeStr: timeStr,
+        currentBlock2Start: currentSchedule?.block2StartTime,
+        currentBlock2End: currentSchedule?.block2EndTime,
+      });
+    }
+    
     if (type === "start") {
       updateWorkScheduleMutation.mutate({ dayOfWeek, startTime: timeStr });
     } else if (type === "end") {
       updateWorkScheduleMutation.mutate({ dayOfWeek, endTime: timeStr });
     } else if (type === "block2Start") {
-      updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: timeStr });
+      // Send BOTH block2 times to prevent backend from clearing the other field
+      const block2EndTime = currentSchedule?.block2EndTime ?? "17:00";
+      updateWorkScheduleMutation.mutate({ 
+        dayOfWeek, 
+        block2StartTime: timeStr,
+        block2EndTime: block2EndTime,
+      });
     } else if (type === "block2End") {
-      updateWorkScheduleMutation.mutate({ dayOfWeek, block2EndTime: timeStr });
+      // Send BOTH block2 times to prevent backend from clearing the other field
+      const block2StartTime = currentSchedule?.block2StartTime ?? "13:00";
+      updateWorkScheduleMutation.mutate({ 
+        dayOfWeek, 
+        block2StartTime: block2StartTime,
+        block2EndTime: timeStr,
+      });
     }
   };
 
