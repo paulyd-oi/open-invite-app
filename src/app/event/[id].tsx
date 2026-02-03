@@ -672,6 +672,12 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
       // Invalidate attending events so Social tab updates immediately
       queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
+      // P0 FIX: Invalidate feed and my-events for Discover > Popular tab (was missing)
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
+      if (__DEV__) {
+        console.log("[P0_POPULAR] removeRsvp invalidated: feed, my-events");
+      }
     },
   });
 

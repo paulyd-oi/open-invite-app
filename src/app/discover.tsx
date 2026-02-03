@@ -188,6 +188,9 @@ export default function DiscoverScreen() {
   // - Only upcoming events (startTime >= now)
   // - Minimum 2 attendees (accepted join requests)
   // - Sorted by attendee count (most first)
+  // P0 FIX: Popular threshold = 2+ attendees (including host)
+  const POPULAR_THRESHOLD = 2;
+  
   const popularEvents = useMemo(() => {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
@@ -201,30 +204,51 @@ export default function DiscoverScreen() {
     });
 
     const allEvents = Array.from(allEventsMap.values());
+    const now = new Date();
     
-    const filtered = allEvents
-      .map((event) => {
-        const attendeeCount = (event.joinRequests?.filter((r) => r.status === "accepted")?.length ?? 0) + 1; // +1 for the host
-        return { ...event, attendeeCount };
-      })
+    // P0 FIX: Use goingCount from API if available (already includes host),
+    // otherwise fall back to computed joinRequests count + 1 for host
+    const withAttendeeCount = allEvents.map((event) => {
+      const computedFromJoinRequests = (event.joinRequests?.filter((r) => r.status === "accepted")?.length ?? 0) + 1;
+      // Prefer goingCount from API (already includes host), fallback to computed
+      const attendeeCount = event.goingCount ?? computedFromJoinRequests;
+      return { ...event, attendeeCount };
+    });
+    
+    // P0 DEV: Log exclusion reasons for debugging (max 5)
+    let excludedCount = 0;
+    const exclusionReasons: string[] = [];
+    
+    const filtered = withAttendeeCount
       .filter((event) => {
         const eventDate = new Date(event.startTime);
-        const now = new Date();
-        // Only upcoming events and minimum 2 attendees
-        return eventDate >= now && event.attendeeCount >= 2;
+        const isPast = eventDate < now;
+        const belowThreshold = event.attendeeCount < POPULAR_THRESHOLD;
+        
+        if (isPast || belowThreshold) {
+          if (__DEV__ && excludedCount < 5) {
+            const reason = isPast ? `past (${event.startTime})` : `attendeeCount=${event.attendeeCount} < ${POPULAR_THRESHOLD}`;
+            exclusionReasons.push(`id=${event.id} reason=${reason}`);
+            excludedCount++;
+          }
+          return false;
+        }
+        return true;
       })
       .sort((a, b) => b.attendeeCount - a.attendeeCount);
     
     // P0 DEV: Log popular events filtering for debugging
     if (__DEV__) {
-      console.log("[P0_POPULAR] Raw events count:", allEvents.length);
-      console.log("[P0_POPULAR] Filtered popular count:", filtered.length);
+      console.log(`[P0_POPULAR] fetched=${allEvents.length}`);
+      console.log(`[P0_POPULAR] filtered=${filtered.length}`);
+      exclusionReasons.forEach((r) => console.log(`[P0_POPULAR] exclude ${r}`));
       if (allEvents.length > 0 && filtered.length === 0) {
         const sample = allEvents[0];
-        console.log("[P0_POPULAR] Sample event:", {
+        console.log("[P0_POPULAR] Sample event debug:", {
           id: sample.id,
           title: sample.title,
           startTime: sample.startTime,
+          goingCount: sample.goingCount,
           joinRequestsCount: sample.joinRequests?.length,
           acceptedCount: sample.joinRequests?.filter(r => r.status === "accepted")?.length,
         });
