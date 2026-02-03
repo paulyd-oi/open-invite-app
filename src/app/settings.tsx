@@ -580,7 +580,6 @@ export default function SettingsScreen() {
 
   // Confirm modal states
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const [showRemovePhoneConfirm, setShowRemovePhoneConfirm] = useState(false);
 
   // Profile editing states
   const [editName, setEditName] = useState("");
@@ -592,11 +591,6 @@ export default function SettingsScreen() {
   // Username change info modal
   const [showUsernameInfoModal, setShowUsernameInfoModal] = useState(false);
   const [hasShownUsernameInfo, setHasShownUsernameInfo] = useState(false);
-
-  // Phone number states
-  const [showPhoneSection, setShowPhoneSection] = useState(false);
-  const [editPhone, setEditPhone] = useState("");
-  const [isSavingPhone, setIsSavingPhone] = useState(false);
 
   // Birthday states
   const [showBirthdaySection, setShowBirthdaySection] = useState(false);
@@ -713,14 +707,53 @@ export default function SettingsScreen() {
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
 
+  /**
+   * SINGLE REFRESH CONTRACT for Pro status.
+   * Called by: Refresh button, purchase success, restore success, app boot
+   * 
+   * SSOT: RevenueCat entitlements.active.premium is authoritative.
+   * Backend /api/entitlements is checked as fallback (for admin-granted promos).
+   */
   const handleRefreshEntitlements = async () => {
     setIsRefreshingEntitlements(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // [PRO_SOT] Log state BEFORE refresh
+    if (__DEV__) {
+      console.log("[PRO_SOT] === REFRESH START ===");
+      console.log("[PRO_SOT] Before: subscription.isPremium=", subscription.isPremium);
+      console.log("[PRO_SOT] Before: userIsPremium (useIsPro)=", userIsPremium);
+      console.log("[PRO_SOT] Before: entitlements.plan=", entitlements?.plan);
+    }
+    
     try {
+      // Step 1: Refresh RevenueCat state via SubscriptionContext
       await subscription.refresh();
-      safeToast.success("Updated", "Premium status refreshed");
+      
+      // Step 2: CRITICAL - Also refresh backend entitlements query
+      // This catches promo codes applied server-side (e.g., AWAKEN)
+      await refreshEntitlements();
+      
+      // [PRO_SOT] Log state AFTER refresh
+      // Note: React state may not be updated yet, but queries will re-render
+      if (__DEV__) {
+        console.log("[PRO_SOT] After: subscription.isPremium=", subscription.isPremium);
+        console.log("[PRO_SOT] Queries invalidated - UI will re-render with fresh data");
+        console.log("[PRO_SOT] === REFRESH COMPLETE ===");
+      }
+      
+      // Show result toast based on refreshed state
+      // We check subscription.isPremium which should be updated by now
+      if (subscription.isPremium) {
+        safeToast.success("Pro Active", "Your Pro membership is active!");
+      } else {
+        safeToast.info("Free Plan", "No active Pro membership found.");
+      }
     } catch (error) {
-      safeToast.error("Error", "Failed to refresh status");
+      if (__DEV__) {
+        console.error("[PRO_SOT] Refresh error:", error);
+      }
+      safeToast.error("Error", "Failed to refresh status. Please try again.");
     } finally {
       setIsRefreshingEntitlements(false);
     }
@@ -776,10 +809,7 @@ export default function SettingsScreen() {
       // Sync calendarBio
       setEditCalendarBio(profileData.profile.calendarBio || "");
     }
-    // Sync phone from user data
-    if (profileData?.user?.phone) {
-      setEditPhone(profileData.user.phone);
-    }
+    // P0: Phone sync removed - feature deprecated
   }, [profileData, session]);
 
   // Load avatar source with auth headers
@@ -851,35 +881,7 @@ export default function SettingsScreen() {
     },
   });
 
-  // Phone number update mutation
-  const updatePhoneMutation = useMutation({
-    mutationFn: (data: { phone: string | null }) =>
-      api.put<UpdateProfileResponse>("/api/profile", data),
-    onSuccess: async () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await updateProfileAndSync(queryClient);
-      setIsSavingPhone(false);
-      safeToast.success("Success", "Phone number updated");
-    },
-    onError: (error: unknown) => {
-      setIsSavingPhone(false);
-      // Check for specific error messages from the API
-      const errorMessage = error && typeof error === 'object' && 'message' in error
-        ? String(error.message)
-        : '';
-      if (errorMessage.includes("already in use") || errorMessage.includes("409")) {
-        safeToast.error("Phone Taken", "This phone number is already in use by another account");
-      } else {
-        safeToast.error("Error", "Failed to update phone number");
-      }
-    },
-  });
-
-  const handleSavePhone = () => {
-    setIsSavingPhone(true);
-    const phoneToSave = editPhone.trim() || null;
-    updatePhoneMutation.mutate({ phone: phoneToSave });
-  };
+  // P0: Phone number mutation REMOVED - feature deprecated
 
   const updateBirthdayMutation = useMutation({
     mutationFn: (data: { birthday?: string; showBirthdayToFriends?: boolean; hideBirthdays?: boolean; omitBirthdayYear?: boolean }) =>
@@ -1603,85 +1605,7 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Phone Number Section */}
-        <Animated.View entering={FadeInDown.delay(125).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PHONE NUMBER</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowPhoneSection(!showPhoneSection);
-              }}
-              className="flex-row items-center p-4"
-              style={{ borderBottomWidth: showPhoneSection ? 1 : 0, borderBottomColor: colors.separator }}
-            >
-              <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                <Phone size={20} color={themeColor} />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">My Phone Number</Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {profileData?.user?.phone || "Not set"}
-                </Text>
-              </View>
-              <ChevronDown
-                size={18}
-                color={colors.textTertiary}
-                style={{ transform: [{ rotate: showPhoneSection ? "180deg" : "0deg" }] }}
-              />
-            </Pressable>
-
-            {showPhoneSection && (
-              <View className="px-4 py-3">
-                {/* Disclaimer */}
-                <View
-                  className="rounded-xl p-3 mb-4"
-                  style={{ backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6" }}
-                >
-                  <Text style={{ color: colors.textSecondary }} className="text-xs leading-5">
-                    Your phone number helps friends find you on Open Invite. When someone searches by phone number, they can send you a friend request. Your number is never shared publicly.
-                  </Text>
-                </View>
-
-                {/* Phone Input */}
-                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Phone Number</Text>
-                <TextInput
-                  value={editPhone}
-                  onChangeText={setEditPhone}
-                  placeholder="+1 (555) 123-4567"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="phone-pad"
-                  autoComplete="tel"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB", color: colors.text }}
-                  className="rounded-xl px-4 py-3 mb-4"
-                />
-
-                {/* Save Button */}
-                <Pressable
-                  onPress={handleSavePhone}
-                  disabled={isSavingPhone}
-                  className="py-3 rounded-xl items-center"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-white font-semibold">
-                    {isSavingPhone ? "Saving..." : "Save Phone Number"}
-                  </Text>
-                </Pressable>
-
-                {/* Remove Phone */}
-                {profileData?.user?.phone && (
-                  <Pressable
-                    onPress={() => setShowRemovePhoneConfirm(true)}
-                    className="py-3 mt-2 rounded-xl items-center"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: "#EF4444" }} className="font-medium">Remove Phone Number</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
-          </View>
-        </Animated.View>
+        {/* P0: Phone Number Section REMOVED - feature deprecated */}
 
         {/* Notifications Section */}
         <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4 mt-6">
@@ -2400,21 +2324,7 @@ export default function SettingsScreen() {
         onCancel={() => setShowSignOutConfirm(false)}
       />
 
-      {/* Remove Phone Confirm Modal */}
-      <ConfirmModal
-        visible={showRemovePhoneConfirm}
-        title="Remove Phone Number"
-        message="Are you sure you want to remove your phone number? Friends won't be able to find you by phone."
-        confirmText="Remove"
-        cancelText="Cancel"
-        isDestructive
-        onConfirm={() => {
-          setShowRemovePhoneConfirm(false);
-          setEditPhone("");
-          updatePhoneMutation.mutate({ phone: null });
-        }}
-        onCancel={() => setShowRemovePhoneConfirm(false)}
-      />
+      {/* P0: Remove Phone Confirm Modal REMOVED - feature deprecated */}
 
       {/* Username Change Info Modal */}
       <Modal

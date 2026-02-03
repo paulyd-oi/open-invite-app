@@ -123,6 +123,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // If session is null but token is valid, subscription fetch will still work
 
     try {
+      // [PRO_SOT] Log source decision
+      if (__DEV__) {
+        console.log("[PRO_SOT] source=RevenueCat enabled=", isRevenueCatEnabled());
+      }
+      
       // Check RevenueCat first if enabled
       if (isRevenueCatEnabled()) {
         const customerInfoResult = await getCustomerInfo();
@@ -131,14 +136,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           const hasPremium = !!customerInfoResult.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
           setIsPremium(hasPremium);
           
-          // DEV: Log active entitlements
+          // [PRO_SOT] Log RevenueCat entitlements
           if (__DEV__) {
-            const activeKeys = Object.keys(customerInfoResult.data.entitlements?.active || {});
-            console.log("[SubscriptionContext] RevenueCat entitlements:", {
-              activeKeys,
-              hasPremium,
-              expectedEntitlementId: REVENUECAT_ENTITLEMENT_ID,
-            });
+            const activeEntitlements = customerInfoResult.data.entitlements?.active || {};
+            const activeKeys = Object.keys(activeEntitlements);
+            console.log("[PRO_SOT] entitlements=", JSON.stringify(activeKeys));
+            console.log("[PRO_SOT] computed isPro=", hasPremium);
+            console.log("[PRO_SOT] expectedEntitlementId=", REVENUECAT_ENTITLEMENT_ID);
+            console.log("[PRO_SOT] rawActiveEntitlements=", JSON.stringify(activeEntitlements, null, 2));
+          }
+        } else {
+          if (__DEV__) {
+            console.log("[PRO_SOT] RevenueCat getCustomerInfo failed:", customerInfoResult);
           }
         }
       }
@@ -160,15 +169,29 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           (data.subscription as any)?.isPro === true;
         setIsPremium(backendIsPremium);
         if (__DEV__) {
-          console.log("[SubscriptionContext] Backend tier:", tier, 
-            "isLifetime:", (data.subscription as any)?.isLifetime,
-            "isPro:", (data.subscription as any)?.isPro,
-            "=> isPremium:", backendIsPremium);
+          console.log("[PRO_SOT] source=backend (RC disabled)");
+          console.log("[PRO_SOT] backend tier=", tier);
+          console.log("[PRO_SOT] computed isPro=", backendIsPremium);
         }
+      } else {
+        // [PRO_SOT] Log backend data even when RevenueCat is enabled (for debugging)
+        if (__DEV__) {
+          const tier = data.subscription?.tier as string | undefined;
+          console.log("[PRO_SOT] backend data (for reference):", {
+            tier,
+            isLifetime: (data.subscription as any)?.isLifetime,
+            isPro: (data.subscription as any)?.isPro,
+          });
+        }
+      }
+      
+      // [PRO_SOT] Final state update confirmation
+      if (__DEV__) {
+        console.log("[PRO_SOT] uiState after set= isPremium will re-render");
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("Failed to fetch subscription:", error);
+        console.error("[PRO_SOT] fetchSubscription error:", error);
       }
       // On error, set to free tier defaults
       setSubscription(null);

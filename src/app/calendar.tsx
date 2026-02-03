@@ -605,6 +605,16 @@ function EventListItem({
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
   
+  // P0 FIX: Busy events from non-owners must show "Busy" instead of real title
+  // Check if this is a non-visible event (busy or private and not own)
+  const isBusyOrPrivate = event.isBusy || isWork;
+  const isNonVisible = isBusyOrPrivate && !isOwner && !event.isOwn;
+  
+  // For non-visible events: display "Busy", hide real info
+  const displayTitle = isNonVisible ? "Busy" : event.title;
+  const displayEmoji = isNonVisible ? "🔒" : event.emoji;
+  const displayLocation = isNonVisible ? undefined : event.location;
+  
   // INVARIANT: Use single source of truth for event palette (busy/work = grey)
   // Apply user's color override if set
   const palette = getEventPalette({ ...event, isWork }, themeColor, colorOverride);
@@ -727,7 +737,7 @@ function EventListItem({
           />
           <View className="flex-1">
             <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-              {isWork ? `💼 ${event.title}` : event.title}
+              {isWork ? `💼 ${displayTitle}` : displayTitle}
             </Text>
             <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {timeLabel}
@@ -749,9 +759,9 @@ function EventListItem({
       >
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="text-lg mr-2">{event.emoji}</Text>
+            <Text className="text-lg mr-2">{displayEmoji}</Text>
             <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
-              {event.title}
+              {displayTitle}
             </Text>
             {isWork && (
               <View
@@ -789,7 +799,7 @@ function EventListItem({
       />
       <View className="flex-1">
         <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-          {event.title}
+          {displayTitle}
         </Text>
         <Text className="text-xs" style={{ color: colors.textSecondary }}>
           {timeLabel}
@@ -808,9 +818,9 @@ function EventListItem({
     >
       <View className="flex-1">
         <View className="flex-row items-center">
-          <Text className="text-lg mr-2">{event.emoji}</Text>
+          <Text className="text-lg mr-2">{displayEmoji}</Text>
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
-            {event.title}
+            {displayTitle}
           </Text>
         </View>
         <View className="flex-row items-center mt-1">
@@ -818,11 +828,11 @@ function EventListItem({
           <Text className="text-xs ml-1" style={{ color: textColor }}>
             {timeLabel}
           </Text>
-          {event.location && (
+          {displayLocation && (
             <>
               <MapPin size={12} color={colors.textTertiary} style={{ marginLeft: 12 }} />
               <Text className="text-xs ml-1 flex-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-                {event.location}
+                {displayLocation}
               </Text>
             </>
           )}

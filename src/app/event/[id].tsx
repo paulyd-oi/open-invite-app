@@ -17,6 +17,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import {
   MapPin,
   Clock,
@@ -599,13 +600,27 @@ export default function EventDetailScreen() {
       }
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
+      // P0 FIX: Invalidate single event query to refresh attendees across accounts
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
       // Invalidate calendar events so RSVP "going" events appear immediately
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
       // Invalidate attending events so Social tab updates immediately
       queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
       // Refetch event details to update capacity
       queryClient.invalidateQueries({ queryKey: ["events", id] });
+      // P0 FIX: Invalidate feed for Discover > Popular tab
       queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      // Also invalidate user's own events for Popular tab merge
+      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
+      if (__DEV__) {
+        console.log("[P0_SYNC] RSVP mutation success - invalidated queries:", [
+          ["events", id, "interests"],
+          ["events", id, "rsvp"],
+          ["events", "single", id],
+          ["events", "feed"],
+          ["events", "my-events"],
+        ]);
+      }
       setShowRsvpOptions(false);
       
       // Check if we should show notification pre-prompt (Aha moment: first RSVP going/interested)

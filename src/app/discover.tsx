@@ -200,7 +200,9 @@ export default function DiscoverScreen() {
       }
     });
 
-    return Array.from(allEventsMap.values())
+    const allEvents = Array.from(allEventsMap.values());
+    
+    const filtered = allEvents
       .map((event) => {
         const attendeeCount = (event.joinRequests?.filter((r) => r.status === "accepted")?.length ?? 0) + 1; // +1 for the host
         return { ...event, attendeeCount };
@@ -212,6 +214,24 @@ export default function DiscoverScreen() {
         return eventDate >= now && event.attendeeCount >= 2;
       })
       .sort((a, b) => b.attendeeCount - a.attendeeCount);
+    
+    // P0 DEV: Log popular events filtering for debugging
+    if (__DEV__) {
+      console.log("[P0_POPULAR] Raw events count:", allEvents.length);
+      console.log("[P0_POPULAR] Filtered popular count:", filtered.length);
+      if (allEvents.length > 0 && filtered.length === 0) {
+        const sample = allEvents[0];
+        console.log("[P0_POPULAR] Sample event:", {
+          id: sample.id,
+          title: sample.title,
+          startTime: sample.startTime,
+          joinRequestsCount: sample.joinRequests?.length,
+          acceptedCount: sample.joinRequests?.filter(r => r.status === "accepted")?.length,
+        });
+      }
+    }
+    
+    return filtered;
   }, [feedData?.events, myEventsData?.events]);
 
   const handleRefresh = () => {

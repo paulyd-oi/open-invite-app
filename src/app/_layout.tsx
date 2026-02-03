@@ -364,7 +364,11 @@ function BootRouter() {
 }
 
 function RootLayoutNav() {
-  const { themeColor, isDark } = useTheme();
+  const { themeColor, isDark, colors } = useTheme();
+
+  // P0 FIX: Use dynamic theme colors based on dark/light mode
+  const headerBg = colors.background;
+  const headerTint = colors.text;
 
   // Dynamic theme based on user preference
   const OpenInviteTheme = {
@@ -372,10 +376,10 @@ function RootLayoutNav() {
     colors: {
       ...DefaultTheme.colors,
       primary: themeColor,
-      background: '#FFF9F5',
-      card: '#FFFFFF',
-      text: '#1A1A2E',
-      border: '#F0E6E0',
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
       notification: themeColor,
     },
   };
@@ -386,7 +390,7 @@ function RootLayoutNav() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#FFF9F5' },
+          contentStyle: { backgroundColor: colors.background },
           animation: 'none', // Instant page transitions
         }}
       >
@@ -412,8 +416,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Friend Profile',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -422,8 +426,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Event Details',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -432,8 +436,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Profile',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -448,8 +452,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: "Who's Free?",
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -493,8 +497,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Invite Friends',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -503,8 +507,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Propose Event',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -513,8 +517,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Proposed Event',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -523,8 +527,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Achievements',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -545,8 +549,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Help & FAQ',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -555,8 +559,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Notification Settings',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -565,8 +569,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Blocked Contacts',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
@@ -590,8 +594,8 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Edit Event',
-            headerStyle: { backgroundColor: '#FFF9F5' },
-            headerTintColor: '#1A1A2E',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
           }}
         />
         <Stack.Screen
