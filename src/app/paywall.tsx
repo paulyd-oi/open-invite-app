@@ -27,7 +27,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { useRefreshEntitlements } from "@/lib/entitlements";
+import { useRefreshProContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import {
   isRevenueCatEnabled,
@@ -61,7 +61,7 @@ const FOUNDER_PRO_NOTE = "More organizer tools will be added as they ship.";
 export default function PaywallScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
-  const refreshEntitlements = useRefreshEntitlements();
+  const refreshProContract = useRefreshProContract();
   const { isPremium, refresh: refreshSubscription } = useSubscription();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -163,15 +163,23 @@ export default function PaywallScreen() {
     setIsPurchasing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // [PRO_SOT] Log BEFORE state
+    if (__DEV__) {
+      console.log("[PRO_SOT] BEFORE screen=paywall_restore isPremium=", isPremium);
+    }
+
     const result = await restorePurchases();
 
     if (result.ok) {
-      // Refresh entitlements from backend after restore
-      await refreshEntitlements();
+      // CANONICAL: Use refreshProContract for SSOT after restore
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "restore:paywall" });
+      
+      // [PRO_SOT] Log AFTER state
+      if (__DEV__) {
+        console.log("[PRO_SOT] AFTER screen=paywall_restore combinedIsPro=", combinedIsPro);
+      }
 
-      const entitlementResult = await hasEntitlement("premium");
-
-      if (entitlementResult.ok && entitlementResult.data) {
+      if (combinedIsPro) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowRestoreSuccessModal(true);
       } else {
@@ -187,7 +195,7 @@ export default function PaywallScreen() {
     setIsPurchasing(false);
   };
 
-  // P0 FIX: Use same refresh contract as settings.tsx handleRefreshEntitlements
+  // CANONICAL SSOT: Use refreshProContract for promo code redemption
   const handleRedeemCode = async () => {
     if (!discountCode.trim()) {
       safeToast.warning("Error", "Please enter a discount code");
@@ -197,9 +205,9 @@ export default function PaywallScreen() {
     setIsRedeemingCode(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] === PROMO REDEEM START (paywall.tsx) ===");
-      console.log("[PRO_SOT] Before: isPremium=", isPremium);
+      console.log("[PRO_SOT] BEFORE screen=paywall_promo isPremium=", isPremium);
     }
 
     try {
@@ -207,20 +215,21 @@ export default function PaywallScreen() {
         code: discountCode.trim().toUpperCase(),
       });
 
-      // P0 FIX: Refresh BOTH RevenueCat and backend entitlements after promo redemption
-      const { isPro: rcIsPro } = await refreshSubscription();
-      const { isPro: backendIsPro } = await refreshEntitlements();
-      const combinedIsPro = rcIsPro || backendIsPro;
+      // CANONICAL: Use refreshProContract for SSOT after promo redemption
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:paywall" });
 
+      // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] After promo: rcIsPro=", rcIsPro, "backendIsPro=", backendIsPro, "combined=", combinedIsPro);
-        console.log("[PRO_SOT] === PROMO REDEEM COMPLETE ===");
+        console.log("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRedeemedBenefit(data.benefit);
       setShowCodeRedeemedModal(true);
     } catch (error: any) {
+      if (__DEV__) {
+        console.log("[PRO_SOT] ERROR screen=paywall_promo", error?.message);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       // Parse the error message from the API error format
       let errorMessage = "This code is not valid.";

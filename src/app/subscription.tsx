@@ -40,7 +40,7 @@ import {
 import { safeToast } from "@/lib/safeToast";
 import { useSubscription as useSubscriptionData, PRICING } from "@/lib/useSubscription";
 import { useSubscription as useSubscriptionContext } from "@/lib/SubscriptionContext";
-import { useRefreshEntitlements } from "@/lib/entitlements";
+import { useRefreshProContract } from "@/lib/entitlements";
 import type { PurchasesPackage } from "react-native-purchases";
 
 // Types for subscription details from backend
@@ -83,7 +83,7 @@ export default function SubscriptionScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const subscriptionData_ = useSubscriptionData();
   const subscriptionContext = useSubscriptionContext();
-  const refreshEntitlements = useRefreshEntitlements();
+  const refreshProContract = useRefreshProContract();
   const { source } = useLocalSearchParams<{ source?: string }>();
 
   const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
@@ -162,17 +162,30 @@ export default function SubscriptionScreen() {
     }
   };
 
-  // Handle restore purchases
+  // Handle restore purchases - CANONICAL SSOT
   const handleRestorePurchases = async () => {
     setIsRestoring(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // [PRO_SOT] Log BEFORE state
+    if (__DEV__) {
+      console.log("[PRO_SOT] BEFORE screen=subscription_restore isPremium=", subscriptionContext.isPremium);
+    }
+
     const result = await restorePurchases();
-    setIsRestoring(false);
 
     if (result.ok) {
-      const customerInfo = await getCustomerInfo();
-      if (customerInfo.ok && Object.keys(customerInfo.data.entitlements.active || {}).length > 0) {
+      // CANONICAL: Use refreshProContract for SSOT after restore
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "restore:subscription" });
+      
+      // [PRO_SOT] Log AFTER state
+      if (__DEV__) {
+        console.log("[PRO_SOT] AFTER screen=subscription_restore combinedIsPro=", combinedIsPro);
+      }
+      
+      setIsRestoring(false);
+      
+      if (combinedIsPro) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Restored!", "Your subscription has been restored.");
         refetch();
@@ -181,21 +194,21 @@ export default function SubscriptionScreen() {
         safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
       }
     } else {
+      setIsRestoring(false);
       safeToast.error("Error", "Failed to restore purchases. Please try again.");
     }
   };
 
-  // Handle promo code redemption
-  // P0 FIX: Use same refresh contract as settings.tsx handleRefreshEntitlements
+  // Handle promo code redemption - CANONICAL SSOT
   const handleApplyPromoCode = async () => {
     if (!promoCode.trim()) return;
 
     setIsPromoLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] === PROMO REDEEM START (subscription.tsx) ===");
-      console.log("[PRO_SOT] Before: subscriptionContext.isPremium=", subscriptionContext.isPremium);
+      console.log("[PRO_SOT] BEFORE screen=subscription_promo isPremium=", subscriptionContext.isPremium);
     }
 
     try {
@@ -208,14 +221,12 @@ export default function SubscriptionScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setPromoCode("");
         
-        // P0 FIX: Use refresh contract - refresh BOTH RevenueCat and backend entitlements
-        const { isPro: rcIsPro } = await subscriptionContext.refresh();
-        const { isPro: backendIsPro } = await refreshEntitlements();
-        const combinedIsPro = rcIsPro || backendIsPro;
+        // CANONICAL: Use refreshProContract for SSOT after promo redemption
+        const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:subscription" });
         
+        // [PRO_SOT] Log AFTER state
         if (__DEV__) {
-          console.log("[PRO_SOT] After promo: rcIsPro=", rcIsPro, "backendIsPro=", backendIsPro, "combined=", combinedIsPro);
-          console.log("[PRO_SOT] === PROMO REDEEM COMPLETE ===");
+          console.log("[PRO_SOT] AFTER screen=subscription_promo combinedIsPro=", combinedIsPro);
         }
         
         // Invalidate queries for UI refresh
@@ -230,10 +241,16 @@ export default function SubscriptionScreen() {
           safeToast.success("Success!", response.benefit || "Promo code applied!");
         }
       } else {
+        if (__DEV__) {
+          console.log("[PRO_SOT] ERROR screen=subscription_promo invalid_code");
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         safeToast.error("Invalid Code", response.error || "This code is not valid.");
       }
     } catch (error: unknown) {
+      if (__DEV__) {
+        console.log("[PRO_SOT] ERROR screen=subscription_promo", error);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMessage = error instanceof Error ? error.message : "Could not validate code.";
       safeToast.error("Error", errorMessage);

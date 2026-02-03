@@ -278,6 +278,85 @@ export function useRefreshEntitlements() {
   }, [queryClient]);
 }
 
+/**
+ * CANONICAL SSOT: Single refresh contract for Pro status.
+ * 
+ * Use this hook's returned function for ALL pro/premium refresh operations:
+ * - Promo code redemption
+ * - Purchase success
+ * - Restore purchases
+ * - Manual refresh button
+ * 
+ * CONTRACT: combinedIsPro = rcIsPro || backendIsPro
+ * 
+ * Returns { rcIsPro, backendIsPro, combinedIsPro }
+ */
+export function useRefreshProContract() {
+  const queryClient = useQueryClient();
+  const subscriptionContext = useContext(SubscriptionContext);
+
+  return useCallback(async (opts?: { reason: string }): Promise<{
+    rcIsPro: boolean;
+    backendIsPro: boolean;
+    combinedIsPro: boolean;
+  }> => {
+    const reason = opts?.reason ?? "unknown";
+    
+    // [PRO_SOT] Log BEFORE state
+    if (__DEV__) {
+      console.log(`[PRO_SOT] REFRESH_START reason=${reason}`);
+    }
+
+    let rcIsPro = false;
+    let backendIsPro = false;
+
+    try {
+      // Step 1: Refresh RevenueCat via SubscriptionContext
+      if (subscriptionContext?.refresh) {
+        const rcResult = await subscriptionContext.refresh();
+        rcIsPro = rcResult?.isPro ?? false;
+      }
+      
+      // [PRO_SOT] Log RC result
+      if (__DEV__) {
+        console.log(`[PRO_SOT] RC_REFRESH reason=${reason} rcIsPro=${rcIsPro}`);
+      }
+    } catch (rcErr) {
+      if (__DEV__) {
+        console.log(`[PRO_SOT] RC_ERROR reason=${reason} error=${rcErr}`);
+      }
+    }
+
+    try {
+      // Step 2: Refresh backend entitlements
+      await queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
+        queryKey: ["entitlements"],
+      });
+      backendIsPro = isPro(freshData);
+      
+      // [PRO_SOT] Log backend result
+      if (__DEV__) {
+        console.log(`[PRO_SOT] BACKEND_REFRESH reason=${reason} backendIsPro=${backendIsPro} plan=${freshData?.plan}`);
+      }
+    } catch (beErr) {
+      if (__DEV__) {
+        console.log(`[PRO_SOT] BACKEND_ERROR reason=${reason} error=${beErr}`);
+      }
+    }
+
+    // SSOT: Combined result
+    const combinedIsPro = rcIsPro || backendIsPro;
+
+    // [PRO_SOT] Log FINAL combined result
+    if (__DEV__) {
+      console.log(`[PRO_SOT] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
+    }
+
+    return { rcIsPro, backendIsPro, combinedIsPro };
+  }, [queryClient, subscriptionContext]);
+}
+
 // ============================================
 // Helper Functions
 // ============================================

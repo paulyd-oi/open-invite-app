@@ -80,7 +80,7 @@ import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
-import { useEntitlements, useRefreshEntitlements, useIsPro } from "@/lib/entitlements";
+import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
@@ -702,55 +702,34 @@ export default function SettingsScreen() {
 
   // Entitlements for premium status display
   const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = useIsPro();
-  const refreshEntitlements = useRefreshEntitlements();
+  const refreshProContract = useRefreshProContract();
   const subscription = useSubscription();
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);
   const [isRestoringPurchases, setIsRestoringPurchases] = useState(false);
 
   /**
-   * SINGLE REFRESH CONTRACT for Pro status.
-   * Called by: Refresh button, purchase success, restore success, app boot
-   * 
-   * SSOT: RevenueCat entitlements.active.premium is authoritative.
-   * Backend /api/entitlements is checked as fallback (for admin-granted promos).
+   * CANONICAL SSOT: Uses refreshProContract for all Pro status refresh.
+   * Called by: Refresh button
    */
   const handleRefreshEntitlements = async () => {
     setIsRefreshingEntitlements(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // [PRO_SOT] Log state BEFORE refresh
+    // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] === REFRESH START ===");
-      console.log("[PRO_SOT] Before: subscription.isPremium=", subscription.isPremium);
-      console.log("[PRO_SOT] Before: userIsPremium (useIsPro)=", userIsPremium);
-      console.log("[PRO_SOT] Before: entitlements.plan=", entitlements?.plan);
+      console.log("[PRO_SOT] BEFORE screen=settings userIsPremium=", userIsPremium);
     }
     
     try {
-      // Step 1: Refresh RevenueCat state via SubscriptionContext
-      // CRITICAL: Use returned value - React state is async and stale here!
-      const { isPro: rcIsPro } = await subscription.refresh();
+      // CANONICAL: Use refreshProContract for SSOT
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "manual_refresh:settings" });
       
-      // Step 2: CRITICAL - Refresh backend entitlements query
-      // This catches promo codes applied server-side (e.g., AWAKEN)
-      // Returns fresh isPro from backend
-      const { isPro: backendIsPro } = await refreshEntitlements();
-      
-      // COMBINED: User is Pro if EITHER source says so
-      // - rcIsPro: RevenueCat purchase/restore
-      // - backendIsPro: Admin promo codes (AWAKEN), lifetime grants
-      const combinedIsPro = rcIsPro || backendIsPro;
-      
-      // [PRO_SOT] Log state AFTER refresh with BOTH sources
+      // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] After: rcIsPro (RevenueCat)=", rcIsPro);
-        console.log("[PRO_SOT] After: backendIsPro (entitlements)=", backendIsPro);
-        console.log("[PRO_SOT] After: combinedIsPro=", combinedIsPro);
-        console.log("[PRO_SOT] After: subscription.isPremium (stale)=", subscription.isPremium);
-        console.log("[PRO_SOT] === REFRESH COMPLETE ===");
+        console.log("[PRO_SOT] AFTER screen=settings combinedIsPro=", combinedIsPro);
       }
       
-      // Show result toast based on COMBINED value from BOTH sources
+      // Show result toast based on COMBINED value
       if (combinedIsPro) {
         safeToast.success("Pro Active", "Your Pro membership is active!");
       } else {
@@ -758,7 +737,7 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("[PRO_SOT] Refresh error:", error);
+        console.error("[PRO_SOT] ERROR screen=settings", error);
       }
       safeToast.error("Error", "Failed to refresh status. Please try again.");
     } finally {
@@ -770,34 +749,32 @@ export default function SettingsScreen() {
     setIsRestoringPurchases(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // [PRO_SOT] Log BEFORE state
+    if (__DEV__) {
+      console.log("[PRO_SOT] BEFORE screen=settings_restore userIsPremium=", userIsPremium);
+    }
+
     const result = await subscription.restore();
     
-    // Refresh entitlements from backend after restore
-    let backendIsPro = false;
     if (result.ok) {
-      const entitlementsResult = await refreshEntitlements();
-      backendIsPro = entitlementsResult.isPro;
-    }
-    
-    setIsRestoringPurchases(false);
-
-    if (result.ok) {
-      // CRITICAL: Combine BOTH sources for accurate status
-      // - result.isPro: RevenueCat restore result
-      // - backendIsPro: Backend entitlements (admin promos, lifetime grants)
-      const hasPremium = (result.isPro ?? false) || backendIsPro;
+      // CANONICAL: Use refreshProContract for SSOT after restore
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "restore:settings" });
       
+      // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] Restore: rcIsPro=", result.isPro, "backendIsPro=", backendIsPro, "combined=", hasPremium);
+        console.log("[PRO_SOT] AFTER screen=settings_restore combinedIsPro=", combinedIsPro);
       }
       
-      if (hasPremium) {
+      setIsRestoringPurchases(false);
+      
+      if (combinedIsPro) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Restored!", "Your subscription has been restored.");
       } else {
         safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
       }
     } else {
+      setIsRestoringPurchases(false);
       safeToast.error("Error", result.error || "Failed to restore purchases. Please try again.");
     }
   };

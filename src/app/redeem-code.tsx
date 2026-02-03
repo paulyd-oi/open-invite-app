@@ -18,6 +18,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { useSubscription } from "@/lib/SubscriptionContext";
+import { useRefreshProContract } from "@/lib/entitlements";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function RedeemCodeScreen() {
@@ -25,7 +26,8 @@ export default function RedeemCodeScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
-  const { refresh: refreshSubscription } = useSubscription();
+  const { isPremium } = useSubscription();
+  const refreshProContract = useRefreshProContract();
 
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,8 +40,9 @@ export default function RedeemCodeScreen() {
 
     const normalizedCode = code.trim().toUpperCase();
     
+    // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[DEV_DECISION] redeem_code_submit normalizedCode=" + normalizedCode);
+      console.log("[PRO_SOT] BEFORE screen=redeem_code isPremium=", isPremium);
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -52,21 +55,28 @@ export default function RedeemCodeScreen() {
         expiresAt: string;
       }>("/api/promo/redeem", { code: normalizedCode });
 
+      // CANONICAL: Use refreshProContract for SSOT after promo redemption
+      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:redeem_code" });
+
+      // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[DEV_DECISION] redeem_code_result success=true expiresAt=" + response.expiresAt);
+        console.log("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
       }
 
       // Success!
       setSuccessData({ expiresAt: response.expiresAt });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Premium unlocked", "You now have full access to all features");
+      
+      // Show appropriate toast based on combined result
+      if (combinedIsPro) {
+        safeToast.success("Pro Active!", "You now have full access to all features");
+      } else {
+        safeToast.success("Code Applied!", "You now have full access to all features");
+      }
 
-      // Refresh entitlements if query exists
+      // Invalidate queries for UI refresh
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
-
-      // Also refresh SubscriptionContext state directly
-      refreshSubscription();
 
       // Navigate back after a delay
       setTimeout(() => {
@@ -74,7 +84,7 @@ export default function RedeemCodeScreen() {
       }, 2000);
     } catch (error: any) {
       if (__DEV__) {
-        console.log("[DEV_DECISION] redeem_code_error status=" + error?.status + " message=" + error?.message);
+        console.log("[PRO_SOT] ERROR screen=redeem_code", error?.message);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
