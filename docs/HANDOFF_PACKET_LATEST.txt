@@ -1,53 +1,94 @@
-HANDOFF PACKET: Event Detail "More" Bottom Sheet (V1 UX)
-=========================================================
+HANDOFF PACKET: Frontend Regression Sweep
+==========================================
 Date: 2026-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
+Commit: ee4f2f4
 
 SUMMARY
 -------
-Replaced multiple headerRight icon buttons (Edit, Duplicate, Share, Report) in
-the Event Detail screen with a single "More" ellipsis button that opens a
-context-aware bottom sheet modal.
+- Ran comprehensive frontend regression sweep per mission requirements
+- Found and fixed 2 invalid route references in event/[id].tsx
+- All verification scripts pass, typecheck clean, no other regressions found
 
-FILES CHANGED
--------------
-1. src/ui/icons.tsx
-   - Added: MoreHorizontal icon (ellipsis-horizontal)
+COMMANDS RUN + RESULTS
+----------------------
+1. git rev-parse --show-toplevel → /Users/paulsmbp/Documents/GitHub/open-invite-app ✓
+2. git remote -v → origin https://github.com/paulyd-oi/open-invite-app.git ✓
+3. git branch --show-current → main ✓
+4. git status --porcelain → clean before fixes
+5. node -v → v20.20.0
+6. npm -v → 10.8.2
+7. bash scripts/ai/verify_frontend.sh → PASS
+8. bash scripts/ai/check_invariants_frontend.sh → PASS
+9. npm run typecheck → PASS (no errors)
 
-2. src/app/event/[id].tsx
-   - Added: MoreHorizontal to icon imports
-   - Added: showEventActionsSheet state
-   - Replaced: headerRight from 4 buttons to single MoreHorizontal button
-   - Added: Event Actions Bottom Sheet Modal with context-aware actions
+ISSUES FOUND
+------------
+File: src/app/event/[id].tsx
+Lines: 874, 912
 
-BEHAVIOR
+Issue: Invalid route "/(app)/(tabs)/friends" used as fallback in Go Back buttons.
+Root cause: Legacy grouped route pattern doesn't match current flat file structure.
+  - src/app has NO (app) or (tabs) group folders
+  - Correct route is /friends
+
+FIX MADE
 --------
-Header:
-- Single "..." (MoreHorizontal) icon in top-right
-- Tapping opens bottom sheet with haptic feedback
+src/app/event/[id].tsx:
+- Line 874: router.replace('/(app)/(tabs)/friends') → router.replace('/friends')
+- Line 912: router.replace('/(app)/(tabs)/friends') → router.replace('/friends')
 
-Bottom Sheet (Owner - isMyEvent === true):
-- Edit Event -> navigates to /event/edit/${id}
-- Duplicate Event -> calls handleDuplicateEvent
-- Share Event -> calls shareEvent(event)
-- Cancel -> closes sheet
+PROOF (RERUN OUTPUTS)
+---------------------
+After fix:
+- npm run typecheck → PASS
+- bash scripts/ai/verify_frontend.sh → PASS
+- grep for /(app)/(tabs) → 0 matches (pattern eliminated)
 
-Bottom Sheet (Non-Owner - isMyEvent === false, not busy):
-- Share Event -> calls shareEvent(event)
-- Report Event -> opens Report Modal
-- Cancel -> closes sheet
+COMMIT + PUSH CONFIRMATION
+--------------------------
+Commit: ee4f2f4
+Message: fix(regression): correct invalid /(app)/(tabs)/friends route to /friends
+Push: origin/main (successful)
 
-Busy blocks now show Cancel only (owner actions hidden when event.isBusy).
+CHECKLIST RESULTS
+-----------------
+✓ Broken links scan: PASS (found + fixed invalid /(app)/(tabs)/friends route)
+✓ Auth-gate jitter: PASS (all useQuery hooks gated with bootStatus === 'authed')
+✓ Friends guide modal persistence: PASS (user-scoped keys, forceShow gate, module cache)
+✓ Dynamic route params: PASS (all dynamic routes extract + gate on id)
 
-Busy blocks only show Cancel (no actions exposed).
+DETAILED AUDIT FINDINGS
+-----------------------
+1. BROKEN LINKS:
+   - All router.push/replace/navigate targets verified against src/app structure
+   - Dynamic routes (/event/[id], /circle/[id], /friend/[id], /user/[id]) all exist
+   - No "circles vs groups" mismatch found (only legacy comment reference)
+   
+2. AUTH/BOOT STABILITY:
+   - BootRouter uses singleton useBootAuthority hook
+   - hasRoutedRef prevents re-routing after initial boot decision
+   - All tab screens (calendar.tsx, friends.tsx, social.tsx) gate queries with:
+     enabled: bootStatus === 'authed'
+   - No login flash risk identified
+   
+3. GUIDE MODAL PERSISTENCE:
+   - useOnboardingGuide uses SecureStore with versioned user-scoped keys
+   - Module-level guideStateCache prevents flash on remount
+   - forceShow gate ensures only new accounts see guide
+   - loadedOnce flag gates shouldShowStep() output
+   
+4. DYNAMIC ROUTE PARAMS:
+   - All [id].tsx routes use useLocalSearchParams<{ id: string }>()
+   - All queries gated with enabled: bootStatus === 'authed' && !!id
+   - No unguarded API calls with missing params
 
-UI DETAILS
-----------
-- Sheet slides up with FadeInDown animation
-- Rounded top corners (24px radius)
-- Drag handle at top
-- "Event Options" title
+ASSUMPTIONS / UNCERTAINTIES
+---------------------------
+- Runtime smoke test not performed (expo start not available in this environment)
+- No test suite to run (npm test likely has no tests)
+- Visual regression testing not possible without device/simulator
 - Each action row has icon in circle + label
 - Cancel button centered at bottom
 
