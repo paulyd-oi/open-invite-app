@@ -731,20 +731,27 @@ export default function SettingsScreen() {
       // CRITICAL: Use returned value - React state is async and stale here!
       const { isPro: rcIsPro } = await subscription.refresh();
       
-      // Step 2: CRITICAL - Also refresh backend entitlements query
+      // Step 2: CRITICAL - Refresh backend entitlements query
       // This catches promo codes applied server-side (e.g., AWAKEN)
-      await refreshEntitlements();
+      // Returns fresh isPro from backend
+      const { isPro: backendIsPro } = await refreshEntitlements();
       
-      // [PRO_SOT] Log state AFTER refresh
+      // COMBINED: User is Pro if EITHER source says so
+      // - rcIsPro: RevenueCat purchase/restore
+      // - backendIsPro: Admin promo codes (AWAKEN), lifetime grants
+      const combinedIsPro = rcIsPro || backendIsPro;
+      
+      // [PRO_SOT] Log state AFTER refresh with BOTH sources
       if (__DEV__) {
-        console.log("[PRO_SOT] After: rcIsPro (returned)=", rcIsPro);
+        console.log("[PRO_SOT] After: rcIsPro (RevenueCat)=", rcIsPro);
+        console.log("[PRO_SOT] After: backendIsPro (entitlements)=", backendIsPro);
+        console.log("[PRO_SOT] After: combinedIsPro=", combinedIsPro);
         console.log("[PRO_SOT] After: subscription.isPremium (stale)=", subscription.isPremium);
-        console.log("[PRO_SOT] Queries invalidated - UI will re-render with fresh data");
         console.log("[PRO_SOT] === REFRESH COMPLETE ===");
       }
       
-      // Show result toast based on RETURNED value (not stale React state)
-      if (rcIsPro) {
+      // Show result toast based on COMBINED value from BOTH sources
+      if (combinedIsPro) {
         safeToast.success("Pro Active", "Your Pro membership is active!");
       } else {
         safeToast.info("Free Plan", "No active Pro membership found.");
@@ -766,15 +773,24 @@ export default function SettingsScreen() {
     const result = await subscription.restore();
     
     // Refresh entitlements from backend after restore
+    let backendIsPro = false;
     if (result.ok) {
-      await refreshEntitlements();
+      const entitlementsResult = await refreshEntitlements();
+      backendIsPro = entitlementsResult.isPro;
     }
     
     setIsRestoringPurchases(false);
 
     if (result.ok) {
-      // CRITICAL: Use returned isPro value, not stale React state
-      const hasPremium = result.isPro ?? false;
+      // CRITICAL: Combine BOTH sources for accurate status
+      // - result.isPro: RevenueCat restore result
+      // - backendIsPro: Backend entitlements (admin promos, lifetime grants)
+      const hasPremium = (result.isPro ?? false) || backendIsPro;
+      
+      if (__DEV__) {
+        console.log("[PRO_SOT] Restore: rcIsPro=", result.isPro, "backendIsPro=", backendIsPro, "combined=", hasPremium);
+      }
+      
       if (hasPremium) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Restored!", "Your subscription has been restored.");

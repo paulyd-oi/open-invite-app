@@ -251,13 +251,30 @@ export function useEntitlements(options?: { enabled?: boolean }) {
 }
 
 /**
- * Hook to invalidate and refetch entitlements
+ * Hook to invalidate, refetch, and return fresh entitlements
+ * Returns { isPro: boolean } after refetch completes
  */
 export function useRefreshEntitlements() {
   const queryClient = useQueryClient();
 
-  return useCallback(async () => {
+  return useCallback(async (): Promise<{ isPro: boolean }> => {
+    // Invalidate to mark stale
     await queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+    // Refetch and get fresh data
+    const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
+      queryKey: ["entitlements"],
+    });
+    const backendIsPro = isPro(freshData);
+    
+    // [PRO_SOT] Log backend entitlements refresh result
+    if (__DEV__) {
+      console.log("[PRO_SOT][refreshEntitlements] BACKEND_REFRESH", {
+        plan: freshData?.plan,
+        isPro: backendIsPro,
+      });
+    }
+    
+    return { isPro: backendIsPro };
   }, [queryClient]);
 }
 
