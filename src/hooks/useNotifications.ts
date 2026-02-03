@@ -30,6 +30,39 @@ function getThrottleKey(userId: string | undefined): string | null {
 // Track if push proof diagnostic has run this session (cold start only)
 let pushProofDiagnosticRan = false;
 
+// Track last userId we registered for (to detect account switches)
+let lastRegisteredUserId: string | null = null;
+
+/**
+ * P0_PUSH_REG: Verify backend token state via GET /api/push/me
+ * Returns { activeCount, totalCount, lastSeenAt } or null on error
+ */
+async function verifyPushMe(): Promise<{
+  activeCount: number;
+  totalCount: number;
+  lastSeenAt: string | null;
+} | null> {
+  try {
+    const response = await api.get<{
+      tokens?: Array<{ isActive?: boolean; lastSeenAt?: string }>;
+    }>("/api/push/me");
+    const tokens = response?.tokens ?? [];
+    const activeTokens = tokens.filter((t) => t.isActive === true);
+    const latestActive = activeTokens
+      .map((t) => t.lastSeenAt)
+      .filter(Boolean)
+      .sort()
+      .pop() ?? null;
+    return {
+      activeCount: activeTokens.length,
+      totalCount: tokens.length,
+      lastSeenAt: latestActive,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolve EAS projectId with explicit fallback chain.
  * Used for getExpoPushTokenAsync({ projectId }).
@@ -193,26 +226,27 @@ export function useNotifications() {
 
   /**
    * Check if token registration is throttled for current user
-   * P0_PUSH: Now user-scoped to prevent cross-account registration blocking
+   * P0_PUSH_REG: User-scoped to prevent cross-account registration blocking
    */
   const isRegistrationThrottled = useCallback(async (): Promise<boolean> => {
     try {
       const userId = session?.user?.id;
+      const userIdPrefix = userId?.substring(0, 8) ?? "none";
       const throttleKey = getThrottleKey(userId);
       if (!throttleKey) {
-        if (__DEV__) console.log("[P0_PUSH] No userId for throttle check - not throttled");
+        if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no key)`);
         return false;
       }
       
       const lastRegistered = await AsyncStorage.getItem(throttleKey);
       if (!lastRegistered) {
-        if (__DEV__) console.log("[P0_PUSH] No throttle timestamp - not throttled");
+        if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no timestamp)`);
         return false;
       }
       
       const elapsed = Date.now() - parseInt(lastRegistered, 10);
       const throttled = elapsed < TOKEN_REGISTRATION_THROTTLE_MS;
-      if (__DEV__) console.log(`[P0_PUSH] Throttle check: elapsed=${Math.round(elapsed/1000)}s, throttled=${throttled}`);
+      if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... elapsed=${Math.round(elapsed/1000)}s result=${throttled}`);
       return throttled;
     } catch {
       return false;
@@ -227,27 +261,33 @@ export function useNotifications() {
       const userId = session?.user?.id;
       const throttleKey = getThrottleKey(userId);
       if (!throttleKey) {
-        if (__DEV__) console.log("[P0_PUSH] No userId - cannot mark registered");
+        if (__DEV__) console.log("[P0_PUSH_REG] No userId - cannot mark registered");
         return;
       }
       await AsyncStorage.setItem(throttleKey, Date.now().toString());
-      if (__DEV__) console.log(`[P0_PUSH] Marked registered for user ${userId?.substring(0, 8)}...`);
+      if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_MARKED userId=${userId?.substring(0, 8)}...`);
     } catch {
       // Ignore storage errors
     }
   }, [session?.user?.id]);
 
   /**
-   * Check and register token if permission is granted
-   * Called on mount and when app returns to foreground
-   * Throttled to once per 24 hours (backend upserts, so repeated calls are safe but wasteful)
-   * CRITICAL: Only runs when bootStatus === 'authed' to prevent 401 spam
+   * P0_PUSH_REG: SINGLE SOURCE OF TRUTH for push token registration
+   * 
+   * CONTRACT: Once bootStatus === 'authed', the current user MUST have an active
+   * token registered in backend within N seconds, unless OS permission is denied.
+   * 
+   * KEY IMPROVEMENT: Throttle is bypassed if backend shows activeCount=0
+   * This prevents stale throttle from masking missing tokens.
    */
   const checkAndRegisterToken = useCallback(async (forceRegister = false) => {
+    const userId = session?.user?.id;
+    const userIdPrefix = userId?.substring(0, 8) ?? "none";
+    
     // INVARIANT: Only register when fully authenticated
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__) {
-        console.log("[PUSH_BOOTSTRAP] Skipping - bootStatus:", bootStatus, "hasUser:", !!session?.user);
+        console.log(`[P0_PUSH_REG] SKIP reason=NOT_AUTHED bootStatus=${bootStatus} hasUser=${!!session?.user}`);
       }
       return;
     }
@@ -257,24 +297,23 @@ export function useNotifications() {
       let { status } = await Notifications.getPermissionsAsync();
       
       if (__DEV__) {
-        console.log("[PUSH_BOOTSTRAP] Initial permission status:", status);
+        console.log(`[P0_PUSH_REG] PERMISSION_CHECK userId=${userIdPrefix}... status=${status}`);
       }
 
       // Step 2: If undetermined AND forceRegister, REQUEST permission (not just read)
-      // NOTE: Mount and AppState active checks use forceRegister=false to avoid prompts
       if (status === 'undetermined' && forceRegister) {
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Requesting permission from OS...");
+          console.log(`[P0_PUSH_REG] PERMISSION_REQUEST userId=${userIdPrefix}...`);
         }
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
         status = newStatus;
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Permission after request:", status);
+          console.log(`[P0_PUSH_REG] PERMISSION_RESULT userId=${userIdPrefix}... status=${status}`);
         }
       } else if (status === 'undetermined' && !forceRegister) {
         // Permission undetermined and not forcing - skip without prompting
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Permission not granted; skipping auto registration (no prompt)");
+          console.log(`[P0_PUSH_REG] SKIP reason=PERMISSION_UNDETERMINED userId=${userIdPrefix}...`);
         }
         lastPermissionStatus.current = status;
         return;
@@ -282,11 +321,12 @@ export function useNotifications() {
 
       const permissionChanged = status !== lastPermissionStatus.current;
       const wasGranted = lastPermissionStatus.current === "granted";
+      const isAccountSwitch = userId !== lastRegisteredUserId && lastRegisteredUserId !== null;
 
       // Handle permission revocation
       if (status !== "granted" && wasGranted) {
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Permission revoked");
+          console.log(`[P0_PUSH_REG] PERMISSION_REVOKED userId=${userIdPrefix}...`);
         }
         await api.post("/api/notifications/status", {
           pushPermissionStatus: "denied",
@@ -295,123 +335,185 @@ export function useNotifications() {
         return;
       }
 
-      // Handle permission granted
-      if (status === "granted") {
-        // Check throttle unless permission just changed or force register
-        const throttled = !forceRegister && !permissionChanged && await isRegistrationThrottled();
-        
-        if (throttled) {
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Token registration throttled (24h)");
-          }
-          lastPermissionStatus.current = status;
-          return;
-        }
-
+      // Handle denied/undetermined
+      if (status !== "granted") {
         if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Getting push token...");
-        }
-
-        const token = await registerForPushNotificationsAsync();
-        
-        // Validate token before sending to backend (uses shared validator)
-        if (token && isValidExpoPushToken(token)) {
-          setExpoPushToken(token);
-
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Got valid token:", getTokenPrefix(token));
-          }
-
-          // Send token to backend (backend upserts) with retry
-          const PUSH_REGISTER_ROUTE = "/api/push/register";
-          let registerSuccess = false;
-          let lastError: any = null;
-          
-          for (let attempt = 1; attempt <= 2; attempt++) {
-            try {
-              await api.post(PUSH_REGISTER_ROUTE, {
-                token,
-                platform: "expo",
-              });
-              registerSuccess = true;
-              if (__DEV__) {
-                console.log(`[PUSH_BOOTSTRAP] ✓ Token registered | attempt=${attempt} | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
-              }
-              break;
-            } catch (regErr: any) {
-              lastError = regErr;
-              if (__DEV__) {
-                console.log(`[PUSH_BOOTSTRAP] Registration attempt ${attempt} failed:`, regErr?.message || regErr);
-              }
-              if (attempt < 2) {
-                // Wait 1 second before retry
-                await new Promise(r => setTimeout(r, 1000));
-              }
-            }
-          }
-          
-          if (!registerSuccess && __DEV__) {
-            console.log("[PUSH_BOOTSTRAP] ❌ Token registration failed after retry:", lastError?.message || "unknown");
-          }
-
-          // Update backend with permission status
-          await api.post("/api/notifications/status", {
-            pushPermissionStatus: "granted",
-          });
-
-          // Mark as registered for throttling (even if registration failed, to prevent spam)
-          await markTokenRegistered();
-          registrationAttempted.current = true;
-
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] ✓ Push registration complete, success=" + registerSuccess);
-          }
-        } else if (token) {
-          // Token exists but failed validation (placeholder/invalid)
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] Token failed validation:", getTokenPrefix(token));
-          }
-          // Still update permission status even if token is invalid
-          await api.post("/api/notifications/status", {
-            pushPermissionStatus: "granted",
-          });
-        } else {
-          // No token (simulator or unsupported device)
-          if (__DEV__) {
-            console.log("[PUSH_BOOTSTRAP] No token available (simulator/unsupported)");
-          }
-        }
-      } else if (status === "denied") {
-        // User denied permission - notify backend
-        if (__DEV__) {
-          console.log("[PUSH_BOOTSTRAP] Permission denied by user");
+          console.log(`[P0_PUSH_REG] SKIP reason=PERMISSION_${status.toUpperCase()} userId=${userIdPrefix}...`);
         }
         await api.post("/api/notifications/status", {
-          pushPermissionStatus: "denied",
-        });
+          pushPermissionStatus: status === "denied" ? "denied" : "undetermined",
+        }).catch(() => {});
+        lastPermissionStatus.current = status;
+        return;
+      }
+
+      // Permission is granted - now check throttle with backend verification
+      let shouldRegister = forceRegister || permissionChanged || isAccountSwitch;
+      let throttleBypassReason: string | null = null;
+      
+      if (!shouldRegister) {
+        // Check throttle
+        const throttled = await isRegistrationThrottled();
+        
+        if (throttled) {
+          // KEY FIX: Even if throttled, check backend state
+          // If backend has 0 active tokens, bypass throttle
+          if (__DEV__) {
+            console.log(`[P0_PUSH_REG] THROTTLED userId=${userIdPrefix}... checking backend state...`);
+          }
+          
+          const backendState = await verifyPushMe();
+          if (backendState && backendState.activeCount === 0) {
+            // BYPASS THROTTLE: Backend has no active tokens!
+            shouldRegister = true;
+            throttleBypassReason = "BACKEND_EMPTY";
+            if (__DEV__) {
+              console.log(`[P0_PUSH_REG] THROTTLE_BYPASS reason=BACKEND_EMPTY userId=${userIdPrefix}... activeCount=0 totalCount=${backendState.totalCount}`);
+            }
+          } else if (backendState) {
+            // Backend has active tokens, respect throttle
+            if (__DEV__) {
+              console.log(`[P0_PUSH_REG] SKIP reason=THROTTLED userId=${userIdPrefix}... backendActiveCount=${backendState.activeCount}`);
+            }
+            lastPermissionStatus.current = status;
+            return;
+          } else {
+            // Backend verification failed, respect throttle to be safe
+            if (__DEV__) {
+              console.log(`[P0_PUSH_REG] SKIP reason=THROTTLED_VERIFY_FAILED userId=${userIdPrefix}...`);
+            }
+            lastPermissionStatus.current = status;
+            return;
+          }
+        } else {
+          shouldRegister = true;
+        }
+      }
+
+      if (!shouldRegister) {
+        lastPermissionStatus.current = status;
+        return;
+      }
+
+      // Log registration attempt context
+      if (__DEV__) {
+        console.log(`[P0_PUSH_REG] ATTEMPT userId=${userIdPrefix}... force=${forceRegister} permChange=${permissionChanged} accountSwitch=${isAccountSwitch} throttleBypass=${throttleBypassReason ?? "none"}`);
+      }
+
+      const token = await registerForPushNotificationsAsync();
+      
+      // Validate token before sending to backend
+      if (token && isValidExpoPushToken(token)) {
+        setExpoPushToken(token);
+        const tokenSuffix = token.slice(-6);
+
+        if (__DEV__) {
+          console.log(`[P0_PUSH_REG] TOKEN_VALID userId=${userIdPrefix}... tokenSuffix=${tokenSuffix}`);
+        }
+
+        // Send token to backend with retry
+        const PUSH_REGISTER_ROUTE = "/api/push/register";
+        let registerSuccess = false;
+        let lastError: any = null;
+        
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            await api.post(PUSH_REGISTER_ROUTE, {
+              token,
+              platform: "expo",
+            });
+            registerSuccess = true;
+            if (__DEV__) {
+              console.log(`[P0_PUSH_REG] REGISTER_SUCCESS userId=${userIdPrefix}... attempt=${attempt} tokenSuffix=${tokenSuffix}`);
+            }
+            break;
+          } catch (regErr: any) {
+            lastError = regErr;
+            const errStatus = regErr?.status ?? regErr?.statusCode ?? "unknown";
+            if (__DEV__) {
+              console.log(`[P0_PUSH_REG] REGISTER_RETRY userId=${userIdPrefix}... attempt=${attempt} status=${errStatus}`);
+            }
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
+        }
+        
+        if (!registerSuccess) {
+          const errStatus = lastError?.status ?? lastError?.statusCode ?? "unknown";
+          if (__DEV__) {
+            console.log(`[P0_PUSH_REG] REGISTER_FAILED userId=${userIdPrefix}... status=${errStatus}`);
+          }
+        }
+
+        // Update backend with permission status
+        await api.post("/api/notifications/status", {
+          pushPermissionStatus: "granted",
+        }).catch(() => {});
+
+        // Mark as registered for throttling
+        await markTokenRegistered();
+        registrationAttempted.current = true;
+        lastRegisteredUserId = userId ?? null;
+
+        // PROOF: Verify backend state after registration
+        if (__DEV__) {
+          const verifyState = await verifyPushMe();
+          if (verifyState) {
+            console.log(`[P0_PUSH_REG] VERIFY_BACKEND userId=${userIdPrefix}... activeCount=${verifyState.activeCount} totalCount=${verifyState.totalCount} lastSeenAt=${verifyState.lastSeenAt ?? "null"}`);
+            if (verifyState.activeCount === 0) {
+              console.log(`[P0_PUSH_REG] ⚠️ WARNING: Backend still shows 0 active tokens after registration!`);
+            } else {
+              console.log(`[P0_PUSH_REG] ✓ COMPLETE userId=${userIdPrefix}... success=${registerSuccess} activeCount=${verifyState.activeCount}`);
+            }
+          } else {
+            console.log(`[P0_PUSH_REG] VERIFY_FAILED userId=${userIdPrefix}... could not reach /api/push/me`);
+          }
+        }
+      } else if (token) {
+        // Token exists but failed validation
+        if (__DEV__) {
+          console.log(`[P0_PUSH_REG] TOKEN_INVALID userId=${userIdPrefix}... tokenPrefix=${getTokenPrefix(token)}`);
+        }
+        await api.post("/api/notifications/status", {
+          pushPermissionStatus: "granted",
+        }).catch(() => {});
+      } else {
+        // No token (simulator or unsupported device)
+        if (__DEV__) {
+          console.log(`[P0_PUSH_REG] SKIP reason=NO_TOKEN userId=${userIdPrefix}... (simulator/unsupported)`);
+        }
       }
 
       lastPermissionStatus.current = status;
     } catch (error) {
+      const userId = session?.user?.id;
+      const userIdPrefix = userId?.substring(0, 8) ?? "none";
       if (__DEV__) {
-        console.error("[PUSH_BOOTSTRAP] Error:", error);
+        console.error(`[P0_PUSH_REG] EXCEPTION userId=${userIdPrefix}...`, error);
       }
     }
   }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered]);
 
-  // Initial registration and AppState listener for foreground permission re-check
-  // CRITICAL: Gate on bootStatus === 'authed' to prevent network calls when logged out
+  // P0_PUSH_REG: Initial registration and AppState listener
+  // CRITICAL: Gate on bootStatus === 'authed' AND runs when userId changes (account switch)
   useEffect(() => {
+    const userId = session?.user?.id;
+    const userIdPrefix = userId?.substring(0, 8) ?? "none";
+    
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__ && bootStatus !== 'authed') {
-        console.log("[PUSH_BOOTSTRAP] Waiting for authed status, current:", bootStatus);
+        console.log(`[P0_PUSH_REG] WAIT bootStatus=${bootStatus}`);
       }
       return;
     }
 
+    // Check for account switch
+    const isAccountSwitch = userId !== lastRegisteredUserId && lastRegisteredUserId !== null;
+    
     // Initial check (do not request permission on mount - read only)
     if (__DEV__) {
-      console.log("[PUSH_BOOTSTRAP] Boot complete, initiating push registration");
+      console.log(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
@@ -421,9 +523,9 @@ export function useNotifications() {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active" && bootStatus === 'authed') {
         if (__DEV__) {
-          console.log("[useNotifications] App became active, checking permission");
+          console.log(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
-        checkAndRegisterToken(); // Will be throttled by isRegistrationThrottled
+        checkAndRegisterToken(); // Will be throttled unless backend empty
       }
     };
 
