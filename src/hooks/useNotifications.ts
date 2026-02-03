@@ -212,6 +212,98 @@ async function runPushRegistrationProof(): Promise<void> {
   }
 }
 
+// Track if we've already processed the cold start notification
+let coldStartNotificationProcessed = false;
+
+/**
+ * P0_PUSH_TAP: ROUTING TABLE for notification tap navigation
+ * Single source of truth for all push notification deep-linking.
+ * 
+ * Returns: { route: string | null, fallbackUsed: boolean, reason: string }
+ */
+function resolveNotificationRoute(data: Record<string, any> | undefined): {
+  route: string | null;
+  fallbackUsed: boolean;
+  reason: string;
+} {
+  if (!data) {
+    return { route: null, fallbackUsed: true, reason: "no_data" };
+  }
+
+  const type = data?.type;
+  const eventId = data?.eventId || data?.event_id; // Support both key formats
+  const friendId = data?.friendId || data?.friend_id;
+  const userId = data?.userId || data?.user_id || data?.actorId || data?.actor_id || data?.senderId || data?.sender_id;
+  const circleId = data?.circleId || data?.circle_id;
+
+  // ROUTING TABLE (ordered by specificity)
+  
+  // 1. Event-related notifications → /event/:id
+  if (
+    type === "new_event" ||
+    type === "event_update" ||
+    type === "event_reminder" ||
+    type === "reminder" ||
+    type === "event_join" ||
+    type === "new_attendee" ||
+    type === "event_comment" ||
+    type === "comment" ||
+    type === "join_request" ||
+    type === "join_accepted" ||
+    type === "event_interest" ||
+    type === "someones_interested"
+  ) {
+    if (eventId) {
+      return { route: `/event/${eventId}`, fallbackUsed: false, reason: `type_${type}` };
+    }
+    // Event type but no eventId - fall through to fallbacks
+  }
+
+  // 2. Friend request → user profile
+  if (type === "friend_request") {
+    if (userId) {
+      return { route: `/user/${userId}`, fallbackUsed: false, reason: "friend_request_user" };
+    }
+    return { route: "/friends", fallbackUsed: true, reason: "friend_request_no_user" };
+  }
+
+  // 3. Friend accepted → user profile
+  if (type === "friend_accepted") {
+    if (friendId) {
+      return { route: `/user/${friendId}`, fallbackUsed: false, reason: "friend_accepted_friend" };
+    }
+    if (userId) {
+      return { route: `/user/${userId}`, fallbackUsed: false, reason: "friend_accepted_user" };
+    }
+    return { route: "/friends", fallbackUsed: true, reason: "friend_accepted_no_target" };
+  }
+
+  // 4. Circle message → circle chat
+  if (type === "circle_message" && circleId) {
+    return { route: `/circle/${circleId}`, fallbackUsed: false, reason: "circle_message" };
+  }
+
+  // FALLBACK CHAIN (when type doesn't match or is missing)
+  
+  // Fallback A: If eventId present, go to event
+  if (eventId) {
+    return { route: `/event/${eventId}`, fallbackUsed: true, reason: "fallback_eventId" };
+  }
+
+  // Fallback B: If userId present, go to user profile
+  if (userId) {
+    return { route: `/user/${userId}`, fallbackUsed: true, reason: "fallback_userId" };
+  }
+
+  // Fallback C: If circleId present, go to circle
+  if (circleId) {
+    return { route: `/circle/${circleId}`, fallbackUsed: true, reason: "fallback_circleId" };
+  }
+
+  // No valid navigation target
+  return { route: null, fallbackUsed: true, reason: "no_valid_target" };
+}
+
 export function useNotifications() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -223,6 +315,7 @@ export function useNotifications() {
   const responseListener = useRef<EventSubscription | null>(null);
   const lastPermissionStatus = useRef<string | null>(null);
   const registrationAttempted = useRef<boolean>(false);
+  const coldStartChecked = useRef<boolean>(false);
 
   /**
    * Check if token registration is throttled for current user
@@ -582,88 +675,89 @@ export function useNotifications() {
       }
     );
 
-    // Handle notification taps
+    /**
+     * P0_PUSH_TAP: Handle notification tap (both background and foreground taps)
+     * Uses centralized routing table for deterministic navigation.
+     */
+    const handleNotificationTap = (
+      response: Notifications.NotificationResponse,
+      source: "listener" | "cold_start"
+    ) => {
+      const data = response.notification.request.content.data as Record<string, any> | undefined;
+      const { route, fallbackUsed, reason } = resolveNotificationRoute(data);
+
+      // P0_PUSH_TAP: DEV proof logging
+      if (__DEV__) {
+        console.log(`[P0_PUSH_TAP] ${JSON.stringify({
+          source,
+          type: data?.type ?? "unknown",
+          eventId: data?.eventId ?? data?.event_id ?? null,
+          userId: data?.userId ?? data?.user_id ?? data?.actorId ?? null,
+          circleId: data?.circleId ?? data?.circle_id ?? null,
+          routeAttempted: route,
+          fallbackUsed,
+          reason,
+        })}`);
+      }
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (route) {
+        // Use replace for cold start to avoid stacking on initial route
+        if (source === "cold_start") {
+          router.replace(route as any);
+        } else {
+          router.push(route as any);
+        }
+      } else if (__DEV__) {
+        console.warn('[P0_PUSH_TAP] No valid navigation target, payload:', data);
+      }
+    };
+
+    // Handle notification taps (background/foreground)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        const type = data?.type;
-        const eventId = data?.eventId;
-        const friendId = data?.friendId;
-        const userId = data?.userId || data?.actorId || data?.senderId;
-        const circleId = data?.circleId;
+      (response) => handleNotificationTap(response, "listener")
+    );
 
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    /**
+     * P0_PUSH_TAP: COLD START HANDLING
+     * Check for notification that opened the app from completely closed state.
+     * This runs ONCE per app launch to catch taps that happened before listeners registered.
+     */
+    const checkColdStartNotification = async () => {
+      // Only check once per app lifecycle AND once per useNotifications mount
+      if (coldStartNotificationProcessed || coldStartChecked.current) {
+        return;
+      }
+      coldStartChecked.current = true;
 
-        // Navigate based on notification type
-        // D5-F2: Deep-link handling for push taps
+      try {
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
         
-        // Event-related notifications → event detail
-        if (
-          type === "new_event" ||
-          type === "event_update" ||
-          type === "event_reminder" ||
-          type === "event_join" ||
-  type === "new_attendee" ||
-          type === "event_comment" ||
-          type === "join_request" ||
-          type === "join_accepted"
-        ) {
-          if (eventId) {
-            router.push(`/event/${eventId}` as any);
-            return;
+        if (lastResponse) {
+          // Mark as processed to prevent double-handling
+          coldStartNotificationProcessed = true;
+          
+          if (__DEV__) {
+            console.log('[P0_PUSH_TAP] Cold start notification detected');
           }
+          
+          // Small delay to ensure router is ready
+          setTimeout(() => {
+            handleNotificationTap(lastResponse, "cold_start");
+          }, 100);
+        } else if (__DEV__) {
+          console.log('[P0_PUSH_TAP] No cold start notification');
         }
-        
-        // Friend request → user profile or friends list
-        if (type === "friend_request") {
-          if (userId) {
-            router.push(`/user/${userId}` as any);
-          } else {
-            router.push("/friends");
-          }
-          return;
-        }
-        
-        // Friend accepted → user profile
-        if (type === "friend_accepted") {
-          if (friendId) {
-            router.push(`/user/${friendId}` as any);
-          } else if (userId) {
-            router.push(`/user/${userId}` as any);
-          }
-          return;
-        }
-        
-        // Circle message → circle chat
-        if (type === "circle_message" && circleId) {
-          router.push(`/circle/${circleId}` as any);
-          return;
-        }
-        
-        // Fallback: if we have eventId, go to event
-        if (eventId) {
-          router.push(`/event/${eventId}` as any);
-          return;
-        }
-        
-        // Fallback: if we have userId, go to user profile
-        if (userId) {
-          router.push(`/user/${userId}` as any);
-          return;
-        }
-        
-        // No valid navigation target - log warning (D5-F2 requirement)
+      } catch (error) {
         if (__DEV__) {
-          console.warn('[useNotifications] Push tap has no valid navigation target:', {
-            type,
-            eventId,
-            userId,
-            friendId,
-            circleId,
-          });
+          console.warn('[P0_PUSH_TAP] Failed to check cold start notification:', error);
         }
       }
-    );
+    };
+
+    // Check for cold start notification
+    checkColdStartNotification();
 
     return () => {
       if (notificationListener.current) {
@@ -673,7 +767,7 @@ export function useNotifications() {
         responseListener.current.remove();
       }
     };
-  }, []);
+  }, [router, queryClient]);
 
   /**
    * Production-safe push diagnostics function.

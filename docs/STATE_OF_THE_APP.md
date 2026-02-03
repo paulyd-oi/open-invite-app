@@ -1,6 +1,10 @@
 # State of the App — Frontend
 
 ## Stable
+- Push notification tap deep-linking: BOTH cold start AND background taps now route deterministically via resolveNotificationRoute() SSOT
+- Push tap cold start handling: getLastNotificationResponseAsync() called on mount, routes with router.replace() to avoid stack duplication
+- Push tap routing table: Supports eventId/event_id, userId/user_id/actorId/senderId, circleId/circle_id key formats
+- Push tap DEV proof: [P0_PUSH_TAP] logs with { source, type, eventId, userId, circleId, routeAttempted, fallbackUsed, reason }
 - Legacy Groups UI fully removed: Friends filter + Friend profile "Groups Together" section purged. Circles remain the only group concept.
 - Apple Sign-In cookie storage FIXED: Proper token extraction from backend response (mobileSessionToken > token > session.token > Set-Cookie header), correct setExplicitCookiePair usage (token only, not full cookie pair), direct module cache set via setExplicitCookieValueDirectly(), refreshExplicitCookie now checks SESSION_COOKIE_KEY as fallback
 - Promo code redemption: /redeem-code screen for entering codes like AWAKEN, POST /api/promo/redeem, calm error handling with mom-safe language, success shows formatted expiry date

@@ -1,5 +1,53 @@
 # Findings Log — Frontend
 
+## P0 Push Tap Deep-Link Parity (2026-02-03)
+
+### Root Cause: Missing Cold Start Notification Handling
+
+**PROBLEM**: Push notification taps were inconsistent - some routed correctly, others just opened the app with no navigation. Root cause was that `addNotificationResponseReceivedListener` only catches taps when app is in background/foreground. When app is completely closed (cold start), the listener isn't registered in time.
+
+**FIX**: Added `Notifications.getLastNotificationResponseAsync()` call on component mount to check for cold start notifications. Created centralized `resolveNotificationRoute()` function as SSOT for all notification tap routing.
+
+**FILES**: `src/hooks/useNotifications.ts`
+
+### Routing Table SSOT
+
+**CHANGE**: Created `resolveNotificationRoute(data)` function that returns `{ route, fallbackUsed, reason }`:
+
+| Type | Route | Fallback |
+|------|-------|----------|
+| new_event, event_update, event_reminder, reminder, event_join, new_attendee, event_comment, comment, join_request, join_accepted, event_interest, someones_interested | `/event/:eventId` | None |
+| friend_request | `/user/:userId` | `/friends` |
+| friend_accepted | `/user/:friendId` or `/user/:userId` | `/friends` |
+| circle_message | `/circle/:circleId` | None |
+| (fallback if eventId present) | `/event/:eventId` | Yes |
+| (fallback if userId present) | `/user/:userId` | Yes |
+| (fallback if circleId present) | `/circle/:circleId` | Yes |
+
+### Key Format Compatibility
+
+**CHANGE**: Routing now handles both camelCase and snake_case payload keys:
+- `eventId` OR `event_id`
+- `userId` OR `user_id` OR `actorId` OR `actor_id` OR `senderId` OR `sender_id`
+- `friendId` OR `friend_id`
+- `circleId` OR `circle_id`
+
+### Cold Start vs Background Handling
+
+**CHANGE**: 
+- Cold start taps: Use `router.replace()` to avoid stacking on initial route
+- Background taps: Use `router.push()` for normal navigation stack
+- Module-level `coldStartNotificationProcessed` flag prevents double-handling
+
+### DEV Proof Logging
+
+**INVARIANT**: All push taps log with canonical tag `[P0_PUSH_TAP]`:
+```
+[P0_PUSH_TAP] {"source":"cold_start|listener","type":"event_comment","eventId":"abc123","userId":null,"circleId":null,"routeAttempted":"/event/abc123","fallbackUsed":false,"reason":"type_event_comment"}
+```
+
+---
+
 ## Admin Console: Badge Studio + Pro Override + Ban/Delete (2026-02-01)
 
 ### BadgeKey Validation Parity (Hyphens)
