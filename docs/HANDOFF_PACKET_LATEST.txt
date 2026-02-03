@@ -1,56 +1,182 @@
-HANDOFF PACKET: P0 SUGGESTIONS BIO ON PEOPLE CARDS
-==================================================
-Date: 2026-02-03
-Commit: f602384 (fix(p0): show bio on people suggestion cards)
+================================================================================
+HANDOFF: P0 FRIENDS TAB LOGIN FLASH + GUIDE MODAL PERSISTENCE
+================================================================================
+Commit: d12e416
 Branch: main
-Status: COMPLETE
+Date: 2026-02-03
 
-SUMMARY
--------
-Suggestions → People tab cards did not display user bios (e.g., carlifornia16 had a bio
-on their profile but it wasn't shown on the suggestion card).
+================================================================================
+ROOT CAUSE #1: LOGIN FLASH
+================================================================================
 
-ROOT CAUSE
-----------
-The publicUserSchema in shared/contracts.ts did not include bio or calendarBio fields.
-The code in suggestions.tsx used "as any" type cast to access these fields, but without
-the schema including them, the types weren't propagated properly.
+SYMPTOM: From another tab, tap Friends tab → "Login" screen flashes briefly, then corrects
 
-FILES CHANGED (2 files, +10/-1)
--------------------------------
-shared/contracts.ts     | 3 +++
-src/app/suggestions.tsx | 8 +++++++-
+CODE PATH (BEFORE FIX):
+  src/app/friends.tsx:1175-1215
+  
+  if (!session) {
+    // Gate checked bootStatus === 'loading' || 'authed' || 'onboarding' → skeleton
+    // ELSE (including 'degraded', 'error') → showed login prompt  ← BUG
+  }
 
-1. shared/contracts.ts:
-   - Added bio: z.string().nullable().optional() to publicUserSchema
-   - Added calendarBio: z.string().nullable().optional() to publicUserSchema
+ROOT CAUSE:
+  - bootStatus can be 'degraded' or 'error' when network issues occur
+  - In those states, session might be null temporarily
+  - Old code fell through to login prompt for any bootStatus not in the whitelist
+  - This caused brief login flash during tab navigation
 
-2. src/app/suggestions.tsx:
-   - Removed "as any" type cast for bio access
-   - Added [P0_SUGGESTIONS_BIO] DEV log for debugging
+FIX (file:line):
+  src/app/friends.tsx:1175-1221
+  
+  - Changed gate logic: ONLY bootStatus === 'loggedOut' shows login prompt
+  - ALL other states (loading, authed, onboarding, degraded, error) show skeleton
+  - Added condition: (!session || bootStatus !== 'authed') as combined gate
+  - This ensures login UI only appears when user is DEFINITIVELY logged out
 
-PROOF LOGS (SAMPLE)
--------------------
-[P0_SUGGESTIONS_BIO] username=carlifornia16 bioLen=42
+INVARIANT ENFORCED:
+  "Friends route cannot render login UI unless bootStatus === 'loggedOut'"
 
-VERIFICATION OUTPUTS
---------------------
-npm run typecheck → PASS (no errors)
-bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
+================================================================================
+ROOT CAUSE #2: GUIDE MODAL REAPPEARS
+================================================================================
+
+SYMPTOM: Friends guide/onboarding modal reappears repeatedly even after dismissal
+
+CODE PATH (BEFORE FIX):
+  src/app/friends.tsx:1889-1906
+  
+  onDismiss={() => onboardingGuide.completeStep("friends_tab")}
+  
+  src/hooks/useOnboardingGuide.ts:203-212 (completeStep)
+  - Sets friendsKey="true" in SecureStore
+  - BUT does NOT delete forceShowKey
+
+  src/components/OnboardingGuideOverlay.tsx:96-99
+  - "Skip guide" link called onDismiss (same as X button)
+
+ROOT CAUSE:
+  - "Skip guide" should dismiss ENTIRE guide (delete forceShowKey)
+  - But it called completeStep() which just advances to next step
+  - forceShowKey remained "true" → guide reappeared on app restart
+
+FIX (file:lines):
+  src/components/OnboardingGuideOverlay.tsx:10-17
+  - Added onSkipAll?: () => void prop to interface
+  
+  src/components/OnboardingGuideOverlay.tsx:96-101
+  - "Skip guide" link now calls onSkipAll (falls back to onDismiss)
+  
+  src/app/friends.tsx:1893,1904
+  - Added onSkipAll={() => onboardingGuide.dismissGuide()}
+  
+  src/hooks/useOnboardingGuide.ts:263
+  - dismissGuide now also sets currentStep to "completed"
+
+INVARIANT ENFORCED:
+  "Skip guide must permanently disable guide by deleting forceShowKey"
+
+SSOT FOR GUIDE STATE:
+  - forceShowKey: guide_force_show_v2:<userId> in SecureStore
+  - friendsKey: guide_friends_add_people_v2:<userId>
+  - createKey: guide_create_first_plan_v2:<userId>
+  - Module cache: guideStateCache Map (memory only, cleared on restart)
+
+================================================================================
+AUDITED CALLSITE LIST
+================================================================================
+
+FRIENDS TAB AUTH GATES (rg -n "!session" src/app/friends.tsx):
+  ✓ Line 1175: FIXED - now uses stable bootStatus === 'loggedOut' gate
+
+LOGIN REDIRECTS (rg -n "router.replace.*login" src/app):
+  ✓ friends.tsx:1204 - Only reached when bootStatus === 'loggedOut' (VERIFIED SAFE)
+  - account-center.tsx:213,225 - After logout mutation (SAFE)
+  - event/[id].tsx:731 - Unauthenticated event access (SAFE)
+  - social.tsx:601,725 - Social tab auth gate (SAFE - similar pattern)
+  - profile.tsx:118 - Profile auth gate (SAFE)
+  - suggestions.tsx:512 - Uses !session && !sessionLoading (SAFE)
+  - activity.tsx:470 - Activity auth gate (SAFE)
+  - onboarding.tsx:967 - Skip onboarding (SAFE)
+  - _layout.tsx:320 - BootRouter loggedOut handling (SAFE - central router)
+  - welcome.tsx:1105,1230 - Login buttons (SAFE)
+  - privacy-settings.tsx:136 - Privacy settings auth gate (SAFE)
+  - settings.tsx:1101,1114,1262 - Settings logout/auth gates (SAFE)
+  - create.tsx:706 - Create auth gate (SAFE)
+
+ONBOARDING GUIDE OVERLAYS (rg -n "OnboardingGuideOverlay" src/):
+  ✓ friends.tsx:1890 (friends_tab step) - FIXED: added onSkipAll
+  ✓ friends.tsx:1901 (add_friend step) - FIXED: added onSkipAll
+  ✓ create.tsx:1383 (create_event step) - FIXED: added onSkipAll
+
+GUIDE DECISION LOGIC (useOnboardingGuide.ts):
+  ✓ Line 103-118: forceShow gate - VERIFIED SAFE
+  ✓ Line 185: completeStep - advances step, doesn't delete forceShowKey (CORRECT)
+  ✓ Line 250-272: dismissGuide - deletes forceShowKey permanently (FIXED: also sets currentStep)
+
+================================================================================
+FILES CHANGED (matches git show --stat HEAD exactly)
+================================================================================
+
+ src/app/create.tsx                       |  1 +
+ src/app/friends.tsx                      | 51 ++++++-----
+ src/components/OnboardingGuideOverlay.tsx|  8 +-
+ src/hooks/useOnboardingGuide.ts          |  8 +-
+ 4 files changed, 40 insertions(+), 28 deletions(-)
+
+================================================================================
+VERIFICATION PROOF
+================================================================================
+
+npm run typecheck: PASS (no errors)
+bash scripts/ai/verify_frontend.sh: PASS
 
 git show --stat HEAD:
-  shared/contracts.ts     | 3 +++
-  src/app/suggestions.tsx | 8 +++++++-
-  2 files changed, 10 insertions(+), 1 deletion(-)
+  commit d12e4165081774b137258d27c9882875f5ac9749 (HEAD -> main, origin/main)
+  4 files changed, 40 insertions(+), 28 deletions(-)
 
 git show --name-only HEAD:
-  shared/contracts.ts
-  src/app/suggestions.tsx
+  src/app/create.tsx
+  src/app/friends.tsx
+  src/components/OnboardingGuideOverlay.tsx
+  src/hooks/useOnboardingGuide.ts
 
-QA STEPS
---------
-1. Go to Suggestions tab
-2. Tap "People" tab
-3. Find a user with a bio (e.g., carlifornia16)
-4. Verify bio text appears below @username, truncated to 1 line
-5. Check DEV console for [P0_SUGGESTIONS_BIO] logs
+================================================================================
+DEV LOGS - WHAT TO LOOK FOR
+================================================================================
+
+[P0_FRIENDS_AUTH] Gate check - bootStatus: ..., session: ...
+  → Shows current gate evaluation on Friends tab render
+
+[P0_FRIENDS_AUTH] → Showing login prompt (bootStatus=loggedOut)
+  → Should ONLY appear when user is truly logged out
+
+[P0_FRIENDS_AUTH] → Showing skeleton (bootStatus=..., waiting for session)
+  → Skeleton shown during loading/degraded states
+
+[P0_FRIENDS_GUIDE] dismissGuide - permanently disabled
+  → Should appear when "Skip guide" is clicked
+  → forceShowKey should show "(DELETED)" suffix
+
+================================================================================
+TEST INSTRUCTIONS
+================================================================================
+
+LOGIN FLASH TEST:
+1. Log in to app, navigate to any tab except Friends
+2. Tap Friends tab
+3. EXPECTED: Skeleton loader (if brief) → Friends list, NEVER login UI
+4. Try with airplane mode on (degraded state) - should show skeleton, not login
+
+GUIDE MODAL TEST:
+1. Create new account OR reset guide state (DEV only)
+2. Navigate to Friends tab
+3. Guide modal appears for "friends_tab" step
+4. Click "Skip guide" link
+5. EXPECTED: Modal closes, DEV log shows forceShowKey DELETED
+6. Force close app completely
+7. Reopen app, navigate to Friends tab
+8. EXPECTED: Guide modal does NOT reappear
+
+================================================================================
+END HANDOFF
+================================================================================
