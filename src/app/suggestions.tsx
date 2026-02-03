@@ -81,8 +81,14 @@ function SuggestionCard({
   // P1 FIX: Display name + @username separately
   const displayName = suggestion.user?.name || "Unknown";
   const handle = suggestion.user?.handle;
-  const bio = (suggestion.user as any)?.calendarBio || (suggestion.user as any)?.bio;
+  // P0 FIX: Bio from user object (calendarBio preferred, fallback to bio)
+  const bio = suggestion.user?.calendarBio || suggestion.user?.bio;
   const mutualCount = suggestion.mutualFriendCount;
+
+  // P0 DEV: Log bio for debugging
+  if (__DEV__ && suggestion.user?.handle) {
+    console.log(`[P0_SUGGESTIONS_BIO] username=${suggestion.user.handle} bioLen=${bio?.length ?? 0}`);
+  }
 
   const handlePress = () => {
     scale.value = withSpring(0.98, {}, () => {

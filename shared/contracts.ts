@@ -846,6 +846,9 @@ export const publicUserSchema = z.object({
   name: z.string().nullable(),
   handle: z.string().nullable(),
   avatarUrl: z.string().nullable(),
+  // P0 FIX: Include bio fields for suggestion cards
+  bio: z.string().nullable().optional(),
+  calendarBio: z.string().nullable().optional(),
 });
 export type PublicUser = z.infer<typeof publicUserSchema>;
 
