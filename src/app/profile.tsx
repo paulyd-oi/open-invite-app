@@ -428,11 +428,8 @@ export default function ProfileScreen() {
               </Text>
             </Pressable>
 
-            {/* Attended Events */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
+            {/* Attended Events - Info display only (no action/navigation target exists) */}
+            <View
               className="flex-1 rounded-xl p-4 border"
               style={{
                 backgroundColor: colors.surface,
@@ -456,7 +453,7 @@ export default function ProfileScreen() {
               <Text className="text-xs" style={{ color: colors.textTertiary }}>
                 events
               </Text>
-            </Pressable>
+            </View>
           </View>
         </Animated.View>
 
