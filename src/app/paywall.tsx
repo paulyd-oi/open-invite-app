@@ -187,6 +187,7 @@ export default function PaywallScreen() {
     setIsPurchasing(false);
   };
 
+  // P0 FIX: Use same refresh contract as settings.tsx handleRefreshEntitlements
   const handleRedeemCode = async () => {
     if (!discountCode.trim()) {
       safeToast.warning("Error", "Please enter a discount code");
@@ -196,10 +197,25 @@ export default function PaywallScreen() {
     setIsRedeemingCode(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    if (__DEV__) {
+      console.log("[PRO_SOT] === PROMO REDEEM START (paywall.tsx) ===");
+      console.log("[PRO_SOT] Before: isPremium=", isPremium);
+    }
+
     try {
       const data = await api.post<{ success: boolean; benefit: string }>("/api/discount/redeem", {
         code: discountCode.trim().toUpperCase(),
       });
+
+      // P0 FIX: Refresh BOTH RevenueCat and backend entitlements after promo redemption
+      const { isPro: rcIsPro } = await refreshSubscription();
+      const { isPro: backendIsPro } = await refreshEntitlements();
+      const combinedIsPro = rcIsPro || backendIsPro;
+
+      if (__DEV__) {
+        console.log("[PRO_SOT] After promo: rcIsPro=", rcIsPro, "backendIsPro=", backendIsPro, "combined=", combinedIsPro);
+        console.log("[PRO_SOT] === PROMO REDEEM COMPLETE ===");
+      }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRedeemedBenefit(data.benefit);
