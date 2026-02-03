@@ -1,93 +1,98 @@
-HANDOFF PACKET: Build 231 Trust Regressions + Structural Invariants (Final)
-============================================================================
-Date: 2026-02-02
+HANDOFF PACKET: P0 Subscription Fallback + Notification Permission Truth
+=========================================================================
+Date: 2026-02-03
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
 
 SUMMARY
 -------
-Completed all Build 231 trust regressions. Change Color now available on ALL events
-(no legacy gating). Private/busy events properly guard navigation and show friendly
-UX messages. TypeScript passes. Ready for QA verification.
+Hardened P0 invariants for subscription loading and notification permission state.
+Added timeout fallback to prevent stuck loading, user-scoped permission tracking,
+and explicit "Enable in Settings" CTA for denied permission state.
 
-P0 FIXES (TRUST/DATA)
----------------------
+P0 FIXES (THIS SESSION)
+-----------------------
 
-1. Settings Subscription Block Never Blank
-   File: src/app/settings.tsx (~line 1815)
-   Issue: During loading, subscription section showed blank text "Loading..."
-   Fix: Always render a meaningful state. During loading, show "loading_default_free"
-        which renders the Free tier card. Pro state shown once entitlements resolve.
-   Invariant: Subscription section ALWAYS renders a card (Free or Pro), never blank.
+1. Subscription Loading Timeout Fallback
+   File: src/lib/SubscriptionContext.tsx
+   Issue: isLoading could stay true indefinitely if RevenueCat/backend fails
+   Fix: Added 5-second timeout that forces isLoading=false if still loading
+        - UI will show Free tier as safe default rather than blank/loading forever
+        - Logs warning in DEV mode when timeout triggers
+   Invariant: Subscription loading MUST resolve within 5 seconds.
 
-2. Busy/Private Events Hide Titles + Disable Navigation
-   File: src/components/FeedCalendar.tsx (EventListItem)
-   Issue: Friend's busy/private events leaked real titles in day modal
-   Fix: Added `isNonVisible` check for events where user doesn't own and (isBusy || isPrivate)
-        - Title: Shows "Busy" with 🔒 emoji
-        - Navigation: Disabled (onPress does nothing)
-        - Location/Host: Hidden entirely
-   Invariant: Non-own busy/private events NEVER leak title, location, or host data.
+2. User-Scoped Notification Permission Tracking
+   File: src/app/activity.tsx
+   Issue: Permission asked flag was global, not per-user
+   Fix: Changed key from global to user-scoped:
+        - OLD: @openinvite_activity_permission_asked
+        - NEW: @openinvite_activity_permission_asked_{userId}
+   Invariant: Permission prompt tracking is per-user to handle multi-account.
 
-3. Notification Permission Real-State Driven
-   Files: src/app/activity.tsx, src/app/notification-settings.tsx
-   Issue: Notification toggle showed ON even when OS permission denied
-   Fix (activity.tsx): On first tab open, check permission status. If "undetermined",
-        prompt user. Track with AsyncStorage to avoid repeated prompts.
-   Fix (notification-settings.tsx): Added `osPermissionStatus` state tracking. 
-        On screen focus, check OS status. Master toggle = backend && OS granted.
-        If user enables toggle while OS denied, request permission first.
-   Invariant: Push toggle reflects ACTUAL OS permission state, not just backend pref.
+3. "Enable in Settings" CTA for Denied Permission
+   File: src/app/notification-settings.tsx
+   Issue: When OS permission denied, no clear action path shown
+   Fix: Added explicit "Enable in Settings" button that:
+        - Only appears when osPermissionStatus === "denied"
+        - Opens device Settings via Linking.openSettings()
+        - Uses Settings icon with themeColor styling
+   Invariant: Denied permission state shows clear remediation path.
 
-4. Event Not Found → Private/Busy Safety Net
-   Files: src/app/event/[id].tsx, src/app/event/edit/[id].tsx
-   Issue: 403/404 errors showed "Event not found" which exposes route structure
-   Fix: Replaced with friendly UX:
-        - Title: "This time is blocked"
-        - Body: "This event is private, or you're marked as busy at this time."
-        - Go Back button (no route strings exposed)
-   Invariant: 403/404 on event detail = non-visible state, NOT "missing" state.
+PREVIOUS FIXES (PRESERVED)
+--------------------------
+- Subscription section always renders card (Free/Pro), never blank
+- Busy/private events hide titles and disable navigation
+- Notification toggle reflects OS permission state (granted/denied/undetermined)
+- useFocusEffect refreshes permission status when returning from Settings
+- Toggle cannot be ON when OS permission not granted
+- Change Color available on ALL events
+- Private/busy event detail shows "This time is blocked" message
 
-P1 FIXES (UX POLISH)
---------------------
+KEY DIFFS
+---------
+SubscriptionContext.tsx:
++  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
++  useEffect(() => {
++    loadingTimeoutRef.current = setTimeout(() => {
++      if (isLoading) setIsLoading(false);
++    }, 5000);
++    return () => { clearTimeout(...) };
++  }, []);
 
-5. Suggestions Cards: @username + Bio + Muted Mutual Friends
-   File: src/app/suggestions.tsx (SuggestionCard)
-   Issue: Cards showed only display name, no @handle or bio
-   Fix: Now displays:
-        - Display name (bold)
-        - @username below name (textSecondary)
-        - Bio/calendarBio if available (textTertiary, 1 line)
-        - "N mutual friends" text (textTertiary, muted)
-        - Removed cluttered mutual friend avatar stack
-   
-6. Change Color Available on ALL Events
-   File: src/app/calendar.tsx (~line 862)
-   Issue: "Change Color" context menu had legacy gating (isOwner, group-tied)
-   Fix: Removed ALL gates. Change Color now appears for:
-        - Own events
-        - Friend events
-        - Circle events
-        - ANY event with long-press context menu
-   Doctrine: Color is viewer-local cosmetic only, no backend write needed.
-   Invariant: Change Color available on EVERY event card that supports long-press.
+activity.tsx:
+-  const ACTIVITY_PERMISSION_ASKED_KEY = "@openinvite_activity_permission_asked";
++  const getActivityPermissionKey = (userId: string) => 
++    `@openinvite_activity_permission_asked_${userId}`;
+
+notification-settings.tsx:
++  {osPermissionStatus === "denied" && (
++    <Pressable onPress={() => Linking.openSettings()}>
++      <Settings size={16} /> Enable in Settings
++    </Pressable>
++  )}
 
 VERIFICATION
 ------------
 ✅ yarn typecheck PASS
 ✅ bash scripts/ai/verify_frontend.sh PASS
 
-QA CHECKLIST
+QA TEST PLAN
 ------------
-[ ] Settings screen: Subscription block shows Free/Pro, never blank
-[ ] Day modal: Long-press friend's busy event → shows "🔒 Busy", no navigation
-[ ] Activity tab first open: Prompts for notification permission if undetermined
-[ ] Notification settings: Toggle reflects actual OS permission status
-[ ] Suggestions cards: Show @username and bio when available
-[ ] Calendar: Long-press ANY event → "Change Color" option appears
-[ ] Navigate to non-visible event → "This time is blocked" message, Go Back button
+[ ] Settings: Subscription section renders immediately (no blank), updates to Pro if Pro
+[ ] Settings: Wait 5+ seconds with network issues → still shows Free card (not stuck loading)
+[ ] Activity: First open triggers permission request only if undetermined, only once per user
+[ ] Activity: Switch accounts → permission prompt can appear for new user
+[ ] Notification settings: Toggle reflects OS permission state
+[ ] Notification settings: Toggle updates after changing permission in iOS Settings
+[ ] Notification settings: Toggle cannot be ON when OS permission denied/undetermined
+[ ] Notification settings: "Enable in Settings" button visible when permission denied
+[ ] Notification settings: Clicking "Enable in Settings" opens device Settings
 
 FILES MODIFIED
+--------------
+- src/lib/SubscriptionContext.tsx (loading timeout fallback)
+- src/app/activity.tsx (user-scoped permission tracking)
+- src/app/notification-settings.tsx (Enable in Settings CTA + Settings icon import)
 --------------
 - src/app/settings.tsx (subscription block loading state)
 - src/components/FeedCalendar.tsx (EventListItem busy/private handling)

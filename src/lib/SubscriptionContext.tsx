@@ -84,6 +84,27 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [offeringsStatus, setOfferingsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const listenerRegistered = useRef(false);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // P0 INVARIANT: Loading must never stay true indefinitely - add timeout fallback
+  useEffect(() => {
+    // If loading is still true after 5 seconds, force it to false
+    // This prevents UI from being stuck in "Loading..." state forever
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (isLoading) {
+        if (__DEV__) {
+          console.warn("[SubscriptionContext] Loading timeout - forcing to false (showing Free)");
+        }
+        setIsLoading(false);
+      }
+    }, 5000);
+    
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []); // Only run once on mount
 
   // Helper to invalidate all subscription-related queries for instant UI sync
   const invalidateAllSubscriptionQueries = useCallback(() => {

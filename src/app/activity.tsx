@@ -20,7 +20,8 @@ import { safeToast } from "@/lib/safeToast";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
 
 // Key to track if we've requested notification permission on Activity tab
-const ACTIVITY_PERMISSION_ASKED_KEY = "@openinvite_activity_permission_asked";
+// P0 FIX: User-scoped key to ensure proper per-user tracking
+const getActivityPermissionKey = (userId: string) => `@openinvite_activity_permission_asked_${userId}`;
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: string): string {
@@ -313,18 +314,21 @@ export default function ActivityScreen() {
 
   // P0 INVARIANT: On first Activity tab open, request notification permission only if not yet asked
   useEffect(() => {
-    if (hasCheckedPermission.current || bootStatus !== 'authed' || !session?.user) {
+    const userId = session?.user?.id;
+    if (hasCheckedPermission.current || bootStatus !== 'authed' || !userId) {
       return;
     }
     hasCheckedPermission.current = true;
 
     const checkAndRequestPermission = async () => {
+      const permissionKey = getActivityPermissionKey(userId);
+      
       try {
-        // Check if we've already asked on this device
-        const alreadyAsked = await AsyncStorage.getItem(ACTIVITY_PERMISSION_ASKED_KEY);
+        // Check if we've already asked on this device for this user
+        const alreadyAsked = await AsyncStorage.getItem(permissionKey);
         if (alreadyAsked) {
           if (__DEV__) {
-            console.log("[Activity] Permission already requested before, skipping");
+            console.log("[Activity] Permission already requested for user, skipping");
           }
           return;
         }
@@ -341,7 +345,7 @@ export default function ActivityScreen() {
           const { status: newStatus } = await Notifications.requestPermissionsAsync();
           
           // Mark as asked regardless of result
-          await AsyncStorage.setItem(ACTIVITY_PERMISSION_ASKED_KEY, "true");
+          await AsyncStorage.setItem(permissionKey, "true");
           
           if (__DEV__) {
             console.log("[Activity] Permission request result:", newStatus);
@@ -349,7 +353,7 @@ export default function ActivityScreen() {
         } else {
           // Permission already determined (granted or denied)
           // Mark as asked so we don't check again
-          await AsyncStorage.setItem(ACTIVITY_PERMISSION_ASKED_KEY, "true");
+          await AsyncStorage.setItem(permissionKey, "true");
         }
       } catch (error) {
         if (__DEV__) {
@@ -359,7 +363,7 @@ export default function ActivityScreen() {
     };
 
     checkAndRequestPermission();
-  }, [bootStatus, session?.user]);
+  }, [bootStatus, session?.user?.id]);
 
   // Fetch notifications
   const { data: notificationsData, isLoading, refetch } = useQuery({

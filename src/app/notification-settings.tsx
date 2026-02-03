@@ -38,6 +38,7 @@ import {
   StickyNote,
   Volume2,
   VolumeX,
+  Settings,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -442,6 +443,23 @@ export default function NotificationSettingsScreen() {
                 ios_backgroundColor="#3e3e3e"
               />
             </View>
+            
+            {/* P0 INVARIANT: Show clear "Enable in Settings" CTA when OS permission is denied */}
+            {osPermissionStatus === "denied" && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openSettings();
+                }}
+                className="flex-row items-center justify-center py-3 mx-4 mb-4 rounded-xl"
+                style={{ backgroundColor: `${themeColor}15` }}
+              >
+                <Settings size={16} color={themeColor} />
+                <Text style={{ color: themeColor }} className="text-sm font-medium ml-2">
+                  Enable in Settings
+                </Text>
+              </Pressable>
+            )}
           </View>
         </Animated.View>
 
