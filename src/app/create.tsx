@@ -125,7 +125,7 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
       url += `&lat=${lat}&lon=${lon}`;
     }
 
-    console.log("[create.tsx] Searching places:", url);
+    if (__DEV__) console.log("[create.tsx] Searching places:", url);
 
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -143,26 +143,26 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.log("[create.tsx] Places API error:", response.status, response.statusText);
+      if (__DEV__) console.log("[create.tsx] Places API error:", response.status, response.statusText);
       return searchPlacesLocal(query);
     }
 
     const data = await response.json();
-    console.log("[create.tsx] Places API response:", JSON.stringify(data).slice(0, 200));
+    if (__DEV__) console.log("[create.tsx] Places API response:", JSON.stringify(data).slice(0, 200));
 
     if (data.places && data.places.length > 0) {
-      console.log("[create.tsx] Found", data.places.length, "places from API");
+      if (__DEV__) console.log("[create.tsx] Found", data.places.length, "places from API");
       return data.places;
     }
 
     // If backend returns no results or error, use local fallback
     if (data.error) {
-      console.log("[create.tsx] Places API returned error:", data.error);
+      if (__DEV__) console.log("[create.tsx] Places API returned error:", data.error);
     }
-    console.log("[create.tsx] No places from API, using local fallback");
+    if (__DEV__) console.log("[create.tsx] No places from API, using local fallback");
     return searchPlacesLocal(query);
   } catch (error: any) {
-    console.log("[create.tsx] Places search error:", error?.message || error);
+    if (__DEV__) console.log("[create.tsx] Places search error:", error?.message || error);
     return searchPlacesLocal(query);
   }
 };

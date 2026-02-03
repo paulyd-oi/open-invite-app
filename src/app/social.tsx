@@ -661,14 +661,14 @@ export default function SocialScreen() {
     // Auth truth source is bootStatus (token validation), not session presence.
     if (isAuthed) {
       // bootStatus confirms token is valid
-      console.log("[SocialScreen] Auth confirmed via bootStatus; setting bootstrap state to ready");
+      if (__DEV__) console.log("[SocialScreen] Auth confirmed via bootStatus; setting bootstrap state to ready");
       setAuthBootstrapState("ready");
     }
   }, [isAuthed]);
 
   // Handle retry button
   const handleRetry = useCallback(() => {
-    console.log("[SocialScreen] Retrying bootstrap...");
+    if (__DEV__) console.log("[SocialScreen] Retrying bootstrap...");
     hasBootstrapped.current = false;
     setAuthBootstrapState("checking");
     setAuthBootstrapError(undefined);

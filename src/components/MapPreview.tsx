@@ -40,7 +40,7 @@ async function geocodeAddress(address: string): Promise<Coordinates | null> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.log("Geocoding response not OK:", response.status);
+      if (__DEV__) console.log("Geocoding response not OK:", response.status);
       return null;
     }
 
@@ -121,14 +121,16 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
       setImageError(false);
       setUseFallback(false);
 
-      console.log("MapPreview: Geocoding location:", location);
+      if (__DEV__) console.log("MapPreview: Geocoding location:", location);
       const coords = await geocodeAddress(location);
 
       if (mounted) {
-        if (coords) {
-          console.log("MapPreview: Found coordinates:", coords.latitude, coords.longitude);
-        } else {
-          console.log("MapPreview: Could not geocode location");
+        if (__DEV__) {
+          if (coords) {
+            console.log("MapPreview: Found coordinates:", coords.latitude, coords.longitude);
+          } else {
+            console.log("MapPreview: Could not geocode location");
+          }
         }
         setCoordinates(coords);
         setIsLoading(false);

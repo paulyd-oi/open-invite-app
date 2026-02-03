@@ -916,7 +916,7 @@ export default function OnboardingScreen() {
       
       // Auto-send verification email if not verified (only once per signup)
       if (session?.user?.email && session?.user?.emailVerified === false && !verificationEmailSent) {
-        console.log("[onboarding] Auto-sending verification email after signup");
+        if (__DEV__) console.log("[onboarding] Auto-sending verification email after signup");
         setVerificationEmailSent(true); // Guard: only send once
         
         try {
@@ -927,7 +927,7 @@ export default function OnboardingScreen() {
               name: session.user.name || session.user.displayName || undefined,
             },
           });
-          console.log("[onboarding] Verification email sent successfully");
+          if (__DEV__) console.log("[onboarding] Verification email sent successfully");
           // Trigger 30-second cooldown in banner
           triggerVerificationCooldown();
         } catch (error: any) {
@@ -958,11 +958,11 @@ export default function OnboardingScreen() {
     if (!pendingCalendarRoute) return;
 
     if (bootStatus === 'authed') {
-      console.log('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
+      if (__DEV__) console.log('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
       setPendingCalendarRoute(false);
       router.replace('/calendar');
     } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      console.log('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
+      if (__DEV__) console.log('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
       setPendingCalendarRoute(false);
       router.replace('/login');
     }

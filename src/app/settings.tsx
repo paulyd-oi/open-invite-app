@@ -502,7 +502,7 @@ export default function SettingsScreen() {
     if (isPushDiagRunning) return;
     
     // PROOF LOG: Handler executed
-    console.log("[PUSH_DIAG_UI] pressed register");
+    if (__DEV__) console.log("[PUSH_DIAG_UI] pressed register");
     
     setIsPushDiagRunning(true);
     setPushDiagResult(null);
@@ -524,7 +524,7 @@ export default function SettingsScreen() {
       const exceptionMessage = e?.message || String(e) || "Unknown exception";
       const exceptionStack = e?.stack || "No stack available";
       
-      console.log("[PUSH_DIAG_UI] exception caught:", exceptionMessage);
+      if (__DEV__) console.log("[PUSH_DIAG_UI] exception caught:", exceptionMessage);
       
       finalResult = {
         ok: false,
@@ -541,7 +541,7 @@ export default function SettingsScreen() {
       setIsPushDiagRunning(false);
       
       // PROOF LOG: Result set
-      console.log("[PUSH_DIAG_UI] result set", JSON.stringify({
+      if (__DEV__) console.log("[PUSH_DIAG_UI] result set", JSON.stringify({
         ok: finalResult?.ok,
         reason: finalResult?.reason,
         hasResult: !!finalResult,
@@ -1059,28 +1059,28 @@ export default function SettingsScreen() {
 
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    console.log("[Settings] Starting logout process...");
+    if (__DEV__) console.log("[Settings] Starting logout process...");
 
     try {
       // Deactivate push token before signing out
       await deactivatePushTokenOnLogout();
-      console.log("[Settings] Push token deactivated");
+      if (__DEV__) console.log("[Settings] Push token deactivated");
 
       // Standardized logout sequence
       setLogoutIntent();
       await resetSession({ reason: "user_logout", endpoint: "settings" });
       await queryClient.cancelQueries();
       queryClient.clear();
-      console.log("[Settings] Session and cache cleared");
+      if (__DEV__) console.log("[Settings] Session and cache cleared");
 
       // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
       const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
       resetBootAuthority();
-      console.log("[Settings] Boot authority reset");
+      if (__DEV__) console.log("[Settings] Boot authority reset");
 
       // Hard transition to login
       router.replace("/login");
-      console.log("[Settings] Navigated to login");
+      if (__DEV__) console.log("[Settings] Navigated to login");
     } catch (error) {
       console.error("[Settings] Error during logout:", error);
       // Try to navigate anyway

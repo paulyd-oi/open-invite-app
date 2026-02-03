@@ -202,12 +202,12 @@ export default function AccountCenterScreen() {
       await resetSession({ reason: "user_logout", endpoint: "account-center" });
       await queryClient.cancelQueries();
       queryClient.clear();
-      console.log("[AccountCenter] Session and cache cleared");
+      if (__DEV__) console.log("[AccountCenter] Session and cache cleared");
 
       // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
       const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
       resetBootAuthority();
-      console.log("[AccountCenter] Boot authority reset");
+      if (__DEV__) console.log("[AccountCenter] Boot authority reset");
 
       // Hard transition to login
       router.replace("/login");

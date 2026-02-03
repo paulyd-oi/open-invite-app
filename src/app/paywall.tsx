@@ -88,7 +88,7 @@ export default function PaywallScreen() {
   // Redirect premium users back - they shouldn't see paywall
   useEffect(() => {
     if (isPremium && !isLoading) {
-      console.log("[Paywall] Premium user detected, redirecting back");
+      if (__DEV__) console.log("[Paywall] Premium user detected, redirecting back");
       router.back();
     }
   }, [isPremium, isLoading, router]);

@@ -436,14 +436,16 @@ export default function FriendDetailScreen() {
     },
     onError: (error: any) => {
       // Enhanced error logging for diagnostics
-      console.log("[FriendNotes] Add note FAILED:", {
-        friendId: id,
-        httpStatus: error?.status,
-        statusText: error?.statusText,
-        message: error?.message,
-        responseBody: error?.body ? JSON.stringify(error.body).slice(0, 500) : undefined,
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800),
-      });
+      if (__DEV__) {
+        console.log("[FriendNotes] Add note FAILED:", {
+          friendId: id,
+          httpStatus: error?.status,
+          statusText: error?.statusText,
+          message: error?.message,
+          responseBody: error?.body ? JSON.stringify(error.body).slice(0, 500) : undefined,
+          fullError: JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800),
+        });
+      }
       safeToast.error("Error", error?.message || "Failed to add note");
     },
   });
@@ -458,12 +460,14 @@ export default function FriendDetailScreen() {
     },
     onError: (error: any) => {
       // Enhanced error logging for diagnostics
-      console.log("[FriendNotes] Delete note FAILED:", {
-        friendId: id,
-        httpStatus: error?.status,
-        message: error?.message,
-        responseBody: error?.body ? JSON.stringify(error.body).slice(0, 500) : undefined,
-      });
+      if (__DEV__) {
+        console.log("[FriendNotes] Delete note FAILED:", {
+          friendId: id,
+          httpStatus: error?.status,
+          message: error?.message,
+          responseBody: error?.body ? JSON.stringify(error.body).slice(0, 500) : undefined,
+        });
+      }
       safeToast.error("Error", error?.message || "Failed to delete note");
     },
   });
