@@ -192,6 +192,18 @@ export default function DevSmokeTestsScreen() {
   const { themeColor, colors } = useTheme();
   const { data: entitlements } = useEntitlements();
 
+  // Production guard: redirect to home if not in dev mode
+  React.useEffect(() => {
+    if (!__DEV__) {
+      router.replace('/calendar');
+    }
+  }, [router]);
+
+  // Don't render anything in production
+  if (!__DEV__) {
+    return null;
+  }
+
   // Modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");

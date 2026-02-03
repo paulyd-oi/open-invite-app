@@ -398,6 +398,18 @@ function EditorialStyle() {
 export default function DesignShowcaseScreen() {
   const router = useRouter();
 
+  // Production guard: redirect to home if not in dev mode
+  React.useEffect(() => {
+    if (!__DEV__) {
+      router.replace('/calendar');
+    }
+  }, [router]);
+
+  // Don't render anything in production
+  if (!__DEV__) {
+    return null;
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       {/* Header */}

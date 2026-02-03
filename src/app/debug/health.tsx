@@ -25,6 +25,18 @@ export default function DebugHealthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
+  // Production guard: redirect to home if not in dev mode
+  useEffect(() => {
+    if (!__DEV__) {
+      router.replace('/calendar');
+    }
+  }, [router]);
+
+  // Don't render anything in production
+  if (!__DEV__) {
+    return null;
+  }
+
   const fetchHealth = async () => {
     setStatus("loading");
     setError(null);
