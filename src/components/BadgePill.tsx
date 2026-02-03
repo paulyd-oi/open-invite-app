@@ -8,15 +8,41 @@ interface BadgePillProps {
 }
 
 /**
+ * Calculate luminance of a hex color to determine if text should be light or dark.
+ * Uses relative luminance formula from WCAG guidelines.
+ */
+function getTextColorForBackground(hexColor: string): string {
+  // Remove # if present
+  const hex = hexColor.replace("#", "");
+  
+  // Parse RGB
+  const r = parseInt(hex.substring(0, 2), 16) / 255;
+  const g = parseInt(hex.substring(2, 4), 16) / 255;
+  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  
+  // Apply gamma correction
+  const rLinear = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+  const gLinear = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+  const bLinear = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+  
+  // Calculate relative luminance
+  const luminance = 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+  
+  // Return dark text for light backgrounds (luminance > 0.5), white text for dark backgrounds
+  return luminance > 0.5 ? "#000000" : "#FFFFFF";
+}
+
+/**
  * Text-only badge pill component.
  * - NO emoji
  * - Shows badge name only
  * - Background uses tierColor with opacity
- * - Text uses tierColor
+ * - Text color auto-determined for contrast (light bg → dark text, dark bg → white text)
  * - Small variant for cards, medium for profile header
  */
 export function BadgePill({ name, tierColor, variant = "small" }: BadgePillProps) {
   const isSmall = variant === "small";
+  const textColor = getTextColorForBackground(tierColor);
   
   return (
     <View
@@ -29,7 +55,7 @@ export function BadgePill({ name, tierColor, variant = "small" }: BadgePillProps
     >
       <Text
         className={`font-semibold ${isSmall ? "text-xs" : "text-sm"}`}
-        style={{ color: tierColor }}
+        style={{ color: textColor }}
       >
         {name}
       </Text>
