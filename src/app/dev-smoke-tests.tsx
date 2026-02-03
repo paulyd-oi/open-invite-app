@@ -2,18 +2,12 @@
  * DevSmokeTests - QA screen for testing all paywall contexts and navigation
  * Includes strict CTA verification audit system
  * 
- * ⚠️ DEV-ONLY: This screen is stripped from production builds.
+ * ⚠️ DEV-ONLY: This screen is blocked in production builds.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, TextInput } from "react-native";
-
-// ============================================
-// PRODUCTION GATE - Never reachable in App Store builds
-// ============================================
-if (!__DEV__) {
-  module.exports = { default: () => null };
-}
+import { isDevToolsEnabled, DevToolsBlockedScreen } from "@/lib/devToolsGate";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -197,21 +191,12 @@ interface ContextAuditState {
 }
 
 export default function DevSmokeTestsScreen() {
+  // P0: Hard gate for dev tools - first line of component
+  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="dev-smoke-tests" />;
+
   const router = useRouter();
   const { themeColor, colors } = useTheme();
   const { data: entitlements } = useEntitlements();
-
-  // Production guard: redirect to home if not in dev mode
-  React.useEffect(() => {
-    if (!__DEV__) {
-      router.replace('/calendar');
-    }
-  }, [router]);
-
-  // Don't render anything in production
-  if (!__DEV__) {
-    return null;
-  }
 
   // Modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);

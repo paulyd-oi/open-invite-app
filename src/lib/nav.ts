@@ -5,6 +5,7 @@
 
 import type { Router } from "expo-router";
 import { devLog, devWarn, devError } from "./devLog";
+import { isDevToolsEnabled } from "./devToolsGate";
 
 // ============================================
 // Route Constants
@@ -95,11 +96,11 @@ export function goToSubscription(router: Router): void {
 
 /**
  * Navigate to dev smoke tests screen
- * ⚠️ DEV-ONLY: No-op in production builds
+ * ⚠️ DEV-ONLY: No-op unless dev tools are enabled
  */
 export function goToDevSmokeTests(router: Router): void {
-  if (!__DEV__) {
-    devWarn('[nav] goToDevSmokeTests called in production - ignoring');
+  if (!isDevToolsEnabled()) {
+    // Silent no-op in production - no alerts, no logs
     return;
   }
   router.push(ROUTES.DEV_SMOKE_TESTS);

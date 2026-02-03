@@ -6,6 +6,7 @@ import { ChevronLeft, X } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { BACKEND_URL } from "@/lib/config";
 import * as Haptics from "expo-haptics";
+import { isDevToolsEnabled, DevToolsBlockedScreen } from "@/lib/devToolsGate";
 
 interface HealthResponse {
   ok: boolean;
@@ -18,24 +19,15 @@ interface HealthResponse {
 type HealthStatus = "idle" | "loading" | "success" | "error";
 
 export default function DebugHealthScreen() {
+  // P0: Hard gate for dev tools - first line of component
+  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="debug/health" />;
+
   const router = useRouter();
   const { isDark, colors, themeColor } = useTheme();
   const [status, setStatus] = useState<HealthStatus>("idle");
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
-
-  // Production guard: redirect to home if not in dev mode
-  useEffect(() => {
-    if (!__DEV__) {
-      router.replace('/calendar');
-    }
-  }, [router]);
-
-  // Don't render anything in production
-  if (!__DEV__) {
-    return null;
-  }
 
   const fetchHealth = async () => {
     setStatus("loading");

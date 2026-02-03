@@ -81,6 +81,7 @@ import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
+import { isDevToolsEnabled } from "@/lib/devToolsGate";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -1232,7 +1233,7 @@ export default function SettingsScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Pressable
-          onLongPress={__DEV__ ? () => {
+          onLongPress={isDevToolsEnabled() ? () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.push("/debug/health");
           } : undefined}
@@ -2206,8 +2207,8 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Admin Section - Only visible to admins */}
-        {adminStatus?.isAdmin && (
+        {/* Admin Section - Only visible to admins in dev mode */}
+        {adminStatus?.isAdmin && isDevToolsEnabled() && (
           <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">

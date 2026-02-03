@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { isDevToolsEnabled, DevToolsBlockedScreen } from "@/lib/devToolsGate";
 import { ChevronLeft, Search, Shield, Award, Plus, Pencil, X } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -41,6 +42,9 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 
 export default function AdminConsole() {
+  // P0: Hard gate for dev tools - first line of component
+  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="admin" />;
+
   const router = useRouter();
   const { isDark, colors, themeColor } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
