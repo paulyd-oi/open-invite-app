@@ -3,7 +3,7 @@
     "name": "Open Invite",
     "slug": "open-invite",
     "scheme": "open-invite",
-    "version": "3.0.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
