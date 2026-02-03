@@ -1,33 +1,59 @@
-HANDOFF PACKET: P0 EVENT DETAILS SYNC (ATTENDEES + DISCUSSION)
-===============================================================
+HANDOFF PACKET: P0 SUGGESTIONS BIO ON PEOPLE CARDS
+==================================================
 Date: 2026-02-03
-Commit: 53a40ee (fix(p0): event details sync correctness)
+Commit: f602384 (fix(p0): show bio on people suggestion cards)
 Branch: main
 Status: COMPLETE ✅
 
 SUMMARY
 -------
-Event Details screen did not sync live state across accounts:
-- Two accounts RSVP'd but screen showed "No one has joined yet"
-- Discussion inconsistent: one account sees comment, another sees "No messages yet"
+Suggestions → People tab cards did not display user bios (e.g., carlifornia16 had a bio
+on their profile but it wasn't shown on the suggestion card).
 
 ROOT CAUSE
 ----------
-1. NO focus refetch: Event Details had no useFocusEffect to refetch data when returning
-   to screen, causing stale cached data across accounts.
+The `publicUserSchema` in shared/contracts.ts did not include `bio` or `calendarBio`
+fields. The code in suggestions.tsx used `as any` type cast to access these fields,
+but without the schema including them, the types weren't propagated properly.
 
-2. Missing invalidations:
-   - removeRsvpMutation: Missing ["events", "single", id] invalidation
-   - joinMutation: Used wildcard ["events"] instead of specific keys
-   - handleJoinRequestAction: Used wildcard ["events"] instead of specific keys
+FILES CHANGED (2 files, +10/-1)
+-------------------------------
+shared/contracts.ts     | 3 +++
+src/app/suggestions.tsx | 8 +++++++-
 
-FILES CHANGED (1 file, +42/-4)
-------------------------------
-src/app/event/[id].tsx:
-  - Added useFocusEffect to refetch event data on screen focus
-  - Fixed removeRsvpMutation to invalidate ["events", "single", id]
-  - Fixed joinMutation to use specific query keys
-  - Fixed handleJoinRequestAction to use specific query keys
+1. shared/contracts.ts:
+   - Added `bio: z.string().nullable().optional()` to publicUserSchema
+   - Added `calendarBio: z.string().nullable().optional()` to publicUserSchema
+
+2. src/app/suggestions.tsx:
+   - Removed `as any` type cast for bio access
+   - Added [P0_SUGGESTIONS_BIO] DEV log for debugging
+
+PROOF LOGS (SAMPLE)
+-------------------
+[P0_SUGGESTIONS_BIO] username=carlifornia16 bioLen=42
+
+VERIFICATION OUTPUTS
+--------------------
+npm run typecheck → PASS (no errors)
+bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
+
+git show --stat HEAD:
+  shared/contracts.ts     | 3 +++
+  src/app/suggestions.tsx | 8 +++++++-
+  2 files changed, 10 insertions(+), 1 deletion(-)
+
+git show --name-only HEAD:
+  shared/contracts.ts
+  src/app/suggestions.tsx
+
+QA STEPS
+--------
+1. Go to Suggestions tab
+2. Tap "People" tab
+3. Find a user with a bio (e.g., carlifornia16)
+4. Verify bio text appears below @username, truncated to 1 line
+5. Check DEV console for [P0_SUGGESTIONS_BIO] logs
   - Added [P0_EVENT_SYNC] DEV logs throughout
 
 QUERY KEY MAP
