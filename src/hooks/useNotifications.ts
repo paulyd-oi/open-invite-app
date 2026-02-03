@@ -16,9 +16,16 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 
-// Throttle token registration to once per 24 hours
-const TOKEN_REGISTRATION_KEY = "push_token_last_registered";
+// Throttle token registration to once per 24 hours per user
+// CRITICAL: Key is user-scoped to prevent cross-account registration blocking
+const TOKEN_REGISTRATION_KEY_PREFIX = "push_token_last_registered:";
 const TOKEN_REGISTRATION_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Helper to build user-scoped throttle key
+function getThrottleKey(userId: string | undefined): string | null {
+  if (!userId) return null;
+  return `${TOKEN_REGISTRATION_KEY_PREFIX}${userId}`;
+}
 
 // Track if push proof diagnostic has run this session (cold start only)
 let pushProofDiagnosticRan = false;
@@ -185,30 +192,50 @@ export function useNotifications() {
   const registrationAttempted = useRef<boolean>(false);
 
   /**
-   * Check if token registration is throttled
+   * Check if token registration is throttled for current user
+   * P0_PUSH: Now user-scoped to prevent cross-account registration blocking
    */
   const isRegistrationThrottled = useCallback(async (): Promise<boolean> => {
     try {
-      const lastRegistered = await AsyncStorage.getItem(TOKEN_REGISTRATION_KEY);
-      if (!lastRegistered) return false;
+      const userId = session?.user?.id;
+      const throttleKey = getThrottleKey(userId);
+      if (!throttleKey) {
+        if (__DEV__) console.log("[P0_PUSH] No userId for throttle check - not throttled");
+        return false;
+      }
+      
+      const lastRegistered = await AsyncStorage.getItem(throttleKey);
+      if (!lastRegistered) {
+        if (__DEV__) console.log("[P0_PUSH] No throttle timestamp - not throttled");
+        return false;
+      }
       
       const elapsed = Date.now() - parseInt(lastRegistered, 10);
-      return elapsed < TOKEN_REGISTRATION_THROTTLE_MS;
+      const throttled = elapsed < TOKEN_REGISTRATION_THROTTLE_MS;
+      if (__DEV__) console.log(`[P0_PUSH] Throttle check: elapsed=${Math.round(elapsed/1000)}s, throttled=${throttled}`);
+      return throttled;
     } catch {
       return false;
     }
-  }, []);
+  }, [session?.user?.id]);
 
   /**
-   * Mark token as registered (for throttling)
+   * Mark token as registered (for throttling) - user-scoped
    */
   const markTokenRegistered = useCallback(async () => {
     try {
-      await AsyncStorage.setItem(TOKEN_REGISTRATION_KEY, Date.now().toString());
+      const userId = session?.user?.id;
+      const throttleKey = getThrottleKey(userId);
+      if (!throttleKey) {
+        if (__DEV__) console.log("[P0_PUSH] No userId - cannot mark registered");
+        return;
+      }
+      await AsyncStorage.setItem(throttleKey, Date.now().toString());
+      if (__DEV__) console.log(`[P0_PUSH] Marked registered for user ${userId?.substring(0, 8)}...`);
     } catch {
       // Ignore storage errors
     }
-  }, []);
+  }, [session?.user?.id]);
 
   /**
    * Check and register token if permission is granted
@@ -588,10 +615,12 @@ export function useNotifications() {
     const platform = `${Device.osName ?? "unknown"} ${Device.osVersion ?? ""} (${Device.modelName ?? "unknown"})`;
     console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice + " platform=" + platform);
     
-    // A.1) Get last registration time
+    // A.1) Get last registration time (user-scoped)
     let lastRegistrationTime: string | undefined;
     try {
-      const lastRegTs = await AsyncStorage.getItem(TOKEN_REGISTRATION_KEY);
+      const userId = session?.user?.id;
+      const throttleKey = getThrottleKey(userId);
+      const lastRegTs = throttleKey ? await AsyncStorage.getItem(throttleKey) : null;
       if (lastRegTs) {
         const ts = parseInt(lastRegTs, 10);
         lastRegistrationTime = new Date(ts).toISOString();
@@ -761,8 +790,12 @@ export function useNotifications() {
       });
       console.log("[PUSH_DIAG] status_updated");
 
-      // K) Update lastRegistrationTime
-      await AsyncStorage.setItem(TOKEN_REGISTRATION_KEY, Date.now().toString());
+      // K) Update lastRegistrationTime (user-scoped)
+      const userId = session?.user?.id;
+      const throttleKey = getThrottleKey(userId);
+      if (throttleKey) {
+        await AsyncStorage.setItem(throttleKey, Date.now().toString());
+      }
       const newLastRegTime = new Date().toISOString();
 
       // L) GET /api/push/me for proof
