@@ -21,6 +21,7 @@ import { useMinuteTick } from "@/lib/useMinuteTick";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { BadgePill } from "@/components/BadgePill";
+import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { type GetFriendEventsResponse, type Event, type ProfileBadge, type ReportReason } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
@@ -78,6 +79,18 @@ function EventCard({ event, index }: { event: Event | EventSeries; index: number
   // Check if this is a series or single event
   const isSeries = 'nextEvent' in event;
   const displayEvent = isSeries ? event.nextEvent : event;
+  
+  // P0 PRIVACY: Apply defense-in-depth masking for busy/private events
+  // Note: viewer is never the owner since this is a friend's event list
+  const { displayTitle, displayEmoji, displayLocation, isMasked: isNonVisible } = getEventDisplayFields({
+    title: displayEvent.title,
+    emoji: displayEvent.emoji,
+    location: displayEvent.location,
+    isBusy: (displayEvent as any).isBusy,
+    isWork: (displayEvent as any).isWork,
+    isOwn: false, // Viewer is never owner in friend view
+  }, false);
+  
   const startDate = new Date(displayEvent.startTime);
   const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
   const isToday = new Date().toDateString() === startDate.toDateString();
@@ -102,9 +115,15 @@ function EventCard({ event, index }: { event: Event | EventSeries; index: number
     <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
       <Pressable
         onPress={() => {
+          // P0 PRIVACY: Disable navigation for busy/private events
+          if (isNonVisible) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            return;
+          }
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push(`/event/${displayEvent.id}` as any);
         }}
+        disabled={isNonVisible}
         className="rounded-2xl p-4 mb-3"
         style={{
           backgroundColor: colors.surface,
@@ -115,24 +134,27 @@ function EventCard({ event, index }: { event: Event | EventSeries; index: number
           shadowOpacity: 0.05,
           shadowRadius: 8,
           elevation: 2,
+          opacity: isNonVisible ? 0.7 : 1,
         }}
       >
         <View className="flex-row items-start">
-          <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
-            <Text className="text-xl">{isSeries ? event.emoji : displayEvent.emoji}</Text>
+          <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: isNonVisible ? (isDark ? "#3C3C3E" : "#E5E7EB") : themeColor + "20" }}>
+            <Text className="text-xl">{displayEmoji}</Text>
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">
-              <Text className="text-lg font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
-                {isSeries ? event.title : displayEvent.title}
+              <Text className="text-lg font-semibold flex-1" style={{ color: isNonVisible ? colors.textSecondary : colors.text }} numberOfLines={1}>
+                {displayTitle}
               </Text>
-              {isSeries && (
+              {isSeries && !isNonVisible && (
                 <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
                   <Text style={{ color: themeColor }} className="text-xs font-medium">Weekly</Text>
                 </View>
               )}
             </View>
-            {isSeries ? (
+            {isNonVisible ? (
+              <Text className="text-sm mt-1" style={{ color: colors.textTertiary }}>Time blocked</Text>
+            ) : isSeries ? (
               <>
                 <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                   Next: {dateLabel} at {timeLabel}
@@ -152,14 +174,14 @@ function EventCard({ event, index }: { event: Event | EventSeries; index: number
               </View>
             )}
           </View>
-          <ChevronRight size={20} color={colors.textTertiary} />
+          {!isNonVisible && <ChevronRight size={20} color={colors.textTertiary} />}
         </View>
 
-        {!isSeries && displayEvent.location && (
+        {!isSeries && displayLocation && !isNonVisible && (
           <View className="flex-row items-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
             <MapPin size={14} color="#4ECDC4" />
             <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-              {displayEvent.location}
+              {displayLocation}
             </Text>
           </View>
         )}

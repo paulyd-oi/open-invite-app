@@ -9,6 +9,7 @@ import { type DARK_COLORS } from "@/lib/ThemeContext";
 import { type Event } from "@/shared/contracts";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
+import { getEventDisplayFields } from "@/lib/eventVisibility";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -79,16 +80,18 @@ function EventListItem({
   const palette = getEventPalette(event, themeColor, colorOverride);
   const eventColor = palette.bar;
 
-  // P0 INVARIANT: Busy/private events must never leak titles or navigate
-  // Check if this is a non-visible event (busy or private and not own)
-  const isBusyOrPrivate = event.isBusy || event.isWork;
-  const isNonVisible = isBusyOrPrivate && !event.isOwn;
+  // P0 PRIVACY: Use centralized masking logic for busy/private events
+  const { displayTitle, displayEmoji, displayDescription, displayLocation, isMasked: isNonVisible } = getEventDisplayFields({
+    title: event.title,
+    emoji: event.emoji,
+    location: event.location,
+    description: event.description,
+    isBusy: event.isBusy,
+    isWork: event.isWork,
+    isOwn: event.isOwn,
+  });
 
-  // For non-visible events: display "Busy" or "Private Busy Event", hide real info
-  const displayTitle = isNonVisible ? (event.isWork ? "Busy" : "Busy") : event.title;
-  const displayEmoji = isNonVisible ? "🔒" : event.emoji;
-  const displayDescription = isNonVisible ? undefined : event.description;
-  const displayLocation = isNonVisible ? undefined : event.location;
+  // For non-visible events: hide host info
   const displayHostName = isNonVisible ? undefined : event.hostName;
   const displayHostImage = isNonVisible ? undefined : event.hostImage;
 

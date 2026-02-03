@@ -15,6 +15,7 @@ import {
   Dimensions,
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
+import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -140,29 +141,35 @@ function MiniCalendar({
         .forEach((e) => {
           if (!eventMap.has(e.id)) {
             // First time seeing this event - add it
-            // Privacy masking: if isPrivate and not owned by currentUserId, mask details
+            // P0 PRIVACY: Use centralized masking logic for busy/private events
             const isOwner = memberData.userId === currentUserId;
-            const shouldMask = e.isPrivate && !isOwner;
+            const shouldMask = shouldMaskEvent({
+              isBusy: e.isBusy,
+              isWork: e.isWork,
+              isOwn: isOwner,
+            }, isOwner);
             
-            if (__DEV__ && shouldMask) {
-              console.log('[CircleCalendarPrivacy] Masking busy block:', {
-                eventId: e.id,
-                ownerId: memberData.userId,
-                viewerId: currentUserId,
-                originalTitle: e.title,
-              });
-            }
+            // Get display fields using centralized helper
+            const displayFields = getEventDisplayFields({
+              title: e.title,
+              emoji: e.emoji,
+              location: e.location,
+              description: e.description,
+              isBusy: e.isBusy,
+              isWork: e.isWork,
+              isOwn: isOwner,
+            }, isOwner);
 
             eventMap.set(e.id, {
               ...e,
-              title: shouldMask ? "Busy" : e.title,
-              emoji: shouldMask ? "" : e.emoji,
-              location: shouldMask ? null : e.location,
+              title: displayFields.displayTitle,
+              emoji: displayFields.displayEmoji,
+              location: displayFields.displayLocation,
               userId: memberData.userId,
               color: memberColorMap.get(memberData.userId) ?? themeColor,
               userName: members.find(m => m.userId === memberData.userId)?.user.name ?? "Unknown",
               attendingMemberIds: [memberData.userId],
-              isPrivate: e.isPrivate ?? false,
+              isPrivate: shouldMask,
             });
           } else {
             // Already have this event - just add this member to attendees

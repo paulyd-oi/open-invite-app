@@ -47,6 +47,7 @@ import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
 import { checkCalendarPermission } from "@/lib/calendarSync";
@@ -605,15 +606,17 @@ function EventListItem({
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
   
-  // P0 FIX: Busy events from non-owners must show "Busy" instead of real title
-  // Check if this is a non-visible event (busy or private and not own)
-  const isBusyOrPrivate = event.isBusy || isWork;
-  const isNonVisible = isBusyOrPrivate && !isOwner && !event.isOwn;
-  
-  // For non-visible events: display "Busy", hide real info
-  const displayTitle = isNonVisible ? "Busy" : event.title;
-  const displayEmoji = isNonVisible ? "🔒" : event.emoji;
-  const displayLocation = isNonVisible ? undefined : event.location;
+  // P0 PRIVACY: Use centralized masking logic for busy/private events
+  // Note: isOwner prop determines ownership, event.isOwn may not exist on Event type
+  const viewerIsOwner = isOwner ?? false;
+  const { displayTitle, displayEmoji, displayLocation, isMasked: isNonVisible } = getEventDisplayFields({
+    title: event.title,
+    emoji: event.emoji,
+    location: event.location,
+    isBusy: event.isBusy || isWork,
+    isWork: isWork,
+    isOwn: viewerIsOwner,
+  }, viewerIsOwner);
   
   // INVARIANT: Use single source of truth for event palette (busy/work = grey)
   // Apply user's color override if set
