@@ -21,6 +21,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 
@@ -91,6 +92,7 @@ function WeekAvailabilityCalendar({
   currentDate: Date;
 }) {
   const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
   const [weekOffset, setWeekOffset] = useState(0);
 
   // Get the week's dates
@@ -122,7 +124,7 @@ function WeekAvailabilityCalendar({
         `/api/events/friends-availability?${params.toString()}`
       );
     },
-    enabled: bootStatus === 'authed' && friendIds.length > 0,
+    enabled: isAuthedForNetwork(bootStatus, session) && friendIds.length > 0,
   });
 
   const availability = availabilityData?.availability ?? {};
@@ -292,7 +294,7 @@ export default function WhosFreeScreen() {
   const { data: allFriendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const allFriends = allFriendsData?.friends ?? [];
@@ -312,7 +314,7 @@ export default function WhosFreeScreen() {
         },
         duration: 60,
       }),
-    enabled: bootStatus === "authed" && bestTimeFriendIds.length > 0,
+    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0,
   });
 
   const suggestedSlots = suggestedTimesData?.slots ?? [];
@@ -327,7 +329,7 @@ export default function WhosFreeScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<{ circles: Circle[] }>("/api/circles"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
   const circles = circlesData?.circles ?? [];
 
@@ -347,7 +349,7 @@ export default function WhosFreeScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["whos-free", selectedDate],
     queryFn: () => api.get<WhosFreResponse>(`/api/events/whos-free?date=${selectedDate}`),
-    enabled: bootStatus === 'authed' && !!selectedDate,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!selectedDate,
   });
 
   const freeFriends = data?.freeFriends ?? [];

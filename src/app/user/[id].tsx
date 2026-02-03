@@ -11,6 +11,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { BadgePill } from "@/components/BadgePill";
@@ -366,7 +367,7 @@ export default function UserProfileScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["userProfile", id],
     queryFn: () => api.get<{ user: FriendUser; isFriend: boolean; friendshipId: string | null; hasPendingRequest: boolean; incomingRequestId: string | null }>(`/api/profile/${id}/profile`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   // [LEGACY_ADD_TO_GROUPS_REMOVED] - groups query removed pre-launch
@@ -375,7 +376,7 @@ export default function UserProfileScreen() {
   const { data: badgeData } = useQuery({
     queryKey: ["userBadge", id],
     queryFn: () => api.get<{ badge: ProfileBadge | null }>(`/api/achievements/user/${id}/badge`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   const userBadge = badgeData?.badge;
@@ -385,7 +386,7 @@ export default function UserProfileScreen() {
   const { data: friendEventsData } = useQuery({
     queryKey: ["friendEvents", data?.friendshipId],
     queryFn: () => api.get<{ events: Event[]; friend: FriendUser }>(`/api/friends/${data?.friendshipId}`),
-    enabled: bootStatus === 'authed' && !!data?.friendshipId && data.isFriend,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!data?.friendshipId && data.isFriend,
   });
 
   // Minute tick to force rerender when events pass their end time

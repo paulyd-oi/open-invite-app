@@ -34,6 +34,7 @@ import { performLogout } from "@/lib/logout";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import type { GetProfilesResponse, Profile } from "@/shared/contracts";
@@ -166,7 +167,7 @@ export default function AccountCenterScreen() {
   const { data: profilesData, refetch } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 1000 * 60 * 5,
   });
 

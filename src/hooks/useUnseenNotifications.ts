@@ -6,6 +6,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { api } from "@/lib/api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSession } from "@/lib/useSession";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
 
 // Query keys
@@ -27,12 +29,13 @@ interface MarkAllSeenResponse {
  */
 export function useUnseenNotificationCount() {
   const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: UNSEEN_COUNT_QUERY_KEY,
     queryFn: () => api.get<UnseenCountResponse>("/api/notifications/unseen-count"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // Refetch every 60 seconds for badge freshness
     refetchIntervalInBackground: false, // Only refetch when app is active

@@ -13,6 +13,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import {
   ChevronLeft,
   Search,
@@ -60,7 +61,7 @@ export default function BlockedContactsScreen() {
   const { data: blockedData, isLoading } = useQuery({
     queryKey: ["blocked-contacts"],
     queryFn: () => api.get<GetBlockedContactsResponse>("/api/blocked"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Search users to block
@@ -68,7 +69,7 @@ export default function BlockedContactsScreen() {
     queryKey: ["block-search", searchQuery],
     queryFn: () =>
       api.post<SearchToBlockResponse>("/api/blocked/search", { query: searchQuery }),
-    enabled: bootStatus === 'authed' && searchQuery.length >= 2 && blockMode === "user",
+    enabled: isAuthedForNetwork(bootStatus, session) && searchQuery.length >= 2 && blockMode === "user",
   });
 
   // Block mutation

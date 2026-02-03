@@ -4,8 +4,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useBootAuthority } from "@/hooks/useBootAuthority";
-import { devWarn } from "@/lib/devLog";
+import { useBootAuthority } from "@/hooks/useBootAuthority";import { useSession } from "@/lib/useSession";
+import { isAuthedForNetwork } from "@/lib/authedGate";import { devWarn } from "@/lib/devLog";
 import { type GetSuggestionsFeedResponse } from "@/shared/contracts";
 
 // Query keys
@@ -22,6 +22,7 @@ export const SUGGESTIONS_FEED_QUERY_KEY = ["suggestions", "feed"];
  */
 export function useSuggestionsFeed() {
   const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: SUGGESTIONS_FEED_QUERY_KEY,
@@ -34,7 +35,7 @@ export function useSuggestionsFeed() {
         return { suggestions: [] };
       }
     },
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000, // 60 seconds
     refetchOnWindowFocus: true,
   });

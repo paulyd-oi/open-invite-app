@@ -17,6 +17,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 
 // Define types locally to avoid import issues
@@ -79,7 +80,7 @@ export function SuggestedTimesPicker({
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const friends = friendsData?.friends ?? [];

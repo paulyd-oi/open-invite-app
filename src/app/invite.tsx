@@ -31,6 +31,7 @@ import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 
 interface ReferralStats {
   referralCode: string | null;
@@ -60,7 +61,7 @@ export default function InviteScreen() {
   const { data: stats, isLoading } = useQuery<ReferralStats>({
     queryKey: ["referralStats"],
     queryFn: () => api.get<ReferralStats>("/api/referral/stats"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const handleShare = async () => {

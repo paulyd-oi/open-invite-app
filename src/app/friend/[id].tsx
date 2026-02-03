@@ -18,6 +18,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -394,7 +395,7 @@ export default function FriendDetailScreen() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friendEvents", id],
     queryFn: () => api.get<GetFriendEventsResponse>(`/api/friends/${id}/events`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   // [LEGACY_GROUPS_PURGED] friendsData/groupsData queries removed - no longer needed
@@ -403,7 +404,7 @@ export default function FriendDetailScreen() {
   const { data: notesData, refetch: refetchNotes } = useQuery({
     queryKey: ["friendNotes", id],
     queryFn: () => api.get<{ notes: FriendNote[] }>(`/api/friends/${id}/notes`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   // Fetch the friend's userId from the friendship to get their badge (fallback)
@@ -414,7 +415,7 @@ export default function FriendDetailScreen() {
     queryKey: ["userBadge", friendUserId],
     queryFn: () => api.get<{ badge: ProfileBadge | null }>(`/api/achievements/user/${friendUserId}/badge`),
     // Only fetch if friend doesn't have embedded featuredBadge
-    enabled: bootStatus === 'authed' && !!friendUserId && !data?.friend?.featuredBadge,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!friendUserId && !data?.friend?.featuredBadge,
   });
 
   // Use embedded featuredBadge if available, otherwise fallback to separate badge query

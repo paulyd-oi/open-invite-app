@@ -42,6 +42,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useSuggestionsFeed } from "@/hooks/useSuggestionsFeed";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
@@ -310,7 +311,7 @@ export default function SuggestionsScreen() {
   const { data: referralStats } = useQuery({
     queryKey: ["referralStats"],
     queryFn: () => api.get<{ referralCode: string; shareLink: string }>("/api/referral/stats"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch friend suggestions (people you may know)
@@ -322,7 +323,7 @@ export default function SuggestionsScreen() {
     queryKey: ["friendSuggestions"],
     queryFn: () =>
       api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000, // Cache for 1 minute
   });
 
@@ -330,7 +331,7 @@ export default function SuggestionsScreen() {
   const { data: searchResults, isFetching: isSearching } = useQuery({
     queryKey: ["searchUsersRanked", debouncedQuery],
     queryFn: () => api.get<SearchUsersRankedResponse>(`/api/users/search/ranked?query=${encodeURIComponent(debouncedQuery)}`),
-    enabled: bootStatus === 'authed' && debouncedQuery.length >= 2 && networkStatus.isOnline,
+    enabled: isAuthedForNetwork(bootStatus, session) && debouncedQuery.length >= 2 && networkStatus.isOnline,
     staleTime: 30000,
   });
 

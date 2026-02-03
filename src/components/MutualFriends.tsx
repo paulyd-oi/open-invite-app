@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 
 // Define types locally to avoid import issues
@@ -41,7 +42,7 @@ export function MutualFriends({ userId, userName }: MutualFriendsProps) {
   const { data: mutualData, isLoading } = useQuery({
     queryKey: ["friends", userId, "mutual"],
     queryFn: () => api.get<GetMutualFriendsResponse>(`/api/friends/${userId}/mutual`),
-    enabled: bootStatus === "authed" && !!userId,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!userId,
   });
 
   const mutualFriends = mutualData?.mutualFriends ?? [];

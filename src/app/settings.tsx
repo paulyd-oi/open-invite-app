@@ -59,6 +59,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
@@ -631,7 +632,7 @@ export default function SettingsScreen() {
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const workSchedules = workScheduleData?.schedules ?? [];
@@ -673,7 +674,7 @@ export default function SettingsScreen() {
   const { data: profileData } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Check admin status (fail safe - returns isAdmin: false on any error)
@@ -681,7 +682,7 @@ export default function SettingsScreen() {
   const { data: adminStatus, isLoading: adminStatusLoading } = useQuery({
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     retry: false,
   });
 

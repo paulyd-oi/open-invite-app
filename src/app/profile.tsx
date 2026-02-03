@@ -24,6 +24,7 @@ import { BadgePill } from "@/components/BadgePill";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -122,31 +123,31 @@ export default function ProfileScreen() {
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: profileData, refetch: refetchProfile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: eventsData, refetch: refetchEvents } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: statsData, refetch: refetchStats } = useQuery({
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Load avatar source with auth headers (must be after profileData query)

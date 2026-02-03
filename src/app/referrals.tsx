@@ -20,6 +20,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError } from "@/lib/devLog";
@@ -198,13 +199,13 @@ export default function ReferralsScreen() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["referralStats"],
     queryFn: () => api.get<ReferralStatsResponse>("/api/referral/stats"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ["referralHistory"],
     queryFn: () => api.get<ReferralHistoryResponse>("/api/referral/history"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const handleRefresh = async () => {

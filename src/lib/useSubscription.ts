@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSession } from "@/lib/useSession";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 
 // ============================================
 // FREE TIER LIMITS (mirror of backend)
@@ -213,10 +215,11 @@ export interface SubscriptionData {
 
 export function useSubscription() {
   const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["subscription"],
     queryFn: () => api.get<SubscriptionData>("/api/subscription"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

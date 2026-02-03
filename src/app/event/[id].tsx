@@ -55,6 +55,7 @@ import * as ExpoCalendar from "expo-calendar";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
@@ -448,7 +449,7 @@ export default function EventDetailScreen() {
   const { data: singleEventData, isLoading: isLoadingEvent, error: eventError } = useQuery({
     queryKey: eventKeys.single(id ?? ""),
     queryFn: () => api.get<{ event: Event }>(`/api/events/${id}`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     retry: false, // Don't retry on 403/404 privacy errors
   });
 
@@ -490,20 +491,20 @@ export default function EventDetailScreen() {
   const { data: myEventsData } = useQuery({
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
+    enabled: isAuthedForNetwork(bootStatus, session) && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   const { data: feedData } = useQuery({
     queryKey: eventKeys.feed(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
-    enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
+    enabled: isAuthedForNetwork(bootStatus, session) && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   // Fetch comments
   const { data: commentsData, isLoading: isLoadingComments } = useQuery({
     queryKey: eventKeys.comments(id ?? ""),
     queryFn: () => api.get<GetEventCommentsResponse>(`/api/events/${id}/comments`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   const comments = commentsData?.comments ?? [];
@@ -512,7 +513,7 @@ export default function EventDetailScreen() {
   const { data: muteData, isLoading: isLoadingMute } = useQuery({
     queryKey: eventKeys.mute(id ?? ""),
     queryFn: () => api.get<{ muted: boolean }>(`/api/notifications/event/${id}`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   const isEventMuted = muteData?.muted ?? false;

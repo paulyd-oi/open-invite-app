@@ -23,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
@@ -81,7 +82,7 @@ export function EventPhotoGallery({
   const { data: photosData, isLoading } = useQuery({
     queryKey: ["events", eventId, "photos"],
     queryFn: () => api.get<GetEventPhotosResponse>(`/api/events/${eventId}/photos`),
-    enabled: bootStatus === "authed" && !!eventId,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!eventId,
   });
 
   const photos = photosData?.photos ?? [];

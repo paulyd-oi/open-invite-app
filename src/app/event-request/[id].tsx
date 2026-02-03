@@ -33,6 +33,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { Confetti } from "@/components/Confetti";
 import {
   type GetEventRequestResponse,
@@ -69,7 +70,7 @@ export default function EventRequestDetailScreen() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["event-request", id],
     queryFn: () => api.get<GetEventRequestResponse>(`/api/event-requests/${id}`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
   const eventRequest = data?.eventRequest;

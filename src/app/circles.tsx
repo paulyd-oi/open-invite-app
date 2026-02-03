@@ -19,6 +19,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
@@ -47,13 +48,13 @@ export default function CirclesScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const circles = data?.circles ?? [];

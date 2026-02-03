@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import type { DARK_COLORS } from "@/lib/ThemeContext";
 
 interface Suggestion {
@@ -40,7 +41,7 @@ export function ReconnectReminder({
   const { data: suggestionsData } = useQuery({
     queryKey: ["suggestions"],
     queryFn: () => api.get<{ suggestions: Suggestion[] }>("/api/events/suggestions"),
-    enabled: bootStatus === "authed",
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000, // Cache for 1 minute
   });
 

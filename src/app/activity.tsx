@@ -14,6 +14,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
 import { ChevronRight } from "@/ui/icons";
@@ -370,7 +371,7 @@ export default function ActivityScreen() {
   const { data: notificationsData, isLoading, refetch } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get<GetNotificationsResponse>("/api/notifications"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30000,
   });
 

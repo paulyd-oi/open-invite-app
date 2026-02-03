@@ -17,6 +17,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { type SuggestionFeedItem, type SuggestionAction, type GetFriendsResponse } from "@/shared/contracts";
 import { api } from "@/lib/api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { useSession } from "@/lib/useSession";
 
@@ -84,7 +85,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed' && suggestion.type === "RECONNECT_FRIEND",
+    enabled: isAuthedForNetwork(bootStatus, session) && suggestion.type === "RECONNECT_FRIEND",
   });
 
   // Validate suggestion has required data for its type

@@ -35,6 +35,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { devError } from "@/lib/devLog";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import {
   type GetFriendsResponse,
   type Friendship,
@@ -94,7 +95,7 @@ export default function CreateEventRequestScreen() {
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const friends = friendsData?.friends ?? [];

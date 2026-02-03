@@ -30,6 +30,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
@@ -94,7 +95,7 @@ export default function EditEventScreen() {
   const { data: myEventsData } = useQuery({
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const event = myEventsData?.events.find((e) => e.id === id);
@@ -123,7 +124,7 @@ export default function EditEventScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const circles = circlesData?.circles ?? [];

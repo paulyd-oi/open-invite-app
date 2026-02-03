@@ -20,6 +20,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
 
 interface BadgeCatalogItem {
@@ -78,7 +79,7 @@ export default function BadgesScreen() {
       }
       return response;
     },
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const setFeaturedMutation = useMutation({

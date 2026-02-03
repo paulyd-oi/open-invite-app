@@ -31,6 +31,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
 import { eventKeys } from "@/lib/eventQueryKeys";
@@ -89,28 +90,28 @@ export default function DiscoverScreen() {
   const { data: reconnectData, isLoading: loadingReconnect, refetch: refetchReconnect } = useQuery({
     queryKey: ["reconnect"],
     queryFn: () => api.get<{ friends: ReconnectFriend[] }>("/api/friends/reconnect"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch profile stats for top friends
   const { data: topFriendsData, isLoading: loadingTopFriends, refetch: refetchTopFriends } = useQuery({
     queryKey: ["profile-stats"],
     queryFn: () => api.get<{ topFriends: Array<{ id: string; name: string | null; image: string | null; eventsCount: number }> }>("/api/profile/stats"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch feed data for popular events (friends' events)
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
     queryKey: eventKeys.feed(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch user's own events to include in popular tab
   const { data: myEventsData, isLoading: loadingMyEvents, refetch: refetchMyEvents } = useQuery({
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const loadingPopular = loadingFeed || loadingMyEvents;

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "./api";
 import type {
   Profile,
@@ -41,7 +42,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
     queryFn: async () => {
       return api.get<GetProfilesResponse>("/api/profile");
     },
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

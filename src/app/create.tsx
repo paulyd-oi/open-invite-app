@@ -41,6 +41,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomNavigation from "@/components/BottomNavigation";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
@@ -309,7 +310,7 @@ export default function CreateEventScreen() {
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000,
   });
 
