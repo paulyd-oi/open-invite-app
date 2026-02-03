@@ -330,6 +330,24 @@ export default function EventDetailScreen() {
     }, [id])
   );
 
+  // P0 FIX: Refetch event data on focus to ensure cross-account sync
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!id || bootStatus !== 'authed') return;
+
+      // Refetch core event queries to pick up changes from other accounts
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
+      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
+      queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
+      queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
+
+      if (__DEV__) {
+        console.log("[P0_EVENT_SYNC] focus refetch fired for event:", id);
+        console.log("[P0_EVENT_SYNC] fetch keys: [events,single,id], [events,id,interests], [events,id,comments], [events,id,rsvp]");
+      }
+    }, [id, bootStatus, queryClient])
+  );
+
   // Handle sync to device calendar with permission check
   const handleSyncToCalendar = async () => {
     if (!event || !id) return;
@@ -514,7 +532,15 @@ export default function EventDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("You're Attending!", "This event has been added to your calendar.");
       setShowJoinForm(false);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate specific keys instead of wildcard
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
+      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      if (__DEV__) {
+        console.log("[P0_EVENT_SYNC] join success invalidated: [events,single,id], [events,id,interests], feed, my-events, calendar");
+      }
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -530,7 +556,14 @@ export default function EventDetailScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate specific keys instead of wildcard
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
+      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
+      if (__DEV__) {
+        console.log("[P0_EVENT_SYNC] joinRequestAction success invalidated: [events,single,id], [events,id,interests], feed, my-events");
+      }
     },
   });
 
@@ -543,6 +576,9 @@ export default function EventDetailScreen() {
       setCommentText("");
       setCommentImage(null);
       queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
+      if (__DEV__) {
+        console.log("[P0_EVENT_SYNC] comment success invalidated: [events,id,comments]");
+      }
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -613,7 +649,7 @@ export default function EventDetailScreen() {
       // Also invalidate user's own events for Popular tab merge
       queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
       if (__DEV__) {
-        console.log("[P0_SYNC] RSVP mutation success - invalidated queries:", [
+        console.log("[P0_EVENT_SYNC] RSVP success invalidated:", [
           ["events", id, "interests"],
           ["events", id, "rsvp"],
           ["events", "single", id],
@@ -668,6 +704,8 @@ export default function EventDetailScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
       queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
+      // P0 FIX: Invalidate single event query to refresh attendees across accounts (was missing)
+      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
       // Invalidate calendar events so removed RSVP updates calendar immediately
       queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
       // Invalidate attending events so Social tab updates immediately
@@ -676,7 +714,7 @@ export default function EventDetailScreen() {
       queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
       queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
       if (__DEV__) {
-        console.log("[P0_POPULAR] removeRsvp invalidated: feed, my-events");
+        console.log("[P0_EVENT_SYNC] removeRsvp success invalidated: [events,single,id], [events,id,interests], [events,id,rsvp], calendar, attending, feed, my-events");
       }
     },
   });
