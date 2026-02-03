@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Share,
   Modal,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,8 @@ import {
   X,
   Sparkles,
   Search,
+  Contact,
+  ChevronRight,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -32,6 +35,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as Contacts from "expo-contacts";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -42,10 +46,14 @@ import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
 import { SuggestionFeedCard, SuggestionsFeedEmpty } from "@/components/SuggestionFeedCard";
+import { safeToast } from "@/lib/safeToast";
+import { useNetworkStatus } from "@/lib/networkStatus";
 import {
   type GetFriendSuggestionsResponse,
   type FriendSuggestion,
   type SendFriendRequestResponse,
+  type SearchUsersRankedResponse,
+  type SearchUserResult,
 } from "@/shared/contracts";
 
 // Suggestion Card Component
@@ -262,13 +270,46 @@ function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => 
 export default function SuggestionsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { themeColor, colors } = useTheme();
+  const { themeColor, colors, isDark } = useTheme();
   const { data: session, isPending: sessionLoading } = useSession();
   const { status: bootStatus } = useBootAuthority();
+  const networkStatus = useNetworkStatus();
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"for-you" | "people">("for-you");
+
+  // Add Friend module state (same as Friends page)
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [searchEmail, setSearchEmail] = useState("");
+  const searchInputRef = useRef<TextInput>(null);
+  const [showContactsModal, setShowContactsModal] = useState(false);
+  const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+
+  // Live search state
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestQueryRef = useRef("");
+
+  // Debounce search input
+  useEffect(() => {
+    latestQueryRef.current = searchEmail;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (latestQueryRef.current === searchEmail) {
+        setDebouncedQuery(searchEmail.trim());
+      }
+    }, 300);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchEmail]);
 
   // Fetch personalized suggestions feed
   const {
@@ -297,6 +338,14 @@ export default function SuggestionsScreen() {
     staleTime: 60000, // Cache for 1 minute
   });
 
+  // Live search query for Add Friend module
+  const { data: searchResults, isFetching: isSearching } = useQuery({
+    queryKey: ["searchUsersRanked", debouncedQuery],
+    queryFn: () => api.get<SearchUsersRankedResponse>(`/api/users/search/ranked?query=${encodeURIComponent(debouncedQuery)}`),
+    enabled: bootStatus === 'authed' && debouncedQuery.length >= 2 && networkStatus.isOnline,
+    staleTime: 30000,
+  });
+
   // Send friend request mutation - use userId instead of email since email can be null
   const sendRequestMutation = useMutation({
     mutationFn: (userId: string) =>
@@ -308,6 +357,26 @@ export default function SuggestionsScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
+  });
+
+  // Send friend request by email/phone (for direct input)
+  const sendEmailPhoneRequestMutation = useMutation({
+    mutationFn: (data: { email?: string; phone?: string }) =>
+      api.post<SendFriendRequestResponse>("/api/friends/request", data),
+    onSuccess: (data) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (data.message) {
+        safeToast.info("Info", data.message);
+      } else {
+        safeToast.success("Success", "Friend request sent!");
+      }
+      setSearchEmail("");
+      setShowAddFriend(false);
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+    },
+    onError: () => {
+      safeToast.error("Error", "Failed to send friend request");
     },
   });
 
@@ -325,6 +394,87 @@ export default function SuggestionsScreen() {
       return;
     }
     sendRequestMutation.mutate(suggestion.user.id);
+  };
+
+  // Handle direct friend request by email or phone (for Add Friend module)
+  const handleDirectFriendRequest = () => {
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+    if (searchEmail.trim()) {
+      // Check if it looks like a phone number (mostly digits)
+      const cleaned = searchEmail.trim().replace(/[^\d]/g, '');
+      if (cleaned.length >= 7 && cleaned.length === searchEmail.trim().replace(/[\s\-\(\)]/g, '').length) {
+        sendEmailPhoneRequestMutation.mutate({ phone: searchEmail.trim() });
+      } else {
+        sendEmailPhoneRequestMutation.mutate({ email: searchEmail.trim() });
+      }
+    }
+  };
+
+  // Load contacts from phone
+  const loadContacts = async () => {
+    setContactsLoading(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== "granted") {
+        safeToast.error("Permission Denied", "Please allow access to contacts in Settings");
+        setContactsLoading(false);
+        return;
+      }
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+      });
+      setPhoneContacts(data.filter((c) => c.name && (c.emails?.length || c.phoneNumbers?.length)));
+      setShowContactsModal(true);
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      safeToast.error("Error", "Failed to load contacts");
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  // Add friend from contacts
+  const handleContactSelect = (contact: Contacts.Contact) => {
+    if (!guardEmailVerification(session)) {
+      return;
+    }
+    const email = contact.emails?.[0]?.email;
+    const phone = contact.phoneNumbers?.[0]?.number;
+
+    if (email) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      sendEmailPhoneRequestMutation.mutate({ email });
+      setShowContactsModal(false);
+    } else if (phone) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      sendEmailPhoneRequestMutation.mutate({ phone });
+      setShowContactsModal(false);
+    } else {
+      safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
+    }
+  };
+
+  // Filter contacts by search
+  const filteredContacts = phoneContacts.filter((contact) => {
+    if (!contactSearch.trim()) return true;
+    const search = contactSearch.toLowerCase();
+    const name = contact.name?.toLowerCase() ?? "";
+    const email = contact.emails?.[0]?.email?.toLowerCase() ?? "";
+    return name.includes(search) || email.includes(search);
+  });
+
+  // Toggle Add Friend with focus
+  const toggleAddFriend = () => {
+    const newShow = !showAddFriend;
+    setShowAddFriend(newShow);
+    if (newShow) {
+      // Focus input after animation
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
   };
 
   const handleInviteFriends = async () => {
@@ -409,14 +559,187 @@ export default function SuggestionsScreen() {
         <Pressable
           onPress={() => {
             Haptics.selectionAsync();
-            router.push("/friends?search=true" as any);
+            toggleAddFriend();
           }}
           className="w-10 h-10 items-center justify-center rounded-full"
-          style={{ backgroundColor: colors.surface }}
+          style={{ backgroundColor: showAddFriend ? themeColor : colors.surface }}
         >
-          <Search size={20} color={colors.text} />
+          {showAddFriend ? (
+            <UserPlus size={20} color="#fff" />
+          ) : (
+            <UserPlus size={20} color={colors.text} />
+          )}
         </Pressable>
       </View>
+
+      {/* Add Friend Module (same as Friends page) */}
+      {showAddFriend && (
+        <Animated.View entering={FadeInDown.springify()} className="mx-4 mt-3">
+          <View className="rounded-xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <Text className="font-semibold mb-3" style={{ color: colors.text }}>Add Friend</Text>
+
+            {/* Import from Contacts Button */}
+            <Pressable
+              onPress={loadContacts}
+              disabled={contactsLoading}
+              className="flex-row items-center rounded-lg p-3 mb-3"
+              style={{ backgroundColor: isDark ? "#0F766E20" : "#CCFBF1" }}
+            >
+              <View className="w-10 h-10 rounded-full bg-teal-500 items-center justify-center mr-3">
+                <Contact size={20} color="#fff" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  {contactsLoading ? "Loading..." : "Import from Contacts"}
+                </Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                  Add friends from your phone
+                </Text>
+              </View>
+              <ChevronRight size={20} color={colors.textSecondary} />
+            </Pressable>
+
+            {/* Divider */}
+            <View className="flex-row items-center mb-3">
+              <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
+              <Text className="text-sm mx-3" style={{ color: colors.textTertiary }}>or search by</Text>
+              <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
+            </View>
+
+            {/* Search Input */}
+            <View className="flex-row items-center">
+              <View className="flex-1 flex-row items-center rounded-lg px-3 mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                <Search size={18} color={colors.textSecondary} />
+                <TextInput
+                  ref={searchInputRef}
+                  value={searchEmail}
+                  onChangeText={setSearchEmail}
+                  placeholder="Name, email, or phone"
+                  placeholderTextColor={colors.textTertiary}
+                  autoCapitalize="none"
+                  className="flex-1 py-3 px-2"
+                  style={{ color: colors.text }}
+                />
+              </View>
+              <Pressable
+                onPress={handleDirectFriendRequest}
+                disabled={sendEmailPhoneRequestMutation.isPending}
+                className="px-4 py-3 rounded-lg"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white font-medium">
+                  {sendEmailPhoneRequestMutation.isPending ? "..." : "Add"}
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* Helper text */}
+            <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
+              Search by name, email address, or phone number to find friends
+            </Text>
+
+            {/* Live Search Results */}
+            {searchEmail.trim().length >= 2 && (
+              <View className="mt-3">
+                {/* Offline state */}
+                {!networkStatus.isOnline && (
+                  <View className="py-4 items-center">
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      Offline — search unavailable
+                    </Text>
+                  </View>
+                )}
+
+                {/* Loading state */}
+                {networkStatus.isOnline && isSearching && (
+                  <View className="py-4 items-center">
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      Searching...
+                    </Text>
+                  </View>
+                )}
+
+                {/* Results */}
+                {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length > 0 && (
+                  <View>
+                    {searchResults.users.map((user: SearchUserResult) => (
+                      <Pressable
+                        key={user.id}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/user/${user.id}` as any);
+                        }}
+                        className="flex-row items-center py-3 border-t"
+                        style={{ borderTopColor: colors.separator }}
+                      >
+                        {/* Avatar */}
+                        {user.avatarUrl ? (
+                          <Image
+                            source={{ uri: user.avatarUrl }}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <View
+                            className="w-10 h-10 rounded-full items-center justify-center"
+                            style={{ backgroundColor: themeColor + "20" }}
+                          >
+                            <Text className="text-base font-semibold" style={{ color: themeColor }}>
+                              {user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* User info */}
+                        <View className="flex-1 ml-3">
+                          <View className="flex-row items-center">
+                            <Text className="font-medium" style={{ color: colors.text }}>
+                              {user.name ?? (user.handle ? `@${user.handle}` : "Unknown")}
+                            </Text>
+                            {user.isFriend && (
+                              <View className="ml-2 px-1.5 py-0.5 rounded" style={{ backgroundColor: themeColor + "20" }}>
+                                <Text className="text-[10px] font-medium" style={{ color: themeColor }}>
+                                  Friend
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <View className="flex-row items-center">
+                            {user.handle && (
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                @{user.handle}
+                              </Text>
+                            )}
+                            {user.handle && (user.mutualCount ?? 0) > 0 && (
+                              <Text className="text-sm mx-1" style={{ color: colors.textTertiary }}>•</Text>
+                            )}
+                            {(user.mutualCount ?? 0) > 0 && (
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                {user.mutualCount} mutual{user.mutualCount === 1 ? "" : "s"}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+
+                {/* No results */}
+                {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length === 0 && debouncedQuery.length >= 2 && (
+                  <View className="py-4 items-center">
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      No users found for "{debouncedQuery}"
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
+                      Try a different search or add by email/phone
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      )}
 
       {/* Segmented Control */}
       <View className="flex-row mx-4 mt-3 p-1 rounded-xl" style={{ backgroundColor: colors.surface }}>
@@ -523,6 +846,76 @@ export default function SuggestionsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Contacts Modal */}
+      <Modal
+        visible={showContactsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowContactsModal(false)}
+      >
+        <View className="flex-1" style={{ backgroundColor: colors.background }}>
+          <SafeAreaView className="flex-1" edges={["top"]}>
+            {/* Modal Header */}
+            <View className="flex-row items-center justify-between px-4 py-3 border-b" style={{ borderBottomColor: colors.separator }}>
+              <Pressable onPress={() => setShowContactsModal(false)} className="w-10 h-10 items-center justify-center">
+                <X size={24} color={colors.text} />
+              </Pressable>
+              <Text className="text-lg font-semibold" style={{ color: colors.text }}>Import from Contacts</Text>
+              <View className="w-10" />
+            </View>
+
+            {/* Search */}
+            <View className="px-4 py-3">
+              <View className="flex-row items-center rounded-lg px-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                <Search size={18} color={colors.textSecondary} />
+                <TextInput
+                  value={contactSearch}
+                  onChangeText={setContactSearch}
+                  placeholder="Search contacts..."
+                  placeholderTextColor={colors.textTertiary}
+                  className="flex-1 py-3 px-2"
+                  style={{ color: colors.text }}
+                />
+              </View>
+            </View>
+
+            {/* Contacts List */}
+            <FlatList
+              data={filteredContacts}
+              keyExtractor={(item) => item.id ?? String(Math.random())}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => handleContactSelect(item)}
+                  className="flex-row items-center px-4 py-3 border-b"
+                  style={{ borderBottomColor: colors.separator }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: themeColor + "20" }}
+                  >
+                    <Text className="font-semibold" style={{ color: themeColor }}>
+                      {item.name?.[0]?.toUpperCase() ?? "?"}
+                    </Text>
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-medium" style={{ color: colors.text }}>{item.name ?? "Unknown"}</Text>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      {item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "No contact info"}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+              ListEmptyComponent={
+                <View className="py-12 items-center">
+                  <Text style={{ color: colors.textSecondary }}>No contacts found</Text>
+                </View>
+              }
+              contentContainerStyle={{ paddingBottom: 40 }}
+            />
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       {/* Info Modal */}
       <Modal
