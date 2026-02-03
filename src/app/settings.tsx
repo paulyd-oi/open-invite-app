@@ -1811,17 +1811,12 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Subscription Section - Between Referral and Birthdays */}
+        {/* P0 INVARIANT: Subscription block must never be blank. Always render Free/Pro/Error fallback. */}
         <Animated.View entering={FadeInDown.delay(167).springify()} className="mx-4 mt-6">
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
-          {/* Gate entire section on entitlements being loaded to prevent flash */}
-          {entitlementsLoading ? (
-            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
-              {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=loading reason=entitlements_fetching"); return null; })()}
-              <Text style={{ color: colors.textTertiary }} className="text-sm text-center">Loading subscription status...</Text>
-            </View>
-          ) : (
+          {/* Always render the subscription card - loading state shows "Free" as safe default, not blank */}
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=" + (userIsPremium ? "pro" : "free") + " reason=entitlements_loaded_isPremium=" + userIsPremium); return null; })()}
+            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
             {/* Current Status - Show truthful state */}
             <Pressable
               onPress={() => {
@@ -1926,7 +1921,6 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </View>
-          )}
         </Animated.View>
 
         {/* Birthdays Section */}

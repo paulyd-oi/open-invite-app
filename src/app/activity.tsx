@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { View, Text, Pressable, RefreshControl, FlatList, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +6,8 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -16,6 +18,9 @@ import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
 import { ChevronRight } from "@/ui/icons";
 import { safeToast } from "@/lib/safeToast";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
+
+// Key to track if we've requested notification permission on Activity tab
+const ACTIVITY_PERMISSION_ASKED_KEY = "@openinvite_activity_permission_asked";
 
 // Helper to format relative time
 function formatRelativeTime(timestamp: string): string {
@@ -304,6 +309,57 @@ export default function ActivityScreen() {
   const { status: bootStatus } = useBootAuthority();
   const [refreshing, setRefreshing] = useState(false);
   const { markAllSeen } = useMarkAllNotificationsSeen();
+  const hasCheckedPermission = useRef(false);
+
+  // P0 INVARIANT: On first Activity tab open, request notification permission only if not yet asked
+  useEffect(() => {
+    if (hasCheckedPermission.current || bootStatus !== 'authed' || !session?.user) {
+      return;
+    }
+    hasCheckedPermission.current = true;
+
+    const checkAndRequestPermission = async () => {
+      try {
+        // Check if we've already asked on this device
+        const alreadyAsked = await AsyncStorage.getItem(ACTIVITY_PERMISSION_ASKED_KEY);
+        if (alreadyAsked) {
+          if (__DEV__) {
+            console.log("[Activity] Permission already requested before, skipping");
+          }
+          return;
+        }
+
+        // Check current permission status
+        const { status } = await Notifications.getPermissionsAsync();
+        
+        if (status === "undetermined") {
+          // First time - request permission
+          if (__DEV__) {
+            console.log("[Activity] First Activity open, requesting notification permission");
+          }
+          
+          const { status: newStatus } = await Notifications.requestPermissionsAsync();
+          
+          // Mark as asked regardless of result
+          await AsyncStorage.setItem(ACTIVITY_PERMISSION_ASKED_KEY, "true");
+          
+          if (__DEV__) {
+            console.log("[Activity] Permission request result:", newStatus);
+          }
+        } else {
+          // Permission already determined (granted or denied)
+          // Mark as asked so we don't check again
+          await AsyncStorage.setItem(ACTIVITY_PERMISSION_ASKED_KEY, "true");
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.error("[Activity] Error checking/requesting permission:", error);
+        }
+      }
+    };
+
+    checkAndRequestPermission();
+  }, [bootStatus, session?.user]);
 
   // Fetch notifications
   const { data: notificationsData, isLoading, refetch } = useQuery({

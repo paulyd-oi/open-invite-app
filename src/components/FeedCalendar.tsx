@@ -79,11 +79,29 @@ function EventListItem({
   const palette = getEventPalette(event, themeColor, colorOverride);
   const eventColor = palette.bar;
 
+  // P0 INVARIANT: Busy/private events must never leak titles or navigate
+  // Check if this is a non-visible event (busy or private and not own)
+  const isBusyOrPrivate = event.isBusy || event.isWork;
+  const isNonVisible = isBusyOrPrivate && !event.isOwn;
+
+  // For non-visible events: display "Busy" or "Private Busy Event", hide real info
+  const displayTitle = isNonVisible ? (event.isWork ? "Busy" : "Busy") : event.title;
+  const displayEmoji = isNonVisible ? "🔒" : event.emoji;
+  const displayDescription = isNonVisible ? undefined : event.description;
+  const displayLocation = isNonVisible ? undefined : event.location;
+  const displayHostName = isNonVisible ? undefined : event.hostName;
+  const displayHostImage = isNonVisible ? undefined : event.hostImage;
+
   const timeLabel = endDate
     ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
     : startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
   const handlePress = () => {
+    // P0: Disable navigation for non-visible (busy/private) events
+    if (isNonVisible) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return; // No navigation for busy/private events
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose?.();
     router.push(`/event/${event.id}` as any);
@@ -92,6 +110,7 @@ function EventListItem({
   return (
     <Pressable
       onPress={handlePress}
+      disabled={isNonVisible}
       className="rounded-2xl p-4 mb-3"
       style={{
         backgroundColor: colors.surface,
@@ -102,19 +121,20 @@ function EventListItem({
         shadowOpacity: isDark ? 0.2 : 0.05,
         shadowRadius: 8,
         elevation: 2,
+        opacity: isNonVisible ? 0.7 : 1,
       }}
     >
       <View className="flex-row items-start">
         <View
           className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-          style={{ backgroundColor: event.isOwn ? `${themeColor}20` : (isDark ? "#2C2C2E" : "#FFF7ED") }}
+          style={{ backgroundColor: isNonVisible ? (isDark ? "#3C3C3E" : "#E5E7EB") : event.isOwn ? `${themeColor}20` : (isDark ? "#2C2C2E" : "#FFF7ED") }}
         >
-          <Text className="text-2xl">{event.emoji}</Text>
+          <Text className="text-2xl">{displayEmoji}</Text>
         </View>
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="text-lg font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
-              {event.title}
+            <Text className="text-lg font-semibold flex-1" style={{ color: isNonVisible ? colors.textSecondary : colors.text }} numberOfLines={1}>
+              {displayTitle}
             </Text>
             {event.isOwn && (
               <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
@@ -123,55 +143,57 @@ function EventListItem({
             )}
           </View>
 
-          {/* Description */}
-          {event.description && (
+          {/* Description - hidden for non-visible events */}
+          {displayDescription && (
             <Text
               className="text-sm mt-0.5"
               style={{ color: colors.textSecondary }}
               numberOfLines={2}
             >
-              {event.description}
+              {displayDescription}
             </Text>
           )}
 
-          {/* Host info */}
-          {!event.isOwn && event.hostName ? (
+          {/* Host info - hidden for non-visible events */}
+          {!event.isOwn && displayHostName ? (
             <View className="flex-row items-center mt-1">
               <View className="w-5 h-5 rounded-full overflow-hidden mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {event.hostImage ? (
-                  <Image source={{ uri: event.hostImage }} className="w-full h-full" />
+                {displayHostImage ? (
+                  <Image source={{ uri: displayHostImage }} className="w-full h-full" />
                 ) : (
                   <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
                     <Text style={{ color: themeColor, fontSize: 10, fontWeight: "500" }}>
-                      {event.hostName?.[0] ?? "?"}
+                      {displayHostName?.[0] ?? "?"}
                     </Text>
                   </View>
                 )}
               </View>
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                {event.hostName}
+                {displayHostName}
               </Text>
             </View>
           ) : event.isOwn ? (
             <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>Your event</Text>
+          ) : isNonVisible ? (
+            <Text className="text-sm mt-1" style={{ color: colors.textTertiary }}>Time blocked</Text>
           ) : null}
         </View>
-        <ChevronRight size={20} color={colors.textTertiary} />
+        {!isNonVisible && <ChevronRight size={20} color={colors.textTertiary} />}
       </View>
 
-      {/* Time and location row */}
+      {/* Time and location row - location hidden for non-visible events */}
       <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
         <View className="flex-row items-center mr-4">
-          <Clock size={14} color={themeColor} />
+          <Clock size={14} color={isNonVisible ? colors.textTertiary : themeColor} />
           <Text className="ml-1 text-sm" style={{ color: colors.textSecondary }}>
             {timeLabel}
           </Text>
         </View>
-        {event.location && (
+        {displayLocation && (
           <View className="flex-row items-center flex-1">
             <MapPin size={14} color="#4ECDC4" />
             <Text className="ml-1 text-sm flex-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-              {event.location}
+              {displayLocation}
             </Text>
           </View>
         )}

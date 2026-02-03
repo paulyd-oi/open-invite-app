@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   UIManager,
   Platform,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import * as Notifications from "expo-notifications";
 import {
   ChevronLeft,
   ChevronDown,
@@ -43,6 +45,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
+import { safeToast } from "@/lib/safeToast";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -221,6 +224,72 @@ export default function NotificationSettingsScreen() {
   const { themeColor, isDark, colors } = useTheme();
 
   const [expandedSections, setExpandedSections] = useState<string[]>(["master"]);
+  
+  // P0 INVARIANT: Push toggle must reflect live OS permission status (not default ON)
+  const [osPermissionStatus, setOsPermissionStatus] = useState<"granted" | "denied" | "undetermined">("undetermined");
+  const [isCheckingPermission, setIsCheckingPermission] = useState(true);
+
+  // Check OS permission status on mount and when screen gains focus
+  const checkOsPermission = useCallback(async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setOsPermissionStatus(status as "granted" | "denied" | "undetermined");
+      
+      // P0: If not granted and on this screen, trigger request
+      if (status !== "granted") {
+        if (__DEV__) {
+          console.log("[NotificationSettings] OS permission not granted, requesting...");
+        }
+        const { status: newStatus } = await Notifications.requestPermissionsAsync();
+        setOsPermissionStatus(newStatus as "granted" | "denied" | "undetermined");
+        
+        if (newStatus === "denied") {
+          // User denied - show prompt to go to settings
+          safeToast.info(
+            "Notifications Disabled",
+            "Enable notifications in your device Settings to receive updates."
+          );
+        }
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error("[NotificationSettings] Error checking permission:", error);
+      }
+    } finally {
+      setIsCheckingPermission(false);
+    }
+  }, []);
+
+  // Check permission on screen focus (handles returning from Settings app)
+  useFocusEffect(
+    useCallback(() => {
+      checkOsPermission();
+    }, [checkOsPermission])
+  );
+
+  // Handle master toggle with OS permission awareness
+  const handleMasterToggle = async (value: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    if (value && osPermissionStatus !== "granted") {
+      // Trying to enable but OS permission not granted
+      const { status } = await Notifications.requestPermissionsAsync();
+      setOsPermissionStatus(status as "granted" | "denied" | "undetermined");
+      
+      if (status !== "granted") {
+        // Still not granted - show settings prompt
+        safeToast.warning(
+          "Permission Required",
+          "Please enable notifications in your device Settings."
+        );
+        Linking.openSettings();
+        return;
+      }
+    }
+    
+    // Update preference in backend
+    updatePreference("pushEnabled", value);
+  };
 
   // Fetch preferences
   const { data, isLoading, error } = useQuery<GetNotificationPreferencesResponse>({
@@ -245,7 +314,9 @@ export default function NotificationSettingsScreen() {
   });
 
   const preferences = data?.preferences;
-  const masterEnabled = preferences?.pushEnabled ?? true;
+  // P0 INVARIANT: Master enabled requires both backend pref AND OS permission
+  const backendEnabled = preferences?.pushEnabled ?? false;
+  const masterEnabled = backendEnabled && osPermissionStatus === "granted";
 
   const toggleSection = (sectionId: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -260,7 +331,7 @@ export default function NotificationSettingsScreen() {
     updateMutation.mutate({ [key]: value });
   };
 
-  if (isLoading) {
+  if (isLoading || isCheckingPermission) {
     return (
       <SafeAreaView
         className="flex-1 items-center justify-center"
@@ -356,17 +427,16 @@ export default function NotificationSettingsScreen() {
                   Push Notifications
                 </Text>
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {masterEnabled
+                  {osPermissionStatus !== "granted"
+                    ? "Notifications are disabled in your device Settings"
+                    : masterEnabled
                     ? "You'll receive notifications based on your preferences below"
                     : "All notifications are currently disabled"}
                 </Text>
               </View>
               <Switch
                 value={masterEnabled}
-                onValueChange={(value) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  updatePreference("pushEnabled", value);
-                }}
+                onValueChange={handleMasterToggle}
                 trackColor={{ false: "#767577", true: themeColor }}
                 thumbColor="#fff"
                 ios_backgroundColor="#3e3e3e"

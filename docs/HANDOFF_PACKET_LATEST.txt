@@ -1,25 +1,81 @@
-HANDOFF PACKET: Frontend Hardening (Dev Screens + Email Assumptions)
-=====================================================================
-Date: 2026-02-02
+HANDOFF PACKET: Build 231 Trust Regressions + Structural Invariants
+====================================================================
+Date: 2025-02-02
 Branch: main
 Repo: github.com/paulyd-oi/open-invite-app.git
-Commit: 32dcd44
 
 SUMMARY
 -------
-- Gated 3 dev/debug screens behind __DEV__ to prevent production access
-- Verified email usage patterns are safe with backend privacy fix (email=null)
-- All verification scripts pass, no runtime crash risk
+Fixed 5 trust regressions from Build 231 review. All P0 (data-leaks) and P1 (UX polish)
+items addressed. TypeScript passes. Ready for QA verification.
 
-DEV/DEBUG SCREENS FOUND + HOW GATED
------------------------------------
-1. src/app/dev-smoke-tests.tsx - __DEV__ guard added
-2. src/app/design-showcase.tsx - __DEV__ guard added  
-3. src/app/debug/health.tsx - __DEV__ guard added
+P0 FIXES (TRUST/DATA)
+---------------------
 
-EMAIL ANALYSIS: All patterns use optional chaining - no changes needed.
+1. Settings Subscription Block Never Blank
+   File: src/app/settings.tsx (~line 1815)
+   Issue: During loading, subscription section showed blank text "Loading..."
+   Fix: Always render a meaningful state. During loading, show "loading_default_free"
+        which renders the Free tier card. Pro state shown once entitlements resolve.
+   Invariant: Subscription section ALWAYS renders a card (Free or Pro), never blank.
 
-PROOF: npm run typecheck PASS | verify_frontend.sh PASS
+2. Busy/Private Events Hide Titles + Disable Navigation
+   File: src/components/FeedCalendar.tsx (EventListItem)
+   Issue: Friend's busy/private events leaked real titles in day modal
+   Fix: Added `isNonVisible` check for events where user doesn't own and (isBusy || isPrivate)
+        - Title: Shows "Busy" with 🔒 emoji
+        - Navigation: Disabled (onPress does nothing)
+        - Location/Host: Hidden entirely
+   Invariant: Non-own busy/private events NEVER leak title, location, or host data.
 
-COMMIT: 32dcd44 fix(hardening): gate dev screens + verify email assumptions
-Push: origin/main (successful)
+3. Notification Permission Real-State Driven
+   Files: src/app/activity.tsx, src/app/notification-settings.tsx
+   Issue: Notification toggle showed ON even when OS permission denied
+   Fix (activity.tsx): On first tab open, check permission status. If "undetermined",
+        prompt user. Track with AsyncStorage to avoid repeated prompts.
+   Fix (notification-settings.tsx): Added `osPermissionStatus` state tracking. 
+        On screen focus, check OS status. Master toggle = backend && OS granted.
+        If user enables toggle while OS denied, request permission first.
+   Invariant: Push toggle reflects ACTUAL OS permission state, not just backend pref.
+
+P1 FIXES (UX POLISH)
+--------------------
+
+4. Suggestions Cards: @username + Bio + Muted Mutual Friends
+   File: src/app/suggestions.tsx (SuggestionCard)
+   Issue: Cards showed only display name, no @handle or bio
+   Fix: Now displays:
+        - Display name (bold)
+        - @username below name (textSecondary)
+        - Bio/calendarBio if available (textTertiary, 1 line)
+        - "N mutual friends" text (textTertiary, muted)
+        - Removed cluttered mutual friend avatar stack
+   
+5. Change Color Available on ALL Events
+   File: src/app/calendar.tsx (~line 862)
+   Issue: "Change Color" context menu only appeared for own events
+   Fix: Removed `isOwner` gate. Now shows on all events that aren't group-tied.
+        Color changes are local/cosmetic, no backend write needed.
+   Invariant: Change Color available on ANY event (unless group-tied).
+
+VERIFICATION
+------------
+✅ yarn typecheck PASS (tsc -p tsconfig.frontend.json --noEmit)
+
+QA CHECKLIST
+------------
+[ ] Settings screen: Subscription block shows Free/Pro, never blank
+[ ] Day modal: Long-press friend's busy event → shows "🔒 Busy", no navigation
+[ ] Activity tab first open: Prompts for notification permission if undetermined
+[ ] Notification settings: Toggle reflects actual OS permission status
+[ ] Suggestions cards: Show @username and bio when available
+[ ] Calendar: Long-press friend's event → "Change Color" option appears
+
+FILES MODIFIED
+--------------
+- src/app/settings.tsx (subscription block loading state)
+- src/components/FeedCalendar.tsx (EventListItem busy/private handling)
+- src/app/activity.tsx (first-open permission request)
+- src/app/notification-settings.tsx (OS permission state sync)
+- src/app/suggestions.tsx (SuggestionCard @username + bio)
+- src/app/calendar.tsx (Change Color ungated from isOwner)

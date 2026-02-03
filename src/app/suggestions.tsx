@@ -78,7 +78,10 @@ function SuggestionCard({
     transform: [{ scale: scale.value }],
   }));
 
-  const userName = suggestion.user?.name || (suggestion.user?.handle ? `@${suggestion.user.handle}` : "Unknown");
+  // P1 FIX: Display name + @username separately
+  const displayName = suggestion.user?.name || "Unknown";
+  const handle = suggestion.user?.handle;
+  const bio = (suggestion.user as any)?.calendarBio || (suggestion.user as any)?.bio;
   const mutualCount = suggestion.mutualFriendCount;
 
   const handlePress = () => {
@@ -114,75 +117,53 @@ function SuggestionCard({
                 className="text-xl font-semibold"
                 style={{ color: themeColor }}
               >
-                {userName?.charAt(0).toUpperCase() ?? "?"}
+                {displayName?.charAt(0).toUpperCase() ?? "?"}
               </Text>
             </View>
           )}
 
           {/* User Info */}
           <View className="flex-1 ml-3">
+            {/* Name */}
             <Text
               className="text-base font-semibold"
               style={{ color: colors.text }}
               numberOfLines={1}
             >
-              {userName}
+              {displayName}
             </Text>
 
-            {/* Mutual Friends */}
-            <View className="flex-row items-center mt-1">
-              <Users size={14} color={colors.textSecondary} />
+            {/* P1 FIX: @username shown separately */}
+            {handle && (
               <Text
-                className="text-sm ml-1"
+                className="text-sm"
                 style={{ color: colors.textSecondary }}
+                numberOfLines={1}
               >
-                {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+                @{handle}
               </Text>
-            </View>
-
-            {/* Mutual Friend Avatars */}
-            {suggestion.mutualFriends.length > 0 && (
-              <View className="flex-row items-center mt-2">
-                {suggestion.mutualFriends.slice(0, 3).map((friend, i) => (
-                  <View
-                    key={friend.id}
-                    className="w-6 h-6 rounded-full border-2 overflow-hidden"
-                    style={{
-                      borderColor: colors.surface,
-                      marginLeft: i > 0 ? -8 : 0,
-                      zIndex: 3 - i,
-                    }}
-                  >
-                    {friend.image ? (
-                      <Image
-                        source={{ uri: friend.image }}
-                        className="w-full h-full"
-                      />
-                    ) : (
-                      <View
-                        className="w-full h-full items-center justify-center"
-                        style={{ backgroundColor: themeColor + "30" }}
-                      >
-                        <Text
-                          className="text-[8px] font-medium"
-                          style={{ color: themeColor }}
-                        >
-                          {(friend.name || "?").charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-                {suggestion.mutualFriends.length > 3 && (
-                  <Text
-                    className="text-xs ml-1"
-                    style={{ color: colors.textTertiary }}
-                  >
-                    +{suggestion.mutualFriends.length - 3}
-                  </Text>
-                )}
-              </View>
             )}
+
+            {/* P1 FIX: Bio if available */}
+            {bio && (
+              <Text
+                className="text-xs mt-1"
+                style={{ color: colors.textTertiary }}
+                numberOfLines={1}
+              >
+                {bio}
+              </Text>
+            )}
+
+            {/* P1 FIX: Muted "mutual friends" descriptor text */}
+            <Text
+              className="text-xs mt-1"
+              style={{ color: colors.textTertiary }}
+            >
+              {mutualCount} mutual friend{mutualCount !== 1 ? "s" : ""}
+            </Text>
+
+            {/* P1 FIX: Removed duplicate mutual friend avatars - the text descriptor is sufficient */}
           </View>
 
           {/* Add Friend Button */}

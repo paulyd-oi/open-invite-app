@@ -858,8 +858,8 @@ function EventListItem({
           <ContextMenu.ItemIcon ios={{ name: "calendar.badge.plus" }} />
         </ContextMenu.Item>
 
-        {/* Change Color - Only if not tied to a group and user is owner */}
-        {!isTiedToGroup && isOwner && onColorChange && (
+        {/* Change Color - P1 FIX: Allow on ALL events (not just own), only gated on not being group-tied */}
+        {!isTiedToGroup && onColorChange && (
           <ContextMenu.Sub>
             <ContextMenu.SubTrigger key="color-trigger">
               <ContextMenu.ItemTitle>Change Color</ContextMenu.ItemTitle>
