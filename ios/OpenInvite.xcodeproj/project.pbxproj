@@ -8,28 +8,28 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		3783D8582ED75EB7B285D03D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096798CD875336BAC1C446B8 /* ExpoModulesProvider.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		438C311CFE3A9B2B81E12D6D /* libPods-OpenInvite.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E59F2109E4A41025AE88A793 /* libPods-OpenInvite.a */; };
-		993715DE3081FBBEC6ECDD6D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 73121CA6848B3544E08D9F88 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		E50A730AC0F7315AC183ACE9 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6236822EF7D2889753EF837 /* ExpoModulesProvider.swift */; };
+		C2DF419591046A1BDB3FC036 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9750FF33383E27796C4B3B8F /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		F184E4858179F9220BB8BE8C /* libPods-OpenInvite.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5311EF635F82B44EC461EF6E /* libPods-OpenInvite.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		096798CD875336BAC1C446B8 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-OpenInvite/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* OpenInvite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenInvite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = OpenInvite/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = OpenInvite/Info.plist; sourceTree = "<group>"; };
-		52D33726871C57AA8276387C /* Pods-OpenInvite.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.release.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.release.xcconfig"; sourceTree = "<group>"; };
-		73121CA6848B3544E08D9F88 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = OpenInvite/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4C16E8DE4E0C0952D633A615 /* Pods-OpenInvite.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.release.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.release.xcconfig"; sourceTree = "<group>"; };
+		5311EF635F82B44EC461EF6E /* libPods-OpenInvite.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-OpenInvite.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9750FF33383E27796C4B3B8F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = OpenInvite/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = OpenInvite/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		D6236822EF7D2889753EF837 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-OpenInvite/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		E59F2109E4A41025AE88A793 /* libPods-OpenInvite.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-OpenInvite.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E887E466651AF23B574A1A99 /* Pods-OpenInvite.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.debug.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = OpenInvite/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* OpenInvite-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "OpenInvite-Bridging-Header.h"; path = "OpenInvite/OpenInvite-Bridging-Header.h"; sourceTree = "<group>"; };
+		F2154BDE0E190F73A5E0E451 /* Pods-OpenInvite.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.debug.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,13 +37,21 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				438C311CFE3A9B2B81E12D6D /* libPods-OpenInvite.a in Frameworks */,
+				F184E4858179F9220BB8BE8C /* libPods-OpenInvite.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		012AF2BCCB406EDF8D3C8611 /* OpenInvite */ = {
+			isa = PBXGroup;
+			children = (
+				096798CD875336BAC1C446B8 /* ExpoModulesProvider.swift */,
+			);
+			name = OpenInvite;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* OpenInvite */ = {
 			isa = PBXGroup;
 			children = (
@@ -53,15 +61,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				73121CA6848B3544E08D9F88 /* PrivacyInfo.xcprivacy */,
-			);
-			name = OpenInvite;
-			sourceTree = "<group>";
-		};
-		165B37A420164F85B25C1780 /* OpenInvite */ = {
-			isa = PBXGroup;
-			children = (
-				D6236822EF7D2889753EF837 /* ExpoModulesProvider.swift */,
+				9750FF33383E27796C4B3B8F /* PrivacyInfo.xcprivacy */,
 			);
 			name = OpenInvite;
 			sourceTree = "<group>";
@@ -70,25 +70,18 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				E59F2109E4A41025AE88A793 /* libPods-OpenInvite.a */,
+				5311EF635F82B44EC461EF6E /* libPods-OpenInvite.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		46FAB0412E05799DF3010F81 /* ExpoModulesProviders */ = {
+		72F6EED3935AA4EEE06FACE5 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				165B37A420164F85B25C1780 /* OpenInvite */,
+				F2154BDE0E190F73A5E0E451 /* Pods-OpenInvite.debug.xcconfig */,
+				4C16E8DE4E0C0952D633A615 /* Pods-OpenInvite.release.xcconfig */,
 			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
-		4F863B5C7798DAEFE6CD0A14 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				E887E466651AF23B574A1A99 /* Pods-OpenInvite.debug.xcconfig */,
-				52D33726871C57AA8276387C /* Pods-OpenInvite.release.xcconfig */,
-			);
+			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -106,8 +99,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				4F863B5C7798DAEFE6CD0A14 /* Pods */,
-				46FAB0412E05799DF3010F81 /* ExpoModulesProviders */,
+				72F6EED3935AA4EEE06FACE5 /* Pods */,
+				AEA0157E0CAC02F11591E61F /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -120,6 +113,14 @@
 				13B07F961A680F5B00A75B9A /* OpenInvite.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		AEA0157E0CAC02F11591E61F /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				012AF2BCCB406EDF8D3C8611 /* OpenInvite */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -139,7 +140,7 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "OpenInvite" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				42C04F274C171C44574F87FA /* [Expo] Configure project */,
+				5FBBFF4B637B4BAB972F3161 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
@@ -194,7 +195,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				993715DE3081FBBEC6ECDD6D /* PrivacyInfo.xcprivacy in Resources */,
+				C2DF419591046A1BDB3FC036 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -238,7 +239,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		42C04F274C171C44574F87FA /* [Expo] Configure project */ = {
+		5FBBFF4B637B4BAB972F3161 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -327,7 +328,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				E50A730AC0F7315AC183ACE9 /* ExpoModulesProvider.swift in Sources */,
+				3783D8582ED75EB7B285D03D /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -336,13 +337,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = E887E466651AF23B574A1A99 /* Pods-OpenInvite.debug.xcconfig */;
+			baseConfigurationReference = F2154BDE0E190F73A5E0E451 /* Pods-OpenInvite.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = OpenInvite/OpenInvite.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = T3LP6XXS49;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -354,7 +354,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -373,20 +373,19 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 52D33726871C57AA8276387C /* Pods-OpenInvite.release.xcconfig */;
+			baseConfigurationReference = 4C16E8DE4E0C0952D633A615 /* Pods-OpenInvite.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = OpenInvite/OpenInvite.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = T3LP6XXS49;
 				INFOPLIST_FILE = OpenInvite/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -457,7 +456,10 @@
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -512,7 +514,10 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = false;
