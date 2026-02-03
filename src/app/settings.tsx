@@ -1267,10 +1267,10 @@ export default function SettingsScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Pressable
-          onLongPress={() => {
+          onLongPress={__DEV__ ? () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.push("/debug/health");
-          }}
+          } : undefined}
           delayLongPress={500}
         >
           <Text style={{ color: colors.text }} className="text-xl font-sora-bold">Settings</Text>

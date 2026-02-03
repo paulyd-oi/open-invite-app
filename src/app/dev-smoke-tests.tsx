@@ -1,10 +1,19 @@
 /**
  * DevSmokeTests - QA screen for testing all paywall contexts and navigation
  * Includes strict CTA verification audit system
+ * 
+ * ⚠️ DEV-ONLY: This screen is stripped from production builds.
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, TextInput } from "react-native";
+
+// ============================================
+// PRODUCTION GATE - Never reachable in App Store builds
+// ============================================
+if (!__DEV__) {
+  module.exports = { default: () => null };
+}
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { SafeAreaView } from "react-native-safe-area-context";

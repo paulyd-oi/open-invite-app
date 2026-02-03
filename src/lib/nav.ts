@@ -94,8 +94,13 @@ export function goToSubscription(router: Router): void {
 
 /**
  * Navigate to dev smoke tests screen
+ * ⚠️ DEV-ONLY: No-op in production builds
  */
 export function goToDevSmokeTests(router: Router): void {
+  if (!__DEV__) {
+    console.warn('[nav] goToDevSmokeTests called in production - ignoring');
+    return;
+  }
   router.push(ROUTES.DEV_SMOKE_TESTS);
 }
 

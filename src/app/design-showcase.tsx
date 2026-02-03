@@ -1,4 +1,18 @@
+/**
+ * DesignShowcaseScreen - Design system showcase/demo screen
+ * 
+ * ⚠️ DEV-ONLY: This screen is stripped from production builds.
+ */
+
 import React, { useState } from "react";
+
+// ============================================
+// PRODUCTION GATE - Never reachable in App Store builds
+// ============================================
+if (!__DEV__) {
+  module.exports = { default: () => null };
+}
+
 import {
   View,
   Text,
