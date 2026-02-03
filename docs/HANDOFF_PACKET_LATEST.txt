@@ -1,32 +1,103 @@
-HANDOFF PACKET: P0 PRIVACY SWEEP - BUSY MUST MASK TITLE EVERYWHERE
-===================================================================
-Date: 2025-01-XX
-Commit: d7c2545 (fix(privacy): P0 centralized busy event masking)
+HANDOFF PACKET: P0 DISCOVER POPULAR TAB EMPTY FIX
+==================================================
+Date: 2026-02-03
+Commit: 00c45ca (fix(p0): popular feed correctness)
 Branch: main
 Status: COMPLETE ✅
 
-ROOT CAUSE
-----------
-1. circle/[id].tsx line ~146: MiniCalendar only checked isPrivate, not isBusy/isWork
-2. friend/[id].tsx EventCard: NO masking at all - showed real titles for all events
+SUMMARY
+-------
+Popular tab showed "No popular events right now" even when qualifying events existed.
+
+ROOT CAUSE (EXACT)
+------------------
+1. discover.tsx line 207: attendeeCount calculation used ONLY joinRequests array:
+   `(event.joinRequests?.filter(r => r.status === "accepted")?.length ?? 0) + 1`
+   
+   But /api/events/feed returns goingCount (already includes host), NOT joinRequests.
+   When joinRequests was empty/undefined, attendeeCount became 0+1=1, failing >= 2 filter.
+
+2. event/[id].tsx removeRsvpMutation: Missing invalidation of ["events", "feed"] and
+   ["events", "my-events"], so removing RSVP didn't refresh Popular tab data.
 
 FIX SUMMARY
 -----------
-Created centralized masking helper in /src/lib/eventVisibility.ts:
-- shouldMaskEvent(event, isOwner) → boolean
-- getEventDisplayFields(event, isOwner) → {displayTitle, displayEmoji, displayLocation, displayDescription, isMasked}
+1. discover.tsx: Use goingCount from API if available, fallback to computed joinRequests:
+   `const attendeeCount = event.goingCount ?? computedFromJoinRequests;`
 
-Masking Logic:
-  isMasked = (isBusy || isWork) && !isOwner
-  masked → title="Busy", emoji="🔒", location=undefined, description=undefined
+2. event/[id].tsx: Added missing invalidation to removeRsvpMutation:
+   - queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+   - queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
 
-FILES CHANGED (5 files, +165/-42)
----------------------------------
-1. src/lib/eventVisibility.ts - NEW: Centralized masking helpers (88 lines)
-2. src/app/calendar.tsx - EventListItem uses getEventDisplayFields()
-3. src/app/circle/[id].tsx - MiniCalendar now checks isBusy/isWork (was only isPrivate)
-4. src/app/friend/[id].tsx - EventCard has masking + navigation blocked for masked
-5. src/components/FeedCalendar.tsx - EventListItem uses centralized helper
+FILES CHANGED (2 files, +41/-11)
+--------------------------------
+1. src/app/discover.tsx - Fixed attendeeCount calculation, added DEV exclusion logs
+2. src/app/event/[id].tsx - Added feed/my-events invalidation to removeRsvpMutation
+
+QUERY KEY MAP
+-------------
+Popular fetch keys:
+  ["events", "feed"]     → /api/events/feed (friends' events)
+  ["events", "my-events"] → /api/events (user's own events)
+
+INVALIDATION MAP
+----------------
+rsvpMutation (join):
+  ✅ ["events", id, "interests"]
+  ✅ ["events", id, "rsvp"]
+  ✅ ["events", "single", id]
+  ✅ ["events", "calendar"]
+  ✅ ["events", "attending"]
+  ✅ ["events", id]
+  ✅ ["events", "feed"]
+  ✅ ["events", "my-events"]
+
+removeRsvpMutation (leave):
+  ✅ ["events", id, "interests"]
+  ✅ ["events", id, "rsvp"]
+  ✅ ["events", "calendar"]
+  ✅ ["events", "attending"]
+  ✅ ["events", "feed"]      <- ADDED
+  ✅ ["events", "my-events"] <- ADDED
+
+BLAST-RADIUS PROOF
+------------------
+rg -n "Popular" src/ | wc -l → 21
+rg -n '"events", "feed"' src/ | wc -l → 13
+rg -n "goingCount" src/ | wc -l → 12
+rg -n 'invalidateQueries\(' src/ | rg "events" | wc -l → 55
+
+All query keys audited and corrected.
+
+DEV PROOF LOGS
+--------------
+Tag: [P0_POPULAR]
+Sample output:
+  [P0_POPULAR] fetched=5
+  [P0_POPULAR] filtered=2
+  [P0_POPULAR] exclude id=abc123 reason=attendeeCount=1 < 2
+  [P0_POPULAR] exclude id=def456 reason=past (2026-01-15T10:00:00Z)
+  [P0_POPULAR] removeRsvp invalidated: feed, my-events
+
+VERIFICATION OUTPUTS
+--------------------
+npm run typecheck → PASS (no errors)
+bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
+
+QA STEPS
+--------
+1. Create event with 2+ attendees (host + 1 accepted RSVP)
+2. Go to Discover > Popular tab
+3. Should see the event (not empty state)
+4. Leave event via RSVP remove
+5. Verify Popular tab refreshes (event count updates)
+6. Check DEV console for [P0_POPULAR] logs
+
+KNOWN GOOD STATE
+----------------
+- TypeScript: PASS
+- verify_frontend.sh: PASS
+- Git: Pushed to main
 
 BLAST-RADIUS PROOF
 ------------------
