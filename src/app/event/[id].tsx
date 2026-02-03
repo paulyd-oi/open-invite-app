@@ -44,6 +44,7 @@ import {
   RefreshCw,
   Lock,
   MoreHorizontal,
+  Palette,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -82,6 +83,8 @@ import {
   syncEventToDeviceCalendar,
   requestCalendarPermissions,
 } from "@/lib/calendarSync";
+import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
+import { COLOR_PALETTE } from "@/lib/eventColorOverrides";
 
 // Helper to open event location using the shared utility
 const openEventLocation = (event: any) => {
@@ -281,6 +284,11 @@ export default function EventDetailScreen() {
 
   // Event Actions Sheet state
   const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
+
+  // Color picker state
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const { colorOverrides, getOverrideColor, setOverrideColor, resetColor } = useEventColorOverrides();
+  const currentColorOverride = id ? getOverrideColor(id) : undefined;
 
   // Check sync status when event loads
   useEffect(() => {
@@ -2242,6 +2250,33 @@ export default function EventDetailScreen() {
                   </Pressable>
                 )}
 
+                {/* Block Color - available to everyone */}
+                <Pressable
+                  className="flex-row items-center py-4"
+                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                  onPress={() => {
+                    setShowEventActionsSheet(false);
+                    Haptics.selectionAsync();
+                    setShowColorPicker(true);
+                  }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  >
+                    <Palette size={20} color={themeColor} />
+                  </View>
+                  <View className="flex-1 flex-row items-center justify-between">
+                    <Text style={{ color: colors.text, fontSize: 16 }}>Block Color</Text>
+                    {currentColorOverride && (
+                      <View
+                        className="w-6 h-6 rounded-full mr-2"
+                        style={{ backgroundColor: currentColorOverride, borderWidth: 2, borderColor: colors.border }}
+                      />
+                    )}
+                  </View>
+                </Pressable>
+
                 {/* Cancel */}
                 <Pressable
                   className="flex-row items-center justify-center py-4 mt-2"
@@ -2367,6 +2402,136 @@ export default function EventDetailScreen() {
                 </Text>
               </Pressable>
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Color Picker Modal */}
+      <Modal
+        visible={showColorPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowColorPicker(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowColorPicker(false)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingBottom: 40,
+              }}
+            >
+              {/* Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.textTertiary,
+                    opacity: 0.4,
+                  }}
+                />
+              </View>
+
+              {/* Title */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
+                  Block Color
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 4 }}>
+                  Customize how this event appears on your calendar
+                </Text>
+              </View>
+
+              {/* Color Palette Grid */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                  {COLOR_PALETTE.map((color) => {
+                    const isSelected = currentColorOverride === color;
+                    return (
+                      <Pressable
+                        key={color}
+                        onPress={async () => {
+                          if (!id) return;
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          try {
+                            await setOverrideColor(id, color);
+                            if (__DEV__) {
+                              console.log("[EventColorPicker] Color set:", { eventId: id, color });
+                            }
+                          } catch (error) {
+                            safeToast.error("Error", "Failed to save color");
+                          }
+                        }}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          backgroundColor: color,
+                          borderWidth: isSelected ? 3 : 0,
+                          borderColor: colors.text,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {isSelected && (
+                          <Check size={24} color="#FFFFFF" />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Reset to Default */}
+              {currentColorOverride && (
+                <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+                  <Pressable
+                    onPress={async () => {
+                      if (!id) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      try {
+                        await resetColor(id);
+                        if (__DEV__) {
+                          console.log("[EventColorPicker] Color reset to default:", { eventId: id });
+                        }
+                      } catch (error) {
+                        safeToast.error("Error", "Failed to reset color");
+                      }
+                    }}
+                    className="py-3 rounded-xl items-center"
+                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                      Reset to Default
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {/* Done Button */}
+              <View style={{ paddingHorizontal: 20 }}>
+                <Pressable
+                  onPress={() => setShowColorPicker(false)}
+                  className="py-4 rounded-xl items-center"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "600" }}>
+                    Done
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
           </Pressable>
         </Pressable>
       </Modal>

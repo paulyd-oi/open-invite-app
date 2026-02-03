@@ -42,6 +42,7 @@ export function isGreyPaletteEvent(event: { isBusy?: boolean; isWork?: boolean; 
  * 
  * @param event - Event object with optional isBusy, isWork, isImported, deviceCalendarId, isBirthday, color, groupVisibility
  * @param themeColor - User's theme color (orange default)
+ * @param overrideColor - Optional user-specified color override (takes precedence over default)
  * @returns EventPalette with bar, bg, icon, and text colors
  */
 export function getEventPalette(
@@ -54,8 +55,22 @@ export function getEventPalette(
     color?: string | null;
     groupVisibility?: Array<{ group: { color: string } }> | null;
   },
-  themeColor: string
+  themeColor: string,
+  overrideColor?: string | null
 ): EventPalette {
+  // If user has set a color override, use that (allows customizing ANY event including busy/work)
+  if (overrideColor) {
+    if (__DEV__) {
+      console.log("[EventPalette] Using override color:", { overrideColor, eventTitle: (event as any)?.title });
+    }
+    return {
+      bar: overrideColor,
+      bg: `${overrideColor}20`,
+      icon: overrideColor,
+      text: overrideColor,
+    };
+  }
+
   // INVARIANT: Busy/Work/Imported events ALWAYS use grey palette, regardless of any other property
   const title = (event as any)?.title;
   const isLegacyBusyTitle =
@@ -130,7 +145,7 @@ export function assertGreyPaletteInvariant(
 
 /**
  * Get just the bar color for simple use cases (month dots/bars).
- * Still respects busy/work/imported grey invariant.
+ * Still respects busy/work/imported grey invariant unless override is provided.
  */
 export function getEventBarColor(
   event: {
@@ -142,7 +157,8 @@ export function getEventBarColor(
     color?: string | null;
     groupVisibility?: Array<{ group: { color: string } }> | null;
   },
-  themeColor: string
+  themeColor: string,
+  overrideColor?: string | null
 ): string {
-  return getEventPalette(event, themeColor).bar;
+  return getEventPalette(event, themeColor, overrideColor).bar;
 }

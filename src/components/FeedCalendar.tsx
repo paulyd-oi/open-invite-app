@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { type DARK_COLORS } from "@/lib/ThemeContext";
 import { type Event } from "@/shared/contracts";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -63,17 +64,19 @@ function EventListItem({
   colors,
   isDark,
   onClose,
+  colorOverride,
 }: {
   event: CalendarEvent;
   themeColor: string;
   colors: typeof DARK_COLORS;
   isDark: boolean;
   onClose?: () => void;
+  colorOverride?: string;
 }) {
   const router = useRouter();
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
-  const palette = getEventPalette(event, themeColor);
+  const palette = getEventPalette(event, themeColor, colorOverride);
   const eventColor = palette.bar;
 
   const timeLabel = endDate
@@ -185,6 +188,9 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
 
+  // User's event color overrides
+  const { colorOverrides } = useEventColorOverrides();
+
   // Combine all events - IMPORTANT: filter out any busy events (defensive)
   // Busy events are private and must never appear in social/feed contexts
   const allCalendarEvents: CalendarEvent[] = useMemo(() => {
@@ -227,14 +233,14 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
           counts[day] = { count: 0, colors: [] };
         }
         counts[day].count++;
-        const eventColor = getEventPalette(event, themeColor).bar;
+        const eventColor = getEventPalette(event, themeColor, colorOverrides[event.id]).bar;
         if (counts[day].colors.length < 3 && !counts[day].colors.includes(eventColor)) {
           counts[day].colors.push(eventColor);
         }
       }
     });
     return counts;
-  }, [allCalendarEvents, currentMonth, currentYear, themeColor]);
+  }, [allCalendarEvents, currentMonth, currentYear, themeColor, colorOverrides]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -505,6 +511,7 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
                         colors={colors}
                         isDark={isDark}
                         onClose={() => setShowDayModal(false)}
+                        colorOverride={colorOverrides[event.id]}
                       />
                     </Animated.View>
                   ))

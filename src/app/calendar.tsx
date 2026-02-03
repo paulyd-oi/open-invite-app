@@ -47,6 +47,7 @@ import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
+import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
 import { checkCalendarPermission } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
@@ -310,6 +311,7 @@ function CompactDayCell({
   themeColor,
   colors,
   heightMultiplier = 1,
+  colorOverrides = {},
 }: {
   day: number | null;
   isToday: boolean;
@@ -320,12 +322,13 @@ function CompactDayCell({
   themeColor: string;
   colors: typeof DARK_COLORS;
   heightMultiplier?: number;
+  colorOverrides?: Record<string, string>;
 }) {
   const height = BASE_HEIGHTS.compact * heightMultiplier;
 
   if (day === null) return <View style={{ flex: 1, height }} />;
 
-  const eventColors = events.slice(0, 3).map((e) => getEventPalette(e, themeColor).bar);
+  const eventColors = events.slice(0, 3).map((e) => getEventPalette(e, themeColor, colorOverrides[e.id]).bar);
   const showMoreDots = heightMultiplier > 1.2 && events.length > 3;
   const maxDots = heightMultiplier > 1.5 ? 5 : 3;
 
@@ -365,7 +368,7 @@ function CompactDayCell({
                 height: 4 * Math.min(heightMultiplier, 1.5),
                 borderRadius: 2 * Math.min(heightMultiplier, 1.5),
                 marginHorizontal: 1,
-                backgroundColor: getEventPalette(e, themeColor).bar,
+                backgroundColor: getEventPalette(e, themeColor, colorOverrides[e.id]).bar,
               }}
             />
           ))}
@@ -391,6 +394,7 @@ function StackedDayCell({
   themeColor,
   colors,
   heightMultiplier = 1,
+  colorOverrides = {},
 }: {
   day: number | null;
   isToday: boolean;
@@ -401,6 +405,7 @@ function StackedDayCell({
   themeColor: string;
   colors: typeof DARK_COLORS;
   heightMultiplier?: number;
+  colorOverrides?: Record<string, string>;
 }) {
   const height = BASE_HEIGHTS.stacked * heightMultiplier;
 
@@ -408,7 +413,7 @@ function StackedDayCell({
 
   // Show more bars when expanded
   const maxBars = heightMultiplier > 1.3 ? 5 : heightMultiplier > 1.1 ? 4 : 3;
-  const eventColors = events.slice(0, maxBars).map((e) => getEventPalette(e, themeColor).bar);
+  const eventColors = events.slice(0, maxBars).map((e) => getEventPalette(e, themeColor, colorOverrides[e.id]).bar);
   const barHeight = 4 * Math.min(heightMultiplier, 1.5);
 
   return (
@@ -471,6 +476,7 @@ function DetailsDayCell({
   colors,
   isDark,
   heightMultiplier = 1,
+  colorOverrides = {},
 }: {
   day: number | null;
   isToday: boolean;
@@ -482,6 +488,7 @@ function DetailsDayCell({
   colors: typeof DARK_COLORS;
   isDark: boolean;
   heightMultiplier?: number;
+  colorOverrides?: Record<string, string>;
 }) {
   const height = BASE_HEIGHTS.details * heightMultiplier;
 
@@ -523,7 +530,7 @@ function DetailsDayCell({
           {day}
         </Text>
         {events.slice(0, maxEvents).map((event, idx) => {
-          const palette = getEventPalette(event, themeColor);
+          const palette = getEventPalette(event, themeColor, colorOverrides[event.id]);
           const eventColor = palette.bar;
           const textColor = getTextColorForBackground(eventColor, isDark);
           return (
@@ -573,6 +580,7 @@ function EventListItem({
   onDelete,
   onToggleBusy,
   isOwner,
+  colorOverride,
 }: {
   event: Event;
   isAttending?: boolean;
@@ -586,6 +594,7 @@ function EventListItem({
   onDelete?: (eventId: string) => void;
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   isOwner?: boolean;
+  colorOverride?: string;
 }) {
   const router = useRouter();
   // Track context menu state to prevent navigation when menu was just opened
@@ -597,7 +606,8 @@ function EventListItem({
   const endDate = event.endTime ? new Date(event.endTime) : null;
   
   // INVARIANT: Use single source of truth for event palette (busy/work = grey)
-  const palette = getEventPalette({ ...event, isWork }, themeColor);
+  // Apply user's color override if set
+  const palette = getEventPalette({ ...event, isWork }, themeColor, colorOverride);
   const eventColor = isBirthday ? "#FF69B4" : palette.bar;
   const bgColor = isBirthday ? "#FF69B420" : palette.bg;
   const textColor = getTextColorForBackground(eventColor, isDark);
@@ -1060,6 +1070,7 @@ function ListView({
   onDelete,
   onToggleBusy,
   session,
+  colorOverrides = {},
 }: {
   events: Array<Event & { isAttending?: boolean; isBirthday?: boolean }>;
   currentMonth: number;
@@ -1072,6 +1083,7 @@ function ListView({
   onDelete?: (eventId: string) => void;
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   session: any;
+  colorOverrides?: Record<string, string>;
 }) {
   const router = useRouter();
 
@@ -1151,6 +1163,7 @@ function ListView({
               onColorChange={onColorChange}
               onDelete={onDelete}
               onToggleBusy={onToggleBusy}
+              colorOverride={colorOverrides[event.id]}
             />
           ))}
         </Animated.View>
@@ -1164,6 +1177,9 @@ export default function CalendarScreen() {
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+
+  // Event color overrides for user-controlled customization
+  const { colorOverrides, getOverrideColor } = useEventColorOverrides();
 
   // Timeout for graceful degraded mode when loading takes too long
   const isBootLoading = bootStatus === 'loading';
@@ -2164,6 +2180,7 @@ export default function CalendarScreen() {
       themeColor,
       colors,
       heightMultiplier: displayHeightMultiplier,
+      colorOverrides,
     };
 
     switch (viewMode) {
@@ -2395,6 +2412,7 @@ export default function CalendarScreen() {
             onDelete={handleDeleteEvent}
             onToggleBusy={handleToggleBusy}
             session={session}
+            colorOverrides={colorOverrides}
           />
         ) : (
           <>
@@ -2565,6 +2583,7 @@ export default function CalendarScreen() {
                       onColorChange={handleColorChange}
                       onDelete={handleDeleteEvent}
                       onToggleBusy={handleToggleBusy}
+                      colorOverride={colorOverrides[event.id]}
                     />
                   </Animated.View>
                 ))
