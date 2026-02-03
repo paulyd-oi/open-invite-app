@@ -1,134 +1,91 @@
 =================================================================
-HANDOFF PACKET: SecureStore Key Hardening (buildGuideKey)
+HANDOFF PACKET: P0 Circle Calendar Privacy Fix
 =================================================================
 
-Date: 2025-01-29
+Date: 2026-02-02
 Repo: https://github.com/paulyd-oi/open-invite-app.git
 Branch: main
-Commit: 4f791f5
+Commit: 5fb6106
 
 =================================================================
 SUMMARY
 =================================================================
-Fixed SecureStore crash "Invalid key provided" by hardening buildGuideKey()
-to sanitize userId before constructing SecureStore keys.
-
-SecureStore keys must match regex [A-Za-z0-9._-]+ - any other characters
-(e.g., colons in some user IDs) would cause a crash.
+- Fixed privacy leak: Circle calendar was showing full event details 
+  (title, location, emoji) for ALL events including private/busy blocks
+- Events with isPrivate=true now show ONLY "Busy" to non-owners
+- Location, emoji, and attendee info hidden for masked events
+- Navigation to event details disabled for masked busy blocks
+- Slightly dimmed opacity (0.7) indicates non-interactive state
+- DEV logging added for debugging privacy masking decisions
 
 =================================================================
 FILES CHANGED
 =================================================================
 MODIFIED:
-- src/hooks/useOnboardingGuide.ts (hardened buildGuideKey function)
-
-=================================================================
-ROOT CAUSE
-=================================================================
-EXACT CODE PATH: src/hooks/useOnboardingGuide.ts
-
-Location: buildGuideKey() function (line 14-17)
-
-Original code simply concatenated prefix + userId:
-  `${prefix}_${userId}`
-
-If userId contained invalid characters for SecureStore (anything not 
-matching [A-Za-z0-9._-]), SecureStore would throw:
-  "Failed to load onboarding guide state: Invalid key provided to SecureStore"
-
-=================================================================
-FIX
-=================================================================
-1. ADDED validation and sanitization to buildGuideKey():
-   - Check if userId is null/undefined/non-string → return fallback key
-   - Sanitize userId: replace any [^A-Za-z0-9._-] with underscore
-   - Log warning if fallback is used
-
-BEFORE:
-  export function buildGuideKey(prefix: string, userId: string): string {
-    return `${prefix}_${userId}`;
-  }
-
-AFTER:
-  export function buildGuideKey(prefix: string, userId: string): string {
-    if (!userId || typeof userId !== "string") {
-      console.warn("[buildGuideKey] Invalid userId provided:", userId);
-      return `${prefix}_fallback`;
-    }
-    const sanitized = userId.replace(/[^A-Za-z0-9._-]/g, "_");
-    return `${prefix}_${sanitized}`;
-  }
-
-=================================================================
-VERIFICATION
-=================================================================
-npm run typecheck - PASSED
-bash scripts/ai/verify_frontend.sh - PASSED
-  - docs/AUTH_CONTRACT.md exists
-  - No !!session gating found
-  - No uppercase Cookie headers found
-  - No global guidance patterns found
-
-=================================================================
-KNOWN LIMITATION
-=================================================================
-The "Text strings must be rendered within a <Text> component" crash was
-NOT located in this investigation. All conditional string renders found
-appear to be correctly wrapped in <Text> components. This may be:
-1. A platform-specific issue (iOS only)
-2. A race condition during mounting
-3. A third-party component issue
-4. Already fixed by a previous commit
-
-Recommend monitoring TestFlight feedback for this specific crash.
-
-=================================================================
-NEXT AGENT INSTRUCTIONS
-=================================================================
-1. Monitor for Text crash reproduction steps from testers
-2. If Text crash persists, check:
-   - React Native error boundaries
-   - Third-party component renders
-   - Platform-specific conditional renders
-3. Continue normal development workflow
-    - EXPECTED: Colored group pills appear in that section
-    - EXPECTED: "Not in any groups together yet" shows if no shared groups
-
-[ ] 4. No layout regressions:
-    - EXPECTED: Cards still have proper spacing
-    - EXPECTED: Featured badges still display correctly
-    - EXPECTED: MiniCalendar still appears on cards
+- src/app/circle/[id].tsx
 
 =================================================================
 KEY DIFFS
 =================================================================
-FriendCard (lines 272-290) BEFORE:
-  {friendship.groupMemberships && friendship.groupMemberships.length > 0 && (
-    <View className="flex-row flex-wrap mt-1.5">
-      {friendship.groupMemberships.slice(0, 2).map((m) => (
-        <View key={m.groupId} className="px-2 py-0.5 rounded-full mr-1"
-          style={{ backgroundColor: m.group.color + "20" }}>
-          <Text className="text-xs" style={{ color: m.group.color }}>
-            {cleanGroupName(m.group.name)}
-          </Text>
-        </View>
-      ))}
-      ...
-    </View>
-  )}
+1. Added currentUserId prop to MiniCalendar component:
+   circleId: string;
+   currentUserId: string | null;
 
-AFTER:
-  {/* Legacy group badges removed - P2.4 doctrine: groups shown only in friend detail screen */}
+2. getEventsForDate now masks private events:
+   const isOwner = memberData.userId === currentUserId;
+   const shouldMask = e.isPrivate && !isOwner;
+   
+   eventMap.set(e.id, {
+     ...e,
+     title: shouldMask ? "Busy" : e.title,
+     emoji: shouldMask ? "" : e.emoji,
+     location: shouldMask ? null : e.location,
+     isPrivate: e.isPrivate ?? false,
+   });
 
-DetailedFriendCard (lines 455-472): Same pattern removed.
+3. Modal event rendering blocks navigation for masked events:
+   const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
+   
+   onPress={() => {
+     if (isMaskedBusy) return; // Block navigation
+     ...
+   }}
+
+4. Passed currentUserId where MiniCalendar is rendered:
+   currentUserId={session?.user?.id ?? null}
 
 =================================================================
-ROLLBACK
+RUNTIME STATUS
 =================================================================
-If issues arise:
-1. git revert <commit-hash>
-2. The group badge render blocks can be restored from git history
+Commands to verify:
+  npm run typecheck                   # PASSED
+  bash scripts/ai/verify_frontend.sh # PASSED
+
+Expected behavior:
+- Open a Circle with multiple members who have events
+- Events marked isPrivate=true from OTHER members show as "Busy"
+- Your OWN private events show full details
+- Tapping masked "Busy" events does NOT navigate to event detail
+- DEV console shows "[CircleCalendarPrivacy]" logs when masking
 
 =================================================================
-END OF HANDOFF
+ASSUMPTIONS / UNCERTAINTIES
 =================================================================
+- Assumes backend correctly sets isPrivate=true for busy/work events
+- memberEventSchema has isPrivate: z.boolean() field (verified in contracts.ts)
+- If isPrivate is undefined/null on an event, treated as false (public)
+
+=================================================================
+NEXT RECOMMENDED STEPS
+=================================================================
+1. Test with real Circle data where members have private events
+2. Consider if the same privacy masking is needed in other calendar views
+   (e.g., FeedCalendar in the main feed screen)
+
+=================================================================
+PREVIOUS SESSION WORK (same day)
+=================================================================
+Commit 4b56aa6: P0 Subscription Fix
+- Fixed Pro subscription not applying after purchase
+- useIsPro() now checks BOTH backend (hasActiveSubscription) AND RevenueCat
+- Query invalidation on purchase/restore ensures instant UI sync
