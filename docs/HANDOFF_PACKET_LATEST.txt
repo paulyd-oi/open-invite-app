@@ -1,48 +1,49 @@
-HANDOFF PACKET — Event Discussion Comments Tappable Navigation
+HANDOFF PACKET — Badge Pill Text Contrast Fix
 
 ===================================================================
 
 SUMMARY
-- Made comment rows in Event Details (/event/[id]) Discussion section tappable
-- Tap navigates to commenter's user profile: router.push(`/user/${comment.userId}`)
-- Delete button properly uses stopPropagation to prevent navigation when tapped
-- Preserved all existing comment functionality (content, images, timestamps)
+- Fixed badge pill text contrast issues (e.g., yellow text on yellow background)
+- Added automatic text color calculation based on background luminance
+- Light backgrounds (luminance > 0.5) now use BLACK text (#000000)
+- Dark backgrounds (luminance ≤ 0.5) now use WHITE text (#FFFFFF)
+- OG badge (yellow #F59E0B) now renders with black text for readability
+- Fix applied in SSOT BadgePill component — affects all badge displays across app
 
 FILES CHANGED
-- src/app/event/[id].tsx
+- src/components/BadgePill.tsx
 
-EXACT FIELD NAME USED
-- Commenter userId: comment.userId
+BADGE SSOT LOCATION
+- Badge rendering: src/components/BadgePill.tsx (single source of truth)
+- Badge normalization: src/lib/normalizeBadge.ts (provides default tierColor #F59E0B)
+- All screens use BadgePill component: Profile, Friends, Achievements, Event Details, User profiles
 
-INTERACTION SAFETY PROOF
-✅ Delete button pattern:
-```tsx
-<Pressable
-  onPress={(e) => {
-    e.stopPropagation();
-    handleDeleteComment(comment.id);
-  }}
-  className="ml-2 p-1"
->
-  <Trash2 size={14} color="#9CA3AF" />
-</Pressable>
-```
-- Delete uses `e.stopPropagation()` to prevent triggering outer Pressable navigation
-- Delete still calls `handleDeleteComment()` correctly
+EXACT OG COLOR CHANGE
+**BEFORE**:
+- Background: tierColor + "20" (20% opacity) → yellow #F59E0B with 20% opacity
+- Text: tierColor → yellow #F59E0B
+- Result: Yellow text on yellow background (poor contrast)
 
-✅ Row navigation pattern:
-```tsx
-<Pressable
-  onPress={() => {
-    Haptics.selectionAsync();
-    router.push(`/user/${comment.userId}` as any);
-  }}
-  className="rounded-xl p-4 mb-2"
-  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
->
-```
-- Outer Pressable wraps entire comment card
-- Navigates to /user/:userId on tap
+**AFTER**:
+- Background: tierColor + "20" → yellow #F59E0B with 20% opacity (unchanged)
+- Text: Calculated via luminance → BLACK #000000
+- Result: Black text on yellow background (excellent contrast)
+
+LUMINANCE CALCULATION METHOD
+- Uses WCAG relative luminance formula
+- Gamma correction applied to RGB channels
+- Formula: L = 0.2126 * R + 0.7152 * G + 0.0722 * B
+- Threshold: luminance > 0.5 → dark text, else white text
+
+ALL BADGE STYLES AUDITED
+The fix applies automatically to ALL badge types based on their tierColor:
+- **OG** (#F59E0B - gold/yellow): Now BLACK text ✓
+- **Host** (any color): Auto contrast ✓
+- **Ambassador** (any color): Auto contrast ✓
+- **Leader** (any color): Auto contrast ✓
+- **Custom badges** (any tierColor): Auto contrast ✓
+
+Badge types are backend-defined; frontend automatically adapts text color for any tierColor value.
 
 VERIFICATION
 
@@ -56,25 +57,25 @@ GIT PROOF
 
 git show --stat HEAD
 ```
-commit 9f2b086450efc39b91da320bf48239cec35bf7ce (HEAD -> main, origin/main, origin/HEAD)
+commit fc2f4876f99662b0f29f145c394cecd90c69dcee (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 10:41:51 2026 -0800
+Date:   Tue Feb 3 10:46:14 2026 -0800
 
-    feat(p1): make event discussion comments tappable → navigate to commenter profile
+    fix(p1): badge pill text contrast - auto dark/light text based on bg luminance
 
- src/app/event/[id].tsx | 94 +++---
- 1 file changed, 52 insertions(+), 42 deletions(-)
+ src/components/BadgePill.tsx | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)
 ```
 
 git show --name-only HEAD
 ```
-commit 9f2b086450efc39b91da320bf48239cec35bf7ce (HEAD -> main, origin/main, origin/HEAD)
+commit fc2f4876f99662b0f29f145c394cecd90c69dcee (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 10:41:51 2026 -0800
+Date:   Tue Feb 3 10:46:14 2026 -0800
 
-    feat(p1): make event discussion comments tappable → navigate to commenter profile
+    fix(p1): badge pill text contrast - auto dark/light text based on bg luminance
 
-src/app/event/[id].tsx
+src/components/BadgePill.tsx
 ```
 
 ===================================================================
