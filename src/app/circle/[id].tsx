@@ -90,6 +90,7 @@ function MiniCalendar({
   isDark,
   onSelectDate,
   circleId,
+  currentUserId,
 }: {
   memberEvents: Array<{ userId: string; events: Array<any> }>;
   members: Circle["members"];
@@ -98,6 +99,7 @@ function MiniCalendar({
   isDark: boolean;
   onSelectDate?: (date: Date, events: any[]) => void;
   circleId: string;
+  currentUserId: string | null;
 }) {
   const router = useRouter();
   const today = new Date();
@@ -126,6 +128,7 @@ function MiniCalendar({
       color: string;
       userName: string;
       attendingMemberIds: string[];
+      isPrivate: boolean;
     }>();
 
     memberEvents.forEach((memberData) => {
@@ -137,12 +140,29 @@ function MiniCalendar({
         .forEach((e) => {
           if (!eventMap.has(e.id)) {
             // First time seeing this event - add it
+            // Privacy masking: if isPrivate and not owned by currentUserId, mask details
+            const isOwner = memberData.userId === currentUserId;
+            const shouldMask = e.isPrivate && !isOwner;
+            
+            if (__DEV__ && shouldMask) {
+              console.log('[CircleCalendarPrivacy] Masking busy block:', {
+                eventId: e.id,
+                ownerId: memberData.userId,
+                viewerId: currentUserId,
+                originalTitle: e.title,
+              });
+            }
+
             eventMap.set(e.id, {
               ...e,
+              title: shouldMask ? "Busy" : e.title,
+              emoji: shouldMask ? "" : e.emoji,
+              location: shouldMask ? null : e.location,
               userId: memberData.userId,
               color: memberColorMap.get(memberData.userId) ?? themeColor,
               userName: members.find(m => m.userId === memberData.userId)?.user.name ?? "Unknown",
               attendingMemberIds: [memberData.userId],
+              isPrivate: e.isPrivate ?? false,
             });
           } else {
             // Already have this event - just add this member to attendees
@@ -155,7 +175,7 @@ function MiniCalendar({
     });
 
     return Array.from(eventMap.values());
-  }, [memberEvents, memberColorMap, members, themeColor]);
+  }, [memberEvents, memberColorMap, members, themeColor, currentUserId]);
 
   // Get event data for current month (deduped by event ID)
   const eventDataByDate = useMemo(() => {
@@ -555,10 +575,21 @@ function MiniCalendar({
                     </Text>
                   </View>
                 ) : (
-                  selectedDateEvents.map((event, index) => (
+                  selectedDateEvents.map((event, index) => {
+                    // Check if this is a masked busy block (private event not owned by viewer)
+                    const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
+                    
+                    return (
                     <Pressable
                       key={event.id}
                       onPress={() => {
+                        // Don't navigate to private events that belong to other users
+                        if (isMaskedBusy) {
+                          if (__DEV__) {
+                            console.log('[CircleCalendarPrivacy] Blocked navigation to masked busy block:', event.id);
+                          }
+                          return;
+                        }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setShowDayModal(false);
                         // Navigate to event details
@@ -566,6 +597,7 @@ function MiniCalendar({
                           router.push(`/event/${event.id}` as any);
                         }
                       }}
+                      style={{ opacity: isMaskedBusy ? 0.7 : 1 }}
                     >
                       <Animated.View
                         entering={FadeInDown.delay(index * 50).springify()}
@@ -586,7 +618,7 @@ function MiniCalendar({
                               backgroundColor: event.color
                             }}
                           />
-                          <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
+                          <Text style={{ fontWeight: "500", flex: 1, color: isMaskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
                             {event.title}
                           </Text>
                           <Text style={{ fontSize: 11, color: colors.textTertiary }}>
@@ -598,6 +630,8 @@ function MiniCalendar({
                                 })}
                           </Text>
                         </View>
+                        {/* Only show attendee/location row if not masked */}
+                        {!isMaskedBusy && (
                         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
                           <Text style={{ fontSize: 11, color: colors.textSecondary }}>
                             {event.attendingMemberIds.length > 1
@@ -613,9 +647,11 @@ function MiniCalendar({
                             </View>
                           )}
                         </View>
+                        )}
                       </Animated.View>
                     </Pressable>
-                  ))
+                    );
+                  })
                 )}
               </ScrollView>
             </Animated.View>
@@ -1197,6 +1233,7 @@ export default function CircleScreen() {
                 colors={colors}
                 isDark={isDark}
                 circleId={id!}
+                currentUserId={session?.user?.id ?? null}
               />
             </Animated.View>
           );
