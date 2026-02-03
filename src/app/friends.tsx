@@ -111,6 +111,14 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
   });
 
   const events = data?.events ?? [];
+  
+  // Filter to only show future/present events (endTime >= now OR startTime >= now if no endTime)
+  const now = new Date();
+  const futureEvents = events.filter((event) => {
+    const endTime = event.endTime ? new Date(event.endTime) : null;
+    const startTime = new Date(event.startTime);
+    return (endTime && endTime >= now) || startTime >= now;
+  });
 
   // Get current month's calendar
   const today = new Date();
@@ -181,12 +189,12 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
         })}
       </View>
 
-      {/* Event count indicator */}
-      {events.length > 0 && (
+      {/* Event count indicator - only count future/present events */}
+      {futureEvents.length > 0 && (
         <View className="flex-row items-center justify-center mt-1">
           <View className="w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: themeColor }} />
           <Text className="text-[9px]" style={{ color: colors.textSecondary }}>
-            {events.length} open invite{events.length !== 1 ? "s" : ""}
+            {futureEvents.length} open invite{futureEvents.length !== 1 ? "s" : ""}
           </Text>
         </View>
       )}
@@ -267,9 +275,22 @@ const FriendCard = React.memo(function FriendCard({
             )}
           </View>
           <View className="flex-1">
-            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
-              {friend.name ?? friend.email ?? "Unknown"}
-            </Text>
+            <View className="flex-row items-center flex-wrap gap-1.5">
+              <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }}>
+                {friend.name ?? friend.email ?? "Unknown"}
+              </Text>
+              {/* Featured Badge - inline with name */}
+              {(() => {
+                const featured = normalizeFeaturedBadge(friend.featuredBadge);
+                return featured ? (
+                  <BadgePill
+                    name={featured.name}
+                    tierColor={featured.tierColor}
+                    variant="small"
+                  />
+                ) : null;
+              })()}
+            </View>
             {bio && (
               <Text
                 className="mt-0.5"
@@ -280,19 +301,6 @@ const FriendCard = React.memo(function FriendCard({
               </Text>
             )}
             {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
-            {/* Featured Badge */}
-            {(() => {
-              const featured = normalizeFeaturedBadge(friend.featuredBadge);
-              return featured ? (
-                <View className="mt-1.5">
-                  <BadgePill
-                    name={featured.name}
-                    tierColor={featured.tierColor}
-                    variant="small"
-                  />
-                </View>
-              ) : null;
-            })()}
           </View>
         </View>
 
@@ -443,22 +451,22 @@ const FriendListItem = React.memo(function FriendListItem({
                   )}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base font-sora-medium" style={{ color: colors.text }}>
-                    {friend.name ?? friend.email ?? "Unknown"}
-                  </Text>
-                  {/* Featured Badge */}
-                  {(() => {
-                    const featured = normalizeFeaturedBadge(friend.featuredBadge);
-                    return featured ? (
-                      <View className="mt-0.5">
+                  <View className="flex-row items-center flex-wrap gap-1.5">
+                    <Text className="text-base font-sora-medium" style={{ color: colors.text }}>
+                      {friend.name ?? friend.email ?? "Unknown"}
+                    </Text>
+                    {/* Featured Badge - inline with name */}
+                    {(() => {
+                      const featured = normalizeFeaturedBadge(friend.featuredBadge);
+                      return featured ? (
                         <BadgePill
                           name={featured.name}
                           tierColor={featured.tierColor}
                           variant="small"
                         />
-                      </View>
-                    ) : null;
-                  })()}
+                      ) : null;
+                    })()}
+                  </View>
                   {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
                 </View>
               </Pressable>
