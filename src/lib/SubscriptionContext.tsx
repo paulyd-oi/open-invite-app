@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { useSession } from "./useSession";
 import {
@@ -7,6 +8,7 @@ import {
   getOfferings,
   purchasePackage,
   restorePurchases,
+  REVENUECAT_ENTITLEMENT_ID,
 } from "./revenuecatClient";
 import type { PurchasesPackage, PurchasesOfferings } from "react-native-purchases";
 import Purchases from "react-native-purchases";
@@ -48,7 +50,8 @@ interface SubscriptionContextType {
   offeringsStatus: "idle" | "loading" | "ready" | "error";
 }
 
-const SubscriptionContext = createContext<SubscriptionContextType>({
+// Export context for direct access in entitlements.ts (avoids circular deps)
+export const SubscriptionContext = createContext<SubscriptionContextType>({
   subscription: null,
   limits: null,
   features: null,
@@ -72,6 +75,7 @@ interface SubscriptionResponse {
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [limits, setLimits] = useState<SubscriptionLimits | null>(null);
   const [features, setFeatures] = useState<SubscriptionFeatures | null>(null);
@@ -80,6 +84,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [offeringsStatus, setOfferingsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const listenerRegistered = useRef(false);
+
+  // Helper to invalidate all subscription-related queries for instant UI sync
+  const invalidateAllSubscriptionQueries = useCallback(() => {
+    if (__DEV__) {
+      console.log("[SubscriptionContext] Invalidating all subscription queries");
+    }
+    queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+    queryClient.invalidateQueries({ queryKey: ["subscription"] });
+    queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
+    queryClient.invalidateQueries({ queryKey: ["badgesCatalog"] }); // Refresh badge unlock status
+    queryClient.invalidateQueries({ queryKey: ["profile"] }); // Refresh profile for badge display
+  }, [queryClient]);
 
   const fetchSubscription = useCallback(async () => {
     // Note: session is optional enrichment - subscription endpoint validates via Bearer token
@@ -90,8 +106,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (isRevenueCatEnabled()) {
         const customerInfoResult = await getCustomerInfo();
         if (customerInfoResult.ok) {
-          const hasPremium = !!customerInfoResult.data.entitlements?.active?.premium;
+          // Use the canonical entitlement ID
+          const hasPremium = !!customerInfoResult.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
           setIsPremium(hasPremium);
+          
+          // DEV: Log active entitlements
+          if (__DEV__) {
+            const activeKeys = Object.keys(customerInfoResult.data.entitlements?.active || {});
+            console.log("[SubscriptionContext] RevenueCat entitlements:", {
+              activeKeys,
+              hasPremium,
+              expectedEntitlementId: REVENUECAT_ENTITLEMENT_ID,
+            });
+          }
         }
       }
 
@@ -132,7 +159,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, [session]);
 
-  // Register customerInfo update listener
+  // Register customerInfo update listener (handles promo codes + purchases from external sources)
   useEffect(() => {
     if (!isRevenueCatEnabled() || listenerRegistered.current) {
       return;
@@ -140,12 +167,24 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     try {
       const listenerCallback = (customerInfo: any) => {
+        // Use canonical entitlement ID
+        const hasPremium = !!customerInfo.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
+        
         if (__DEV__) {
-          console.log("[SubscriptionContext] CustomerInfo updated:", !!customerInfo.entitlements?.active?.premium);
+          const activeKeys = Object.keys(customerInfo.entitlements?.active || {});
+          console.log("[SubscriptionContext] CustomerInfo LIVE UPDATE:", {
+            activeKeys,
+            hasPremium,
+            expectedId: REVENUECAT_ENTITLEMENT_ID,
+          });
         }
-        const hasPremium = !!customerInfo.entitlements?.active?.premium;
+        
         setIsPremium(hasPremium);
-        // Optionally refresh full subscription data
+        
+        // CRITICAL: Invalidate all queries to ensure UI syncs immediately
+        invalidateAllSubscriptionQueries();
+        
+        // Also refresh backend subscription data
         fetchSubscription();
       };
 
@@ -161,7 +200,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         console.error("[SubscriptionContext] Failed to register listener:", error);
       }
     }
-  }, [fetchSubscription]);
+  }, [fetchSubscription, invalidateAllSubscriptionQueries]);
 
   useEffect(() => {
     fetchSubscription();
@@ -206,8 +245,19 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       const result = await purchasePackage(packageOrProduct);
 
       if (result.ok) {
-        // Force refresh subscription state
+        if (__DEV__) {
+          console.log("[SubscriptionContext] Purchase SUCCESS - updating state immediately");
+        }
+        
+        // Immediately set isPremium for instant UI feedback
+        setIsPremium(true);
+        
+        // CRITICAL: Invalidate all queries for instant UI sync
+        invalidateAllSubscriptionQueries();
+        
+        // Also refresh backend subscription data
         await fetchSubscription();
+        
         return { ok: true as const };
       } else {
         // Handle SDK errors
@@ -227,7 +277,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
       return { ok: false as const, error: "Purchase failed" };
     }
-  }, [fetchSubscription]);
+  }, [fetchSubscription, invalidateAllSubscriptionQueries]);
 
   // Restore purchases
   const restore = useCallback(async () => {
@@ -239,8 +289,27 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       const result = await restorePurchases();
 
       if (result.ok) {
-        // Force refresh subscription state
+        if (__DEV__) {
+          console.log("[SubscriptionContext] Restore SUCCESS - checking entitlements");
+        }
+        
+        // Check if restore found active entitlements
+        const customerInfo = await getCustomerInfo();
+        if (customerInfo.ok) {
+          const hasPremium = !!customerInfo.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
+          setIsPremium(hasPremium);
+          
+          if (__DEV__) {
+            console.log("[SubscriptionContext] Restore found premium:", hasPremium);
+          }
+        }
+        
+        // CRITICAL: Invalidate all queries for instant UI sync
+        invalidateAllSubscriptionQueries();
+        
+        // Also refresh backend subscription data
         await fetchSubscription();
+        
         return { ok: true as const };
       } else {
         const errorMsg = typeof result.error === "string" ? result.error : "Restore failed";
@@ -252,7 +321,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
       return { ok: false as const, error: "Restore failed" };
     }
-  }, [fetchSubscription]);
+  }, [fetchSubscription, invalidateAllSubscriptionQueries]);
 
   // Get offerings wrapper
   const getOfferingsWrapper = useCallback(async (): Promise<PurchasesOfferings | null> => {

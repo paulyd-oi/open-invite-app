@@ -5,9 +5,10 @@
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
+import { SubscriptionContext } from "./SubscriptionContext";
 
 // Plan types
 export type Plan = "FREE" | "PRO" | "LIFETIME_PRO";
@@ -297,8 +298,12 @@ export function isPro(entitlements: EntitlementsResponse | undefined): boolean {
  * SINGLE SOURCE OF TRUTH for Pro/Premium status.
  * Use this hook in ALL gating logic.
  * 
+ * Checks BOTH:
+ * 1. Backend entitlements (plan === PRO or LIFETIME_PRO)
+ * 2. RevenueCat entitlements (entitlements.active.premium)
+ * 
  * Returns:
- * - isPro: true if user has PRO or LIFETIME_PRO plan
+ * - isPro: true if EITHER backend OR RevenueCat says Pro
  * - isLoading: true while entitlements are being fetched (DO NOT show gates while loading)
  * - entitlements: raw entitlements data for advanced checks
  * 
@@ -309,12 +314,35 @@ export function useIsPro(): {
   isLoading: boolean;
   entitlements: EntitlementsResponse | undefined;
 } {
-  const { data: entitlements, isLoading } = useEntitlements();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
   
-  // During loading, assume user MAY be premium to avoid flashing gates
-  // The isPro value during loading is technically undefined behavior,
-  // but callers MUST check isLoading before acting on isPro
-  const userIsPro = isPro(entitlements);
+  // Check RevenueCat via SubscriptionContext (single source for RC state)
+  // Use useContext directly to avoid circular dependency with useSubscription()
+  const subscriptionContext = useContext(SubscriptionContext);
+  const revenueCatIsPremium = subscriptionContext?.isPremium ?? false;
+  const revenueCatLoading = subscriptionContext?.isLoading ?? true;
+  
+  // Backend says Pro if plan is PRO or LIFETIME_PRO
+  const backendIsPro = isPro(entitlements);
+  
+  // Combined loading state: loading if either is loading
+  const isLoading = entitlementsLoading || revenueCatLoading;
+  
+  // MERGED: User is Pro if EITHER backend OR RevenueCat says so
+  // This ensures instant UI update when RevenueCat purchase completes
+  const userIsPro = backendIsPro || revenueCatIsPremium;
+  
+  // DEV: Log for debugging entitlement issues
+  if (__DEV__) {
+    console.log("[useIsPro] ENTITLEMENT_CHECK", {
+      backendPlan: entitlements?.plan,
+      backendIsPro,
+      revenueCatIsPremium,
+      combined_isPro: userIsPro,
+      entitlementsLoading,
+      revenueCatLoading,
+    });
+  }
   
   return {
     isPro: userIsPro,
