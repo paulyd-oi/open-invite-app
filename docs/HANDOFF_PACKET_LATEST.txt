@@ -1,53 +1,120 @@
-HANDOFF PACKET: P0 DISCOVER POPULAR TAB EMPTY FIX
-==================================================
+HANDOFF PACKET: P0 EVENT DETAILS SYNC (ATTENDEES + DISCUSSION)
+===============================================================
 Date: 2026-02-03
-Commit: 00c45ca (fix(p0): popular feed correctness)
+Commit: 53a40ee (fix(p0): event details sync correctness)
 Branch: main
 Status: COMPLETE ✅
 
 SUMMARY
 -------
-Popular tab showed "No popular events right now" even when qualifying events existed.
+Event Details screen did not sync live state across accounts:
+- Two accounts RSVP'd but screen showed "No one has joined yet"
+- Discussion inconsistent: one account sees comment, another sees "No messages yet"
 
-ROOT CAUSE (EXACT)
-------------------
-1. discover.tsx line 207: attendeeCount calculation used ONLY joinRequests array:
-   `(event.joinRequests?.filter(r => r.status === "accepted")?.length ?? 0) + 1`
-   
-   But /api/events/feed returns goingCount (already includes host), NOT joinRequests.
-   When joinRequests was empty/undefined, attendeeCount became 0+1=1, failing >= 2 filter.
+ROOT CAUSE
+----------
+1. NO focus refetch: Event Details had no useFocusEffect to refetch data when returning
+   to screen, causing stale cached data across accounts.
 
-2. event/[id].tsx removeRsvpMutation: Missing invalidation of ["events", "feed"] and
-   ["events", "my-events"], so removing RSVP didn't refresh Popular tab data.
+2. Missing invalidations:
+   - removeRsvpMutation: Missing ["events", "single", id] invalidation
+   - joinMutation: Used wildcard ["events"] instead of specific keys
+   - handleJoinRequestAction: Used wildcard ["events"] instead of specific keys
 
-FIX SUMMARY
------------
-1. discover.tsx: Use goingCount from API if available, fallback to computed joinRequests:
-   `const attendeeCount = event.goingCount ?? computedFromJoinRequests;`
-
-2. event/[id].tsx: Added missing invalidation to removeRsvpMutation:
-   - queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-   - queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
-
-FILES CHANGED (2 files, +41/-11)
---------------------------------
-1. src/app/discover.tsx - Fixed attendeeCount calculation, added DEV exclusion logs
-2. src/app/event/[id].tsx - Added feed/my-events invalidation to removeRsvpMutation
+FILES CHANGED (1 file, +42/-4)
+------------------------------
+src/app/event/[id].tsx:
+  - Added useFocusEffect to refetch event data on screen focus
+  - Fixed removeRsvpMutation to invalidate ["events", "single", id]
+  - Fixed joinMutation to use specific query keys
+  - Fixed handleJoinRequestAction to use specific query keys
+  - Added [P0_EVENT_SYNC] DEV logs throughout
 
 QUERY KEY MAP
 -------------
-Popular fetch keys:
-  ["events", "feed"]     → /api/events/feed (friends' events)
-  ["events", "my-events"] → /api/events (user's own events)
+Event Details fetch keys:
+  ["events", "single", id]    → /api/events/{id}          → event core data, joinRequests
+  ["events", id, "interests"] → /api/events/{id}/interests → RSVP list (going/interested)
+  ["events", id, "comments"]  → /api/events/{id}/comments  → discussion messages
+  ["events", id, "rsvp"]      → /api/events/{id}/rsvp      → viewer's RSVP status
 
 INVALIDATION MAP
 ----------------
-rsvpMutation (join):
+rsvpMutation (RSVP join):
   ✅ ["events", id, "interests"]
   ✅ ["events", id, "rsvp"]
   ✅ ["events", "single", id]
   ✅ ["events", "calendar"]
   ✅ ["events", "attending"]
+  ✅ ["events", id]
+  ✅ ["events", "feed"]
+  ✅ ["events", "my-events"]
+
+removeRsvpMutation (RSVP leave):
+  ✅ ["events", id, "interests"]
+  ✅ ["events", id, "rsvp"]
+  ✅ ["events", "single", id]      <- ADDED
+  ✅ ["events", "calendar"]
+  ✅ ["events", "attending"]
+  ✅ ["events", "feed"]
+  ✅ ["events", "my-events"]
+
+joinMutation (join event):
+  ✅ ["events", "single", id]      <- FIXED (was wildcard)
+  ✅ ["events", id, "interests"]   <- FIXED
+  ✅ ["events", "feed"]
+  ✅ ["events", "my-events"]
+  ✅ ["events", "calendar"]
+
+handleJoinRequestAction (accept/reject):
+  ✅ ["events", "single", id]      <- FIXED (was wildcard)
+  ✅ ["events", id, "interests"]   <- FIXED
+  ✅ ["events", "feed"]
+  ✅ ["events", "my-events"]
+
+createCommentMutation:
+  ✅ ["events", id, "comments"]
+
+Focus refetch (useFocusEffect):
+  ✅ ["events", "single", id]
+  ✅ ["events", id, "interests"]
+  ✅ ["events", id, "comments"]
+  ✅ ["events", id, "rsvp"]
+
+BLAST-RADIUS PROOF
+------------------
+rg -n '"events".*"single"' src/ | wc -l → 8
+rg -n 'invalidateQueries' src/app/event/[id].tsx | wc -l → 34
+rg -n 'comments' src/app/event/[id].tsx | wc -l → 17
+rg -n 'P0_EVENT_SYNC' src/app/event/[id].tsx | wc -l → 7
+
+PROOF LOGS (SAMPLE)
+-------------------
+[P0_EVENT_SYNC] focus refetch fired for event: abc123
+[P0_EVENT_SYNC] fetch keys: [events,single,id], [events,id,interests], [events,id,comments], [events,id,rsvp]
+[P0_EVENT_SYNC] RSVP success invalidated: [events,id,interests], [events,id,rsvp], [events,single,id], ...
+[P0_EVENT_SYNC] join success invalidated: [events,single,id], [events,id,interests], feed, my-events, calendar
+[P0_EVENT_SYNC] comment success invalidated: [events,id,comments]
+
+VERIFICATION OUTPUTS
+--------------------
+npm run typecheck → PASS (no errors)
+bash scripts/ai/verify_frontend.sh → PASS: verify_frontend
+
+QA STEPS
+--------
+1. Account A: Create event, note event ID
+2. Account B: RSVP "going" on the event
+3. Account A: Open Event Details → Should see B in attendee list (not "No one has joined")
+4. Account B: Post a comment in Discussion
+5. Account A: Return to Event Details → Should see comment (not "No messages yet")
+6. Check DEV console for [P0_EVENT_SYNC] logs on each action
+
+KNOWN GOOD STATE
+----------------
+- TypeScript: PASS
+- verify_frontend.sh: PASS
+- Git: Pushed to main
   ✅ ["events", id]
   ✅ ["events", "feed"]
   ✅ ["events", "my-events"]
