@@ -1,259 +1,81 @@
-# HANDOFF: P0 Event Query-Key SSOT + Invalidation Contract Sweep
+HANDOFF PACKET — Event Discussion Comments Tappable Navigation
 
-**Date:** 2026-02-03
-**Branch:** main
-**Commit:** bb115cb - fix(p0): event query-key SSOT + invalidation contract
-**Status:** COMPLETE - Pushed to main
+===================================================================
 
----
+SUMMARY
+- Made comment rows in Event Details (/event/[id]) Discussion section tappable
+- Tap navigates to commenter's user profile: router.push(`/user/${comment.userId}`)
+- Delete button properly uses stopPropagation to prevent navigation when tapped
+- Preserved all existing comment functionality (content, images, timestamps)
 
-## SUMMARY
+FILES CHANGED
+- src/app/event/[id].tsx
 
-Created a single source of truth (SSOT) module for ALL event-related React Query keys.
-All event query keys and invalidations in high-risk screens now use `eventKeys.*` helpers
-and `invalidateEventKeys()` batch helper.
+EXACT FIELD NAME USED
+- Commenter userId: comment.userId
 
-Eliminated **all wildcard invalidations** (`["events"]`) in migrated files.
-Remaining wildcards are in lower-risk utility files (documented below).
-
----
-
-## ROOT CAUSE (Systemic Issue)
-
-1. **Mismatched keys**: Different files used different key shapes for the same data
-   - `["events", "single", id]` vs `["events", id]` vs `["events"]`
-2. **Wildcard invalidations**: `queryClient.invalidateQueries({ queryKey: ["events"] })`
-   caused over-invalidation and potential stale data in edge cases
-3. **Distributed invalidation logic**: Each mutation had its own list of keys to invalidate,
-   making it easy to "forget one key" and cause staleness
-4. **No focus-refetch consistency**: Event details screen and feeds could get out of sync
-
----
-
-## SSOT MODULE
-
-### File: `src/lib/eventQueryKeys.ts`
-
-```typescript
-export const eventKeys = {
-  all: () => ["events"] as const,
-  single: (id: string) => ["events", "single", id] as const,
-  interests: (id: string) => ["events", id, "interests"] as const,
-  comments: (id: string) => ["events", id, "comments"] as const,
-  rsvp: (id: string) => ["events", id, "rsvp"] as const,
-  mute: (id: string) => ["events", id, "mute"] as const,
-  detail: (id: string) => ["events", id] as const,
-  feed: () => ["events", "feed"] as const,
-  mine: () => ["events", "mine"] as const,
-  myEvents: () => ["events", "my-events"] as const,
-  calendar: () => ["events", "calendar"] as const,
-  attending: () => ["events", "attending"] as const,
-};
-
-// Invalidation contract helpers
-export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly string[]>;
-export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly string[]>;
-export function getInvalidateAfterJoinRequestAction(eventId: string): Array<readonly string[]>;
-export function getInvalidateAfterComment(eventId: string): Array<readonly string[]>;
-export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]>;
-export function getInvalidateAfterEventCreate(): Array<readonly string[]>;
-export function getInvalidateAfterEventEdit(eventId: string): Array<readonly string[]>;
-export function getInvalidateAfterEventDelete(): Array<readonly string[]>;
-
-// Batch invalidation helper
-export function invalidateEventKeys(
-  queryClient: QueryClient,
-  keys: Array<readonly string[]>,
-  logLabel?: string
-): void;
-
-// DEV logging helpers (canonical [P0_EVENT_QK] tag)
-export function logEventKey(label: string, key: readonly string[]): void;
-export function logEventKeys(label: string, keys: Array<readonly string[]>): void;
+INTERACTION SAFETY PROOF
+✅ Delete button pattern:
+```tsx
+<Pressable
+  onPress={(e) => {
+    e.stopPropagation();
+    handleDeleteComment(comment.id);
+  }}
+  className="ml-2 p-1"
+>
+  <Trash2 size={14} color="#9CA3AF" />
+</Pressable>
 ```
+- Delete uses `e.stopPropagation()` to prevent triggering outer Pressable navigation
+- Delete still calls `handleDeleteComment()` correctly
 
----
-
-## INVALIDATION CONTRACT MAP
-
-| Action               | Keys Invalidated (via SSOT helpers)                                      |
-|---------------------|--------------------------------------------------------------------------|
-| RSVP Join/Going     | single, interests, rsvp, detail, feed, myEvents, calendar, attending    |
-| RSVP Leave/Remove   | single, interests, rsvp, detail, feed, myEvents, calendar, attending    |
-| Join Request Action | single, interests, feed, myEvents                                        |
-| Comment Create/Delete | comments(id)                                                           |
-| Focus Refetch       | single, interests, comments, rsvp                                        |
-| Event Create        | feed, mine, myEvents, calendar                                           |
-| Event Edit          | single, feed, mine, myEvents, calendar                                   |
-| Event Delete        | feed, mine, myEvents, calendar                                           |
-
----
-
-## FILES MIGRATED
-
-| File                                   | Changes                                                |
-|---------------------------------------|--------------------------------------------------------|
-| src/app/event/[id].tsx                | All useQuery + invalidations → eventKeys.*             |
-| src/app/event/edit/[id].tsx           | All useQuery + invalidations → eventKeys.*             |
-| src/app/social.tsx                    | Feed/mine/attending queries → eventKeys.*              |
-| src/app/discover.tsx                  | Feed/myEvents queries → eventKeys.*                    |
-| src/app/create.tsx                    | Event create invalidations → getInvalidateAfterEventCreate() |
-| src/app/calendar.tsx                  | Delete/busy/color invalidations → eventKeys.*          |
-| src/components/EventSummaryModal.tsx  | Summary save/dismiss → eventKeys.single()              |
-| src/hooks/useEventColorOverrides.ts   | Color override invalidations → eventKeys.*             |
-| src/lib/eventQueryKeys.ts             | NEW - SSOT module                                      |
-
----
-
-## WILDCARD INVALIDATIONS STATUS
-
-### ELIMINATED (in migrated files):
-- src/app/event/[id].tsx - toggleReflectionMutation
-- src/app/event/edit/[id].tsx - updateMutation, deleteMutation
-- src/app/create.tsx - createMutation
-- src/app/calendar.tsx - createBusyMutation, deleteEventMutation
-- src/components/EventSummaryModal.tsx - saveMutation, dismissMutation
-- src/hooks/useEventColorOverrides.ts - setOverrideColor, resetColor
-
-### REMAINING (out of scope - lower risk):
-- src/hooks/useNotifications.ts:550,557 - push notification handlers
-- src/app/blocked-contacts.tsx:83 - unblock user action
-- src/lib/offlineSync.ts:220 - offline sync flush
-- src/app/import-calendar.tsx:160 - calendar import
-
-These are intentionally broad refreshes for system-level operations.
-
----
-
-## DEV PROOF LOGS ([P0_EVENT_QK] Only)
-
-### Canonical Log Format
-
+✅ Row navigation pattern:
+```tsx
+<Pressable
+  onPress={() => {
+    Haptics.selectionAsync();
+    router.push(`/user/${comment.userId}` as any);
+  }}
+  className="rounded-xl p-4 mb-2"
+  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+>
 ```
-[P0_EVENT_QK] <label> keys=<JSON array of keys>
+- Outer Pressable wraps entire comment card
+- Navigates to /user/:userId on tap
+
+VERIFICATION
+
+npm run typecheck
+RESULT: PASS
+
+bash scripts/ai/verify_frontend.sh
+RESULT: PASS
+
+GIT PROOF
+
+git show --stat HEAD
 ```
-
-### Example: Focus Refetch
-
-```
-[P0_EVENT_QK] focus_refetch event=abc123 keys=[["events","single","abc123"],["events","abc123","interests"],["events","abc123","comments"],["events","abc123","rsvp"]]
-```
-
-### Example: RSVP Join Success
-
-```
-[P0_EVENT_QK] rsvp_going keys=[["events","single","abc123"],["events","abc123","interests"],["events","abc123","rsvp"],["events","abc123"],["events","feed"],["events","my-events"],["events","calendar"],["events","attending"]]
-```
-
-### Example: Comment Create
-
-```
-[P0_EVENT_QK] comment_create keys=[["events","abc123","comments"]]
-```
-
----
-
-## BLAST RADIUS SWEEP RESULTS
-
-### Commands Run
-
-```bash
-# Find all queryKey patterns
-rg -n 'queryKey: \[' src/app src/components src/hooks src/lib
-
-# Find wildcard invalidations
-rg -n 'invalidateQueries\(\{ queryKey: \["events"\]' src/
-
-# Find hardcoded event keys in migrated files (after)
-rg -n 'queryKey: \["events"' src/app/event/ src/app/social.tsx src/app/discover.tsx src/app/create.tsx src/app/calendar.tsx src/components/EventSummaryModal.tsx src/hooks/useEventColorOverrides.ts
-```
-
-### Results
-
-**BEFORE**: 15+ wildcard invalidations across app
-**AFTER**: 0 wildcard invalidations in migrated high-risk files
-
-Remaining parameterized key in calendar.tsx:
-`["events", "calendar", visibleDateRange.start, visibleDateRange.end]`
-This is correct - it's a date-scoped calendar fetch, not a wildcard.
-
----
-
-## INVARIANTS ENFORCED
-
-### INVARIANT A
-> No hardcoded event query keys in event-related files once migrated.
-> All event query keys must come from the SSOT module.
-
-**STATUS**: ✅ PASS - All migrated files use `eventKeys.*`
-
-### INVARIANT B
-> No wildcard invalidations for events in migrated files.
-> Only specific keys may be invalidated, using the SSOT helpers.
-
-**STATUS**: ✅ PASS - All migrated mutations use `invalidateEventKeys()` or `eventKeys.*`
-
-### INVARIANT C
-> When focus returns to Event Details, it refetches the same SSOT keys consistently.
-
-**STATUS**: ✅ PASS - `getRefetchOnEventFocus(id)` used in useFocusEffect
-
----
-
-## VERIFICATION OUTPUTS
-
-```
-npm run typecheck - PASS
-bash scripts/ai/verify_frontend.sh - PASS
-```
-
----
-
-## GIT SHOW --STAT HEAD
-
-```
-commit bb115cb1fe2f39514b6764d81c10879b4969eb67 (HEAD -> main, origin/main, origin/HEAD)
+commit 9f2b086450efc39b91da320bf48239cec35bf7ce (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 07:05:37 2026 -0800
+Date:   Tue Feb 3 10:41:51 2026 -0800
 
-    fix(p0): event query-key SSOT + invalidation contract
+    feat(p1): make event discussion comments tappable → navigate to commenter profile
 
- docs/HANDOFF_PACKET_LATEST.txt          | 259 ++++++------
- src/app/calendar.tsx                    |  13 +-
- src/app/create.tsx                      |   9 +-
- src/app/discover.tsx                    |   5 +-
- src/app/event/[id].tsx                  | 118 ++----
- src/app/event/edit/[id].tsx             |  23 +-
- src/app/social.tsx                      |  16 +-
- src/components/EventSummaryModal.tsx    |   7 +-
- src/hooks/useEventColorOverrides.ts     |  17 +-
- src/lib/eventQueryKeys.ts               | 204 +++++++++
- 10 files changed, 423 insertions(+), 248 deletions(-)
+ src/app/event/[id].tsx | 94 +++---
+ 1 file changed, 52 insertions(+), 42 deletions(-)
 ```
 
----
-
-## GIT SHOW --NAME-ONLY HEAD
-
+git show --name-only HEAD
 ```
-commit bb115cb1fe2f39514b6764d81c10879b4969eb67 (HEAD -> main, origin/main, origin/HEAD)
+commit 9f2b086450efc39b91da320bf48239cec35bf7ce (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 07:05:37 2026 -0800
+Date:   Tue Feb 3 10:41:51 2026 -0800
 
-    fix(p0): event query-key SSOT + invalidation contract
+    feat(p1): make event discussion comments tappable → navigate to commenter profile
 
-docs/HANDOFF_PACKET_LATEST.txt
-src/app/calendar.tsx
-src/app/create.tsx
-src/app/discover.tsx
 src/app/event/[id].tsx
-src/app/event/edit/[id].tsx
-src/app/social.tsx
-src/components/EventSummaryModal.tsx
-src/hooks/useEventColorOverrides.ts
-src/lib/eventQueryKeys.ts
 ```
 
----
-
-## END OF HANDOFF
+===================================================================
+END HANDOFF PACKET
