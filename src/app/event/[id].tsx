@@ -2002,53 +2002,63 @@ export default function EventDetailScreen() {
                   <Animated.View
                     key={comment.id}
                     entering={FadeIn.delay(index * 50)}
-                    className="rounded-xl p-4 mb-2"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                   >
-                    <View className="flex-row">
-                      <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                        {comment.user.image ? (
-                          <Image
-                            source={{ uri: comment.user.image }}
-                            className="w-full h-full rounded-full"
-                          />
-                        ) : (
-                          <Text className="font-semibold" style={{ color: themeColor }}>
-                            {comment.user.name?.[0] ?? "?"}
-                          </Text>
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <View className="flex-row items-center justify-between">
-                          <Text className="font-semibold" style={{ color: colors.text }}>
-                            {comment.user.name ?? "User"}
-                          </Text>
-                          <View className="flex-row items-center">
-                            <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                              {formatTimeAgo(comment.createdAt)}
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        router.push(`/user/${comment.userId}` as any);
+                      }}
+                      className="rounded-xl p-4 mb-2"
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                    >
+                      <View className="flex-row">
+                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
+                          {comment.user.image ? (
+                            <Image
+                              source={{ uri: comment.user.image }}
+                              className="w-full h-full rounded-full"
+                            />
+                          ) : (
+                            <Text className="font-semibold" style={{ color: themeColor }}>
+                              {comment.user.name?.[0] ?? "?"}
                             </Text>
-                            {(comment.userId === session?.user?.id || isMyEvent) && (
-                              <Pressable
-                                onPress={() => handleDeleteComment(comment.id)}
-                                className="ml-2 p-1"
-                              >
-                                <Trash2 size={14} color="#9CA3AF" />
-                              </Pressable>
-                            )}
-                          </View>
+                          )}
                         </View>
-                        {comment.content && (
-                          <Text className="mt-1" style={{ color: colors.textSecondary }}>{comment.content}</Text>
-                        )}
-                        {comment.imageUrl && (
-                          <Image
-                            source={{ uri: comment.imageUrl }}
-                            className="w-full h-48 rounded-xl mt-2"
-                            resizeMode="cover"
-                          />
-                        )}
+                        <View className="flex-1">
+                          <View className="flex-row items-center justify-between">
+                            <Text className="font-semibold" style={{ color: colors.text }}>
+                              {comment.user.name ?? "User"}
+                            </Text>
+                            <View className="flex-row items-center">
+                              <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                                {formatTimeAgo(comment.createdAt)}
+                              </Text>
+                              {(comment.userId === session?.user?.id || isMyEvent) && (
+                                <Pressable
+                                  onPress={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteComment(comment.id);
+                                  }}
+                                  className="ml-2 p-1"
+                                >
+                                  <Trash2 size={14} color="#9CA3AF" />
+                                </Pressable>
+                              )}
+                            </View>
+                          </View>
+                          {comment.content && (
+                            <Text className="mt-1" style={{ color: colors.textSecondary }}>{comment.content}</Text>
+                          )}
+                          {comment.imageUrl && (
+                            <Image
+                              source={{ uri: comment.imageUrl }}
+                              className="w-full h-48 rounded-xl mt-2"
+                              resizeMode="cover"
+                            />
+                          )}
+                        </View>
                       </View>
-                    </View>
+                    </Pressable>
                   </Animated.View>
                 ))}
               </View>
