@@ -517,7 +517,35 @@ function FriendRequestCard({
 }) {
   const user = type === "received" ? request.sender : request.receiver;
   const mutualCount = request.mutualCount ?? 0;
-  const mutualPreviewUsers = request.mutualPreviewUsers ?? [];
+  
+  // Extract profile info from sender/receiver
+  const username = user?.Profile?.handle;
+  const calendarBio = user?.Profile?.calendarBio;
+  const featuredBadge = normalizeFeaturedBadge(user?.featuredBadge);
+  
+  // Build metadata line segments (Line 2)
+  // Format: "X mutual friends • @username • calendarBio" or "New to Open Invite • @username • calendarBio"
+  const metadataSegments: string[] = [];
+  
+  if (type === "received") {
+    if (mutualCount > 0) {
+      metadataSegments.push(`👥 ${mutualCount} mutual friend${mutualCount === 1 ? "" : "s"}`);
+    } else {
+      metadataSegments.push("New to Open Invite");
+    }
+  } else {
+    metadataSegments.push("Pending");
+  }
+  
+  if (username) {
+    metadataSegments.push(`@${username}`);
+  }
+  
+  if (calendarBio) {
+    metadataSegments.push(calendarBio);
+  }
+  
+  const metadataLine = metadataSegments.join(" • ");
 
   return (
     <Pressable
@@ -542,54 +570,34 @@ function FriendRequestCard({
           </View>
         )}
       </View>
-      <View className="flex-1">
-        <Text className="font-medium" style={{ color: colors.text }}>
-          {user?.name ?? user?.email ?? "Unknown"}
-        </Text>
-        {/* Mutual friends display (Instagram-style) */}
-        {type === "received" && mutualCount > 0 ? (
-          <View className="flex-row items-center mt-0.5">
-            {/* Mini avatar stack */}
-            {mutualPreviewUsers.length > 0 && (
-              <View className="flex-row mr-1.5">
-                {mutualPreviewUsers.slice(0, 2).map((u, idx) => (
-                  <View
-                    key={u.id}
-                    className="w-4 h-4 rounded-full overflow-hidden border"
-                    style={{
-                      marginLeft: idx > 0 ? -6 : 0,
-                      borderColor: colors.surface,
-                      borderWidth: 1,
-                      zIndex: 2 - idx,
-                    }}
-                  >
-                    {u.image ? (
-                      <Image source={{ uri: u.image }} className="w-full h-full" />
-                    ) : (
-                      <View
-                        className="w-full h-full items-center justify-center"
-                        style={{ backgroundColor: themeColor + "30" }}
-                      >
-                        <Text style={{ color: themeColor, fontSize: 8 }}>
-                          {u.name?.[0]?.toUpperCase() ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
-              {mutualCount === 1
-                ? `${mutualPreviewUsers[0]?.name ?? "1 mutual friend"}`
-                : `${mutualCount} mutual friends`}
-            </Text>
-          </View>
-        ) : (
-          <Text className="text-xs" style={{ color: colors.textTertiary }}>
-            {type === "received" ? "Wants to connect" : "Pending"}
+      <View className="flex-1 mr-2">
+        {/* Line 1: Name + Badge Pill */}
+        <View className="flex-row items-center flex-nowrap gap-1.5">
+          <Text 
+            className="font-medium" 
+            style={{ color: colors.text }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {user?.name ?? user?.email ?? "Unknown"}
           </Text>
-        )}
+          {featuredBadge && (
+            <BadgePill
+              name={featuredBadge.name}
+              tierColor={featuredBadge.tierColor}
+              variant="small"
+            />
+          )}
+        </View>
+        {/* Line 2: Metadata (mutual friends • @username • calendarBio) */}
+        <Text 
+          className="text-xs mt-0.5" 
+          style={{ color: colors.textSecondary }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {metadataLine}
+        </Text>
       </View>
       {type === "received" && (
         <View className="flex-row">
