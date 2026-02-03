@@ -1383,6 +1383,7 @@ export default function CreateEventScreen() {
         <OnboardingGuideOverlay
           step="create_event"
           onDismiss={() => onboardingGuide.dismissGuide()}
+          onSkipAll={() => onboardingGuide.dismissGuide()}
           themeColor={themeColor}
           isDark={isDark}
           colors={colors}

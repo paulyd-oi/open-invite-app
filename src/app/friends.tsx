@@ -1172,42 +1172,49 @@ export default function FriendsScreen() {
 
   // [LEGACY_GROUPS_PURGED] selectedGroup memo removed
 
-  if (!session) {
-    // INVARIANT: Only show login screen if bootStatus is definitively loggedOut
-    // During loading/unknown, show skeleton to prevent flash
-    if (bootStatus === 'loading' || bootStatus === 'authed' || bootStatus === 'onboarding') {
+  // P0_FIX: STABLE AUTH GATE - NEVER show login UI except when DEFINITIVELY logged out
+  // INVARIANT: Tab screens must defer to BootRouter for auth routing decisions
+  // Only bootStatus === 'loggedOut' means user is truly logged out; all other states show skeleton
+  if (!session || bootStatus !== 'authed') {
+    if (__DEV__) {
+      console.log('[P0_FRIENDS_AUTH] Gate check - bootStatus:', bootStatus, 'session:', !!session);
+    }
+    
+    // ONLY show login prompt when bootStatus is DEFINITIVELY 'loggedOut'
+    // All other states (loading, authed-but-no-session-yet, onboarding, degraded, error) → skeleton
+    if (bootStatus === 'loggedOut') {
       if (__DEV__) {
-        console.log('[FRIENDS_AUTH_GATE] Showing skeleton - bootStatus:', bootStatus, 'session:', !!session);
+        console.log('[P0_FRIENDS_AUTH] → Showing login prompt (bootStatus=loggedOut)');
       }
       return (
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-          <View className="px-5 pt-2 pb-4">
-            <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
+          <View className="flex-1 items-center justify-center px-8">
+            <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
+              Sign in to see your friends
+            </Text>
+            <Pressable
+              onPress={() => router.replace("/login")}
+              className="px-6 py-3 rounded-full mt-4"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold">Sign In</Text>
+            </Pressable>
           </View>
-          <FriendsListSkeleton />
           <BottomNavigation />
         </SafeAreaView>
       );
     }
     
-    // Only show login prompt when definitively logged out
+    // All non-loggedOut states show skeleton (loading, authed, onboarding, degraded, error)
     if (__DEV__) {
-      console.log('[FRIENDS_AUTH_GATE] Showing login prompt - bootStatus:', bootStatus);
+      console.log('[P0_FRIENDS_AUTH] → Showing skeleton (bootStatus=' + bootStatus + ', waiting for session)');
     }
     return (
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-        <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
-            Sign in to see your friends
-          </Text>
-          <Pressable
-            onPress={() => router.replace("/login")}
-            className="px-6 py-3 rounded-full mt-4"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Sign In</Text>
-          </Pressable>
+        <View className="px-5 pt-2 pb-4">
+          <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
         </View>
+        <FriendsListSkeleton />
         <BottomNavigation />
       </SafeAreaView>
     );
@@ -1883,6 +1890,7 @@ export default function FriendsScreen() {
         <OnboardingGuideOverlay
           step="friends_tab"
           onDismiss={() => onboardingGuide.completeStep("friends_tab")}
+          onSkipAll={() => onboardingGuide.dismissGuide()}
           themeColor={themeColor}
           isDark={isDark}
           colors={colors}
@@ -1893,6 +1901,7 @@ export default function FriendsScreen() {
         <OnboardingGuideOverlay
           step="add_friend"
           onDismiss={() => onboardingGuide.completeStep("add_friend")}
+          onSkipAll={() => onboardingGuide.dismissGuide()}
           themeColor={themeColor}
           isDark={isDark}
           colors={colors}

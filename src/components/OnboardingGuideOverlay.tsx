@@ -8,7 +8,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface OnboardingGuideOverlayProps {
   step: OnboardingGuideStep;
-  onDismiss: () => void;
+  onDismiss: () => void;      // Called when X button pressed - advances to next step
+  onSkipAll?: () => void;     // Called when "Skip guide" pressed - dismisses entire guide
   themeColor: string;
   isDark: boolean;
   colors: any;
@@ -23,6 +24,7 @@ interface OnboardingGuideOverlayProps {
 export function OnboardingGuideOverlay({
   step,
   onDismiss,
+  onSkipAll,
   themeColor,
   isDark,
   colors,
@@ -93,8 +95,8 @@ export function OnboardingGuideOverlay({
           ))}
         </View>
 
-        {/* Skip link */}
-        <Pressable onPress={onDismiss} style={styles.skipButton}>
+        {/* Skip link - dismisses entire guide permanently */}
+        <Pressable onPress={onSkipAll || onDismiss} style={styles.skipButton}>
           <Text style={[styles.skipText, { color: colors.textTertiary }]}>
             Skip guide
           </Text>

@@ -258,14 +258,14 @@ export function useOnboardingGuide() {
       // Dismiss both guides permanently and disable forceShow
       await SecureStore.setItemAsync(friendsKey, "true");
       await SecureStore.setItemAsync(createKey, "true");
-      await SecureStore.deleteItemAsync(forceShowKey); // Disable forceShow gate
+      await SecureStore.deleteItemAsync(forceShowKey); // Disable forceShow gate - CRITICAL for "Skip guide"
       // Update module cache
       guideStateCache.set(userId, { friendsDismissed: true, createDismissed: true });
-      setState(prev => ({ ...prev, isCompleted: true }));
-      if (__DEV__) console.log("[GUIDE_DECISION] guide dismissed entirely", { 
+      setState(prev => ({ ...prev, isCompleted: true, currentStep: "completed" }));
+      if (__DEV__) console.log("[P0_FRIENDS_GUIDE] dismissGuide - permanently disabled", { 
         friendsKey,
         createKey,
-        forceShowKey,
+        forceShowKey: forceShowKey + " (DELETED)",
         userId: userId.substring(0, 8)
       });
     } catch (error) {
