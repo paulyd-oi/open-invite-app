@@ -215,6 +215,26 @@ async function runPushRegistrationProof(): Promise<void> {
 // Track if we've already processed the cold start notification
 let coldStartNotificationProcessed = false;
 
+// P0_PUSH_TAP: Dedupe notification response handling (module-level)
+// Prevents double-navigation when both listener and getLastNotificationResponseAsync fire
+const handledResponseIds = new Set<string>();
+
+// P0_PUSH_TAP: Generate unique ID for a notification response
+function getResponseId(response: Notifications.NotificationResponse): string {
+  const requestId = response.notification.request.identifier;
+  const actionId = response.actionIdentifier;
+  return `${requestId}:${actionId}`;
+}
+
+// P0_PUSH_TAP: Allowed route prefixes for deep-linking (security allowlist)
+const ALLOWED_ROUTE_PREFIXES = ['/event/', '/user/', '/circle/', '/friends'];
+
+// P0_PUSH_TAP: Check if a route path is allowed
+function isAllowedRoute(route: string): boolean {
+  if (!route || typeof route !== 'string') return false;
+  return ALLOWED_ROUTE_PREFIXES.some(prefix => route.startsWith(prefix));
+}
+
 /**
  * P0_PUSH_TAP: ROUTING TABLE for notification tap navigation
  * Single source of truth for all push notification deep-linking.
@@ -283,6 +303,12 @@ function resolveNotificationRoute(data: Record<string, any> | undefined): {
     return { route: `/circle/${circleId}`, fallbackUsed: false, reason: "circle_message" };
   }
 
+  // 5. Backend-provided route (allowlist enforced for security)
+  const backendRoute = data?.route || data?.path;
+  if (backendRoute && typeof backendRoute === 'string' && isAllowedRoute(backendRoute)) {
+    return { route: backendRoute, fallbackUsed: false, reason: "backend_provided_route" };
+  }
+
   // FALLBACK CHAIN (when type doesn't match or is missing)
   
   // Fallback A: If eventId present, go to event
@@ -316,6 +342,11 @@ export function useNotifications() {
   const lastPermissionStatus = useRef<string | null>(null);
   const registrationAttempted = useRef<boolean>(false);
   const coldStartChecked = useRef<boolean>(false);
+  
+  // P0_PUSH_TAP: Pending deep link for deferred navigation
+  // Stores { route, source } when tap is received before app is ready to navigate
+  const pendingDeepLink = useRef<{ route: string; source: 'cold_start' | 'listener' } | null>(null);
+  const pendingDeepLinkReplayed = useRef<boolean>(false);
 
   /**
    * Check if token registration is throttled for current user
@@ -629,6 +660,46 @@ export function useNotifications() {
     };
   }, [bootStatus, session?.user?.id, checkAndRegisterToken]);
 
+  /**
+   * P0_PUSH_TAP: REPLAY PENDING DEEP LINK
+   * When bootStatus becomes 'authed', check if we have a deferred deep link and navigate to it.
+   * This handles cold start taps that were received before auth was complete.
+   */
+  useEffect(() => {
+    // Only replay when authed and we have a pending deep link that hasn't been replayed
+    if (bootStatus !== 'authed') {
+      return;
+    }
+    
+    const pending = pendingDeepLink.current;
+    if (!pending || pendingDeepLinkReplayed.current) {
+      return;
+    }
+    
+    // Mark as replayed BEFORE navigating to prevent double-replay
+    pendingDeepLinkReplayed.current = true;
+    pendingDeepLink.current = null;
+    
+    if (__DEV__) {
+      console.log(`[P0_PUSH_TAP] REPLAY pendingDeepLink=${pending.route} source=${pending.source}`);
+    }
+    
+    // Small delay to ensure router is fully mounted after auth completes
+    setTimeout(() => {
+      if (__DEV__) {
+        console.log(`[P0_PUSH_TAP] NAVIGATE_REPLAY route=${pending.route} method=${pending.source === 'cold_start' ? 'replace' : 'push'}`);
+      }
+      
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      if (pending.source === 'cold_start') {
+        router.replace(pending.route as any);
+      } else {
+        router.push(pending.route as any);
+      }
+    }, 150);
+  }, [bootStatus, router]);
+
   // Notification listeners
   useEffect(() => {
     // Listen for incoming notifications
@@ -678,18 +749,38 @@ export function useNotifications() {
     /**
      * P0_PUSH_TAP: Handle notification tap (both background and foreground taps)
      * Uses centralized routing table for deterministic navigation.
+     * 
+     * DEFERRED NAVIGATION: If bootStatus !== 'authed', stores the route
+     * in pendingDeepLink ref to be replayed when app is ready.
      */
     const handleNotificationTap = (
       response: Notifications.NotificationResponse,
       source: "listener" | "cold_start"
     ) => {
+      // P0_PUSH_TAP: DEDUPE - Check if we've already handled this response
+      const responseId = getResponseId(response);
+      if (handledResponseIds.has(responseId)) {
+        if (__DEV__) {
+          console.log(`[P0_PUSH_TAP] DEDUPE skipping already-handled response: ${responseId}`);
+        }
+        return;
+      }
+      handledResponseIds.add(responseId);
+      
+      // Clean up old entries (keep Set from growing unbounded)
+      if (handledResponseIds.size > 50) {
+        const entries = Array.from(handledResponseIds);
+        entries.slice(0, 25).forEach(id => handledResponseIds.delete(id));
+      }
+      
       const data = response.notification.request.content.data as Record<string, any> | undefined;
       const { route, fallbackUsed, reason } = resolveNotificationRoute(data);
 
-      // P0_PUSH_TAP: DEV proof logging
+      // P0_PUSH_TAP: DEV proof logging - receipt
       if (__DEV__) {
-        console.log(`[P0_PUSH_TAP] ${JSON.stringify({
+        console.log(`[P0_PUSH_TAP] RECEIPT ${JSON.stringify({
           source,
+          responseId,
           type: data?.type ?? "unknown",
           eventId: data?.eventId ?? data?.event_id ?? null,
           userId: data?.userId ?? data?.user_id ?? data?.actorId ?? null,
@@ -697,20 +788,41 @@ export function useNotifications() {
           routeAttempted: route,
           fallbackUsed,
           reason,
+          bootStatus,
         })}`);
       }
 
+      if (!route) {
+        if (__DEV__) {
+          console.warn('[P0_PUSH_TAP] No valid navigation target, payload:', data);
+        }
+        return;
+      }
+      
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      if (route) {
-        // Use replace for cold start to avoid stacking on initial route
-        if (source === "cold_start") {
-          router.replace(route as any);
-        } else {
-          router.push(route as any);
+      // P0_PUSH_TAP: CHECK IF APP IS READY TO NAVIGATE
+      // Must be authed to navigate to protected routes
+      if (bootStatus !== 'authed') {
+        // DEFER: Store pending deep link to replay when ready
+        pendingDeepLink.current = { route, source };
+        pendingDeepLinkReplayed.current = false;
+        if (__DEV__) {
+          console.log(`[P0_PUSH_TAP] DEFERRED pendingDeepLink=${route} reason=bootStatus_${bootStatus}`);
         }
-      } else if (__DEV__) {
-        console.warn('[P0_PUSH_TAP] No valid navigation target, payload:', data);
+        return;
+      }
+
+      // P0_PUSH_TAP: NAVIGATE NOW
+      if (__DEV__) {
+        console.log(`[P0_PUSH_TAP] NAVIGATE_NOW route=${route} method=${source === 'cold_start' ? 'replace' : 'push'}`);
+      }
+      
+      // Use replace for cold start to avoid stacking on initial route
+      if (source === "cold_start") {
+        router.replace(route as any);
+      } else {
+        router.push(route as any);
       }
     };
 
@@ -735,17 +847,15 @@ export function useNotifications() {
         const lastResponse = await Notifications.getLastNotificationResponseAsync();
         
         if (lastResponse) {
-          // Mark as processed to prevent double-handling
+          // Mark as processed to prevent double-handling at module level
           coldStartNotificationProcessed = true;
           
           if (__DEV__) {
-            console.log('[P0_PUSH_TAP] Cold start notification detected');
+            console.log('[P0_PUSH_TAP] COLD_START_DETECTED responseId=' + getResponseId(lastResponse));
           }
           
-          // Small delay to ensure router is ready
-          setTimeout(() => {
-            handleNotificationTap(lastResponse, "cold_start");
-          }, 100);
+          // Process immediately - handleNotificationTap will defer if not ready
+          handleNotificationTap(lastResponse, "cold_start");
         } else if (__DEV__) {
           console.log('[P0_PUSH_TAP] No cold start notification');
         }
@@ -767,7 +877,7 @@ export function useNotifications() {
         responseListener.current.remove();
       }
     };
-  }, [router, queryClient]);
+  }, [router, queryClient, bootStatus]);
 
   /**
    * Production-safe push diagnostics function.
