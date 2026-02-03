@@ -728,23 +728,23 @@ export default function SettingsScreen() {
     
     try {
       // Step 1: Refresh RevenueCat state via SubscriptionContext
-      await subscription.refresh();
+      // CRITICAL: Use returned value - React state is async and stale here!
+      const { isPro: rcIsPro } = await subscription.refresh();
       
       // Step 2: CRITICAL - Also refresh backend entitlements query
       // This catches promo codes applied server-side (e.g., AWAKEN)
       await refreshEntitlements();
       
       // [PRO_SOT] Log state AFTER refresh
-      // Note: React state may not be updated yet, but queries will re-render
       if (__DEV__) {
-        console.log("[PRO_SOT] After: subscription.isPremium=", subscription.isPremium);
+        console.log("[PRO_SOT] After: rcIsPro (returned)=", rcIsPro);
+        console.log("[PRO_SOT] After: subscription.isPremium (stale)=", subscription.isPremium);
         console.log("[PRO_SOT] Queries invalidated - UI will re-render with fresh data");
         console.log("[PRO_SOT] === REFRESH COMPLETE ===");
       }
       
-      // Show result toast based on refreshed state
-      // We check subscription.isPremium which should be updated by now
-      if (subscription.isPremium) {
+      // Show result toast based on RETURNED value (not stale React state)
+      if (rcIsPro) {
         safeToast.success("Pro Active", "Your Pro membership is active!");
       } else {
         safeToast.info("Free Plan", "No active Pro membership found.");
@@ -773,7 +773,8 @@ export default function SettingsScreen() {
     setIsRestoringPurchases(false);
 
     if (result.ok) {
-      const hasPremium = subscription.isPremium;
+      // CRITICAL: Use returned isPro value, not stale React state
+      const hasPremium = result.isPro ?? false;
       if (hasPremium) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Restored!", "Your subscription has been restored.");

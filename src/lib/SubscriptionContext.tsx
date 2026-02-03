@@ -40,10 +40,10 @@ interface SubscriptionContextType {
   features: SubscriptionFeatures | null;
   isPremium: boolean;
   isLoading: boolean;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<{ isPro: boolean }>;
   canUseFeature: (feature: keyof SubscriptionFeatures) => boolean;
   purchase: (packageOrProduct: PurchasesPackage) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
-  restore: () => Promise<{ ok: boolean; error?: string }>;
+  restore: () => Promise<{ ok: boolean; isPro?: boolean; error?: string }>;
   getOfferings: () => Promise<PurchasesOfferings | null>;
   openPaywall: (options?: { source?: string; preferred?: "yearly" | "monthly" }) => Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
   offerings: PurchasesOfferings | null;
@@ -57,7 +57,7 @@ export const SubscriptionContext = createContext<SubscriptionContextType>({
   features: null,
   isPremium: false,
   isLoading: true,
-  refresh: async () => {},
+  refresh: async () => ({ isPro: false }),
   canUseFeature: () => true,
   purchase: async () => ({ ok: false, error: "Not initialized" }),
   restore: async () => ({ ok: false, error: "Not initialized" }),
@@ -118,9 +118,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     queryClient.invalidateQueries({ queryKey: ["profile"] }); // Refresh profile for badge display
   }, [queryClient]);
 
-  const fetchSubscription = useCallback(async () => {
+  const fetchSubscription = useCallback(async (): Promise<{ isPro: boolean }> => {
     // Note: session is optional enrichment - subscription endpoint validates via Bearer token
     // If session is null but token is valid, subscription fetch will still work
+    
+    // Track computed isPro to return to caller (avoids stale React state issue)
+    let computedIsPro = false;
 
     try {
       // [PRO_SOT] Log source decision
@@ -134,6 +137,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         if (customerInfoResult.ok) {
           // Use the canonical entitlement ID
           const hasPremium = !!customerInfoResult.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
+          computedIsPro = hasPremium;
           setIsPremium(hasPremium);
           
           // [PRO_SOT] Log RevenueCat entitlements
@@ -167,6 +171,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           tier === "pro" ||
           (data.subscription as any)?.isLifetime === true ||
           (data.subscription as any)?.isPro === true;
+        computedIsPro = backendIsPremium;
         setIsPremium(backendIsPremium);
         if (__DEV__) {
           console.log("[PRO_SOT] source=backend (RC disabled)");
@@ -187,8 +192,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       
       // [PRO_SOT] Final state update confirmation
       if (__DEV__) {
-        console.log("[PRO_SOT] uiState after set= isPremium will re-render");
+        console.log("[PRO_SOT] uiState after set= isPremium will re-render, computedIsPro=", computedIsPro);
       }
+      
+      return { isPro: computedIsPro };
     } catch (error) {
       if (__DEV__) {
         console.error("[PRO_SOT] fetchSubscription error:", error);
@@ -198,6 +205,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setLimits(null);
       setFeatures(null);
       setIsPremium(false);
+      return { isPro: false };
     } finally {
       setIsLoading(false);
     }
@@ -324,7 +332,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [fetchSubscription, invalidateAllSubscriptionQueries]);
 
   // Restore purchases
-  const restore = useCallback(async () => {
+  const restore = useCallback(async (): Promise<{ ok: boolean; isPro?: boolean; error?: string }> => {
     if (!isRevenueCatEnabled()) {
       return { ok: false, error: "RevenueCat not configured" };
     }
@@ -339,8 +347,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         
         // Check if restore found active entitlements
         const customerInfo = await getCustomerInfo();
+        let hasPremium = false;
         if (customerInfo.ok) {
-          const hasPremium = !!customerInfo.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
+          hasPremium = !!customerInfo.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
           setIsPremium(hasPremium);
           
           if (__DEV__) {
@@ -351,10 +360,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         // CRITICAL: Invalidate all queries for instant UI sync
         invalidateAllSubscriptionQueries();
         
-        // Also refresh backend subscription data
-        await fetchSubscription();
+        // Also refresh backend subscription data (returns computed isPro)
+        const refreshResult = await fetchSubscription();
+        // Use the fresher value from fetchSubscription
+        const finalIsPro = refreshResult.isPro || hasPremium;
         
-        return { ok: true as const };
+        return { ok: true as const, isPro: finalIsPro };
       } else {
         const errorMsg = typeof result.error === "string" ? result.error : "Restore failed";
         return { ok: false as const, error: errorMsg };
