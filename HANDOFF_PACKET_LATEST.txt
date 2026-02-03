@@ -1,193 +1,100 @@
-=================================================================
-HANDOFF PACKET: Final Quiet Logs Sweep (Launch Hygiene)
-=================================================================
-
-Date: 2026-02-02
-Repo: https://github.com/paulyd-oi/open-invite-app.git
+================================================================================
+HANDOFF: P0 PRO STATUS REFRESH CONTRACT FIX
+================================================================================
+Commit: e45908e
 Branch: main
-Commit: 35ed1d5
+Date: 2025-01-XX
 
-=================================================================
 SUMMARY
-=================================================================
-Gated all debug console.log statements with `if (__DEV__)` checks
-to eliminate console noise in production TestFlight builds.
+-------
+Fixed P0 bug where Pro membership status remained "FREE" after promo code
+redemption in paywall.tsx and subscription.tsx. Both screens now use the same
+refresh contract as settings.tsx handleRefreshEntitlements.
 
-Priority search targets verified: AUTH_TRACE, AUTH_HDR, PUSH_BOOTSTRAP,
-ScheduleBlocks, CircleCalendarPrivacy, RevenueCat entitlement logs - 
-all were already properly gated in their respective files.
+ROOT CAUSE
+----------
+- paywall.tsx handleRedeemCode: Called refetch() only, not the refresh contract
+- subscription.tsx handleApplyPromoCode: Only invalidated React Query cache,
+  didn't call subscription.refresh() or refreshEntitlements()
 
-Additional ungated logs found and fixed across 9 files.
+SSOT LOGIC (SINGLE SOURCE OF TRUTH)
+-----------------------------------
+combined_isPro = rcIsPro || backendIsPro
 
-=================================================================
-FILES CHANGED
-=================================================================
-MODIFIED (9 files, 79 insertions, 71 deletions):
-- src/app/welcome.tsx
-- src/app/social.tsx
-- src/app/onboarding.tsx
-- src/app/settings.tsx
-- src/app/account-center.tsx
-- src/app/paywall.tsx
-- src/app/create.tsx
-- src/app/friend/[id].tsx
-- src/components/MapPreview.tsx
+- rcIsPro: From subscriptionContext.refresh() -> RevenueCat entitlements.active.premium
+- backendIsPro: From refreshEntitlements() -> backend /api/entitlements
 
-=================================================================
-LOGS GATED BY FILE
-=================================================================
+CHANGES MADE
+------------
+1. src/app/paywall.tsx - handleRedeemCode():
+   - Added useRefreshEntitlements() import and hook
+   - After API success, now calls:
+     * subscription.refresh() -> rcIsPro
+     * refreshEntitlements() -> backendIsPro
+   - Uses combined_isPro for toast logic
+   - Added [PRO_SOT] DEV logging
 
-welcome.tsx:
-- [Apple Auth] expo-apple-authentication not available (line 66)
-- [Apple Auth] Availability (line 428)
-- [Onboarding] Starting email auth, Account exists, Auth successful (lines 442-506)
-- [AUTH_TRACE] Photo upload logs (lines 881-908)
-- [Onboarding] Continue pressed, session check logs (lines 922-1024)
-- [APPLE_TOKEN_PROOF] and [AUTH_BARRIER_RESULT] logs (lines 719-797)
+2. src/app/subscription.tsx - handleApplyPromoCode():
+   - Fixed import collision: aliased useSubscription from:
+     * useSubscription.ts as useSubscriptionData (data-only)
+     * SubscriptionContext.tsx as useSubscriptionContext (has refresh())
+   - After API success, now calls:
+     * subscriptionContext.refresh() -> rcIsPro
+     * refreshEntitlements() -> backendIsPro
+   - Uses combined_isPro for toast logic
+   - Added [PRO_SOT] DEV logging
 
-Note: APPLE_AUTH_TRACE stage/bucket logs (lines 540, 561) intentionally
-remain ungated - they log only stage name and error bucket for production
-debugging, no sensitive data.
+REFRESH CONTRACT (STANDARD PATTERN)
+-----------------------------------
+const { isPro: rcIsPro } = await subscription.refresh();
+const { isPro: backendIsPro } = await refreshEntitlements();
+const combinedIsPro = rcIsPro || backendIsPro;
 
-social.tsx:
-- [SocialScreen] Auth confirmed via bootStatus (line 664)
-- [SocialScreen] Retrying bootstrap (line 671)
+if (__DEV__) {
+  console.log("[PRO_SOT] rcIsPro=", rcIsPro, "backendIsPro=", backendIsPro, "combined=", combinedIsPro);
+}
 
-onboarding.tsx:
-- [onboarding] Auto-sending verification email (line 919)
-- [onboarding] Verification email sent (line 930)
-- [Onboarding] Bootstrap refresh complete/failed (lines 961, 965)
-
-settings.tsx:
-- [PUSH_DIAG_UI] pressed register, exception caught, result set (lines 505-544)
-- [Settings] logout sequence logs (lines 1062-1083)
-
-account-center.tsx:
-- [AccountCenter] Session/cache cleared, Boot authority reset (lines 205-210)
-
-paywall.tsx:
-- [Paywall] Premium user detected, redirecting (line 91)
-
-create.tsx:
-- [create.tsx] Places API search logs (lines 128-165)
-
-friend/[id].tsx:
-- [FriendNotes] Add/Delete note FAILED logs (lines 439-461)
-
-MapPreview.tsx:
-- Geocoding response not OK, Found coordinates, Could not geocode (lines 43-131)
-
-=================================================================
-ALREADY PROPERLY GATED (NO CHANGES NEEDED)
-=================================================================
-- src/lib/authBootstrap.ts - authTrace function has `if (!__DEV__) return;`
-- src/lib/authClient.ts - authTrace and logs already gated
-- src/lib/sessionCookie.ts - already gated
-- src/lib/appleSignIn.ts - already gated
-- src/hooks/useNotifications.ts - PUSH_BOOTSTRAP logs all gated
-- src/app/settings.tsx - ScheduleBlocks logs already gated
-- src/app/circle/[id].tsx - CircleCalendarPrivacy, CircleRemoveMember logs gated
-- src/lib/SubscriptionContext.tsx - RevenueCat logs all gated
-- src/app/friends.tsx - PERF, FRIENDS_AUTH_GATE logs all gated
-- src/app/_layout.tsx - BootRouter, text crash detector logs all gated
-- src/app/admin.tsx - admin console logs all gated
-- src/app/achievements.tsx - BADGES_FETCH/RENDER logs all gated
-- src/app/redeem-code.tsx - DEV_DECISION logs all gated
-- src/components/AnnouncementBanner.tsx - LOG_PREFIX logs all gated
-
-=================================================================
 VERIFICATION
-=================================================================
-✅ npm run typecheck - PASSED
-✅ bash scripts/ai/verify_frontend.sh - PASSED
+------------
+✅ npm run typecheck - PASS
+✅ bash scripts/ai/verify_frontend.sh - PASS
+✅ git push - PASS
 
-=================================================================
-PATTERN USED
-=================================================================
-All logs gated with: `if (__DEV__) console.log(...);`
+FILES CHANGED
+-------------
+- src/app/paywall.tsx
+- src/app/subscription.tsx
 
-console.error calls preserved for real runtime errors (not gated).
+NO CHANGES TO
+-------------
+- src/lib/entitlements.ts (useIsPro, useRefreshEntitlements already correct)
+- src/lib/SubscriptionContext.tsx (refresh: fetchSubscription already correct)
+- src/app/settings.tsx (handleRefreshEntitlements already correct - was the model)
+- src/app/redeem-code.tsx (already calls refreshSubscription correctly)
 
-=================================================================
-NEXT STEPS
-=================================================================
-1. TestFlight build will have significantly cleaner console output
-2. Debug logs still available in Expo Go development
-3. Consider adding structured logging for production monitoring later
+BLAST RADIUS SWEEP (PRIOR TO FIX)
+---------------------------------
+- refresh patterns: 21
+- restore patterns: 37
+- subscription.refresh: 1
+- useIsPro: 5
+- promo strings: 15
 
-=================================================================
-SESSION COMMITS
-=================================================================
-1. b523cc8 - P1.1 Event Block Color Customization
-2. fe2f0b0 - P1.2 Suggestions Page Add Friend Module Parity
-3. 35ed1d5 - chore(launch): gate all debug logs with __DEV__
-   - Icon toggles Add Friend module (no navigation away)
-   - Icon background changes color when active
+TEST INSTRUCTIONS
+-----------------
+1. Open app as non-Pro user
+2. Go to Paywall or Subscription screen
+3. Enter valid promo code
+4. Verify Pro status updates immediately (no app restart needed)
+5. Check DEV console for [PRO_SOT] logs showing refresh flow
 
-6. Added Add Friend module UI:
-   - Import from Contacts button (teal styling)
-   - Divider with "or search by" text
-   - Search input (name, email, phone)
-   - Live search results with avatars and mutual count
-   - Loading/offline/no results states
+KNOWN WORKING PATHS
+-------------------
+- Settings > Refresh Entitlements button (was already correct)
+- Redeem Code screen (was already correct)
+- Paywall promo code (NOW FIXED)
+- Subscription promo code (NOW FIXED)
 
-7. Added Contacts Modal:
-   - Full screen modal for contact selection
-   - Search bar to filter contacts
-   - Contact list with avatar, name, email/phone
-
-=================================================================
-HOW TO TEST
-=================================================================
-1. Open Suggestions page from Friends tab
-2. Tap UserPlus icon in header → Add Friend box appears
-3. Tap "Import from Contacts" → grants permission → contacts modal opens
-4. Select a contact → friend request sent → modal closes
-5. Type in search field → live results appear (2+ chars)
-6. Tap Add button → sends request by email/phone
-7. Tap UserPlus icon again → Add Friend box hides
-8. Suggestions list still works as before
-9. Both tabs (For You / People) still function
-
-=================================================================
-RUNTIME STATUS
-=================================================================
-Commands verified:
-  npm run typecheck                   # PASSED
-  bash scripts/ai/verify_frontend.sh # PASSED
-
-=================================================================
-PREVIOUS FIXES THIS SESSION
-=================================================================
-1. P0 Privacy Fix - Circle calendar busy blocks (commit 5fb6106)
-2. P0 Calendar Fix - Work schedule second block (commit 65f148f)
-3. P1.1 Event Color Customization (commit b523cc8)
-4. P1.2 Suggestions Add Friend Parity (commit fe2f0b0) ← THIS
-- Change end time > BOTH times remain visible
-- Re-open screen > BOTH blocks display correctly
-- Remove second block > save > persists correctly
-
-=================================================================
-MANUAL TEST CHECKLIST
-=================================================================
-[ ] Open Work Schedule screen
-[ ] Add first block for Monday > save > persists
-[ ] Add second block for Monday > defaults show 1:00 PM - 5:00 PM
-[ ] Change block2 start to 2:00 PM > end time still shows 5:00 PM
-[ ] Change block2 end to 6:00 PM > start time still shows 2:00 PM
-[ ] Close and re-open screen > both blocks display correctly
-[ ] Remove second block > save > only first block remains
-[ ] Repeat for multiple days
-
-=================================================================
-ASSUMPTIONS / UNCERTAINTIES
-=================================================================
-- Assumes backend partial updates were clearing unspecified fields
-- If backend actually merges properly, this fix is defensive but harmless
-- DEV logging will help diagnose if issue persists (check console)
-
-=================================================================
-NEXT RECOMMENDED STEPS
-=================================================================
-1. Test on device with real data to confirm fix
-2. Monitor DEV logs if issues persist to identify server response shape
+================================================================================
+END HANDOFF
+================================================================================
