@@ -52,6 +52,7 @@ import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModal";
 import { checkCalendarPermission } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
+import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1339,7 +1340,8 @@ export default function CalendarScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Busy block added");
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate specific keys instead of wildcard
+      queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
       setShowBusyModal(false);
       setBusyLabel("Busy");
@@ -1603,7 +1605,8 @@ export default function CalendarScreen() {
     mutationFn: (eventId: string) => api.delete(`/api/events/${eventId}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterEventDelete(), "event_delete_calendar");
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -1617,7 +1620,7 @@ export default function CalendarScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Invalidate calendar events query to refresh
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
+      queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -1630,8 +1633,8 @@ export default function CalendarScreen() {
       api.put(`/api/events/${eventId}/busy`, { isBusy }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+      queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");

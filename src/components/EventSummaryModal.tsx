@@ -26,6 +26,7 @@ import * as Haptics from "expo-haptics";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { type UpdateEventSummaryResponse } from "@/shared/contracts";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -173,7 +174,8 @@ export function EventSummaryModal({
       }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate specific event instead of wildcard
+      queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
       onClose();
     },
   });
@@ -183,7 +185,8 @@ export function EventSummaryModal({
       api.post(`/api/events/${eventId}/summary/dismiss`, {}),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // P0 FIX: Invalidate specific event instead of wildcard
+      queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
       onClose();
     },
   });

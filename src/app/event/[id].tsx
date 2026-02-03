@@ -86,6 +86,15 @@ import {
 } from "@/lib/calendarSync";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { COLOR_PALETTE } from "@/lib/eventColorOverrides";
+import {
+  eventKeys,
+  invalidateEventKeys,
+  getRefetchOnEventFocus,
+  getInvalidateAfterRsvpJoin,
+  getInvalidateAfterRsvpLeave,
+  getInvalidateAfterJoinRequestAction,
+  getInvalidateAfterComment,
+} from "@/lib/eventQueryKeys";
 
 // Helper to open event location using the shared utility
 const openEventLocation = (event: any) => {
@@ -336,15 +345,8 @@ export default function EventDetailScreen() {
       if (!id || bootStatus !== 'authed') return;
 
       // Refetch core event queries to pick up changes from other accounts
-      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
-
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] focus refetch fired for event:", id);
-        console.log("[P0_EVENT_SYNC] fetch keys: [events,single,id], [events,id,interests], [events,id,comments], [events,id,rsvp]");
-      }
+      const keysToRefetch = getRefetchOnEventFocus(id);
+      invalidateEventKeys(queryClient, keysToRefetch, `focus_refetch event=${id}`);
     }, [id, bootStatus, queryClient])
   );
 
@@ -443,7 +445,7 @@ export default function EventDetailScreen() {
 
   // Fetch single event by ID directly - this handles past events too
   const { data: singleEventData, isLoading: isLoadingEvent, error: eventError } = useQuery({
-    queryKey: ["events", "single", id],
+    queryKey: eventKeys.single(id ?? ""),
     queryFn: () => api.get<{ event: Event }>(`/api/events/${id}`),
     enabled: bootStatus === 'authed' && !!id,
     retry: false, // Don't retry on 403/404 privacy errors
@@ -463,20 +465,20 @@ export default function EventDetailScreen() {
 
   // Fallback: Also fetch from lists in case the single endpoint fails
   const { data: myEventsData } = useQuery({
-    queryKey: ["events", "mine"],
+    queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   const { data: feedData } = useQuery({
-    queryKey: ["events", "feed"],
+    queryKey: eventKeys.feed(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
     enabled: bootStatus === 'authed' && !singleEventData?.event && !isPrivacyRestricted,
   });
 
   // Fetch comments
   const { data: commentsData, isLoading: isLoadingComments } = useQuery({
-    queryKey: ["events", id, "comments"],
+    queryKey: eventKeys.comments(id ?? ""),
     queryFn: () => api.get<GetEventCommentsResponse>(`/api/events/${id}/comments`),
     enabled: bootStatus === 'authed' && !!id,
   });
@@ -485,7 +487,7 @@ export default function EventDetailScreen() {
 
   // Fetch event mute status
   const { data: muteData, isLoading: isLoadingMute } = useQuery({
-    queryKey: ["events", id, "mute"],
+    queryKey: eventKeys.mute(id ?? ""),
     queryFn: () => api.get<{ muted: boolean }>(`/api/notifications/event/${id}`),
     enabled: bootStatus === 'authed' && !!id,
   });
@@ -498,7 +500,7 @@ export default function EventDetailScreen() {
       api.post(`/api/notifications/event/${id}`, { muted }),
     onSuccess: (_, muted) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      queryClient.setQueryData(["events", id, "mute"], { muted });
+      queryClient.setQueryData(eventKeys.mute(id ?? ""), { muted });
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -532,15 +534,8 @@ export default function EventDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("You're Attending!", "This event has been added to your calendar.");
       setShowJoinForm(false);
-      // P0 FIX: Invalidate specific keys instead of wildcard
-      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] join success invalidated: [events,single,id], [events,id,interests], feed, my-events, calendar");
-      }
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), "join_success");
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -556,14 +551,8 @@ export default function EventDetailScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // P0 FIX: Invalidate specific keys instead of wildcard
-      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] joinRequestAction success invalidated: [events,single,id], [events,id,interests], feed, my-events");
-      }
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterJoinRequestAction(id ?? ""), "join_request_action");
     },
   });
 
@@ -575,10 +564,8 @@ export default function EventDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCommentText("");
       setCommentImage(null);
-      queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] comment success invalidated: [events,id,comments]");
-      }
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterComment(id ?? ""), "comment_create");
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -590,7 +577,8 @@ export default function EventDetailScreen() {
       api.delete(`/api/events/${id}/comments/${commentId}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events", id, "comments"] });
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterComment(id ?? ""), "comment_delete");
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
@@ -599,14 +587,14 @@ export default function EventDetailScreen() {
 
   // Fetch event interests/RSVPs
   const { data: interestsData } = useQuery({
-    queryKey: ["events", id, "interests"],
+    queryKey: eventKeys.interests(id ?? ""),
     queryFn: () => api.get<{ event_interest: Array<{ id: string; userId: string; user: { id: string; name: string | null; image: string | null }; status: string; createdAt: string }> }>(`/api/events/${id}/interests`),
     enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
   });
 
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
-    queryKey: ["events", id, "rsvp"],
+    queryKey: eventKeys.rsvp(id ?? ""),
     queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
     enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
   });
@@ -634,29 +622,8 @@ export default function EventDetailScreen() {
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
-      // P0 FIX: Invalidate single event query to refresh attendees across accounts
-      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-      // Invalidate calendar events so RSVP "going" events appear immediately
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-      // Invalidate attending events so Social tab updates immediately
-      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
-      // Refetch event details to update capacity
-      queryClient.invalidateQueries({ queryKey: ["events", id] });
-      // P0 FIX: Invalidate feed for Discover > Popular tab
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-      // Also invalidate user's own events for Popular tab merge
-      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] RSVP success invalidated:", [
-          ["events", id, "interests"],
-          ["events", id, "rsvp"],
-          ["events", "single", id],
-          ["events", "feed"],
-          ["events", "my-events"],
-        ]);
-      }
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
       setShowRsvpOptions(false);
       
       // Check if we should show notification pre-prompt (Aha moment: first RSVP going/interested)
@@ -684,9 +651,11 @@ export default function EventDetailScreen() {
       if (error?.response?.status === 409 || error?.status === 409) {
         safeToast.warning("Full", "This invite is full.");
         // Refetch event details to show updated state
-        queryClient.invalidateQueries({ queryKey: ["events", id] });
-        queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-        queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+        invalidateEventKeys(queryClient, [
+          eventKeys.detail(id ?? ""),
+          eventKeys.interests(id ?? ""),
+          eventKeys.feed(),
+        ], "rsvp_error_409");
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
       }
@@ -702,20 +671,8 @@ export default function EventDetailScreen() {
     },
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      queryClient.invalidateQueries({ queryKey: ["events", id, "interests"] });
-      queryClient.invalidateQueries({ queryKey: ["events", id, "rsvp"] });
-      // P0 FIX: Invalidate single event query to refresh attendees across accounts (was missing)
-      queryClient.invalidateQueries({ queryKey: ["events", "single", id] });
-      // Invalidate calendar events so removed RSVP updates calendar immediately
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-      // Invalidate attending events so Social tab updates immediately
-      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
-      // P0 FIX: Invalidate feed and my-events for Discover > Popular tab (was missing)
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "my-events"] });
-      if (__DEV__) {
-        console.log("[P0_EVENT_SYNC] removeRsvp success invalidated: [events,single,id], [events,id,interests], [events,id,rsvp], calendar, attending, feed, my-events");
-      }
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpLeave(id ?? ""), "rsvp_remove");
     },
   });
 
@@ -755,7 +712,8 @@ export default function EventDetailScreen() {
       api.put(`/api/events/${id}`, { reflectionEnabled: enabled }),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      // Invalidate single event to refresh reflection state
+      queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
     },
   });
 

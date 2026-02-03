@@ -35,6 +35,7 @@ import { SocialMemoryCard } from "@/components/SocialMemoryCard";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dismissAllGuidance } from "@/lib/firstSessionGuidance";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
+import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -732,7 +733,7 @@ export default function SocialScreen() {
     refetch: refetchFeed,
     isRefetching: isRefetchingFeed,
   } = useQuery({
-    queryKey: ["events", "feed"],
+    queryKey: eventKeys.feed(),
     queryFn: () => api.get<GetEventsFeedResponse>("/api/events/feed"),
     enabled: isAuthed,
     staleTime: 30 * 1000, // 30s - feed changes often but not instantly
@@ -750,7 +751,7 @@ export default function SocialScreen() {
     refetch: refetchMyEvents,
     isRefetching: isRefetchingMyEvents,
   } = useQuery({
-    queryKey: ["events", "mine"],
+    queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthed,
     staleTime: 60 * 1000, // 1 min - user's own events change less often
@@ -768,7 +769,7 @@ export default function SocialScreen() {
     refetch: refetchAttending,
     isRefetching: isRefetchingAttending,
   } = useQuery({
-    queryKey: ["events", "attending"],
+    queryKey: eventKeys.attending(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
     enabled: isAuthed,
     staleTime: 60 * 1000, // 1 min
@@ -783,12 +784,9 @@ export default function SocialScreen() {
   const rsvpMutation = useMutation({
     mutationFn: ({ eventId, status }: { eventId: string; status: RsvpStatus }) => 
       api.post(`/api/events/${eventId}/rsvp`, { status }),
-    onSuccess: (_, { status }) => {
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "attending"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "calendar"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
+    onSuccess: (_, { eventId, status }) => {
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
     },
     onError: (error: any) => {
       // Handle 409 EVENT_FULL error

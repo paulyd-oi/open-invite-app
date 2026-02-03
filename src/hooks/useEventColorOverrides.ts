@@ -19,6 +19,7 @@ import {
   getAllColorOverrides,
 } from "@/lib/eventColorOverrides";
 import { useSession } from "@/lib/useSession";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 interface UseEventColorOverridesResult {
   colorOverrides: Record<string, string>;
@@ -94,10 +95,10 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
           [eventId]: color,
         }));
 
-        // Invalidate calendar queries to refresh UI
-        queryClient.invalidateQueries({ queryKey: ["events"] });
-        queryClient.invalidateQueries({ queryKey: ["feedEvents"] });
-        queryClient.invalidateQueries({ queryKey: ["singleEvent"] });
+        // P0 FIX: Invalidate specific keys instead of wildcard
+        queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+        queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+        queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
           console.log("[useEventColorOverrides] Set color:", { eventId, color });
@@ -127,10 +128,10 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
           return next;
         });
 
-        // Invalidate calendar queries to refresh UI
-        queryClient.invalidateQueries({ queryKey: ["events"] });
-        queryClient.invalidateQueries({ queryKey: ["feedEvents"] });
-        queryClient.invalidateQueries({ queryKey: ["singleEvent"] });
+        // P0 FIX: Invalidate specific keys instead of wildcard
+        queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+        queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+        queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
           console.log("[useEventColorOverrides] Reset color:", { eventId });

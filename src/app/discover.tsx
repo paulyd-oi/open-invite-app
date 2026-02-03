@@ -32,6 +32,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 // Response from GET /api/friends/reconnect
 interface ReconnectFriend {
@@ -99,14 +100,14 @@ export default function DiscoverScreen() {
 
   // Fetch feed data for popular events (friends' events)
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
-    queryKey: ["events", "feed"],
+    queryKey: eventKeys.feed(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
     enabled: bootStatus === 'authed',
   });
 
   // Fetch user's own events to include in popular tab
   const { data: myEventsData, isLoading: loadingMyEvents, refetch: refetchMyEvents } = useQuery({
-    queryKey: ["events", "my-events"],
+    queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
     enabled: bootStatus === 'authed',
   });

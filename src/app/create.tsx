@@ -70,6 +70,7 @@ import {
 } from "@/shared/contracts";
 import { SuggestedTimesPicker } from "@/components/SuggestedTimesPicker";
 import { getPendingIcsImport } from "@/lib/deepLinks";
+import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
 const EMOJI_OPTIONS = [
@@ -518,7 +519,7 @@ export default function CreateEventScreen() {
 
   // Fetch my events for active event counting (soft-limit check)
   const { data: myEventsData } = useQuery({
-    queryKey: ["events", "mine"],
+    queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
     enabled: bootStatus === 'authed' && !isPremium,
   });
@@ -539,10 +540,8 @@ export default function CreateEventScreen() {
       if (onboardingGuide.shouldShowStep("create_event")) {
         onboardingGuide.completeStep("create_event");
       }
-      // Invalidate all event-related queries to refresh calendar and feed
-      queryClient.invalidateQueries({ queryKey: ["events"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "mine"] });
-      queryClient.invalidateQueries({ queryKey: ["events", "feed"] });
+      // P0 FIX: Invalidate using SSOT contract
+      invalidateEventKeys(queryClient, getInvalidateAfterEventCreate(), "event_create");
       // Invalidate entitlements to refresh usage counts
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       // Also invalidate circle queries if this is a circle event
