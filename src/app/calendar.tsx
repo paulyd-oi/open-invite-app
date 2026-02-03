@@ -1675,15 +1675,15 @@ export default function CalendarScreen() {
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
-    // Gate on bootStatus to prevent queries during logout
-    enabled: bootStatus === 'authed',
+    // Gate on SSOT to prevent queries during logout
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch event requests
   const { data: eventRequestsData } = useQuery({
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Extract created and going events from calendar data

@@ -816,7 +816,7 @@ export default function CircleScreen() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["circle", id],
     queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
-    enabled: bootStatus === 'authed' && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
@@ -825,7 +825,7 @@ export default function CircleScreen() {
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed' && showAddMembers,
+    enabled: isAuthedForNetwork(bootStatus, session) && showAddMembers,
   });
 
   const sendMessageMutation = useMutation({

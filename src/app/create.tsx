@@ -514,7 +514,7 @@ export default function CreateEventScreen() {
   const { data: circlesData } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const circles = circlesData?.circles ?? [];
@@ -523,7 +523,7 @@ export default function CreateEventScreen() {
   const { data: myEventsData } = useQuery({
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
-    enabled: bootStatus === 'authed' && !isPremium,
+    enabled: isAuthedForNetwork(bootStatus, session) && !isPremium,
   });
 
   const myEvents = myEventsData?.events ?? [];

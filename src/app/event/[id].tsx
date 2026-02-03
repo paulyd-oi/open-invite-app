@@ -649,14 +649,14 @@ export default function EventDetailScreen() {
   const { data: interestsData } = useQuery({
     queryKey: eventKeys.interests(id ?? ""),
     queryFn: () => api.get<{ event_interest: Array<{ id: string; userId: string; user: { id: string; name: string | null; image: string | null }; status: string; createdAt: string }> }>(`/api/events/${id}/interests`),
-    enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
   });
 
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
     queryKey: eventKeys.rsvp(id ?? ""),
     queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
-    enabled: bootStatus === 'authed' && !!id && !isBusyBlock,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
   });
 
   const interests = interestsData?.event_interest ?? [];
