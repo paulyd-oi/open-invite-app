@@ -85,6 +85,25 @@ export interface GrantBadgePayload {
   note?: string;
 }
 
+// Entitlement types
+export interface UserEntitlement {
+  id: string;
+  entitlementKey: string;
+  grantedAt: string;
+  expiresAt?: string | null;
+  reason?: string | null;
+  grantedBy?: string | null;
+}
+
+export interface AdminEntitlementsResponse {
+  entitlements: UserEntitlement[];
+}
+
+export interface AdminEntitlementActionResponse {
+  success: boolean;
+  message?: string;
+}
+
 /**
  * Check if current user has admin privileges
  * Returns { isAdmin: false } on any error to fail safe
@@ -308,6 +327,98 @@ export async function revokeBadgeByKey(userId: string, badgeKey: string): Promis
     }
     if (error?.status === 404) {
       return { success: false, message: `This action requires backend endpoint: POST /api/admin/users/:userId/badges/revoke` };
+    }
+    return { success: false, message: error?.message || "Network error - please try again" };
+  }
+}
+
+// =============================================================================
+// ENTITLEMENT ADMIN FUNCTIONS
+// =============================================================================
+
+/**
+ * Get entitlements for a specific user (admin-only)
+ * Returns empty array on error for graceful degradation
+ */
+export async function getUserEntitlements(userId: string): Promise<AdminEntitlementsResponse> {
+  try {
+    const response = await api.get<AdminEntitlementsResponse>(`/api/admin/users/${userId}/entitlements`);
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] getUserEntitlements: userId=${userId.substring(0,8)}... count=${response.entitlements?.length ?? 0}`);
+    }
+    return { entitlements: response.entitlements ?? [] };
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] getUserEntitlements FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    return { entitlements: [] };
+  }
+}
+
+/**
+ * Grant an entitlement to a user (admin-only)
+ * Throws on auth errors, returns success response otherwise
+ */
+export async function grantEntitlement(
+  userId: string,
+  entitlementKey: string,
+  durationDays?: number,
+  reason?: string
+): Promise<AdminEntitlementActionResponse> {
+  try {
+    const response = await api.post<AdminEntitlementActionResponse>(`/api/admin/entitlements/grant`, {
+      userId,
+      entitlementKey,
+      durationDays,
+      reason,
+    });
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] grantEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} durationDays=${durationDays ?? 'unlimited'} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] grantEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    if (error?.status === 404) {
+      return { success: false, message: `Backend endpoint not found: POST /api/admin/entitlements/grant` };
+    }
+    return { success: false, message: error?.message || "Network error - please try again" };
+  }
+}
+
+/**
+ * Revoke an entitlement from a user (admin-only)
+ * Throws on auth errors, returns success response otherwise
+ */
+export async function revokeEntitlement(
+  userId: string,
+  entitlementKey: string
+): Promise<AdminEntitlementActionResponse> {
+  try {
+    const response = await api.post<AdminEntitlementActionResponse>(`/api/admin/entitlements/revoke`, {
+      userId,
+      entitlementKey,
+    });
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] revokeEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+    }
+    return response;
+  } catch (error: any) {
+    if (__DEV__) {
+      console.log(`[P0_ADMIN_CONSOLE] revokeEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    if (error?.status === 404) {
+      return { success: false, message: `Backend endpoint not found: POST /api/admin/entitlements/revoke` };
     }
     return { success: false, message: error?.message || "Network error - please try again" };
   }

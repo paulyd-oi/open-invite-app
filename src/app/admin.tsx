@@ -25,11 +25,15 @@ import {
   updateBadge,
   grantBadgeByKey,
   revokeBadgeByKey,
+  getUserEntitlements,
+  grantEntitlement,
+  revokeEntitlement,
   type UserSearchResult, 
   type BadgeDef, 
   type GrantedBadge,
   type CreateBadgePayload,
   type UpdateBadgePayload,
+  type UserEntitlement,
 } from "@/lib/adminApi";
 import { useTheme } from "@/lib/ThemeContext";
 import { BACKEND_URL } from "@/lib/config";
@@ -70,6 +74,12 @@ export default function AdminConsole() {
   const [selectedBadgeToGrant, setSelectedBadgeToGrant] = useState<string>("");
   const [grantBadgeNote, setGrantBadgeNote] = useState("");
   const [isGrantingBadge, setIsGrantingBadge] = useState(false);
+  
+  // Entitlements state
+  const [userEntitlements, setUserEntitlements] = useState<UserEntitlement[]>([]);
+  const [isLoadingEntitlements, setIsLoadingEntitlements] = useState(false);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [entitlementActionLoading, setEntitlementActionLoading] = useState<string | null>(null);
   
   // Endpoint health state
   const [endpointHealth, setEndpointHealth] = useState<{
@@ -160,19 +170,23 @@ export default function AdminConsole() {
   const handleUserSelect = async (user: UserSearchResult) => {
     setSelectedUser(user);
     setBadgeError(null);
+    setEntitlementError(null);
     setIsLoadingBadges(true);
+    setIsLoadingEntitlements(true);
     setSelectedBadgeToGrant("");
     setGrantBadgeNote("");
     
     try {
-      // Load available badges and user's current badges in parallel
-      const [badgesResponse, userBadgesResponse] = await Promise.all([
+      // Load available badges, user's current badges, and entitlements in parallel
+      const [badgesResponse, userBadgesResponse, entitlementsResponse] = await Promise.all([
         listBadges(),
         getUserBadges(user.id),
+        getUserEntitlements(user.id),
       ]);
       
       setAvailableBadges(badgesResponse.badges);
       setUserBadges(userBadgesResponse.badges);
+      setUserEntitlements(entitlementsResponse.entitlements);
     } catch (error: any) {
       if (error?.status === 401 || error?.status === 403) {
         setBadgeError("Not authorized");
@@ -182,6 +196,7 @@ export default function AdminConsole() {
       }
     } finally {
       setIsLoadingBadges(false);
+      setIsLoadingEntitlements(false);
     }
   };
 
@@ -897,6 +912,172 @@ export default function AdminConsole() {
                 </View>
               );
             })()}
+
+            {/* ENTITLEMENTS Section */}
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ENTITLEMENTS</Text>
+            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden mb-4">
+              {entitlementError && (
+                <View className="px-4 py-3 border-b" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                  <Text style={{ color: "#EF4444" }} className="text-sm">
+                    {entitlementError}
+                  </Text>
+                </View>
+              )}
+              
+              {isLoadingEntitlements ? (
+                <View className="px-4 py-6">
+                  <Text style={{ color: colors.textSecondary }} className="text-center">
+                    Loading entitlements...
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  {/* Current Entitlements */}
+                  {userEntitlements.length === 0 ? (
+                    <View className="px-4 py-4 border-b" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                      <Text style={{ color: colors.textSecondary }} className="text-sm">
+                        No entitlements granted
+                      </Text>
+                    </View>
+                  ) : (
+                    userEntitlements.map((ent, index) => (
+                      <View
+                        key={ent.id}
+                        className="px-4 py-3"
+                        style={{ 
+                          borderBottomWidth: 1,
+                          borderColor: isDark ? "#38383A" : "#F3F4F6" 
+                        }}
+                      >
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-1 mr-3">
+                            <View className="flex-row items-center mb-1">
+                              <Text className="text-lg mr-2">⭐</Text>
+                              <Text style={{ color: colors.text }} className="font-medium">
+                                {ent.entitlementKey}
+                              </Text>
+                            </View>
+                            <Text style={{ color: colors.textTertiary }} className="text-xs">
+                              Granted: {new Date(ent.grantedAt).toLocaleDateString()}
+                              {ent.expiresAt && ` • Expires: ${new Date(ent.expiresAt).toLocaleDateString()}`}
+                            </Text>
+                            {ent.reason && (
+                              <Text style={{ color: colors.textSecondary }} className="text-xs mt-0.5">
+                                Reason: {ent.reason}
+                              </Text>
+                            )}
+                          </View>
+                          
+                          <Pressable
+                            onPress={async () => {
+                              if (entitlementActionLoading) return;
+                              setEntitlementActionLoading(ent.entitlementKey);
+                              setEntitlementError(null);
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                              
+                              try {
+                                const response = await revokeEntitlement(selectedUser!.id, ent.entitlementKey);
+                                if (response.success) {
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                  safeToast.success("Entitlement revoked", `${ent.entitlementKey} removed`);
+                                  // Refresh entitlements
+                                  const refreshed = await getUserEntitlements(selectedUser!.id);
+                                  setUserEntitlements(refreshed.entitlements);
+                                } else {
+                                  setEntitlementError(response.message || "Failed to revoke entitlement");
+                                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                                  safeToast.error("Revoke failed", response.message || "Failed to revoke entitlement");
+                                }
+                              } catch (error: any) {
+                                if (error?.status === 401 || error?.status === 403) {
+                                  setEntitlementError("Not authorized");
+                                  router.replace("/settings");
+                                } else {
+                                  setEntitlementError(error?.message || "Network error");
+                                  safeToast.error("Revoke failed", error?.message || "Network error");
+                                }
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                              } finally {
+                                setEntitlementActionLoading(null);
+                              }
+                            }}
+                            disabled={entitlementActionLoading === ent.entitlementKey}
+                            className="px-3 py-1.5 rounded-lg"
+                            style={{ 
+                              backgroundColor: "#EF444420",
+                              opacity: entitlementActionLoading === ent.entitlementKey ? 0.5 : 1
+                            }}
+                          >
+                            <Text style={{ color: "#EF4444" }} className="text-sm font-medium">
+                              {entitlementActionLoading === ent.entitlementKey ? "..." : "Revoke"}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                  
+                  {/* Quick Grant PRO Button */}
+                  {(() => {
+                    const hasPro = userEntitlements.some(e => e.entitlementKey === "pro");
+                    return (
+                      <View className="px-4 py-3">
+                        <Pressable
+                          onPress={async () => {
+                            if (hasPro || entitlementActionLoading) return;
+                            setEntitlementActionLoading("pro_grant");
+                            setEntitlementError(null);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            
+                            try {
+                              const response = await grantEntitlement(selectedUser!.id, "pro", undefined, "Admin grant via console");
+                              if (response.success) {
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                                safeToast.success("PRO granted", `PRO entitlement granted to ${selectedUser!.name || selectedUser!.email}`);
+                                // Refresh entitlements
+                                const refreshed = await getUserEntitlements(selectedUser!.id);
+                                setUserEntitlements(refreshed.entitlements);
+                              } else {
+                                setEntitlementError(response.message || "Failed to grant PRO");
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                                safeToast.error("Grant failed", response.message || "Failed to grant PRO");
+                              }
+                            } catch (error: any) {
+                              if (error?.status === 401 || error?.status === 403) {
+                                setEntitlementError("Not authorized");
+                                router.replace("/settings");
+                              } else {
+                                setEntitlementError(error?.message || "Network error");
+                                safeToast.error("Grant failed", error?.message || "Network error");
+                              }
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                            } finally {
+                              setEntitlementActionLoading(null);
+                            }
+                          }}
+                          disabled={hasPro || entitlementActionLoading === "pro_grant"}
+                          className="py-2.5 rounded-lg items-center flex-row justify-center"
+                          style={{ 
+                            backgroundColor: hasPro ? "#10B98120" : themeColor,
+                            opacity: entitlementActionLoading === "pro_grant" ? 0.5 : 1,
+                          }}
+                        >
+                          {hasPro ? (
+                            <Text style={{ color: "#10B981" }} className="font-medium">
+                              ✓ PRO Already Granted
+                            </Text>
+                          ) : (
+                            <Text style={{ color: "white" }} className="font-medium">
+                              {entitlementActionLoading === "pro_grant" ? "Granting..." : "⭐ Grant PRO"}
+                            </Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+            </View>
 
             {/* Grant Badge Section */}
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">GRANT A BADGE</Text>
