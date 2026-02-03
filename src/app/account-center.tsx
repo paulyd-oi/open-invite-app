@@ -29,8 +29,7 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
-import { resetSession } from "@/lib/authBootstrap";
-import { setLogoutIntent } from "@/lib/logoutIntent";
+import { performLogout } from "@/lib/logout";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
@@ -196,34 +195,7 @@ export default function AccountCenterScreen() {
 
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    try {
-      // Standardized logout sequence
-      setLogoutIntent();
-      await resetSession({ reason: "user_logout", endpoint: "account-center" });
-      await queryClient.cancelQueries();
-      queryClient.clear();
-      if (__DEV__) console.log("[AccountCenter] Session and cache cleared");
-
-      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
-      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-      resetBootAuthority();
-      if (__DEV__) console.log("[AccountCenter] Boot authority reset");
-
-      // Hard transition to login
-      router.replace("/login");
-    } catch (error) {
-      console.error("[AccountCenter] Error during logout:", error);
-      // Navigate anyway to ensure user can log out even if backend fails
-      try {
-        await queryClient.cancelQueries();
-        queryClient.clear();
-        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-        resetBootAuthority();
-      } catch (e) {
-        // ignore
-      }
-      router.replace("/login");
-    }
+    await performLogout({ screen: "account_center", queryClient, router });
   };
 
   if (!session) {

@@ -61,8 +61,6 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
-import { resetSession } from "@/lib/authBootstrap";
-import { setLogoutIntent } from "@/lib/logoutIntent";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
@@ -74,7 +72,7 @@ import {
   restorePurchases,
 } from "@/lib/revenuecatClient";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { deactivatePushTokenOnLogout } from "@/lib/pushTokenManager";
+import { performLogout } from "@/lib/logout";
 import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
@@ -1055,41 +1053,7 @@ export default function SettingsScreen() {
 
   const confirmSignOut = async () => {
     setShowSignOutConfirm(false);
-    if (__DEV__) console.log("[Settings] Starting logout process...");
-
-    try {
-      // Deactivate push token before signing out
-      await deactivatePushTokenOnLogout();
-      if (__DEV__) console.log("[Settings] Push token deactivated");
-
-      // Standardized logout sequence
-      setLogoutIntent();
-      await resetSession({ reason: "user_logout", endpoint: "settings" });
-      await queryClient.cancelQueries();
-      queryClient.clear();
-      if (__DEV__) console.log("[Settings] Session and cache cleared");
-
-      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
-      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-      resetBootAuthority();
-      if (__DEV__) console.log("[Settings] Boot authority reset");
-
-      // Hard transition to login
-      router.replace("/login");
-      if (__DEV__) console.log("[Settings] Navigated to login");
-    } catch (error) {
-      console.error("[Settings] Error during logout:", error);
-      // Try to navigate anyway
-      try {
-        await queryClient.cancelQueries();
-        queryClient.clear();
-        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-        resetBootAuthority();
-      } catch (e) {
-        // ignore
-      }
-      router.replace("/login");
-    }
+    await performLogout({ screen: "settings", queryClient, router });
   };
 
   // Birthday handlers

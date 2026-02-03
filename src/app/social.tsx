@@ -26,8 +26,7 @@ import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
-import { resetSession } from "@/lib/authBootstrap";
-import { setLogoutIntent } from "@/lib/logoutIntent";
+import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
@@ -677,53 +676,7 @@ export default function SocialScreen() {
 
   // Handle reset session button
   const handleResetSession = useCallback(async () => {
-    if (__DEV__) {
-      console.log("[Logout] begin");
-    }
-    try {
-      // Standardized logout sequence
-      setLogoutIntent();
-      await resetSession({ reason: "user_logout", endpoint: "SocialScreen" });
-      if (__DEV__) {
-        console.log("[Logout] after resetSession");
-      }
-
-      // Cancel all pending queries
-      await queryClient.cancelQueries();
-      if (__DEV__) {
-        console.log("[Logout] after cancelQueries");
-      }
-
-      // Clear React Query cache
-      queryClient.clear();
-      if (__DEV__) {
-        console.log("[Logout] after queryClient.clear");
-      }
-
-      // Reset boot authority singleton to trigger bootStatus update to 'loggedOut'
-      const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-      resetBootAuthority();
-      if (__DEV__) {
-        console.log("[Logout] Boot authority reset");
-      }
-    } catch (error) {
-      console.error("[SocialScreen] Error during logout:", error);
-      // Try to clear cache anyway
-      try {
-        await queryClient.cancelQueries();
-        queryClient.clear();
-        const { resetBootAuthority } = await import("@/hooks/useBootAuthority");
-        resetBootAuthority();
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    // Hard transition to login
-    if (__DEV__) {
-      console.log("[Logout] navigating to /login");
-    }
-    router.replace("/login");
+    await performLogout({ screen: "social", queryClient, router });
   }, [queryClient, router]);
 
   // Fetch friend events (feed)

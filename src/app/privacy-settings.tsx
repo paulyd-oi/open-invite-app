@@ -28,8 +28,7 @@ import * as Haptics from "expo-haptics";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
-import { resetSession } from "@/lib/authBootstrap";
-import { setLogoutIntent } from "@/lib/logoutIntent";
+import { performLogout } from "@/lib/logout";
 
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
@@ -125,15 +124,8 @@ export default function PrivacySettingsScreen() {
     mutationFn: () => api.delete<{ success: boolean }>("/api/privacy/account"),
     onSuccess: async () => {
       safeToast.success("Account Deleted", "Your account has been permanently deleted.");
-      // Sign out and redirect to welcome
-      try {
-        setLogoutIntent();
-        await resetSession({ reason: "account_deletion", endpoint: "privacy-settings" });
-      } catch (error) {
-        console.error("[PrivacySettings] Error during logout after delete:", error);
-        // Continue to navigate anyway
-      }
-      router.replace("/login");
+      // Sign out and redirect to login via SSOT helper
+      await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
     },
     onError: () => {
       safeToast.error("Error", "Failed to delete account. Please try again.");
