@@ -1,53 +1,126 @@
 =================================================================
-HANDOFF PACKET: P1.2 Suggestions Page Add Friend Module Parity
+HANDOFF PACKET: Final Quiet Logs Sweep (Launch Hygiene)
 =================================================================
 
 Date: 2026-02-02
 Repo: https://github.com/paulyd-oi/open-invite-app.git
 Branch: main
-Commit: fe2f0b0
+Commit: 35ed1d5
 
 =================================================================
 SUMMARY
 =================================================================
-Suggestions page now includes the same Add Friend module UI shown on Friends page.
-User can add friends directly from Suggestions without navigating away.
-Header icon changed from Search (navigated away) to UserPlus (toggles Add Friend inline).
+Gated all debug console.log statements with `if (__DEV__)` checks
+to eliminate console noise in production TestFlight builds.
+
+Priority search targets verified: AUTH_TRACE, AUTH_HDR, PUSH_BOOTSTRAP,
+ScheduleBlocks, CircleCalendarPrivacy, RevenueCat entitlement logs - 
+all were already properly gated in their respective files.
+
+Additional ungated logs found and fixed across 9 files.
 
 =================================================================
 FILES CHANGED
 =================================================================
-MODIFIED:
-- src/app/suggestions.tsx (+398 lines)
+MODIFIED (9 files, 79 insertions, 71 deletions):
+- src/app/welcome.tsx
+- src/app/social.tsx
+- src/app/onboarding.tsx
+- src/app/settings.tsx
+- src/app/account-center.tsx
+- src/app/paywall.tsx
+- src/app/create.tsx
+- src/app/friend/[id].tsx
+- src/components/MapPreview.tsx
 
 =================================================================
-CHANGES MADE
+LOGS GATED BY FILE
 =================================================================
-1. Added imports:
-   - TextInput for search input
-   - Contact, ChevronRight icons
-   - expo-contacts for phone contact import
-   - safeToast for feedback
-   - useNetworkStatus for offline handling
-   - SearchUsersRankedResponse, SearchUserResult types
 
-2. Added state:
-   - showAddFriend, searchEmail, searchInputRef
-   - showContactsModal, phoneContacts, contactsLoading, contactSearch
-   - debouncedQuery for live search debouncing
+welcome.tsx:
+- [Apple Auth] expo-apple-authentication not available (line 66)
+- [Apple Auth] Availability (line 428)
+- [Onboarding] Starting email auth, Account exists, Auth successful (lines 442-506)
+- [AUTH_TRACE] Photo upload logs (lines 881-908)
+- [Onboarding] Continue pressed, session check logs (lines 922-1024)
+- [APPLE_TOKEN_PROOF] and [AUTH_BARRIER_RESULT] logs (lines 719-797)
 
-3. Added mutations:
-   - sendEmailPhoneRequestMutation for email/phone friend requests
-   - searchResults query for live user search
+Note: APPLE_AUTH_TRACE stage/bucket logs (lines 540, 561) intentionally
+remain ungated - they log only stage name and error bucket for production
+debugging, no sensitive data.
 
-4. Added handlers:
-   - handleDirectFriendRequest (for search input Add button)
-   - loadContacts (request permissions, load contacts)
-   - handleContactSelect (add friend from contact)
-   - toggleAddFriend (show/hide module with input focus)
+social.tsx:
+- [SocialScreen] Auth confirmed via bootStatus (line 664)
+- [SocialScreen] Retrying bootstrap (line 671)
 
-5. Updated header:
-   - Changed Search icon to UserPlus icon
+onboarding.tsx:
+- [onboarding] Auto-sending verification email (line 919)
+- [onboarding] Verification email sent (line 930)
+- [Onboarding] Bootstrap refresh complete/failed (lines 961, 965)
+
+settings.tsx:
+- [PUSH_DIAG_UI] pressed register, exception caught, result set (lines 505-544)
+- [Settings] logout sequence logs (lines 1062-1083)
+
+account-center.tsx:
+- [AccountCenter] Session/cache cleared, Boot authority reset (lines 205-210)
+
+paywall.tsx:
+- [Paywall] Premium user detected, redirecting (line 91)
+
+create.tsx:
+- [create.tsx] Places API search logs (lines 128-165)
+
+friend/[id].tsx:
+- [FriendNotes] Add/Delete note FAILED logs (lines 439-461)
+
+MapPreview.tsx:
+- Geocoding response not OK, Found coordinates, Could not geocode (lines 43-131)
+
+=================================================================
+ALREADY PROPERLY GATED (NO CHANGES NEEDED)
+=================================================================
+- src/lib/authBootstrap.ts - authTrace function has `if (!__DEV__) return;`
+- src/lib/authClient.ts - authTrace and logs already gated
+- src/lib/sessionCookie.ts - already gated
+- src/lib/appleSignIn.ts - already gated
+- src/hooks/useNotifications.ts - PUSH_BOOTSTRAP logs all gated
+- src/app/settings.tsx - ScheduleBlocks logs already gated
+- src/app/circle/[id].tsx - CircleCalendarPrivacy, CircleRemoveMember logs gated
+- src/lib/SubscriptionContext.tsx - RevenueCat logs all gated
+- src/app/friends.tsx - PERF, FRIENDS_AUTH_GATE logs all gated
+- src/app/_layout.tsx - BootRouter, text crash detector logs all gated
+- src/app/admin.tsx - admin console logs all gated
+- src/app/achievements.tsx - BADGES_FETCH/RENDER logs all gated
+- src/app/redeem-code.tsx - DEV_DECISION logs all gated
+- src/components/AnnouncementBanner.tsx - LOG_PREFIX logs all gated
+
+=================================================================
+VERIFICATION
+=================================================================
+✅ npm run typecheck - PASSED
+✅ bash scripts/ai/verify_frontend.sh - PASSED
+
+=================================================================
+PATTERN USED
+=================================================================
+All logs gated with: `if (__DEV__) console.log(...);`
+
+console.error calls preserved for real runtime errors (not gated).
+
+=================================================================
+NEXT STEPS
+=================================================================
+1. TestFlight build will have significantly cleaner console output
+2. Debug logs still available in Expo Go development
+3. Consider adding structured logging for production monitoring later
+
+=================================================================
+SESSION COMMITS
+=================================================================
+1. b523cc8 - P1.1 Event Block Color Customization
+2. fe2f0b0 - P1.2 Suggestions Page Add Friend Module Parity
+3. 35ed1d5 - chore(launch): gate all debug logs with __DEV__
    - Icon toggles Add Friend module (no navigation away)
    - Icon background changes color when active
 
