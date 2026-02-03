@@ -20,18 +20,18 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import Animated, {
-  FadeInUp,
-  SlideInRight,
-  SlideOutLeft,
+  FadeIn,
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
-// REMOVED: Duration-based entrance animation for static welcome screens
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const smoothFadeIn = (_delayMs = 0) => undefined;
+// INVARIANT: Animations run ONCE on mount - use opacity+translateY only (no height changes)
+// These use Reanimated's entering animations which are layout-stable
+const smoothFadeIn = (delayMs = 0) => FadeIn.delay(delayMs).duration(400);
+const stableFadeInDown = (delayMs = 0) => FadeInDown.delay(delayMs).duration(350).springify().damping(15);
 
 import {
   Calendar as CalendarIcon,
@@ -365,6 +365,17 @@ export default function WelcomeOnboardingScreen() {
   const queryClient = useQueryClient();
   const theme = useOnboardingTheme();
   const isMountedRef = useRef(true);
+  const hasLoggedMountRef = useRef(false);
+
+  // INVARIANT: Log mount once - if this prints twice, screen is remounting (bug)
+  useEffect(() => {
+    if (!hasLoggedMountRef.current) {
+      hasLoggedMountRef.current = true;
+      if (__DEV__) {
+        console.log("[ONBOARDING_BOOT] GettingStarted mounted once");
+      }
+    }
+  }, []);
 
   const [fontsLoaded] = useFonts({
     Sora_400Regular,

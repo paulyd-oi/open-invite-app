@@ -534,7 +534,7 @@ export default function LoginScreen() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <LinearGradient colors={[theme.gradientTop, theme.background]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
-          {/* Header */}
+          {/* Header with back to Getting Started */}
           <View
             style={{
               flexDirection: "row",
@@ -544,7 +544,15 @@ export default function LoginScreen() {
               paddingVertical: 16,
             }}
           >
-            <View style={{ width: 24 }} />
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.replace("/welcome");
+              }}
+              hitSlop={20}
+            >
+              <ArrowLeft size={24} color={theme.text} />
+            </Pressable>
             <Text
               style={{
                 fontFamily: "Sora_600SemiBold",
@@ -554,6 +562,8 @@ export default function LoginScreen() {
             >
               Welcome Back
             </Text>
+            {/* Spacer for centering title */}
+            <View style={{ width: 24 }} />
           </View>
 
           <KeyboardAvoidingView

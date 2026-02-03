@@ -1,0 +1,93 @@
+# HANDOFF: P0 Production Lockdown Sweep
+
+**Commit**: `584ace7` "fix(p0): production lockdown - gate all dev/debug screens for App Store safety"
+**Branch**: main (pushed to origin/main)
+**Status**: ✅ COMPLETE
+
+---
+
+## What Was Done
+
+**Objective**: Ensure zero dev/debug/test screens are reachable in production/TestFlight builds.
+
+### Routes Identified & Gated:
+
+| Route | File | Guard Type | Status |
+|-------|------|------------|--------|
+| `/dev-smoke-tests` | `src/app/dev-smoke-tests.tsx` | Module-level `if (!__DEV__)` export null | ✅ ADDED |
+| `/design-showcase` | `src/app/design-showcase.tsx` | Module-level `if (!__DEV__)` export null | ✅ ADDED |
+| `/debug/health` | `src/app/debug/health.tsx` | Component-level `if (!__DEV__) return null` | ✅ ALREADY GATED |
+| Stack registration | `src/app/_layout.tsx:541` | `{__DEV__ && <Stack.Screen ... />}` | ✅ ADDED |
+| Settings long-press | `src/app/settings.tsx:1270` | `onLongPress={__DEV__ ? ... : undefined}` | ✅ ADDED |
+| Nav helper | `src/lib/nav.ts:99` | `if (!__DEV__) return;` in goToDevSmokeTests() | ✅ ADDED |
+
+---
+
+## Files Modified
+
+```
+src/app/_layout.tsx         | 15 +++++-
+src/app/design-showcase.tsx | 14 ++++++
+src/app/dev-smoke-tests.tsx |  9 ++++
+src/app/settings.tsx        |  4 +-
+src/lib/nav.ts              |  5 +++
+```
+
+---
+
+## Blast Radius Proof
+
+```bash
+# All dev routes now gated:
+
+# 1. dev-smoke-tests.tsx - Module-level guard:
+if (!__DEV__) {
+  module.exports = { default: () => null };
+}
+
+# 2. design-showcase.tsx - Module-level guard:
+if (!__DEV__) {
+  module.exports = { default: () => null };
+}
+
+# 3. debug/health.tsx - Component-level guard (pre-existing):
+if (!__DEV__) return null;
+
+# 4. _layout.tsx - Stack.Screen wrapped:
+{__DEV__ && <Stack.Screen name="design-showcase" ... />}
+
+# 5. settings.tsx - Debug link conditional:
+onLongPress={__DEV__ ? () => { router.push("/debug/health"); } : undefined}
+
+# 6. nav.ts - Function guard:
+if (!__DEV__) { console.warn(...); return; }
+```
+
+---
+
+## Verification
+
+```
+✅ npm run typecheck         → PASS
+✅ verify_frontend.sh        → PASS
+✅ git push origin main      → 584ace7 pushed
+```
+
+---
+
+## Statement
+
+**No dev/debug UI is reachable in production/TestFlight builds.**
+
+All 3 dev screens (`/dev-smoke-tests`, `/design-showcase`, `/debug/health`) have:
+1. Module or component-level `__DEV__` guards that return null
+2. Navigation entry points gated with `__DEV__` conditionals
+3. Stack.Screen registrations conditionally rendered
+
+---
+
+## Continuation Hints
+
+- If adding new dev/debug screens: Follow pattern in `dev-smoke-tests.tsx` (module-level guard + component guard)
+- CLAUDE.md and README.md mention these routes for documentation only - no runtime access in production
+- `docs/FINDINGS_LOG.md:271-273` documents these routes as "unreachable" - now enforced with code guards

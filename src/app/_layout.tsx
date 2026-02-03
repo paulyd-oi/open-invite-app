@@ -305,25 +305,26 @@ function BootRouter() {
 
     if (__DEV__) {
       console.log(
-        '[BootRouter] Routing decision:',
+        '[ONBOARDING_BOOT] Routing decision:',
         JSON.stringify({ bootStatus, currentPath: pathname, error: bootError || 'none' }, null, 2)
       );
     }
 
-    // Guard: if bootStatus indicates logout in progress, always route to /login
+    // INVARIANT: loggedOut → /welcome (Getting Started), NOT /login
+    // Login is only reachable via button tap from Getting Started or deep link
     if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      // Only replace if not already on /login (prevent infinite loop)
-      if (pathname !== '/login') {
+      // Only replace if not already on /welcome or /login (prevent loop)
+      if (pathname !== '/welcome' && pathname !== '/login') {
         if (__DEV__) {
-          console.log('[BootRouter] → Routing to /login (no valid token)');
+          console.log('[ONBOARDING_BOOT] → Routing to /welcome (no valid token - Getting Started)');
         }
-        router.replace('/login');
+        router.replace('/welcome');
       }
     } else if (bootStatus === 'degraded') {
       // Network/timeout error - do NOT route, stay on current screen
       // User can retry by relaunching app or via retry() if exposed
       if (__DEV__) {
-        console.log('[BootRouter] → Degraded state (network/timeout) - not routing');
+        console.log('[ONBOARDING_BOOT] → Degraded state (network/timeout) - not routing');
       }
       // Do NOT set hasRoutedRef.current - allow retry to re-run routing
       hasRoutedRef.current = false;
@@ -332,7 +333,7 @@ function BootRouter() {
       // Authenticated but onboarding incomplete - send to welcome
       if (pathname !== '/welcome') {
         if (__DEV__) {
-          console.log('[BootRouter] → Routing to /welcome (token exists, onboarding incomplete)');
+          console.log('[ONBOARDING_BOOT] → Routing to /welcome (token exists, onboarding incomplete)');
         }
         router.replace('/welcome');
       }
@@ -340,7 +341,7 @@ function BootRouter() {
       // Fully authenticated and onboarded - go to Calendar (home/center tab)
       if (pathname !== '/calendar') {
         if (__DEV__) {
-          console.log('[BootRouter] → Routing to /calendar (fully authenticated)');
+          console.log('[ONBOARDING_BOOT] → Routing to /calendar (fully authenticated)');
         }
         router.replace('/calendar');
       }
