@@ -1,78 +1,80 @@
 =================================================================
-HANDOFF PACKET: P1.1 Event Block Color Customization
+HANDOFF PACKET: P1.2 Suggestions Page Add Friend Module Parity
 =================================================================
 
 Date: 2026-02-02
 Repo: https://github.com/paulyd-oi/open-invite-app.git
 Branch: main
-Commit: b523cc8
+Commit: fe2f0b0
 
 =================================================================
 SUMMARY
 =================================================================
-- Users can now customize the color of ANY event block on their calendar
-- Color changes persist via AsyncStorage (survives app restarts)
-- Per-user storage: colorOverrides stored at key eventColorOverrides_<userId>
-- Does NOT modify the event for other users - purely local display preference
-- 12-color palette: red, orange, amber, green, teal, blue, indigo, purple, pink, gray, brown, slate
+Suggestions page now includes the same Add Friend module UI shown on Friends page.
+User can add friends directly from Suggestions without navigating away.
+Header icon changed from Search (navigated away) to UserPlus (toggles Add Friend inline).
 
 =================================================================
-FILES CREATED
+FILES CHANGED
 =================================================================
-- src/lib/eventColorOverrides.ts
-  - COLOR_PALETTE constant with 12 colors
-  - loadColorOverrides, saveColorOverride, removeColorOverride functions
-  - In-memory cache for performance
-
-- src/hooks/useEventColorOverrides.ts
-  - React hook: colorOverrides, getOverrideColor, setOverrideColor, resetColor
-  - Invalidates calendar queries on change for immediate UI update
+MODIFIED:
+- src/app/suggestions.tsx (+398 lines)
 
 =================================================================
-FILES MODIFIED
+CHANGES MADE
 =================================================================
-- src/lib/eventPalette.ts
-  - getEventPalette now accepts optional overrideColor parameter
-  - If provided, uses that color instead of default logic
+1. Added imports:
+   - TextInput for search input
+   - Contact, ChevronRight icons
+   - expo-contacts for phone contact import
+   - safeToast for feedback
+   - useNetworkStatus for offline handling
+   - SearchUsersRankedResponse, SearchUserResult types
 
-- src/app/event/[id].tsx
-  - Added "Block Color" option in Event Actions Sheet
-  - Added Color Picker Modal with 12 swatches
-  - "Reset to Default" option when override exists
+2. Added state:
+   - showAddFriend, searchEmail, searchInputRef
+   - showContactsModal, phoneContacts, contactsLoading, contactSearch
+   - debouncedQuery for live search debouncing
 
-- src/app/calendar.tsx
-  - CompactDayCell, StackedDayCell, DetailsDayCell accept colorOverrides prop
-  - ListView accepts and passes colorOverrides
-  - EventListItem accepts colorOverride prop
-  - All getEventPalette calls now pass override
+3. Added mutations:
+   - sendEmailPhoneRequestMutation for email/phone friend requests
+   - searchResults query for live user search
 
-- src/components/FeedCalendar.tsx
-  - Added useEventColorOverrides hook
-  - Updated eventCountsByDate to use overrides
-  - EventListItem receives colorOverride
+4. Added handlers:
+   - handleDirectFriendRequest (for search input Add button)
+   - loadContacts (request permissions, load contacts)
+   - handleContactSelect (add friend from contact)
+   - toggleAddFriend (show/hide module with input focus)
+
+5. Updated header:
+   - Changed Search icon to UserPlus icon
+   - Icon toggles Add Friend module (no navigation away)
+   - Icon background changes color when active
+
+6. Added Add Friend module UI:
+   - Import from Contacts button (teal styling)
+   - Divider with "or search by" text
+   - Search input (name, email, phone)
+   - Live search results with avatars and mutual count
+   - Loading/offline/no results states
+
+7. Added Contacts Modal:
+   - Full screen modal for contact selection
+   - Search bar to filter contacts
+   - Contact list with avatar, name, email/phone
 
 =================================================================
 HOW TO TEST
 =================================================================
-1. Open Calendar screen
-2. Tap on any event to open event detail
-3. Scroll down and tap "Block Color" option
-4. Select a color from the 12-color palette
-5. Color should immediately update in:
-   - Event detail header
-   - Calendar grid (dots/bars/text)
-   - Event list items
-6. Close and reopen app - colors should persist
-7. Use "Reset to Default" to remove override
-
-=================================================================
-ARCHITECTURE DECISION
-=================================================================
-Colors are stored per-user locally (not backend) because:
-- User may not be event owner
-- Color is display preference, not event property
-- Avoids changing color for all attendees
-- Keeps privacy (no sync of UI preferences)
+1. Open Suggestions page from Friends tab
+2. Tap UserPlus icon in header → Add Friend box appears
+3. Tap "Import from Contacts" → grants permission → contacts modal opens
+4. Select a contact → friend request sent → modal closes
+5. Type in search field → live results appear (2+ chars)
+6. Tap Add button → sends request by email/phone
+7. Tap UserPlus icon again → Add Friend box hides
+8. Suggestions list still works as before
+9. Both tabs (For You / People) still function
 
 =================================================================
 RUNTIME STATUS
@@ -82,16 +84,12 @@ Commands verified:
   bash scripts/ai/verify_frontend.sh # PASSED
 
 =================================================================
-PREVIOUS P0 FIXES THIS SESSION
+PREVIOUS FIXES THIS SESSION
 =================================================================
 1. P0 Privacy Fix - Circle calendar busy blocks (commit 5fb6106)
 2. P0 Calendar Fix - Work schedule second block (commit 65f148f)
-3. P1.1 Event Color Customization (commit b523cc8) ← THIS
-
-=================================================================
-REMAINING TASKS
-=================================================================
-Check user's task list for remaining P1 polish items
+3. P1.1 Event Color Customization (commit b523cc8)
+4. P1.2 Suggestions Add Friend Parity (commit fe2f0b0) ← THIS
 - Change end time > BOTH times remain visible
 - Re-open screen > BOTH blocks display correctly
 - Remove second block > save > persists correctly
