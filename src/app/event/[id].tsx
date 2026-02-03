@@ -871,7 +871,7 @@ export default function EventDetailScreen() {
                 </Pressable>
               )}
               <Pressable
-                onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/friends')}
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
                 className="py-3 px-6 rounded-full items-center"
                 style={{ backgroundColor: colors.surface }}
               >
@@ -909,7 +909,7 @@ export default function EventDetailScreen() {
             This event may have been deleted or is no longer available.
           </Text>
           <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/friends')}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
             className="py-3 px-6 rounded-full items-center"
             style={{ backgroundColor: colors.surface }}
           >
