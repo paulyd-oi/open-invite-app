@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
@@ -193,7 +194,7 @@ export default function BottomNavigation() {
   const { data: friendRequestsData } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
@@ -201,7 +202,7 @@ export default function BottomNavigation() {
   const { data: eventRequestsData } = useQuery({
     queryKey: ["event-requests"],
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
@@ -209,7 +210,7 @@ export default function BottomNavigation() {
   const { data: circleUnreadData } = useQuery({
     queryKey: ["circleUnreadCount"],
     queryFn: () => api.get<{ totalUnread: number }>("/api/circles/unread/count"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });
 
@@ -217,7 +218,7 @@ export default function BottomNavigation() {
   const { data: profilesData } = useQuery({
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000, // Cache for 1 minute
   });
 

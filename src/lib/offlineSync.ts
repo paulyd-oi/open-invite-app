@@ -170,8 +170,9 @@ export async function replayQueue(
 
 /**
  * Hook to handle queue replay when coming back online
+ * @param bootStatus - Current boot authority status (must be 'authed' to replay)
  */
-export function useOfflineSync() {
+export function useOfflineSync(bootStatus?: string) {
   const { isOnline } = useNetworkStatus();
   const queryClient = useQueryClient();
   const wasOfflineRef = useRef(!isOnline);
@@ -191,6 +192,14 @@ export function useOfflineSync() {
   // Handle online/offline transitions
   useEffect(() => {
     const handleOnlineTransition = async () => {
+      // [NET_GATE] Block replay unless fully authenticated
+      if (bootStatus !== 'authed') {
+        if (__DEV__) {
+          console.log(`[NET_GATE] DENY tag=offlineReplay bootStatus=${bootStatus ?? "undefined"}`);
+        }
+        return;
+      }
+
       // Check if we just came back online
       if (isOnline && wasOfflineRef.current && !isReplayingRef.current) {
         isReplayingRef.current = true;
@@ -248,7 +257,7 @@ export function useOfflineSync() {
     if (!isOnline) {
       wasOfflineRef.current = true;
     }
-  }, [isOnline, queryClient, setSyncing, setSyncProgress, reconcileLocalEvent]);
+  }, [isOnline, bootStatus, queryClient, setSyncing, setSyncProgress, reconcileLocalEvent]);
 
   return {
     isOnline,

@@ -187,8 +187,10 @@ const queryClient = new QueryClient({
 
 // Component that handles offline sync (must be inside QueryClientProvider)
 function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
-  // This hook handles queue replay when coming back online
-  useOfflineSync();
+  // Get boot status for auth gating
+  const { status: bootStatus } = useBootAuthority();
+  // This hook handles queue replay when coming back online (gated on authed)
+  useOfflineSync(bootStatus);
   return <>{children}</>;
 }
 

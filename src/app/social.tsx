@@ -26,6 +26,7 @@ import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
@@ -585,8 +586,8 @@ export default function SocialScreen() {
   // Collapse state for sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
-  // Auth gating based on boot status (token validation), not session presence
-  const isAuthed = bootStatus === "authed";
+  // Auth gating based on boot status AND session userId (SSOT gate)
+  const isAuthed = isAuthedForNetwork(bootStatus, session);
 
   // Load guidance state when user ID is available
   useEffect(() => {

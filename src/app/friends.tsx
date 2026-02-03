@@ -72,6 +72,7 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -96,7 +97,7 @@ import {
 import { useNetworkStatus } from "@/lib/networkStatus";
 
 // Mini calendar component for friend cards
-const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus }: { friendshipId: string; bootStatus: string }) {
+const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus, session }: { friendshipId: string; bootStatus: string; session: any }) {
   const { themeColor, isDark, colors } = useTheme();
 
   // DEV: Track renders
@@ -107,7 +108,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
   const { data } = useQuery({
     queryKey: ["friendEvents", friendshipId],
     queryFn: () => api.get<GetFriendEventsResponse>(`/api/friends/${friendshipId}/events`),
-    enabled: bootStatus === 'authed' && !!friendshipId,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId,
     staleTime: 60000, // Cache for 1 minute to avoid too many requests
   });
 
@@ -208,12 +209,14 @@ const FriendCard = React.memo(function FriendCard({
   friendship, 
   index, 
   bootStatus,
+  session,
   onPin,
   isPinned,
 }: { 
   friendship: Friendship; 
   index: number; 
   bootStatus: string;
+  session: any;
   onPin?: (friendshipId: string) => void;
   isPinned?: boolean;
 }) {
@@ -306,7 +309,7 @@ const FriendCard = React.memo(function FriendCard({
         </View>
 
         {/* Mini Calendar */}
-        <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
+        <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} session={session} />
       </Pressable>
   );
 
@@ -327,12 +330,14 @@ const FriendListItem = React.memo(function FriendListItem({
   friendship, 
   index, 
   bootStatus,
+  session,
   onPin,
   isPinned,
 }: { 
   friendship: Friendship; 
   index: number; 
   bootStatus: string;
+  session: any;
   onPin?: (friendshipId: string) => void;
   isPinned?: boolean;
 }) {
@@ -487,7 +492,7 @@ const FriendListItem = React.memo(function FriendListItem({
             {/* Expandable calendar section */}
             <Animated.View style={calendarStyle}>
               <View className="px-3 pb-3">
-                <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} />
+                <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} session={session} />
               </View>
             </Animated.View>
           </Animated.View>
@@ -846,7 +851,7 @@ export default function FriendsScreen() {
       );
       return response;
     },
-    enabled: bootStatus === 'authed' && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
     staleTime: 30000, // Cache for 30 seconds
     gcTime: 60000, // Keep in cache for 1 minute
   });
@@ -859,7 +864,7 @@ export default function FriendsScreen() {
   const { data: friendsData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - friends list is stable
     gcTime: 10 * 60 * 1000, // 10 min garbage collection
     refetchOnMount: false, // Don't refetch if data exists
@@ -878,7 +883,7 @@ export default function FriendsScreen() {
   const { data: requestsData, refetch: refetchRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60 * 1000, // 1 min - requests can change more often
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -1052,7 +1057,7 @@ export default function FriendsScreen() {
   const { data: circlesData, refetch: refetchCircles } = useQuery({
     queryKey: ["circles"],
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - circles rarely change
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -1064,7 +1069,7 @@ export default function FriendsScreen() {
   const { data: pinnedData, isFetched: pinnedFetched } = useQuery({
     queryKey: ["pinnedFriendships"],
     queryFn: () => api.get<{ pinnedFriendshipIds: string[] }>("/api/circles/friends/pinned"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -1163,21 +1168,23 @@ export default function FriendsScreen() {
     <FriendListItem 
       friendship={item} 
       index={index} 
-      bootStatus={bootStatus} 
+      bootStatus={bootStatus}
+      session={session}
       onPin={handlePinFriend}
       isPinned={pinnedFriendshipIds.has(item.id)}
     />
-  ), [bootStatus, handlePinFriend, pinnedFriendshipIds]);
+  ), [bootStatus, session, handlePinFriend, pinnedFriendshipIds]);
   
   const renderFriendCard = useCallback(({ item, index }: { item: Friendship; index: number }) => (
     <FriendCard 
       friendship={item} 
       index={index} 
       bootStatus={bootStatus}
+      session={session}
       onPin={handlePinFriend}
       isPinned={pinnedFriendshipIds.has(item.id)}
     />
-  ), [bootStatus, handlePinFriend, pinnedFriendshipIds]);
+  ), [bootStatus, session, handlePinFriend, pinnedFriendshipIds]);
 
   // [LEGACY_GROUPS_PURGED] selectedGroup memo removed
 

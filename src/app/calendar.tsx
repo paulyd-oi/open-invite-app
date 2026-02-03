@@ -40,6 +40,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
@@ -1312,7 +1313,7 @@ export default function CalendarScreen() {
   const { data: friendsData, isFetched: isFriendsFetched } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -1586,7 +1587,7 @@ export default function CalendarScreen() {
       api.get<GetCalendarEventsResponse>(
         `/api/events/calendar-events?start=${encodeURIComponent(visibleDateRange.start)}&end=${encodeURIComponent(visibleDateRange.end)}`
       ),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
     refetchOnMount: true,
     staleTime: 0, // Always consider data stale to ensure fresh data on navigation
   });
@@ -1595,7 +1596,7 @@ export default function CalendarScreen() {
   const { data: birthdaysData, isLoading: isLoadingBirthdays, isError: isBirthdaysError } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
-    enabled: bootStatus === 'authed',
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // QueryClient for invalidating queries
