@@ -12,6 +12,7 @@ import {
   TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
@@ -87,7 +88,7 @@ function SuggestionCard({
 
   // P0 DEV: Log bio for debugging
   if (__DEV__ && suggestion.user?.handle) {
-    console.log(`[P0_SUGGESTIONS_BIO] username=${suggestion.user.handle} bioLen=${bio?.length ?? 0}`);
+    devLog(`[P0_SUGGESTIONS_BIO] username=${suggestion.user.handle} bioLen=${bio?.length ?? 0}`);
   }
 
   const handlePress = () => {
@@ -415,7 +416,7 @@ export default function SuggestionsScreen() {
       setPhoneContacts(data.filter((c) => c.name && (c.emails?.length || c.phoneNumbers?.length)));
       setShowContactsModal(true);
     } catch (error) {
-      console.error("Error loading contacts:", error);
+      devError("Error loading contacts:", error);
       safeToast.error("Error", "Failed to load contacts");
     } finally {
       setContactsLoading(false);
@@ -484,7 +485,7 @@ export default function SuggestionsScreen() {
         title: "Invite friends to Open Invite",
       });
     } catch (error) {
-      console.error("Error sharing:", error);
+      devError("Error sharing:", error);
     }
   };
 

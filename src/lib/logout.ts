@@ -21,6 +21,7 @@ import { resetSession } from "./authBootstrap";
 import { setLogoutIntent } from "./logoutIntent";
 import { deactivatePushTokenOnLogout } from "./pushTokenManager";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
+import { devLog, devError } from "./devLog";
 
 export type LogoutScreen = "settings" | "account_center" | "social" | "privacy_settings";
 export type LogoutReason = "user_logout" | "account_deletion";
@@ -48,13 +49,13 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
 
   // DEV-only canonical log (single source of truth)
   if (__DEV__) {
-    console.log(`[LOGOUT_SSOT] start screen=${screen} reason=${reason}`);
+    devLog(`[LOGOUT_SSOT] start screen=${screen} reason=${reason}`);
   }
 
   // Idempotent guard - safe to call multiple times
   if (logoutInFlight) {
     if (__DEV__) {
-      console.log(`[LOGOUT_SSOT] already in progress - skipping duplicate call`);
+      devLog(`[LOGOUT_SSOT] already in progress - skipping duplicate call`);
     }
     return;
   }
@@ -86,7 +87,7 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     router.replace("/login");
   } catch (error) {
     if (__DEV__) {
-      console.error(`[LOGOUT_SSOT] error during logout:`, error);
+      devError(`[LOGOUT_SSOT] error during logout:`, error);
     }
 
     // Fallback: ensure user can still log out even if something fails

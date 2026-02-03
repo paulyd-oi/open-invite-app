@@ -10,6 +10,7 @@ import {
   type AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useRouter, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   Calendar,
@@ -220,7 +221,7 @@ export default function ImportCalendarScreen() {
         }
       }
     } catch (error) {
-      console.error("Failed to check permission:", error);
+      devError("Failed to check permission:", error);
       setPermissionResult({
         granted: false,
         status: "undetermined",
@@ -249,7 +250,7 @@ export default function ImportCalendarScreen() {
         }
       }
     } catch (error) {
-      console.error("Failed to recheck permission:", error);
+      devError("Failed to recheck permission:", error);
     } finally {
       setIsCheckingPermission(false);
     }
@@ -374,7 +375,7 @@ export default function ImportCalendarScreen() {
       setShowEvents(true);
       setSyncResult(null);
     } catch (error) {
-      console.error("Failed to load events:", error);
+      devError("Failed to load events:", error);
       safeToast.error("Oops", "Couldn't refresh right now. Try again in a moment.");
     } finally {
       setIsLoadingEvents(false);

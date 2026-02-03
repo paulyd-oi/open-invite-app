@@ -15,6 +15,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { devLog } from "./devLog";
 
 const NOTIFICATION_PROMPT_KEY_PREFIX = "notification_prompt_asked_at";
 const COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -46,7 +47,7 @@ export async function shouldShowNotificationPrompt(userId?: string): Promise<boo
     const { status } = await Notifications.getPermissionsAsync();
     if (status === "granted") {
       if (__DEV__) {
-        console.log(`${LOG_PREFIX} ❌ BLOCKED: OS permission already granted (status=${status})`);
+        devLog(`${LOG_PREFIX} ❌ BLOCKED: OS permission already granted (status=${status})`);
       }
       return false; // Already have permission, NEVER prompt
     }
@@ -59,22 +60,22 @@ export async function shouldShowNotificationPrompt(userId?: string): Promise<boo
       const daysElapsed = Math.floor(elapsed / (24 * 60 * 60 * 1000));
       if (elapsed < COOLDOWN_MS) {
         if (__DEV__) {
-          console.log(`${LOG_PREFIX} ❌ BLOCKED: In cooldown (${daysElapsed}/14 days, userId=${userId || 'global'})`);
+          devLog(`${LOG_PREFIX} ❌ BLOCKED: In cooldown (${daysElapsed}/14 days, userId=${userId || 'global'})`);
         }
         return false; // Still in cooldown
       }
       if (__DEV__) {
-        console.log(`${LOG_PREFIX} ℹ️ Cooldown expired (${daysElapsed} days elapsed)`);
+        devLog(`${LOG_PREFIX} ℹ️ Cooldown expired (${daysElapsed} days elapsed)`);
       }
     }
 
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} ✅ ALLOWED: Can show notification prompt (userId=${userId || 'global'})`);
+      devLog(`${LOG_PREFIX} ✅ ALLOWED: Can show notification prompt (userId=${userId || 'global'})`);
     }
     return true; // OK to show prompt
   } catch (error) {
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} ❌ BLOCKED: Error checking prompt status`, error);
+      devLog(`${LOG_PREFIX} ❌ BLOCKED: Error checking prompt status`, error);
     }
     return false; // Default to not showing on error
   }
@@ -89,7 +90,7 @@ export async function markNotificationPromptAsked(userId?: string): Promise<void
     const key = getPromptKey(userId);
     await AsyncStorage.setItem(key, Date.now().toString());
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} 📝 Marked prompt asked (key=${key})`);
+      devLog(`${LOG_PREFIX} 📝 Marked prompt asked (key=${key})`);
     }
   } catch {
     // Ignore storage errors

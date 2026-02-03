@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog } from "@/lib/devLog";
 
 const VERIFICATION_DEFERRED_KEY = "verification_deferred";
 
@@ -28,7 +29,7 @@ export function useVerificationGate() {
         const deferred = await AsyncStorage.getItem(VERIFICATION_DEFERRED_KEY);
         setIsVerificationDeferred(deferred === "true");
       } catch (error) {
-        console.log("Failed to check verification status:", error);
+        devLog("Failed to check verification status:", error);
       } finally {
         setIsLoading(false);
       }
@@ -52,7 +53,7 @@ export function useVerificationGate() {
       await AsyncStorage.removeItem(VERIFICATION_DEFERRED_KEY);
       setIsVerificationDeferred(false);
     } catch (error) {
-      console.log("Failed to clear deferred status:", error);
+      devLog("Failed to clear deferred status:", error);
     }
   }, []);
 

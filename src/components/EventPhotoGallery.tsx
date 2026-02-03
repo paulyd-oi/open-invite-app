@@ -26,6 +26,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
+import { devError } from "@/lib/devLog";
 
 // Define types locally to avoid import issues
 interface EventPhoto {
@@ -160,7 +161,7 @@ export function EventPhotoGallery({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Saved!", "Photo has been saved to your photo library.");
     } catch (error) {
-      console.error("Download error:", error);
+      devError("Download error:", error);
       safeToast.error("Error", "Failed to save photo. Please try again.");
     } finally {
       setDownloading(false);

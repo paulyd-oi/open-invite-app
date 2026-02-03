@@ -13,6 +13,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   MapPin,
   Clock,
@@ -126,7 +127,7 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
       url += `&lat=${lat}&lon=${lon}`;
     }
 
-    if (__DEV__) console.log("[create.tsx] Searching places:", url);
+    if (__DEV__) devLog("[create.tsx] Searching places:", url);
 
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -144,26 +145,26 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if (__DEV__) console.log("[create.tsx] Places API error:", response.status, response.statusText);
+      if (__DEV__) devLog("[create.tsx] Places API error:", response.status, response.statusText);
       return searchPlacesLocal(query);
     }
 
     const data = await response.json();
-    if (__DEV__) console.log("[create.tsx] Places API response:", JSON.stringify(data).slice(0, 200));
+    if (__DEV__) devLog("[create.tsx] Places API response:", JSON.stringify(data).slice(0, 200));
 
     if (data.places && data.places.length > 0) {
-      if (__DEV__) console.log("[create.tsx] Found", data.places.length, "places from API");
+      if (__DEV__) devLog("[create.tsx] Found", data.places.length, "places from API");
       return data.places;
     }
 
     // If backend returns no results or error, use local fallback
     if (data.error) {
-      if (__DEV__) console.log("[create.tsx] Places API returned error:", data.error);
+      if (__DEV__) devLog("[create.tsx] Places API returned error:", data.error);
     }
-    if (__DEV__) console.log("[create.tsx] No places from API, using local fallback");
+    if (__DEV__) devLog("[create.tsx] No places from API, using local fallback");
     return searchPlacesLocal(query);
   } catch (error: any) {
-    if (__DEV__) console.log("[create.tsx] Places search error:", error?.message || error);
+    if (__DEV__) devLog("[create.tsx] Places search error:", error?.message || error);
     return searchPlacesLocal(query);
   }
 };
@@ -329,7 +330,7 @@ export default function CreateEventScreen() {
         const result = await Location.requestForegroundPermissionsAsync();
         status = result.status;
         setLocationPermissionAsked(true);
-        console.log("[create.tsx] Location permission result:", status);
+        devLog("[create.tsx] Location permission result:", status);
       }
 
       if (status === "granted") {
@@ -340,11 +341,11 @@ export default function CreateEventScreen() {
           lat: loc.coords.latitude,
           lon: loc.coords.longitude,
         });
-        console.log("[create.tsx] Got user location for search biasing");
+        devLog("[create.tsx] Got user location for search biasing");
       }
     } catch (error) {
       // Silently fail - location biasing is optional
-      console.log("[create.tsx] Could not get user location for search biasing:", error);
+      devLog("[create.tsx] Could not get user location for search biasing:", error);
     }
   }, [userLocation]);
 
@@ -364,7 +365,7 @@ export default function CreateEventScreen() {
         }
       } catch (error) {
         // Silently fail - location biasing is optional
-        console.log("[create.tsx] Could not get user location for search biasing");
+        devLog("[create.tsx] Could not get user location for search biasing");
       }
     };
     fetchUserLocation();
@@ -433,7 +434,7 @@ export default function CreateEventScreen() {
     const loadPendingImport = async () => {
       const pendingImport = await getPendingIcsImport();
       if (pendingImport) {
-        console.log('[Create Event] Loading ICS import:', pendingImport.title);
+        devLog('[Create Event] Loading ICS import:', pendingImport.title);
         setTitle(pendingImport.title);
         setStartDate(pendingImport.startTime);
         if (pendingImport.endTime) {
@@ -482,7 +483,7 @@ export default function CreateEventScreen() {
         );
         setPlaceSuggestions(results);
       } catch (error) {
-        console.error("Error searching places:", error);
+        devError("Error searching places:", error);
       } finally {
         setIsSearchingPlaces(false);
       }
@@ -597,7 +598,7 @@ export default function CreateEventScreen() {
         }, 600);
       }
     } catch (error) {
-      console.log("[CreateEvent] Error checking notification prompt:", error);
+      devLog("[CreateEvent] Error checking notification prompt:", error);
     }
   };
 
@@ -784,7 +785,7 @@ export default function CreateEventScreen() {
                         } else {
                           // Reject non-emoji input - only allow empty or emoji
                           if (text.length > 0 && __DEV__) {
-                            console.log("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
+                            devLog("[DEV_DECISION] event_icon_reject non_emoji", { input: text });
                           }
                           setCustomEmojiInput(""); // Clear non-emoji input
                         }

@@ -9,6 +9,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { devLog } from './devLog';
 
 export interface Session {
   user?: {
@@ -57,9 +58,7 @@ const CACHE_KEY = 'session_cache_v2_with_ttl';
 export async function getSessionCached(config = DEFAULT_CONFIG): Promise<Session | null> {
   const now = Date.now();
 
-  if (__DEV__) {
-    console.log('[getSessionCached] Called');
-  }
+  devLog('[SESSION_CACHE]', 'getSessionCached called');
 
   // NOTE: With Better Auth, authentication is handled via cookies (credentials: "include").
   // We no longer require a SecureStore token to fetch session - the cookie IS the auth.
@@ -68,9 +67,7 @@ export async function getSessionCached(config = DEFAULT_CONFIG): Promise<Session
   // Check if we're rate limited
   if (isRateLimited && now < rateLimitUntil) {
     const remaining = Math.ceil((rateLimitUntil - now) / 1000);
-    if (__DEV__) {
-      console.log(`[getSessionCached] Rate limited, returning cached session (${remaining}s remaining)`);
-    }
+    devLog('[SESSION_CACHE]', `Rate limited, returning cached session (${remaining}s remaining)`);
     
     // Try to load from cache if we don't have one in memory
     if (!cachedSession) {
@@ -83,32 +80,24 @@ export async function getSessionCached(config = DEFAULT_CONFIG): Promise<Session
   if (isRateLimited && now >= rateLimitUntil) {
     isRateLimited = false;
     rateLimitUntil = 0;
-    if (__DEV__) {
-      console.log('[getSessionCached] Rate limit cleared');
-    }
+    devLog('[SESSION_CACHE]', 'Rate limit cleared');
   }
 
   // If there's an in-flight request, return it
   if (inFlightPromise) {
-    if (__DEV__) {
-      console.log('[getSessionCached] Using in-flight request');
-    }
+    devLog('[SESSION_CACHE]', 'Using in-flight request');
     return inFlightPromise;
   }
 
   // Check if we have valid cached data
   const timeSinceLastFetch = now - lastFetchAt;
   if (cachedSession && timeSinceLastFetch < config.ttl) {
-    if (__DEV__) {
-      console.log(`[getSessionCached] Using cached session (${Math.ceil((config.ttl - timeSinceLastFetch) / 1000)}s remaining)`);
-    }
+    devLog('[SESSION_CACHE]', `Using cached session (${Math.ceil((config.ttl - timeSinceLastFetch) / 1000)}s remaining)`);
     return cachedSession;
   }
 
   // Need to fetch - start the request and store as in-flight
-  if (__DEV__) {
-    console.log('[getSessionCached] Fetching from network');
-  }
+  devLog('[SESSION_CACHE]', 'Fetching from network');
 
   inFlightPromise = fetchSessionFromNetwork(config);
   
@@ -152,9 +141,7 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
       // Compute effectiveUserId: prefer user.id, fallback to session.userId
       const effectiveUserId = userId ?? sessionUserId ?? null;
       
-      if (__DEV__) {
-        console.log(`[getSessionCached] Parsed session - userId: ${userId}, sessionUserId: ${sessionUserId}, effectiveUserId: ${effectiveUserId}`);
-      }
+      devLog('[SESSION_CACHE]', `Parsed session - userId: ${userId}, sessionUserId: ${sessionUserId}, effectiveUserId: ${effectiveUserId}`);
       
       // Build unified session object with effectiveUserId
       const session: Session = {
@@ -174,18 +161,14 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
     return null;
     
   } catch (error: any) {
-    if (__DEV__) {
-      console.log('[getSessionCached] Network fetch error:', error.message);
-    }
+    devLog('[SESSION_CACHE]', 'Network fetch error:', error.message);
 
     // Handle 429 rate limiting
     if (error.status === 429) {
       isRateLimited = true;
       rateLimitUntil = Date.now() + config.backoffDuration;
       
-      if (__DEV__) {
-        console.log(`[getSessionCached] Rate limited, backing off for ${config.backoffDuration / 1000}s`);
-      }
+      devLog('[SESSION_CACHE]', `Rate limited, backing off for ${config.backoffDuration / 1000}s`);
       
       // Return cached session if available instead of null
       if (!cachedSession) {
@@ -196,9 +179,7 @@ async function fetchSessionFromNetwork(config: SessionCacheConfig): Promise<Sess
 
     // For 401, user is not authenticated - clear and return null
     if (error.status === 401) {
-      if (__DEV__) {
-        console.log('[getSessionCached] Auth error 401, clearing session');
-      }
+      devLog('[SESSION_CACHE]', 'Auth error 401, clearing session');
       await clearCache();
       return null;
     }
@@ -230,9 +211,7 @@ async function loadFromCache(): Promise<Session | null> {
     
     return data.session;
   } catch (error) {
-    if (__DEV__) {
-      console.log('[getSessionCached] Error loading from cache:', error);
-    }
+    devLog('[SESSION_CACHE]', 'Error loading from cache:', error);
     return null;
   }
 }
@@ -249,9 +228,7 @@ async function saveToCache(session: Session, ttl: number): Promise<void> {
     };
     await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
   } catch (error) {
-    if (__DEV__) {
-      console.log('[getSessionCached] Error saving to cache:', error);
-    }
+    devLog('[SESSION_CACHE]', 'Error saving to cache:', error);
   }
 }
 
@@ -265,9 +242,7 @@ export async function clearSessionCache(): Promise<void> {
     inFlightPromise = null;
     lastFetchAt = 0;
   } catch (error) {
-    if (__DEV__) {
-      console.log('[clearSessionCache] Error clearing cache:', error);
-    }
+    devLog('[SESSION_CACHE]', 'Error clearing cache:', error);
   }
 }
 
@@ -282,9 +257,7 @@ async function clearCache(): Promise<void> {
  * Force refresh session (clears cache and forces network fetch)
  */
 export async function forceRefreshSession(): Promise<Session | null> {
-  if (__DEV__) {
-    console.log('[getSessionCached] Force refresh requested');
-  }
+  devLog('[SESSION_CACHE]', 'Force refresh requested');
   
   // Clear cache state
   cachedSession = null;

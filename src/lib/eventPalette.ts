@@ -6,6 +6,8 @@
  * All calendar renderers (month bars, dots, day list, day sheet, FeedCalendar) MUST use this.
  */
 
+import { devLog, devError } from "./devLog";
+
 export interface EventPalette {
   bar: string;    // Left bar / primary color / dot color
   bg: string;     // Background tint (20% alpha)
@@ -61,7 +63,7 @@ export function getEventPalette(
   // If user has set a color override, use that (allows customizing ANY event including busy/work)
   if (overrideColor) {
     if (__DEV__) {
-      console.log("[EventPalette] Using override color:", { overrideColor, eventTitle: (event as any)?.title });
+      devLog("[EventPalette] Using override color:", { overrideColor, eventTitle: (event as any)?.title });
     }
     return {
       bar: overrideColor,
@@ -130,7 +132,7 @@ export function assertGreyPaletteInvariant(
   const isGrey = palette.bar === GREY_PALETTE.bar;
 
   if (shouldBeGrey && !isGrey) {
-    console.error("[BUSY_GREY_INVARIANT_FAIL]", {
+    devError("[BUSY_GREY_INVARIANT_FAIL]", {
       eventId: event.id,
       isBusy: event.isBusy,
       isWork: event.isWork,

@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { scheduleEventReminder, cancelEventReminders } from "@/lib/notifications";
+import { devError } from "@/lib/devLog";
 
 interface ReminderOption {
   label: string;
@@ -82,7 +83,7 @@ export function EventReminderPicker({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowModal(false);
     } catch (error) {
-      console.error("Error saving reminders:", error);
+      devError("Error saving reminders:", error);
     } finally {
       setIsSaving(false);
     }

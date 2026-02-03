@@ -6,6 +6,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Simple UUID generator (no external dependency)
 function generateUUID(): string {
@@ -85,7 +86,7 @@ export async function loadQueue(): Promise<QueuedAction[]> {
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[offlineQueue] Error loading queue:", error);
+      devLog("[offlineQueue] Error loading queue:", error);
     }
   }
   return [];
@@ -99,7 +100,7 @@ export async function saveQueue(queue: QueuedAction[]): Promise<void> {
     await AsyncStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
   } catch (error) {
     if (__DEV__) {
-      console.log("[offlineQueue] Error saving queue:", error);
+      devLog("[offlineQueue] Error saving queue:", error);
     }
   }
 }
@@ -127,7 +128,7 @@ export async function enqueue(
   await saveQueue(queue);
 
   if (__DEV__) {
-    console.log("[offlineQueue] Enqueued action:", type, action.id);
+    devLog("[offlineQueue] Enqueued action:", type, action.id);
   }
 
   return action;
@@ -168,7 +169,7 @@ export async function removeAction(id: string): Promise<void> {
   await saveQueue(newQueue);
 
   if (__DEV__) {
-    console.log("[offlineQueue] Removed action:", id);
+    devLog("[offlineQueue] Removed action:", id);
   }
 }
 

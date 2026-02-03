@@ -23,6 +23,7 @@ import { useSession } from "@/lib/useSession";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { authClient } from "@/lib/authClient";
 import { safeToast } from "@/lib/safeToast";
+import { devWarn } from "@/lib/devLog";
 
 // SecureStore key prefix - MUST be user-scoped
 const WELCOME_MODAL_SHOWN_PREFIX = "openinvite.welcome_modal_shown.";
@@ -46,7 +47,7 @@ export async function hasWelcomeModalBeenShown(userId: string | null | undefined
     return value === "true";
   } catch (error) {
     // On error, default to not showing (avoid annoying users)
-    console.warn("[WelcomeModal] Error reading shown state:", error);
+    devWarn("[WelcomeModal] Error reading shown state:", error);
     return true;
   }
 }
@@ -61,7 +62,7 @@ export async function markWelcomeModalShown(userId: string | null | undefined): 
     const key = buildWelcomeModalKey(userId);
     await SecureStore.setItemAsync(key, "true");
   } catch (error) {
-    console.warn("[WelcomeModal] Error saving shown state:", error);
+    devWarn("[WelcomeModal] Error saving shown state:", error);
   }
 }
 

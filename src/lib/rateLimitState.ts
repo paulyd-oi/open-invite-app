@@ -5,6 +5,8 @@
  * when rate-limited (HTTP 429 / "Rate limit exceeded").
  */
 
+import { devLog } from "./devLog";
+
 // In-memory state (persists across renders but not app restarts)
 let rateLimitedUntil: number | null = null;
 
@@ -68,7 +70,7 @@ export function setRateLimited(error: any): void {
   rateLimitedUntil = Date.now() + (retryAfterSeconds * 1000);
   
   if (__DEV__) {
-    console.log(`[RateLimit] Rate-limited until ${new Date(rateLimitedUntil).toLocaleTimeString()} (${retryAfterSeconds}s)`);
+    devLog(`[RateLimit] Rate-limited until ${new Date(rateLimitedUntil).toLocaleTimeString()} (${retryAfterSeconds}s)`);
   }
 }
 
@@ -78,6 +80,6 @@ export function setRateLimited(error: any): void {
 export function clearRateLimit(): void {
   rateLimitedUntil = null;
   if (__DEV__) {
-    console.log("[RateLimit] Rate limit cleared");
+    devLog("[RateLimit] Rate limit cleared");
   }
 }

@@ -1,5 +1,6 @@
 // src/lib/safeToast.ts
 import { Alert } from "react-native";
+import { devLog, devWarn, devError } from "./devLog";
 
 /**
  * Normalize any input to a safe string for display.
@@ -31,25 +32,25 @@ export const safeToast = {
   success(title: unknown, message?: unknown) {
     const safeTitle = normalize(title);
     const safeMessage = normalize(message);
-    if (__DEV__) console.log('[Toast Success]', safeTitle, safeMessage);
+    if (__DEV__) devLog('[Toast Success]', safeTitle, safeMessage);
     Alert.alert(safeTitle, safeMessage);
   },
   error(title: unknown, message?: unknown) {
     const safeTitle = normalize(title);
     const safeMessage = normalize(message);
-    if (__DEV__) console.error('[Toast Error]', safeTitle, safeMessage);
+    if (__DEV__) devError('[Toast Error]', safeTitle, safeMessage);
     Alert.alert(safeTitle, safeMessage);
   },
   warning(title: unknown, message?: unknown) {
     const safeTitle = normalize(title);
     const safeMessage = normalize(message);
-    if (__DEV__) console.warn('[Toast Warning]', safeTitle, safeMessage);
+    if (__DEV__) devWarn('[Toast Warning]', safeTitle, safeMessage);
     Alert.alert(safeTitle, safeMessage);
   },
   info(title: unknown, message?: unknown) {
     const safeTitle = normalize(title);
     const safeMessage = normalize(message);
-    if (__DEV__) console.log('[Toast Info]', safeTitle, safeMessage);
+    if (__DEV__) devLog('[Toast Info]', safeTitle, safeMessage);
     Alert.alert(safeTitle, safeMessage);
   },
 };

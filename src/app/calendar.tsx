@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, type NativeScrollEvent, type NativeS
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   ChevronLeft,
   ChevronRight,
@@ -169,7 +170,7 @@ const shareEventFromCalendar = async (event: Event) => {
       url: shareUrl,
     });
   } catch (error) {
-    console.error("Error sharing event:", error);
+    devError("Error sharing event:", error);
   }
 };
 
@@ -241,7 +242,7 @@ const addEventToDeviceCalendar = async (event: Event) => {
       `"${event.title}" has been added to your calendar.`
     );
   } catch (error: any) {
-    console.error("Error adding to calendar:", error);
+    devError("Error adding to calendar:", error);
     safeToast.error("Oops", "That didn't go through. Please try again.");
   }
 };
@@ -673,7 +674,7 @@ function EventListItem({
   };
 
   const handleColorSelect = (color: string) => {
-    console.log("[Calendar] Color selected:", color, "for event:", event.id);
+    devLog("[Calendar] Color selected:", color, "for event:", event.id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onColorChange?.(event.id, color);
   };
@@ -1236,7 +1237,7 @@ export default function CalendarScreen() {
       const dismissed = await AsyncStorage.getItem(dismissedKey);
       if (dismissed === "true") {
         if (__DEV__) {
-          console.log(`${CAL_NUDGE_LOG} ❌ BLOCKED: User dismissed nudge (key=${dismissedKey})`);
+          devLog(`${CAL_NUDGE_LOG} ❌ BLOCKED: User dismissed nudge (key=${dismissedKey})`);
         }
         return;
       }
@@ -1245,13 +1246,13 @@ export default function CalendarScreen() {
       const permResult = await checkCalendarPermission();
       if (permResult.granted) {
         if (__DEV__) {
-          console.log(`${CAL_NUDGE_LOG} ❌ BLOCKED: Calendar permission already granted (status=${permResult.status})`);
+          devLog(`${CAL_NUDGE_LOG} ❌ BLOCKED: Calendar permission already granted (status=${permResult.status})`);
         }
         return;
       }
       
       if (__DEV__) {
-        console.log(`${CAL_NUDGE_LOG} ✅ ALLOWED: Showing calendar import nudge (userId=${userId})`);
+        devLog(`${CAL_NUDGE_LOG} ✅ ALLOWED: Showing calendar import nudge (userId=${userId})`);
       }
       // Small delay to let screen settle
       setTimeout(() => setShowCalendarImportNudge(true), 800);
@@ -1267,7 +1268,7 @@ export default function CalendarScreen() {
       const dismissedKey = `calendar_import_nudge_dismissed:${session.user.id}`;
       await AsyncStorage.setItem(dismissedKey, "true");
       if (__DEV__) {
-        console.log(`${CAL_NUDGE_LOG} 📝 Marked nudge dismissed (key=${dismissedKey})`);
+        devLog(`${CAL_NUDGE_LOG} 📝 Marked nudge dismissed (key=${dismissedKey})`);
       }
     }
   };
@@ -1456,7 +1457,7 @@ export default function CalendarScreen() {
           }
         }
       } catch (error) {
-        console.error("Failed to load calendar view height:", error);
+        devError("Failed to load calendar view height:", error);
       }
       setInitialHeightLoaded(true);
     };
@@ -1470,7 +1471,7 @@ export default function CalendarScreen() {
       try {
         await AsyncStorage.setItem(CALENDAR_VIEW_HEIGHT_KEY, displayUnifiedHeight.toString());
       } catch (error) {
-        console.error("Failed to save calendar view height:", error);
+        devError("Failed to save calendar view height:", error);
       }
     };
     saveHeight();
@@ -1647,7 +1648,7 @@ export default function CalendarScreen() {
   };
 
   const handleColorChange = (eventId: string, color: string) => {
-    console.log("[Calendar] handleColorChange called:", { eventId, color });
+    devLog("[Calendar] handleColorChange called:", { eventId, color });
     updateEventColorMutation.mutate({ eventId, color });
   };
 
@@ -1701,7 +1702,7 @@ export default function CalendarScreen() {
     // DISABLED: Legacy first login guide modal
     // The new interactive onboarding (useOnboardingGuide) is the only onboarding prompt.
     // See: src/hooks/useOnboardingGuide.ts for the active onboarding system.
-    if (__DEV__) console.log('[GUIDE_DECISION] Legacy guide check DISABLED - using new interactive onboarding only');
+    if (__DEV__) devLog('[GUIDE_DECISION] Legacy guide check DISABLED - using new interactive onboarding only');
     
     // Clean up any old flags for existing users (one-time migration)
     const cleanupLegacyFlags = async () => {
@@ -1712,7 +1713,7 @@ export default function CalendarScreen() {
       const alreadyDismissed = await AsyncStorage.getItem(guideSeenKey);
       if (!alreadyDismissed) {
         await AsyncStorage.setItem(guideSeenKey, "true");
-        if (__DEV__) console.log('[GUIDE_DECISION] Migrated: set legacy flag to dismissed', { guideSeenKey });
+        if (__DEV__) devLog('[GUIDE_DECISION] Migrated: set legacy flag to dismissed', { guideSeenKey });
       }
     };
     cleanupLegacyFlags();
@@ -1729,7 +1730,7 @@ export default function CalendarScreen() {
 
   // Debug logs for gating query states (helps diagnose stuck loading states)
   useEffect(() => {
-    console.log("[CalendarScreen] Query states:", {
+    devLog("[CalendarScreen] Query states:", {
       bootStatus,
       isLoadingCalendar,
       isRefetchingCalendar,
@@ -1745,7 +1746,7 @@ export default function CalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       if (bootStatus === 'authed') {
-        console.log("[CalendarScreen] Screen focused, refetching calendar events");
+        devLog("[CalendarScreen] Screen focused, refetching calendar events");
         refetchCalendarEvents();
       }
     }, [bootStatus, refetchCalendarEvents])
@@ -1990,7 +1991,7 @@ export default function CalendarScreen() {
     const newMonth = ref.month === 0 ? 11 : ref.month - 1;
     const newYear = ref.month === 0 ? ref.year - 1 : ref.year;
     if (__DEV__) {
-      console.log("[CalendarGesture] TRIGGER prev", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
+      devLog("[CalendarGesture] TRIGGER prev", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
@@ -2003,7 +2004,7 @@ export default function CalendarScreen() {
     const newMonth = ref.month === 11 ? 0 : ref.month + 1;
     const newYear = ref.month === 11 ? ref.year + 1 : ref.year;
     if (__DEV__) {
-      console.log("[CalendarGesture] TRIGGER next", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
+      devLog("[CalendarGesture] TRIGGER next", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
@@ -2061,7 +2062,7 @@ export default function CalendarScreen() {
     }
 
     if (__DEV__) {
-      console.log("[CalendarGesture] scroll", {
+      devLog("[CalendarGesture] scroll", {
         offsetY: Math.round(offsetY),
         maxScroll: Math.round(maxScroll),
         canScrollDown,
@@ -2084,7 +2085,7 @@ export default function CalendarScreen() {
     const canScrollDown = maxScroll > 10;
 
     if (__DEV__) {
-      console.log("[CalendarGesture] endDrag snapshot", {
+      devLog("[CalendarGesture] endDrag snapshot", {
         offsetY: Math.round(offsetY),
         maxScroll: Math.round(maxScroll),
         canScrollDown,
@@ -2251,7 +2252,7 @@ export default function CalendarScreen() {
           </Text>
           <Pressable
             onPress={() => {
-              console.log("[CalendarScreen] Retry button pressed, refetching...");
+              devLog("[CalendarScreen] Retry button pressed, refetching...");
               refetchCalendarEvents();
             }}
             className="px-6 py-3 rounded-full"
@@ -2546,7 +2547,7 @@ export default function CalendarScreen() {
                             url: "https://apps.apple.com/app/open-invite",
                           });
                         } catch (error) {
-                          console.error("Error sharing:", error);
+                          devError("Error sharing:", error);
                         }
                       }}
                       className="flex-row items-center px-5 py-2.5 rounded-full mb-3"

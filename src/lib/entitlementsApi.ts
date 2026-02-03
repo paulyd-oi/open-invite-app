@@ -7,6 +7,7 @@
 
 import { api } from './api';
 import type { EntitlementsResponse } from './entitlements';
+import { devLog } from './devLog';
 
 /**
  * Fetch current user's entitlements from backend
@@ -20,7 +21,7 @@ export async function fetchEntitlements(): Promise<EntitlementsResponse | null> 
     return response;
   } catch (error) {
     if (__DEV__) {
-      console.log('[EntitlementsApi] fetchEntitlements error:', error);
+      devLog('[EntitlementsApi] fetchEntitlements error:', error);
     }
     return null;
   }

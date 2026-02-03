@@ -5,6 +5,8 @@
  * This prevents duplication and ensures consistency across the app.
  */
 
+import { devLog } from "./devLog";
+
 // Production backend URL (Render deployment)
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
 
@@ -23,5 +25,5 @@ export const BACKEND_URL = rawBackendUrl.replace(/\/+$/, "");
 
 // Log configuration in development for debugging
 if (__DEV__) {
-  console.log("[config] Backend URL:", BACKEND_URL);
+  devLog("[config] Backend URL:", BACKEND_URL);
 }

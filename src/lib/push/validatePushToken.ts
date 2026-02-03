@@ -10,6 +10,8 @@
  * - Malformed or too-short tokens
  */
 
+import { devLog } from "../devLog";
+
 /**
  * Validate that a token is a real Expo push token suitable for backend registration.
  * 
@@ -41,7 +43,7 @@ export function isValidExpoPushToken(token: unknown): token is string {
   const hasForbiddenPattern = forbiddenPatterns.some(pattern => lowerToken.includes(pattern));
   if (hasForbiddenPattern) {
     if (__DEV__) {
-      console.log('[validatePushToken] Rejected token with forbidden pattern:', token.substring(0, 30) + '...');
+      devLog('[validatePushToken] Rejected token with forbidden pattern:', token.substring(0, 30) + '...');
     }
     return false;
   }
@@ -49,7 +51,7 @@ export function isValidExpoPushToken(token: unknown): token is string {
   // Real tokens are at least 44 chars, use 30 as conservative minimum
   if (token.length < 30) {
     if (__DEV__) {
-      console.log('[validatePushToken] Rejected too-short token:', token.substring(0, 20) + '...');
+      devLog('[validatePushToken] Rejected too-short token:', token.substring(0, 20) + '...');
     }
     return false;
   }

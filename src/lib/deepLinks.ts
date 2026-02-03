@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseICS, isValidICSContent } from './icsParser';
 import { handleReferralUrl } from './referral';
+import { devLog, devWarn, devError } from './devLog';
 
 // Backend URL for generating shareable links (Render production)
 export const BACKEND_URL = 'https://open-invite-api.onrender.com';
@@ -74,7 +75,7 @@ export async function storePendingIcsImport(data: {
       })
     );
   } catch (error) {
-    console.error('[ICS Import] Failed to store pending import:', error);
+    devError('[ICS Import] Failed to store pending import:', error);
   }
 }
 
@@ -101,7 +102,7 @@ export async function getPendingIcsImport(): Promise<{
       endTime: parsed.endTime ? new Date(parsed.endTime) : null,
     };
   } catch (error) {
-    console.error('[ICS Import] Failed to get pending import:', error);
+    devError('[ICS Import] Failed to get pending import:', error);
     return null;
   }
 }
@@ -111,7 +112,7 @@ export async function getPendingIcsImport(): Promise<{
  */
 async function handleIcsImport(url: string): Promise<boolean> {
   try {
-    console.log('[ICS Import] Processing .ics file:', url);
+    devLog('[ICS Import] Processing .ics file:', url);
 
     let icsContent: string;
 
@@ -129,23 +130,23 @@ async function handleIcsImport(url: string): Promise<boolean> {
       });
       icsContent = fileContent;
     } else {
-      console.error('[ICS Import] Unsupported URL scheme:', url);
+      devError('[ICS Import] Unsupported URL scheme:', url);
       return false;
     }
 
     // Validate and parse
     if (!isValidICSContent(icsContent)) {
-      console.error('[ICS Import] Invalid .ics content');
+      devError('[ICS Import] Invalid .ics content');
       return false;
     }
 
     const parsed = parseICS(icsContent);
     if (!parsed) {
-      console.error('[ICS Import] Failed to parse .ics content');
+      devError('[ICS Import] Failed to parse .ics content');
       return false;
     }
 
-    console.log('[ICS Import] Successfully parsed event:', parsed.title);
+    devLog('[ICS Import] Successfully parsed event:', parsed.title);
 
     // Store for create screen to pick up
     await storePendingIcsImport(parsed);
@@ -155,7 +156,7 @@ async function handleIcsImport(url: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('[ICS Import] Error processing .ics file:', error);
+    devError('[ICS Import] Error processing .ics file:', error);
     return false;
   }
 }
@@ -218,7 +219,7 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
     return null;
   } catch (error) {
     if (__DEV__) {
-      console.error('Error parsing deep link:', error);
+      devError('Error parsing deep link:', error);
     }
     return null;
   }
@@ -232,13 +233,13 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
   if (!parsed) {
     if (__DEV__) {
-      console.log('Could not parse deep link:', url);
+      devLog('Could not parse deep link:', url);
     }
     return false;
   }
 
   if (__DEV__) {
-    console.log('Handling deep link:', parsed);
+    devLog('Handling deep link:', parsed);
   }
 
   switch (parsed.type) {
@@ -287,7 +288,7 @@ export function setupDeepLinkListener(callback?: (url: string) => void): () => v
   // Handle links that open the app
   const subscription = Linking.addEventListener('url', ({ url }) => {
     if (__DEV__) {
-      console.log('Deep link received:', url);
+      devLog('Deep link received:', url);
     }
     if (callback) {
       callback(url);
@@ -300,7 +301,7 @@ export function setupDeepLinkListener(callback?: (url: string) => void): () => v
   Linking.getInitialURL().then((url) => {
     if (url) {
       if (__DEV__) {
-        console.log('Initial deep link:', url);
+        devLog('Initial deep link:', url);
       }
       if (callback) {
         callback(url);

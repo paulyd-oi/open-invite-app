@@ -15,6 +15,7 @@ import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -107,59 +108,59 @@ async function runPushRegistrationProof(): Promise<void> {
   pushProofDiagnosticRan = true;
 
   const LOG_PREFIX = "[PUSH_PROOF]";
-  console.log(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF START ==========`);
+  devLog(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF START ==========`);
 
   try {
     // Step 1: Device check
     const isPhysicalDevice = Device.isDevice;
-    console.log(`${LOG_PREFIX} 1. isPhysicalDevice: ${isPhysicalDevice}`);
+    devLog(`${LOG_PREFIX} 1. isPhysicalDevice: ${isPhysicalDevice}`);
     if (!isPhysicalDevice) {
-      console.log(`${LOG_PREFIX} ❌ ABORT: Not a physical device (simulator cannot get real tokens)`);
+      devLog(`${LOG_PREFIX} ❌ ABORT: Not a physical device (simulator cannot get real tokens)`);
       return;
     }
 
     // Step 2: Permission status
     const { status: permissionStatus } = await Notifications.getPermissionsAsync();
-    console.log(`${LOG_PREFIX} 2. permissionStatus: ${permissionStatus}`);
+    devLog(`${LOG_PREFIX} 2. permissionStatus: ${permissionStatus}`);
     if (permissionStatus !== "granted") {
-      console.log(`${LOG_PREFIX} ❌ ABORT: Permission not granted (cannot fetch token)`);
+      devLog(`${LOG_PREFIX} ❌ ABORT: Permission not granted (cannot fetch token)`);
       return;
     }
 
     // Step 3: ProjectId (using shared resolver)
     const projectId = resolveProjectId();
-    console.log(`${LOG_PREFIX} 3. projectId: ${projectId || "NOT_FOUND"}`);
+    devLog(`${LOG_PREFIX} 3. projectId: ${projectId || "NOT_FOUND"}`);
     if (!projectId) {
-      console.log(`${LOG_PREFIX} ❌ ABORT: No projectId found`);
+      devLog(`${LOG_PREFIX} ❌ ABORT: No projectId found`);
       return;
     }
 
     // Step 4: Get token
-    console.log(`${LOG_PREFIX} 4. Fetching Expo push token...`);
+    devLog(`${LOG_PREFIX} 4. Fetching Expo push token...`);
     let token: string;
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       token = tokenData.data;
     } catch (tokenErr) {
-      console.log(`${LOG_PREFIX} ❌ ABORT: getExpoPushTokenAsync failed:`, tokenErr);
+      devLog(`${LOG_PREFIX} ❌ ABORT: getExpoPushTokenAsync failed:`, tokenErr);
       return;
     }
 
     const tokenPrefix = getTokenPrefix(token);
     const tokenLength = token?.length ?? 0;
-    console.log(`${LOG_PREFIX}    tokenPrefix: ${tokenPrefix}`);
-    console.log(`${LOG_PREFIX}    tokenLength: ${tokenLength}`);
+    devLog(`${LOG_PREFIX}    tokenPrefix: ${tokenPrefix}`);
+    devLog(`${LOG_PREFIX}    tokenLength: ${tokenLength}`);
 
     // Step 5: Validate token
     const isValid = isValidExpoPushToken(token);
-    console.log(`${LOG_PREFIX} 5. isValidExpoPushToken: ${isValid}`);
+    devLog(`${LOG_PREFIX} 5. isValidExpoPushToken: ${isValid}`);
     if (!isValid) {
-      console.log(`${LOG_PREFIX} ❌ ABORT: Token failed validation (placeholder/mock/too-short)`);
+      devLog(`${LOG_PREFIX} ❌ ABORT: Token failed validation (placeholder/mock/too-short)`);
       return;
     }
 
     // Step 6: POST /api/push/register
-    console.log(`${LOG_PREFIX} 6. POST /api/push/register ...`);
+    devLog(`${LOG_PREFIX} 6. POST /api/push/register ...`);
     const PUSH_REGISTER_ROUTE = "/api/push/register";
     let postResult: { status: number; body: unknown };
     try {
@@ -168,47 +169,47 @@ async function runPushRegistrationProof(): Promise<void> {
         platform: "expo",
       });
       postResult = { status: 200, body: response };
-      console.log(`${LOG_PREFIX}    POST status: 200`);
-      console.log(`${LOG_PREFIX}    POST body: ${JSON.stringify(response)}`);
+      devLog(`${LOG_PREFIX}    POST status: 200`);
+      devLog(`${LOG_PREFIX}    POST body: ${JSON.stringify(response)}`);
     } catch (postErr: any) {
       const status = postErr?.status ?? postErr?.statusCode ?? "unknown";
       const body = postErr?.data ?? postErr?.message ?? String(postErr);
       postResult = { status: typeof status === "number" ? status : 500, body };
       if (status === 401) {
-        console.log(`${LOG_PREFIX}    POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
+        devLog(`${LOG_PREFIX}    POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
       } else {
-        console.log(`${LOG_PREFIX}    POST status: ${status}`);
+        devLog(`${LOG_PREFIX}    POST status: ${status}`);
       }
-      console.log(`${LOG_PREFIX}    POST error body: ${JSON.stringify(body)}`);
+      devLog(`${LOG_PREFIX}    POST error body: ${JSON.stringify(body)}`);
     }
 
     // Step 7: GET /api/push/me (verify backend state)
-    console.log(`${LOG_PREFIX} 7. GET /api/push/me ...`);
+    devLog(`${LOG_PREFIX} 7. GET /api/push/me ...`);
     try {
       const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
-      console.log(`${LOG_PREFIX}    GET status: 200`);
-      console.log(`${LOG_PREFIX}    GET body: ${JSON.stringify(meResponse)}`);
+      devLog(`${LOG_PREFIX}    GET status: 200`);
+      devLog(`${LOG_PREFIX}    GET body: ${JSON.stringify(meResponse)}`);
 
       // Check for expected token
       const tokens = meResponse?.tokens ?? [];
       const matchingToken = tokens.find((t) => tokenPrefix.includes(t.tokenPrefix?.substring(0, 20) ?? ""));
       if (tokens.length === 0) {
-        console.log(`${LOG_PREFIX}    ⚠️ No tokens in response`);
+        devLog(`${LOG_PREFIX}    ⚠️ No tokens in response`);
       } else if (matchingToken?.isActive) {
-        console.log(`${LOG_PREFIX}    ✅ Token found and isActive=true`);
+        devLog(`${LOG_PREFIX}    ✅ Token found and isActive=true`);
       } else {
-        console.log(`${LOG_PREFIX}    ⚠️ Token found but isActive=${matchingToken?.isActive ?? "N/A"}`);
+        devLog(`${LOG_PREFIX}    ⚠️ Token found but isActive=${matchingToken?.isActive ?? "N/A"}`);
       }
     } catch (getErr: any) {
       const status = getErr?.status ?? getErr?.statusCode ?? "unknown";
       const body = getErr?.data ?? getErr?.message ?? String(getErr);
-      console.log(`${LOG_PREFIX}    GET status: ${status}`);
-      console.log(`${LOG_PREFIX}    GET error body: ${JSON.stringify(body)}`);
+      devLog(`${LOG_PREFIX}    GET status: ${status}`);
+      devLog(`${LOG_PREFIX}    GET error body: ${JSON.stringify(body)}`);
     }
 
-    console.log(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF END ==========`);
+    devLog(`${LOG_PREFIX} ========== PUSH REGISTRATION PROOF END ==========`);
   } catch (err) {
-    console.log(`${LOG_PREFIX} UNEXPECTED ERROR:`, err);
+    devLog(`${LOG_PREFIX} UNEXPECTED ERROR:`, err);
   }
 }
 
@@ -358,19 +359,19 @@ export function useNotifications() {
       const userIdPrefix = userId?.substring(0, 8) ?? "none";
       const throttleKey = getThrottleKey(userId);
       if (!throttleKey) {
-        if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no key)`);
+        devLog(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no key)`);
         return false;
       }
       
       const lastRegistered = await AsyncStorage.getItem(throttleKey);
       if (!lastRegistered) {
-        if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no timestamp)`);
+        devLog(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... result=false (no timestamp)`);
         return false;
       }
       
       const elapsed = Date.now() - parseInt(lastRegistered, 10);
       const throttled = elapsed < TOKEN_REGISTRATION_THROTTLE_MS;
-      if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... elapsed=${Math.round(elapsed/1000)}s result=${throttled}`);
+      devLog(`[P0_PUSH_REG] THROTTLE_CHECK userId=${userIdPrefix}... elapsed=${Math.round(elapsed/1000)}s result=${throttled}`);
       return throttled;
     } catch {
       return false;
@@ -385,11 +386,11 @@ export function useNotifications() {
       const userId = session?.user?.id;
       const throttleKey = getThrottleKey(userId);
       if (!throttleKey) {
-        if (__DEV__) console.log("[P0_PUSH_REG] No userId - cannot mark registered");
+        devLog("[P0_PUSH_REG] No userId - cannot mark registered");
         return;
       }
       await AsyncStorage.setItem(throttleKey, Date.now().toString());
-      if (__DEV__) console.log(`[P0_PUSH_REG] THROTTLE_MARKED userId=${userId?.substring(0, 8)}...`);
+      devLog(`[P0_PUSH_REG] THROTTLE_MARKED userId=${userId?.substring(0, 8)}...`);
     } catch {
       // Ignore storage errors
     }
@@ -411,7 +412,7 @@ export function useNotifications() {
     // INVARIANT: Only register when fully authenticated
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__) {
-        console.log(`[P0_PUSH_REG] SKIP reason=NOT_AUTHED bootStatus=${bootStatus} hasUser=${!!session?.user}`);
+        devLog(`[P0_PUSH_REG] SKIP reason=NOT_AUTHED bootStatus=${bootStatus} hasUser=${!!session?.user}`);
       }
       return;
     }
@@ -421,23 +422,23 @@ export function useNotifications() {
       let { status } = await Notifications.getPermissionsAsync();
       
       if (__DEV__) {
-        console.log(`[P0_PUSH_REG] PERMISSION_CHECK userId=${userIdPrefix}... status=${status}`);
+        devLog(`[P0_PUSH_REG] PERMISSION_CHECK userId=${userIdPrefix}... status=${status}`);
       }
 
       // Step 2: If undetermined AND forceRegister, REQUEST permission (not just read)
       if (status === 'undetermined' && forceRegister) {
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] PERMISSION_REQUEST userId=${userIdPrefix}...`);
+          devLog(`[P0_PUSH_REG] PERMISSION_REQUEST userId=${userIdPrefix}...`);
         }
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
         status = newStatus;
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] PERMISSION_RESULT userId=${userIdPrefix}... status=${status}`);
+          devLog(`[P0_PUSH_REG] PERMISSION_RESULT userId=${userIdPrefix}... status=${status}`);
         }
       } else if (status === 'undetermined' && !forceRegister) {
         // Permission undetermined and not forcing - skip without prompting
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] SKIP reason=PERMISSION_UNDETERMINED userId=${userIdPrefix}...`);
+          devLog(`[P0_PUSH_REG] SKIP reason=PERMISSION_UNDETERMINED userId=${userIdPrefix}...`);
         }
         lastPermissionStatus.current = status;
         return;
@@ -450,7 +451,7 @@ export function useNotifications() {
       // Handle permission revocation
       if (status !== "granted" && wasGranted) {
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] PERMISSION_REVOKED userId=${userIdPrefix}...`);
+          devLog(`[P0_PUSH_REG] PERMISSION_REVOKED userId=${userIdPrefix}...`);
         }
         await api.post("/api/notifications/status", {
           pushPermissionStatus: "denied",
@@ -462,7 +463,7 @@ export function useNotifications() {
       // Handle denied/undetermined
       if (status !== "granted") {
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] SKIP reason=PERMISSION_${status.toUpperCase()} userId=${userIdPrefix}...`);
+          devLog(`[P0_PUSH_REG] SKIP reason=PERMISSION_${status.toUpperCase()} userId=${userIdPrefix}...`);
         }
         await api.post("/api/notifications/status", {
           pushPermissionStatus: status === "denied" ? "denied" : "undetermined",
@@ -483,7 +484,7 @@ export function useNotifications() {
           // KEY FIX: Even if throttled, check backend state
           // If backend has 0 active tokens, bypass throttle
           if (__DEV__) {
-            console.log(`[P0_PUSH_REG] THROTTLED userId=${userIdPrefix}... checking backend state...`);
+            devLog(`[P0_PUSH_REG] THROTTLED userId=${userIdPrefix}... checking backend state...`);
           }
           
           const backendState = await verifyPushMe();
@@ -492,19 +493,19 @@ export function useNotifications() {
             shouldRegister = true;
             throttleBypassReason = "BACKEND_EMPTY";
             if (__DEV__) {
-              console.log(`[P0_PUSH_REG] THROTTLE_BYPASS reason=BACKEND_EMPTY userId=${userIdPrefix}... activeCount=0 totalCount=${backendState.totalCount}`);
+              devLog(`[P0_PUSH_REG] THROTTLE_BYPASS reason=BACKEND_EMPTY userId=${userIdPrefix}... activeCount=0 totalCount=${backendState.totalCount}`);
             }
           } else if (backendState) {
             // Backend has active tokens, respect throttle
             if (__DEV__) {
-              console.log(`[P0_PUSH_REG] SKIP reason=THROTTLED userId=${userIdPrefix}... backendActiveCount=${backendState.activeCount}`);
+              devLog(`[P0_PUSH_REG] SKIP reason=THROTTLED userId=${userIdPrefix}... backendActiveCount=${backendState.activeCount}`);
             }
             lastPermissionStatus.current = status;
             return;
           } else {
             // Backend verification failed, respect throttle to be safe
             if (__DEV__) {
-              console.log(`[P0_PUSH_REG] SKIP reason=THROTTLED_VERIFY_FAILED userId=${userIdPrefix}...`);
+              devLog(`[P0_PUSH_REG] SKIP reason=THROTTLED_VERIFY_FAILED userId=${userIdPrefix}...`);
             }
             lastPermissionStatus.current = status;
             return;
@@ -521,7 +522,7 @@ export function useNotifications() {
 
       // Log registration attempt context
       if (__DEV__) {
-        console.log(`[P0_PUSH_REG] ATTEMPT userId=${userIdPrefix}... force=${forceRegister} permChange=${permissionChanged} accountSwitch=${isAccountSwitch} throttleBypass=${throttleBypassReason ?? "none"}`);
+        devLog(`[P0_PUSH_REG] ATTEMPT userId=${userIdPrefix}... force=${forceRegister} permChange=${permissionChanged} accountSwitch=${isAccountSwitch} throttleBypass=${throttleBypassReason ?? "none"}`);
       }
 
       const token = await registerForPushNotificationsAsync();
@@ -532,7 +533,7 @@ export function useNotifications() {
         const tokenSuffix = token.slice(-6);
 
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] TOKEN_VALID userId=${userIdPrefix}... tokenSuffix=${tokenSuffix}`);
+          devLog(`[P0_PUSH_REG] TOKEN_VALID userId=${userIdPrefix}... tokenSuffix=${tokenSuffix}`);
         }
 
         // Send token to backend with retry
@@ -548,14 +549,14 @@ export function useNotifications() {
             });
             registerSuccess = true;
             if (__DEV__) {
-              console.log(`[P0_PUSH_REG] REGISTER_SUCCESS userId=${userIdPrefix}... attempt=${attempt} tokenSuffix=${tokenSuffix}`);
+              devLog(`[P0_PUSH_REG] REGISTER_SUCCESS userId=${userIdPrefix}... attempt=${attempt} tokenSuffix=${tokenSuffix}`);
             }
             break;
           } catch (regErr: any) {
             lastError = regErr;
             const errStatus = regErr?.status ?? regErr?.statusCode ?? "unknown";
             if (__DEV__) {
-              console.log(`[P0_PUSH_REG] REGISTER_RETRY userId=${userIdPrefix}... attempt=${attempt} status=${errStatus}`);
+              devLog(`[P0_PUSH_REG] REGISTER_RETRY userId=${userIdPrefix}... attempt=${attempt} status=${errStatus}`);
             }
             if (attempt < 2) {
               await new Promise(r => setTimeout(r, 1000));
@@ -566,7 +567,7 @@ export function useNotifications() {
         if (!registerSuccess) {
           const errStatus = lastError?.status ?? lastError?.statusCode ?? "unknown";
           if (__DEV__) {
-            console.log(`[P0_PUSH_REG] REGISTER_FAILED userId=${userIdPrefix}... status=${errStatus}`);
+            devLog(`[P0_PUSH_REG] REGISTER_FAILED userId=${userIdPrefix}... status=${errStatus}`);
           }
         }
 
@@ -584,20 +585,20 @@ export function useNotifications() {
         if (__DEV__) {
           const verifyState = await verifyPushMe();
           if (verifyState) {
-            console.log(`[P0_PUSH_REG] VERIFY_BACKEND userId=${userIdPrefix}... activeCount=${verifyState.activeCount} totalCount=${verifyState.totalCount} lastSeenAt=${verifyState.lastSeenAt ?? "null"}`);
+            devLog(`[P0_PUSH_REG] VERIFY_BACKEND userId=${userIdPrefix}... activeCount=${verifyState.activeCount} totalCount=${verifyState.totalCount} lastSeenAt=${verifyState.lastSeenAt ?? "null"}`);
             if (verifyState.activeCount === 0) {
-              console.log(`[P0_PUSH_REG] ⚠️ WARNING: Backend still shows 0 active tokens after registration!`);
+              devLog(`[P0_PUSH_REG] ⚠️ WARNING: Backend still shows 0 active tokens after registration!`);
             } else {
-              console.log(`[P0_PUSH_REG] ✓ COMPLETE userId=${userIdPrefix}... success=${registerSuccess} activeCount=${verifyState.activeCount}`);
+              devLog(`[P0_PUSH_REG] ✓ COMPLETE userId=${userIdPrefix}... success=${registerSuccess} activeCount=${verifyState.activeCount}`);
             }
           } else {
-            console.log(`[P0_PUSH_REG] VERIFY_FAILED userId=${userIdPrefix}... could not reach /api/push/me`);
+            devLog(`[P0_PUSH_REG] VERIFY_FAILED userId=${userIdPrefix}... could not reach /api/push/me`);
           }
         }
       } else if (token) {
         // Token exists but failed validation
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] TOKEN_INVALID userId=${userIdPrefix}... tokenPrefix=${getTokenPrefix(token)}`);
+          devLog(`[P0_PUSH_REG] TOKEN_INVALID userId=${userIdPrefix}... tokenPrefix=${getTokenPrefix(token)}`);
         }
         await api.post("/api/notifications/status", {
           pushPermissionStatus: "granted",
@@ -605,7 +606,7 @@ export function useNotifications() {
       } else {
         // No token (simulator or unsupported device)
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] SKIP reason=NO_TOKEN userId=${userIdPrefix}... (simulator/unsupported)`);
+          devLog(`[P0_PUSH_REG] SKIP reason=NO_TOKEN userId=${userIdPrefix}... (simulator/unsupported)`);
         }
       }
 
@@ -614,7 +615,7 @@ export function useNotifications() {
       const userId = session?.user?.id;
       const userIdPrefix = userId?.substring(0, 8) ?? "none";
       if (__DEV__) {
-        console.error(`[P0_PUSH_REG] EXCEPTION userId=${userIdPrefix}...`, error);
+        devError(`[P0_PUSH_REG] EXCEPTION userId=${userIdPrefix}...`, error);
       }
     }
   }, [bootStatus, session?.user, isRegistrationThrottled, markTokenRegistered]);
@@ -627,7 +628,7 @@ export function useNotifications() {
     
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__ && bootStatus !== 'authed') {
-        console.log(`[P0_PUSH_REG] WAIT bootStatus=${bootStatus}`);
+        devLog(`[P0_PUSH_REG] WAIT bootStatus=${bootStatus}`);
       }
       return;
     }
@@ -637,7 +638,7 @@ export function useNotifications() {
     
     // Initial check (do not request permission on mount - read only)
     if (__DEV__) {
-      console.log(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
+      devLog(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
@@ -647,7 +648,7 @@ export function useNotifications() {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active" && bootStatus === 'authed') {
         if (__DEV__) {
-          console.log(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
+          devLog(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
         checkAndRegisterToken(); // Will be throttled unless backend empty
       }
@@ -681,13 +682,13 @@ export function useNotifications() {
     pendingDeepLink.current = null;
     
     if (__DEV__) {
-      console.log(`[P0_PUSH_TAP] REPLAY pendingDeepLink=${pending.route} source=${pending.source}`);
+      devLog(`[P0_PUSH_TAP] REPLAY pendingDeepLink=${pending.route} source=${pending.source}`);
     }
     
     // Small delay to ensure router is fully mounted after auth completes
     setTimeout(() => {
       if (__DEV__) {
-        console.log(`[P0_PUSH_TAP] NAVIGATE_REPLAY route=${pending.route} method=${pending.source === 'cold_start' ? 'replace' : 'push'}`);
+        devLog(`[P0_PUSH_TAP] NAVIGATE_REPLAY route=${pending.route} method=${pending.source === 'cold_start' ? 'replace' : 'push'}`);
       }
       
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -761,7 +762,7 @@ export function useNotifications() {
       const responseId = getResponseId(response);
       if (handledResponseIds.has(responseId)) {
         if (__DEV__) {
-          console.log(`[P0_PUSH_TAP] DEDUPE skipping already-handled response: ${responseId}`);
+          devLog(`[P0_PUSH_TAP] DEDUPE skipping already-handled response: ${responseId}`);
         }
         return;
       }
@@ -778,7 +779,7 @@ export function useNotifications() {
 
       // P0_PUSH_TAP: DEV proof logging - receipt
       if (__DEV__) {
-        console.log(`[P0_PUSH_TAP] RECEIPT ${JSON.stringify({
+        devLog(`[P0_PUSH_TAP] RECEIPT ${JSON.stringify({
           source,
           responseId,
           type: data?.type ?? "unknown",
@@ -794,7 +795,7 @@ export function useNotifications() {
 
       if (!route) {
         if (__DEV__) {
-          console.warn('[P0_PUSH_TAP] No valid navigation target, payload:', data);
+          devWarn('[P0_PUSH_TAP] No valid navigation target, payload:', data);
         }
         return;
       }
@@ -808,14 +809,14 @@ export function useNotifications() {
         pendingDeepLink.current = { route, source };
         pendingDeepLinkReplayed.current = false;
         if (__DEV__) {
-          console.log(`[P0_PUSH_TAP] DEFERRED pendingDeepLink=${route} reason=bootStatus_${bootStatus}`);
+          devLog(`[P0_PUSH_TAP] DEFERRED pendingDeepLink=${route} reason=bootStatus_${bootStatus}`);
         }
         return;
       }
 
       // P0_PUSH_TAP: NAVIGATE NOW
       if (__DEV__) {
-        console.log(`[P0_PUSH_TAP] NAVIGATE_NOW route=${route} method=${source === 'cold_start' ? 'replace' : 'push'}`);
+        devLog(`[P0_PUSH_TAP] NAVIGATE_NOW route=${route} method=${source === 'cold_start' ? 'replace' : 'push'}`);
       }
       
       // Use replace for cold start to avoid stacking on initial route
@@ -851,17 +852,17 @@ export function useNotifications() {
           coldStartNotificationProcessed = true;
           
           if (__DEV__) {
-            console.log('[P0_PUSH_TAP] COLD_START_DETECTED responseId=' + getResponseId(lastResponse));
+            devLog('[P0_PUSH_TAP] COLD_START_DETECTED responseId=' + getResponseId(lastResponse));
           }
           
           // Process immediately - handleNotificationTap will defer if not ready
           handleNotificationTap(lastResponse, "cold_start");
         } else if (__DEV__) {
-          console.log('[P0_PUSH_TAP] No cold start notification');
+          devLog('[P0_PUSH_TAP] No cold start notification');
         }
       } catch (error) {
         if (__DEV__) {
-          console.warn('[P0_PUSH_TAP] Failed to check cold start notification:', error);
+          devWarn('[P0_PUSH_TAP] Failed to check cold start notification:', error);
         }
       }
     };
@@ -914,12 +915,12 @@ export function useNotifications() {
     exceptionStack?: string;
   }> => {
     const startedAt = new Date().toISOString();
-    console.log("[PUSH_DIAG] start at " + startedAt);
+    devLog("[PUSH_DIAG] start at " + startedAt);
 
     // A) Check physical device and platform
     const isPhysicalDevice = Device.isDevice;
     const platform = `${Device.osName ?? "unknown"} ${Device.osVersion ?? ""} (${Device.modelName ?? "unknown"})`;
-    console.log("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice + " platform=" + platform);
+    devLog("[PUSH_DIAG] isPhysicalDevice=" + isPhysicalDevice + " platform=" + platform);
     
     // A.1) Get last registration time (user-scoped)
     let lastRegistrationTime: string | undefined;
@@ -930,34 +931,34 @@ export function useNotifications() {
       if (lastRegTs) {
         const ts = parseInt(lastRegTs, 10);
         lastRegistrationTime = new Date(ts).toISOString();
-        console.log("[PUSH_DIAG] lastRegistrationTime=" + lastRegistrationTime);
+        devLog("[PUSH_DIAG] lastRegistrationTime=" + lastRegistrationTime);
       } else {
-        console.log("[PUSH_DIAG] lastRegistrationTime=never");
+        devLog("[PUSH_DIAG] lastRegistrationTime=never");
       }
     } catch {
-      console.log("[PUSH_DIAG] lastRegistrationTime=error");
+      devLog("[PUSH_DIAG] lastRegistrationTime=error");
     }
 
     // B) Check auth status
     if (bootStatus !== 'authed' || !session?.user) {
-      console.log("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
+      devLog("[PUSH_DIAG] not_authed bootStatus=" + bootStatus);
       return { ok: false, reason: "not_authed", startedAt, completedAt: new Date().toISOString(), platform, isPhysicalDevice, lastRegistrationTime };
     }
 
     try {
       // C) Read permission
       let { status } = await Notifications.getPermissionsAsync();
-      console.log("[PUSH_DIAG] initial_permission=" + status);
+      devLog("[PUSH_DIAG] initial_permission=" + status);
       const initialPermission = status;
 
       // D) Request permission if undetermined
       let permissionRequest: string | undefined;
       if (status === 'undetermined') {
-        console.log("[PUSH_DIAG] requesting_permission");
+        devLog("[PUSH_DIAG] requesting_permission");
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
         status = newStatus;
         permissionRequest = newStatus;
-        console.log("[PUSH_DIAG] permission_after_request=" + status);
+        devLog("[PUSH_DIAG] permission_after_request=" + status);
       }
 
       // E) Get projectId (using shared resolver with all fallbacks)
@@ -971,11 +972,11 @@ export function useNotifications() {
       } else if (Constants?.expoConfig?.extra?.projectId) {
         projectIdSource = "expoConfig.extra.projectId";
       }
-      console.log("[PUSH_DIAG] projectId=" + (projectId || "projectId_missing") + " source=" + projectIdSource);
+      devLog("[PUSH_DIAG] projectId=" + (projectId || "projectId_missing") + " source=" + projectIdSource);
 
       // E.1) Abort if projectId missing
       if (!projectId) {
-        console.log("[PUSH_DIAG] ABORT: projectId_missing");
+        devLog("[PUSH_DIAG] ABORT: projectId_missing");
         return { 
           ok: false, 
           reason: "projectId_missing - Set 'extra.eas.projectId' in app.json or ensure EAS build", 
@@ -993,10 +994,10 @@ export function useNotifications() {
 
       // F) Check if permission granted
       if (status !== 'granted') {
-        console.log("[PUSH_DIAG] permission_not_granted=" + status);
+        devLog("[PUSH_DIAG] permission_not_granted=" + status);
         return { ok: false, reason: "permission_not_granted", startedAt, completedAt: new Date().toISOString(), platform, isPhysicalDevice, permission: status, permissionRequest, projectId, projectIdSource, lastRegistrationTime };
       }
-      console.log("[PUSH_DIAG] permission=granted");
+      devLog("[PUSH_DIAG] permission=granted");
 
       // G) Get token directly from expo-notifications (not via registerForPushNotificationsAsync)
       let token: string | undefined;
@@ -1006,18 +1007,18 @@ export function useNotifications() {
         token = tokenData.data;
       } catch (tokenErr: any) {
         tokenError = tokenErr?.message || String(tokenErr);
-        console.log("[PUSH_DIAG] getExpoPushTokenAsync error=" + tokenError);
+        devLog("[PUSH_DIAG] getExpoPushTokenAsync error=" + tokenError);
       }
       const tokenPrefix = getTokenPrefix(token);
       const tokenLength = token?.length ?? 0;
-      console.log("[PUSH_DIAG] tokenPrefix=" + tokenPrefix + " tokenLength=" + tokenLength + (tokenError ? " error=" + tokenError : ""));
+      devLog("[PUSH_DIAG] tokenPrefix=" + tokenPrefix + " tokenLength=" + tokenLength + (tokenError ? " error=" + tokenError : ""));
       
       // H) Validate token (uses shared validator)
       const isValidToken = isValidExpoPushToken(token);
-      console.log("[PUSH_DIAG] isValidToken=" + isValidToken);
+      devLog("[PUSH_DIAG] isValidToken=" + isValidToken);
 
       if (!token || !isValidToken) {
-        console.log("[PUSH_DIAG] invalid_token" + (tokenError ? " tokenError=" + tokenError : ""));
+        devLog("[PUSH_DIAG] invalid_token" + (tokenError ? " tokenError=" + tokenError : ""));
         return { 
           ok: false, 
           reason: tokenError ? "token_acquisition_failed: " + tokenError : "invalid_token", 
@@ -1040,7 +1041,7 @@ export function useNotifications() {
 
       // I) POST /api/push/register (with retry)
       const PUSH_REGISTER_ROUTE = "/api/push/register";
-      console.log("[PUSH_DIAG] registering_token route=" + PUSH_REGISTER_ROUTE);
+      devLog("[PUSH_DIAG] registering_token route=" + PUSH_REGISTER_ROUTE);
       
       let postStatus: number | string = 200;
       let postBody: unknown = null;
@@ -1054,13 +1055,13 @@ export function useNotifications() {
           });
           postBody = postResponse;
           postStatus = 200;
-          console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=200 body=" + JSON.stringify(postResponse));
+          devLog("[PUSH_DIAG] POST attempt=" + attempt + " status=200 body=" + JSON.stringify(postResponse));
           break;
         } catch (postErr: any) {
           postStatus = postErr?.status ?? postErr?.statusCode ?? "error";
           postBody = postErr?.data ?? postErr?.message ?? String(postErr);
           postError = typeof postBody === "string" ? postBody : JSON.stringify(postBody);
-          console.log("[PUSH_DIAG] POST attempt=" + attempt + " status=" + postStatus + " error=" + JSON.stringify(postBody));
+          devLog("[PUSH_DIAG] POST attempt=" + attempt + " status=" + postStatus + " error=" + JSON.stringify(postBody));
           if (attempt < 2) {
             await new Promise(r => setTimeout(r, 1000));
           }
@@ -1094,7 +1095,7 @@ export function useNotifications() {
       await api.post("/api/notifications/status", {
         pushPermissionStatus: "granted",
       });
-      console.log("[PUSH_DIAG] status_updated");
+      devLog("[PUSH_DIAG] status_updated");
 
       // K) Update lastRegistrationTime (user-scoped)
       const userId = session?.user?.id;
@@ -1114,15 +1115,15 @@ export function useNotifications() {
         getBody = meResponse;
         backendTokens = meResponse?.tokens ?? [];
         backendActiveCount = backendTokens.filter(t => t.isActive).length;
-        console.log("[PUSH_DIAG] GET /api/push/me status=200 tokens=" + backendTokens.length + " active=" + backendActiveCount);
+        devLog("[PUSH_DIAG] GET /api/push/me status=200 tokens=" + backendTokens.length + " active=" + backendActiveCount);
       } catch (getErr: any) {
         getStatus = getErr?.status ?? getErr?.statusCode ?? "error";
         getBody = getErr?.data ?? getErr?.message ?? String(getErr);
-        console.log("[PUSH_DIAG] GET /api/push/me error=" + JSON.stringify(getBody));
+        devLog("[PUSH_DIAG] GET /api/push/me error=" + JSON.stringify(getBody));
       }
 
       // M) Success
-      console.log("[PUSH_DIAG] success");
+      devLog("[PUSH_DIAG] success");
       return {
         ok: true,
         reason: "success",
@@ -1147,7 +1148,7 @@ export function useNotifications() {
         lastRegistrationTime: newLastRegTime,
       };
     } catch (error: any) {
-      console.log("[PUSH_DIAG] exception=" + (error?.message || "unknown"));
+      devLog("[PUSH_DIAG] exception=" + (error?.message || "unknown"));
       return { 
         ok: false, 
         reason: "exception", 
@@ -1170,7 +1171,7 @@ export function useNotifications() {
     error?: string;
     tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }>;
   }> => {
-    console.log("[PUSH_DIAG] clearMyPushTokens start");
+    devLog("[PUSH_DIAG] clearMyPushTokens start");
     
     if (bootStatus !== 'authed' || !session?.user) {
       return { ok: false, error: "not_authed" };
@@ -1179,16 +1180,16 @@ export function useNotifications() {
     try {
       // POST to clear endpoint
       await api.post("/api/push/clear-mine", {});
-      console.log("[PUSH_DIAG] clear-mine POST success");
+      devLog("[PUSH_DIAG] clear-mine POST success");
 
       // GET updated token list
       const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
       const tokens = meResponse?.tokens ?? [];
-      console.log("[PUSH_DIAG] after clear, tokens=" + tokens.length);
+      devLog("[PUSH_DIAG] after clear, tokens=" + tokens.length);
 
       return { ok: true, tokens };
     } catch (error: any) {
-      console.log("[PUSH_DIAG] clearMyPushTokens error=" + (error?.message || "unknown"));
+      devLog("[PUSH_DIAG] clearMyPushTokens error=" + (error?.message || "unknown"));
       return { ok: false, error: error?.message || "Unknown error" };
     }
   }, [bootStatus, session?.user]);

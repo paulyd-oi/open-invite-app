@@ -11,6 +11,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { useNetworkStatus, subscribeToNetworkStatus } from "./networkStatus";
+import { devLog, devWarn, devError } from "./devLog";
 import {
   loadQueue,
   markProcessing,
@@ -116,7 +117,7 @@ export async function replayQueue(
   }
 
   if (__DEV__) {
-    console.log(`[OfflineSync] Replaying ${pendingActions.length} actions`);
+    devLog(`[OfflineSync] Replaying ${pendingActions.length} actions`);
   }
 
   let failedCount = 0;
@@ -143,7 +144,7 @@ export async function replayQueue(
       await removeAction(action.id);
 
       if (__DEV__) {
-        console.log(`[OfflineSync] Action ${action.id} (${action.type}) succeeded`);
+        devLog(`[OfflineSync] Action ${action.id} (${action.type}) succeeded`);
       }
     } else {
       // Mark as failed
@@ -151,13 +152,13 @@ export async function replayQueue(
       failedCount++;
 
       if (__DEV__) {
-        console.log(`[OfflineSync] Action ${action.id} (${action.type}) failed:`, result.error);
+        devLog(`[OfflineSync] Action ${action.id} (${action.type}) failed:`, result.error);
       }
 
       // If it's an auth error, stop replay
       if (result.error?.includes("401") || result.error?.includes("403")) {
         if (__DEV__) {
-          console.log("[OfflineSync] Auth error detected, stopping replay");
+          devLog("[OfflineSync] Auth error detected, stopping replay");
         }
         break;
       }
@@ -196,7 +197,7 @@ export function useOfflineSync() {
         wasOfflineRef.current = false;
 
         if (__DEV__) {
-          console.log("[OfflineSync] Back online, starting queue replay");
+          devLog("[OfflineSync] Back online, starting queue replay");
         }
 
         // Start syncing
@@ -230,7 +231,7 @@ export function useOfflineSync() {
           }
         } catch (error) {
           if (__DEV__) {
-            console.log("[OfflineSync] Queue replay error:", error);
+            devLog("[OfflineSync] Queue replay error:", error);
           }
           safeToast.error("Sync Failed", "Some changes couldn't be saved");
         } finally {
@@ -305,7 +306,7 @@ export function useOfflineCreateEvent() {
       safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
-        console.log("[OfflineSync] Created local event:", localId);
+        devLog("[OfflineSync] Created local event:", localId);
       }
 
       return { id: localId, isLocal: true };
@@ -346,7 +347,7 @@ export function useOfflineRsvp() {
       safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
-        console.log("[OfflineSync] Queued RSVP change:", eventId, status);
+        devLog("[OfflineSync] Queued RSVP change:", eventId, status);
       }
     },
     [isOnline, setLocalRsvp]
@@ -367,7 +368,7 @@ export function useOfflineRsvp() {
       safeToast.info("Saved Offline", "Will sync when you're back online");
 
       if (__DEV__) {
-        console.log("[OfflineSync] Queued RSVP delete:", eventId);
+        devLog("[OfflineSync] Queued RSVP delete:", eventId);
       }
     },
     [isOnline, removeLocalRsvp]

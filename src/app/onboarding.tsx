@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   Calendar,
   Users,
@@ -668,7 +669,7 @@ export default function OnboardingScreen() {
     mutationFn: (data: { email?: string; phone?: string }) =>
       api.post("/api/friends/request", data),
     onError: (error) => {
-      console.error("Failed to send friend request:", error);
+      devError("Failed to send friend request:", error);
     },
   });
 
@@ -704,7 +705,7 @@ export default function OnboardingScreen() {
       setPhoneContacts(validContacts.slice(0, 50)); // Limit to 50 contacts for performance
       setContactsSynced(true);
     } catch (error) {
-      console.error("Error loading contacts:", error);
+      devError("Error loading contacts:", error);
       safeToast.error("Error", "Failed to load contacts");
     }
     setContactsLoading(false);
@@ -746,7 +747,7 @@ export default function OnboardingScreen() {
         }
       } catch (error) {
         // Continue sending to other contacts
-        console.error(`Failed to send invite to ${contact.name}:`, error);
+        devError(`Failed to send invite to ${contact.name}:`, error);
       }
     }
 
@@ -777,7 +778,7 @@ export default function OnboardingScreen() {
         : `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${data.shareLink}`;
       await Share.share({ message, title: "Join Open Invite!" });
     } catch (error) {
-      console.error("Share error:", error);
+      devError("Share error:", error);
       await Share.share({
         message: "Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: https://apps.apple.com/app/open-invite/id123456789",
         title: "Join Open Invite!",
@@ -916,7 +917,7 @@ export default function OnboardingScreen() {
       
       // Auto-send verification email if not verified (only once per signup)
       if (session?.user?.email && session?.user?.emailVerified === false && !verificationEmailSent) {
-        if (__DEV__) console.log("[onboarding] Auto-sending verification email after signup");
+        if (__DEV__) devLog("[onboarding] Auto-sending verification email after signup");
         setVerificationEmailSent(true); // Guard: only send once
         
         try {
@@ -927,11 +928,11 @@ export default function OnboardingScreen() {
               name: session.user.name || session.user.displayName || undefined,
             },
           });
-          if (__DEV__) console.log("[onboarding] Verification email sent successfully");
+          if (__DEV__) devLog("[onboarding] Verification email sent successfully");
           // Trigger 30-second cooldown in banner
           triggerVerificationCooldown();
         } catch (error: any) {
-          console.warn("[onboarding] Failed to auto-send verification email:", error?.message ?? error);
+          devWarn("[onboarding] Failed to auto-send verification email:", error?.message ?? error);
           // Don't crash or block - just show toast
           safeToast.warning("Couldn't send verification email", "Try again from the banner.");
         }
@@ -939,7 +940,7 @@ export default function OnboardingScreen() {
       await queryClient.invalidateQueries({ queryKey: ["session"] });
       await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
     } catch (error) {
-      console.error("Failed to complete onboarding:", error);
+      devError("Failed to complete onboarding:", error);
     }
     // Start the interactive onboarding guide for new users
     onboardingGuide.startGuide();
@@ -958,11 +959,11 @@ export default function OnboardingScreen() {
     if (!pendingCalendarRoute) return;
 
     if (bootStatus === 'authed') {
-      if (__DEV__) console.log('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
+      if (__DEV__) devLog('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
       setPendingCalendarRoute(false);
       router.replace('/calendar');
     } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      if (__DEV__) console.log('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
+      if (__DEV__) devLog('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
       setPendingCalendarRoute(false);
       router.replace('/login');
     }

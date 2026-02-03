@@ -8,6 +8,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Storage key for persisted network state (for edge cases)
 const NETWORK_STATE_KEY = "network_state_cache";
@@ -34,7 +35,7 @@ export function initNetworkMonitoring() {
 
       // Log state change in dev
       if (__DEV__) {
-        console.log(`[NetworkStatus] ${wasOffline ? "Back online" : "Gone offline"}`);
+        devLog(`[NetworkStatus] ${wasOffline ? "Back online" : "Gone offline"}`);
       }
     }
   });
@@ -184,7 +185,7 @@ export function shouldLogoutOnError(error: any): boolean {
   // Network errors - never logout
   if (isNetworkError(error)) {
     if (__DEV__) {
-      console.log("[Auth] Transient network error, will not logout:", error.message);
+      devLog("[Auth] Transient network error, will not logout:", error.message);
     }
     return false;
   }
@@ -192,7 +193,7 @@ export function shouldLogoutOnError(error: any): boolean {
   // Rate limit errors - never logout, just retry
   if (isRateLimitError(error)) {
     if (__DEV__) {
-      console.log("[Auth] Rate limit error, will retry:", error.message);
+      devLog("[Auth] Rate limit error, will retry:", error.message);
     }
     return false;
   }
@@ -204,10 +205,10 @@ export function shouldLogoutOnError(error: any): boolean {
   if (status === 404) {
     if (isKnown404Endpoint(error)) {
       if (__DEV__) {
-        console.warn("[Network] Known 404 ignored:", error?.url || "unknown endpoint");
+        devWarn("[Network] Known 404 ignored:", error?.url || "unknown endpoint");
       }
     } else if (__DEV__) {
-      console.log("[Auth] 404 session endpoint ignored (not implemented on backend)");
+      devLog("[Auth] 404 session endpoint ignored (not implemented on backend)");
     }
     return false;
   }
@@ -215,7 +216,7 @@ export function shouldLogoutOnError(error: any): boolean {
   // Only 401/403 from actual server response should trigger logout
   if (isAuthError(status)) {
     if (__DEV__) {
-      console.log("[Auth] Invalid session (401/403), logging out");
+      devLog("[Auth] Invalid session (401/403), logging out");
     }
     return true;
   }
@@ -223,7 +224,7 @@ export function shouldLogoutOnError(error: any): boolean {
   // 5xx server errors - don't logout, might be temporary
   if (status >= 500 && status < 600) {
     if (__DEV__) {
-      console.log("[Auth] Server error, will not logout:", status);
+      devLog("[Auth] Server error, will not logout:", status);
     }
     return false;
   }
@@ -239,14 +240,14 @@ export function shouldLogoutOnError(error: any): boolean {
     // But only if not a network error
     const shouldLogout = !isNetworkError(error);
     if (__DEV__) {
-      console.log("[Auth] Auth message detected, logout?", shouldLogout, error.message);
+      devLog("[Auth] Auth message detected, logout?", shouldLogout, error.message);
     }
     return shouldLogout;
   }
 
   // Default: don't logout on unknown errors
   if (__DEV__) {
-    console.log("[Auth] Unknown error, will not logout:", error.message);
+    devLog("[Auth] Unknown error, will not logout:", error.message);
   }
   return false;
 }

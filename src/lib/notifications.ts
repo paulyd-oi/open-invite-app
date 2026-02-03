@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "./devLog";
 
 const PUSH_TOKEN_KEY = "expo_push_token";
 
@@ -67,7 +68,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
     if (finalStatus !== "granted") {
       if (__DEV__) {
-        console.log("Push notification permission not granted");
+        devLog("Push notification permission not granted");
       }
       return undefined;
     }
@@ -82,26 +83,26 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
       if (!projectId) {
         if (__DEV__) {
-          console.log("Project ID not found - push notifications may not work in development");
+          devLog("Project ID not found - push notifications may not work in development");
         }
         return undefined;
       }
 
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
       if (__DEV__) {
-        console.log("Push token:", token.substring(0, 30) + "...");
+        devLog("Push token:", token.substring(0, 30) + "...");
       }
 
       // Store the token locally
       await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
     } catch (error) {
       if (__DEV__) {
-        console.error("Error getting push token:", error);
+        devError("Error getting push token:", error);
       }
     }
   } else {
     if (__DEV__) {
-      console.log("Push notifications require a physical device");
+      devLog("Push notifications require a physical device");
     }
   }
 
@@ -124,7 +125,7 @@ export async function getNotificationPermissionStatus(): Promise<'granted' | 'de
     const { status } = await Notifications.getPermissionsAsync();
     return status;
   } catch (error) {
-    console.log('[Push] Error checking permission status:', error);
+    devLog('[Push] Error checking permission status:', error);
     return 'undetermined';
   }
 }
@@ -144,7 +145,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
     const { status } = await Notifications.requestPermissionsAsync();
     return status === 'granted';
   } catch (error) {
-    console.log('[Push] Error requesting permission:', error);
+    devLog('[Push] Error requesting permission:', error);
     return false;
   }
 }

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { ChevronLeft, Tag } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
@@ -42,7 +43,7 @@ export default function RedeemCodeScreen() {
     
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=redeem_code isPremium=", isPremium);
+      devLog("[PRO_SOT] BEFORE screen=redeem_code isPremium=", isPremium);
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -60,7 +61,7 @@ export default function RedeemCodeScreen() {
 
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
       }
 
       // Success!
@@ -84,7 +85,7 @@ export default function RedeemCodeScreen() {
       }, 2000);
     } catch (error: any) {
       if (__DEV__) {
-        console.log("[PRO_SOT] ERROR screen=redeem_code", error?.message);
+        devLog("[PRO_SOT] ERROR screen=redeem_code", error?.message);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

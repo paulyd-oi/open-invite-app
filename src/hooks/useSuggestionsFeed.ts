@@ -5,6 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { devWarn } from "@/lib/devLog";
 import { type GetSuggestionsFeedResponse } from "@/shared/contracts";
 
 // Query keys
@@ -29,7 +30,7 @@ export function useSuggestionsFeed() {
         return await api.get<GetSuggestionsFeedResponse>("/api/suggestions/feed");
       } catch (err) {
         // Graceful fallback - return empty suggestions on error
-        console.warn("[useSuggestionsFeed] Error fetching suggestions:", err);
+        devWarn("[useSuggestionsFeed] Error fetching suggestions:", err);
         return { suggestions: [] };
       }
     },

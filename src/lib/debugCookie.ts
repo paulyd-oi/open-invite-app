@@ -1,4 +1,5 @@
 import * as SecureStore from "expo-secure-store";
+import { devLog, devWarn, devError } from "./devLog";
 
 export async function debugDumpBetterAuthCookieOnce() {
   try {
@@ -7,31 +8,31 @@ export async function debugDumpBetterAuthCookieOnce() {
 
     const raw = await SecureStore.getItemAsync(key);
 
-    console.log("=======================================");
-    console.log("[DEBUG COOKIE] key =", key);
-    console.log("[DEBUG COOKIE] raw =", raw);
+    devLog("=======================================");
+    devLog("[DEBUG COOKIE] key =", key);
+    devLog("[DEBUG COOKIE] raw =", raw);
 
     if (!raw) {
-      console.log("[DEBUG COOKIE] No cookie found in SecureStore");
-      console.log("=======================================");
+      devLog("[DEBUG COOKIE] No cookie found in SecureStore");
+      devLog("=======================================");
       return;
     }
 
     try {
       const parsed = JSON.parse(raw);
 
-      console.log("[DEBUG COOKIE] parsed =", parsed);
+      devLog("[DEBUG COOKIE] parsed =", parsed);
 
       const token =
         parsed?.["__Secure-better-auth.session_token"]?.value;
 
-      console.log("[DEBUG COOKIE] extracted session_token =", token);
+      devLog("[DEBUG COOKIE] extracted session_token =", token);
     } catch (e) {
-      console.log("[DEBUG COOKIE] parse failed", e);
+      devLog("[DEBUG COOKIE] parse failed", e);
     }
 
-    console.log("=======================================");
+    devLog("=======================================");
   } catch (e) {
-    console.log("[DEBUG COOKIE] read failed", e);
+    devLog("[DEBUG COOKIE] read failed", e);
   }
 }

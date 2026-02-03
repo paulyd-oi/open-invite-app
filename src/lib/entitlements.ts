@@ -9,6 +9,7 @@ import { useCallback, useRef, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Plan types
 export type Plan = "FREE" | "PRO" | "LIFETIME_PRO";
@@ -206,7 +207,7 @@ export function trackAnalytics(
 ): void {
   // Log to console in development
   if (__DEV__) {
-    console.log(`[Analytics] ${event}`, properties);
+    devLog(`[Analytics] ${event}`, properties);
   }
 
   // TODO: Connect to real analytics provider
@@ -268,7 +269,7 @@ export function useRefreshEntitlements() {
     
     // [PRO_SOT] Log backend entitlements refresh result
     if (__DEV__) {
-      console.log("[PRO_SOT][refreshEntitlements] BACKEND_REFRESH", {
+      devLog("[PRO_SOT][refreshEntitlements] BACKEND_REFRESH", {
         plan: freshData?.plan,
         isPro: backendIsPro,
       });
@@ -304,7 +305,7 @@ export function useRefreshProContract() {
     
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log(`[PRO_SOT] REFRESH_START reason=${reason}`);
+      devLog(`[PRO_SOT] REFRESH_START reason=${reason}`);
     }
 
     let rcIsPro = false;
@@ -319,11 +320,11 @@ export function useRefreshProContract() {
       
       // [PRO_SOT] Log RC result
       if (__DEV__) {
-        console.log(`[PRO_SOT] RC_REFRESH reason=${reason} rcIsPro=${rcIsPro}`);
+        devLog(`[PRO_SOT] RC_REFRESH reason=${reason} rcIsPro=${rcIsPro}`);
       }
     } catch (rcErr) {
       if (__DEV__) {
-        console.log(`[PRO_SOT] RC_ERROR reason=${reason} error=${rcErr}`);
+        devLog(`[PRO_SOT] RC_ERROR reason=${reason} error=${rcErr}`);
       }
     }
 
@@ -337,11 +338,11 @@ export function useRefreshProContract() {
       
       // [PRO_SOT] Log backend result
       if (__DEV__) {
-        console.log(`[PRO_SOT] BACKEND_REFRESH reason=${reason} backendIsPro=${backendIsPro} plan=${freshData?.plan}`);
+        devLog(`[PRO_SOT] BACKEND_REFRESH reason=${reason} backendIsPro=${backendIsPro} plan=${freshData?.plan}`);
       }
     } catch (beErr) {
       if (__DEV__) {
-        console.log(`[PRO_SOT] BACKEND_ERROR reason=${reason} error=${beErr}`);
+        devLog(`[PRO_SOT] BACKEND_ERROR reason=${reason} error=${beErr}`);
       }
     }
 
@@ -350,7 +351,7 @@ export function useRefreshProContract() {
 
     // [PRO_SOT] Log FINAL combined result
     if (__DEV__) {
-      console.log(`[PRO_SOT] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
+      devLog(`[PRO_SOT] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
     }
 
     return { rcIsPro, backendIsPro, combinedIsPro };
@@ -430,7 +431,7 @@ export function useIsPro(): {
   
   // [PRO_SOT] Log combined check for debugging
   if (__DEV__) {
-    console.log("[PRO_SOT][useIsPro] ENTITLEMENT_CHECK", {
+    devLog("[PRO_SOT][useIsPro] ENTITLEMENT_CHECK", {
       source_backend_plan: entitlements?.plan,
       source_backend_isPro: backendIsPro,
       source_revenueCat_isPremium: revenueCatIsPremium,
@@ -475,7 +476,7 @@ export function isPremiumFromSubscription(
 ): boolean {
   if (!payload) {
     if (__DEV__) {
-      console.log(`[isPremiumFromSubscription] No payload, returning false. Source: ${source ?? "unknown"}`);
+      devLog(`[isPremiumFromSubscription] No payload, returning false. Source: ${source ?? "unknown"}`);
     }
     return false;
   }
@@ -500,7 +501,7 @@ export function isPremiumFromSubscription(
   const result = planIsPremium || tierIsPremium || lifetimeFlag || proFlag || productIsLifetime || revenueCatPremium;
 
   if (__DEV__) {
-    console.log(`[isPremiumFromSubscription] Source: ${source ?? "unknown"}`, {
+    devLog(`[isPremiumFromSubscription] Source: ${source ?? "unknown"}`, {
       plan,
       tier,
       isLifetime,

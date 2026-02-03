@@ -9,6 +9,7 @@
  */
 
 import type { QueryClient } from "@tanstack/react-query";
+import { devLog } from "./devLog";
 
 // ============================================================================
 // QUERY KEY BUILDERS
@@ -50,7 +51,7 @@ export const eventKeys = {
  */
 export function logEventKey(label: string, key: readonly string[] | string[]): void {
   if (__DEV__) {
-    console.log(`[P0_EVENT_QK] ${label} keys=${JSON.stringify(key)}`);
+    devLog(`[P0_EVENT_QK] ${label} keys=${JSON.stringify(key)}`);
   }
 }
 
@@ -59,7 +60,7 @@ export function logEventKey(label: string, key: readonly string[] | string[]): v
  */
 export function logEventKeys(label: string, keys: Array<readonly string[] | string[]>): void {
   if (__DEV__) {
-    console.log(`[P0_EVENT_QK] ${label} keys=${JSON.stringify(keys)}`);
+    devLog(`[P0_EVENT_QK] ${label} keys=${JSON.stringify(keys)}`);
   }
 }
 

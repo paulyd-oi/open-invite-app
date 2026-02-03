@@ -7,6 +7,7 @@
  */
 
 import { Platform } from "react-native";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Dynamically import expo-apple-authentication to avoid build errors
 // when the package isn't installed
@@ -123,7 +124,7 @@ export async function isAppleSignInAvailable(): Promise<boolean> {
   } catch (error) {
     // If the module isn't available or throws, return false
     if (__DEV__) {
-      console.log("[AppleSignIn] Availability check failed:", error);
+      devLog("[AppleSignIn] Availability check failed:", error);
     }
     return false;
   }
@@ -210,7 +211,7 @@ export function decodeAppleAuthError(error: any): string | null {
   if (error?.message) {
     // Don't expose raw technical errors - provide friendly message
     if (__DEV__) {
-      console.log("[AUTH_TRACE] Apple error raw message:", error.message);
+      devLog("[AUTH_TRACE] Apple error raw message:", error.message);
     }
     return "Apple Sign-In failed. Please try again or use email to continue.";
   }
@@ -226,46 +227,46 @@ export function decodeAppleAuthError(error: any): string | null {
 export async function runAppleSignInDiagnostics(): Promise<void> {
   const prefix = "[APPLE_AUTH_DIAG]";
 
-  console.log(`${prefix} ========== Apple Sign-In Diagnostics ==========`);
-  console.log(`${prefix} Timestamp: ${new Date().toISOString()}`);
-  console.log(`${prefix} Platform: ${Platform.OS}`);
-  console.log(`${prefix} __DEV__: ${__DEV__}`);
+  devLog(`${prefix} ========== Apple Sign-In Diagnostics ==========`);
+  devLog(`${prefix} Timestamp: ${new Date().toISOString()}`);
+  devLog(`${prefix} Platform: ${Platform.OS}`);
+  devLog(`${prefix} __DEV__: ${__DEV__}`);
 
   // Module availability
   const moduleAvailable = !!AppleAuthentication;
-  console.log(`${prefix} expo-apple-authentication module loaded: ${moduleAvailable}`);
+  devLog(`${prefix} expo-apple-authentication module loaded: ${moduleAvailable}`);
 
   if (!moduleAvailable) {
-    console.log(`${prefix} ISSUE: Module not loaded - requires native build with usesAppleSignIn: true`);
-    console.log(`${prefix} ========== End Diagnostics ==========`);
+    devLog(`${prefix} ISSUE: Module not loaded - requires native build with usesAppleSignIn: true`);
+    devLog(`${prefix} ========== End Diagnostics ==========`);
     return;
   }
 
   // isAvailableAsync check
   try {
     const available = await AppleAuthentication.isAvailableAsync();
-    console.log(`${prefix} isAvailableAsync(): ${available}`);
+    devLog(`${prefix} isAvailableAsync(): ${available}`);
     if (!available) {
-      console.log(`${prefix} ISSUE: Apple Sign-In not available on this device/simulator`);
-      console.log(`${prefix} Possible causes:`);
-      console.log(`${prefix}   - Running on simulator (not supported)`);
-      console.log(`${prefix}   - Device signed out of iCloud/Apple ID`);
-      console.log(`${prefix}   - Sign in with Apple capability not in provisioning profile`);
+      devLog(`${prefix} ISSUE: Apple Sign-In not available on this device/simulator`);
+      devLog(`${prefix} Possible causes:`);
+      devLog(`${prefix}   - Running on simulator (not supported)`);
+      devLog(`${prefix}   - Device signed out of iCloud/Apple ID`);
+      devLog(`${prefix}   - Sign in with Apple capability not in provisioning profile`);
     }
   } catch (err: any) {
-    console.log(`${prefix} isAvailableAsync() threw: ${err?.message || err}`);
-    console.log(`${prefix} Error bucket: ${classifyAppleAuthError(err)}`);
+    devLog(`${prefix} isAvailableAsync() threw: ${err?.message || err}`);
+    devLog(`${prefix} Error bucket: ${classifyAppleAuthError(err)}`);
   }
 
   // Config reminders
-  console.log(`${prefix} --- Config Checklist ---`);
-  console.log(`${prefix} ✓ app.json ios.usesAppleSignIn: true (required for native capability)`);
-  console.log(`${prefix} ✓ expo-apple-authentication in package.json`);
-  console.log(`${prefix} ✓ EAS build with Apple Sign-In capability enabled`);
-  console.log(`${prefix} ✓ Apple Developer Console: App ID has Sign in with Apple capability`);
-  console.log(`${prefix} ✓ Provisioning profile includes Sign in with Apple entitlement`);
+  devLog(`${prefix} --- Config Checklist ---`);
+  devLog(`${prefix} ✓ app.json ios.usesAppleSignIn: true (required for native capability)`);
+  devLog(`${prefix} ✓ expo-apple-authentication in package.json`);
+  devLog(`${prefix} ✓ EAS build with Apple Sign-In capability enabled`);
+  devLog(`${prefix} ✓ Apple Developer Console: App ID has Sign in with Apple capability`);
+  devLog(`${prefix} ✓ Provisioning profile includes Sign in with Apple entitlement`);
 
-  console.log(`${prefix} ========== End Diagnostics ==========`);
+  devLog(`${prefix} ========== End Diagnostics ==========`);
 }
 
 // Export module reference for direct access in welcome.tsx

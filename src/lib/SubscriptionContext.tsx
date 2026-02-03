@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { useSession } from "./useSession";
+import { devLog, devWarn, devError } from "./devLog";
 import {
   getCustomerInfo,
   isRevenueCatEnabled,
@@ -93,7 +94,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     loadingTimeoutRef.current = setTimeout(() => {
       if (isLoading) {
         if (__DEV__) {
-          console.warn("[SubscriptionContext] Loading timeout - forcing to false (showing Free)");
+          devWarn("[SubscriptionContext] Loading timeout - forcing to false (showing Free)");
         }
         setIsLoading(false);
       }
@@ -109,7 +110,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   // Helper to invalidate all subscription-related queries for instant UI sync
   const invalidateAllSubscriptionQueries = useCallback(() => {
     if (__DEV__) {
-      console.log("[SubscriptionContext] Invalidating all subscription queries");
+      devLog("[SubscriptionContext] Invalidating all subscription queries");
     }
     queryClient.invalidateQueries({ queryKey: ["entitlements"] });
     queryClient.invalidateQueries({ queryKey: ["subscription"] });
@@ -128,7 +129,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     try {
       // [PRO_SOT] Log source decision
       if (__DEV__) {
-        console.log("[PRO_SOT] source=RevenueCat enabled=", isRevenueCatEnabled());
+        devLog("[PRO_SOT] source=RevenueCat enabled=", isRevenueCatEnabled());
       }
       
       // Check RevenueCat first if enabled
@@ -144,14 +145,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           if (__DEV__) {
             const activeEntitlements = customerInfoResult.data.entitlements?.active || {};
             const activeKeys = Object.keys(activeEntitlements);
-            console.log("[PRO_SOT] entitlements=", JSON.stringify(activeKeys));
-            console.log("[PRO_SOT] computed isPro=", hasPremium);
-            console.log("[PRO_SOT] expectedEntitlementId=", REVENUECAT_ENTITLEMENT_ID);
-            console.log("[PRO_SOT] rawActiveEntitlements=", JSON.stringify(activeEntitlements, null, 2));
+            devLog("[PRO_SOT] entitlements=", JSON.stringify(activeKeys));
+            devLog("[PRO_SOT] computed isPro=", hasPremium);
+            devLog("[PRO_SOT] expectedEntitlementId=", REVENUECAT_ENTITLEMENT_ID);
+            devLog("[PRO_SOT] rawActiveEntitlements=", JSON.stringify(activeEntitlements, null, 2));
           }
         } else {
           if (__DEV__) {
-            console.log("[PRO_SOT] RevenueCat getCustomerInfo failed:", customerInfoResult);
+            devLog("[PRO_SOT] RevenueCat getCustomerInfo failed:", customerInfoResult);
           }
         }
       }
@@ -174,15 +175,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         computedIsPro = backendIsPremium;
         setIsPremium(backendIsPremium);
         if (__DEV__) {
-          console.log("[PRO_SOT] source=backend (RC disabled)");
-          console.log("[PRO_SOT] backend tier=", tier);
-          console.log("[PRO_SOT] computed isPro=", backendIsPremium);
+          devLog("[PRO_SOT] source=backend (RC disabled)");
+          devLog("[PRO_SOT] backend tier=", tier);
+          devLog("[PRO_SOT] computed isPro=", backendIsPremium);
         }
       } else {
         // [PRO_SOT] Log backend data even when RevenueCat is enabled (for debugging)
         if (__DEV__) {
           const tier = data.subscription?.tier as string | undefined;
-          console.log("[PRO_SOT] backend data (for reference):", {
+          devLog("[PRO_SOT] backend data (for reference):", {
             tier,
             isLifetime: (data.subscription as any)?.isLifetime,
             isPro: (data.subscription as any)?.isPro,
@@ -192,13 +193,13 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       
       // [PRO_SOT] Final state update confirmation
       if (__DEV__) {
-        console.log("[PRO_SOT] uiState after set= isPremium will re-render, computedIsPro=", computedIsPro);
+        devLog("[PRO_SOT] uiState after set= isPremium will re-render, computedIsPro=", computedIsPro);
       }
       
       return { isPro: computedIsPro };
     } catch (error) {
       if (__DEV__) {
-        console.error("[PRO_SOT] fetchSubscription error:", error);
+        devError("[PRO_SOT] fetchSubscription error:", error);
       }
       // On error, set to free tier defaults
       setSubscription(null);
@@ -224,7 +225,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         
         if (__DEV__) {
           const activeKeys = Object.keys(customerInfo.entitlements?.active || {});
-          console.log("[SubscriptionContext] CustomerInfo LIVE UPDATE:", {
+          devLog("[SubscriptionContext] CustomerInfo LIVE UPDATE:", {
             activeKeys,
             hasPremium,
             expectedId: REVENUECAT_ENTITLEMENT_ID,
@@ -249,7 +250,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       };
     } catch (error) {
       if (__DEV__) {
-        console.error("[SubscriptionContext] Failed to register listener:", error);
+        devError("[SubscriptionContext] Failed to register listener:", error);
       }
     }
   }, [fetchSubscription, invalidateAllSubscriptionQueries]);
@@ -298,7 +299,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       if (result.ok) {
         if (__DEV__) {
-          console.log("[SubscriptionContext] Purchase SUCCESS - updating state immediately");
+          devLog("[SubscriptionContext] Purchase SUCCESS - updating state immediately");
         }
         
         // Immediately set isPremium for instant UI feedback
@@ -325,7 +326,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("[SubscriptionContext] Purchase error:", error);
+        devError("[SubscriptionContext] Purchase error:", error);
       }
       return { ok: false as const, error: "Purchase failed" };
     }
@@ -342,7 +343,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       if (result.ok) {
         if (__DEV__) {
-          console.log("[SubscriptionContext] Restore SUCCESS - checking entitlements");
+          devLog("[SubscriptionContext] Restore SUCCESS - checking entitlements");
         }
         
         // Check if restore found active entitlements
@@ -353,7 +354,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
           setIsPremium(hasPremium);
           
           if (__DEV__) {
-            console.log("[SubscriptionContext] Restore found premium:", hasPremium);
+            devLog("[SubscriptionContext] Restore found premium:", hasPremium);
           }
         }
         
@@ -372,7 +373,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("[SubscriptionContext] Restore error:", error);
+        devError("[SubscriptionContext] Restore error:", error);
       }
       return { ok: false as const, error: "Restore failed" };
     }

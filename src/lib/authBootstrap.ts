@@ -26,14 +26,16 @@ import { isRateLimited, getRateLimitRemaining, setRateLimited, clearRateLimit } 
 import { deriveAuthState, assertAuthInvariants, type AuthState } from "./authState";
 import { SESSION_TOKEN_KEY, LEGACY_TOKEN_KEYS, SESSION_CACHE_KEY } from "./authKeys";
 import { consumeLogoutIntent } from "./logoutIntent";
+import { devLog, devWarn } from "./devLog";
 
 /**
  * DEV-only trace helper for auth token flow tracing.
  * Never logs token content - only booleans, keys, and function names.
+ * Uses [AUTH_TRACE] tag which is always-on in devLog.
  */
 function authTrace(event: string, data: Record<string, boolean | string | number>): void {
   if (!__DEV__) return;
-  console.log(`[AUTH_TRACE] ${event}`, data);
+  devLog(`[AUTH_TRACE] ${event}`, data);
 }
 
 // Bootstrap states
@@ -47,11 +49,9 @@ export interface AuthBootstrapResult {
   timedOut?: boolean;
 }
 
-// Logging helper
+// Logging helper - routes through devLog for quiet-by-default
 function log(step: string, data?: any) {
-  if (__DEV__) {
-    console.log(`[AuthBootstrap] ${step}`, data || "");
-  }
+  devLog(`[AUTH_BOOTSTRAP]`, step, data ?? "");
 }
 
 /**
@@ -75,8 +75,8 @@ export async function resetSession(options?: { reason?: string; status?: number;
   
   // DEV guardrail: if we ever reset without an explicit reason, print a stack trace.
   if (__DEV__ && reason === "unknown") {
-    console.warn("[resetSession] CALLED WITHOUT REASON — add reason+endpoint at callsite");
-    console.trace("[resetSession] stack");
+    devWarn("[AUTH_WARN]", "resetSession CALLED WITHOUT REASON — add reason+endpoint at callsite");
+    if (__DEV__) console.trace("[resetSession] stack");
   }
 
   // Capture token state BEFORE clearing for logging
@@ -91,8 +91,9 @@ export async function resetSession(options?: { reason?: string; status?: number;
   
   if (!shouldClearTokens) {
     // Non-auth error (404, 500, network, etc.) - log warning but DO NOT clear tokens
-    console.warn(
-      `[AUTH_WARN] Skipping token clear - non-auth error: reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
+    devWarn(
+      "[AUTH_WARN]",
+      `Skipping token clear - non-auth error: reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
     );
     log(`⚠️ Non-auth error detected - tokens NOT cleared. Reason: ${reason}, Status: ${status || 'N/A'}`);
     return; // Early exit - no token clearing
@@ -113,8 +114,9 @@ export async function resetSession(options?: { reason?: string; status?: number;
     const hasIntent = consumeLogoutIntent();
     if (!hasIntent) {
       // User logout WITHOUT intent flag - this is suspicious (possible automatic trigger)
-      console.error(
-        `[HARD_RESET_BLOCKED] reason=${reason} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset} - Missing logout intent flag!`
+      devLog(
+        "[HARD_RESET_BLOCKED]",
+        `reason=${reason} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset} - Missing logout intent flag!`
       );
       log(`🚫 BLOCKED: User logout called without intent flag. This should only happen from explicit user action.`);
       
@@ -132,8 +134,9 @@ export async function resetSession(options?: { reason?: string; status?: number;
   }
   
   // Log HARD_RESET with full context (only when actually clearing tokens)
-  console.log(
-    `[HARD_RESET] reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
+  devLog(
+    "[HARD_RESET]",
+    `reason=${reason} status=${status || 'N/A'} endpoint=${endpoint || 'N/A'} tokenExists=${tokenExistedBeforeReset}`
   );
   
   log(`🔄 Resetting all session state... Reason: ${reason}${status ? ` (${status})` : ""}${endpoint ? ` from ${endpoint}` : ""}`);
@@ -259,7 +262,7 @@ export async function resetSession(options?: { reason?: string; status?: number;
   const stillAuthed = await hasAuthToken();
   
   // Emit ONE consolidated invariant log line
-  console.log("[LOGOUT_INVARIANT]", JSON.stringify({
+  devLog("[LOGOUT_INVARIANT]", JSON.stringify({
     keysDeleted: Object.keys(deletionResults).filter(k => deletionResults[k]),
     keysFailed: Object.keys(deletionResults).filter(k => !deletionResults[k]),
     verifyCleared: Object.keys(verifyResults).filter(k => verifyResults[k]),
@@ -350,7 +353,7 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       const hasUserId = !!(response?.user?.id);
       
       if (__DEV__) {
-        console.log(`[AuthBootstrap] /api/auth/session response: hasUserId=${hasUserId}`);
+        devLog("[AUTH_BOOTSTRAP]", `/api/auth/session response: hasUserId=${hasUserId}`);
       }
       
       if (hasUserId) {
@@ -494,8 +497,9 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
         
         if (snapshotResponse) {
           const { hasAuthorizationHeader, authorizationScheme, hasCookieHeader, requestId, timestamp } = snapshotResponse;
-          console.log(
-            `[AUTH_SNAPSHOT] hasAuth=${hasAuthorizationHeader} scheme=${authorizationScheme} hasCookie=${hasCookieHeader} requestId=${requestId} xRequestId=${snapshotResponse.xRequestId || 'N/A'}`
+          devLog(
+            "[AUTH_SNAPSHOT]",
+            `hasAuth=${hasAuthorizationHeader} scheme=${authorizationScheme} hasCookie=${hasCookieHeader} requestId=${requestId} xRequestId=${snapshotResponse.xRequestId || 'N/A'}`
           );
         }
       } catch (err: any) {
@@ -528,14 +532,13 @@ export async function bootstrapAuth(): Promise<AuthBootstrapResult> {
       
       if (__DEV__) {
         const responseKeys = data ? Object.keys(data) : [];
-        console.log(
-          `[OnboardingStatus] fetched keys=[${responseKeys.join(', ')}] completed=${backendOnboardingCompleted}`
+        devLog(
+          "[AUTH_BOOTSTRAP]",
+          `OnboardingStatus fetched keys=[${responseKeys.join(', ')}] completed=${backendOnboardingCompleted}`
         );
       }
     } catch (error: any) {
-      if (__DEV__) {
-        console.log(`[OnboardingStatus] fetch failed: ${error.message}`);
-      }
+      devLog("[AUTH_BOOTSTRAP]", `OnboardingStatus fetch failed: ${error.message}`);
       // Fall back to local storage check if backend is unreachable
     }
 

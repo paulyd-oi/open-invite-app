@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { performAutoSync, isAutoSyncDue } from "@/lib/autoSync";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 interface UseAutoSyncOptions {
   enabled?: boolean; // Default: true
@@ -71,14 +72,14 @@ export function useAutoSync(options: UseAutoSyncOptions = {}) {
       const result = await performAutoSync({ isPro });
 
       if (result.synced && result.success) {
-        console.log(
+        devLog(
           `[AutoSync] Synced successfully: ${result.imported} imported, ${result.updated} updated, ${result.skipped} skipped`
         );
       } else if (result.error) {
-        console.log(`[AutoSync] Skipped: ${result.error}`);
+        devLog(`[AutoSync] Skipped: ${result.error}`);
       }
     } catch (error) {
-      console.error("[AutoSync] Error during sync check:", error);
+      devError("[AutoSync] Error during sync check:", error);
     } finally {
       syncInProgress.current = false;
     }

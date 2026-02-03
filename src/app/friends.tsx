@@ -16,6 +16,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { ShareAppButton } from "@/components/ShareApp";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -407,7 +408,7 @@ const FriendListItem = React.memo(function FriendListItem({
     <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
       <View className="mb-2 overflow-hidden rounded-xl">
         {/* Pin action background - GREEN (#10B981) to match CircleCard pin styling */}
-        {__DEV__ && (() => { console.log("[DEV_DECISION] friend_pin_style_ok ok=true color=#10B981 icon=Pin"); return null; })()}
+        {__DEV__ && (() => { devLog("[DEV_DECISION] friend_pin_style_ok ok=true color=#10B981 icon=Pin"); return null; })()}
         {onPin && (
           <Animated.View 
             className="absolute inset-y-0 left-0 w-20 items-center justify-center rounded-l-xl"
@@ -770,7 +771,7 @@ export default function FriendsScreen() {
         }
       } catch (e) {
         if (__DEV__) {
-          console.error("[Friends] Error loading section states:", e);
+          devError("[Friends] Error loading section states:", e);
         }
       } finally {
         setSectionsLoaded(true);
@@ -790,7 +791,7 @@ export default function FriendsScreen() {
         );
       } catch (e) {
         if (__DEV__) {
-          console.error("[Friends] Error saving section states:", e);
+          devError("[Friends] Error saving section states:", e);
         }
       }
     };
@@ -870,7 +871,7 @@ export default function FriendsScreen() {
   useEffect(() => {
     if (__DEV__ && friendsData) {
       console.timeEnd("[PERF] Friends query");
-      console.log("[PERF] Friends count:", friendsData.friends?.length ?? 0);
+      devLog("[PERF] Friends count:", friendsData.friends?.length ?? 0);
     }
   }, [friendsData]);
 
@@ -920,7 +921,7 @@ export default function FriendsScreen() {
       trackFriendAdded();
 
       // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal trigger removed pre-launch
-      if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
+      if (__DEV__) devLog('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
       safeToast.success("Friend added!", data.friend?.name ? `${data.friend.name} is now your friend` : "You're now friends");
 
       // Check if we should show second order social nudge
@@ -991,7 +992,7 @@ export default function FriendsScreen() {
       setPhoneContacts(validContacts);
       setShowContactsModal(true);
     } catch (error) {
-      console.error("Error loading contacts:", error);
+      devError("Error loading contacts:", error);
       safeToast.error("Error", "Failed to load contacts");
     }
     setContactsLoading(false);
@@ -1073,7 +1074,7 @@ export default function FriendsScreen() {
   useEffect(() => {
     if (pinnedData?.pinnedFriendshipIds) {
       setPinnedFriendshipIds(new Set(pinnedData.pinnedFriendshipIds));
-      if (__DEV__) console.log("[DEV_DECISION] pin loaded from server", { 
+      if (__DEV__) devLog("[DEV_DECISION] pin loaded from server", { 
         count: pinnedData.pinnedFriendshipIds.length, 
         ids: pinnedData.pinnedFriendshipIds,
         source: "server" 
@@ -1122,7 +1123,7 @@ export default function FriendsScreen() {
       setPinnedFriendshipIds(newPinned);
       // Invalidate the query to ensure persistence across remounts
       queryClient.invalidateQueries({ queryKey: ["pinnedFriendships"] });
-      if (__DEV__) console.log("[DEV_DECISION] pin persisted", { friendId: friendshipId, isPinned: data.isPinned, source: "server" });
+      if (__DEV__) devLog("[DEV_DECISION] pin persisted", { friendId: friendshipId, isPinned: data.isPinned, source: "server" });
     },
   });
 
@@ -1147,7 +1148,7 @@ export default function FriendsScreen() {
     if (__DEV__ && !hasLoggedFirstRenderRef.current && filteredFriends.length > 0) {
       hasLoggedFirstRenderRef.current = true;
       console.timeEnd("[PERF] Friends screen first render");
-      console.log(`[PERF] Friends list count: ${filteredFriends.length}`);
+      devLog(`[PERF] Friends list count: ${filteredFriends.length}`);
     }
   }, [filteredFriends.length]);
 
@@ -1185,14 +1186,14 @@ export default function FriendsScreen() {
   // Only bootStatus === 'loggedOut' means user is truly logged out; all other states show skeleton
   if (!session || bootStatus !== 'authed') {
     if (__DEV__) {
-      console.log('[P0_FRIENDS_AUTH] Gate check - bootStatus:', bootStatus, 'session:', !!session);
+      devLog('[P0_FRIENDS_AUTH] Gate check - bootStatus:', bootStatus, 'session:', !!session);
     }
     
     // ONLY show login prompt when bootStatus is DEFINITIVELY 'loggedOut'
     // All other states (loading, authed-but-no-session-yet, onboarding, degraded, error) → skeleton
     if (bootStatus === 'loggedOut') {
       if (__DEV__) {
-        console.log('[P0_FRIENDS_AUTH] → Showing login prompt (bootStatus=loggedOut)');
+        devLog('[P0_FRIENDS_AUTH] → Showing login prompt (bootStatus=loggedOut)');
       }
       return (
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
@@ -1215,7 +1216,7 @@ export default function FriendsScreen() {
     
     // All non-loggedOut states show skeleton (loading, authed, onboarding, degraded, error)
     if (__DEV__) {
-      console.log('[P0_FRIENDS_AUTH] → Showing skeleton (bootStatus=' + bootStatus + ', waiting for session)');
+      devLog('[P0_FRIENDS_AUTH] → Showing skeleton (bootStatus=' + bootStatus + ', waiting for session)');
     }
     return (
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>

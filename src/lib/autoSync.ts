@@ -8,6 +8,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDeviceCalendars, getDeviceEvents, hasCalendarPermissions } from "./calendarSync";
 import { api } from "./api";
+import { devLog, devError } from "./devLog";
 
 const LAST_SYNC_KEY = "autoSync:lastSync";
 const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -36,7 +37,7 @@ export async function isAutoSyncDue(): Promise<boolean> {
 
     return timeSinceLastSync >= SYNC_INTERVAL_MS;
   } catch (error) {
-    console.error("[AutoSync] Failed to check last sync time:", error);
+    devError("[AutoSync] Failed to check last sync time:", error);
     return false; // Don't sync if we can't determine
   }
 }
@@ -60,7 +61,7 @@ async function recordSyncTime(): Promise<void> {
   try {
     await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
   } catch (error) {
-    console.error("[AutoSync] Failed to record sync time:", error);
+    devError("[AutoSync] Failed to record sync time:", error);
   }
 }
 
@@ -104,7 +105,7 @@ export async function performAutoSync(options?: {
     const hasPermissions = await hasCalendarPermissions();
     if (!hasPermissions) {
       if (__DEV__) {
-        console.log("[Calendar] Permission not granted — auto-sync skipped");
+        devLog("[Calendar] Permission not granted — auto-sync skipped");
       }
       return {
         success: false,
@@ -181,7 +182,7 @@ export async function performAutoSync(options?: {
       lastSyncTime: new Date().toISOString(),
     };
   } catch (error: any) {
-    console.error("[AutoSync] Sync failed:", error);
+    devError("[AutoSync] Sync failed:", error);
     return {
       success: false,
       synced: false,
@@ -197,6 +198,6 @@ export async function clearAutoSyncData(): Promise<void> {
   try {
     await AsyncStorage.removeItem(LAST_SYNC_KEY);
   } catch (error) {
-    console.error("[AutoSync] Failed to clear sync data:", error);
+    devError("[AutoSync] Failed to clear sync data:", error);
   }
 }

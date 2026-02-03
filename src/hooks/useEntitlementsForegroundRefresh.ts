@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useRefreshEntitlements } from '@/lib/entitlements';
+import { devLog } from '@/lib/devLog';
 
 const REFRESH_THROTTLE_MS = 1000 * 60 * 10; // 10 minutes
 
@@ -31,7 +32,7 @@ export function useEntitlementsForegroundRefresh(props: {
         // Only refresh if more than 10 minutes since last refresh
         if (timeSinceLastRefresh > REFRESH_THROTTLE_MS) {
           if (__DEV__) {
-            console.log('[useEntitlementsForegroundRefresh] Refreshing entitlements on foreground');
+            devLog('[useEntitlementsForegroundRefresh] Refreshing entitlements on foreground');
           }
           refreshEntitlements();
           lastRefreshTimeRef.current = now;
@@ -39,7 +40,7 @@ export function useEntitlementsForegroundRefresh(props: {
           if (__DEV__) {
             const remainingMs = REFRESH_THROTTLE_MS - timeSinceLastRefresh;
             const remainingMin = Math.ceil(remainingMs / 1000 / 60);
-            console.log(
+            devLog(
               `[useEntitlementsForegroundRefresh] Skipping refresh (throttled, ${remainingMin}min remaining)`
             );
           }

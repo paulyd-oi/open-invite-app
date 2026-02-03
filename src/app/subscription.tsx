@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   ChevronLeft,
   Crown,
@@ -169,7 +170,7 @@ export default function SubscriptionScreen() {
 
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=subscription_restore isPremium=", subscriptionContext.isPremium);
+      devLog("[PRO_SOT] BEFORE screen=subscription_restore isPremium=", subscriptionContext.isPremium);
     }
 
     const result = await restorePurchases();
@@ -180,7 +181,7 @@ export default function SubscriptionScreen() {
       
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=subscription_restore combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=subscription_restore combinedIsPro=", combinedIsPro);
       }
       
       setIsRestoring(false);
@@ -208,7 +209,7 @@ export default function SubscriptionScreen() {
 
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=subscription_promo isPremium=", subscriptionContext.isPremium);
+      devLog("[PRO_SOT] BEFORE screen=subscription_promo isPremium=", subscriptionContext.isPremium);
     }
 
     try {
@@ -226,7 +227,7 @@ export default function SubscriptionScreen() {
         
         // [PRO_SOT] Log AFTER state
         if (__DEV__) {
-          console.log("[PRO_SOT] AFTER screen=subscription_promo combinedIsPro=", combinedIsPro);
+          devLog("[PRO_SOT] AFTER screen=subscription_promo combinedIsPro=", combinedIsPro);
         }
         
         // Invalidate queries for UI refresh
@@ -242,14 +243,14 @@ export default function SubscriptionScreen() {
         }
       } else {
         if (__DEV__) {
-          console.log("[PRO_SOT] ERROR screen=subscription_promo invalid_code");
+          devLog("[PRO_SOT] ERROR screen=subscription_promo invalid_code");
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         safeToast.error("Invalid Code", response.error || "This code is not valid.");
       }
     } catch (error: unknown) {
       if (__DEV__) {
-        console.log("[PRO_SOT] ERROR screen=subscription_promo", error);
+        devLog("[PRO_SOT] ERROR screen=subscription_promo", error);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMessage = error instanceof Error ? error.message : "Could not validate code.";

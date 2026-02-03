@@ -9,6 +9,7 @@ import {
   TextInput,
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -93,7 +94,7 @@ export default function EventRequestDetailScreen() {
       }
     },
     onError: (error) => {
-      console.error("Failed to respond:", error);
+      devError("Failed to respond:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       safeToast.error("Oops", "That didn't go through. Please try again.");
     },
@@ -108,7 +109,7 @@ export default function EventRequestDetailScreen() {
       router.back();
     },
     onError: (error) => {
-      console.error("Failed to cancel:", error);
+      devError("Failed to cancel:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       safeToast.error("Oops", "That didn't go through. Please try again.");
     },
@@ -125,7 +126,7 @@ export default function EventRequestDetailScreen() {
       );
     },
     onError: (error) => {
-      console.error("Failed to nudge:", error);
+      devError("Failed to nudge:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       safeToast.error("Oops", "That didn't go through. Please try again.");
     },
@@ -142,7 +143,7 @@ export default function EventRequestDetailScreen() {
       safeToast.success("Suggestion Sent!", "Your alternative time suggestion has been sent to the host.");
     },
     onError: (error) => {
-      console.error("Failed to suggest time:", error);
+      devError("Failed to suggest time:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       safeToast.error("Oops", "That didn't go through. Please try again.");
     },

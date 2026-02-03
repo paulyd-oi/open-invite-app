@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -63,7 +64,7 @@ let AppleAuthentication: any = null;
 try {
   AppleAuthentication = require("expo-apple-authentication");
 } catch {
-  if (__DEV__) console.log("[Apple Auth] expo-apple-authentication not available - requires native build");
+  if (__DEV__) devLog("[Apple Auth] expo-apple-authentication not available - requires native build");
 }
 
 // Feature flag: disable Apple Sign-In for launch build
@@ -372,7 +373,7 @@ export default function WelcomeOnboardingScreen() {
     if (!hasLoggedMountRef.current) {
       hasLoggedMountRef.current = true;
       if (__DEV__) {
-        console.log("[ONBOARDING_BOOT] GettingStarted mounted once");
+        devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
       }
     }
   }, []);
@@ -436,7 +437,7 @@ export default function WelcomeOnboardingScreen() {
       isAppleSignInAvailable().then((available) => {
         setIsAppleSignInReady(available);
         if (__DEV__) {
-          if (__DEV__) console.log("[Apple Auth] Availability:", available);
+          if (__DEV__) devLog("[Apple Auth] Availability:", available);
         }
       });
     }
@@ -450,7 +451,7 @@ export default function WelcomeOnboardingScreen() {
       return;
     }
 
-    if (__DEV__) console.log("[Onboarding] Starting email auth...");
+    if (__DEV__) devLog("[Onboarding] Starting email auth...");
     setIsLoading(true);
     setErrorBanner(null);
 
@@ -469,7 +470,7 @@ export default function WelcomeOnboardingScreen() {
       
       // If sign-up returns error about existing account, try sign-in
       if (result.error?.message?.toLowerCase().includes("exist")) {
-        if (__DEV__) console.log("[Onboarding] Account exists, attempting sign-in...");
+        if (__DEV__) devLog("[Onboarding] Account exists, attempting sign-in...");
         result = await authClient.signIn.email({
           email: email.trim(),
           password,
@@ -489,23 +490,23 @@ export default function WelcomeOnboardingScreen() {
       const userId = session?.user?.id;
       
       if (!userId) {
-        console.error("[Onboarding] Session verification failed - no userId after auth");
+        devError("[Onboarding] Session verification failed - no userId after auth");
         setErrorBanner("Session could not be established. Please try again.");
         return;
       }
       
-      if (__DEV__) console.log("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
+      if (__DEV__) devLog("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
 
       // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate + send verification email
       if (isNewAccount) {
         const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_PREFIX, userId);
         await SecureStore.setItemAsync(forceShowKey, "true");
-        if (__DEV__) console.log("[Onboarding] forceShow enabled for new account:", forceShowKey);
+        if (__DEV__) devLog("[Onboarding] forceShow enabled for new account:", forceShowKey);
         
         // FIX 3: Send verification email IMMEDIATELY on signup (not later in onboarding)
         const userEmail = session?.user?.email;
         if (userEmail) {
-          if (__DEV__) console.log("[Onboarding] Sending verification email immediately after signup");
+          if (__DEV__) devLog("[Onboarding] Sending verification email immediately after signup");
           try {
             await authClient.$fetch("/api/email-verification/resend", {
               method: "POST",
@@ -514,12 +515,12 @@ export default function WelcomeOnboardingScreen() {
                 name: session?.user?.name || session?.user?.displayName || undefined,
               },
             });
-            if (__DEV__) console.log("[Onboarding] Verification email sent successfully");
+            if (__DEV__) devLog("[Onboarding] Verification email sent successfully");
             // Trigger 30-second cooldown in banner so user doesn't immediately hit resend
             triggerVerificationCooldown();
           } catch (verifyErr: any) {
             // Don't block signup flow - just log warning
-            console.warn("[Onboarding] Failed to send verification email:", verifyErr?.message ?? verifyErr);
+            devWarn("[Onboarding] Failed to send verification email:", verifyErr?.message ?? verifyErr);
           }
         }
       }
@@ -532,7 +533,7 @@ export default function WelcomeOnboardingScreen() {
       // Advance to Slide 3
       setCurrentSlide(3);
     } catch (error: any) {
-      console.error("[Onboarding] Auth error:", error?.message || error);
+      devError("[Onboarding] Auth error:", error?.message || error);
       setErrorBanner(error?.message || "Authentication failed. Please try again.");
     } finally {
       if (isMountedRef.current) {
@@ -548,10 +549,10 @@ export default function WelcomeOnboardingScreen() {
     // Production-safe logging (always logs, but sensitive data only in __DEV__)
     const traceLog = (stage: string, data: Record<string, unknown>) => {
       // Always log stage for production debugging
-      console.log(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage}`);
+      devLog(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage}`);
       if (__DEV__) {
         // Full data only in dev
-        console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, ...data }));
+        devLog(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, ...data }));
       }
       setAppleAuthDebug({ attemptId, stage, error: null, timestamp: Date.now() });
     };
@@ -569,9 +570,9 @@ export default function WelcomeOnboardingScreen() {
         raw: __DEV__ ? JSON.stringify(error, Object.getOwnPropertyNames(error || {}), 2)?.slice(0, 800) : undefined,
       };
       // Always log error bucket for production debugging
-      console.log(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage} | bucket=${errorBucket}`);
+      devLog(`[APPLE_AUTH_TRACE] ${attemptId} | ${stage} | bucket=${errorBucket}`);
       if (__DEV__) {
-        console.log(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, error: errorInfo }));
+        devLog(JSON.stringify({ tag: "[APPLE_AUTH_TRACE]", attemptId, stage, error: errorInfo }));
       }
       setAppleAuthDebug({ attemptId, stage, error: error?.message || "Unknown error", timestamp: Date.now() });
     };
@@ -727,7 +728,7 @@ export default function WelcomeOnboardingScreen() {
       });
       
       // PROOF LOG: Token extraction result (never log token value)
-      if (__DEV__) console.log(`[APPLE_TOKEN_PROOF] ok=true tokenFound=${!!tokenValue} keys=${JSON.stringify(Object.keys(data || {}))}`);
+      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] ok=true tokenFound=${!!tokenValue} keys=${JSON.stringify(Object.keys(data || {}))}`);
       
       if (!tokenValue) {
         traceError("token_missing", {
@@ -791,7 +792,7 @@ export default function WelcomeOnboardingScreen() {
       const barrierResult = await ensureSessionReady();
       
       // Log the AUTH_BARRIER result explicitly
-      if (__DEV__) console.log(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);
+      if (__DEV__) devLog(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);
       
       if (!barrierResult.ok) {
         traceError("session_barrier_fail", { 
@@ -800,12 +801,12 @@ export default function WelcomeOnboardingScreen() {
           error: barrierResult.error,
         });
         // Log clearly and throw - do NOT proceed silently
-        console.error("[APPLE_AUTH] Session barrier FAILED - cannot proceed:", barrierResult);
+        devError("[APPLE_AUTH] Session barrier FAILED - cannot proceed:", barrierResult);
         throw new Error("Session verification failed after Apple Sign-In. Please try again.");
       }
       
       // PROOF LOG with required format
-      if (__DEV__) console.log(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=true userIdPresent=true`);
+      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=true userIdPresent=true`);
       traceLog("session_barrier_success", { userId: barrierResult.userId?.substring(0, 8) });
       // ============ END SESSION BARRIER ============
       
@@ -889,12 +890,12 @@ export default function WelcomeOnboardingScreen() {
       const sessionResult = await getSessionCached();
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       if (!effectiveUserId) {
-        if (__DEV__) console.log("[AUTH_TRACE] Photo upload: no effectiveUserId, skipping (user can add later)");
+        if (__DEV__) devLog("[AUTH_TRACE] Photo upload: no effectiveUserId, skipping (user can add later)");
         return;
       }
-      if (__DEV__) console.log(`[AUTH_TRACE] Photo upload authorized: effectiveUserId=${effectiveUserId.substring(0, 8)}...`);
+      if (__DEV__) devLog(`[AUTH_TRACE] Photo upload authorized: effectiveUserId=${effectiveUserId.substring(0, 8)}...`);
     } catch (err) {
-      if (__DEV__) console.log("[AUTH_TRACE] Photo upload: session check failed, skipping (transient error)");
+      if (__DEV__) devLog("[AUTH_TRACE] Photo upload: session check failed, skipping (transient error)");
       // DO NOT redirect or reset auth state - just skip the upload
       return;
     }
@@ -902,21 +903,21 @@ export default function WelcomeOnboardingScreen() {
     setUploadBusy(true);
 
     try {
-      if (__DEV__) console.log("[Onboarding] Uploading photo to Cloudinary...");
+      if (__DEV__) devLog("[Onboarding] Uploading photo to Cloudinary...");
       const uploadResponse = await uploadImage(uri, true);
       const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
-      if (__DEV__) console.log("[Onboarding] Photo uploaded, normalized URL:", normalizedUrl.substring(0, 50) + "...");
+      if (__DEV__) devLog("[Onboarding] Photo uploaded, normalized URL:", normalizedUrl.substring(0, 50) + "...");
 
       if (!isMountedRef.current) return;
       setAvatarUrl(normalizedUrl);
 
       // Photo uploaded - defer profile save to Continue step when handle is available
-      if (__DEV__) console.log("[Onboarding] Photo uploaded, stored in state. Will save with profile on Continue.");
+      if (__DEV__) devLog("[Onboarding] Photo uploaded, stored in state. Will save with profile on Continue.");
       safeToast.success("Photo uploaded", "It will be saved with your profile.");
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      if (__DEV__) console.log("[AUTH_TRACE] Photo upload failed:", error?.message || error);
+      if (__DEV__) devLog("[AUTH_TRACE] Photo upload failed:", error?.message || error);
       if (isMountedRef.current) {
         safeToast.warning("Upload failed", "Could not upload photo. You can add it later in Settings.");
       }
@@ -930,7 +931,7 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const handleSlide3Continue = async () => {
-    if (__DEV__) console.log("[Onboarding] Continue pressed");
+    if (__DEV__) devLog("[Onboarding] Continue pressed");
     setNameError(null);
     setHandleError(null);
     setErrorBanner(null);
@@ -969,10 +970,10 @@ export default function WelcomeOnboardingScreen() {
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       
       // Debug log for session state (AUTH_TRACE prefix for filtering)
-      if (__DEV__) console.log(`[AUTH_TRACE] Onboarding session check: effectiveUserId=${!!effectiveUserId}`);
+      if (__DEV__) devLog(`[AUTH_TRACE] Onboarding session check: effectiveUserId=${!!effectiveUserId}`);
     } catch (sessionErr: any) {
       const status = sessionErr?.status || 'unknown';
-      if (__DEV__) console.log(`[AUTH_TRACE] Onboarding session check failed: status=${status}`);
+      if (__DEV__) devLog(`[AUTH_TRACE] Onboarding session check failed: status=${status}`);
       // Transient error - DO NOT redirect to /login. User just authenticated.
       // Show error and allow retry.
       setErrorBanner("Session check failed. Please tap Continue to retry.");
@@ -982,7 +983,7 @@ export default function WelcomeOnboardingScreen() {
     // If no session at all (truly logged out), show error but don't auto-redirect
     // This prevents the "loop back to beginning" issue
     if (!effectiveUserId) {
-      if (__DEV__) console.log("[AUTH_TRACE] Onboarding: no effectiveUserId, showing error");
+      if (__DEV__) devLog("[AUTH_TRACE] Onboarding: no effectiveUserId, showing error");
       setErrorBanner("Your session expired. Please go back and sign in again.");
       return;
     }
@@ -1000,7 +1001,7 @@ export default function WelcomeOnboardingScreen() {
       // CRITICAL: Only set if user explicitly entered a name, never use fallback here
       if (trimmedName) {
         payload.name = trimmedName;
-        if (__DEV__) console.log("[DISPLAYNAME_WRITE] Persisting user-entered name:", trimmedName);
+        if (__DEV__) devLog("[DISPLAYNAME_WRITE] Persisting user-entered name:", trimmedName);
       }
 
       // Add avatarUrl if present (Cloudinary https:// or legacy backend /uploads/)
@@ -1009,11 +1010,11 @@ export default function WelcomeOnboardingScreen() {
       }
 
       if (__DEV__) {
-        console.log("[Onboarding] /api/profile payload keys", Object.keys(payload));
-        console.log("[Onboarding] /api/profile payload", payload);
+        devLog("[Onboarding] /api/profile payload keys", Object.keys(payload));
+        devLog("[Onboarding] /api/profile payload", payload);
       }
       const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", payload);
-      if (__DEV__) console.log("[Onboarding] Profile saved successfully");
+      if (__DEV__) devLog("[Onboarding] Profile saved successfully");
 
       // Update React Query cache
       queryClient.setQueryData(["profile"], (old: any) => ({
@@ -1034,7 +1035,7 @@ export default function WelcomeOnboardingScreen() {
 
       // Request bootstrap refresh so status updates from 'onboarding' to 'authed'
       // This prevents the onboarding loop issue
-      if (__DEV__) console.log("[AUTH_TRACE] Onboarding: profile saved, requesting bootstrap refresh");
+      if (__DEV__) devLog("[AUTH_TRACE] Onboarding: profile saved, requesting bootstrap refresh");
       requestBootstrapRefreshOnce();
 
       // Advance to Slide 4
@@ -1042,7 +1043,7 @@ export default function WelcomeOnboardingScreen() {
         setCurrentSlide(4);
       }
     } catch (error: any) {
-      console.error("[Onboarding] Profile save failed:", error?.message || error);
+      devError("[Onboarding] Profile save failed:", error?.message || error);
       
       // Extract true backend validation reason if available
       const validationReason = error?.data?.error?.fields?.[0]?.reason;
@@ -1069,7 +1070,7 @@ export default function WelcomeOnboardingScreen() {
   // ============ SLIDE 4: FINISH ============
 
   const handleFinishOnboarding = async () => {
-    if (__DEV__) console.log("[Onboarding] Finishing...");
+    if (__DEV__) devLog("[Onboarding] Finishing...");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Mark onboarding complete
@@ -1167,7 +1168,7 @@ export default function WelcomeOnboardingScreen() {
           {__DEV__ && Platform.OS === "ios" && (
             <Pressable
               onPress={() => {
-                console.log("[APPLE_AUTH_DIAG] Running diagnostics...");
+                devLog("[APPLE_AUTH_DIAG] Running diagnostics...");
                 runAppleSignInDiagnostics();
               }}
               style={{ padding: 8, alignItems: "center" }}

@@ -10,6 +10,7 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Event } from "@/shared/contracts";
+import { devLog } from "./devLog";
 
 // Storage key for local events
 const LOCAL_EVENTS_KEY = "localEvents:v1";
@@ -108,7 +109,7 @@ export const useOfflineStore = create<OfflineStoreState>((set, get) => ({
     get().saveToStorage();
 
     if (__DEV__) {
-      console.log(`[OfflineStore] Reconciled local event ${localId} -> ${serverId}`);
+      devLog(`[OfflineStore] Reconciled local event ${localId} -> ${serverId}`);
     }
   },
 
@@ -158,11 +159,11 @@ export const useOfflineStore = create<OfflineStoreState>((set, get) => ({
       set({ localEvents, localRsvps });
 
       if (__DEV__) {
-        console.log(`[OfflineStore] Loaded ${localEvents.length} local events, ${localRsvps.size} local RSVPs`);
+        devLog(`[OfflineStore] Loaded ${localEvents.length} local events, ${localRsvps.size} local RSVPs`);
       }
     } catch (error) {
       if (__DEV__) {
-        console.log("[OfflineStore] Error loading from storage:", error);
+        devLog("[OfflineStore] Error loading from storage:", error);
       }
     }
   },
@@ -178,7 +179,7 @@ export const useOfflineStore = create<OfflineStoreState>((set, get) => ({
       ]);
     } catch (error) {
       if (__DEV__) {
-        console.log("[OfflineStore] Error saving to storage:", error);
+        devLog("[OfflineStore] Error saving to storage:", error);
       }
     }
   },

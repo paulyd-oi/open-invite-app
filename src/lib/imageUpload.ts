@@ -13,6 +13,7 @@
 
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
+import { devLog, devWarn, devError } from "./devLog";
 
 /**
  * Image compression options
@@ -95,7 +96,7 @@ export async function compressImage(
     return result.uri;
   } catch (error) {
     if (__DEV__) {
-      console.error("[imageUpload] Compression error:", error);
+      devError("[imageUpload] Compression error:", error);
     }
     return uri;
   }
@@ -129,9 +130,9 @@ export async function uploadImage(
     if (__DEV__) {
       const fileSizeKB =
         typeof fileSize === "number" ? (fileSize / 1024).toFixed(2) : "unknown";
-      console.log(`[imageUpload] Uploading to Cloudinary: ${fileSizeKB} KB`);
-      console.log("[imageUpload] Cloud:", CLOUDINARY_CLOUD_NAME);
-      console.log("[imageUpload] Preset:", CLOUDINARY_UPLOAD_PRESET);
+      devLog(`[imageUpload] Uploading to Cloudinary: ${fileSizeKB} KB`);
+      devLog("[imageUpload] Cloud:", CLOUDINARY_CLOUD_NAME);
+      devLog("[imageUpload] Preset:", CLOUDINARY_UPLOAD_PRESET);
     }
 
     const formData = new FormData();
@@ -167,8 +168,8 @@ export async function uploadImage(
         "Upload failed";
 
       if (__DEV__) {
-        console.error("[imageUpload] Cloudinary upload failed:", res.status, cloudinaryMsg);
-        if (json) console.log("[imageUpload] Cloudinary error payload:", json);
+        devError("[imageUpload] Cloudinary upload failed:", res.status, cloudinaryMsg);
+        if (json) devLog("[imageUpload] Cloudinary error payload:", json);
       }
 
       throw new Error(cloudinaryMsg);
@@ -179,13 +180,13 @@ export async function uploadImage(
 
     if (!secureUrl || secureUrl.length === 0) {
       if (__DEV__) {
-        console.error("[imageUpload] Cloudinary response missing secure_url:", json);
+        devError("[imageUpload] Cloudinary response missing secure_url:", json);
       }
       throw new Error("Upload succeeded but no URL was returned.");
     }
 
     if (__DEV__) {
-      console.log("[imageUpload] Cloudinary upload successful:", secureUrl);
+      devLog("[imageUpload] Cloudinary upload successful:", secureUrl);
     }
 
     return {
@@ -195,7 +196,7 @@ export async function uploadImage(
     };
   } catch (error: any) {
     if (__DEV__) {
-      console.error("[imageUpload] Upload error:", error);
+      devError("[imageUpload] Upload error:", error);
     }
     throw new Error(error?.message || "Failed to upload image");
   }

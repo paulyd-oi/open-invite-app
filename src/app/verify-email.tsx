@@ -22,6 +22,7 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { useTheme } from "@/lib/ThemeContext";
 import { forceRefreshSession } from "@/lib/sessionCache";
+import { devError } from "@/lib/devLog";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -104,7 +105,7 @@ export default function VerifyEmailScreen() {
         safeToast.error("", errorMessage);
       }
     } catch (error) {
-      console.error("[VerifyEmail] Error:", error);
+      devError("[VerifyEmail] Error:", error);
       safeToast.error("", "That code didn't work. Try again.");
     } finally {
       setIsVerifying(false);
@@ -125,7 +126,7 @@ export default function VerifyEmailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCooldown(30);
     } catch (error) {
-      console.error("[VerifyEmail] Resend error:", error);
+      devError("[VerifyEmail] Resend error:", error);
       safeToast.error("", "We couldn't resend the code. Please try again.");
     } finally {
       setIsResending(false);

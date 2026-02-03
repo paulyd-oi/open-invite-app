@@ -13,6 +13,7 @@ import { authClient } from "./authClient";
 
 // Import fetch for upload FormData handling
 import { fetch } from "expo/fetch";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Import centralized backend URL configuration
 import { BACKEND_URL } from "./config";
@@ -68,18 +69,18 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
       const isExpectedAuthError = error.status === 401 || error.status === 403;
       
       if (!isKnownOptional && !isExpectedAuthError) {
-        console.log(`[api.ts]: ${method} ${path} - ${error.message || error}`);
+        devLog(`[api.ts]: ${method} ${path} - ${error.message || error}`);
       } else if (isExpectedAuthError) {
-        // Use console.log (not error) to avoid red overlay for expected auth failures
-        console.log(`[api.ts auth]: ${error.status} ${method} ${path} - expected during logout/bootstrap`);
+        // Use devLog (not error) to avoid red overlay for expected auth failures
+        devLog(`[api.ts auth]: ${error.status} ${method} ${path} - expected during logout/bootstrap`);
       }
       
       // Detailed error logging for /api/profile (non-401) to debug validation failures
       if (path.includes("/api/profile") && !isExpectedAuthError) {
-        console.log(`[api.ts] /api/profile ERROR DETAILS:`);
-        console.log(`  status: ${error.status}`);
-        console.log(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
-        console.log(`  message: ${error.message}`);
+        devLog(`[api.ts] /api/profile ERROR DETAILS:`);
+        devLog(`  status: ${error.status}`);
+        devLog(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
+        devLog(`  message: ${error.message}`);
       }
     }
 
@@ -189,7 +190,7 @@ const api = {
       return response;
     } catch (error: any) {
       if (__DEV__) {
-        console.log(`[api.ts upload]: ${error}`);
+        devLog(`[api.ts upload]: ${error}`);
       }
       throw error;
     }

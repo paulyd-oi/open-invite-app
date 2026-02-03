@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import * as Haptics from "expo-haptics";
 import {
   Calendar,
@@ -100,7 +101,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
 
   // DEV-only validation logging
   if (__DEV__ && !isValidSuggestion) {
-    console.warn(
+    devWarn(
       `[SUGGESTIONS_NAV_ERROR] Invalid suggestion: type=${suggestion.type}, ` +
       `eventId=${suggestion.eventId ?? 'undefined'}, userId=${suggestion.userId ?? 'undefined'}, ` +
       `title="${suggestion.title}"`
@@ -115,7 +116,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
   const handlePress = () => {
     // DEV-only navigation logging
     if (__DEV__) {
-      console.log(
+      devLog(
         `[SUGGESTIONS_NAV] Tapped: type=${suggestion.type}, ` +
         `eventId=${suggestion.eventId ?? 'none'}, userId=${suggestion.userId ?? 'none'}`
       );
@@ -127,7 +128,7 @@ export function SuggestionFeedCard({ suggestion, index }: SuggestionFeedCardProp
       case "JOIN_EVENT":
         // eventId is guaranteed valid by isValidSuggestion check above
         if (__DEV__) {
-          console.log(`[SUGGESTIONS_NAV] Navigating to /event/${suggestion.eventId}`);
+          devLog(`[SUGGESTIONS_NAV] Navigating to /event/${suggestion.eventId}`);
         }
         router.push(`/event/${suggestion.eventId}` as any);
         break;

@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
+import { devError } from "@/lib/devLog";
 
 const APP_STORE_URL = "https://apps.apple.com/app/open-invite"; // Placeholder
 const SHARE_MESSAGE = "Check out Open Invite - the easiest way to share plans with friends!";
@@ -26,7 +27,7 @@ export function ShareAppButton({ variant = "icon" }: ShareAppButtonProps) {
         url: APP_STORE_URL,
       });
     } catch (error) {
-      console.error("Error sharing:", error);
+      devError("Error sharing:", error);
     }
   };
 
@@ -87,7 +88,7 @@ export function InviteFriendsContent() {
         url: APP_STORE_URL,
       });
     } catch (error) {
-      console.error("Error sharing:", error);
+      devError("Error sharing:", error);
     }
   };
 

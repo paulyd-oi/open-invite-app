@@ -6,6 +6,7 @@
  */
 
 import { api } from "./api";
+import { devLog, devWarn, devError } from "./devLog";
 
 export interface AdminMeResponse {
   isAdmin: boolean;
@@ -112,7 +113,7 @@ export async function checkAdminStatus(): Promise<AdminMeResponse> {
   try {
     const response = await api.get<AdminMeResponse>("/api/admin/me");
     if (__DEV__) {
-      console.log("[P0_ADMIN_CONSOLE] checkAdminStatus:", {
+      devLog("[P0_ADMIN_CONSOLE] checkAdminStatus:", {
         isAdmin: response.isAdmin,
         email: response.email,
         message: response.message,
@@ -122,7 +123,7 @@ export async function checkAdminStatus(): Promise<AdminMeResponse> {
   } catch (error: any) {
     // Log dev-only for debugging admin endpoint issues
     if (__DEV__) {
-      console.log("[P0_ADMIN_CONSOLE] checkAdminStatus FAILED (treating as not admin):", error?.message);
+      devLog("[P0_ADMIN_CONSOLE] checkAdminStatus FAILED (treating as not admin):", error?.message);
     }
     return { isAdmin: false };
   }
@@ -145,7 +146,7 @@ export async function searchUsers(q: string): Promise<{ users: UserSearchResult[
 
   const response = await api.get<AdminUserSearchResponse>(`/api/admin/users/search?q=${encodeURIComponent(q.trim())}`);
   if (__DEV__) {
-    console.log(`[P0_ADMIN_CONSOLE] searchUsers: count=${response.users.length} q="${q}"`);
+    devLog(`[P0_ADMIN_CONSOLE] searchUsers: count=${response.users.length} q="${q}"`);
   }
   return response;
 }
@@ -158,12 +159,12 @@ export async function listBadges(): Promise<{ badges: BadgeDef[] }> {
   try {
     const response = await api.get<AdminBadgesResponse>("/api/admin/badges");
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] listBadges: count=${response.badges.length}`);
+      devLog(`[P0_ADMIN_CONSOLE] listBadges: count=${response.badges.length}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log("[P0_ADMIN_CONSOLE] listBadges FAILED:", error?.message);
+      devLog("[P0_ADMIN_CONSOLE] listBadges FAILED:", error?.message);
     }
     return { badges: [] };
   }
@@ -177,12 +178,12 @@ export async function getUserBadges(userId: string): Promise<{ badges: GrantedBa
   try {
     const response = await api.get<AdminUserBadgesResponse>(`/api/admin/users/${userId}/badges`);
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] getUserBadges: userId=${userId.substring(0,8)}... count=${response.badges.length}`);
+      devLog(`[P0_ADMIN_CONSOLE] getUserBadges: userId=${userId.substring(0,8)}... count=${response.badges.length}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] getUserBadges FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] getUserBadges FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
     }
     return { badges: [] };
   }
@@ -198,12 +199,12 @@ export async function grantUserBadge(userId: string, badgeId: string): Promise<A
       badgeId,
     });
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantUserBadge: userId=${userId.substring(0,8)}... badgeId=${badgeId} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantUserBadge: userId=${userId.substring(0,8)}... badgeId=${badgeId} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantUserBadge FAILED: error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantUserBadge FAILED: error=${error?.message}`);
     }
     // Re-throw auth errors for UI handling
     if (error?.status === 401 || error?.status === 403) {
@@ -221,12 +222,12 @@ export async function revokeUserBadge(userId: string, badgeId: string): Promise<
   try {
     const response = await api.delete<AdminBadgeActionResponse>(`/api/admin/users/${userId}/badges/${badgeId}`);
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeUserBadge: userId=${userId.substring(0,8)}... badgeId=${badgeId} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeUserBadge: userId=${userId.substring(0,8)}... badgeId=${badgeId} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeUserBadge FAILED: error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeUserBadge FAILED: error=${error?.message}`);
     }
     // Re-throw auth errors for UI handling
     if (error?.status === 401 || error?.status === 403) {
@@ -244,12 +245,12 @@ export async function createBadge(payload: CreateBadgePayload): Promise<{ succes
   try {
     const response = await api.post<{ success: boolean; badge?: BadgeDef; message?: string }>("/api/admin/badges", payload);
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] createBadge: key=${payload.badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] createBadge: key=${payload.badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] createBadge FAILED: error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] createBadge FAILED: error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -266,12 +267,12 @@ export async function updateBadge(badgeKey: string, payload: UpdateBadgePayload)
   try {
     const response = await api.patch<{ success: boolean; badge?: BadgeDef; message?: string }>(`/api/admin/badges/${badgeKey}`, payload);
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] updateBadge: key=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] updateBadge: key=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] updateBadge FAILED: error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] updateBadge FAILED: error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -291,12 +292,12 @@ export async function grantBadgeByKey(userId: string, badgeKey: string, note?: s
       note,
     });
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantBadgeByKey: userId=${userId.substring(0,8)}... badgeKey=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantBadgeByKey: userId=${userId.substring(0,8)}... badgeKey=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantBadgeByKey FAILED: badgeKey=${badgeKey} error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantBadgeByKey FAILED: badgeKey=${badgeKey} error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -315,12 +316,12 @@ export async function revokeBadgeByKey(userId: string, badgeKey: string): Promis
       badgeKey,
     });
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeBadgeByKey: userId=${userId.substring(0,8)}... badgeKey=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeBadgeByKey: userId=${userId.substring(0,8)}... badgeKey=${badgeKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeBadgeByKey FAILED: badgeKey=${badgeKey} error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeBadgeByKey FAILED: badgeKey=${badgeKey} error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -344,12 +345,12 @@ export async function getUserEntitlements(userId: string): Promise<AdminEntitlem
   try {
     const response = await api.get<AdminEntitlementsResponse>(`/api/admin/users/${userId}/entitlements`);
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] getUserEntitlements: userId=${userId.substring(0,8)}... count=${response.entitlements?.length ?? 0}`);
+      devLog(`[P0_ADMIN_CONSOLE] getUserEntitlements: userId=${userId.substring(0,8)}... count=${response.entitlements?.length ?? 0}`);
     }
     return { entitlements: response.entitlements ?? [] };
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] getUserEntitlements FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] getUserEntitlements FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -376,12 +377,12 @@ export async function grantEntitlement(
       reason,
     });
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} durationDays=${durationDays ?? 'unlimited'} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} durationDays=${durationDays ?? 'unlimited'} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] grantEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] grantEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
@@ -407,12 +408,12 @@ export async function revokeEntitlement(
       entitlementKey,
     });
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeEntitlement: userId=${userId.substring(0,8)}... entitlementKey=${entitlementKey} result=${response.success ? 'SUCCESS' : 'FAILED'}`);
     }
     return response;
   } catch (error: any) {
     if (__DEV__) {
-      console.log(`[P0_ADMIN_CONSOLE] revokeEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
+      devLog(`[P0_ADMIN_CONSOLE] revokeEntitlement FAILED: entitlementKey=${entitlementKey} error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;

@@ -11,6 +11,7 @@
 import { authClient } from "@/lib/authClient";
 import { safeToast } from "@/lib/safeToast";
 import * as Haptics from "expo-haptics";
+import { devLog, devWarn } from "./devLog";
 
 export interface ResendVerificationOptions {
   email: string;
@@ -36,7 +37,7 @@ export async function resendVerificationEmail(
   const { email, name, onSuccess, onError } = options;
 
   const endpoint = "/api/email-verification/resend";
-  console.log("[resendVerification] start", { endpoint });
+  devLog("[resendVerification] start", { endpoint });
 
   try {
     const data = await authClient.$fetch<{ 
@@ -51,7 +52,7 @@ export async function resendVerificationEmail(
       },
     });
 
-    console.log("[resendVerification] response", { success: data.success });
+    devLog("[resendVerification] response", { success: data.success });
 
     if (data.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -70,7 +71,7 @@ export async function resendVerificationEmail(
       } else if (data.error?.includes("rate limit") || data.error?.includes("cooldown")) {
         safeToast.warning("Please Wait", "Try again in a few minutes.");
       } else {
-        console.warn("[resendVerification] error", errorMessage);
+        devWarn("[resendVerification] error", errorMessage);
         safeToast.error("Error", errorMessage);
       }
 
@@ -79,7 +80,7 @@ export async function resendVerificationEmail(
     }
   } catch (error: any) {
     const errorMessage = error?.message || "Network error";
-    console.warn("[resendVerification] exception", errorMessage);
+    devWarn("[resendVerification] exception", errorMessage);
     safeToast.error("Network Error", "Please check your connection and try again.");
     onError?.(errorMessage);
     return { success: false, error: errorMessage };

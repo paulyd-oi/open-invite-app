@@ -14,6 +14,7 @@ import {
   Share,
   Dimensions,
 } from "react-native";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -593,7 +594,7 @@ function MiniCalendar({
                         // Don't navigate to private events that belong to other users
                         if (isMaskedBusy) {
                           if (__DEV__) {
-                            console.log('[CircleCalendarPrivacy] Blocked navigation to masked busy block:', event.id);
+                            devLog('[CircleCalendarPrivacy] Blocked navigation to masked busy block:', event.id);
                           }
                           return;
                         }
@@ -765,7 +766,7 @@ export default function CircleScreen() {
   // DEV: Log when selectedMemberToRemove changes
   React.useEffect(() => {
     if (__DEV__) {
-      console.log('[CircleRemoveMember] selectedMemberToRemove changed:', {
+      devLog('[CircleRemoveMember] selectedMemberToRemove changed:', {
         selectedMemberToRemove,
         confirmModalShouldBeVisible: !!selectedMemberToRemove,
       });
@@ -867,7 +868,7 @@ export default function CircleScreen() {
   const removeMemberMutation = useMutation({
     mutationFn: (memberUserId: string) => {
       if (__DEV__) {
-        console.log('[CircleRemoveMember] Mutation executing:', {
+        devLog('[CircleRemoveMember] Mutation executing:', {
           circleId: id,
           memberUserId,
           endpoint: `/api/circles/${id}/members/${memberUserId}`,
@@ -877,7 +878,7 @@ export default function CircleScreen() {
     },
     onSuccess: async (_data, memberUserId) => {
       if (__DEV__) {
-        console.log('[CircleRemoveMember] Mutation SUCCESS:', { circleId: id, memberUserId });
+        devLog('[CircleRemoveMember] Mutation SUCCESS:', { circleId: id, memberUserId });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Removed", "Member has been removed from the circle.");
@@ -889,7 +890,7 @@ export default function CircleScreen() {
     },
     onError: (error: any, memberUserId) => {
       if (__DEV__) {
-        console.log('[CircleRemoveMember] Mutation ERROR:', {
+        devLog('[CircleRemoveMember] Mutation ERROR:', {
           circleId: id,
           memberUserId,
           status: error?.status,
@@ -1903,7 +1904,7 @@ export default function CircleScreen() {
                             e.stopPropagation();
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             if (__DEV__) {
-                              console.log('[CircleRemoveMember] Trash pressed, member snapshot:', {
+                              devLog('[CircleRemoveMember] Trash pressed, member snapshot:', {
                                 memberId: member.id,
                                 memberUserId: member.userId,
                                 memberUserIdFromUser: member.user?.id,
@@ -1914,7 +1915,7 @@ export default function CircleScreen() {
                             // Use member.userId (from schema) for the mutation
                             const targetUserId = member.userId;
                             if (!targetUserId) {
-                              console.error('[CircleRemoveMember] ERROR: No userId found for member');
+                              devError('[CircleRemoveMember] ERROR: No userId found for member');
                               safeToast.error("Error", "Unable to identify member. Please try again.");
                               return;
                             }
@@ -2109,7 +2110,7 @@ export default function CircleScreen() {
                   onPress={() => {
                     if (selectedMemberToRemove) {
                       if (__DEV__) {
-                        console.log('[CircleRemoveMember] Confirm pressed:', {
+                        devLog('[CircleRemoveMember] Confirm pressed:', {
                           circleId: id,
                           memberUserIdToRemove: selectedMemberToRemove,
                           apiPath: `/api/circles/${id}/members/${selectedMemberToRemove}`,

@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Star, Sparkles, NotebookPen, Check } from "@/ui/icons";
 import Animated, {
@@ -142,7 +143,7 @@ export function EventSummaryModal({
       setRating(existingRating ?? 0);
       hasInitializedRef.current = true;
       if (__DEV__) {
-        console.log('[REFLECTION_MODAL] initialized', { rating: existingRating ?? 0, summaryLength: (existingSummary ?? "").length });
+        devLog('[REFLECTION_MODAL] initialized', { rating: existingRating ?? 0, summaryLength: (existingSummary ?? "").length });
       }
     } else if (!visible) {
       // Reset tracking when modal closes
@@ -153,7 +154,7 @@ export function EventSummaryModal({
   // DEV-only: Log rating changes
   const handleRatingChange = (newRating: number) => {
     if (__DEV__) {
-      console.log('[REFLECTION_MODAL] rating set to', newRating);
+      devLog('[REFLECTION_MODAL] rating set to', newRating);
     }
     setRating(newRating);
   };
@@ -161,7 +162,7 @@ export function EventSummaryModal({
   // DEV-only: Log text changes
   const handleTextChange = (text: string) => {
     if (__DEV__ && text.length % 50 === 0) {
-      console.log('[REFLECTION_MODAL] text length', text.length);
+      devLog('[REFLECTION_MODAL] text length', text.length);
     }
     setSummary(text);
   };

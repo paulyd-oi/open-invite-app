@@ -35,6 +35,7 @@ import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { devError } from "@/lib/devLog";
 
 type FriendRequestSetting = "everyone" | "friends_of_friends" | "nobody";
 
@@ -112,7 +113,7 @@ export default function PrivacySettingsScreen() {
         safeToast.info("Export Ready", `Data saved to ${fileName}`);
       }
     } catch (error) {
-      console.error("Export error:", error);
+      devError("Export error:", error);
       safeToast.error("Export Failed", "Unable to export your data. Please try again.");
     } finally {
       setIsExporting(false);

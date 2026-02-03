@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate } from "react-native-reanimated";
@@ -661,14 +662,14 @@ export default function SocialScreen() {
     // Auth truth source is bootStatus (token validation), not session presence.
     if (isAuthed) {
       // bootStatus confirms token is valid
-      if (__DEV__) console.log("[SocialScreen] Auth confirmed via bootStatus; setting bootstrap state to ready");
+      if (__DEV__) devLog("[SocialScreen] Auth confirmed via bootStatus; setting bootstrap state to ready");
       setAuthBootstrapState("ready");
     }
   }, [isAuthed]);
 
   // Handle retry button
   const handleRetry = useCallback(() => {
-    if (__DEV__) console.log("[SocialScreen] Retrying bootstrap...");
+    if (__DEV__) devLog("[SocialScreen] Retrying bootstrap...");
     hasBootstrapped.current = false;
     setAuthBootstrapState("checking");
     setAuthBootstrapError(undefined);
@@ -936,7 +937,7 @@ export default function SocialScreen() {
         attendingEvents.filter(e => shouldOmit(e)).length + 
         discoveryEvents.filter(e => shouldOmit(e)).length;
       if (busyOmittedCount > 0) {
-        console.log("[SOCIAL_OMIT_BUSY]", {
+        devLog("[SOCIAL_OMIT_BUSY]", {
           inputCount: totalInput,
           omittedCount: busyOmittedCount,
           outputCount: result.length,
@@ -1159,7 +1160,7 @@ export default function SocialScreen() {
                       url: "https://apps.apple.com/app/open-invite",
                     });
                   } catch (error) {
-                    console.error("Error sharing:", error);
+                    devError("Error sharing:", error);
                   }
                 }}
                 className="flex-row items-center px-5 py-2.5 rounded-full mb-3"

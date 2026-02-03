@@ -6,6 +6,7 @@
  */
 
 import * as SecureStore from 'expo-secure-store';
+import { devLog, devWarn, devError } from './devLog';
 
 const PENDING_REFERRAL_CODE_KEY = 'pending_referral_code';
 const PENDING_REFERRAL_TIMESTAMP_KEY = 'pending_referral_timestamp';
@@ -42,7 +43,7 @@ export function parseReferralCodeFromUrl(url: string): string | null {
 
     return null;
   } catch (error) {
-    console.log('[Referral] Error parsing URL:', error);
+    devLog('[Referral] Error parsing URL:', error);
     return null;
   }
 }
@@ -55,9 +56,9 @@ export async function setPendingReferralCode(code: string): Promise<void> {
   try {
     await SecureStore.setItemAsync(PENDING_REFERRAL_CODE_KEY, code);
     await SecureStore.setItemAsync(PENDING_REFERRAL_TIMESTAMP_KEY, Date.now().toString());
-    console.log('[Referral] Stored pending referral code:', code);
+    devLog('[Referral] Stored pending referral code:', code);
   } catch (error) {
-    console.log('[Referral] Failed to store referral code:', error);
+    devLog('[Referral] Failed to store referral code:', error);
   }
 }
 
@@ -78,14 +79,14 @@ export async function getPendingReferralCode(): Promise<string | null> {
 
     // Check if expired
     if (age > REFERRAL_CODE_EXPIRY_MS) {
-      console.log('[Referral] Pending referral code expired, clearing');
+      devLog('[Referral] Pending referral code expired, clearing');
       await clearPendingReferralCode();
       return null;
     }
 
     return code;
   } catch (error) {
-    console.log('[Referral] Failed to get referral code:', error);
+    devLog('[Referral] Failed to get referral code:', error);
     return null;
   }
 }
@@ -97,9 +98,9 @@ export async function clearPendingReferralCode(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(PENDING_REFERRAL_CODE_KEY);
     await SecureStore.deleteItemAsync(PENDING_REFERRAL_TIMESTAMP_KEY);
-    console.log('[Referral] Cleared pending referral code');
+    devLog('[Referral] Cleared pending referral code');
   } catch (error) {
-    console.log('[Referral] Failed to clear referral code:', error);
+    devLog('[Referral] Failed to clear referral code:', error);
   }
 }
 

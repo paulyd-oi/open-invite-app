@@ -20,6 +20,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { devLog } from "@/lib/devLog";
 
 interface BadgeCatalogItem {
   badgeKey: string;
@@ -65,11 +66,11 @@ export default function BadgesScreen() {
     queryKey: ["badgesCatalog"],
     queryFn: async () => {
       if (__DEV__) {
-        console.log("[BADGES_FETCH] Fetching badges catalog...");
+        devLog("[BADGES_FETCH] Fetching badges catalog...");
       }
       const response = await api.get<BadgeCatalogResponse>("/api/badges/catalog");
       if (__DEV__) {
-        console.log("[BADGES_FETCH] Response:", {
+        devLog("[BADGES_FETCH] Response:", {
           badgesCount: response?.badges?.length ?? 0,
           responseKeys: Object.keys(response || {}),
           unlockedCount: response?.badges?.filter(b => b.unlocked).length ?? 0,
@@ -125,7 +126,7 @@ export default function BadgesScreen() {
   // DEV logging for render decision
   React.useEffect(() => {
     if (__DEV__) {
-      console.log("[BADGES_RENDER]", {
+      devLog("[BADGES_RENDER]", {
         bootStatus,
         isLoading,
         totalBadges: badges.length,

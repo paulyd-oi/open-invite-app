@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { View, Text, Pressable, RefreshControl, FlatList, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -328,7 +329,7 @@ export default function ActivityScreen() {
         const alreadyAsked = await AsyncStorage.getItem(permissionKey);
         if (alreadyAsked) {
           if (__DEV__) {
-            console.log("[Activity] Permission already requested for user, skipping");
+            devLog("[Activity] Permission already requested for user, skipping");
           }
           return;
         }
@@ -339,7 +340,7 @@ export default function ActivityScreen() {
         if (status === "undetermined") {
           // First time - request permission
           if (__DEV__) {
-            console.log("[Activity] First Activity open, requesting notification permission");
+            devLog("[Activity] First Activity open, requesting notification permission");
           }
           
           const { status: newStatus } = await Notifications.requestPermissionsAsync();
@@ -348,7 +349,7 @@ export default function ActivityScreen() {
           await AsyncStorage.setItem(permissionKey, "true");
           
           if (__DEV__) {
-            console.log("[Activity] Permission request result:", newStatus);
+            devLog("[Activity] Permission request result:", newStatus);
           }
         } else {
           // Permission already determined (granted or denied)
@@ -357,7 +358,7 @@ export default function ActivityScreen() {
         }
       } catch (error) {
         if (__DEV__) {
-          console.error("[Activity] Error checking/requesting permission:", error);
+          devError("[Activity] Error checking/requesting permission:", error);
         }
       }
     };
@@ -447,7 +448,7 @@ export default function ActivityScreen() {
       // No valid target - show calm user-friendly message
       safeToast.info("Unavailable", "This item is no longer available.");
       if (__DEV__) {
-        console.warn('[Activity] Notification has no valid navigation target:', notification.id);
+        devWarn('[Activity] Notification has no valid navigation target:', notification.id);
       }
     }
   };

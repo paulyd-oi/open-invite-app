@@ -9,6 +9,7 @@ import {
   Switch,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -139,7 +140,7 @@ export default function EditEventScreen() {
     },
     onError: (error) => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
-      console.error(error);
+      devError("[EVENT_EDIT]", "Update failed:", error);
     },
   });
 
@@ -402,7 +403,7 @@ export default function EditEventScreen() {
               </View>
             </View>
           </Animated.View>
-          {__DEV__ && (() => { console.log("[DEV_DECISION] edit_event_time_ui source=inline_compact_matching_create"); return null; })()}
+          {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_time_ui source=inline_compact_matching_create"); return null; })()}
 
           {/* Visibility */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
@@ -451,7 +452,7 @@ export default function EditEventScreen() {
                 </Text>
               </Pressable>
             </View>
-            {__DEV__ && (() => { console.log("[DEV_DECISION] edit_event_private_removed true"); return null; })()}
+            {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_private_removed true"); return null; })()}
 
             {/* Group Selection */}
             {visibility === "specific_groups" && (
@@ -518,7 +519,7 @@ export default function EditEventScreen() {
               </View>
             )}
           </Animated.View>
-          {__DEV__ && (() => { console.log("[DEV_DECISION] edit_event_host_section mode=removed_for_consistency"); return null; })()}
+          {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_host_section mode=removed_for_consistency"); return null; })()}
 
           {/* Save Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>

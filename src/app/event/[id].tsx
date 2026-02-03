@@ -13,6 +13,7 @@ import {
   Switch,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -204,7 +205,7 @@ const addToDeviceCalendar = async (event: { title: string; description?: string 
 
     showToast.success("Event Added!", `Added to your ${targetCalendar.title} calendar.`);
   } catch (error: any) {
-    console.error("Error adding to calendar:", error);
+    devError("Error adding to calendar:", error);
 
     // Check if it's a permission error
     if (error?.message?.includes("permission") || error?.code === "E_MISSING_PERMISSION") {
@@ -255,7 +256,7 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
       url: shareUrl,
     });
   } catch (error) {
-    console.error("Error sharing event:", error);
+    devError("Error sharing event:", error);
   }
 };
 
@@ -311,7 +312,7 @@ export default function EventDetailScreen() {
         setIsSynced(synced);
       } catch (error) {
         if (__DEV__) {
-          console.error("Failed to check sync status:", error);
+          devError("Failed to check sync status:", error);
         }
       } finally {
         setIsCheckingSync(false);
@@ -475,7 +476,7 @@ export default function EventDetailScreen() {
 
   // DEV logging for blocked event debugging
   if (__DEV__ && !isLoadingEvent && eventError) {
-    console.log('[P0_BLOCKED_EVENT] Event fetch error:', {
+    devLog('[P0_BLOCKED_EVENT] Event fetch error:', {
       eventId: id,
       status: eventErrorStatus,
       code: eventErrorCode,
@@ -564,7 +565,7 @@ export default function EventDetailScreen() {
   
   // DEV logging for visibility decision
   if (__DEV__ && !isLoadingEvent) {
-    console.log('[P0_BLOCKED_EVENT] Visibility decision:', {
+    devLog('[P0_BLOCKED_EVENT] Visibility decision:', {
       eventId: id,
       hasEvent: !!event,
       eventType: event?.isBusy ? 'busy_block' : 'open_invite',
@@ -789,7 +790,7 @@ export default function EventDetailScreen() {
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
         setCommentImage(uploadResponse.url);
       } catch (error) {
-        console.error("Image upload failed:", error);
+        devError("Image upload failed:", error);
         safeToast.error("Oops", "That didn't go through. Please try again.");
       } finally {
         setIsUploadingImage(false);
@@ -2551,7 +2552,7 @@ export default function EventDetailScreen() {
                           try {
                             await setOverrideColor(id, color);
                             if (__DEV__) {
-                              console.log("[EventColorPicker] Color set:", { eventId: id, color });
+                              devLog("[EventColorPicker] Color set:", { eventId: id, color });
                             }
                           } catch (error) {
                             safeToast.error("Error", "Failed to save color");
@@ -2587,7 +2588,7 @@ export default function EventDetailScreen() {
                       try {
                         await resetColor(id);
                         if (__DEV__) {
-                          console.log("[EventColorPicker] Color reset to default:", { eventId: id });
+                          devLog("[EventColorPicker] Color reset to default:", { eventId: id });
                         }
                       } catch (error) {
                         safeToast.error("Error", "Failed to reset color");

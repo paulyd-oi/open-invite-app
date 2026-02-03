@@ -8,6 +8,7 @@
  */
 
 import type { GetProfileResponse } from "@/shared/contracts";
+import { devLog } from "./devLog";
 
 interface SessionUser {
   name?: string | null;
@@ -129,7 +130,7 @@ export function computeDisplayLabel(user: {
 
   // DEV: Log when fallback is used (helps trace why email local-part appears)
   if (__DEV__ && (user?.handle || user?.email)) {
-    console.log("[DISPLAYNAME_FALLBACK_BLOCKED] No persisted name, using fallback for display only");
+    devLog("[DISPLAYNAME_FALLBACK_BLOCKED] No persisted name, using fallback for display only");
   }
 
   // Fallback: handle with @ prefix

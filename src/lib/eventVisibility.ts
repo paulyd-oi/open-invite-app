@@ -5,6 +5,8 @@
  * to non-owners. This module provides centralized masking logic for all render paths.
  */
 
+import { devLog } from "./devLog";
+
 /**
  * Determines if an event should be masked (displayed as "Busy") for the viewer.
  * 
@@ -22,7 +24,7 @@ export function shouldMaskEvent(
   
   // [P0_PRIVACY_BUSY] Log masking decision in DEV
   if (__DEV__) {
-    console.log("[P0_PRIVACY_BUSY] shouldMaskEvent:", {
+    devLog("[P0_PRIVACY_BUSY] shouldMaskEvent:", {
       isBusy: event.isBusy,
       isWork: event.isWork,
       isOwn: event.isOwn,
@@ -66,7 +68,7 @@ export function getEventDisplayFields(
   if (isMasked) {
     // [P0_PRIVACY_BUSY] Log masked output
     if (__DEV__) {
-      console.log("[P0_PRIVACY_BUSY] MASKED event - hiding title:", event.title);
+      devLog("[P0_PRIVACY_BUSY] MASKED event - hiding title:", event.title);
     }
     return {
       displayTitle: "Busy",

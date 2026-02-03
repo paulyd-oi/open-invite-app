@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 
 import { type DARK_COLORS } from "@/lib/ThemeContext";
 import { type Event } from "@/shared/contracts";
+import { devLog } from "@/lib/devLog";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { getEventDisplayFields } from "@/lib/eventVisibility";
@@ -451,7 +452,7 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
 
       {/* Day Events Modal - Bottom Sheet Style */}
       {/* STRUCTURAL FIX: Use colors.background for pageSheet to avoid white overlay on dark mode */}
-      {__DEV__ && (() => { console.log('[CALENDAR_SHEET_RENDER]', { showDayModal, bgColor: colors.background }); return null; })()}
+      {__DEV__ && (() => { devLog('[CALENDAR_SHEET_RENDER]', { showDayModal, bgColor: colors.background }); return null; })()}
       <Modal
         visible={showDayModal}
         animationType="slide"

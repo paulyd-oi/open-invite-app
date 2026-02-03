@@ -4,6 +4,7 @@
  */
 
 import type { Router } from "expo-router";
+import { devLog, devWarn, devError } from "./devLog";
 
 // ============================================
 // Route Constants
@@ -98,7 +99,7 @@ export function goToSubscription(router: Router): void {
  */
 export function goToDevSmokeTests(router: Router): void {
   if (!__DEV__) {
-    console.warn('[nav] goToDevSmokeTests called in production - ignoring');
+    devWarn('[nav] goToDevSmokeTests called in production - ignoring');
     return;
   }
   router.push(ROUTES.DEV_SMOKE_TESTS);
@@ -170,14 +171,14 @@ export function safePush(router: Router, path: string): void {
     router.push(path as any);
   } catch (error) {
     if (__DEV__) {
-      console.error('[Navigation] Failed to push:', path, error);
+      devError('[Navigation] Failed to push:', path, error);
     }
     // Fallback to home on error
     try {
       router.replace(ROUTES.HOME);
     } catch (fallbackError) {
       if (__DEV__) {
-        console.error('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
+        devError('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
       }
     }
   }
@@ -192,14 +193,14 @@ export function safeReplace(router: Router, path: string): void {
     router.replace(path as any);
   } catch (error) {
     if (__DEV__) {
-      console.error('[Navigation] Failed to replace:', path, error);
+      devError('[Navigation] Failed to replace:', path, error);
     }
     // Fallback to home on error
     try {
       router.replace(ROUTES.HOME);
     } catch (fallbackError) {
       if (__DEV__) {
-        console.error('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
+        devError('[Navigation] Fatal: Could not navigate anywhere', fallbackError);
       }
     }
   }

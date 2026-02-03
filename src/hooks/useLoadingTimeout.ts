@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { devLog } from '@/lib/devLog';
 
 interface UseLoadingTimeoutOptions {
   /** Timeout in milliseconds before showing degraded UI (default: 3000ms) */
@@ -53,9 +54,7 @@ export function useLoadingTimeout(
       clearTimer();
       timerRef.current = setTimeout(() => {
         setIsTimedOut(true);
-        if (__DEV__) {
-          console.log('[LoadingTimeout] Timeout reached - entering degraded mode');
-        }
+        devLog('[LoadingTimeout] Timeout reached - entering degraded mode');
       }, timeout);
     }
 

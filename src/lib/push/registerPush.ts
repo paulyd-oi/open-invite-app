@@ -10,6 +10,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/lib/api";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 const PUSH_TOKEN_KEY = "expo_push_token";
 const PUSH_PERMISSION_PROMPTED_KEY = "push_permission_prompted";
@@ -104,7 +105,7 @@ export async function registerPushToken(): Promise<{
   // Check if we're on a physical device
   if (!Device.isDevice) {
     if (__DEV__) {
-      console.log("[registerPush] Push notifications require a physical device");
+      devLog("[registerPush] Push notifications require a physical device");
     }
     return {
       success: false,
@@ -130,7 +131,7 @@ export async function registerPushToken(): Promise<{
     // If permission denied, update backend and return
     if (finalStatus !== "granted") {
       if (__DEV__) {
-        console.log("[registerPush] Permission denied");
+        devLog("[registerPush] Permission denied");
       }
       
       // Notify backend of denied status (fire and forget)
@@ -155,7 +156,7 @@ export async function registerPushToken(): Promise<{
 
     if (!projectId) {
       if (__DEV__) {
-        console.log("[registerPush] Project ID not found");
+        devLog("[registerPush] Project ID not found");
       }
       return {
         success: false,
@@ -166,19 +167,19 @@ export async function registerPushToken(): Promise<{
 
     // Get the Expo push token
     if (__DEV__) {
-      console.log("[registerPush] Getting token with projectId:", projectId);
+      devLog("[registerPush] Getting token with projectId:", projectId);
     }
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData.data;
 
     if (__DEV__) {
-      console.log("[registerPush] Got token:", getTokenPrefix(token));
+      devLog("[registerPush] Got token:", getTokenPrefix(token));
     }
 
     // INVARIANT: Validate token before sending to backend (uses shared validator)
     if (!isValidExpoPushToken(token)) {
       if (__DEV__) {
-        console.log("[registerPush] Token failed validation, not registering");
+        devLog("[registerPush] Token failed validation, not registering");
       }
       return {
         success: false,
@@ -203,7 +204,7 @@ export async function registerPushToken(): Promise<{
     });
 
     if (__DEV__) {
-      console.log(`[registerPush] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
+      devLog(`[registerPush] ✓ Token registered | route=${PUSH_REGISTER_ROUTE} | tokenPrefix=${getTokenPrefix(token)}`);
     }
 
     return {
@@ -213,7 +214,7 @@ export async function registerPushToken(): Promise<{
     };
   } catch (error) {
     if (__DEV__) {
-      console.error("[registerPush] Error:", error);
+      devError("[registerPush] Error:", error);
     }
     return {
       success: false,

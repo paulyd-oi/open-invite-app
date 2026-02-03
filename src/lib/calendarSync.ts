@@ -2,6 +2,7 @@ import * as Calendar from "expo-calendar";
 import { Platform, Linking } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { requestCalendarPermission } from "./permissions";
+import { devLog, devWarn, devError } from "./devLog";
 
 // AsyncStorage keys for sync mapping
 const SYNC_MAPPING_PREFIX = "calendarSync:event:";
@@ -58,7 +59,7 @@ export async function checkCalendarPermission(): Promise<CalendarPermissionResul
       canAskAgain: canAskAgain !== false, // Default to true if undefined
     };
   } catch (error) {
-    console.error("Failed to check calendar permissions:", error);
+    devError("Failed to check calendar permissions:", error);
     return {
       granted: false,
       status: "undetermined",
@@ -92,7 +93,7 @@ export async function getDeviceCalendars(): Promise<DeviceCalendar[]> {
     }));
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to get calendars:", error);
+      devError("Failed to get calendars:", error);
     }
     return [];
   }
@@ -113,7 +114,7 @@ export async function getDefaultCalendarId(): Promise<string | null> {
     }
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to get default calendar:", error);
+      devError("Failed to get default calendar:", error);
     }
     return null;
   }
@@ -148,7 +149,7 @@ export async function getDeviceEvents(
     });
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to get device events:", error);
+      devError("Failed to get device events:", error);
     }
     return [];
   }
@@ -170,7 +171,7 @@ export async function exportEventToCalendar(
     const targetCalendarId = calendarId ?? (await getDefaultCalendarId());
     if (!targetCalendarId) {
       if (__DEV__) {
-        console.error("No calendar available");
+        devError("No calendar available");
       }
       return null;
     }
@@ -191,7 +192,7 @@ export async function exportEventToCalendar(
     return eventId;
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to export event:", error);
+      devError("Failed to export event:", error);
     }
     return null;
   }
@@ -204,7 +205,7 @@ export async function deleteEventFromCalendar(eventId: string): Promise<boolean>
     return true;
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to delete event:", error);
+      devError("Failed to delete event:", error);
     }
     return false;
   }
@@ -236,7 +237,7 @@ export async function getSyncMapping(eventId: string): Promise<string | null> {
     return deviceEventId;
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to get sync mapping:", error);
+      devError("Failed to get sync mapping:", error);
     }
     return null;
   }
@@ -250,7 +251,7 @@ export async function setSyncMapping(eventId: string, deviceEventId: string): Pr
     await AsyncStorage.setItem(`${SYNC_MAPPING_PREFIX}${eventId}`, deviceEventId);
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to set sync mapping:", error);
+      devError("Failed to set sync mapping:", error);
     }
   }
 }
@@ -263,7 +264,7 @@ export async function removeSyncMapping(eventId: string): Promise<void> {
     await AsyncStorage.removeItem(`${SYNC_MAPPING_PREFIX}${eventId}`);
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to remove sync mapping:", error);
+      devError("Failed to remove sync mapping:", error);
     }
   }
 }
@@ -315,7 +316,7 @@ export async function getOrSelectSyncCalendar(): Promise<string | null> {
     return null;
   } catch (error) {
     if (__DEV__) {
-      console.error("Failed to get sync calendar:", error);
+      devError("Failed to get sync calendar:", error);
     }
     return null;
   }
@@ -397,7 +398,7 @@ export async function syncEventToDeviceCalendar(event: SyncEventInput): Promise<
       } catch (updateError) {
         // Event might have been deleted, create new one
         if (__DEV__) {
-          console.log("Existing event not found, creating new:", updateError);
+          devLog("Existing event not found, creating new:", updateError);
         }
         await removeSyncMapping(event.id);
       }
@@ -415,7 +416,7 @@ export async function syncEventToDeviceCalendar(event: SyncEventInput): Promise<
     };
   } catch (error: any) {
     if (__DEV__) {
-      console.error("Failed to sync event to device calendar:", error);
+      devError("Failed to sync event to device calendar:", error);
     }
     return {
       success: false,

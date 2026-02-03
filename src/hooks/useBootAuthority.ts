@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { bootstrapAuthWithWatchdog } from '@/lib/authBootstrap';
+import { devLog, devError, devWarn } from '@/lib/devLog';
 
 export type BootStatus = 'loading' | 'authed' | 'onboarding' | 'loggedOut' | 'error' | 'degraded';
 
@@ -76,25 +77,19 @@ export function useBootAuthority(): UseBootAuthorityResult {
 
     // If already bootstrapped and no refresh requested, skip
     if (hasBootstrappedOnce && !refreshRequested) {
-      if (__DEV__) {
-        console.log('[BootAuthority] Bootstrap already ran - skipping');
-      }
+      devLog('[BOOT_AUTHORITY]', 'Bootstrap already ran - skipping');
       return;
     }
 
     // If refresh requested, allow re-run
     if (refreshRequested) {
-      if (__DEV__) {
-        console.log('[BootAuthority] Refresh requested (id=' + refreshRequestId + ') - allowing re-run');
-      }
+      devLog('[BOOT_AUTHORITY]', 'Refresh requested (id=' + refreshRequestId + ') - allowing re-run');
       hasBootstrappedOnce = false;
     }
 
     // If bootstrap in flight, skip
     if (inFlightBootstrap) {
-      if (__DEV__) {
-        console.log('[BootAuthority] Bootstrap already in flight - skipping');
-      }
+      devLog('[BOOT_AUTHORITY]', 'Bootstrap already in flight - skipping');
       return;
     }
 
@@ -104,9 +99,7 @@ export function useBootAuthority(): UseBootAuthorityResult {
     }
     hasRunRef.current = true;
 
-    if (__DEV__) {
-      console.log('[BootAuthority] Starting bootstrap...');
-    }
+    devLog('[BOOT_AUTHORITY]', 'Starting bootstrap...');
 
     const runBootstrap = async () => {
       try {
@@ -116,7 +109,7 @@ export function useBootAuthority(): UseBootAuthorityResult {
         hasBootstrappedOnce = true;
         lastSeenRequestIdRef.current = refreshRequestId;
       } catch (err) {
-        console.error('[BootAuthority] Bootstrap error:', err);
+        devError('[BOOT_AUTHORITY]', 'Bootstrap error:', err);
         setGlobalState('error', err instanceof Error ? err.message : String(err));
         hasBootstrappedOnce = true;
         lastSeenRequestIdRef.current = refreshRequestId;
@@ -131,9 +124,7 @@ export function useBootAuthority(): UseBootAuthorityResult {
   // Explicit retry - resets singleton and re-runs bootstrap
   const retry = () => {
     if (globalStatus === 'degraded' || globalStatus === 'error') {
-      if (__DEV__) {
-        console.log('[BootAuthority] Explicit retry - resetting singleton...');
-      }
+      devLog('[BOOT_AUTHORITY]', 'Explicit retry - resetting singleton...');
       
       // Reset singleton state
       hasBootstrappedOnce = false;
@@ -149,7 +140,7 @@ export function useBootAuthority(): UseBootAuthorityResult {
           mapBootstrapResultToGlobalStatus(result);
           hasBootstrappedOnce = true;
         } catch (err) {
-          console.error('[BootAuthority] Retry error:', err);
+          devError('[BOOT_AUTHORITY]', 'Retry error:', err);
           setGlobalState('error', err instanceof Error ? err.message : String(err));
           hasBootstrappedOnce = true;
         } finally {
@@ -167,18 +158,16 @@ export function useBootAuthority(): UseBootAuthorityResult {
 function mapBootstrapResultToGlobalStatus(
   result: Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>
 ) {
-  if (__DEV__) {
-    console.log('[BootAuthority] Bootstrap complete:', result.state);
-  }
+  devLog('[BOOT_AUTHORITY]', 'Bootstrap complete:', result.state);
 
   if (result.timedOut) {
-    console.error('[BootAuthority] Bootstrap timed out');
+    devError('[BOOT_AUTHORITY]', 'Bootstrap timed out');
     setGlobalState('error', 'Bootstrap timeout');
     return;
   }
 
   if (result.error && result.state !== 'degraded') {
-    console.error('[BootAuthority] Bootstrap error:', result.error);
+    devError('[BOOT_AUTHORITY]', 'Bootstrap error:', result.error);
     setGlobalState('error', result.error);
     return;
   }
@@ -198,16 +187,14 @@ function mapBootstrapResultToGlobalStatus(
       setGlobalState('degraded', result.error);
       break;
     default:
-      console.warn('[BootAuthority] Unknown bootstrap state:', result.state);
+      devWarn('[BOOT_AUTHORITY]', 'Unknown bootstrap state:', result.state);
       setGlobalState('error', 'Unknown bootstrap state');
   }
 }
 
 // Export for logout flow to reset singleton
 export function resetBootAuthority() {
-  if (__DEV__) {
-    console.log('[BootAuthority] Resetting singleton for logout...');
-  }
+  devLog('[BOOT_AUTHORITY]', 'Resetting singleton for logout...');
   hasBootstrappedOnce = false;
   inFlightBootstrap = null;
   setGlobalState('loading');
@@ -215,9 +202,7 @@ export function resetBootAuthority() {
 
 // Export for post-login flow to force immediate re-bootstrap
 export async function rebootstrapAfterLogin(): Promise<void> {
-  if (__DEV__) {
-    console.log('[BootAuthority] Post-login rebootstrap - resetting singleton and running bootstrap...');
-  }
+  devLog('[BOOT_AUTHORITY]', 'Post-login rebootstrap - resetting singleton and running bootstrap...');
   
   // Reset singleton state
   hasBootstrappedOnce = false;
@@ -231,7 +216,7 @@ export async function rebootstrapAfterLogin(): Promise<void> {
     mapBootstrapResultToGlobalStatus(result);
     hasBootstrappedOnce = true;
   } catch (err) {
-    console.error('[BootAuthority] Post-login bootstrap error:', err);
+    devError('[BOOT_AUTHORITY]', 'Post-login bootstrap error:', err);
     setGlobalState('error', err instanceof Error ? err.message : String(err));
     hasBootstrappedOnce = true;
   } finally {
@@ -242,9 +227,7 @@ export async function rebootstrapAfterLogin(): Promise<void> {
 // Export for onboarding completion to request one-time bootstrap refresh
 export function requestBootstrapRefreshOnce(): void {
   refreshRequestId++;
-  if (__DEV__) {
-    console.log('[BootAuthority] Requesting bootstrap refresh (id=' + refreshRequestId + ')');
-  }
+  devLog('[BOOT_AUTHORITY]', 'Requesting bootstrap refresh (id=' + refreshRequestId + ')');
 }
 
 // Export getter for refresh request ID (for waiting logic)

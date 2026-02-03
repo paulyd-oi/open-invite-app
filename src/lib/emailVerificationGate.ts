@@ -7,6 +7,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeToast } from "@/lib/safeToast";
+import { devWarn } from "./devLog";
 
 // Throttle state for toast deduplication
 let lastToastTime = 0;
@@ -48,7 +49,7 @@ export async function markGateModalShown(userId: string): Promise<void> {
     const key = `${GATE_MODAL_PREFIX}${userId}`;
     await AsyncStorage.setItem(key, "true");
   } catch (error) {
-    console.warn("[EmailGate] Failed to mark modal shown:", error);
+    devWarn("[EmailGate] Failed to mark modal shown:", error);
   }
 }
 

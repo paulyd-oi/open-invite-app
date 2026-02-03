@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 export type ToastVariant = "success" | "info" | "warning" | "error";
 
@@ -148,19 +149,19 @@ const styles = StyleSheet.create({
  */
 export const toast = {
   success(title: string, message?: string) {
-    if (__DEV__) console.log('[Toast Success]', title, message);
+    if (__DEV__) devLog('[Toast Success]', title, message);
     Alert.alert(title, message ?? "");
   },
   error(title: string, message?: string) {
-    if (__DEV__) console.error('[Toast Error]', title, message);
+    if (__DEV__) devError('[Toast Error]', title, message);
     Alert.alert(title, message ?? "");
   },
   warning(title: string, message?: string) {
-    if (__DEV__) console.warn('[Toast Warning]', title, message);
+    if (__DEV__) devWarn('[Toast Warning]', title, message);
     Alert.alert(title, message ?? "");
   },
   info(title: string, message?: string) {
-    if (__DEV__) console.log('[Toast Info]', title, message);
+    if (__DEV__) devLog('[Toast Info]', title, message);
     Alert.alert(title, message ?? "");
   },
 };

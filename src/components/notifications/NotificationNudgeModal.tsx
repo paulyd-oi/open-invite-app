@@ -13,6 +13,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { X, Bell, MessageCircle, CalendarCheck, Users, BellOff, AlertCircle } from "@/ui/icons";
 
 import { useTheme } from "@/lib/ThemeContext";
@@ -36,7 +37,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
   // Only run on physical device
   if (!Device.isDevice) {
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} Skipping - not a physical device`);
+      devLog(`${LOG_PREFIX} Skipping - not a physical device`);
     }
     return false;
   }
@@ -48,7 +49,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
       Constants?.expoConfig?.extra?.eas?.projectId;
 
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} projectId: ${projectId || "NOT_FOUND"}`);
+      devLog(`${LOG_PREFIX} projectId: ${projectId || "NOT_FOUND"}`);
     }
 
     if (!projectId) {
@@ -62,14 +63,14 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     const tokenLength = token?.length ?? 0;
 
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} tokenPrefix: ${tokenPrefix}`);
-      console.log(`${LOG_PREFIX} tokenLength: ${tokenLength}`);
+      devLog(`${LOG_PREFIX} tokenPrefix: ${tokenPrefix}`);
+      devLog(`${LOG_PREFIX} tokenLength: ${tokenLength}`);
     }
 
     // Validate token (uses shared validator)
     const isValid = isValidExpoPushToken(token);
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} isValidExpoPushToken: ${isValid}`);
+      devLog(`${LOG_PREFIX} isValidExpoPushToken: ${isValid}`);
     }
     if (!isValid) {
       return false;
@@ -78,7 +79,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     // Register with backend
     const PUSH_REGISTER_ROUTE = "/api/push/register";
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} POST ${PUSH_REGISTER_ROUTE} ...`);
+      devLog(`${LOG_PREFIX} POST ${PUSH_REGISTER_ROUTE} ...`);
     }
 
     try {
@@ -88,45 +89,45 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
       });
 
       if (__DEV__) {
-        console.log(`${LOG_PREFIX} POST status: 200`);
-        console.log(`${LOG_PREFIX} POST body: ${JSON.stringify(response)}`);
+        devLog(`${LOG_PREFIX} POST status: 200`);
+        devLog(`${LOG_PREFIX} POST body: ${JSON.stringify(response)}`);
       }
     } catch (postErr: any) {
       const status = postErr?.status ?? postErr?.statusCode ?? "unknown";
       const body = postErr?.data ?? postErr?.message ?? String(postErr);
       if (__DEV__) {
         if (status === 401) {
-          console.log(`${LOG_PREFIX} POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
+          devLog(`${LOG_PREFIX} POST 401 UNAUTHORIZED - auth cookie missing or invalid`);
         } else {
-          console.log(`${LOG_PREFIX} POST status: ${status}`);
+          devLog(`${LOG_PREFIX} POST status: ${status}`);
         }
-        console.log(`${LOG_PREFIX} POST error: ${JSON.stringify(body)}`);
+        devLog(`${LOG_PREFIX} POST error: ${JSON.stringify(body)}`);
       }
       return false;
     }
 
     // Verify with GET /api/push/me
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} GET /api/push/me ...`);
+      devLog(`${LOG_PREFIX} GET /api/push/me ...`);
       try {
         const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
-        console.log(`${LOG_PREFIX} GET body: ${JSON.stringify(meResponse)}`);
+        devLog(`${LOG_PREFIX} GET body: ${JSON.stringify(meResponse)}`);
         const tokens = meResponse?.tokens ?? [];
         const hasActiveToken = tokens.some((t) => t.isActive === true);
-        console.log(`${LOG_PREFIX} hasActiveToken: ${hasActiveToken}`);
+        devLog(`${LOG_PREFIX} hasActiveToken: ${hasActiveToken}`);
       } catch (getErr: any) {
-        console.log(`${LOG_PREFIX} GET error: ${getErr?.status ?? getErr}`);
+        devLog(`${LOG_PREFIX} GET error: ${getErr?.status ?? getErr}`);
       }
     }
 
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} ✅ Registration complete`);
+      devLog(`${LOG_PREFIX} ✅ Registration complete`);
     }
 
     return true;
   } catch (error) {
     if (__DEV__) {
-      console.error(`${LOG_PREFIX} Unexpected error:`, error);
+      devError(`${LOG_PREFIX} Unexpected error:`, error);
     }
     return false;
   }
@@ -300,7 +301,7 @@ export function NotificationNudgeModal({
       }
       onClose();
     } catch (error) {
-      console.error("[NotificationNudge] Error requesting permission:", error);
+      devError("[NotificationNudge] Error requesting permission:", error);
     } finally {
       setIsLoading(false);
     }
@@ -329,7 +330,7 @@ export function NotificationNudgeModal({
         notifNudgeState: newNudgeState,
       });
     } catch (error) {
-      console.error("[NotificationNudge] Error updating status:", error);
+      devError("[NotificationNudge] Error updating status:", error);
     }
 
     if (onNotNow) {

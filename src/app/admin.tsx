@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { ChevronLeft, Search, Shield, Award, Plus, Pencil, X } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -98,7 +99,7 @@ export default function AdminConsole() {
   // DEV logging for admin gating
   React.useEffect(() => {
     if (__DEV__ && !adminLoading) {
-      console.log('[P0_ADMIN_CONSOLE] adminCheck:', {
+      devLog('[P0_ADMIN_CONSOLE] adminCheck:', {
         isAdmin: adminStatus?.isAdmin,
         email: adminStatus?.email,
         message: adminStatus?.message,
@@ -118,7 +119,7 @@ export default function AdminConsole() {
   React.useEffect(() => {
     if (!adminLoading && adminStatus && !adminStatus.isAdmin) {
       if (__DEV__) {
-        console.log("[P0_ADMIN_CONSOLE] Access denied - redirecting to settings");
+        devLog("[P0_ADMIN_CONSOLE] Access denied - redirecting to settings");
       }
       router.replace("/settings");
     }
@@ -135,7 +136,7 @@ export default function AdminConsole() {
     try {
       const response = await searchUsers(searchQuery);
       if (__DEV__) {
-        console.log('[P0_ADMIN_CONSOLE] handleSearch:', { 
+        devLog('[P0_ADMIN_CONSOLE] handleSearch:', { 
           q: searchQuery,
           status: 'ok',
           resultCount: response.users.length,
@@ -145,7 +146,7 @@ export default function AdminConsole() {
       setSearchResults(response.users);
     } catch (error: any) {
       if (__DEV__) {
-        console.log('[P0_ADMIN_CONSOLE] handleSearch FAILED:', {
+        devLog('[P0_ADMIN_CONSOLE] handleSearch FAILED:', {
           q: searchQuery,
           status: error?.status ?? 'error',
           resultCount: 0,
@@ -214,11 +215,11 @@ export default function AdminConsole() {
       }));
       if (__DEV__) {
         const hasConnectLeader = response.badges.some(b => b.badgeKey === 'connect_leader');
-        console.log(`[P0_ADMIN_CONSOLE] loadBadgeDefinitions: count=${response.badges.length} hasConnectLeader=${hasConnectLeader}`);
+        devLog(`[P0_ADMIN_CONSOLE] loadBadgeDefinitions: count=${response.badges.length} hasConnectLeader=${hasConnectLeader}`);
       }
     } catch (error: any) {
       if (__DEV__) {
-        console.log("[P0_ADMIN_CONSOLE] loadBadgeDefinitions FAILED:", error?.message);
+        devLog("[P0_ADMIN_CONSOLE] loadBadgeDefinitions FAILED:", error?.message);
       }
       setEndpointHealth(prev => ({
         ...prev,

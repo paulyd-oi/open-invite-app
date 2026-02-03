@@ -6,6 +6,7 @@
  */
 
 import { api } from './api';
+import { devLog } from './devLog';
 
 /**
  * Response from POST /api/referral/apply
@@ -73,7 +74,7 @@ export async function claimReferral(code: string): Promise<{
     }
     
     if (__DEV__) {
-      console.log('[ReferralsApi] claimReferral error:', errorCode, errorMessage);
+      devLog('[ReferralsApi] claimReferral error:', errorCode, errorMessage);
     }
     
     return {

@@ -10,6 +10,8 @@
  * 3. If no intent set, block destructive reset
  */
 
+import { devLog } from "./devLog";
+
 let logoutIntentActive = false;
 
 /**
@@ -18,7 +20,7 @@ let logoutIntentActive = false;
 export function setLogoutIntent(): void {
   logoutIntentActive = true;
   if (__DEV__) {
-    console.log('[LogoutIntent] Intent set - user initiated logout');
+    devLog('[LogoutIntent] Intent set - user initiated logout');
   }
 }
 
@@ -30,7 +32,7 @@ export function consumeLogoutIntent(): boolean {
   const wasActive = logoutIntentActive;
   logoutIntentActive = false;
   if (__DEV__ && wasActive) {
-    console.log('[LogoutIntent] Intent consumed - proceeding with logout');
+    devLog('[LogoutIntent] Intent consumed - proceeding with logout');
   }
   return wasActive;
 }

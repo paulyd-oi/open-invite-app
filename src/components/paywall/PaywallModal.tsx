@@ -21,6 +21,7 @@ import {
 } from "@/lib/entitlements";
 import { goToSubscription } from "@/lib/nav";
 import { useSubscription } from "@/lib/SubscriptionContext";
+import { devWarn } from "@/lib/devLog";
 
 interface PaywallModalProps {
   visible: boolean;
@@ -180,7 +181,7 @@ export function PaywallModal({
           subscription as any,
           `PaywallModal(${context})`
         );
-        console.warn(
+        devWarn(
           `[PaywallModal] PAYWALL SHOWN for context "${context}"\n` +
           `  subscription.tier: ${subscription?.tier}\n` +
           `  context isPremium: ${isPremium}\n` +
@@ -191,7 +192,7 @@ export function PaywallModal({
 
       // Dev warning: onPrimary should be provided for explicit CTA handling
       if (__DEV__ && !onPrimary) {
-        console.warn(
+        devWarn(
           `[PaywallModal] onPrimary not provided for context "${context}". ` +
           `Using default navigation to /subscription. Consider providing explicit onPrimary.`
         );

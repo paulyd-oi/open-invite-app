@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { api } from "@/lib/api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { devLog } from "@/lib/devLog";
 
 // Query keys
 export const UNSEEN_COUNT_QUERY_KEY = ["notifications", "unseenCount"];
@@ -85,7 +86,7 @@ export function useMarkAllNotificationsSeen() {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
       if (__DEV__) {
-        console.log("[useMarkAllNotificationsSeen] Failed to mark all seen:", error);
+        devLog("[useMarkAllNotificationsSeen] Failed to mark all seen:", error);
       }
     }
   }, [queryClient]);

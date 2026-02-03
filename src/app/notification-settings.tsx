@@ -47,6 +47,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { devLog, devError } from "@/lib/devLog";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -239,7 +240,7 @@ export default function NotificationSettingsScreen() {
       // P0: If not granted and on this screen, trigger request
       if (status !== "granted") {
         if (__DEV__) {
-          console.log("[NotificationSettings] OS permission not granted, requesting...");
+          devLog("[NotificationSettings] OS permission not granted, requesting...");
         }
         const { status: newStatus } = await Notifications.requestPermissionsAsync();
         setOsPermissionStatus(newStatus as "granted" | "denied" | "undetermined");
@@ -254,7 +255,7 @@ export default function NotificationSettingsScreen() {
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("[NotificationSettings] Error checking permission:", error);
+        devError("[NotificationSettings] Error checking permission:", error);
       }
     } finally {
       setIsCheckingPermission(false);

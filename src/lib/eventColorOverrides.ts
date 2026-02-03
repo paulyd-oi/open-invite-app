@@ -9,6 +9,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devError } from "./devLog";
 
 const STORAGE_KEY_PREFIX = "eventColorOverrides_";
 
@@ -45,7 +46,7 @@ export async function loadColorOverrides(userId: string): Promise<Record<string,
       if (__DEV__) {
         const count = Object.keys(parsed).length;
         if (count > 0) {
-          console.log("[EventColorOverrides] Loaded", count, "overrides for user");
+          devLog("[EventColorOverrides] Loaded", count, "overrides for user");
         }
       }
       
@@ -58,7 +59,7 @@ export async function loadColorOverrides(userId: string): Promise<Record<string,
     return {};
   } catch (error) {
     if (__DEV__) {
-      console.error("[EventColorOverrides] Failed to load:", error);
+      devError("[EventColorOverrides] Failed to load:", error);
     }
     return {};
   }
@@ -88,11 +89,11 @@ export async function saveColorOverride(
     cachedUserId = userId;
     
     if (__DEV__) {
-      console.log("[EventColorOverrides] Saved override:", { eventId, color });
+      devLog("[EventColorOverrides] Saved override:", { eventId, color });
     }
   } catch (error) {
     if (__DEV__) {
-      console.error("[EventColorOverrides] Failed to save:", error);
+      devError("[EventColorOverrides] Failed to save:", error);
     }
     throw error;
   }
@@ -121,11 +122,11 @@ export async function removeColorOverride(
     cachedUserId = userId;
     
     if (__DEV__) {
-      console.log("[EventColorOverrides] Removed override for:", eventId);
+      devLog("[EventColorOverrides] Removed override for:", eventId);
     }
   } catch (error) {
     if (__DEV__) {
-      console.error("[EventColorOverrides] Failed to remove:", error);
+      devError("[EventColorOverrides] Failed to remove:", error);
     }
     throw error;
   }

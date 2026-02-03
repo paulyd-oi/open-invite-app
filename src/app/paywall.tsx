@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   Crown,
   Check,
@@ -88,7 +89,7 @@ export default function PaywallScreen() {
   // Redirect premium users back - they shouldn't see paywall
   useEffect(() => {
     if (isPremium && !isLoading) {
-      if (__DEV__) console.log("[Paywall] Premium user detected, redirecting back");
+      if (__DEV__) devLog("[Paywall] Premium user detected, redirecting back");
       router.back();
     }
   }, [isPremium, isLoading, router]);
@@ -165,7 +166,7 @@ export default function PaywallScreen() {
 
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=paywall_restore isPremium=", isPremium);
+      devLog("[PRO_SOT] BEFORE screen=paywall_restore isPremium=", isPremium);
     }
 
     const result = await restorePurchases();
@@ -176,7 +177,7 @@ export default function PaywallScreen() {
       
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=paywall_restore combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=paywall_restore combinedIsPro=", combinedIsPro);
       }
 
       if (combinedIsPro) {
@@ -207,7 +208,7 @@ export default function PaywallScreen() {
 
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=paywall_promo isPremium=", isPremium);
+      devLog("[PRO_SOT] BEFORE screen=paywall_promo isPremium=", isPremium);
     }
 
     try {
@@ -220,7 +221,7 @@ export default function PaywallScreen() {
 
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -228,7 +229,7 @@ export default function PaywallScreen() {
       setShowCodeRedeemedModal(true);
     } catch (error: any) {
       if (__DEV__) {
-        console.log("[PRO_SOT] ERROR screen=paywall_promo", error?.message);
+        devLog("[PRO_SOT] ERROR screen=paywall_promo", error?.message);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       // Parse the error message from the API error format

@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import {
   loadColorOverrides,
   saveColorOverride,
@@ -56,7 +57,7 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
         }
       } catch (error) {
         if (__DEV__) {
-          console.error("[useEventColorOverrides] Load failed:", error);
+          devError("[useEventColorOverrides] Load failed:", error);
         }
       } finally {
         if (mounted) {
@@ -101,11 +102,11 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
         queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
-          console.log("[useEventColorOverrides] Set color:", { eventId, color });
+          devLog("[useEventColorOverrides] Set color:", { eventId, color });
         }
       } catch (error) {
         if (__DEV__) {
-          console.error("[useEventColorOverrides] Set failed:", error);
+          devError("[useEventColorOverrides] Set failed:", error);
         }
         throw error;
       }
@@ -134,11 +135,11 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
         queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
-          console.log("[useEventColorOverrides] Reset color:", { eventId });
+          devLog("[useEventColorOverrides] Reset color:", { eventId });
         }
       } catch (error) {
         if (__DEV__) {
-          console.error("[useEventColorOverrides] Reset failed:", error);
+          devError("[useEventColorOverrides] Reset failed:", error);
         }
         throw error;
       }

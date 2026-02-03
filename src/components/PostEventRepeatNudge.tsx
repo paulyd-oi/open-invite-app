@@ -3,6 +3,7 @@ import { View, Text, Pressable, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/lib/ThemeContext";
+import { devWarn } from "@/lib/devLog";
 import { Calendar, Users, Clock } from "@/ui/icons";
 
 const POST_EVENT_REPEAT_NUDGE_KEY = "postEventRepeatNudge:v1";
@@ -134,6 +135,6 @@ export const markPostEventRepeatNudgeCompleted = async (eventId: string): Promis
       await AsyncStorage.setItem(POST_EVENT_REPEAT_NUDGE_KEY, JSON.stringify(data));
     }
   } catch (error) {
-    console.warn("Failed to mark post-event repeat nudge as completed:", error);
+    devWarn("Failed to mark post-event repeat nudge as completed:", error);
   }
 };

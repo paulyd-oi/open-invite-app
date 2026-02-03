@@ -10,6 +10,7 @@
  */
 
 import { BACKEND_URL } from "./config";
+import { devWarn } from "./devLog";
 
 /**
  * Resolve image path to absolute URL
@@ -52,7 +53,7 @@ export function resolveImageUrl(pathOrUrl: string | null | undefined): string | 
 
   // Unexpected format - log warning and return null
   if (__DEV__) {
-    console.warn("[resolveImageUrl] Unexpected image path format:", trimmed);
+    devWarn("[resolveImageUrl] Unexpected image path format:", trimmed);
   }
   return null;
 }

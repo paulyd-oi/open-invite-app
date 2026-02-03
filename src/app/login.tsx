@@ -12,6 +12,7 @@ import {
   useColorScheme,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -122,7 +123,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // Instead, we trust that signIn.email() succeeded and proceed to bootstrap.
     
     if (__DEV__) {
-      console.log("[Login] Auth success, proceeding with cookie-based session");
+      devLog("[Login] Auth success, proceeding with cookie-based session");
     }
 
     // ✅ CRITICAL: Force bootstrap re-run after login
@@ -130,7 +131,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
     const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
     if (__DEV__) {
-      console.log("[Login] Forcing bootstrap re-run after login...");
+      devLog("[Login] Forcing bootstrap re-run after login...");
     }
     await rebootstrapAfterLogin();
 
@@ -138,14 +139,14 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // Let BootRouter (via authBootstrap) decide the route based on backend /api/onboarding/status
     // This prevents routing to /welcome when backend says onboarding is complete
     if (__DEV__) {
-      console.log("[Login] Login success, replacing to / - BootRouter will handle onboarding check");
+      devLog("[Login] Login success, replacing to / - BootRouter will handle onboarding check");
     }
     
     router.replace("/");
   } catch (error) {
-    console.error("[Login] Error during post-login routing:", error);
+    devError("[Login] Error during post-login routing:", error);
     // On error, stay on login (fail safe to avoid blocking user with redirects)
-    console.log("[Login] Staying on login screen due to error");
+    devLog("[Login] Staying on login screen due to error");
   }
 }
 

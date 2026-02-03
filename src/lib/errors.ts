@@ -1,5 +1,7 @@
 // src/lib/errors.ts
 
+import { devError } from "./devLog";
+
 /**
  * Convert an unknown error into a user-friendly message
  * Standardizes error handling across the app
@@ -109,7 +111,7 @@ export function toUserMessage(err: unknown): { title: string; message?: string }
  */
 export function logError(context: string, error: unknown): void {
   if (__DEV__) {
-    console.error(`[${context}]`, error);
+    devError(`[${context}]`, error);
   }
 }
 

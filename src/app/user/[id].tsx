@@ -15,6 +15,7 @@ import { useMinuteTick } from "@/lib/useMinuteTick";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { BadgePill } from "@/components/BadgePill";
 import { type FriendUser, type ProfileBadge, type Event } from "@/shared/contracts";
+import { devLog } from "@/lib/devLog";
 
 // Minimal Calendar Component (no events visible for privacy)
 function PrivateCalendar({ themeColor }: { themeColor: string }) {
@@ -422,7 +423,7 @@ export default function UserProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ["friends"] });
 
       // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal trigger removed pre-launch
-      if (__DEV__) console.log('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
+      devLog('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
       
       // Redirect to friend profile on success
       if (responseData.friendshipId) {

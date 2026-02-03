@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking, Platform, Alert } from "react-native";
+import { devError } from "./devLog";
 
 const STORAGE_KEY = "app_review_data";
 
@@ -49,7 +50,7 @@ async function saveReviewData(data: ReviewData): Promise<void> {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
     if (__DEV__) {
-      console.error("Failed to save review data");
+      devError("Failed to save review data");
     }
   }
 }
@@ -96,7 +97,7 @@ function openAppStoreReview(): void {
   if (url) {
     Linking.openURL(url).catch((err) => {
       if (__DEV__) {
-        console.error("Failed to open store:", err);
+        devError("Failed to open store:", err);
       }
     });
   }

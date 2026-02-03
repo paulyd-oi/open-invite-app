@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 // SecureStore key prefixes - MUST be user-scoped to prevent cross-account pollution
 const GUIDE_FRIENDS_ADD_KEY_PREFIX = "guide_friends_add_people_v2";
@@ -14,7 +15,7 @@ const GUIDE_FORCE_SHOW_KEY_PREFIX = "guide_force_show_v2";
 export function buildGuideKey(prefix: string, userId: string): string {
   if (!userId || typeof userId !== "string") {
     // Return a fallback key that won't crash but won't persist properly
-    console.warn("[buildGuideKey] Invalid userId provided:", userId);
+    devWarn("[buildGuideKey] Invalid userId provided:", userId);
     return `${prefix}_fallback`;
   }
   // Sanitize: replace any character not in [A-Za-z0-9._-] with underscore
@@ -79,7 +80,7 @@ export function useOnboardingGuide() {
   useEffect(() => {
     // Guard: Do not load until we have a userId and are authed
     if (!userId || bootStatus !== "authed") {
-      if (__DEV__) console.log("[GUIDE_DECISION] skip load: no userId or not authed", { 
+      if (__DEV__) devLog("[GUIDE_DECISION] skip load: no userId or not authed", { 
         mountId: mountIdRef.current,
         userId: userId?.substring(0, 8) || 'none', 
         bootStatus 
@@ -90,7 +91,7 @@ export function useOnboardingGuide() {
 
     // If cache hit, we're already initialized - skip async read
     if (guideStateCache.has(userId)) {
-      if (__DEV__) console.log("[GUIDE_DECISION] cache HIT - skip async read", { 
+      if (__DEV__) devLog("[GUIDE_DECISION] cache HIT - skip async read", { 
         mountId: mountIdRef.current,
         userId: userId.substring(0, 8),
         cached: guideStateCache.get(userId)
@@ -107,7 +108,7 @@ export function useOnboardingGuide() {
         
         if (forceShow !== "true") {
           // Mature account or forceShow disabled - never show guide
-          if (__DEV__) console.log("[GUIDE_DECISION] gate: forceShow disabled -> completed", {
+          if (__DEV__) devLog("[GUIDE_DECISION] gate: forceShow disabled -> completed", {
             mountId: mountIdRef.current,
             userId: userId.substring(0, 8),
             forceShowKey,
@@ -155,7 +156,7 @@ export function useOnboardingGuide() {
           currentStep = "completed";
         }
         
-        if (__DEV__) console.log("[GUIDE_DECISION] loaded from SecureStore", { 
+        if (__DEV__) devLog("[GUIDE_DECISION] loaded from SecureStore", { 
           mountId: mountIdRef.current,
           userId: userId.substring(0, 8),
           friendsKey,
@@ -173,7 +174,7 @@ export function useOnboardingGuide() {
         });
         setLoadedOnce(true);
       } catch (error) {
-        console.error("Failed to load onboarding guide state:", error);
+        devError("Failed to load onboarding guide state:", error);
         setState(prev => ({ ...prev, isLoading: false, isCompleted: true }));
         setLoadedOnce(true);
       }
@@ -206,14 +207,14 @@ export function useOnboardingGuide() {
         // Update module cache immediately
         const cached = guideStateCache.get(userId) || { friendsDismissed: false, createDismissed: false };
         guideStateCache.set(userId, { ...cached, friendsDismissed: true });
-        if (__DEV__) console.log("[GUIDE_DECISION] step dismissed", { key: friendsKey, step, userId: userId.substring(0, 8) });
+        if (__DEV__) devLog("[GUIDE_DECISION] step dismissed", { key: friendsKey, step, userId: userId.substring(0, 8) });
       }
       if (step === "create_event" || isNowCompleted) {
         await SecureStore.setItemAsync(createKey, "true");
         // Update module cache immediately
         const cached = guideStateCache.get(userId) || { friendsDismissed: false, createDismissed: false };
         guideStateCache.set(userId, { ...cached, createDismissed: true });
-        if (__DEV__) console.log("[GUIDE_DECISION] step dismissed", { key: createKey, step, userId: userId.substring(0, 8) });
+        if (__DEV__) devLog("[GUIDE_DECISION] step dismissed", { key: createKey, step, userId: userId.substring(0, 8) });
       }
       
       setState({
@@ -222,7 +223,7 @@ export function useOnboardingGuide() {
         isLoading: false,
       });
     } catch (error) {
-      console.error("Failed to save onboarding guide step:", error);
+      devError("Failed to save onboarding guide step:", error);
     }
   }, [userId, state.isCompleted, state.currentStep]);
 
@@ -241,9 +242,9 @@ export function useOnboardingGuide() {
         isCompleted: false,
         isLoading: false,
       });
-      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via startGuide", { userId: userId.substring(0, 8) });
+      if (__DEV__) devLog("[GUIDE_DECISION] guide reset via startGuide", { userId: userId.substring(0, 8) });
     } catch (error) {
-      console.error("Failed to start onboarding guide:", error);
+      devError("Failed to start onboarding guide:", error);
     }
   }, [userId]);
 
@@ -262,14 +263,14 @@ export function useOnboardingGuide() {
       // Update module cache
       guideStateCache.set(userId, { friendsDismissed: true, createDismissed: true });
       setState(prev => ({ ...prev, isCompleted: true, currentStep: "completed" }));
-      if (__DEV__) console.log("[P0_FRIENDS_GUIDE] dismissGuide - permanently disabled", { 
+      if (__DEV__) devLog("[P0_FRIENDS_GUIDE] dismissGuide - permanently disabled", { 
         friendsKey,
         createKey,
         forceShowKey: forceShowKey + " (DELETED)",
         userId: userId.substring(0, 8)
       });
     } catch (error) {
-      console.error("Failed to dismiss onboarding guide:", error);
+      devError("Failed to dismiss onboarding guide:", error);
     }
   }, [userId]);
 
@@ -292,9 +293,9 @@ export function useOnboardingGuide() {
         isLoading: false,
       });
       setLoadedOnce(false);
-      if (__DEV__) console.log("[GUIDE_DECISION] guide reset via resetGuide (forceShow re-enabled)", { userId: userId.substring(0, 8) });
+      if (__DEV__) devLog("[GUIDE_DECISION] guide reset via resetGuide (forceShow re-enabled)", { userId: userId.substring(0, 8) });
     } catch (error) {
-      console.error("Failed to reset onboarding guide:", error);
+      devError("Failed to reset onboarding guide:", error);
     }
   }, [userId]);
 

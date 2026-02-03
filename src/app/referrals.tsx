@@ -22,6 +22,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { safeToast } from "@/lib/safeToast";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+import { devError } from "@/lib/devLog";
 
 interface ReferralHistoryItem {
   id: string;
@@ -236,7 +237,7 @@ export default function ReferralsScreen() {
         title: "Invite friends to Open Invite",
       });
     } catch (error) {
-      console.error("Error sharing:", error);
+      devError("Error sharing:", error);
     }
   };
 

@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { devLog } from '@/lib/devLog';
 
 interface UseEntitlementsSyncOptions {
   /** bootStatus from useBootAuthority */
@@ -38,9 +39,7 @@ export function useEntitlementsSync({ bootStatus }: UseEntitlementsSyncOptions) 
 
     hasSyncedRef.current = true;
 
-    if (__DEV__) {
-      console.log('[useEntitlementsSync] Triggering entitlements fetch on authed');
-    }
+    devLog('[useEntitlementsSync] Triggering entitlements fetch on authed');
 
     // Invalidate entitlements query to trigger fresh fetch
     // useEntitlements() uses react-query which will handle the actual fetch

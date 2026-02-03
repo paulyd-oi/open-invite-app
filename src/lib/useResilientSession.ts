@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authClient } from "./authClient";
 import { useNetworkStatus, isNetworkError, shouldLogoutOnError } from "./networkStatus";
 import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
+import { devLog, devWarn, devError } from "./devLog";
 
 // Storage key for cached session
 const SESSION_CACHE_KEY = "session_cache_v1";
@@ -39,7 +40,7 @@ async function cacheSession(session: SessionData): Promise<void> {
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[useResilientSession] Error caching session:", error);
+      devLog("[useResilientSession] Error caching session:", error);
     }
   }
 }
@@ -53,7 +54,7 @@ async function loadCachedSession(): Promise<SessionData> {
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[useResilientSession] Error loading cached session:", error);
+      devLog("[useResilientSession] Error loading cached session:", error);
     }
   }
   return null;
@@ -65,7 +66,7 @@ async function clearCachedSession(): Promise<void> {
     await AsyncStorage.removeItem(SESSION_CACHE_KEY);
   } catch (error) {
     if (__DEV__) {
-      console.log("[useResilientSession] Error clearing cached session:", error);
+      devLog("[useResilientSession] Error clearing cached session:", error);
     }
   }
 }
@@ -94,7 +95,7 @@ export function useResilientSession() {
         if (cached) {
           setCachedSession(cached);
           if (__DEV__) {
-            console.log("[useResilientSession] Loaded cached session for user:", cached.user?.email);
+            devLog("[useResilientSession] Loaded cached session for user:", cached.user?.email);
           }
         }
         setIsInitialized(true);
@@ -116,13 +117,13 @@ export function useResilientSession() {
   useEffect(() => {
     if (betterAuthSession.error) {
       if (__DEV__) {
-        console.log("[useResilientSession] Session error:", betterAuthSession.error);
+        devLog("[useResilientSession] Session error:", betterAuthSession.error);
       }
 
       // Check if this is a network error (should NOT clear session)
       if (isNetworkError(betterAuthSession.error) || isOffline) {
         if (__DEV__) {
-          console.log("[useResilientSession] Network error detected - keeping cached session");
+          devLog("[useResilientSession] Network error detected - keeping cached session");
         }
         return; // Don't clear session on network errors
       }
@@ -131,13 +132,13 @@ export function useResilientSession() {
       // 404s and other errors will NOT trigger logout
       if (shouldLogoutOnError(betterAuthSession.error)) {
         if (__DEV__) {
-          console.log("[useResilientSession] Auth error detected - clearing session");
+          devLog("[useResilientSession] Auth error detected - clearing session");
         }
         clearCachedSession();
         setCachedSession(null);
       } else {
         if (__DEV__) {
-          console.log("[useResilientSession] Non-auth error, keeping cached session");
+          devLog("[useResilientSession] Non-auth error, keeping cached session");
         }
       }
     }
@@ -182,19 +183,19 @@ export function useResilientSession() {
     if (isRateLimited()) {
       const remaining = getRateLimitRemaining();
       if (__DEV__) {
-        console.log(`[useResilientSession] Skipping refetch: rate-limited for ${remaining} more seconds`);
+        devLog(`[useResilientSession] Skipping refetch: rate-limited for ${remaining} more seconds`);
       }
       return; // Don't fetch if rate-limited
     }
     
     if (__DEV__) {
-      console.log("[useResilientSession] Force refetching session...");
+      devLog("[useResilientSession] Force refetching session...");
     }
     try {
       await betterAuthSession.refetch();
     } catch (error) {
       if (__DEV__) {
-        console.log("[useResilientSession] Force refetch error:", error);
+        devLog("[useResilientSession] Force refetch error:", error);
       }
     }
   }, [betterAuthSession]);

@@ -15,6 +15,7 @@ import Animated, {
 import { X, Share2, ChevronRight, Calendar, Users, MapPin, Sparkles, Award, Star } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
+import { devError } from "@/lib/devLog";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -99,7 +100,7 @@ export function MonthlyRecap({ data, onClose, visible }: MonthlyRecapProps) {
           `#OpenInvite #MonthlyRecap`,
       });
     } catch (error) {
-      console.error("Share error:", error);
+      devError("Share error:", error);
     }
   };
 

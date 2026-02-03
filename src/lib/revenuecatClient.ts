@@ -26,6 +26,7 @@ import Purchases, {
   type CustomerInfo,
   type PurchasesPackage,
 } from "react-native-purchases";
+import { devLog, devWarn, devError } from "./devLog";
 
 // ============================================
 // REVENUECAT CONFIGURATION
@@ -85,7 +86,7 @@ const guardRevenueCatUsage = async <T>(
 ): Promise<RevenueCatResult<T>> => {
   if (isWeb) {
     if (__DEV__) {
-      console.log(
+      devLog(
         `${LOG_PREFIX} ${action} skipped: payments are not supported on web.`,
       );
     }
@@ -94,7 +95,7 @@ const guardRevenueCatUsage = async <T>(
 
   if (!isEnabled) {
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} ${action} skipped: RevenueCat not configured`);
+      devLog(`${LOG_PREFIX} ${action} skipped: RevenueCat not configured`);
     }
     return { ok: false, reason: "not_configured" };
   }
@@ -104,7 +105,7 @@ const guardRevenueCatUsage = async <T>(
     return { ok: true, data };
   } catch (error) {
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} ${action} failed:`, error);
+      devLog(`${LOG_PREFIX} ${action} failed:`, error);
     }
     return { ok: false, reason: "sdk_error", error };
   }
@@ -119,17 +120,17 @@ if (isEnabled) {
 
       // Log ERROR messages normally
       if (logLevel === Purchases.LOG_LEVEL.ERROR) {
-        console.log(LOG_PREFIX, message);
+        devLog(LOG_PREFIX, message);
       }
     });
 
     Purchases.configure({ apiKey: apiKey! });
     if (__DEV__) {
-      console.log(`${LOG_PREFIX} SDK initialized successfully`);
+      devLog(`${LOG_PREFIX} SDK initialized successfully`);
     }
   } catch (error) {
     if (__DEV__) {
-      console.error(`${LOG_PREFIX} Failed to initialize:`, error);
+      devError(`${LOG_PREFIX} Failed to initialize:`, error);
     }
   }
 }

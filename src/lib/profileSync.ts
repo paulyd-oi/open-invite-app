@@ -13,6 +13,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { authClient } from "./authClient";
 import { forceRefreshSession } from "./sessionCache";
 import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
+import { devLog, devWarn, devError } from "./devLog";
 
 /**
  * Refresh both Better Auth session AND React Query profile cache
@@ -30,33 +31,33 @@ export async function updateProfileAndSync(queryClient: QueryClient): Promise<vo
   // Skip if rate-limited
   if (isRateLimited()) {
     const remaining = getRateLimitRemaining();
-    console.log(`[ProfileSync] Skipping session refresh: rate-limited for ${remaining} more seconds`);
+    devLog(`[ProfileSync] Skipping session refresh: rate-limited for ${remaining} more seconds`);
     errors.push("session (rate-limited)");
   } else {
     try {
-      console.log("[ProfileSync] Force refreshing cached session...");
+      devLog("[ProfileSync] Force refreshing cached session...");
       await forceRefreshSession();
-      console.log("[ProfileSync] ✓ Session cache refreshed");
+      devLog("[ProfileSync] ✓ Session cache refreshed");
     } catch (error) {
-      console.log("[ProfileSync] ⚠️ Session refresh error:", error);
+      devLog("[ProfileSync] ⚠️ Session refresh error:", error);
       errors.push("session");
     }
   }
 
   // Step 2: Invalidate React Query ['profile'] cache to refetch handle/bio/avatarUrl
   try {
-    console.log("[ProfileSync] Invalidating ['profile'] query cache...");
+    devLog("[ProfileSync] Invalidating ['profile'] query cache...");
     await queryClient.invalidateQueries({ queryKey: ["profile"] });
-    console.log("[ProfileSync] ✓ ['profile'] cache invalidated");
+    devLog("[ProfileSync] ✓ ['profile'] cache invalidated");
   } catch (error) {
-    console.log("[ProfileSync] ⚠️ ['profile'] invalidation error:", error);
+    devLog("[ProfileSync] ⚠️ ['profile'] invalidation error:", error);
     errors.push("profile");
   }
 
   if (errors.length > 0) {
-    console.log(`[ProfileSync] ⚠️ Partial sync (failed: ${errors.join(", ")})`);
+    devLog(`[ProfileSync] ⚠️ Partial sync (failed: ${errors.join(", ")})`);
   } else {
-    console.log("[ProfileSync] ✅ Full sync complete");
+    devLog("[ProfileSync] ✅ Full sync complete");
   }
 }
 
@@ -71,7 +72,7 @@ export async function mutateProfileWithSync<T>(
   mutation: () => Promise<T>,
   queryClient: QueryClient
 ): Promise<T> {
-  console.log("[ProfileSync] Starting mutation with auto-sync...");
+  devLog("[ProfileSync] Starting mutation with auto-sync...");
   const result = await mutation();
   await updateProfileAndSync(queryClient);
   return result;

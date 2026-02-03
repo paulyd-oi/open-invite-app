@@ -8,6 +8,8 @@
  * scattered across authBootstrap, welcome, login, and index routing logic.
  */
 
+import { devWarn } from "./devLog";
+
 /**
  * Canonical Authentication States
  * 
@@ -65,7 +67,7 @@ export function deriveAuthState(params: AuthStateParams): AuthState {
   if (onboardingCompleted) {
     // DEV-only: warn if progress flags exist when onboarding is complete
     if (__DEV__ && hasOnboardingProgress) {
-      console.warn(
+      devWarn(
         "[AuthState] Invariant warning: onboarding complete but progress flags exist",
         { onboardingCompleted, hasOnboardingProgress }
       );
@@ -109,7 +111,7 @@ export function assertAuthInvariants(
     case "logged_out":
       // Invariant: No valid token should exist
       if (hasToken && tokenValid) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: logged_out state but valid token exists",
           { hasToken, tokenValid }
         );
@@ -119,13 +121,13 @@ export function assertAuthInvariants(
     case "ready":
       // Invariant: Must have valid token AND onboarding complete
       if (!hasToken || !tokenValid) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: ready state but no valid token",
           { hasToken, tokenValid }
         );
       }
       if (!onboardingCompleted) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: ready state but onboarding not complete",
           { onboardingCompleted }
         );
@@ -135,13 +137,13 @@ export function assertAuthInvariants(
     case "onboarding_incomplete":
       // Invariant: Must have valid token but onboarding NOT complete
       if (!hasToken || !tokenValid) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: onboarding_incomplete but no valid token",
           { hasToken, tokenValid }
         );
       }
       if (onboardingCompleted) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: onboarding_incomplete but onboarding is complete",
           { onboardingCompleted }
         );
@@ -152,7 +154,7 @@ export function assertAuthInvariants(
       // Invariant: Must have valid token
       // (This state is currently unused but reserved for future use)
       if (!hasToken || !tokenValid) {
-        console.warn(
+        devWarn(
           "[AuthState] Invariant violation: authenticated but no valid token",
           { hasToken, tokenValid }
         );
@@ -167,7 +169,7 @@ export function assertAuthInvariants(
     default:
       // TypeScript exhaustiveness check
       const _exhaustive: never = state;
-      console.warn("[AuthState] Unknown state:", _exhaustive);
+      devWarn("[AuthState] Unknown state:", _exhaustive);
   }
 }
 
@@ -199,7 +201,7 @@ export function mapBootstrapStateToAuthState(
     
     default:
       const _exhaustive: never = bootstrapState;
-      console.warn("[AuthState] Unknown bootstrap state:", _exhaustive);
+      devWarn("[AuthState] Unknown bootstrap state:", _exhaustive);
       return "logged_out";
   }
 }

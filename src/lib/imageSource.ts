@@ -12,6 +12,7 @@
 import { BACKEND_URL } from "./config";
 import { getAuthToken } from "./authClient";
 import { resolveImageUrl } from "./imageUrl";
+import { devLog } from "./devLog";
 
 /**
  * Check if a URL requires authentication headers
@@ -100,7 +101,7 @@ export async function getImageSource(
     // No token available - return null to show fallback (initials)
     // This is safer than showing broken image or making unauthenticated request
     if (__DEV__) {
-      console.log("[imageSource] Protected URL requires token but none available:", resolvedUrl);
+      devLog("[imageSource] Protected URL requires token but none available:", resolvedUrl);
     }
     return null;
   }

@@ -33,6 +33,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { devError } from "@/lib/devLog";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import {
   type GetFriendsResponse,
@@ -157,7 +158,7 @@ export default function CreateEventRequestScreen() {
       router.back();
     },
     onError: (error) => {
-      console.error("Failed to create event request:", error);
+      devError("Failed to create event request:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });

@@ -26,6 +26,7 @@
 
 import type { LucideIcon } from "@/ui/icons";
 import { Sparkles, Calendar, Home, Users, User, List } from "@/ui/icons";
+import { devWarn } from "@/lib/devLog";
 
 export interface NavTab {
   /** Unique key for this tab */
@@ -100,7 +101,7 @@ export function assertTabOrder(tabs: readonly NavTab[]): void {
   const orderMatch = expectedKeys.every((key, index) => actualKeys[index] === key);
   
   if (!orderMatch) {
-    console.warn(
+    devWarn(
       "[BottomNavigation] ⚠️ TAB ORDER VIOLATION DETECTED!\n" +
       `Expected: ${expectedKeys.join(" → ")}\n` +
       `Actual:   ${actualKeys.join(" → ")}\n` +
@@ -111,7 +112,7 @@ export function assertTabOrder(tabs: readonly NavTab[]): void {
   // Verify SOCIAL is in center position (index 2)
   const centerTab = tabs.find(t => t.isCenter);
   if (centerTab?.key !== "social") {
-    console.warn(
+    devWarn(
       `[BottomNavigation] ⚠️ CENTER TAB VIOLATION!\n` +
       `Expected: social\n` +
       `Actual:   ${centerTab?.key ?? "none"}\n` +

@@ -5,6 +5,7 @@
 
 import { getStoredPushToken } from "./notifications";
 import { api } from "./api";
+import { devLog, devError } from "./devLog";
 
 /**
  * Deactivate current device's push token on logout
@@ -15,10 +16,10 @@ export async function deactivatePushTokenOnLogout(): Promise<void> {
     const token = await getStoredPushToken();
     if (token) {
       await api.delete("/api/notifications/unregister-token", { token });
-      console.log("[PushTokenManager] Token deactivated on logout");
+      devLog("[PushTokenManager] Token deactivated on logout");
     }
   } catch (error) {
-    console.error("[PushTokenManager] Failed to deactivate token:", error);
+    devError("[PushTokenManager] Failed to deactivate token:", error);
     // Don't throw - logout should succeed even if token deactivation fails
   }
 }

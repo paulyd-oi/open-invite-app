@@ -10,6 +10,8 @@
  * - DESCRIPTION (notes/description)
  */
 
+import { devLog, devWarn, devError } from "./devLog";
+
 export interface ParsedICSEvent {
   title: string;
   startTime: Date;
@@ -30,7 +32,7 @@ export function parseICS(icsContent: string): ParsedICSEvent | null {
     // Find VEVENT block
     const veventMatch = normalized.match(/BEGIN:VEVENT([\s\S]*?)END:VEVENT/);
     if (!veventMatch) {
-      console.error('[ICS Parser] No VEVENT found in .ics content');
+      devError('[ICS Parser] No VEVENT found in .ics content');
       return null;
     }
 
@@ -44,7 +46,7 @@ export function parseICS(icsContent: string): ParsedICSEvent | null {
     const description = extractField(eventContent, 'DESCRIPTION');
 
     if (!title || !startTimeStr) {
-      console.error('[ICS Parser] Missing required fields (SUMMARY or DTSTART)');
+      devError('[ICS Parser] Missing required fields (SUMMARY or DTSTART)');
       return null;
     }
 
@@ -53,7 +55,7 @@ export function parseICS(icsContent: string): ParsedICSEvent | null {
     const endTime = endTimeStr ? parseICSDate(endTimeStr) : null;
 
     if (!startTime) {
-      console.error('[ICS Parser] Failed to parse DTSTART:', startTimeStr);
+      devError('[ICS Parser] Failed to parse DTSTART:', startTimeStr);
       return null;
     }
 
@@ -65,7 +67,7 @@ export function parseICS(icsContent: string): ParsedICSEvent | null {
       notes: description ? unescapeICSText(description) : null,
     };
   } catch (error) {
-    console.error('[ICS Parser] Error parsing .ics file:', error);
+    devError('[ICS Parser] Error parsing .ics file:', error);
     return null;
   }
 }
@@ -142,7 +144,7 @@ function parseICSDate(dateStr: string): Date | null {
       return new Date(year, month, day, 0, 0, 0);
     }
   } catch (error) {
-    console.error('[ICS Parser] Failed to parse date:', dateStr, error);
+    devError('[ICS Parser] Failed to parse date:', dateStr, error);
     return null;
   }
 }

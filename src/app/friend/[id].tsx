@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MapPin, Clock, Calendar, ChevronRight, ChevronLeft, Plus, StickyNote, ChevronDown, Trash2 } from "@/ui/icons";
 
@@ -420,13 +421,13 @@ export default function FriendDetailScreen() {
   const rawFriendBadge = data?.friend?.featuredBadge ?? badgeData?.badge;
   const friendBadge = normalizeFeaturedBadge(rawFriendBadge);
   if (__DEV__ && data?.friend) {
-    console.log("[FRIEND_BADGE_DATA]", {
+    devLog("[FRIEND_BADGE_DATA]", {
       friendId: friendUserId,
       hasFeaturedBadge: !!friendBadge,
       featuredBadge: friendBadge?.name ?? null,
       sourceEndpoint: data.friend.featuredBadge ? "/api/friends/:id/events" : "/api/achievements/user/:id/badge",
     });
-    console.log("[FRIEND_BADGE_RENDER]", {
+    devLog("[FRIEND_BADGE_RENDER]", {
       friendId: friendUserId,
       render: !!friendBadge,
       reason: friendBadge ? "badge_present" : "no_badge_in_response",
@@ -459,7 +460,7 @@ export default function FriendDetailScreen() {
     onError: (error: any) => {
       // Enhanced error logging for diagnostics
       if (__DEV__) {
-        console.log("[FriendNotes] Add note FAILED:", {
+        devLog("[FriendNotes] Add note FAILED:", {
           friendId: id,
           httpStatus: error?.status,
           statusText: error?.statusText,
@@ -483,7 +484,7 @@ export default function FriendDetailScreen() {
     onError: (error: any) => {
       // Enhanced error logging for diagnostics
       if (__DEV__) {
-        console.log("[FriendNotes] Delete note FAILED:", {
+        devLog("[FriendNotes] Delete note FAILED:", {
           friendId: id,
           httpStatus: error?.status,
           message: error?.message,

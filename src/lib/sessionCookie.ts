@@ -10,6 +10,7 @@
  */
 
 import * as SecureStore from "expo-secure-store";
+import { devLog } from "./devLog";
 
 // Storage key for the session cookie
 export const SESSION_COOKIE_KEY = "open-invite_session_cookie";
@@ -51,7 +52,7 @@ export async function getSessionCookie(): Promise<string | null> {
     return cookie || null;
   } catch (error) {
     if (__DEV__) {
-      console.log("[sessionCookie] Error getting cookie:", error);
+      devLog("[sessionCookie] Error getting cookie:", error);
     }
     return null;
   }
@@ -72,11 +73,11 @@ export async function setSessionCookie(cookieValue: string): Promise<void> {
     await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
     
     if (__DEV__) {
-      console.log("[sessionCookie] Cookie stored successfully");
+      devLog("[sessionCookie] Cookie stored successfully");
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[sessionCookie] Error setting cookie:", error);
+      devLog("[sessionCookie] Error setting cookie:", error);
     }
     throw error;
   }
@@ -94,11 +95,11 @@ export async function setSessionCookieFromHeader(setCookieHeader: string): Promi
     if (match && match[1]) {
       await setSessionCookie(`${COOKIE_NAME}=${match[1]}`);
     } else if (__DEV__) {
-      console.log("[sessionCookie] Could not parse Set-Cookie header:", setCookieHeader.substring(0, 50));
+      devLog("[sessionCookie] Could not parse Set-Cookie header:", setCookieHeader.substring(0, 50));
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[sessionCookie] Error parsing Set-Cookie header:", error);
+      devLog("[sessionCookie] Error parsing Set-Cookie header:", error);
     }
   }
 }
@@ -110,11 +111,11 @@ export async function clearSessionCookie(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
     if (__DEV__) {
-      console.log("[sessionCookie] Cookie cleared");
+      devLog("[sessionCookie] Cookie cleared");
     }
   } catch (error) {
     if (__DEV__) {
-      console.log("[sessionCookie] Error clearing cookie:", error);
+      devLog("[sessionCookie] Error clearing cookie:", error);
     }
     // Don't throw - clearing should always succeed logically
   }
@@ -151,7 +152,7 @@ export async function getSessionTokenValue(): Promise<string | null> {
 export async function setExplicitCookiePair(tokenValue: string): Promise<boolean> {
   if (!tokenValue) {
     if (__DEV__) {
-      console.log("[sessionCookie] setExplicitCookiePair called with empty token");
+      devLog("[sessionCookie] setExplicitCookiePair called with empty token");
     }
     return false;
   }
@@ -160,7 +161,7 @@ export async function setExplicitCookiePair(tokenValue: string): Promise<boolean
   const validation = isValidSessionToken(tokenValue);
   if (!validation.isValid) {
     if (__DEV__) {
-      console.log(`[AUTH_TRACE] setExplicitCookiePair: rejected token, reason=${validation.reason}`);
+      devLog(`[AUTH_TRACE] setExplicitCookiePair: rejected token, reason=${validation.reason}`);
     }
     return false; // Do NOT store invalid token
   }
@@ -172,12 +173,12 @@ export async function setExplicitCookiePair(tokenValue: string): Promise<boolean
     await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
     
     if (__DEV__) {
-      console.log("[sessionCookie] Explicit cookie pair stored successfully (validated)");
+      devLog("[sessionCookie] Explicit cookie pair stored successfully (validated)");
     }
     return true;
   } catch (error) {
     if (__DEV__) {
-      console.log("[sessionCookie] Error setting explicit cookie pair:", error);
+      devLog("[sessionCookie] Error setting explicit cookie pair:", error);
     }
     throw error;
   }

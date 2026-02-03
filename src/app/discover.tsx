@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
@@ -240,12 +241,12 @@ export default function DiscoverScreen() {
     
     // P0 DEV: Log popular events filtering for debugging
     if (__DEV__) {
-      console.log(`[P0_POPULAR] fetched=${allEvents.length}`);
-      console.log(`[P0_POPULAR] filtered=${filtered.length}`);
-      exclusionReasons.forEach((r) => console.log(`[P0_POPULAR] exclude ${r}`));
+      devLog(`[P0_POPULAR] fetched=${allEvents.length}`);
+      devLog(`[P0_POPULAR] filtered=${filtered.length}`);
+      exclusionReasons.forEach((r) => devLog(`[P0_POPULAR] exclude ${r}`));
       if (allEvents.length > 0 && filtered.length === 0) {
         const sample = allEvents[0];
-        console.log("[P0_POPULAR] Sample event debug:", {
+        devLog("[P0_POPULAR] Sample event debug:", {
           id: sample.id,
           title: sample.title,
           startTime: sample.startTime,

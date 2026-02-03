@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import Constants from "expo-constants";
 import {
   ChevronLeft,
@@ -500,7 +501,7 @@ export default function SettingsScreen() {
     if (isPushDiagRunning) return;
     
     // PROOF LOG: Handler executed
-    if (__DEV__) console.log("[PUSH_DIAG_UI] pressed register");
+    if (__DEV__) devLog("[PUSH_DIAG_UI] pressed register");
     
     setIsPushDiagRunning(true);
     setPushDiagResult(null);
@@ -522,7 +523,7 @@ export default function SettingsScreen() {
       const exceptionMessage = e?.message || String(e) || "Unknown exception";
       const exceptionStack = e?.stack || "No stack available";
       
-      if (__DEV__) console.log("[PUSH_DIAG_UI] exception caught:", exceptionMessage);
+      if (__DEV__) devLog("[PUSH_DIAG_UI] exception caught:", exceptionMessage);
       
       finalResult = {
         ok: false,
@@ -539,7 +540,7 @@ export default function SettingsScreen() {
       setIsPushDiagRunning(false);
       
       // PROOF LOG: Result set
-      if (__DEV__) console.log("[PUSH_DIAG_UI] result set", JSON.stringify({
+      if (__DEV__) devLog("[PUSH_DIAG_UI] result set", JSON.stringify({
         ok: finalResult?.ok,
         reason: finalResult?.reason,
         hasResult: !!finalResult,
@@ -646,7 +647,7 @@ export default function SettingsScreen() {
           block2End: s.block2EndTime,
         }));
       if (block2Data.length > 0) {
-        console.log("[ScheduleBlocks] Loaded from server:", block2Data);
+        devLog("[ScheduleBlocks] Loaded from server:", block2Data);
       }
     }
   }, [workScheduleData?.schedules]);
@@ -686,7 +687,7 @@ export default function SettingsScreen() {
   // DEV logging for admin decision
   React.useEffect(() => {
     if (__DEV__) {
-      console.log("[ADMIN_DECISION]", {
+      devLog("[ADMIN_DECISION]", {
         userId: session?.user?.id?.slice(0, 8) ?? "none",
         isAdmin: adminStatus?.isAdmin ?? false,
         email: adminStatus?.email ?? "unknown",
@@ -715,7 +716,7 @@ export default function SettingsScreen() {
     
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=settings userIsPremium=", userIsPremium);
+      devLog("[PRO_SOT] BEFORE screen=settings userIsPremium=", userIsPremium);
     }
     
     try {
@@ -724,7 +725,7 @@ export default function SettingsScreen() {
       
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=settings combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=settings combinedIsPro=", combinedIsPro);
       }
       
       // Show result toast based on COMBINED value
@@ -735,7 +736,7 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       if (__DEV__) {
-        console.error("[PRO_SOT] ERROR screen=settings", error);
+        devError("[PRO_SOT] ERROR screen=settings", error);
       }
       safeToast.error("Error", "Failed to refresh status. Please try again.");
     } finally {
@@ -749,7 +750,7 @@ export default function SettingsScreen() {
 
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
-      console.log("[PRO_SOT] BEFORE screen=settings_restore userIsPremium=", userIsPremium);
+      devLog("[PRO_SOT] BEFORE screen=settings_restore userIsPremium=", userIsPremium);
     }
 
     const result = await subscription.restore();
@@ -760,7 +761,7 @@ export default function SettingsScreen() {
       
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
-        console.log("[PRO_SOT] AFTER screen=settings_restore combinedIsPro=", combinedIsPro);
+        devLog("[PRO_SOT] AFTER screen=settings_restore combinedIsPro=", combinedIsPro);
       }
       
       setIsRestoringPurchases(false);
@@ -818,7 +819,7 @@ export default function SettingsScreen() {
     mutationFn: (data: { name?: string; avatarUrl?: string; calendarBio?: string; phone?: string | null; handle?: string; adminBypassCooldown?: boolean }) =>
       api.put<UpdateProfileResponse>("/api/profile", data),
     onSuccess: async (response, variables) => {
-      if (__DEV__) console.log("[EditProfile] Save success", response);
+      if (__DEV__) devLog("[EditProfile] Save success", response);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
       // Update cache immediately with response + variables to ensure both profile and user are patched
@@ -891,7 +892,7 @@ export default function SettingsScreen() {
   const updateWorkScheduleMutation = useMutation({
     mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string; block2StartTime?: string | null; block2EndTime?: string | null }) => {
       if (__DEV__ && (data.block2StartTime !== undefined || data.block2EndTime !== undefined)) {
-        console.log("[ScheduleBlocks] Saving to server:", {
+        devLog("[ScheduleBlocks] Saving to server:", {
           dayOfWeek: data.dayOfWeek,
           block2StartTime: data.block2StartTime,
           block2EndTime: data.block2EndTime,
@@ -902,7 +903,7 @@ export default function SettingsScreen() {
     onSuccess: (response) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (__DEV__ && response?.schedule) {
-        console.log("[ScheduleBlocks] Server responded:", {
+        devLog("[ScheduleBlocks] Server responded:", {
           day: response.schedule.dayName,
           block2StartTime: response.schedule.block2StartTime,
           block2EndTime: response.schedule.block2EndTime,
@@ -1004,10 +1005,10 @@ export default function SettingsScreen() {
         if (editImage.startsWith("file://")) {
           // Local file - need to upload first
           try {
-            if (__DEV__) console.log("[EditProfile] Uploading profile photo...");
+            if (__DEV__) devLog("[EditProfile] Uploading profile photo...");
             const uploadResponse = await uploadImage(editImage, true);
             updates.avatarUrl = uploadResponse.url;
-            if (__DEV__) console.log("[EditProfile] Photo uploaded:", uploadResponse.url);
+            if (__DEV__) devLog("[EditProfile] Photo uploaded:", uploadResponse.url);
           } catch (uploadError) {
             logError("Profile Photo Upload", uploadError);
             safeToast.error("Upload Failed", "Failed to upload profile photo. Please try again.");
@@ -1035,7 +1036,7 @@ export default function SettingsScreen() {
       }
       
       if (Object.keys(updates).length > 0) {
-        if (__DEV__) console.log("[EditProfile] Save payload:", updates);
+        if (__DEV__) devLog("[EditProfile] Save payload:", updates);
         updateProfileMutation.mutate(updates);
       } else {
         setShowEditProfile(false);
@@ -1123,7 +1124,7 @@ export default function SettingsScreen() {
     const currentSchedule = workSchedules.find(s => s.dayOfWeek === dayOfWeek);
     
     if (__DEV__) {
-      console.log("[ScheduleBlocks] handleWorkScheduleTimeChange", {
+      devLog("[ScheduleBlocks] handleWorkScheduleTimeChange", {
         dayOfWeek,
         type,
         newTimeStr: timeStr,
@@ -1163,7 +1164,7 @@ export default function SettingsScreen() {
       // Clear block2 times when removing
       updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: null, block2EndTime: null });
       if (__DEV__) {
-        console.log("[DEV_DECISION] work_schedule_block2_remove", { dayOfWeek });
+        devLog("[DEV_DECISION] work_schedule_block2_remove", { dayOfWeek });
       }
     } else {
       newSet.add(dayOfWeek);
@@ -1171,7 +1172,7 @@ export default function SettingsScreen() {
       // Default to 13:00-17:00 (1pm-5pm) for afternoon block
       updateWorkScheduleMutation.mutate({ dayOfWeek, block2StartTime: "13:00", block2EndTime: "17:00" });
       if (__DEV__) {
-        console.log("[DEV_DECISION] work_schedule_block2_add", { dayOfWeek, defaultTimes: "13:00-17:00" });
+        devLog("[DEV_DECISION] work_schedule_block2_add", { dayOfWeek, defaultTimes: "13:00-17:00" });
       }
     }
     setExpandedBlock2Days(newSet);
@@ -1698,7 +1699,7 @@ export default function SettingsScreen() {
           <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">SUBSCRIPTION</Text>
           {/* Always render the subscription card - loading state shows "Free" as safe default, not blank */}
           <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
+            {__DEV__ && (() => { devLog("[DEV_DECISION] pro_ui_gate screen=settings state=" + (entitlementsLoading ? "loading_default_free" : userIsPremium ? "pro" : "free") + " reason=" + (entitlementsLoading ? "entitlements_fetching_default_free" : "entitlements_loaded_isPremium=" + userIsPremium)); return null; })()}
             {/* Current Status - Show truthful state */}
             <Pressable
               onPress={() => {
@@ -1728,7 +1729,7 @@ export default function SettingsScreen() {
             </Pressable>
 
             {/* Upgrade CTA (only show for free users) */}
-            {__DEV__ && (() => { console.log("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
+            {__DEV__ && (() => { devLog("[DEV_DECISION] pro_cta_hidden screen=settings hidden=" + userIsPremium); return null; })()}
             {!userIsPremium && (
               <Pressable
                 onPress={async () => {
@@ -2198,7 +2199,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 const appVersion = Constants.expoConfig?.version ?? "1.0.0";
-                if (__DEV__) console.log("[DEV_DECISION] app_version", { source: "Constants.expoConfig", version: appVersion });
+                if (__DEV__) devLog("[DEV_DECISION] app_version", { source: "Constants.expoConfig", version: appVersion });
                 safeToast.info("About Open Invite", `Version ${appVersion} - Share plans with friends!`);
               }}
             />

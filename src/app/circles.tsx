@@ -24,6 +24,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
+import { devError } from "@/lib/devLog";
 
 export default function CirclesScreen() {
   const router = useRouter();
@@ -69,7 +70,7 @@ export default function CirclesScreen() {
       router.push(`/circle/${response.circle.id}` as any);
     },
     onError: (error: any) => {
-      console.error("Failed to create circle:", error);
+      devError("Failed to create circle:", error);
     },
   });
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, Image, ActivityIndicator, Platform } from "react-native";
 import { MapPin } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 
 interface MapPreviewProps {
   location: string;
@@ -40,13 +41,13 @@ async function geocodeAddress(address: string): Promise<Coordinates | null> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if (__DEV__) console.log("Geocoding response not OK:", response.status);
+      if (__DEV__) devLog("Geocoding response not OK:", response.status);
       return null;
     }
 
     const data = await response.json();
     if (__DEV__) {
-      console.log("Geocoding result for:", address, "->", data?.length > 0 ? `${data[0].lat}, ${data[0].lon}` : "not found");
+      devLog("Geocoding result for:", address, "->", data?.length > 0 ? `${data[0].lat}, ${data[0].lon}` : "not found");
     }
 
     if (data && data.length > 0) {
@@ -59,7 +60,7 @@ async function geocodeAddress(address: string): Promise<Coordinates | null> {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     if (__DEV__) {
-      console.log("Geocoding error:", errorMessage);
+      devLog("Geocoding error:", errorMessage);
     }
     return null;
   }
@@ -121,15 +122,15 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
       setImageError(false);
       setUseFallback(false);
 
-      if (__DEV__) console.log("MapPreview: Geocoding location:", location);
+      if (__DEV__) devLog("MapPreview: Geocoding location:", location);
       const coords = await geocodeAddress(location);
 
       if (mounted) {
         if (__DEV__) {
           if (coords) {
-            console.log("MapPreview: Found coordinates:", coords.latitude, coords.longitude);
+            devLog("MapPreview: Found coordinates:", coords.latitude, coords.longitude);
           } else {
-            console.log("MapPreview: Could not geocode location");
+            devLog("MapPreview: Could not geocode location");
           }
         }
         setCoordinates(coords);
@@ -196,7 +197,7 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
       Math.round(height * 2),
       GOOGLE_API_KEY
     );
-    if (__DEV__) console.log("MapPreview: Using Google Maps Static API");
+    if (__DEV__) devLog("MapPreview: Using Google Maps Static API");
   } else {
     // Fallback to OpenStreetMap static map
     mapUrl = getOSMStaticMapUrl(
@@ -205,7 +206,7 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
       400,
       Math.round(height * 2)
     );
-    if (__DEV__) console.log("MapPreview: Using OpenStreetMap static map");
+    if (__DEV__) devLog("MapPreview: Using OpenStreetMap static map");
   }
 
   return (
@@ -215,7 +216,7 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
         style={{ width: "100%", height: "100%" }}
         resizeMode="cover"
         onError={() => {
-          if (__DEV__) console.log("MapPreview: Image failed to load, useFallback:", useFallback);
+          if (__DEV__) devLog("MapPreview: Image failed to load, useFallback:", useFallback);
           if (!useFallback && GOOGLE_API_KEY) {
             // Try Geoapify fallback if Google failed
             setUseFallback(true);
@@ -225,7 +226,7 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
           }
         }}
         onLoad={() => {
-          if (__DEV__) console.log("MapPreview: Map image loaded successfully");
+          if (__DEV__) devLog("MapPreview: Map image loaded successfully");
         }}
       />
       {/* Overlay pin for better visibility */}

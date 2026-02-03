@@ -18,6 +18,7 @@ import { View, Text, Pressable } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { devLog, devWarn, devError } from "@/lib/devLog";
 import { X, Megaphone } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
@@ -84,7 +85,7 @@ export function AnnouncementBanner() {
         const value = await AsyncStorage.getItem(dismissKey);
         if (value === "true") {
           if (__DEV__) {
-            console.log(`${LOG_PREFIX} Already dismissed (key=${dismissKey})`);
+            devLog(`${LOG_PREFIX} Already dismissed (key=${dismissKey})`);
           }
           setDismissed(true);
         }
@@ -109,7 +110,7 @@ export function AnnouncementBanner() {
     try {
       await AsyncStorage.setItem(dismissKey, "true");
       if (__DEV__) {
-        console.log(`${LOG_PREFIX} Dismissed (key=${dismissKey})`);
+        devLog(`${LOG_PREFIX} Dismissed (key=${dismissKey})`);
       }
     } catch {
       // Ignore storage errors
@@ -149,7 +150,7 @@ export function AnnouncementBanner() {
   }
 
   if (__DEV__) {
-    console.log(`${LOG_PREFIX} Showing banner: "${announcement.message.substring(0, 30)}..."`);
+    devLog(`${LOG_PREFIX} Showing banner: "${announcement.message.substring(0, 30)}..."`);
   }
 
   return (

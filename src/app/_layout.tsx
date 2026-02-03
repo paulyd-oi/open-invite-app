@@ -20,6 +20,7 @@ import {
 } from '@expo-google-fonts/sora';
 
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
+import { devLog } from '@/lib/devLog';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
@@ -49,16 +50,16 @@ export const unstable_settings = {
 ExpoSplashScreen.preventAutoHideAsync();
 
 // DEV-only: Intercept console.error to detect "Text strings must be rendered" crash
-// and log a useful stack trace
+// and log a useful stack trace (gated behind dev log switch)
 if (__DEV__) {
   const originalConsoleError = console.error;
   console.error = (...args: any[]) => {
     const message = args[0];
     if (typeof message === 'string' && message.includes('Text strings must be rendered')) {
-      console.log('=== TEXT RENDER CRASH DETECTED ===');
-      console.log('Error:', message);
-      console.log('Stack:', new Error().stack);
-      console.log('==================================');
+      devLog('[TEXT_RENDER_CRASH]', '=== TEXT RENDER CRASH DETECTED ===');
+      devLog('[TEXT_RENDER_CRASH]', 'Error:', message);
+      devLog('[TEXT_RENDER_CRASH]', 'Stack:', new Error().stack);
+      devLog('[TEXT_RENDER_CRASH]', '==================================');
     }
     originalConsoleError.apply(console, args);
   };
@@ -142,13 +143,13 @@ if (__DEV__) {
           const check = hasInvalidTextChild(allChildren, typeName);
           if (check.found) {
             detectionCount++;
-            console.log('\n=== INVALID TEXT CHILD DETECTED ===');
-            console.log('Component:', typeName);
-            console.log('Offending child:', JSON.stringify(check.value), `(typeof: ${typeof check.value})`);
-            console.log('Props keys:', props ? Object.keys(props).join(', ') : 'none');
-            console.log('Stack trace:');
-            console.log(new Error().stack?.split('\n').slice(1, 10).join('\n'));
-            console.log(`=== Detection ${detectionCount}/${MAX_DETECTIONS} ===\n`);
+            devLog('[TEXT_CHILD_DETECTOR]', '=== INVALID TEXT CHILD DETECTED ===');
+            devLog('[TEXT_CHILD_DETECTOR]', 'Component:', typeName);
+            devLog('[TEXT_CHILD_DETECTOR]', 'Offending child:', JSON.stringify(check.value), `(typeof: ${typeof check.value})`);
+            devLog('[TEXT_CHILD_DETECTOR]', 'Props keys:', props ? Object.keys(props).join(', ') : 'none');
+            devLog('[TEXT_CHILD_DETECTOR]', 'Stack trace:');
+            devLog('[TEXT_CHILD_DETECTOR]', new Error().stack?.split('\n').slice(1, 10).join('\n') || '');
+            devLog('[TEXT_CHILD_DETECTOR]', `=== Detection ${detectionCount}/${MAX_DETECTIONS} ===`);
           }
         } catch (e) {
           // Don't let detector errors break the app
@@ -158,7 +159,7 @@ if (__DEV__) {
       return originalCreateElement.apply(React, [type, props, ...children]);
     };
     
-    console.log('[DEV] React.createElement text-child detector installed');
+    devLog('[TEXT_CHILD_DETECTOR]', 'React.createElement text-child detector installed');
   }
 }
 
@@ -238,9 +239,7 @@ function BootRouter() {
   useEffect(() => {
     if (bootStatus === 'authed' && session?.user?.id && !loggedPushBootstrapOnceRef.current) {
       loggedPushBootstrapOnceRef.current = true;
-      if (__DEV__) {
-        console.log('[BootRouter] authed shell mounted for push bootstrap, userId:', session.user.id.substring(0, 8) + '...');
-      }
+      devLog('[PUSH_BOOTSTRAP]', 'authed shell mounted for push bootstrap, userId:', session.user.id.substring(0, 8) + '...');
     }
   }, [bootStatus, session?.user?.id]);
 
@@ -263,7 +262,7 @@ function BootRouter() {
           try {
             await markGateModalShown(userId);
           } catch (error) {
-            console.warn('[EmailGate] Failed to persist show-once flag:', error);
+            devLog('[EMAIL_GATE]', 'Failed to persist show-once flag:', error);
             // Continue showing modal even if write fails (better UX)
           }
           setShowEmailGateModal(true);
@@ -303,46 +302,37 @@ function BootRouter() {
 
     hasRoutedRef.current = true;
 
-    if (__DEV__) {
-      console.log(
-        '[ONBOARDING_BOOT] Routing decision:',
-        JSON.stringify({ bootStatus, currentPath: pathname, error: bootError || 'none' }, null, 2)
-      );
-    }
+    devLog(
+      '[ONBOARDING_BOOT]',
+      'Routing decision:',
+      JSON.stringify({ bootStatus, currentPath: pathname, error: bootError || 'none' }, null, 2)
+    );
 
     // INVARIANT: loggedOut → /welcome (Getting Started), NOT /login
     // Login is only reachable via button tap from Getting Started or deep link
     if (bootStatus === 'loggedOut' || bootStatus === 'error') {
       // Only replace if not already on /welcome or /login (prevent loop)
       if (pathname !== '/welcome' && pathname !== '/login') {
-        if (__DEV__) {
-          console.log('[ONBOARDING_BOOT] → Routing to /welcome (no valid token - Getting Started)');
-        }
+        devLog('[ONBOARDING_BOOT]', '→ Routing to /welcome (no valid token - Getting Started)');
         router.replace('/welcome');
       }
     } else if (bootStatus === 'degraded') {
       // Network/timeout error - do NOT route, stay on current screen
       // User can retry by relaunching app or via retry() if exposed
-      if (__DEV__) {
-        console.log('[ONBOARDING_BOOT] → Degraded state (network/timeout) - not routing');
-      }
+      devLog('[ONBOARDING_BOOT]', '→ Degraded state (network/timeout) - not routing');
       // Do NOT set hasRoutedRef.current - allow retry to re-run routing
       hasRoutedRef.current = false;
       return; // Exit early, don't mark as routed
     } else if (bootStatus === 'onboarding') {
       // Authenticated but onboarding incomplete - send to welcome
       if (pathname !== '/welcome') {
-        if (__DEV__) {
-          console.log('[ONBOARDING_BOOT] → Routing to /welcome (token exists, onboarding incomplete)');
-        }
+        devLog('[ONBOARDING_BOOT]', '→ Routing to /welcome (token exists, onboarding incomplete)');
         router.replace('/welcome');
       }
     } else if (bootStatus === 'authed') {
       // Fully authenticated and onboarded - go to Calendar (home/center tab)
       if (pathname !== '/calendar') {
-        if (__DEV__) {
-          console.log('[ONBOARDING_BOOT] → Routing to /calendar (fully authenticated)');
-        }
+        devLog('[ONBOARDING_BOOT]', '→ Routing to /calendar (fully authenticated)');
         router.replace('/calendar');
       }
     }
@@ -642,9 +632,9 @@ export default function RootLayout() {
   useEffect(() => {
     const handler = (event: any) => {
       try {
-        console.error('[global] Unhandled promise rejection:', event?.reason ?? event);
+        devLog('[UNHANDLED_REJECTION]', event?.reason ?? event);
       } catch (e) {
-        console.error('[global] Unhandled rejection (failed to log):', e);
+        // Fallback - can't use devLog if it threw
       }
     };
 
@@ -656,9 +646,7 @@ export default function RootLayout() {
     }
 
     // Log resolved backend URL for diagnostics
-    if (__DEV__) {
-      console.log('[Config] BACKEND_URL=', BACKEND_URL);
-    }
+    devLog('[CONFIG]', 'BACKEND_URL=', BACKEND_URL);
 
     return () => {
       try {
