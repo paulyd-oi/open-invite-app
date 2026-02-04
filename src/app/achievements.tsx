@@ -139,6 +139,11 @@ export default function BadgesScreen() {
   const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
   const featuredBadge = badges.find((b) => b.featured);
 
+  // Pro trio badges unlock via subscription, not progress - hide progress UI
+  const isProTrioBadgeKey = (key: string): boolean => {
+    return key === "pro_includer" || key === "pro_organizer" || key === "pro_initiator";
+  };
+
   // DEV logging for render decision
   React.useEffect(() => {
     if (__DEV__) {
@@ -391,7 +396,7 @@ export default function BadgesScreen() {
                           <Text className="text-sm mb-2" style={{ color: colors.textTertiary }}>
                             {badge.description}
                           </Text>
-                          {badge.unlockTarget !== null && (
+                          {badge.unlockTarget !== null && !isProTrioBadgeKey(badge.badgeKey) && (
                             <View className="flex-row items-center">
                               <View className="flex-1 h-2 rounded-full mr-2" style={{ backgroundColor: colors.border }}>
                                 <View
