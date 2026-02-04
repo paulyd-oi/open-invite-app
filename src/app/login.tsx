@@ -220,6 +220,7 @@ export default function LoginScreen() {
       return;
     }
 
+    console.log("[P0_PW_RESET] forgot password initiated");
     setIsLoading(true);
     try {
       const response = await fetch(`${backendUrl}/api/auth/forget-password`, {
@@ -234,9 +235,16 @@ export default function LoginScreen() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error("[P0_PW_RESET] backend error:", errorData);
+        // Detect email provider not configured
+        if (errorData.message?.includes("EMAIL_PROVIDER_NOT_CONFIGURED") || 
+            errorData.code === "EMAIL_PROVIDER_NOT_CONFIGURED") {
+          throw new Error("Password reset is temporarily unavailable. Please contact support@openinvite.cloud");
+        }
         throw new Error(errorData.message || "Failed to send reset email");
       }
 
+      console.log("[P0_PW_RESET] reset email sent successfully");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setResetEmailSent(true);
     } catch (error: any) {
