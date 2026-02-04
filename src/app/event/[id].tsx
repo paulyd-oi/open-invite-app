@@ -297,6 +297,9 @@ export default function EventDetailScreen() {
   // Event Actions Sheet state
   const [showEventActionsSheet, setShowEventActionsSheet] = useState(false);
 
+  // Attendees modal state (P0: Who's Coming)
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+
   // Color picker state
   const [showColorPicker, setShowColorPicker] = useState(false);
   const { colorOverrides, getOverrideColor, setOverrideColor, resetColor } = useEventColorOverrides();
@@ -668,6 +671,47 @@ export default function EventDetailScreen() {
     queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
   });
+
+  // ============================================
+  // P0 FIX: Fetch attendees for "Who's Coming" section
+  // ============================================
+  // Type for attendees response
+  type AttendeeInfo = { id: string; name: string | null; imageUrl?: string | null; isHost?: boolean };
+  type AttendeesResponse = { attendees: AttendeeInfo[]; totalGoing: number };
+
+  const { data: attendeesData, error: attendeesError, isLoading: isLoadingAttendees } = useQuery({
+    queryKey: ["events", "attendees", id],
+    queryFn: async () => {
+      if (__DEV__) {
+        devLog('[P0_EVENT_ATTENDEES_UI] fetch started', { eventId: id });
+      }
+      const result = await api.get<AttendeesResponse>(`/api/events/${id}/attendees`);
+      if (__DEV__) {
+        devLog('[P0_EVENT_ATTENDEES_UI] fetch status=200', {
+          eventId: id,
+          attendeesPreviewCount: result?.attendees?.length ?? 0,
+          totalGoing: result?.totalGoing ?? 0,
+          privacyDenied: false,
+        });
+      }
+      return result;
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
+    retry: false, // Don't retry on 403 privacy errors
+  });
+
+  // Handle attendees 403 gracefully (privacy denied)
+  const attendeesPrivacyDenied = (attendeesError as any)?.status === 403;
+  if (__DEV__ && attendeesError && !isLoadingAttendees) {
+    devLog('[P0_EVENT_ATTENDEES_UI] fetch error', {
+      eventId: id,
+      status: (attendeesError as any)?.status,
+      privacyDenied: attendeesPrivacyDenied,
+    });
+  }
+
+  const attendeesList = attendeesData?.attendees ?? [];
+  const totalGoing = attendeesData?.totalGoing ?? 0;
 
   const interests = interestsData?.event_interest ?? [];
   
@@ -1536,129 +1580,167 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* Who's Coming Section */}
-        {event.joinRequests && event.joinRequests.filter((r) => r.status === "accepted").length > 0 && (
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
-            <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <View className="flex-row items-center mb-4">
-                <UserCheck size={20} color="#22C55E" />
-                <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                  Who's Coming
-                </Text>
-                <View className="bg-green-100 px-2 py-1 rounded-full ml-2">
-                  <Text className="text-green-700 text-xs font-semibold">
-                    {event.joinRequests.filter((r) => r.status === "accepted").length}
+        {/* Who's Coming Section - P0 FIX: Use attendees endpoint */}
+        {(() => {
+          // 403 privacy denied: show privacy message
+          if (attendeesPrivacyDenied) {
+            return (
+              <Animated.View entering={FadeInDown.delay(75).springify()}>
+                <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View className="flex-row items-center mb-3">
+                    <Lock size={20} color="#9CA3AF" />
+                    <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                      Who's Coming
+                    </Text>
+                  </View>
+                  <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                    <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
+                      Attendees visible to invited or going members
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+            );
+          }
+
+          // Has attendees: show roster
+          if (totalGoing > 0 || attendeesList.length > 0) {
+            return (
+              <Animated.View entering={FadeInDown.delay(75).springify()}>
+                <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-row items-center">
+                      <UserCheck size={20} color="#22C55E" />
+                      <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                        Who's Coming
+                      </Text>
+                      <View className="bg-green-100 px-2 py-1 rounded-full ml-2">
+                        <Text className="text-green-700 text-xs font-semibold">
+                          {totalGoing}
+                        </Text>
+                      </View>
+                    </View>
+                    {totalGoing > 0 && (
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          setShowAttendeesModal(true);
+                        }}
+                      >
+                        <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
+                          View all
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  <View className="flex-row flex-wrap">
+                    {attendeesList.slice(0, 8).map((attendee) => (
+                      <Pressable
+                        key={attendee.id}
+                        onPress={() => {
+                          Haptics.selectionAsync();
+                          router.push(`/user/${attendee.id}` as any);
+                        }}
+                        className="items-center mr-4 mb-3"
+                        style={{ width: 60 }}
+                      >
+                        <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-1 border-2 border-green-200">
+                          {attendee.imageUrl ? (
+                            <Image
+                              source={{ uri: attendee.imageUrl }}
+                              className="w-full h-full rounded-full"
+                            />
+                          ) : (
+                            <Text className="text-lg font-semibold text-green-600">
+                              {attendee.name?.[0] ?? "?"}
+                            </Text>
+                          )}
+                        </View>
+                        <Text
+                          className="text-xs text-center"
+                          style={{ color: colors.textSecondary }}
+                          numberOfLines={1}
+                        >
+                          {attendee.name?.split(" ")[0] ?? "Guest"}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Show the host too */}
+                  {event.user && (
+                    <View className="border-t pt-3 mt-2" style={{ borderColor: colors.border }}>
+                      <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
+                      <View className="flex-row items-center">
+                        <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
+                          {event.user.image ? (
+                            <Image
+                              source={{ uri: event.user.image }}
+                              className="w-full h-full rounded-full"
+                            />
+                          ) : (
+                            <Text className="font-semibold" style={{ color: themeColor }}>
+                              {event.user.name?.[0] ?? "?"}
+                            </Text>
+                          )}
+                        </View>
+                        <Text className="ml-3 font-medium" style={{ color: colors.text }}>
+                          {isMyEvent ? "You" : event.user.name ?? "Host"}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </Animated.View>
+            );
+          }
+
+          // No one coming yet - show placeholder
+          return (
+            <Animated.View entering={FadeInDown.delay(75).springify()}>
+              <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="flex-row items-center mb-3">
+                  <UserCheck size={20} color="#9CA3AF" />
+                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                    Who's Coming
                   </Text>
                 </View>
-              </View>
 
-              <View className="flex-row flex-wrap">
-                {event.joinRequests
-                  .filter((r) => r.status === "accepted")
-                  .map((attendee, index) => (
-                    <Pressable
-                      key={attendee.id}
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        router.push(`/user/${attendee.userId}` as any);
-                      }}
-                      className="items-center mr-4 mb-3"
-                      style={{ width: 60 }}
-                    >
-                      <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-1 border-2 border-green-200">
-                        {attendee.user?.image ? (
+                {/* Show the host */}
+                {event.user && (
+                  <View className="mb-3">
+                    <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
+                    <View className="flex-row items-center">
+                      <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
+                        {event.user.image ? (
                           <Image
-                            source={{ uri: attendee.user.image }}
+                            source={{ uri: event.user.image }}
                             className="w-full h-full rounded-full"
                           />
                         ) : (
-                          <Text className="text-lg font-semibold text-green-600">
-                            {attendee.user?.name?.[0] ?? "?"}
+                          <Text className="font-semibold" style={{ color: themeColor }}>
+                            {event.user.name?.[0] ?? "?"}
                           </Text>
                         )}
                       </View>
-                      <Text
-                        className="text-xs text-center"
-                        style={{ color: colors.textSecondary }}
-                        numberOfLines={1}
-                      >
-                        {attendee.user?.name?.split(" ")[0] ?? "Guest"}
+                      <Text className="ml-3 font-medium" style={{ color: colors.text }}>
+                        {isMyEvent ? "You" : event.user.name ?? "Host"}
                       </Text>
-                    </Pressable>
-                  ))}
-              </View>
-
-              {/* Show the host too */}
-              {event.user && (
-                <View className="border-t pt-3 mt-2" style={{ borderColor: colors.border }}>
-                  <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                      {event.user.image ? (
-                        <Image
-                          source={{ uri: event.user.image }}
-                          className="w-full h-full rounded-full"
-                        />
-                      ) : (
-                        <Text className="font-semibold" style={{ color: themeColor }}>
-                          {event.user.name?.[0] ?? "?"}
-                        </Text>
-                      )}
                     </View>
-                    <Text className="ml-3 font-medium" style={{ color: colors.text }}>
-                      {isMyEvent ? "You" : event.user.name ?? "Host"}
-                    </Text>
                   </View>
+                )}
+
+                <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                  <Users size={24} color="#9CA3AF" />
+                  <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
+                    No one has joined yet.{"\n"}Be the first!
+                  </Text>
                 </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* No one coming yet - show placeholder */}
-        {event.joinRequests && event.joinRequests.filter((r) => r.status === "accepted").length === 0 && (
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
-            <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <View className="flex-row items-center mb-3">
-                <UserCheck size={20} color="#9CA3AF" />
-                <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                  Who's Coming
-                </Text>
               </View>
-
-              {/* Show the host */}
-              {event.user && (
-                <View className="mb-3">
-                  <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                      {event.user.image ? (
-                        <Image
-                          source={{ uri: event.user.image }}
-                          className="w-full h-full rounded-full"
-                        />
-                      ) : (
-                        <Text className="font-semibold" style={{ color: themeColor }}>
-                          {event.user.name?.[0] ?? "?"}
-                        </Text>
-                      )}
-                    </View>
-                    <Text className="ml-3 font-medium" style={{ color: colors.text }}>
-                      {isMyEvent ? "You" : event.user.name ?? "Host"}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                <Users size={24} color="#9CA3AF" />
-                <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                  No one has joined yet.{"\n"}Be the first!
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
+            </Animated.View>
+          );
+        })()}
 
         {/* Join Request Section (for non-owners) */}
         {!isMyEvent && !event?.isBusy && (
@@ -2498,6 +2580,135 @@ export default function EventDetailScreen() {
                 </Text>
               </Pressable>
             </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Attendees Modal - P0: View all attendees */}
+      <Modal
+        visible={showAttendeesModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAttendeesModal(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => setShowAttendeesModal(false)}
+        >
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <Animated.View
+              entering={FadeInDown.duration(200)}
+              style={{
+                backgroundColor: colors.background,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingBottom: 40,
+                maxHeight: "70%",
+              }}
+            >
+              {/* Handle */}
+              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.textTertiary,
+                    opacity: 0.4,
+                  }}
+                />
+              </View>
+
+              {/* Title */}
+              <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <UserCheck size={20} color="#22C55E" />
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+                    Who's Coming
+                  </Text>
+                  <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 8 }}>
+                    <Text style={{ color: "#166534", fontSize: 12, fontWeight: "600" }}>
+                      {totalGoing}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => setShowAttendeesModal(false)}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <X size={18} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              {/* Attendees List */}
+              <KeyboardAwareScrollView
+                style={{ paddingHorizontal: 20 }}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
+                {attendeesList.map((attendee) => (
+                  <Pressable
+                    key={attendee.id}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setShowAttendeesModal(false);
+                      router.push(`/user/${attendee.id}` as any);
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 12,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: "#DCFCE7",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderWidth: 2,
+                        borderColor: "#BBF7D0",
+                      }}
+                    >
+                      {attendee.imageUrl ? (
+                        <Image
+                          source={{ uri: attendee.imageUrl }}
+                          style={{ width: 44, height: 44, borderRadius: 22 }}
+                        />
+                      ) : (
+                        <Text style={{ fontSize: 16, fontWeight: "600", color: "#166534" }}>
+                          {attendee.name?.[0] ?? "?"}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={{ marginLeft: 12, fontSize: 16, fontWeight: "500", color: colors.text, flex: 1 }}>
+                      {attendee.name ?? "Guest"}
+                    </Text>
+                    <ChevronRight size={18} color={colors.textTertiary} />
+                  </Pressable>
+                ))}
+
+                {attendeesList.length === 0 && (
+                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                    <Users size={32} color={colors.textTertiary} />
+                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
+                      No attendees yet
+                    </Text>
+                  </View>
+                )}
+              </KeyboardAwareScrollView>
+            </Animated.View>
           </Pressable>
         </Pressable>
       </Modal>
