@@ -166,9 +166,9 @@ export default function HelpFAQScreen() {
         },
         {
           title: "Recurring Events",
-          description: "Set up events that repeat on a schedule (Premium feature).",
+          description: "Recurring events are planned as a Pro feature in a future update. For now, recurring events are available to everyone.",
           howItWorks: [
-            "When creating an event, enable 'Repeat' (requires Premium)",
+            "When creating an event, enable 'Repeat'",
             "Choose frequency: Weekly or Monthly",
             "Select which days to repeat",
             "All occurrences are created automatically",
@@ -900,7 +900,7 @@ export default function HelpFAQScreen() {
               Still have questions?
             </Text>
             <Text style={{ color: colors.textSecondary }} className="text-sm mb-3">
-              We're here to help! Reach out to our support team for personalized assistance.
+              We're here to help! Reach out to our support team for personalized assistance. We typically respond within 24–48 hours.
             </Text>
             <Pressable
               onPress={() => {
