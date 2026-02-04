@@ -693,11 +693,13 @@ export default function SettingsScreen() {
   });
 
   // DEV logging for admin decision
+  const canShowAdminSection = !!adminStatus?.isAdmin;
   React.useEffect(() => {
     if (__DEV__) {
       devLog("[ADMIN_DECISION]", {
         userId: session?.user?.id?.slice(0, 8) ?? "none",
         isAdmin: adminStatus?.isAdmin ?? false,
+        canShowAdminSection,
         email: adminStatus?.email ?? "unknown",
         message: adminStatus?.message ?? null,
         adminStatusLoading,
@@ -705,7 +707,7 @@ export default function SettingsScreen() {
         whyShownOrHidden: adminStatusLoading ? "loading" : !adminStatus?.isAdmin ? "not_admin" : "showing_admin_section",
       });
     }
-  }, [session?.user?.id, adminStatus, adminStatusLoading, bootStatus]);
+  }, [session?.user?.id, adminStatus, adminStatusLoading, bootStatus, canShowAdminSection]);
 
   // Entitlements for premium status display
   const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = useIsPro();
@@ -2214,8 +2216,8 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Admin Section - Only visible to admins in dev mode */}
-        {adminStatus?.isAdmin && isDevToolsEnabled() && (
+        {/* Admin Section - Only visible to admins */}
+        {adminStatus?.isAdmin && (
           <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
