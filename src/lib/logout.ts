@@ -23,8 +23,8 @@ import { deactivatePushTokenOnLogout } from "./pushTokenManager";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
 
-export type LogoutScreen = "settings" | "account_center" | "social" | "privacy_settings";
-export type LogoutReason = "user_logout" | "account_deletion";
+export type LogoutScreen = "settings" | "account_center" | "social" | "privacy_settings" | "auth_expiry";
+export type LogoutReason = "user_logout" | "account_deletion" | "auth_expired";
 
 export interface PerformLogoutOptions {
   /** Screen initiating logout (for logging) */

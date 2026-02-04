@@ -41,6 +41,9 @@ import { useEntitlementsForegroundRefresh } from '@/hooks/useEntitlementsForegro
 import { useSession } from '@/lib/useSession';
 import { EmailVerificationGateModal } from '@/components/EmailVerificationGateModal';
 import { hasShownGateModal, markGateModalShown } from '@/lib/emailVerificationGate';
+import { subscribeToAuthExpiry, resetAuthExpiryGuard } from '@/lib/authExpiry';
+import { performLogout } from '@/lib/logout';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -210,10 +213,33 @@ function BootRouter() {
   const hasRoutedRef = useRef(false);
   const gateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showEmailGateModal, setShowEmailGateModal] = useState(false);
+  const queryClient = useQueryClient();
   
   // Get session data for RevenueCat sync
   const { data: session } = useSession();
   const userId = session?.user?.id;
+
+  // AUTH EXPIRY LISTENER: Handle 401/403 from $fetch by triggering SSOT logout
+  // One-shot per session (emitter guards against spam)
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthExpiry((info) => {
+      // Trigger logout via SSOT - performLogout is idempotent
+      performLogout({
+        screen: 'auth_expiry',
+        reason: 'auth_expired',
+        queryClient,
+        router,
+      });
+    });
+    return unsubscribe;
+  }, [queryClient, router]);
+
+  // Reset auth expiry guard on successful login (allows re-detection in new session)
+  useEffect(() => {
+    if (bootStatus === 'authed') {
+      resetAuthExpiryGuard();
+    }
+  }, [bootStatus]);
 
   // Sync RevenueCat user ID with backend auth (one-shot per login/logout)
   useRevenueCatSync({

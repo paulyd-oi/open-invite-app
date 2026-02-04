@@ -13,6 +13,7 @@ import {
   SESSION_COOKIE_KEY,
 } from "./sessionCookie";
 import { debugDumpBetterAuthCookieOnce } from "./debugCookie";
+import { emitAuthExpiry } from "./authExpiry";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
@@ -307,6 +308,14 @@ async function $fetch<T = any>(
       err.status = response.status;
       err.response = { status: response.status, _data: errorData };
       err.data = errorData;
+      
+      // AUTH EXPIRY: Emit event on 401/403 for authenticated endpoints (not /api/auth/*)
+      // This triggers SSOT logout flow in React tree (one-shot per session)
+      const isAuthEndpoint = path.startsWith("/api/auth/");
+      if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
+        emitAuthExpiry({ endpoint: path, method: init?.method || "GET", status: response.status });
+      }
+      
       throw err;
     }
     
