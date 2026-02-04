@@ -166,26 +166,63 @@ if (__DEV__) {
   }
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Don't retry on auth errors (401/403) or not found (404)
-      retry: (failureCount, error: any) => {
-        const status = error?.status ?? error?.response?.status;
-        if (status === 401 || status === 403 || status === 404) return false;
-        return failureCount < 1;
-      },
-      // Default stale time to reduce re-fetches
-      staleTime: 30000,
-      // Prevent aggressive refetching that can cause loops
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: true,
+/**
+ * QueryClient SSOT Defaults (P1 Churn Hardening)
+ * 
+ * Goals: Reduce refetch/retry churn and backend load without changing UX.
+ * 
+ * queries:
+ *   - retry: 1 max (skip on 401/403/404)
+ *   - retryDelay: exponential backoff capped at 30s
+ *   - staleTime: 15s global default (individual queries can override)
+ *   - refetchOnWindowFocus: false (mobile - no window focus concept)
+ *   - refetchOnMount: false (prefer cached; explicit invalidation when needed)
+ *   - refetchOnReconnect: true (refresh data when network returns)
+ *   - gcTime: 5 minutes (keep cache around for back-nav)
+ * 
+ * mutations:
+ *   - retry: 0 (avoid duplicate writes)
+ */
+const QUERY_DEFAULTS = {
+  queries: {
+    // Don't retry on auth errors (401/403) or not found (404)
+    retry: (failureCount: number, error: any) => {
+      const status = error?.status ?? error?.response?.status;
+      if (status === 401 || status === 403 || status === 404) return false;
+      return failureCount < 1; // Max 1 retry
     },
-    mutations: {
-      retry: false,
-    },
+    // Exponential backoff: 1s, 2s, 4s... capped at 30s
+    retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    // Default stale time (15s) - individual queries can override
+    staleTime: 15000,
+    // Garbage collection time - keep cache for 5 minutes
+    gcTime: 300000,
+    // Prevent aggressive refetching that can cause loops (mobile has no window focus)
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: true,
   },
+  mutations: {
+    retry: 0, // Never retry mutations (avoid duplicate writes)
+  },
+} as const;
+
+// Log defaults once at module load in DEV
+if (__DEV__) {
+  devLog('[P1_QUERY_DEFAULTS]', 'QueryClient initialized with:', {
+    'queries.retry': 'max 1 (skip 401/403/404)',
+    'queries.retryDelay': 'exponential backoff, cap 30s',
+    'queries.staleTime': `${QUERY_DEFAULTS.queries.staleTime}ms`,
+    'queries.gcTime': `${QUERY_DEFAULTS.queries.gcTime}ms`,
+    'queries.refetchOnWindowFocus': QUERY_DEFAULTS.queries.refetchOnWindowFocus,
+    'queries.refetchOnMount': QUERY_DEFAULTS.queries.refetchOnMount,
+    'queries.refetchOnReconnect': QUERY_DEFAULTS.queries.refetchOnReconnect,
+    'mutations.retry': QUERY_DEFAULTS.mutations.retry,
+  });
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: QUERY_DEFAULTS,
 });
 
 // Component that handles offline sync (must be inside QueryClientProvider)

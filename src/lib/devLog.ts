@@ -39,6 +39,9 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[HARD_RESET]",
   "[HARD_RESET_BLOCKED]",
   "[AUTH_WARN]",
+  // P1 UX perf proof tags
+  "[P1_QUERY_DEFAULTS]",
+  "[P1_JITTER]",
 ];
 
 /**
