@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
-import { ChevronLeft, Award, Star, Check, X } from "@/ui/icons";
+import { ChevronLeft, Award, Star, Check, X, Lock } from "@/ui/icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -356,9 +356,22 @@ export default function BadgesScreen() {
                         backgroundColor: colors.surface,
                         borderWidth: 1,
                         borderColor: colors.border,
-                        opacity: 0.6,
+                        overflow: "hidden",
                       }}
                     >
+                      {/* Locked overlay */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: colors.border,
+                          opacity: 0.18,
+                          borderRadius: 16,
+                        }}
+                      />
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1 mr-3">
                           <View
@@ -367,11 +380,11 @@ export default function BadgesScreen() {
                               paddingHorizontal: 10,
                               paddingVertical: 4,
                               borderRadius: 999,
-                              backgroundColor: hexToRgba(badge.tierColor, 0.15),
+                              backgroundColor: hexToRgba(badge.tierColor, 0.10),
                               marginBottom: 8,
                             }}
                           >
-                            <Text style={{ color: badge.tierColor, fontWeight: "600", fontSize: 14 }}>
+                            <Text style={{ color: colors.textSecondary, fontWeight: "600", fontSize: 14 }}>
                               {badge.name}
                             </Text>
                           </View>
@@ -395,6 +408,7 @@ export default function BadgesScreen() {
                             </View>
                           )}
                         </View>
+                        <Lock size={18} color={colors.textTertiary} />
                       </View>
                     </Pressable>
                   </Animated.View>
