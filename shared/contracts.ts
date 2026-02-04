@@ -113,8 +113,11 @@ export const getEventsResponseSchema = z.object({
 export type GetEventsResponse = z.infer<typeof getEventsResponseSchema>;
 
 // GET /api/events/feed - Get activity feed (friends' open events)
+// Supports pagination: ?limit=N&cursor=ID
+// Response always includes nextCursor (null when no more pages)
 export const getEventsFeedResponseSchema = z.object({
   events: z.array(eventSchema),
+  nextCursor: z.string().nullable().optional(), // null = no more pages
 });
 export type GetEventsFeedResponse = z.infer<typeof getEventsFeedResponseSchema>;
 

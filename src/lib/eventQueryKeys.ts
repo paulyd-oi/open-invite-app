@@ -36,6 +36,7 @@ export const eventKeys = {
   
   // Feed/list keys
   feed: () => ["events", "feed"] as const,
+  feedPaginated: () => ["events", "feed", "paginated"] as const, // For useInfiniteQuery
   mine: () => ["events", "mine"] as const,
   myEvents: () => ["events", "my-events"] as const,
   calendar: () => ["events", "calendar"] as const,
@@ -79,6 +80,7 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
     eventKeys.rsvp(eventId),
     eventKeys.detail(eventId),
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),
@@ -96,6 +98,7 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
     eventKeys.rsvp(eventId),
     eventKeys.detail(eventId),
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
     eventKeys.attending(),
@@ -111,6 +114,7 @@ export function getInvalidateAfterJoinRequestAction(eventId: string): Array<read
     eventKeys.single(eventId),
     eventKeys.interests(eventId),
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.myEvents(),
   ];
 }
@@ -145,6 +149,7 @@ export function getRefetchOnEventFocus(eventId: string): Array<readonly string[]
 export function getInvalidateAfterEventCreate(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
@@ -158,6 +163,7 @@ export function getInvalidateAfterEventEdit(eventId: string): Array<readonly str
   return [
     eventKeys.single(eventId),
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),
@@ -170,6 +176,7 @@ export function getInvalidateAfterEventEdit(eventId: string): Array<readonly str
 export function getInvalidateAfterEventDelete(): Array<readonly string[]> {
   return [
     eventKeys.feed(),
+    eventKeys.feedPaginated(),
     eventKeys.mine(),
     eventKeys.myEvents(),
     eventKeys.calendar(),

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
@@ -682,23 +682,48 @@ export default function SocialScreen() {
     await performLogout({ screen: "social", queryClient, router });
   }, [queryClient, router]);
 
-  // Fetch friend events (feed)
+  // Pagination constants
+  const FEED_PAGE_SIZE = 20;
+
+  // Fetch friend events (feed) with pagination
   const {
-    data: feedData,
+    data: feedPagesData,
     isLoading: feedLoading,
     refetch: refetchFeed,
     isRefetching: isRefetchingFeed,
-  } = useQuery({
-    queryKey: eventKeys.feed(),
-    queryFn: () => api.get<GetEventsFeedResponse>("/api/events/feed"),
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: eventKeys.feedPaginated(),
+    queryFn: async ({ pageParam }) => {
+      const url = pageParam
+        ? `/api/events/feed?limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
+        : `/api/events/feed?limit=${FEED_PAGE_SIZE}`;
+      const result = await api.get<GetEventsFeedResponse>(url);
+      
+      // DEV proof log for pagination
+      if (__DEV__) {
+        const loadedCount = result.events.length;
+        devLog('[P1_FEED_PAGINATION]', `cursor=${pageParam ?? 'null'}, loadedCount=${loadedCount}, nextCursor=${result.nextCursor ?? 'null'}`);
+      }
+      
+      return result;
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: isAuthed,
     staleTime: 30 * 1000, // 30s - feed changes often but not instantly
-    refetchInterval: 60000, // Auto-refresh every 60 seconds (reduced from 30)
-    refetchIntervalInBackground: false, // Stop polling when app is backgrounded
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
-    placeholderData: (prev) => prev, // Keep previous data during refetch
   });
+
+  // Flatten paginated feed data for existing consumption
+  const feedData = useMemo(() => {
+    if (!feedPagesData?.pages) return undefined;
+    const allEvents = feedPagesData.pages.flatMap(page => page.events);
+    return { events: allEvents };
+  }, [feedPagesData]);
 
   // Also fetch user's own events
   const {
@@ -1288,6 +1313,21 @@ export default function SocialScreen() {
             onRsvp={handleSwipeRsvp}
             isAuthed={isAuthed}
           />
+          {/* Load more button for feed pagination */}
+          {hasNextPage && (
+            <Pressable
+              onPress={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="mx-4 my-6 py-3 rounded-xl items-center justify-center"
+              style={{ backgroundColor: isDark ? colors.surfaceElevated : colors.surface, borderWidth: 1, borderColor: colors.border }}
+            >
+              {isFetchingNextPage ? (
+                <ActivityIndicator size="small" color={themeColor} />
+              ) : (
+                <Text style={{ color: themeColor, fontFamily: 'Sora_600SemiBold', fontSize: 14 }}>Load more invites</Text>
+              )}
+            </Pressable>
+          )}
         </ScrollView>
       )}
 
