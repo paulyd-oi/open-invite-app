@@ -1592,13 +1592,16 @@ export default function SettingsScreen() {
             />
             {/* Push Diagnostics - visible only to allowlisted testers in DEV builds */}
             {canShowPushDiagnostics && (
-              <SettingItem
-                icon={<Bell size={20} color="#10B981" />}
-                title="Push Diagnostics"
-                subtitle={isPushDiagRunning ? "Running..." : "Test push token registration"}
-                isDark={isDark}
-                onPress={handlePushDiagnostics}
-              />
+              <>
+                {__DEV__ && devLog("[P0_PUSH_DIAG_GONE] rendered=true")}
+                <SettingItem
+                  icon={<Bell size={20} color="#10B981" />}
+                  title="Push Diagnostics"
+                  subtitle={isPushDiagRunning ? "Running..." : "Test push token registration"}
+                  isDark={isDark}
+                  onPress={handlePushDiagnostics}
+                />
+              </>
             )}
           </View>
         </Animated.View>
