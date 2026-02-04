@@ -9,7 +9,7 @@
  * Value format: "__Secure-better-auth.session_token=<VALUE>"
  */
 
-import * as SecureStore from "expo-secure-store";
+import { safeGetItemAsync, safeSetItemAsync, safeDeleteItemAsync } from "./safeSecureStore";
 import { devLog } from "./devLog";
 
 // Storage key for the session cookie
@@ -47,15 +47,8 @@ function isValidSessionToken(token: string): { isValid: boolean; reason: string 
  * @returns The full cookie string or null if not set
  */
 export async function getSessionCookie(): Promise<string | null> {
-  try {
-    const cookie = await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
-    return cookie || null;
-  } catch (error) {
-    if (__DEV__) {
-      devLog("[sessionCookie] Error getting cookie:", error);
-    }
-    return null;
-  }
+  const cookie = await safeGetItemAsync(SESSION_COOKIE_KEY);
+  return cookie || null;
 }
 
 /**
@@ -63,24 +56,18 @@ export async function getSessionCookie(): Promise<string | null> {
  * @param cookieValue The cookie value (with or without the cookie name prefix)
  */
 export async function setSessionCookie(cookieValue: string): Promise<void> {
-  try {
-    // Normalize: ensure we store the full cookie pair format
-    let fullCookie = cookieValue;
-    if (!cookieValue.startsWith(COOKIE_NAME)) {
-      fullCookie = `${COOKIE_NAME}=${cookieValue}`;
-    }
-    
-    await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
-    
-    if (__DEV__) {
-      devLog("[sessionCookie] Cookie stored successfully");
-    }
-  } catch (error) {
-    if (__DEV__) {
-      devLog("[sessionCookie] Error setting cookie:", error);
-    }
-    throw error;
+  // Normalize: ensure we store the full cookie pair format
+  let fullCookie = cookieValue;
+  if (!cookieValue.startsWith(COOKIE_NAME)) {
+    fullCookie = `${COOKIE_NAME}=${cookieValue}`;
   }
+  
+  const success = await safeSetItemAsync(SESSION_COOKIE_KEY, fullCookie);
+  
+  if (__DEV__ && success) {
+    devLog("[sessionCookie] Cookie stored successfully");
+  }
+  // No throw - safe wrapper handles errors gracefully
 }
 
 /**
@@ -108,17 +95,11 @@ export async function setSessionCookieFromHeader(setCookieHeader: string): Promi
  * Clear the stored session cookie
  */
 export async function clearSessionCookie(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(SESSION_COOKIE_KEY);
-    if (__DEV__) {
-      devLog("[sessionCookie] Cookie cleared");
-    }
-  } catch (error) {
-    if (__DEV__) {
-      devLog("[sessionCookie] Error clearing cookie:", error);
-    }
-    // Don't throw - clearing should always succeed logically
+  const success = await safeDeleteItemAsync(SESSION_COOKIE_KEY);
+  if (__DEV__ && success) {
+    devLog("[sessionCookie] Cookie cleared");
   }
+  // Safe wrapper handles errors gracefully - clearing always "succeeds" logically
 }
 
 /**
@@ -169,17 +150,10 @@ export async function setExplicitCookiePair(tokenValue: string): Promise<boolean
   // Format as full cookie pair
   const fullCookie = `${COOKIE_NAME}=${tokenValue}`;
   
-  try {
-    await SecureStore.setItemAsync(SESSION_COOKIE_KEY, fullCookie);
-    
-    if (__DEV__) {
-      devLog("[sessionCookie] Explicit cookie pair stored successfully (validated)");
-    }
-    return true;
-  } catch (error) {
-    if (__DEV__) {
-      devLog("[sessionCookie] Error setting explicit cookie pair:", error);
-    }
-    throw error;
+  const success = await safeSetItemAsync(SESSION_COOKIE_KEY, fullCookie);
+  
+  if (__DEV__ && success) {
+    devLog("[sessionCookie] Explicit cookie pair stored successfully (validated)");
   }
+  return success;
 }

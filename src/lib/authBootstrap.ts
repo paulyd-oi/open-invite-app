@@ -17,6 +17,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import { safeDeleteItemAsync, safeGetItemAsync } from "./safeSecureStore";
 import { Platform } from "react-native";
 import { authClient, hasAuthToken, clearAuthToken, ensureCookieInitialized } from "./authClient";
 import { getSessionCached, clearSessionCache } from "./sessionCache";
@@ -210,13 +211,8 @@ export async function resetSession(options?: { reason?: string; status?: number;
   } else {
     // Native: clear SecureStore explicitly - delete all auth keys
     for (const key of SECURESTORE_AUTH_KEYS) {
-      try {
-        await SecureStore.deleteItemAsync(key);
-        deletionResults[`ss:${key}`] = true;
-      } catch (e) {
-        deletionResults[`ss:${key}`] = false;
-        // Key may not exist - this is fine, continue
-      }
+      const success = await safeDeleteItemAsync(key);
+      deletionResults[`ss:${key}`] = success;
     }
   }
 
@@ -251,12 +247,8 @@ export async function resetSession(options?: { reason?: string; status?: number;
   const verifyResults: Record<string, boolean> = {};
   if (Platform.OS !== "web") {
     for (const key of SECURESTORE_AUTH_KEYS) {
-      try {
-        const value = await SecureStore.getItemAsync(key);
-        verifyResults[key] = !value; // true = cleared successfully
-      } catch {
-        verifyResults[key] = true; // error reading = likely cleared
-      }
+      const value = await safeGetItemAsync(key);
+      verifyResults[key] = !value; // true = cleared successfully (null or empty)
     }
   }
   

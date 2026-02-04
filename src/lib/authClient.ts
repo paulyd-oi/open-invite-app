@@ -1,5 +1,6 @@
 // src/lib/authClient.ts
 import * as SecureStore from "expo-secure-store";
+import { safeGetItemAsync, safeSetItemAsync, safeDeleteItemAsync } from "./safeSecureStore";
 import * as React from "react";
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
@@ -165,7 +166,7 @@ export async function ensureCookieInitialized(): Promise<void> {
 
 export async function getAuthToken(): Promise<string | null> {
   authTrace("getAuthToken:begin", { storageType: "SecureStore", keyUsed: TOKEN_KEY });
-  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const token = await safeGetItemAsync(TOKEN_KEY);
   const tokenExists = !!token;
   authTrace("getAuthToken:result", { tokenExists, keyUsed: TOKEN_KEY });
   return token;
@@ -180,11 +181,11 @@ export async function hasAuthToken(): Promise<boolean> {
 }
 
 export async function setAuthToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await safeSetItemAsync(TOKEN_KEY, token);
 }
 
 export async function clearAuthToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await safeDeleteItemAsync(TOKEN_KEY);
 }
 
 /**
@@ -433,57 +434,50 @@ async function fetchSession(): Promise<Session> {
  * Call this after signIn/signUp to ensure subsequent requests include the cookie.
  */
 export async function refreshExplicitCookie(): Promise<void> {
-  try {
-    // Priority 1: Try Better Auth's expo storage key (used by email auth)
-    const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
-    const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
-    
-    if (AUTH_DEBUG) {
-      console.log('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
-      console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
-    }
-    
-    // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
-    if (rawCookie && rawCookie !== '{}') {
-      try {
-        const parsed = JSON.parse(rawCookie);
-        const targetCookieName = '__Secure-better-auth.session_token';
-        
-        if (parsed[targetCookieName]?.value) {
-          const token = parsed[targetCookieName].value;
-          explicitCookieValue = `${targetCookieName}=${token}`;
-          if (AUTH_DEBUG) {
-            console.log('[refreshExplicitCookie] Cookie cached from Better Auth storage');
-          }
-          return; // Success - done
-        }
-      } catch (parseError) {
+  // Priority 1: Try Better Auth's expo storage key (used by email auth)
+  const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
+  const rawCookie = await safeGetItemAsync(betterAuthCookieKey);
+  
+  if (AUTH_DEBUG) {
+    console.log('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
+    console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
+  }
+  
+  // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
+  if (rawCookie && rawCookie !== '{}') {
+    try {
+      const parsed = JSON.parse(rawCookie);
+      const targetCookieName = '__Secure-better-auth.session_token';
+      
+      if (parsed[targetCookieName]?.value) {
+        const token = parsed[targetCookieName].value;
+        explicitCookieValue = `${targetCookieName}=${token}`;
         if (AUTH_DEBUG) {
-          console.log('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
+          console.log('[refreshExplicitCookie] Cookie cached from Better Auth storage');
         }
+        return; // Success - done
       }
-    }
-    
-    // Priority 2: Fallback to SESSION_COOKIE_KEY (used by Apple Sign-In)
-    const explicitCookie = await SecureStore.getItemAsync(SESSION_COOKIE_KEY);
-    if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
-      explicitCookieValue = explicitCookie;
+    } catch (parseError) {
       if (AUTH_DEBUG) {
-        console.log('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
+        console.log('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
       }
-      return; // Success - done
     }
-    
-    // No cookie found in either location
-    explicitCookieValue = null;
+  }
+  
+  // Priority 2: Fallback to SESSION_COOKIE_KEY (used by Apple Sign-In)
+  const explicitCookie = await safeGetItemAsync(SESSION_COOKIE_KEY);
+  if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
+    explicitCookieValue = explicitCookie;
     if (AUTH_DEBUG) {
-      console.log('[refreshExplicitCookie] No cookie found in any location - cache cleared');
+      console.log('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
     }
-  } catch (error) {
-    explicitCookieValue = null;
-    if (AUTH_DEBUG) {
-      console.log('[refreshExplicitCookie] Error:', error);
-    }
+    return; // Success - done
+  }
+  
+  // No cookie found in either location
+  explicitCookieValue = null;
+  if (AUTH_DEBUG) {
+    console.log('[refreshExplicitCookie] No cookie found in any location - cache cleared');
   }
 }
 
@@ -541,7 +535,7 @@ export async function setOiSessionToken(token: string): Promise<void> {
   }
   
   // Store in SecureStore for persistence across app restarts
-  await SecureStore.setItemAsync(OI_SESSION_TOKEN_KEY, token);
+  await safeSetItemAsync(OI_SESSION_TOKEN_KEY, token);
   
   // Set in memory cache immediately for same-run requests
   oiSessionToken = token;
@@ -560,16 +554,11 @@ export async function loadOiSessionToken(): Promise<void> {
     return; // Already initialized
   }
   
-  try {
-    const token = await SecureStore.getItemAsync(OI_SESSION_TOKEN_KEY);
-    oiSessionToken = token;
-    oiSessionTokenInitialized = true;
-    
-    console.log(`[BOOT_TOKEN] loaded=${!!token} len=${token?.length ?? 0}`);
-  } catch (error) {
-    oiSessionTokenInitialized = true; // Mark as initialized even on error
-    console.log('[BOOT_TOKEN] loaded=false error=true');
-  }
+  const token = await safeGetItemAsync(OI_SESSION_TOKEN_KEY);
+  oiSessionToken = token;
+  oiSessionTokenInitialized = true;
+  
+  console.log(`[BOOT_TOKEN] loaded=${!!token} len=${token?.length ?? 0}`);
 }
 
 /**
@@ -577,11 +566,7 @@ export async function loadOiSessionToken(): Promise<void> {
  * Call this on sign out.
  */
 export async function clearOiSessionToken(): Promise<void> {
-  try {
-    await SecureStore.deleteItemAsync(OI_SESSION_TOKEN_KEY);
-  } catch {
-    // Ignore - key may not exist
-  }
+  await safeDeleteItemAsync(OI_SESSION_TOKEN_KEY);
   oiSessionToken = null;
   oiSessionTokenInitialized = true; // Mark initialized to prevent rehydrating stale values
   console.log('[OI_TOKEN] cleared');
@@ -600,7 +585,7 @@ async function captureAndStoreCookie(): Promise<void> {
   try {
     // Read from Better Auth's expo storage key
     const betterAuthCookieKey = `${STORAGE_PREFIX}_cookie`;
-    const rawCookie = await SecureStore.getItemAsync(betterAuthCookieKey);
+    const rawCookie = await safeGetItemAsync(betterAuthCookieKey);
     
     if (__DEV__) {
       console.log('[captureAndStoreCookie] Better Auth cookie key:', betterAuthCookieKey);
@@ -862,12 +847,8 @@ export const authClient = {
       // Clear OI session token (header fallback)
       await clearOiSessionToken();
       // Also clear Better Auth's stored cookies (legacy)
-      try {
-        await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_cookie`);
-        await SecureStore.deleteItemAsync(`${STORAGE_PREFIX}_session`);
-      } catch {
-        // Ignore - keys may not exist
-      }
+      await safeDeleteItemAsync(`${STORAGE_PREFIX}_cookie`);
+      await safeDeleteItemAsync(`${STORAGE_PREFIX}_session`);
       return { ok: true };
     } catch (e) {
       // Still clear local state even if server call fails

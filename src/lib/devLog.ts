@@ -43,6 +43,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_QUERY_DEFAULTS]",
   "[P1_JITTER]",
   "[P1_FEED_PAGINATION]",
+  // P0 SecureStore error handling
+  "[P0_SECURESTORE]",
 ];
 
 /**
