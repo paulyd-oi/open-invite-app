@@ -150,6 +150,22 @@
 - Deleted: src/lib/displayHelpers.ts (cleanGroupName no longer needed)
 - Circles remain the only group-like concept in the UI
 
+## Fixed This Session (P0.5 Repo Doctrine Sync - 2026-02-04)
+- Documentation updated with new canonical doctrines
+- NET_GATE SSOT: `enabled: bootStatus === 'authed'` is the canonical query gate
+- Auth Expiry SSOT: One-shot expiry event documented in AUTH_CONTRACT.md (Laws 4-5)
+- Support + FAQ Truth: Contact Support wired to support@openinvite.cloud via src/lib/support.ts SSOT
+- Password Reset: Backend guard throws EMAIL_PROVIDER_NOT_CONFIGURED instead of silent failure
+- Icon Update Pipeline documented: icon.png → prebuild → commit AppIcon → ship binary
+- Deferred items documented: Recurring Pro gating, push 2-account proof, E2E encryption (not implemented)
+
+## Fixed This Session (P0 Support + FAQ - 2026-02-04)
+- Created src/lib/support.ts as SSOT for support email (support@openinvite.cloud)
+- Contact Support button now opens mailto with clipboard fallback
+- FAQ audit: Removed 6 false/overpromising claims (encryption, category filter, ratings, badges, premium, nav path)
+- Added support SLA: "We typically respond within 24-48 hours"
+- Recurring Events FAQ updated: "planned as Pro feature but currently available to all"
+
 ## Fixed This Session (P2.1 Suggestions Feed Card Navigation Fix)
 - SuggestionFeedCard dead tap fixed: Cards with missing eventId/userId are now filtered out before render
 - Navigation deterministic: JOIN_EVENT cards only render when eventId is valid, RECONNECT_FRIEND only when userId is valid

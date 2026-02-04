@@ -1,5 +1,41 @@
 # Findings Log — Frontend
 
+## P0.5 Repo Doctrine Sync (2026-02-04)
+
+### Support + FAQ Truth Pass
+
+**PROBLEM**: Contact Support button in help-faq.tsx was dead (no-op). FAQ contained multiple false claims.
+
+**FIX**:
+1. Created `src/lib/support.ts` as SSOT for support email with `openSupportEmail()` helper
+2. Wired Contact Support button to open mailto with clipboard fallback
+3. Audited FAQ against actual codebase:
+   - Removed false encryption claim (not implemented)
+   - Removed category filter claim (no filter UI exists)
+   - Removed ratings/reviews claim (no rating system)
+   - Removed badge claim (no badges for event attendance)
+   - Fixed Premium gating language for Recurring Events
+   - Fixed navigation path discrepancy
+4. Added support SLA: "We typically respond within 24-48 hours"
+
+**FILES**: `src/lib/support.ts` (NEW), `src/app/help-faq.tsx`
+
+**Proof tag**: `[P0_SUPPORT]`
+
+### Password Reset Backend Fix
+
+**PROBLEM**: Forgot password flow appeared to succeed but emails never arrived.
+
+**ROOT CAUSE**: Backend `sendResetPassword` in auth.ts checked for RESEND_API_KEY but returned success even when not configured.
+
+**FIX**: Changed to throw `EMAIL_PROVIDER_NOT_CONFIGURED` error when RESEND_API_KEY is missing, enabling proper debugging.
+
+**FILES**: Backend `src/auth.ts`
+
+**Proof tag**: `[P0_PW_RESET]`
+
+---
+
 ## P0 Push Tap Deep-Link Parity (2026-02-03)
 
 ### Root Cause: Missing Cold Start Notification Handling

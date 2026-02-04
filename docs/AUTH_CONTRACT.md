@@ -74,5 +74,51 @@ See also:
 - [docs/API_AUTH_EXAMPLES.md](API_AUTH_EXAMPLES.md) — curl examples
 - [docs/FINDINGS_LOG.md](FINDINGS_LOG.md) — detailed proof and history
 
+---
+
+## Law 4: Auth Expiry One-Shot Event
+
+**Rule:** When authClient receives a 401/403 response from an authenticated endpoint, it MUST emit a one-shot expiry event. This event fires exactly once per session expiry.
+
+**Why:** Firing multiple "session expired" toasts confuses users and feels broken. A single clean notification followed by redirect to welcome provides better UX.
+
+**Implementation:**
+```typescript
+// ✅ CORRECT: One-shot pattern
+let expiredEmitted = false;
+if (status === 401 && !expiredEmitted) {
+  expiredEmitted = true;
+  showToast("Session expired. Please sign in again.");
+  router.replace("/welcome");
+}
+
+// ❌ WRONG: Toast on every 401
+if (status === 401) showToast("Session expired"); // SPAM
+```
+
+**Proof tag:** `[AUTH_EXPIRED]` in console logs when triggered.
+
+---
+
+## Law 5: Password Reset Backend Guard
+
+**Rule:** The `sendResetPassword` endpoint MUST throw `EMAIL_PROVIDER_NOT_CONFIGURED` if `RESEND_API_KEY` is not set. Silent failures are forbidden.
+
+**Why:** Silent failures cause users to wait for emails that never arrive. Explicit errors enable debugging.
+
+**Proof tag:** `[P0_PW_RESET]` in auth.ts logs when email sent or error thrown.
+
+---
+
+## Summary (Updated)
+
+| Law | Rule | Reason |
+|-----|------|--------|
+| 1 | Use Better Auth session cookie | Server-side session management |
+| 2 | Lowercase `cookie` header in RN | React Native drops uppercase `Cookie` |
+| 3 | Gate on `bootStatus === 'authed'` | Prevent 401 storms during transitions |
+| 4 | One-shot auth expiry event | Prevent toast spam on session expiry |
+| 5 | Password reset backend guard | Explicit errors vs silent failure |
+
 type: "event_join"
 deepLinkPath: `/event/${eventId}`

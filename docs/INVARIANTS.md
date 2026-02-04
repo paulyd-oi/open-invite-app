@@ -29,3 +29,75 @@
 INVARIANT: “business” is banned from frontend runtime code. (No businessEvents, isBusinessEvent, type: "business", business profile mode, or ProfileSwitcher.)
 
 INVARIANT: Badges are PILL-ONLY. No badge overlays on avatars. No trophy glyphs in UI.
+
+## Network Gate SSOT
+
+INVARIANT: All authenticated React Query calls MUST use `enabled: bootStatus === 'authed'`.
+
+This is the canonical way to gate network requests on authentication state. Never use `enabled: !!session` or similar patterns.
+
+**Rationale**: After logout, the session may persist momentarily in React Query cache. Using `!!session` causes queries to fire during logout/login transitions → 401 storm.
+
+**See**: [AUTH_CONTRACT.md](AUTH_CONTRACT.md) Law 3 for complete documentation.
+
+## Auth Expiry SSOT
+
+INVARIANT: `authClient` emits a one-shot auth expiry event on 401/403 responses. The event fires exactly once per session expiry, preventing toast spam.
+
+**Proof tag**: `[AUTH_EXPIRED]` in console logs when triggered.
+
+**Behavior**: On 401/403 from authenticated endpoint, authClient fires expiry event. App shows single toast, clears session, redirects to welcome.
+
+## UX Jitter Prevention
+
+INVARIANT: Loading states MUST use `useStickyLoading(300ms)` minimum duration to prevent UI jitter from fast network responses.
+
+**Proof tag**: `[P1_JITTER]` in component implementations.
+
+**Rationale**: Sub-100ms loading state flashes cause visual jitter that degrades perceived polish. 300ms minimum ensures smooth transitions.
+
+## Backend Rate Limiting
+
+INVARIANT: Backend applies rate limiting to auth endpoints:
+- Global: 200 requests/minute per IP
+- Auth endpoints (`/api/custom-auth/*`): 50 requests/15 minutes per IP
+
+**Proof tags**: `[RATE_LIMIT]` in backend logs when limits enforced.
+
+## Support Contact SSOT
+
+INVARIANT: Support email is `support@openinvite.cloud`. All support contact points use `src/lib/support.ts` helper.
+
+**Proof tag**: `[P0_SUPPORT]` in support.ts implementation.
+
+**Helper**: `openSupportEmail()` opens mailto with clipboard fallback for native apps without mailto handler.
+
+## Password Reset Flow
+
+INVARIANT: Password reset flow is:
+1. User requests reset via email
+2. Backend sends reset link to `https://openinvite.cloud/reset-password?token=...`
+3. User clicks link → web page with password entry form
+4. Web page calls backend `/api/auth/reset-password` with token + new password
+
+**Proof tag**: `[P0_PW_RESET]` in auth.ts implementation.
+
+**Backend guard**: If RESEND_API_KEY not configured, throws `EMAIL_PROVIDER_NOT_CONFIGURED` instead of silent failure.
+
+## Icon Update Pipeline
+
+INVARIANT: To update app icon:
+1. Replace `/icon.png` with new 1024x1024 PNG
+2. Run `npx expo prebuild --clean` to regenerate native assets
+3. Commit AppIcon assets in `ios/` and `android/`
+4. Ship new binary via EAS Submit
+
+**Note**: App Store icon updates require full binary submission. OTA updates cannot change the app icon.
+
+## Deferred Post-Launch Items
+
+The following are deferred for post-launch implementation:
+
+- **Recurring Events Pro Gating**: Currently available to all users. Premium gating planned as Pro feature.
+- **Push Delivery 2-Account Proof**: Multi-device notification delivery verification pending.
+- **End-to-End Encryption**: Not currently implemented. FAQ updated to remove false claim.
