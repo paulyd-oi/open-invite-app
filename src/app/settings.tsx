@@ -421,10 +421,14 @@ export default function SettingsScreen() {
 
   // Check if user is in push diagnostics allowlist
   const userEmail = session?.user?.email?.toLowerCase() ?? "";
-  const showPushDiagnostics = PUSH_DIAG_ALLOWLIST.some(email => email.toLowerCase() === userEmail);
+  const isPushDiagnosticsAllowed = PUSH_DIAG_ALLOWLIST.some(email => email.toLowerCase() === userEmail);
+  // CRITICAL: Production must NEVER show Push Diagnostics - gate with __DEV__
+  const canShowPushDiagnostics = __DEV__ && isPushDiagnosticsAllowed;
 
   // Handle push diagnostics tap - opens modal and runs diagnostic
   const handlePushDiagnostics = async () => {
+    // Hard guard: no-op in production even if somehow invoked
+    if (!__DEV__) return;
     if (isPushDiagRunning) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPushDiagResult(null);
@@ -500,6 +504,8 @@ export default function SettingsScreen() {
 
   // Actually run the diagnostics (called from modal)
   const doRunPushDiagnostics = async () => {
+    // Hard guard: no-op in production even if somehow invoked
+    if (!__DEV__) return;
     if (isPushDiagRunning) return;
     
     // PROOF LOG: Handler executed
@@ -1582,8 +1588,8 @@ export default function SettingsScreen() {
                 router.push("/notification-settings");
               }}
             />
-            {/* Push Diagnostics - visible only to allowlisted testers */}
-            {showPushDiagnostics && (
+            {/* Push Diagnostics - visible only to allowlisted testers in DEV builds */}
+            {canShowPushDiagnostics && (
               <SettingItem
                 icon={<Bell size={20} color="#10B981" />}
                 title="Push Diagnostics"
@@ -2327,7 +2333,8 @@ export default function SettingsScreen() {
         </Pressable>
       </Modal>
 
-      {/* Push Diagnostics Modal - Production-safe diagnostic panel */}
+      {/* Push Diagnostics Modal - DEV-only, never shown in production */}
+      {canShowPushDiagnostics && (
       <Modal
         visible={showPushDiagModal}
         transparent
@@ -2546,6 +2553,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      )}
     </SafeAreaView>
   );
 }
