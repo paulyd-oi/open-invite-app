@@ -29,8 +29,10 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import Constants from "expo-constants";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { openSupportEmail } from "@/lib/support";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -904,7 +906,7 @@ export default function HelpFAQScreen() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                // Could link to email or support form
+                openSupportEmail();
               }}
               className="py-3 rounded-xl items-center"
               style={{ backgroundColor: themeColor }}
@@ -915,7 +917,7 @@ export default function HelpFAQScreen() {
         </Animated.View>
 
         <Text style={{ color: colors.textTertiary }} className="text-center text-sm mt-6">
-          Open Invite v1.0.0
+          Open Invite v{Constants.expoConfig?.version ?? "1.0.0"}
         </Text>
       </ScrollView>
     </SafeAreaView>
