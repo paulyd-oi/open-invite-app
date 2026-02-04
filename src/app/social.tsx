@@ -27,6 +27,7 @@ import { api } from "@/lib/api";
 import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
@@ -1002,7 +1003,13 @@ export default function SocialScreen() {
   };
 
   const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
-  const isLoading = feedLoading || myEventsLoading || attendingLoading;
+  
+  // P1 JITTER FIX: Use sticky loading to prevent flicker on fast refetches
+  const isLoading = useStickyLoadingCombined(
+    [feedLoading, myEventsLoading, attendingLoading],
+    300,
+    __DEV__ ? "social" : undefined
+  );
 
   // Render loading state for non-authed states (redirect useEffect handles routing)
   // Keep BottomNavigation visible for escape route

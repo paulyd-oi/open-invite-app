@@ -73,6 +73,7 @@ import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderS
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useStickyLoading } from "@/lib/useStickyLoading";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -861,7 +862,7 @@ export default function FriendsScreen() {
     console.time("[PERF] Friends query");
   }
 
-  const { data: friendsData, isLoading, refetch, isRefetching } = useQuery({
+  const { data: friendsData, isLoading: rawIsLoading, refetch, isRefetching } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -871,6 +872,9 @@ export default function FriendsScreen() {
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev) => prev, // Keep previous data during refetch
   });
+  
+  // P1 JITTER FIX: Use sticky loading to prevent flicker
+  const isLoading = useStickyLoading(rawIsLoading, 300, __DEV__ ? "friends" : undefined);
 
   // DEV: Log when friends data arrives
   useEffect(() => {

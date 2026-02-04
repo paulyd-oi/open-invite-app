@@ -41,6 +41,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
@@ -1720,9 +1721,17 @@ export default function CalendarScreen() {
     cleanupLegacyFlags();
   }, [session?.user?.id, bootStatus, isFriendsFetched, isCalendarFetched, friendsData, calendarData]);
 
+  // P1 JITTER FIX: Use sticky loading to prevent flicker on fast refetches
+  const stickyLoading = useStickyLoadingCombined(
+    [isLoadingCalendar, isLoadingBirthdays],
+    300,
+    __DEV__ ? "calendar" : undefined
+  );
+
   // Determine empty state logic (fixed bug: account for loading states)
   // Note: isRefetchingCalendar intentionally excluded – refetch should not reset empty state
-  const isDataSettled = !isLoadingCalendar && !isLoadingBirthdays && bootStatus === 'authed';
+  // Use stickyLoading for UI decisions to prevent flicker
+  const isDataSettled = !stickyLoading && bootStatus === 'authed';
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
 
