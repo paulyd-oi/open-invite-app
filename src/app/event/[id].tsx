@@ -462,6 +462,16 @@ export default function EventDetailScreen() {
   const eventErrorStatus = (eventError as any)?.status;
   const eventErrorCode = (eventError as any)?.data?.code;
   
+  // [P0_CIRCLE_EVENT_TAP] Proof log: event fetch result
+  if (__DEV__ && !isLoadingEvent) {
+    if (singleEventData?.event) {
+      devLog('[P0_CIRCLE_EVENT_TAP] fetch status=200 authed=true', {
+        eventId: id,
+        eventTitle: singleEventData.event.title,
+      });
+    }
+  }
+  
   // Check if event is privacy-restricted (403/404 with specific codes)
   const isPrivacyRestricted = !!(eventError && (
     eventErrorStatus === 403 ||
@@ -475,9 +485,9 @@ export default function EventDetailScreen() {
   const restrictedHostInfo = isPrivacyRestricted ? (eventError as any)?.data?.host : null;
   const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'this person';
 
-  // DEV logging for blocked event debugging
+  // DEV logging for blocked event debugging (now with P0 tag)
   if (__DEV__ && !isLoadingEvent && eventError) {
-    devLog('[P0_BLOCKED_EVENT] Event fetch error:', {
+    devLog('[P0_CIRCLE_EVENT_TAP] Event fetch error (no logout):', {
       eventId: id,
       status: eventErrorStatus,
       code: eventErrorCode,

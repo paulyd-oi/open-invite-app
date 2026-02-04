@@ -595,9 +595,17 @@ function MiniCalendar({
                         // Don't navigate to private events that belong to other users
                         if (isMaskedBusy) {
                           if (__DEV__) {
-                            devLog('[CircleCalendarPrivacy] Blocked navigation to masked busy block:', event.id);
+                            devLog('[P0_CIRCLE_EVENT_TAP] Blocked navigation to masked busy block:', event.id);
                           }
                           return;
+                        }
+                        // [P0_CIRCLE_EVENT_TAP] Proof log: event tap navigation
+                        if (__DEV__) {
+                          devLog('[P0_CIRCLE_EVENT_TAP] tapped', {
+                            eventId: event.id,
+                            target: `/event/${event.id}`,
+                            isPast: new Date(event.startTime) < new Date(),
+                          });
                         }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setShowDayModal(false);

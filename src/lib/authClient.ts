@@ -309,10 +309,12 @@ async function $fetch<T = any>(
       err.response = { status: response.status, _data: errorData };
       err.data = errorData;
       
-      // AUTH EXPIRY: Emit event on 401/403 for authenticated endpoints (not /api/auth/*)
-      // This triggers SSOT logout flow in React tree (one-shot per session)
+      // AUTH EXPIRY: Emit event on 401 ONLY for authenticated endpoints (not /api/auth/*)
+      // 403 = "Forbidden" = valid privacy response (keep session)
+      // 401 = "Unauthorized" = session may be expired (trigger logout)
+      // [P0_CIRCLE_EVENT_TAP] Fixed: 403 no longer triggers logout (was causing event tap → logout bug)
       const isAuthEndpoint = path.startsWith("/api/auth/");
-      if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
+      if (response.status === 401 && !isAuthEndpoint) {
         emitAuthExpiry({ endpoint: path, method: init?.method || "GET", status: response.status });
       }
       
