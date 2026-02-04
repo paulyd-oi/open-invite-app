@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
+import { useIsPro } from "@/lib/entitlements";
 
 interface BadgeCatalogItem {
   badgeKey: string;
@@ -62,6 +63,20 @@ export default function BadgesScreen() {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState<BadgeCatalogItem | null>(null);
+  const didProRefreshRef = useRef(false);
+
+  // [P1_PRO_BADGES_UI] When Pro status is recognized, invalidate badgesCatalog once
+  const { isPro, isLoading: isProLoading } = useIsPro();
+
+  useEffect(() => {
+    if (!isProLoading && isPro && !didProRefreshRef.current) {
+      didProRefreshRef.current = true;
+      if (__DEV__) {
+        devLog("[P1_PRO_BADGES_UI] triggered invalidate badgesCatalog due to isPro=true");
+      }
+      queryClient.invalidateQueries({ queryKey: ["badgesCatalog"] });
+    }
+  }, [isPro, isProLoading, queryClient]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["badgesCatalog"],
@@ -136,8 +151,15 @@ export default function BadgesScreen() {
         featuredBadge: featuredBadge?.name ?? null,
         whyHidden: isLoading ? "loading" : badges.length === 0 ? "no_badges_data" : "showing",
       });
+      // [P1_PRO_BADGES_UI] Log Pro status summary
+      devLog("[P1_PRO_BADGES_UI] render summary", {
+        isPro,
+        isProLoading,
+        unlockedCount: unlockedBadges.length,
+        lockedCount: lockedBadges.length,
+      });
     }
-  }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge]);
+  }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge, isPro, isProLoading]);
 
   return (
     <SafeAreaView className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
