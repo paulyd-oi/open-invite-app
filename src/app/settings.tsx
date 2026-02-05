@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ChevronLeft,
   Palette,
@@ -587,6 +588,115 @@ export default function SettingsScreen() {
 
   // Confirm modal states
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+
+  // =====================================================
+  // P0 ADMIN UNLOCK: Hidden 7-tap unlock mechanism
+  // =====================================================
+  const ADMIN_UNLOCK_KEY = "@oi_admin_unlocked_v1";
+  const ADMIN_TAP_COUNT = 7;
+  const ADMIN_TAP_WINDOW_MS = 2500;
+  
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState("");
+  const [passcodeError, setPasscodeError] = useState(false);
+  const adminTapTimestampsRef = useRef<number[]>([]);
+  
+  // Load persisted unlock state on mount
+  useEffect(() => {
+    const loadUnlockState = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(ADMIN_UNLOCK_KEY);
+        if (stored === "true") {
+          setAdminUnlocked(true);
+          if (__DEV__) devLog("[P0_ADMIN_UNLOCK_RESTORE] restored unlock state from storage");
+        }
+      } catch (e) {
+        // Fail silently - default to locked
+      }
+    };
+    loadUnlockState();
+  }, []);
+  
+  // Get passcode from env var with DEV fallback
+  const getAdminPasscode = useCallback((): string | null => {
+    const envCode = Constants.expoConfig?.extra?.adminUnlockCode 
+      ?? process.env.EXPO_PUBLIC_ADMIN_UNLOCK_CODE;
+    if (envCode) return envCode;
+    // DEV-only fallback
+    if (__DEV__) return "0000";
+    // Production: fail closed
+    if (__DEV__) devLog("[P0_ADMIN_UNLOCK_FAIL_CLOSED] no passcode configured in production");
+    return null;
+  }, []);
+  
+  // Handle 7-tap detection on Settings header
+  const handleSettingsHeaderTap = useCallback(() => {
+    const now = Date.now();
+    const cutoff = now - ADMIN_TAP_WINDOW_MS;
+    
+    // Filter to taps within window
+    const recentTaps = adminTapTimestampsRef.current.filter(t => t > cutoff);
+    recentTaps.push(now);
+    adminTapTimestampsRef.current = recentTaps;
+    
+    if (recentTaps.length >= ADMIN_TAP_COUNT) {
+      // Reset tap counter
+      adminTapTimestampsRef.current = [];
+      
+      // Check if already unlocked
+      if (adminUnlocked) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        safeToast.info("Already Unlocked", "Admin tools already accessible");
+        return;
+      }
+      
+      // Check if passcode is configured
+      const passcode = getAdminPasscode();
+      if (!passcode) {
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK_FAIL_CLOSED] passcode not configured");
+        return; // Fail silently in production
+      }
+      
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TAP] 7-tap detected, showing passcode prompt");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPasscodeInput("");
+      setPasscodeError(false);
+      setShowPasscodeModal(true);
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_PROMPT] passcode modal opened");
+    }
+  }, [adminUnlocked, getAdminPasscode]);
+  
+  // Handle passcode submission
+  const handlePasscodeSubmit = useCallback(async () => {
+    const correctCode = getAdminPasscode();
+    if (!correctCode) return;
+    
+    if (passcodeInput === correctCode) {
+      // Correct passcode
+      setAdminUnlocked(true);
+      setShowPasscodeModal(false);
+      setPasscodeInput("");
+      setPasscodeError(false);
+      
+      // Persist to AsyncStorage
+      try {
+        await AsyncStorage.setItem(ADMIN_UNLOCK_KEY, "true");
+      } catch (e) {
+        // Non-fatal, just won't persist
+      }
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Unlocked", "Admin tools now accessible");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_SUCCESS] admin unlock successful, persisted");
+    } else {
+      // Wrong passcode
+      setPasscodeError(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_FAIL] incorrect passcode entered");
+    }
+  }, [passcodeInput, getAdminPasscode]);
+  // =====================================================
 
   // Profile editing states
   const [editName, setEditName] = useState("");
@@ -1242,6 +1352,7 @@ export default function SettingsScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Pressable
+          onPress={handleSettingsHeaderTap}
           onLongPress={isDevToolsEnabled() ? () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.push("/debug/health");
@@ -2219,8 +2330,8 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Admin Section - Only visible to admins */}
-        {adminStatus?.isAdmin && (
+        {/* Admin Section - Only visible when unlocked AND admin */}
+        {adminUnlocked && adminStatus?.isAdmin && (
           <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
@@ -2234,6 +2345,18 @@ export default function SettingsScreen() {
                   router.push("/admin");
                 }}
               />
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Admin Section - Unlocked but not admin (safe stub) */}
+        {adminUnlocked && !adminStatus?.isAdmin && (
+          <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
+            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
+              <Text style={{ color: colors.textSecondary }} className="text-sm text-center">
+                Admin access unlocked, but your account does not have admin privileges.
+              </Text>
             </View>
           </Animated.View>
         )}
@@ -2334,6 +2457,90 @@ export default function SettingsScreen() {
             >
               <Text className="text-white font-semibold">Got it</Text>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Admin Unlock Passcode Modal */}
+      <Modal
+        visible={showPasscodeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowPasscodeModal(false);
+          setPasscodeInput("");
+          setPasscodeError(false);
+        }}
+      >
+        <Pressable
+          className="flex-1 justify-center items-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onPress={() => {
+            setShowPasscodeModal(false);
+            setPasscodeInput("");
+            setPasscodeError(false);
+          }}
+        >
+          <Pressable
+            onPress={() => {}}
+            className="mx-6 rounded-2xl p-6"
+            style={{ backgroundColor: colors.surface, maxWidth: 320, width: "85%" }}
+          >
+            <Text className="text-lg font-bold text-center mb-3" style={{ color: colors.text }}>
+              Enter Passcode
+            </Text>
+            <Text className="text-sm text-center mb-4" style={{ color: colors.textSecondary }}>
+              Enter the admin passcode to continue
+            </Text>
+            <TextInput
+              value={passcodeInput}
+              onChangeText={(text) => {
+                setPasscodeInput(text);
+                setPasscodeError(false);
+              }}
+              placeholder="Passcode"
+              placeholderTextColor={colors.textTertiary}
+              secureTextEntry
+              keyboardType="number-pad"
+              autoFocus
+              className="rounded-xl px-4 py-3 text-center text-lg mb-3"
+              style={{
+                backgroundColor: colors.separator,
+                color: colors.text,
+                borderWidth: passcodeError ? 2 : 0,
+                borderColor: passcodeError ? "#EF4444" : "transparent",
+              }}
+              onSubmitEditing={handlePasscodeSubmit}
+            />
+            {passcodeError && (
+              <Text className="text-sm text-center mb-3" style={{ color: "#EF4444" }}>
+                Incorrect passcode
+              </Text>
+            )}
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowPasscodeModal(false);
+                  setPasscodeInput("");
+                  setPasscodeError(false);
+                }}
+                className="flex-1 rounded-xl py-3 items-center"
+                style={{ backgroundColor: colors.separator }}
+              >
+                <Text className="font-semibold" style={{ color: colors.text }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  handlePasscodeSubmit();
+                }}
+                className="flex-1 rounded-xl py-3 items-center"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white font-semibold">Submit</Text>
+              </Pressable>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>

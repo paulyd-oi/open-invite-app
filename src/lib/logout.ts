@@ -10,18 +10,23 @@
  * 3. Reset session (clear tokens + sign out)
  * 4. Cancel queries + clear cache
  * 5. Reset boot authority singleton
- * 6. Navigate to /login
+ * 6. Clear admin unlock state
+ * 7. Navigate to /login
  *
  * Safe to call multiple times - idempotent via in-flight guard.
  */
 
 import { QueryClient } from "@tanstack/react-query";
 import { Router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resetSession } from "./authBootstrap";
 import { setLogoutIntent } from "./logoutIntent";
 import { deactivatePushTokenOnLogout } from "./pushTokenManager";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
+
+// Admin unlock storage key (must match settings.tsx)
+const ADMIN_UNLOCK_KEY = "@oi_admin_unlocked_v1";
 
 export type LogoutScreen = "settings" | "account_center" | "social" | "privacy_settings" | "auth_expiry";
 export type LogoutReason = "user_logout" | "account_deletion" | "auth_expired";
@@ -83,7 +88,17 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     // Step 5: Reset boot authority singleton
     resetBootAuthority();
 
-    // Step 6: Navigate to login
+    // Step 6: Clear admin unlock state
+    try {
+      await AsyncStorage.removeItem(ADMIN_UNLOCK_KEY);
+      if (__DEV__) {
+        devLog(`[P0_ADMIN_UNLOCK_RESET] admin unlock cleared on logout`);
+      }
+    } catch (e) {
+      // Non-fatal, continue logout
+    }
+
+    // Step 7: Navigate to login
     router.replace("/login");
   } catch (error) {
     if (__DEV__) {
