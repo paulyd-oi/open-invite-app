@@ -5,6 +5,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { ArrowLeft, Mail, CheckCircle, PartyPopper, Eye, EyeOff, ShieldCheck } from "@/ui/icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { devLog, devError } from "@/lib/devLog";
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
@@ -285,7 +286,7 @@ export default function LoginWithEmailPassword() {
       return;
     }
 
-    console.log("[P0_PW_RESET] forgot password initiated");
+    devLog("[P0_PW_RESET] forgot password initiated");
     setIsLoading(true);
     try {
       const response = await fetch(`${backendUrl}/api/auth/forget-password`, {
@@ -316,7 +317,7 @@ export default function LoginWithEmailPassword() {
         const responseText = errorData ? null : await response.text().catch(() => null);
         const extractedMessage = extractErrorMessage(errorData, responseText || undefined);
         
-        console.error("[P0_PW_RESET] backend error", { message: extractedMessage });
+        devError("[P0_PW_RESET] backend error", { message: extractedMessage });
         
         if (extractedMessage.includes("EMAIL_PROVIDER_NOT_CONFIGURED")) {
           throw new Error("Password reset is temporarily unavailable. Please contact support@openinvite.cloud");
@@ -324,7 +325,7 @@ export default function LoginWithEmailPassword() {
         throw new Error(extractedMessage || "Failed to send reset email");
       }
 
-      console.log("[P0_PW_RESET] reset email request success");
+      devLog("[P0_PW_RESET] reset email request success");
       setResetEmailSent(true);
     } catch (error: any) {
       const message = error?.message || "Unable to connect to server. Please check your internet connection.";

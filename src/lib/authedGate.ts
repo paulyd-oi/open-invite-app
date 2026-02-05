@@ -15,6 +15,7 @@
  */
 
 import type { BootStatus } from "@/hooks/useBootAuthority";
+import { devLog } from "@/lib/devLog";
 
 // Minimal session shape for gate check
 interface SessionForGate {
@@ -75,7 +76,7 @@ export function assertAuthedForNetwork(params: {
   if (!allowed && __DEV__) {
     // Always-on DEV log with canonical prefix
     const userId = session?.user?.id ?? session?.effectiveUserId ?? "none";
-    console.log(
+    devLog(
       `[NET_GATE] DENY tag=${tag} bootStatus=${bootStatus ?? "undefined"} userId=${userId}${endpoint ? ` endpoint=${endpoint}` : ""}`
     );
   }

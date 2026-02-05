@@ -195,7 +195,7 @@ export function useOfflineSync(bootStatus?: string) {
       // [NET_GATE] Block replay unless fully authenticated
       if (bootStatus !== 'authed') {
         if (__DEV__) {
-          console.log(`[NET_GATE] DENY tag=offlineReplay bootStatus=${bootStatus ?? "undefined"}`);
+          devLog(`[NET_GATE] DENY tag=offlineReplay bootStatus=${bootStatus ?? "undefined"}`);
         }
         return;
       }

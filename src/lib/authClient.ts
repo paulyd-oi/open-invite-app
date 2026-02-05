@@ -6,6 +6,7 @@ import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import { BACKEND_URL } from "./config";
 import { AUTH_TOKEN_KEY } from "./authKeys";
+import { devLog, devWarn, devError } from "./devLog";
 import {
   getSessionCookie,
   setSessionCookie,
@@ -43,7 +44,7 @@ const AUTH_DEBUG = __DEV__ && process.env.EXPO_PUBLIC_AUTH_DEBUG === "1";
  */
 function authTrace(event: string, data: Record<string, boolean | string | number>): void {
   if (!AUTH_DEBUG) return;
-  console.log(`[AUTH_TRACE] ${event}`, data);
+  devLog(`[AUTH_TRACE] ${event}`, data);
 }
 
 // UUID regex pattern for rejection
@@ -119,7 +120,7 @@ const betterAuthClient = createAuthClient({
 // DEV: Log cookie storage key for debugging (gated behind AUTH_DEBUG)
 if (AUTH_DEBUG) {
   const cookieKey = `${STORAGE_PREFIX}_cookie`;
-  console.log(`[authClient] Cookie storage key: ${cookieKey}`);
+  devLog(`[authClient] Cookie storage key: ${cookieKey}`);
   void debugDumpBetterAuthCookieOnce();
 }
 
@@ -144,7 +145,7 @@ export async function ensureCookieInitialized(): Promise<void> {
   
   cookieInitPromise = (async () => {
     if (AUTH_DEBUG) {
-      console.log('[authClient] Initializing cookie cache from SecureStore...');
+      devLog('[authClient] Initializing cookie cache from SecureStore...');
     }
     // Load both cookie and OI session token in parallel
     await Promise.all([
@@ -153,7 +154,7 @@ export async function ensureCookieInitialized(): Promise<void> {
     ]);
     cookieInitialized = true;
     if (AUTH_DEBUG) {
-      console.log('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
+      devLog('[authClient] Cookie cache initialized, hasValue:', !!explicitCookieValue);
     }
   })();
   
@@ -231,11 +232,11 @@ async function $fetch<T = any>(
   const hasCookie = !!explicitCookieValue;
 
   if (AUTH_DEBUG) {
-    console.log(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
-    console.log(`[authClient.$fetch] Explicit cookie cached: ${hasCookie}`);
+    devLog(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);
+    devLog(`[authClient.$fetch] Explicit cookie cached: ${hasCookie}`);
     if (hasCookie && explicitCookieValue) {
       const cookieName = explicitCookieValue.split('=')[0];
-      console.log(`[authClient.$fetch] Cookie name: ${cookieName}`);
+      devLog(`[authClient.$fetch] Cookie name: ${cookieName}`);
     }
   }
 
@@ -279,9 +280,9 @@ async function $fetch<T = any>(
     
     // DEV-only: Log auth header state (never log token values)
     if (AUTH_DEBUG) {
-      console.log(`[AUTH_HDR] x-oi-session-token len=${oiSessionToken?.length ?? 0} hadCookie=${hadCookie}`);
+      devLog(`[AUTH_HDR] x-oi-session-token len=${oiSessionToken?.length ?? 0} hadCookie=${hadCookie}`);
       if (hadCookie && explicitCookieValue) {
-        console.log(`[authClient.$fetch] cookie header SET: ${explicitCookieValue.split('=')[0]}`);
+        devLog(`[authClient.$fetch] cookie header SET: ${explicitCookieValue.split('=')[0]}`);
       }
     }
     
@@ -294,14 +295,14 @@ async function $fetch<T = any>(
     
     // Log response status for every request (helps debug auth issues)
     if (AUTH_DEBUG) {
-      console.log(`[authClient.$fetch] Response status for ${path}: ${response.status}`);
+      devLog(`[authClient.$fetch] Response status for ${path}: ${response.status}`);
     }
     
     if (!response.ok) {
       // Read raw text once for both logging and parsing
       const rawText = await response.text().catch(() => '');
       if (AUTH_DEBUG) {
-        console.log(`[authClient.$fetch] Non-OK ${response.status} raw body preview: ${rawText.slice(0, 120)}`);
+        devLog(`[authClient.$fetch] Non-OK ${response.status} raw body preview: ${rawText.slice(0, 120)}`);
       }
       let errorData: any = null;
       try { errorData = JSON.parse(rawText); } catch {}
@@ -332,11 +333,11 @@ async function $fetch<T = any>(
       const userId = sessionData?.user?.id || null;
       const sessionUserId = sessionData?.session?.userId || null;
       const effectiveUserId = userId ?? sessionUserId ?? null;
-      console.log(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
+      devLog(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
     }
     
     if (AUTH_DEBUG) {
-      console.log(`[authClient.$fetch] Success for ${path}`);
+      devLog(`[authClient.$fetch] Success for ${path}`);
       authTrace("authFetch:success", { endpoint: path, hadCookie: hasCookie });
     }
     
@@ -366,7 +367,7 @@ async function $fetch<T = any>(
     };
 
     if (AUTH_DEBUG) {
-      console.log(`[authClient.$fetch] Error for ${path}:`, details.message);
+      devLog(`[authClient.$fetch] Error for ${path}:`, details.message);
       
       // Known optional endpoints - treat 404 as non-error in logs
       const isKnown404 = details.status === 404 && (
@@ -377,15 +378,15 @@ async function $fetch<T = any>(
       );
       
       if (isKnown404) {
-        console.warn(`[authClient.$fetch] Known optional endpoint 404: ${details.method} ${url}`);
+        devWarn(`[authClient.$fetch] Known optional endpoint 404: ${details.method} ${url}`);
       }
       
       // Detailed error logging for /api/profile to debug validation failures
       if (path.includes("/api/profile")) {
-        console.error(`[authClient.$fetch] /api/profile ERROR DETAILS:`);
-        console.error(`  status: ${details.status}`);
-        console.error(`  data: ${typeof details.data === 'object' ? JSON.stringify(details.data, null, 2) : details.data || 'none'}`);
-        console.error(`  message: ${details.message}`);
+        devError(`[authClient.$fetch] /api/profile ERROR DETAILS:`);
+        devError(`  status: ${details.status}`);
+        devError(`  data: ${typeof details.data === 'object' ? JSON.stringify(details.data, null, 2) : details.data || 'none'}`);
+        devError(`  message: ${details.message}`);
       }
     }
     
@@ -403,9 +404,9 @@ async function $fetch<T = any>(
 // Log resolved API base URL in development for easier debugging
 if (AUTH_DEBUG) {
   try {
-    console.log("[authClient] Resolved API_BASE_URL:", API_BASE_URL);
-    console.log("[authClient] Using Better Auth expoClient with storagePrefix:", STORAGE_PREFIX);
-    console.log("[authClient] Cookie storage: SecureStore (via @better-auth/expo)");
+    devLog("[authClient] Resolved API_BASE_URL:", API_BASE_URL);
+    devLog("[authClient] Using Better Auth expoClient with storagePrefix:", STORAGE_PREFIX);
+    devLog("[authClient] Cookie storage: SecureStore (via @better-auth/expo)");
   } catch (e) {
     // ignore
   }
@@ -439,8 +440,8 @@ export async function refreshExplicitCookie(): Promise<void> {
   const rawCookie = await safeGetItemAsync(betterAuthCookieKey);
   
   if (AUTH_DEBUG) {
-    console.log('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
-    console.log('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
+    devLog('[refreshExplicitCookie] Reading from key:', betterAuthCookieKey);
+    devLog('[refreshExplicitCookie] Raw cookie exists:', !!rawCookie);
   }
   
   // Parse JSON format: {"__Secure-better-auth.session_token":{"value":"TOKEN","expires":"..."}}
@@ -453,13 +454,13 @@ export async function refreshExplicitCookie(): Promise<void> {
         const token = parsed[targetCookieName].value;
         explicitCookieValue = `${targetCookieName}=${token}`;
         if (AUTH_DEBUG) {
-          console.log('[refreshExplicitCookie] Cookie cached from Better Auth storage');
+          devLog('[refreshExplicitCookie] Cookie cached from Better Auth storage');
         }
         return; // Success - done
       }
     } catch (parseError) {
       if (AUTH_DEBUG) {
-        console.log('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
+        devLog('[refreshExplicitCookie] Failed to parse Better Auth cookie JSON:', parseError);
       }
     }
   }
@@ -469,7 +470,7 @@ export async function refreshExplicitCookie(): Promise<void> {
   if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
     explicitCookieValue = explicitCookie;
     if (AUTH_DEBUG) {
-      console.log('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
+      devLog('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
     }
     return; // Success - done
   }
@@ -477,7 +478,7 @@ export async function refreshExplicitCookie(): Promise<void> {
   // No cookie found in either location
   explicitCookieValue = null;
   if (AUTH_DEBUG) {
-    console.log('[refreshExplicitCookie] No cookie found in any location - cache cleared');
+    devLog('[refreshExplicitCookie] No cookie found in any location - cache cleared');
   }
 }
 
@@ -498,7 +499,7 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   const parts = cookiePair.split('=');
   if (parts.length < 2) {
     if (AUTH_DEBUG) {
-      console.log('[AUTH_TRACE] setExplicitCookieValueDirectly: rejected, invalid format (no =)');
+      devLog('[AUTH_TRACE] setExplicitCookieValueDirectly: rejected, invalid format (no =)');
     }
     return false;
   }
@@ -508,14 +509,14 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
   
   if (!validation.isValid) {
     if (AUTH_DEBUG) {
-      console.log(`[AUTH_TRACE] setExplicitCookieValueDirectly: rejected token, reason=${validation.reason}`);
+      devLog(`[AUTH_TRACE] setExplicitCookieValueDirectly: rejected token, reason=${validation.reason}`);
     }
     return false; // Do NOT set invalid token
   }
   
   explicitCookieValue = cookiePair;
   if (AUTH_DEBUG) {
-    console.log('[setExplicitCookieValueDirectly] Cookie cache set directly (validated)');
+    devLog('[setExplicitCookieValueDirectly] Cookie cache set directly (validated)');
   }
   return true;
 }
@@ -530,7 +531,7 @@ export function setExplicitCookieValueDirectly(cookiePair: string): boolean {
  */
 export async function setOiSessionToken(token: string): Promise<void> {
   if (!token) {
-    console.log('[OI_TOKEN] setOiSessionToken: empty token, skipping');
+    devLog('[OI_TOKEN] setOiSessionToken: empty token, skipping');
     return;
   }
   
@@ -541,7 +542,7 @@ export async function setOiSessionToken(token: string): Promise<void> {
   oiSessionToken = token;
   oiSessionTokenInitialized = true;
   
-  console.log(`[OI_TOKEN] stored len=${token.length}`);
+  devLog(`[OI_TOKEN] stored len=${token.length}`);
 }
 
 /**
@@ -558,7 +559,7 @@ export async function loadOiSessionToken(): Promise<void> {
   oiSessionToken = token;
   oiSessionTokenInitialized = true;
   
-  console.log(`[BOOT_TOKEN] loaded=${!!token} len=${token?.length ?? 0}`);
+  devLog(`[BOOT_TOKEN] loaded=${!!token} len=${token?.length ?? 0}`);
 }
 
 /**
@@ -569,7 +570,7 @@ export async function clearOiSessionToken(): Promise<void> {
   await safeDeleteItemAsync(OI_SESSION_TOKEN_KEY);
   oiSessionToken = null;
   oiSessionTokenInitialized = true; // Mark initialized to prevent rehydrating stale values
-  console.log('[OI_TOKEN] cleared');
+  devLog('[OI_TOKEN] cleared');
 }
 
 /**
@@ -588,11 +589,11 @@ async function captureAndStoreCookie(): Promise<void> {
     const rawCookie = await safeGetItemAsync(betterAuthCookieKey);
     
     if (__DEV__) {
-      console.log('[captureAndStoreCookie] Better Auth cookie key:', betterAuthCookieKey);
-      console.log('[captureAndStoreCookie] Raw cookie exists:', !!rawCookie);
+      devLog('[captureAndStoreCookie] Better Auth cookie key:', betterAuthCookieKey);
+      devLog('[captureAndStoreCookie] Raw cookie exists:', !!rawCookie);
       if (rawCookie) {
-        console.log('[captureAndStoreCookie] Raw cookie type:', typeof rawCookie);
-        console.log('[captureAndStoreCookie] Raw cookie preview:', rawCookie.substring(0, 80));
+        devLog('[captureAndStoreCookie] Raw cookie type:', typeof rawCookie);
+        devLog('[captureAndStoreCookie] Raw cookie preview:', rawCookie.substring(0, 80));
       }
     }
     
@@ -605,7 +606,7 @@ async function captureAndStoreCookie(): Promise<void> {
         // Try parsing as JSON (Better Auth format)
         const parsed = JSON.parse(rawCookie);
         if (__DEV__) {
-          console.log('[captureAndStoreCookie] Parsed JSON keys:', Object.keys(parsed));
+          devLog('[captureAndStoreCookie] Parsed JSON keys:', Object.keys(parsed));
         }
         
         if (typeof parsed === 'object') {
@@ -617,7 +618,7 @@ async function captureAndStoreCookie(): Promise<void> {
               ? rawValue.split(';')[0].split(',')[0].trim()
               : rawValue?.value ?? null;
             if (__DEV__) {
-              console.log('[captureAndStoreCookie] Found exact target cookie key');
+              devLog('[captureAndStoreCookie] Found exact target cookie key');
             }
           }
           // REMOVED: Fallback logic that looked for any key containing 'session_token'
@@ -631,7 +632,7 @@ async function captureAndStoreCookie(): Promise<void> {
           if (match && match[1]) {
             tokenValue = match[1].split(",")[0].trim();
             if (__DEV__) {
-              console.log('[captureAndStoreCookie] Extracted from raw Set-Cookie format');
+              devLog('[captureAndStoreCookie] Extracted from raw Set-Cookie format');
             }
           }
         }
@@ -644,7 +645,7 @@ async function captureAndStoreCookie(): Promise<void> {
         if (!validation.isValid) {
           // REJECT: Do not store invalid token
           if (__DEV__) {
-            console.log(`[AUTH_TRACE] captureAndStoreCookie: rejected token, reason=${validation.reason}`);
+            devLog(`[AUTH_TRACE] captureAndStoreCookie: rejected token, reason=${validation.reason}`);
           }
           return; // Do not overwrite existing cookie with invalid value
         }
@@ -653,18 +654,18 @@ async function captureAndStoreCookie(): Promise<void> {
         const cookieValue = `${targetCookieName}=${tokenValue}`;
         await setSessionCookie(cookieValue);
         if (__DEV__) {
-          console.log('[captureAndStoreCookie] Cookie captured and stored explicitly (validated)');
+          devLog('[captureAndStoreCookie] Cookie captured and stored explicitly (validated)');
         }
       } else if (__DEV__) {
-        console.log('[captureAndStoreCookie] Could not extract session token from Better Auth storage');
-        console.log('[captureAndStoreCookie] EXACT key __Secure-better-auth.session_token not found');
+        devLog('[captureAndStoreCookie] Could not extract session token from Better Auth storage');
+        devLog('[captureAndStoreCookie] EXACT key __Secure-better-auth.session_token not found');
       }
     } else if (__DEV__) {
-      console.log('[captureAndStoreCookie] No Better Auth cookie found to capture');
+      devLog('[captureAndStoreCookie] No Better Auth cookie found to capture');
     }
   } catch (error) {
     if (__DEV__) {
-      console.log('[captureAndStoreCookie] Error capturing cookie:', error);
+      devLog('[captureAndStoreCookie] Error capturing cookie:', error);
     }
     // Don't throw - cookie capture is best-effort
   }
@@ -677,7 +678,7 @@ async function captureAndStoreCookie(): Promise<void> {
 async function verifySessionAfterAuth(context: string): Promise<void> {
   try {
     if (__DEV__) {
-      console.log(`[verifySessionAfterAuth] Verifying session after ${context}...`);
+      devLog(`[verifySessionAfterAuth] Verifying session after ${context}...`);
     }
     
     // Small delay to ensure cookie is propagated
@@ -691,16 +692,16 @@ async function verifySessionAfterAuth(context: string): Promise<void> {
     const userId = sessionData?.user?.id || null;
     
     if (__DEV__) {
-      console.log(`[verifySessionAfterAuth] ${context} - userId: ${userId ? `"${userId}"` : 'null'}`);
+      devLog(`[verifySessionAfterAuth] ${context} - userId: ${userId ? `"${userId}"` : 'null'}`);
       if (userId) {
-        console.log(`[verifySessionAfterAuth] ✓ Session verified successfully`);
+        devLog(`[verifySessionAfterAuth] ✓ Session verified successfully`);
       } else {
-        console.warn(`[verifySessionAfterAuth] ⚠ Session verification returned no userId`);
+        devWarn(`[verifySessionAfterAuth] ⚠ Session verification returned no userId`);
       }
     }
   } catch (error) {
     if (__DEV__) {
-      console.log(`[verifySessionAfterAuth] Error verifying session after ${context}:`, error);
+      devLog(`[verifySessionAfterAuth] Error verifying session after ${context}:`, error);
     }
     // Don't throw - verification is for logging/debugging
   }
@@ -744,7 +745,7 @@ export async function ensureSessionReady(): Promise<SessionReadyResult> {
         attempt,
       };
       
-      console.log(`[AUTH_BARRIER] ok=${result.ok} status=200 userId=${userId ? userId.substring(0, 8) + '...' : 'null'} attempt=${attempt}`);
+      devLog(`[AUTH_BARRIER] ok=${result.ok} status=200 userId=${userId ? userId.substring(0, 8) + '...' : 'null'} attempt=${attempt}`);
       
       if (userId) {
         return result;
@@ -752,18 +753,18 @@ export async function ensureSessionReady(): Promise<SessionReadyResult> {
       
       // No userId but request succeeded - might be race condition, retry
       if (attempt < MAX_ATTEMPTS) {
-        console.log(`[AUTH_BARRIER] no userId, retrying in ${RETRY_DELAY_MS}ms...`);
+        devLog(`[AUTH_BARRIER] no userId, retrying in ${RETRY_DELAY_MS}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       }
     } catch (error: any) {
       const status = error?.status || error?.response?.status || null;
       const errorMsg = error?.message || String(error);
       
-      console.log(`[AUTH_BARRIER] ok=false status=${status} error=${errorMsg} attempt=${attempt}`);
+      devLog(`[AUTH_BARRIER] ok=false status=${status} error=${errorMsg} attempt=${attempt}`);
       
       // If we have more attempts, retry after delay
       if (attempt < MAX_ATTEMPTS) {
-        console.log(`[AUTH_BARRIER] retrying in ${RETRY_DELAY_MS}ms...`);
+        devLog(`[AUTH_BARRIER] retrying in ${RETRY_DELAY_MS}ms...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         continue;
       }
@@ -870,7 +871,7 @@ export const authClient = {
         const result = await betterAuthClient.signIn.email(opts);
         
         if (__DEV__) {
-          console.log('[authClient.signIn] Result:', { 
+          devLog('[authClient.signIn] Result:', { 
             hasData: !!result.data, 
             hasError: !!result.error,
             hasUser: !!result.data?.user,
@@ -887,7 +888,7 @@ export const authClient = {
         const mobileSessionToken = (result.data as any)?.mobileSessionToken;
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
           if (__DEV__) {
-            console.log('[authClient.signIn] mobileSessionToken received');
+            devLog('[authClient.signIn] mobileSessionToken received');
           }
           await setExplicitCookiePair(mobileSessionToken);
         } else {
@@ -904,7 +905,7 @@ export const authClient = {
         return { data: result.data } as any;
       } catch (e: any) {
         if (__DEV__) {
-          console.log('[authClient.signIn] Exception:', e.message);
+          devLog('[authClient.signIn] Exception:', e.message);
         }
         return { error: { message: e?.message || String(e) } } as any;
       }
@@ -924,7 +925,7 @@ export const authClient = {
         const result = await betterAuthClient.signUp.email(signUpOpts);
         
         if (__DEV__) {
-          console.log('[authClient.signUp] Result:', { 
+          devLog('[authClient.signUp] Result:', { 
             hasData: !!result.data, 
             hasError: !!result.error,
             hasUser: !!result.data?.user,
@@ -941,7 +942,7 @@ export const authClient = {
         const mobileSessionToken = (result.data as any)?.mobileSessionToken;
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
           if (__DEV__) {
-            console.log('[authClient.signUp] mobileSessionToken received');
+            devLog('[authClient.signUp] mobileSessionToken received');
           }
           await setExplicitCookiePair(mobileSessionToken);
         } else {
@@ -956,7 +957,7 @@ export const authClient = {
         return { data: result.data } as any;
       } catch (e: any) {
         if (__DEV__) {
-          console.log('[authClient.signUp] Exception:', e.message);
+          devLog('[authClient.signUp] Exception:', e.message);
         }
         return { error: { message: e?.message || String(e) } } as any;
       }

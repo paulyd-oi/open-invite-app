@@ -1,0 +1,150 @@
+# HANDOFF PACKET — P0 Auth Invariant: 403 Never Triggers Logout
+**Commit:** 4ca6325  
+**Task:** Prevent 403 from logging out — only 401 should cause session clear  
+
+---
+
+## 1. Summary
+
+Fixed critical auth invariant: HTTP 403 (Forbidden / permission denied) was incorrectly 
+treated as an auth failure, triggering logout. This broke legitimate flows where 403 is 
+used for privacy gating, pro feature gating, and circle membership restrictions.
+
+**Invariant Enforced:** ONLY 401 (Unauthorized) from server should trigger logout.
+
+---
+
+## 2. Root Cause
+
+`src/lib/networkStatus.ts` had this buggy implementation:
+
+```typescript
+// BEFORE (BUG):
+export function isAuthError(status: number | undefined): boolean {
+  return status === 401 || status === 403;  // ← 403 included!
+}
+```
+
+This caused `shouldLogoutOnError()` to return `true` for 403, triggering logout
+when users encountered valid permission-denied responses.
+
+---
+
+## 3. Files Changed
+
+| File | Change |
+|------|--------|
+| `src/lib/networkStatus.ts` | `isAuthError()` now checks `status === 401` only; added explicit 403 handling with DEV log |
+| `src/lib/authBootstrap.ts` | `isAuthFailure` condition excludes 403; header comment updated |
+| `src/lib/authExpiry.ts` | Comments clarified 401-only behavior |
+| `src/lib/useSession.tsx` | Comment updated for consistency |
+
+---
+
+## 4. Key Code Changes
+
+### networkStatus.ts — isAuthError()
+```typescript
+// AFTER (FIXED):
+export function isAuthError(status: number | undefined): boolean {
+  return status === 401;  // 403 EXCLUDED
+}
+```
+
+### networkStatus.ts — shouldLogoutOnError() 403 handling
+```typescript
+// [P0_AUTH_403_NO_LOGOUT] 403 = Forbidden = privacy/permission denied - NEVER logout
+if (status === 403) {
+  if (__DEV__) {
+    devLog("[P0_AUTH_403_NO_LOGOUT]", {
+      endpoint: error?.url || error?.config?.url || "unknown",
+      method: error?.config?.method || "GET",
+      status: 403,
+      action: "no_logout",
+    });
+  }
+  return false;
+}
+```
+
+### authBootstrap.ts — isAuthFailure condition
+```typescript
+// BEFORE:
+const isAuthFailure = res.status === 401 || res.status === 403;
+
+// AFTER:
+const isAuthFailure = res.status === 401;
+```
+
+---
+
+## 5. DEV Proof Logs
+
+Tag: `[P0_AUTH_403_NO_LOGOUT]`
+
+When a 403 is encountered in DEV mode, you'll see:
+```
+[P0_AUTH_403_NO_LOGOUT] { endpoint: "/api/...", method: "GET", status: 403, action: "no_logout" }
+```
+
+---
+
+## 6. Verification
+
+```
+✓ npm run typecheck — PASS
+✓ bash scripts/ai/verify_frontend.sh — PASS
+✓ Committed: 4ca6325
+```
+
+---
+
+## 7. Git Proof
+
+```
+$ git show --stat HEAD
+commit 4ca632515ee71be09628eed7822ef55544b22af3 (HEAD -> main)
+Author: paulyd-oi <pauljdal@gmail.com>
+Date:   Wed Feb 4 22:52:16 2026 -0800
+
+    fix(auth): P0 - ensure 403 never triggers logout
+    
+    [P0_AUTH_403_NO_LOGOUT] Auth invariant: ONLY 401 should cause logout.
+
+ src/lib/authBootstrap.ts |  9 +++++----
+ src/lib/authExpiry.ts    |  8 ++++++--
+ src/lib/networkStatus.ts | 29 ++++++++++++++++++++++-------
+ src/lib/useSession.tsx   |  2 +-
+ 4 files changed, 34 insertions(+), 14 deletions(-)
+
+$ git show --name-only HEAD
+src/lib/authBootstrap.ts
+src/lib/authExpiry.ts
+src/lib/networkStatus.ts
+src/lib/useSession.tsx
+```
+
+---
+
+## 8. Manual Test Scenarios
+
+| Scenario | Expected |
+|----------|----------|
+| Hit 403 viewing private event (not invited) | Stay logged in, see permission error |
+| Hit 403 accessing pro feature (free tier) | Stay logged in, see upgrade prompt |
+| Hit 403 accessing circle you left | Stay logged in, see error message |
+| Hit 401 (session expired) | Logout + redirect to /login |
+
+---
+
+## 9. Risk Assessment
+
+**Low risk.** Changes are purely defensive — clarifying that only 401 triggers logout.
+The auth flow via `authExpiry` emitter was already correct (`authClient` only emits on 401).
+This fix closes the secondary paths through `isAuthError()` and `authBootstrap.ts`.
+
+---
+
+## 10. Next Task
+
+Continue with remaining P0/P1 items from task queue.

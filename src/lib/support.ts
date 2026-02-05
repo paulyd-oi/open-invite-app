@@ -5,6 +5,7 @@ import { Linking, Platform } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import Constants from "expo-constants";
 import { safeToast } from "@/lib/safeToast";
+import { devLog } from "@/lib/devLog";
 
 const SUPPORT_EMAIL = "support@openinvite.cloud";
 
@@ -19,7 +20,7 @@ interface SupportParams {
  */
 export async function openSupportEmail(params?: SupportParams): Promise<void> {
   if (__DEV__) {
-    console.log("[P0_SUPPORT] Contact support tapped");
+    devLog("[P0_SUPPORT] Contact support tapped");
   }
 
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
