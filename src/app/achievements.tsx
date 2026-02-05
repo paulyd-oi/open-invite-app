@@ -89,34 +89,63 @@ export default function BadgesScreen() {
   });
 
   // [P0_BADGE_SOT] Use adapter for set featured with canonical invalidation
-  const setFeaturedMutation = useMutation({
-    mutationFn: (badgeKey: string | null) => setFeaturedBadge(badgeKey),
-    onSuccess: () => {
-      // Invalidate all badge-related queries using canonical keys
-      queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      // Also invalidate featured badge query for viewer so Profile shows update
-      if (viewerUserId) {
-        queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.featured(viewerUserId) });
-      }
-      if (__DEV__) {
-        devLog(`[P0_BADGE_SOT] setFeatured success invalidated=[catalog,profile,featured]`);
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Featured badge updated");
-    },
-    onError: (error: unknown) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Check for specific "badge not unlocked" error from backend
-      const errorData = error && typeof error === "object" && "data" in error
+const setFeaturedMutation = useMutation({
+  mutationFn: (badgeKey: string | null) => setFeaturedBadge(badgeKey),
+
+  onSuccess: () => {
+    // refresh badge catalog
+    queryClient.invalidateQueries({
+      queryKey: BADGE_QUERY_KEYS.catalog,
+    });
+
+    // refresh profile cache (safe umbrella invalidation)
+    queryClient.invalidateQueries({
+      queryKey: ["profile"],
+    });
+
+    // invalidate ALL featured badge queries (global safety)
+    queryClient.invalidateQueries({
+      queryKey: ["featuredBadge"],
+    });
+
+    // targeted invalidate for viewer profile badge
+    if (viewerUserId) {
+      queryClient.invalidateQueries({
+        queryKey: BADGE_QUERY_KEYS.featured(viewerUserId),
+      });
+    }
+
+    if (__DEV__) {
+      devLog(
+        `[P0_BADGE_SOT] setFeatured success invalidated=[catalog,profile,featured(global),featured(viewer)]`
+      );
+    }
+
+    Haptics.notificationAsync(
+      Haptics.NotificationFeedbackType.Success
+    );
+
+    safeToast.success("Featured badge updated");
+  },
+
+  onError: (error: unknown) => {
+    Haptics.notificationAsync(
+      Haptics.NotificationFeedbackType.Error
+    );
+
+    const errorData =
+      error && typeof error === "object" && "data" in error
         ? (error as { data?: { error?: string } }).data
         : null;
-      const message = errorData?.error?.toLowerCase().includes("not unlocked")
+
+    const message =
+      errorData?.error?.toLowerCase().includes("not unlocked")
         ? "Badge not unlocked yet"
         : "Failed to update featured badge";
-      safeToast.error(message);
-    },
-  });
+
+    safeToast.error(message);
+  },
+});
 
   const handleRefresh = async () => {
     setRefreshing(true);
