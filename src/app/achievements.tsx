@@ -17,27 +17,18 @@ import * as Haptics from "expo-haptics";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
-import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
 import { useIsPro } from "@/lib/entitlements";
-
-interface BadgeCatalogItem {
-  badgeKey: string;
-  name: string;
-  description: string;
-  tierColor: string;
-  unlockTarget: number | null;
-  progressCurrent: number;
-  unlocked: boolean;
-  featured: boolean;
-}
-
-interface BadgeCatalogResponse {
-  badges: BadgeCatalogItem[];
-}
+import {
+  getBadgeCatalog,
+  setFeaturedBadge,
+  BADGE_QUERY_KEYS,
+  type BadgeCatalogResponse,
+  type BadgeCatalogItem,
+} from "@/lib/badgesApi";
 
 // Helper to convert hex color to rgba with opacity
 function hexToRgba(hex: string, opacity: number): string {
@@ -65,30 +56,30 @@ export default function BadgesScreen() {
   const [selectedBadge, setSelectedBadge] = useState<BadgeCatalogItem | null>(null);
   const didProRefreshRef = useRef(false);
 
-  // [P1_PRO_BADGES_UI] When Pro status is recognized, invalidate badgesCatalog once
+  // [P1_PRO_BADGES_UI] When Pro status is recognized, invalidate badge catalog once
   const { isPro, isLoading: isProLoading } = useIsPro();
+
+  // Get viewer userId for invalidation targeting
+  const viewerUserId = session?.user?.id;
 
   useEffect(() => {
     if (!isProLoading && isPro && !didProRefreshRef.current) {
       didProRefreshRef.current = true;
       if (__DEV__) {
-        devLog("[P1_PRO_BADGES_UI] triggered invalidate badgesCatalog due to isPro=true");
+        devLog("[P1_PRO_BADGES_UI] triggered invalidate badgeCatalog due to isPro=true");
       }
-      queryClient.invalidateQueries({ queryKey: ["badgesCatalog"] });
+      queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
     }
   }, [isPro, isProLoading, queryClient]);
 
+  // [P0_BADGE_SOT] Use adapter for catalog fetch with canonical query key
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["badgesCatalog"],
+    queryKey: BADGE_QUERY_KEYS.catalog,
     queryFn: async () => {
+      const response = await getBadgeCatalog();
       if (__DEV__) {
-        devLog("[BADGES_FETCH] Fetching badges catalog...");
-      }
-      const response = await api.get<BadgeCatalogResponse>("/api/badges/catalog");
-      if (__DEV__) {
-        devLog("[BADGES_FETCH] Response:", {
+        devLog("[P0_BADGE_SOT] catalog loaded", {
           badgesCount: response?.badges?.length ?? 0,
-          responseKeys: Object.keys(response || {}),
           unlockedCount: response?.badges?.filter(b => b.unlocked).length ?? 0,
         });
       }
@@ -97,12 +88,20 @@ export default function BadgesScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
+  // [P0_BADGE_SOT] Use adapter for set featured with canonical invalidation
   const setFeaturedMutation = useMutation({
-    mutationFn: (badgeKey: string | null) =>
-      api.put("/api/profile/featured-badge", { badgeKey }),
+    mutationFn: (badgeKey: string | null) => setFeaturedBadge(badgeKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["badgesCatalog"] });
+      // Invalidate all badge-related queries using canonical keys
+      queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // Also invalidate featured badge query for viewer so Profile shows update
+      if (viewerUserId) {
+        queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.featured(viewerUserId) });
+      }
+      if (__DEV__) {
+        devLog(`[P0_BADGE_SOT] setFeatured success invalidated=[catalog,profile,featured]`);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Featured badge updated");
     },
