@@ -68,3 +68,7 @@ EMAIL_GATE_RELIABILITY_FIX_HANDOFF.md
 docs/handoff_archive/
 *_HANDOFF.txt
 *_HANDOFF.md
+
+# Local-only (never commit)
+cookies.txt
+HANDOFF_*.txt
