@@ -1,8 +1,10 @@
 import React from "react";
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Image, Pressable, AccessibilityInfo } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
   FadeIn,
+  FadeInDown,
+  FadeOutDown,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -19,6 +21,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { devLog } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
+import { trackAnalytics } from "@/lib/entitlements";
 
 interface CircleCardProps {
   circle: Circle;
@@ -68,14 +71,26 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       return { previousCircles };
     },
     onSuccess: (_, { circleId, isMuted }) => {
+      // [P0_CIRCLE_MUTE_POLISH] Light selection haptic on success
+      Haptics.selectionAsync();
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_UI]", {
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
           circleId,
           prevMuted: !isMuted,
           nextMuted: isMuted,
+          entryPoint: "swipe",
           success: true,
         });
+        devLog("[P0_CIRCLE_MUTE_ANALYTICS]", {
+          eventName: "circle_mute_toggle",
+          payload: { circleId, nextMuted: isMuted, entryPoint: "swipe" },
+        });
       }
+      trackAnalytics("circle_mute_toggle", {
+        circleId,
+        nextMuted: isMuted,
+        entryPoint: "swipe",
+      });
       queryClient.invalidateQueries({ queryKey: ["circles"] });
     },
     onError: (error, { circleId, isMuted }, context) => {
@@ -84,10 +99,11 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
         queryClient.setQueryData(["circles"], context.previousCircles);
       }
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_UI]", {
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
           circleId,
           prevMuted: !isMuted,
           nextMuted: isMuted,
+          entryPoint: "swipe",
           success: false,
         });
       }
@@ -222,7 +238,18 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
             }}
           >
             {/* Left Side - Circle Icon */}
-            <View className="mr-4">
+            <View 
+              className="mr-4"
+              accessible={true}
+              accessibilityLabel={
+                circle.isMuted && (circle.unreadCount ?? 0) > 0
+                  ? "Muted circle, unread messages"
+                  : circle.isMuted
+                  ? "Muted circle"
+                  : undefined
+              }
+              accessibilityHint={circle.isMuted ? "Swipe right to unmute" : undefined}
+            >
               <View
                 className="w-14 h-14 rounded-2xl items-center justify-center"
                 style={{ backgroundColor: themeColor + "20" }}
@@ -237,19 +264,30 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
                   <Pin size={10} color="#fff" />
                 </View>
               )}
+              {/* [P0_CIRCLE_MUTE_POLISH] Animated muted indicator with crossfade */}
               {circle.isMuted && (
-                <View
+                <Animated.View
+                  entering={FadeInDown.duration(150)}
+                  exiting={FadeOutDown.duration(150)}
                   className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
                   style={{ backgroundColor: colors.textTertiary }}
                 >
                   <BellOff size={10} color="#fff" />
-                </View>
+                </Animated.View>
               )}
-              {/* [P0_CIRCLE_MUTE_V1] Show red dot for muted circles with unread messages */}
+              {/* [P0_CIRCLE_MUTE_POLISH] Animated red dot with outline for muted+unread - min 10px */}
               {circle.isMuted && (circle.unreadCount ?? 0) > 0 && (
-                <View
-                  className="absolute -top-1 -left-1 w-3 h-3 rounded-full"
-                  style={{ backgroundColor: "#EF4444" }}
+                <Animated.View
+                  entering={FadeInDown.duration(150)}
+                  exiting={FadeOutDown.duration(150)}
+                  className="absolute -top-1 -left-1 rounded-full"
+                  style={{
+                    width: 10,
+                    height: 10,
+                    backgroundColor: "#EF4444",
+                    borderWidth: 1.5,
+                    borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
+                  }}
                 />
               )}
             </View>
@@ -262,13 +300,24 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
               {circle.description && (
                 <Text
                   className="text-sm mt-0.5"
-                  style={{ color: colors.textSecondary }}
+                  style={{ 
+                    color: colors.textSecondary,
+                    // [P0_CIRCLE_MUTE_POLISH] Softer subtitle when muted
+                    opacity: circle.isMuted ? 0.6 : 1,
+                  }}
                   numberOfLines={2}
                 >
                   {circle.description}
                 </Text>
               )}
-              <Text className="text-xs mt-0.5" style={{ color: colors.textTertiary }}>
+              <Text 
+                className="text-xs mt-0.5" 
+                style={{ 
+                  color: colors.textTertiary,
+                  // [P0_CIRCLE_MUTE_POLISH] Softer meta text when muted
+                  opacity: circle.isMuted ? 0.6 : 1,
+                }}
+              >
                 {members.length} member{members.length !== 1 ? "s" : ""}
                 {(circle.messageCount ?? 0) > 0 && ` · ${circle.messageCount} messages`}
               </Text>

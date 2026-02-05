@@ -196,7 +196,9 @@ export type AnalyticsEvent =
   | "notification_permission_granted"
   | "notification_permission_denied"
   | "notification_nudge_shown"
-  | "notification_nudge_dismissed";
+  | "notification_nudge_dismissed"
+  | "circle_mute_toggle"
+  | "circle_mute_bulk";
 
 /**
  * Track analytics events (stub - can be connected to Amplitude/Mixpanel later)

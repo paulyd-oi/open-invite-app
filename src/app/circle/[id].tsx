@@ -53,7 +53,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, canAddCircleMember, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { formatDateTimeRange } from "@/lib/eventTime";
 import {
   type GetCircleDetailResponse,
@@ -998,13 +998,26 @@ export default function CircleScreen() {
       return { previousCircles, previousCircle };
     },
     onSuccess: (_, isMuted) => {
+      // [P0_CIRCLE_MUTE_POLISH] Light selection haptic on success
+      Haptics.selectionAsync();
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_V1] Circle detail mute toggle:", {
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
           circleId: id,
+          prevMuted: !isMuted,
           nextMuted: isMuted,
+          entryPoint: "details",
           success: true,
         });
+        devLog("[P0_CIRCLE_MUTE_ANALYTICS]", {
+          eventName: "circle_mute_toggle",
+          payload: { circleId: id, nextMuted: isMuted, entryPoint: "details" },
+        });
       }
+      trackAnalytics("circle_mute_toggle", {
+        circleId: id,
+        nextMuted: isMuted,
+        entryPoint: "details",
+      });
       queryClient.invalidateQueries({ queryKey: ["circles"] });
       queryClient.invalidateQueries({ queryKey: ["circle", id] });
     },
@@ -1017,9 +1030,11 @@ export default function CircleScreen() {
         queryClient.setQueryData(["circle", id], context.previousCircle);
       }
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_V1] Circle detail mute toggle:", {
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
           circleId: id,
+          prevMuted: !isMuted,
           nextMuted: isMuted,
+          entryPoint: "details",
           success: false,
         });
       }
@@ -1866,6 +1881,10 @@ export default function CircleScreen() {
                     <Text style={{ fontSize: 13, color: colors.textSecondary }}>
                       {circle?.isMuted ? "Notifications silenced" : "Get notified of new messages"}
                     </Text>
+                    {/* [P0_CIRCLE_MUTE_POLISH] Helper text explaining mute scope */}
+                    <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+                      Mutes message notifications only. Event alerts still send.
+                    </Text>
                   </View>
                   <Switch
                     value={circle?.isMuted ?? false}
@@ -1877,6 +1896,28 @@ export default function CircleScreen() {
                     thumbColor={circle?.isMuted ? themeColor : isDark ? "#FFFFFF" : "#FFFFFF"}
                     ios_backgroundColor={isDark ? "#3A3A3C" : "#E5E7EB"}
                   />
+                </View>
+
+                {/* [P1_CIRCLE_MUTE_POLISH] Notification summary stub - V1 placeholder */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                    opacity: 0.5,
+                  }}
+                >
+                  <Calendar size={22} color={colors.textTertiary} />
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary }}>
+                      Notification summary
+                    </Text>
+                    <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                      Coming soon
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Leave Group */}

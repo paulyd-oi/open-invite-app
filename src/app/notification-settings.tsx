@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
 import * as Notifications from "expo-notifications";
@@ -39,8 +40,10 @@ import {
   Volume2,
   VolumeX,
   Settings,
+  X,
+  Info,
 } from "@/ui/icons";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -48,6 +51,10 @@ import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { devLog, devError } from "@/lib/devLog";
+import { trackAnalytics } from "@/lib/entitlements";
+
+// [P0_CIRCLE_MUTE_POLISH] Storage key for dismissing circle notification info card
+const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -227,6 +234,31 @@ export default function NotificationSettingsScreen() {
 
   const [expandedSections, setExpandedSections] = useState<string[]>(["master"]);
   
+  // [P0_CIRCLE_MUTE_POLISH] State for dismissible info card - persisted to AsyncStorage
+  const [circleInfoDismissed, setCircleInfoDismissed] = useState(true); // Default to hidden until loaded
+  
+  // Load persisted dismissal state on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem(CIRCLE_NOTIF_INFO_DISMISSED_KEY);
+        setCircleInfoDismissed(dismissed === "true");
+      } catch {
+        // On error, show the card (fail open)
+        setCircleInfoDismissed(false);
+      }
+    })();
+  }, []);
+
+  const dismissCircleInfo = useCallback(async () => {
+    setCircleInfoDismissed(true);
+    try {
+      await AsyncStorage.setItem(CIRCLE_NOTIF_INFO_DISMISSED_KEY, "true");
+    } catch {
+      // Silent fail - state is still updated for session
+    }
+  }, []);
+  
   // P0 INVARIANT: Push toggle must reflect live OS permission status (not default ON)
   const [osPermissionStatus, setOsPermissionStatus] = useState<"granted" | "denied" | "undetermined">("undetermined");
   const [isCheckingPermission, setIsCheckingPermission] = useState(true);
@@ -325,11 +357,13 @@ export default function NotificationSettingsScreen() {
   const bulkMuteMutation = useMutation({
     mutationFn: async (isMuted: boolean) => {
       const circles = circlesData?.circles ?? [];
-      // Mute/unmute all circles in parallel
-      await Promise.all(
+      // Mute/unmute all circles in parallel - track results
+      const results = await Promise.allSettled(
         circles.map((c) => api.post(`/api/circles/${c.id}/mute`, { isMuted }))
       );
-      return isMuted;
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const failCount = results.filter((r) => r.status === "rejected").length;
+      return { isMuted, circlesCount: circles.length, successCount, failCount };
     },
     onMutate: async (isMuted) => {
       await queryClient.cancelQueries({ queryKey: ["circles"] });
@@ -346,14 +380,34 @@ export default function NotificationSettingsScreen() {
 
       return { previousCircles };
     },
-    onSuccess: (isMuted) => {
+    onSuccess: ({ isMuted, circlesCount, successCount, failCount }) => {
+      // [P0_CIRCLE_MUTE_POLISH] Light selection haptic on success
+      Haptics.selectionAsync();
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_V1] Bulk mute:", {
-          isMuted,
-          circleCount: circlesData?.circles?.length ?? 0,
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
+          action: isMuted ? "mute_all" : "unmute_all",
+          circlesCount,
+          successCount,
+          failCount,
+          entryPoint: "bulk",
           success: true,
         });
+        devLog("[P0_CIRCLE_MUTE_ANALYTICS]", {
+          eventName: "circle_mute_bulk",
+          payload: {
+            action: isMuted ? "mute_all" : "unmute_all",
+            circlesCount,
+            successCount,
+            failCount,
+          },
+        });
       }
+      trackAnalytics("circle_mute_bulk", {
+        action: isMuted ? "mute_all" : "unmute_all",
+        circlesCount,
+        successCount,
+        failCount,
+      });
       queryClient.invalidateQueries({ queryKey: ["circles"] });
       safeToast.success(
         isMuted ? "All Circles Muted" : "All Circles Unmuted",
@@ -365,8 +419,9 @@ export default function NotificationSettingsScreen() {
         queryClient.setQueryData(["circles"], context.previousCircles);
       }
       if (__DEV__) {
-        devLog("[P0_CIRCLE_MUTE_V1] Bulk mute:", {
-          isMuted,
+        devLog("[P0_CIRCLE_MUTE_POLISH]", {
+          action: isMuted ? "mute_all" : "unmute_all",
+          entryPoint: "bulk",
           success: false,
         });
       }
@@ -799,6 +854,35 @@ export default function NotificationSettingsScreen() {
             isDark={isDark}
             colors={colors}
           >
+            {/* [P0_CIRCLE_MUTE_POLISH] Dismissible info card */}
+            {!circleInfoDismissed && (
+              <Animated.View
+                entering={FadeInDown.duration(200)}
+                exiting={FadeOutUp.duration(200)}
+                className="mx-4 mt-3 mb-2 p-3 rounded-xl flex-row items-start"
+                style={{ backgroundColor: isDark ? "#1C1C1E" : "#F0F4FF" }}
+              >
+                <Info size={18} color={themeColor} style={{ marginTop: 1 }} />
+                <View className="flex-1 ml-3">
+                  <Text style={{ color: colors.text }} className="font-semibold text-sm">
+                    Circle notifications
+                  </Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-xs mt-1">
+                    Event alerts always send. Message notifications can be muted per circle.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    dismissCircleInfo();
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  className="ml-2"
+                >
+                  <X size={16} color={colors.textTertiary} />
+                </Pressable>
+              </Animated.View>
+            )}
             <ToggleItem
               icon={<MessageCircle size={18} color="#F39C12" />}
               title="Circle Messages"
