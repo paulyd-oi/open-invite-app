@@ -8,7 +8,7 @@
  *   EXPO_PUBLIC_DEV_TOOLS=1
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { View, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
@@ -27,13 +27,18 @@ export function isDevToolsEnabled(): boolean {
  * Blocked screen component for production builds.
  * Immediately redirects to /settings (or /login if auth fails).
  * Shows minimal fallback UI while redirecting.
+ * P0 FIX: Uses ref to prevent redirect loop.
  */
 export function DevToolsBlockedScreen({ name }: { name: string }): React.ReactElement {
   const router = useRouter();
+  const didRedirectRef = useRef(false);
 
   useEffect(() => {
-    // Redirect to settings (safe default) - no alerts, no UI noise
-    router.replace("/settings");
+    // P0 FIX: Redirect ONCE to settings - prevent loop
+    if (!didRedirectRef.current) {
+      didRedirectRef.current = true;
+      router.replace("/settings");
+    }
   }, [router]);
 
   // Minimal fallback while redirecting

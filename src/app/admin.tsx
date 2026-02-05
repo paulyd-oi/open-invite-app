@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { isDevToolsEnabled, DevToolsBlockedScreen } from "@/lib/devToolsGate";
 import { ChevronLeft, Search, Shield, Award, Plus, Pencil, X } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -42,10 +41,9 @@ import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 
 export default function AdminConsole() {
-  // P0: Hard gate for dev tools - first line of component
-  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="admin" />;
-
   const router = useRouter();
+  // P0 FIX: Prevent redirect loop with ref
+  const didRedirectRef = useRef(false);
   const { isDark, colors, themeColor } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
@@ -100,14 +98,24 @@ export default function AdminConsole() {
     retry: false,
   });
 
-  // DEV logging for admin gating
+  // [P0_ADMIN_ROUTE] DEV proof logs for admin gating
+  React.useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_ADMIN_ROUTE] mount', {
+        route: '/admin',
+        adminLoading,
+        hasAdminStatus: !!adminStatus,
+      });
+    }
+  }, []);
+
   React.useEffect(() => {
     if (__DEV__ && !adminLoading) {
-      devLog('[P0_ADMIN_CONSOLE] adminCheck:', {
-        isAdmin: adminStatus?.isAdmin,
-        email: adminStatus?.email,
-        message: adminStatus?.message,
-        loading: adminLoading,
+      devLog('[P0_ADMIN_ROUTE] decision', {
+        allowed: adminStatus?.isAdmin ?? false,
+        reason: adminLoading ? 'loading' : (adminStatus?.isAdmin ? 'is_admin' : 'not_admin'),
+        willRedirect: !adminLoading && adminStatus && !adminStatus.isAdmin && !didRedirectRef.current,
+        target: !adminStatus?.isAdmin ? '/settings' : 'none',
       });
     }
     // Track endpoint health
@@ -119,11 +127,12 @@ export default function AdminConsole() {
     }
   }, [adminStatus, adminLoading]);
 
-  // Redirect non-admins back to settings
+  // Redirect non-admins back to settings (ONCE only - prevent loop)
   React.useEffect(() => {
-    if (!adminLoading && adminStatus && !adminStatus.isAdmin) {
+    if (!adminLoading && adminStatus && !adminStatus.isAdmin && !didRedirectRef.current) {
+      didRedirectRef.current = true;
       if (__DEV__) {
-        devLog("[P0_ADMIN_CONSOLE] Access denied - redirecting to settings");
+        devLog('[P0_ADMIN_ROUTE] redirect fired', { target: '/settings', once: true });
       }
       router.replace("/settings");
     }
