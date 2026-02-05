@@ -619,7 +619,8 @@ export default function DiscoverScreen() {
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/friend/${friend.id}`);
+                      if (__DEV__) console.log('[P0_PROFILE_AUDIT] source=discover-topfriend target=/user/[id] idType=userId');
+                      router.push(`/user/${friend.id}`);
                     }}
                     className="rounded-xl p-4"
                     style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}

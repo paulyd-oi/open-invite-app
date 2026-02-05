@@ -74,7 +74,8 @@ export function MutualFriends({ userId, userName }: MutualFriendsProps) {
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
-                  router.push(`/friend/${friend.id}` as any);
+                  if (__DEV__) console.log('[P0_PROFILE_AUDIT] source=mutual-friends target=/user/[id] idType=userId');
+                  router.push(`/user/${friend.id}` as any);
                 }}
                 className="items-center mr-3"
                 style={{ width: 60 }}
