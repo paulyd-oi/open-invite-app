@@ -24,6 +24,21 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
+import { devLog } from "@/lib/devLog";
+
+// P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// P0 FIX: Format date as YYYY-MM-DD in local timezone
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 interface FriendInfo {
   friendshipId: string;
@@ -263,7 +278,14 @@ export default function WhosFreeScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
-  const [selectedDate, setSelectedDate] = useState<string>(date ?? new Date().toISOString().split('T')[0]);
+  
+  // P0 FIX: Initialize selectedDate from param using local-safe parsing
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date; // Use param directly (already YYYY-MM-DD)
+    }
+    return formatLocalDate(new Date()); // Default to today in local timezone
+  });
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Paywall state for horizon gating
@@ -281,14 +303,36 @@ export default function WhosFreeScreen() {
 
   // Find Best Time state
   const [bestTimeFriendIds, setBestTimeFriendIds] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
+  
+  // P0 FIX: Initialize startDate/endDate from route param, not hardcoded today
+  const [startDate, setStartDate] = useState<Date>(() => {
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return parseLocalDate(date);
+    }
+    return new Date();
+  });
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const baseDate = (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? parseLocalDate(date) : new Date();
+    const d = new Date(baseDate);
     d.setDate(d.getDate() + 7);
     return d;
   });
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+
+  // P0 FIX: DEV proof log on mount
+  React.useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_WHOS_FREE_DATE] mount', {
+        routeDateParam: date ?? null,
+        parsedStart: formatLocalDate(startDate),
+        startDateISO: formatLocalDate(startDate),
+        endDateISO: formatLocalDate(endDate),
+        selectedDate,
+        reason: date ? 'init_from_param' : 'init_today',
+      });
+    }
+  }, []);
 
   // Fetch friends for Find Best Time
   const { data: allFriendsData } = useQuery({
@@ -646,7 +690,30 @@ export default function WhosFreeScreen() {
                 minimumDate={new Date()}
                 onChange={(_, date) => {
                   setShowStartPicker(false);
-                  if (date) setStartDate(date);
+                  if (date) {
+                    setStartDate(date);
+                    // P0 FIX: Range normalization - ensure endDate >= startDate
+                    if (endDate < date) {
+                      const newEnd = new Date(date);
+                      newEnd.setDate(newEnd.getDate() + 7);
+                      setEndDate(newEnd);
+                      if (__DEV__) {
+                        devLog('[P0_WHOS_FREE_DATE] range_normalized', {
+                          startDateISO: formatLocalDate(date),
+                          endDateISO: formatLocalDate(newEnd),
+                          normalized: true,
+                          reason: 'clamp_end_after_start_change',
+                        });
+                      }
+                    } else if (__DEV__) {
+                      devLog('[P0_WHOS_FREE_DATE] start_changed', {
+                        startDateISO: formatLocalDate(date),
+                        endDateISO: formatLocalDate(endDate),
+                        normalized: false,
+                        reason: 'user_changed_start',
+                      });
+                    }
+                  }
                 }}
               />
             )}
@@ -659,7 +726,19 @@ export default function WhosFreeScreen() {
                 minimumDate={startDate}
                 onChange={(_, date) => {
                   setShowEndPicker(false);
-                  if (date) setEndDate(date);
+                  if (date) {
+                    // P0 FIX: Clamp endDate to be >= startDate (DateTimePicker minimumDate should handle this, but be safe)
+                    const clampedDate = date < startDate ? startDate : date;
+                    setEndDate(clampedDate);
+                    if (__DEV__) {
+                      devLog('[P0_WHOS_FREE_DATE] end_changed', {
+                        startDateISO: formatLocalDate(startDate),
+                        endDateISO: formatLocalDate(clampedDate),
+                        normalized: date < startDate,
+                        reason: date < startDate ? 'clamp_end' : 'user_changed_end',
+                      });
+                    }
+                  }
                 }}
               />
             )}
