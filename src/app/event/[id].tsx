@@ -858,6 +858,81 @@ export default function EventDetailScreen() {
     },
   });
 
+  // ============================================
+  // P0 FIX: addHostMutation moved to top level to fix hook order violation
+  // This mutation is used when viewing a privacy-restricted event to add the host as a friend
+  // ============================================
+  const addHostMutation = useMutation({
+    mutationFn: () => {
+      if (__DEV__) {
+        devLog("[P0_PRIVATE_HOST_CTA] add_host_press", {
+          hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+        });
+      }
+      return api.post<SendFriendRequestResponse>("/api/friends/request", {
+        userId: restrictedHostInfo?.id,
+      });
+    },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
+
+      if (__DEV__) {
+        devLog("[P0_PRIVATE_HOST_CTA] add_host_success", {
+          hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+          invalidated: [
+            "friendRequests",
+            "event.single",
+            "event.attendees",
+            "event.rsvp",
+            "event.interests",
+          ],
+        });
+      }
+
+      // Invalidate queries so page refreshes after becoming friends
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+
+      // Core event hydration SSOT
+      queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+
+      // Optional hardening: adjacent event/[id] surfaces that depend on visibility
+      queryClient.invalidateQueries({ queryKey: eventKeys.attendees(id ?? "") });
+      queryClient.invalidateQueries({ queryKey: eventKeys.rsvp(id ?? "") });
+      queryClient.invalidateQueries({ queryKey: eventKeys.interests(id ?? "") });
+    },
+    onError: (error: any) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const message = error?.data?.message || error?.message || "Could not send request";
+      // Handle already sent / already friends cases gracefully
+      if (message.includes("already")) {
+        safeToast.info("Already Sent", message);
+      } else {
+        safeToast.error("Oops", message);
+      }
+      if (__DEV__) {
+        devLog("[P0_PRIVATE_HOST_CTA] add_host_error", { message });
+      }
+    },
+  });
+
+  // ============================================
+  // P0_HOOK_ORDER: Proof log on mount - all hooks called unconditionally above this point
+  // ============================================
+  useEffect(() => {
+    if (__DEV__) {
+      devLog("[P0_HOOK_ORDER] EventDetailScreen mount", {
+        eventId: id ?? "none",
+        hasEvent: !!event,
+        isBusyBlock: !!event?.isBusy,
+        isPrivacyRestricted,
+        eventErrorStatus: eventErrorStatus ?? null,
+        eventErrorCode: eventErrorCode ?? null,
+        bootStatus,
+      });
+    }
+  }, []); // Empty deps = mount only
+
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -1014,65 +1089,11 @@ export default function EventDetailScreen() {
         router.push(`/user/${restrictedHostInfo.id}` as any);
       };
 
-      // Friend request mutation for adding host
-const addHostMutation = useMutation({
-  mutationFn: () => {
-    if (__DEV__) {
-      devLog("[P0_PRIVATE_HOST_CTA] add_host_press", {
-        hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
-      });
-    }
-    return api.post<SendFriendRequestResponse>("/api/friends/request", {
-      userId: restrictedHostInfo?.id,
-    });
-  },
-  onSuccess: () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
-
-    if (__DEV__) {
-      devLog("[P0_PRIVATE_HOST_CTA] add_host_success", {
-        hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
-        invalidated: [
-          "friendRequests",
-          "event.single",
-          "event.attendees",
-          "event.rsvp",
-          "event.interests",
-        ],
-      });
-    }
-
-    // Invalidate queries so page refreshes after becoming friends
-    queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-
-    // Core event hydration SSOT
-    queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
-
-    // Optional hardening: adjacent event/[id] surfaces that depend on visibility
-    queryClient.invalidateQueries({ queryKey: eventKeys.attendees(id ?? "") });
-    queryClient.invalidateQueries({ queryKey: eventKeys.rsvp(id ?? "") });
-    queryClient.invalidateQueries({ queryKey: eventKeys.interests(id ?? "") });
-  },
-  onError: (error: any) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    const message = error?.data?.message || error?.message || "Could not send request";
-    // Handle already sent / already friends cases gracefully
-    if (message.includes("already")) {
-      safeToast.info("Already Sent", message);
-    } else {
-      safeToast.error("Oops", message);
-    }
-    if (__DEV__) {
-      devLog("[P0_PRIVATE_HOST_CTA] add_host_error", { message });
-    }
-  },
-});
-
-const handleAddHost = () => {
-  if (!restrictedHostInfo?.id) return;
-  addHostMutation.mutate();
-};
+      // P0 FIX: addHostMutation moved to top level - use via closure
+      const handleAddHost = () => {
+        if (!restrictedHostInfo?.id) return;
+        addHostMutation.mutate();
+      };
 
 
       return (
