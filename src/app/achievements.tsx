@@ -133,16 +133,41 @@ export default function BadgesScreen() {
     setFeaturedMutation.mutate(null);
   };
 
-  const badges = data?.badges ?? [];
-  const unlockedBadges = badges.filter((b) => b.unlocked);
-  // Hide Founder badge from locked section (not earnable by regular users)
-  const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
-  const featuredBadge = badges.find((b) => b.featured);
-
   // Pro trio badges unlock via subscription, not progress - hide progress UI
   const isProTrioBadgeKey = (key: string): boolean => {
     return key === "pro_includer" || key === "pro_organizer" || key === "pro_initiator";
   };
+
+  // P0 FIX: Compute effective unlock status (Pro trio unlocked when isPro)
+  const isEffectivelyUnlocked = (badge: BadgeCatalogItem): boolean => {
+    // If API says unlocked, trust it
+    if (badge.unlocked) return true;
+    // Pro trio badges are unlocked for Pro users even if API hasn't caught up
+    if (isProTrioBadgeKey(badge.badgeKey) && isPro && !isProLoading) return true;
+    return false;
+  };
+
+  const badges = data?.badges ?? [];
+  // P0 FIX: Use effective unlock check instead of raw API value
+  const unlockedBadges = badges.filter((b) => isEffectivelyUnlocked(b));
+  // Hide Founder badge from locked section (not earnable by regular users)
+  const lockedBadges = badges.filter((b) => !isEffectivelyUnlocked(b) && b.badgeKey !== "founder");
+  const featuredBadge = badges.find((b) => b.featured);
+
+  // [P0_BADGE_PRO] DEV proof logs for Pro badge selection debug
+  if (__DEV__) {
+    badges.filter(b => isProTrioBadgeKey(b.badgeKey)).forEach(badge => {
+      devLog('[P0_BADGE_PRO]', {
+        badgeKey: badge.badgeKey,
+        apiUnlocked: badge.unlocked,
+        isPro,
+        isProLoading,
+        isEffectivelyUnlocked: isEffectivelyUnlocked(badge),
+        selectionEnabled: isEffectivelyUnlocked(badge),
+        reason: badge.unlocked ? 'api_unlocked' : (isPro && !isProLoading ? 'pro_override' : 'locked'),
+      });
+    });
+  }
 
   // DEV logging for render decision
   React.useEffect(() => {
@@ -476,7 +501,16 @@ export default function BadgesScreen() {
             <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
               {selectedBadge?.description}
             </Text>
-            {selectedBadge && !selectedBadge.unlocked && selectedBadge.unlockTarget !== null && (
+            {/* P0 FIX: Pro badge copy - show for Pro trio when not effectively unlocked */}
+            {selectedBadge && isProTrioBadgeKey(selectedBadge.badgeKey) && !isEffectivelyUnlocked(selectedBadge) && (
+              <View className="mt-4 p-3 rounded-lg" style={{ backgroundColor: themeColor + "15" }}>
+                <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                  Unlock this badge as a Pro subscriber
+                </Text>
+              </View>
+            )}
+            {/* Progress bar for non-Pro progress-based badges */}
+            {selectedBadge && !isEffectivelyUnlocked(selectedBadge) && selectedBadge.unlockTarget !== null && !isProTrioBadgeKey(selectedBadge.badgeKey) && (
               <View className="mt-4">
                 <Text className="text-sm font-semibold mb-2" style={{ color: colors.textSecondary }}>
                   Progress: {selectedBadge.progressCurrent}/{selectedBadge.unlockTarget}
@@ -491,6 +525,22 @@ export default function BadgesScreen() {
                   />
                 </View>
               </View>
+            )}
+            {/* P0 FIX: Set Featured button in modal for effectively unlocked badges */}
+            {selectedBadge && isEffectivelyUnlocked(selectedBadge) && !selectedBadge.featured && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleSetFeatured(selectedBadge.badgeKey);
+                  setSelectedBadge(null);
+                }}
+                className="mt-4 py-3 rounded-lg items-center"
+                style={{ backgroundColor: selectedBadge.tierColor + "20" }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: selectedBadge.tierColor }}>
+                  Set Featured
+                </Text>
+              </Pressable>
             )}
           </Pressable>
         </Pressable>
