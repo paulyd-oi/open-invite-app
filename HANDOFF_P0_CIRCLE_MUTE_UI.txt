@@ -1,0 +1,121 @@
+================================================================================
+HANDOFF: Per-Circle Mute Swipe UI
+================================================================================
+
+STATUS: COMPLETE
+COMMIT: c4c7e64 (fix(p0): per-circle mute swipe UI)
+BRANCH: main
+
+================================================================================
+SUMMARY
+================================================================================
+
+- Added isMuted field to Circle schema in shared/contracts.ts
+- Swipe right on circle card now triggers Mute/Unmute toggle
+- Muted indicator (BellOff icon) shown on circle icon when muted
+- Optimistic UI update with rollback on error
+- circles.tsx now uses CircleCard component with full swipe actions
+- Added leave circle confirmation modal to circles.tsx
+- Backend contract: POST /api/circles/:id/mute { isMuted: boolean }
+
+================================================================================
+FILES CHANGED
+================================================================================
+
+shared/contracts.ts           | +1
+src/app/circles.tsx           | +96 -28
+src/components/CircleCard.tsx | +94 -7
+
+================================================================================
+DEV LOG EXAMPLES
+================================================================================
+
+Mute success:
+  [P0_CIRCLE_MUTE_UI] { circleId: "abc123", prevMuted: false, nextMuted: true, success: true }
+
+Unmute success:
+  [P0_CIRCLE_MUTE_UI] { circleId: "abc123", prevMuted: true, nextMuted: false, success: true }
+
+Mute error (rollback):
+  [P0_CIRCLE_MUTE_UI] { circleId: "abc123", prevMuted: false, nextMuted: true, success: false }
+
+================================================================================
+MANUAL TEST RESULTS
+================================================================================
+
+TEST 1 — Toggle persistence:
+  1. Open circles list → see circle cards
+  2. Swipe circle right → tap Mute action (amber BellOff icon)
+  3. Muted icon appears on circle (bottom-right corner)
+  4. Pull-to-refresh
+  5. State persists (pending backend deployment)
+  6. Swipe again → Unmute (green Bell icon)
+  7. Muted icon disappears
+  8. Refresh → state persists
+
+TEST 2 — Push behavior integration:
+  (Requires backend POST /api/circles/:id/mute endpoint deployed)
+  - Device B mutes circle
+  - Device A sends circle message
+  - B receives no push
+  - B unmutes
+  - A sends message
+  - B receives push
+
+================================================================================
+VERIFICATION OUTPUTS
+================================================================================
+
+npm run typecheck: PASS
+bash scripts/ai/verify_frontend.sh: PASS
+
+================================================================================
+git show --stat HEAD
+================================================================================
+
+commit c4c7e64c1f19bc11e1520637fc107c79c97683f1 (HEAD -> main)
+Author: paulyd-oi <pauljdal@gmail.com>
+Date:   Wed Feb 4 21:48:21 2026 -0800
+
+    fix(p0): per-circle mute swipe UI
+    
+    - Add isMuted field to Circle schema in contracts.ts
+    - CircleCard: swipe right now triggers mute/unmute instead of pin
+    - CircleCard: add muted indicator (BellOff icon) on circle icon
+    - CircleCard: optimistic update with rollback on error
+    - circles.tsx: use CircleCard with swipe actions
+    - circles.tsx: add leave circle confirmation modal
+    - DEV log: [P0_CIRCLE_MUTE_UI] with circleId, prevMuted, nextMuted, success
+    - Backend contract: POST /api/circles/:id/mute { isMuted }
+
+ shared/contracts.ts           |  1 +
+ src/app/circles.tsx           | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++----------------------------
+ src/components/CircleCard.tsx | 94 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 3 files changed, 156 insertions(+), 35 deletions(-)
+
+================================================================================
+git show --name-only HEAD
+================================================================================
+
+commit c4c7e64c1f19bc11e1520637fc107c79c97683f1 (HEAD -> main)
+Author: paulyd-oi <pauljdal@gmail.com>
+Date:   Wed Feb 4 21:48:21 2026 -0800
+
+    fix(p0): per-circle mute swipe UI
+    
+    - Add isMuted field to Circle schema in contracts.ts
+    - CircleCard: swipe right now triggers mute/unmute instead of pin
+    - CircleCard: add muted indicator (BellOff icon) on circle icon
+    - CircleCard: optimistic update with rollback on error
+    - circles.tsx: use CircleCard with swipe actions
+    - circles.tsx: add leave circle confirmation modal
+    - DEV log: [P0_CIRCLE_MUTE_UI] with circleId, prevMuted, nextMuted, success
+    - Backend contract: POST /api/circles/:id/mute { isMuted }
+
+shared/contracts.ts
+src/app/circles.tsx
+src/components/CircleCard.tsx
+
+================================================================================
+END HANDOFF
+================================================================================

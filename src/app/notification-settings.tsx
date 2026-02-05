@@ -315,6 +315,70 @@ export default function NotificationSettingsScreen() {
     },
   });
 
+  // [P0_CIRCLE_MUTE_V1] Fetch circles for bulk mute
+  const { data: circlesData } = useQuery<{ circles: { id: string; isMuted?: boolean }[] }>({
+    queryKey: ["circles"],
+    queryFn: () => api.get("/api/circles"),
+  });
+
+  // [P0_CIRCLE_MUTE_V1] Bulk mute mutation
+  const bulkMuteMutation = useMutation({
+    mutationFn: async (isMuted: boolean) => {
+      const circles = circlesData?.circles ?? [];
+      // Mute/unmute all circles in parallel
+      await Promise.all(
+        circles.map((c) => api.post(`/api/circles/${c.id}/mute`, { isMuted }))
+      );
+      return isMuted;
+    },
+    onMutate: async (isMuted) => {
+      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      const previousCircles = queryClient.getQueryData(["circles"]);
+
+      // Optimistically update all circles
+      queryClient.setQueryData(["circles"], (old: any) => {
+        if (!old?.circles) return old;
+        return {
+          ...old,
+          circles: old.circles.map((c: any) => ({ ...c, isMuted })),
+        };
+      });
+
+      return { previousCircles };
+    },
+    onSuccess: (isMuted) => {
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_V1] Bulk mute:", {
+          isMuted,
+          circleCount: circlesData?.circles?.length ?? 0,
+          success: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      safeToast.success(
+        isMuted ? "All Circles Muted" : "All Circles Unmuted",
+        isMuted ? "You won't receive message notifications" : "Notifications re-enabled for all circles"
+      );
+    },
+    onError: (error, isMuted, context) => {
+      if (context?.previousCircles) {
+        queryClient.setQueryData(["circles"], context.previousCircles);
+      }
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_V1] Bulk mute:", {
+          isMuted,
+          success: false,
+        });
+      }
+      safeToast.error("Oops", "Could not update mute settings");
+    },
+  });
+
+  // Compute mute state for button labels
+  const circles = circlesData?.circles ?? [];
+  const allMuted = circles.length > 0 && circles.every((c) => c.isMuted);
+  const anyMuted = circles.some((c) => c.isMuted);
+
   const preferences = data?.preferences;
   // P0 INVARIANT: Master enabled requires both backend pref AND OS permission
   const backendEnabled = preferences?.pushEnabled ?? false;
@@ -765,6 +829,61 @@ export default function NotificationSettingsScreen() {
               isDark={isDark}
               colors={colors}
             />
+
+            {/* [P0_CIRCLE_MUTE_V1] Bulk mute actions */}
+            {circles.length > 0 && (
+              <View className="px-4 pt-3 pb-2 border-t" style={{ borderColor: colors.surface }}>
+                <Text style={{ color: colors.textSecondary }} className="text-xs mb-3 uppercase font-semibold tracking-wide">
+                  Quick Actions
+                </Text>
+                <View className="flex-row gap-3">
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      bulkMuteMutation.mutate(true);
+                    }}
+                    disabled={bulkMuteMutation.isPending || allMuted}
+                    className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl"
+                    style={{
+                      backgroundColor: allMuted
+                        ? isDark ? "#2C2C2E" : "#E5E7EB"
+                        : isDark ? "#3A3A3C" : "#F3F4F6",
+                      opacity: bulkMuteMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <BellOff size={16} color={allMuted ? colors.textSecondary : colors.text} />
+                    <Text
+                      className="ml-2 font-medium text-sm"
+                      style={{ color: allMuted ? colors.textSecondary : colors.text }}
+                    >
+                      Mute All
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      bulkMuteMutation.mutate(false);
+                    }}
+                    disabled={bulkMuteMutation.isPending || !anyMuted}
+                    className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl"
+                    style={{
+                      backgroundColor: !anyMuted
+                        ? isDark ? "#2C2C2E" : "#E5E7EB"
+                        : isDark ? "#3A3A3C" : "#F3F4F6",
+                      opacity: bulkMuteMutation.isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <Bell size={16} color={!anyMuted ? colors.textSecondary : colors.text} />
+                    <Text
+                      className="ml-2 font-medium text-sm"
+                      style={{ color: !anyMuted ? colors.textSecondary : colors.text }}
+                    >
+                      Unmute All
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </Section>
         </Animated.View>
 

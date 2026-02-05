@@ -245,7 +245,13 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
                   <BellOff size={10} color="#fff" />
                 </View>
               )}
-              {/* [UNREAD_DOTS_REMOVED_P2.3] Unread messages badge rendering removed pre-launch */}
+              {/* [P0_CIRCLE_MUTE_V1] Show red dot for muted circles with unread messages */}
+              {circle.isMuted && (circle.unreadCount ?? 0) > 0 && (
+                <View
+                  className="absolute -top-1 -left-1 w-3 h-3 rounded-full"
+                  style={{ backgroundColor: "#EF4444" }}
+                />
+              )}
             </View>
 
             {/* Middle - Circle Info */}

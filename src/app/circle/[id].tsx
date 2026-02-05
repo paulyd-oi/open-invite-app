@@ -13,6 +13,7 @@ import {
   Keyboard,
   Share,
   Dimensions,
+  Switch,
 } from "react-native";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
@@ -39,6 +40,7 @@ import {
   UserPlus,
   Check,
   UserCheck,
+  BellOff,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -962,6 +964,69 @@ export default function CircleScreen() {
     },
   });
 
+  // [P0_CIRCLE_MUTE_V1] Mute toggle mutation
+  const muteMutation = useMutation({
+    mutationFn: async (isMuted: boolean) => {
+      return api.post(`/api/circles/${id}/mute`, { isMuted });
+    },
+    onMutate: async (isMuted) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: ["circle", id] });
+
+      // Snapshot current values
+      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircle = queryClient.getQueryData(["circle", id]);
+
+      // Optimistically update circles list
+      queryClient.setQueryData(["circles"], (old: any) => {
+        if (!old?.circles) return old;
+        return {
+          ...old,
+          circles: old.circles.map((c: Circle) =>
+            c.id === id ? { ...c, isMuted } : c
+          ),
+        };
+      });
+
+      // Optimistically update circle detail
+      queryClient.setQueryData(["circle", id], (old: any) => {
+        if (!old?.circle) return old;
+        return { ...old, circle: { ...old.circle, isMuted } };
+      });
+
+      return { previousCircles, previousCircle };
+    },
+    onSuccess: (_, isMuted) => {
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_V1] Circle detail mute toggle:", {
+          circleId: id,
+          nextMuted: isMuted,
+          success: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: ["circle", id] });
+    },
+    onError: (error, isMuted, context) => {
+      // Revert optimistic updates
+      if (context?.previousCircles) {
+        queryClient.setQueryData(["circles"], context.previousCircles);
+      }
+      if (context?.previousCircle) {
+        queryClient.setQueryData(["circle", id], context.previousCircle);
+      }
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_V1] Circle detail mute toggle:", {
+          circleId: id,
+          nextMuted: isMuted,
+          success: false,
+        });
+      }
+      safeToast.error("Oops", "Could not update mute setting");
+    },
+  });
+
   // Mark as read when component mounts or when id changes
   useEffect(() => {
     if (session && id) {
@@ -1784,6 +1849,35 @@ export default function CircleScreen() {
                   </View>
                   <ChevronRight size={20} color={colors.textTertiary} />
                 </Pressable>
+
+                {/* [P0_CIRCLE_MUTE_V1] Mute Messages Toggle */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                  }}
+                >
+                  <BellOff size={22} color={colors.textSecondary} />
+                  <View style={{ flex: 1, marginLeft: 16 }}>
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Mute Messages</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                      {circle?.isMuted ? "Notifications silenced" : "Get notified of new messages"}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={circle?.isMuted ?? false}
+                    onValueChange={(value) => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      muteMutation.mutate(value);
+                    }}
+                    trackColor={{ false: isDark ? "#3A3A3C" : "#E5E7EB", true: themeColor + "80" }}
+                    thumbColor={circle?.isMuted ? themeColor : isDark ? "#FFFFFF" : "#FFFFFF"}
+                    ios_backgroundColor={isDark ? "#3A3A3C" : "#E5E7EB"}
+                  />
+                </View>
 
                 {/* Leave Group */}
                 <Pressable
