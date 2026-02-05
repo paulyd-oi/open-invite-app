@@ -44,60 +44,90 @@ interface CreateCircleModalProps {
 // ============================================================================
 
 /**
+ * Check if a single codepoint is in emoji ranges.
+ * Used for fallback validation when Intl.Segmenter unavailable.
+ */
+function isEmojiCodepoint(codePoint: number): boolean {
+  return (
+    // Misc symbols: U+2600-U+26FF
+    (codePoint >= 0x2600 && codePoint <= 0x26FF) ||
+    // Dingbats: U+2700-U+27BF
+    (codePoint >= 0x2700 && codePoint <= 0x27BF) ||
+    // Supplemental Symbols: U+1F300-U+1FAFF (covers most emoji)
+    (codePoint >= 0x1F300 && codePoint <= 0x1FAFF)
+  );
+}
+
+/**
  * Validates that input contains exactly one emoji grapheme cluster.
  * Handles ZWJ sequences, flags, skin tones, and variation selectors.
  */
-function validateSingleEmoji(input: string): { valid: boolean; emoji: string | null; reason: string; clustersCount: number } {
+function validateSingleEmoji(input: string): { valid: boolean; emoji: string | null; reason: string; clustersCount: number; usedFallback: boolean } {
   const trimmed = input.trim();
   
   if (!trimmed) {
-    return { valid: false, emoji: null, reason: "empty_input", clustersCount: 0 };
+    return { valid: false, emoji: null, reason: "empty_input", clustersCount: 0, usedFallback: false };
   }
   
-  // Use Intl.Segmenter for accurate grapheme cluster segmentation
-  // This correctly handles ZWJ sequences, flags, skin tones, etc.
-  let clusters: string[] = [];
+  // Try Intl.Segmenter for accurate grapheme cluster segmentation
+  const hasSegmenter = typeof Intl !== "undefined" && typeof (Intl as any).Segmenter !== "undefined";
   
-  if (typeof Intl !== "undefined" && typeof (Intl as any).Segmenter !== "undefined") {
+  if (hasSegmenter) {
     try {
       const segmenter = new (Intl as any).Segmenter("en", { granularity: "grapheme" });
       const segments = [...segmenter.segment(trimmed)];
-      clusters = segments.map((s: any) => s.segment);
+      const clusters = segments.map((s: any) => s.segment);
+      
+      if (clusters.length !== 1) {
+        return { 
+          valid: false, 
+          emoji: null, 
+          reason: clusters.length === 0 ? "empty_input" : "multiple_characters", 
+          clustersCount: clusters.length,
+          usedFallback: false,
+        };
+      }
+      
+      const candidate = clusters[0];
+      
+      // Check if the single cluster contains emoji codepoints
+      const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]/u;
+      
+      if (!emojiRegex.test(candidate)) {
+        return { valid: false, emoji: null, reason: "not_emoji", clustersCount: 1, usedFallback: false };
+      }
+      
+      return { valid: true, emoji: candidate, reason: "valid", clustersCount: 1, usedFallback: false };
     } catch {
-      // Fallback: split by code points and try to detect emoji boundaries
-      clusters = [...trimmed];
+      // Segmenter threw, fall through to fallback
     }
-  } else {
-    // Fallback for environments without Intl.Segmenter
-    // Use spread operator which handles surrogate pairs but not ZWJ properly
-    clusters = [...trimmed];
   }
   
-  if (clusters.length !== 1) {
+  // FALLBACK: Conservative emoji check when Intl.Segmenter unavailable
+  // Convert to code points array
+  const codePoints = Array.from(trimmed);
+  
+  if (__DEV__) {
+    devLog("[P0_CIRCLE_EMOJI] fallback_used", { reason: "no_segmenter" });
+  }
+  
+  // Fallback is conservative: only accept single codepoint in emoji ranges
+  if (codePoints.length !== 1) {
     return { 
       valid: false, 
       emoji: null, 
-      reason: clusters.length === 0 ? "empty_input" : "multiple_characters", 
-      clustersCount: clusters.length 
+      reason: codePoints.length === 0 ? "empty_input" : "multiple_characters", 
+      clustersCount: codePoints.length,
+      usedFallback: true,
     };
   }
   
-  const candidate = clusters[0];
-  
-  // Check if the single cluster contains emoji codepoints
-  // Emoji ranges: 
-  // - Basic emoji: U+1F600-U+1F64F (emoticons), U+1F300-U+1F5FF (symbols), 
-  //   U+1F680-U+1F6FF (transport), U+1F1E0-U+1F1FF (flags), U+1F900-U+1F9FF (supplemental)
-  // - Dingbats: U+2700-U+27BF
-  // - Misc symbols: U+2600-U+26FF
-  // - Variation selectors and ZWJ are allowed as modifiers
-  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]/u;
-  
-  if (!emojiRegex.test(candidate)) {
-    return { valid: false, emoji: null, reason: "not_emoji", clustersCount: 1 };
+  const cp = codePoints[0].codePointAt(0);
+  if (cp === undefined || !isEmojiCodepoint(cp)) {
+    return { valid: false, emoji: null, reason: "not_emoji", clustersCount: 1, usedFallback: true };
   }
   
-  return { valid: true, emoji: candidate, reason: "valid", clustersCount: 1 };
+  return { valid: true, emoji: codePoints[0], reason: "valid", clustersCount: 1, usedFallback: true };
 }
 
 export function CreateCircleModal({
@@ -116,6 +146,10 @@ export function CreateCircleModal({
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const emojiInputRef = useRef<TextInput>(null);
+  
+  // Toast discipline: track last toast reason to prevent spam
+  const lastToastReasonRef = useRef<string | null>(null);
+  const wasValidRef = useRef<boolean>(true);
 
   // Handle emoji input change with validation
   const handleEmojiChange = (text: string) => {
@@ -130,22 +164,40 @@ export function CreateCircleModal({
         clustersCount: result.clustersCount,
         acceptedEmoji: result.emoji,
         reason: result.reason,
+        usedFallback: result.usedFallback,
       });
     }
     
     if (result.valid && result.emoji) {
       setEmoji(result.emoji);
       setEmojiValid(true);
+      // Reset toast tracking when input becomes valid
+      lastToastReasonRef.current = null;
+      wasValidRef.current = true;
     } else if (text.length > 0) {
-      // Invalid input - show toast for multiple characters
-      if (result.clustersCount > 1) {
-        safeToast.error("One emoji only", "Choose exactly 1 emoji");
-      } else if (result.reason === "not_emoji") {
-        safeToast.error("Emoji required", "Pick an emoji, not text");
+      // Toast discipline: only show toast on valid→invalid transition, not on every keystroke
+      const shouldToast = wasValidRef.current && lastToastReasonRef.current !== result.reason;
+      
+      if (shouldToast) {
+        if (result.clustersCount > 1) {
+          safeToast.error("One emoji only", "Choose exactly 1 emoji");
+          lastToastReasonRef.current = "multiple_characters";
+          if (__DEV__) {
+            devLog("[P0_CIRCLE_EMOJI] toast_shown", { reason: "multiple_characters" });
+          }
+        } else if (result.reason === "not_emoji") {
+          safeToast.error("Emoji required", "Pick an emoji, not text");
+          lastToastReasonRef.current = "not_emoji";
+          if (__DEV__) {
+            devLog("[P0_CIRCLE_EMOJI] toast_shown", { reason: "not_emoji" });
+          }
+        }
       }
+      wasValidRef.current = false;
       setEmojiValid(false);
     } else {
       // Empty input - just mark invalid, don't toast yet
+      wasValidRef.current = false;
       setEmojiValid(false);
     }
   };
