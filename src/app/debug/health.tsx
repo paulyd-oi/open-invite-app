@@ -19,9 +19,7 @@ interface HealthResponse {
 type HealthStatus = "idle" | "loading" | "success" | "error";
 
 export default function DebugHealthScreen() {
-  // P0: Hard gate for dev tools - first line of component
-  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="debug/health" />;
-
+  // P0 FIX: All hooks MUST be called unconditionally before any early returns
   const router = useRouter();
   const { isDark, colors, themeColor } = useTheme();
   const [status, setStatus] = useState<HealthStatus>("idle");
@@ -66,9 +64,14 @@ export default function DebugHealthScreen() {
   };
 
   useEffect(() => {
-    // Auto-fetch on mount
-    fetchHealth();
+    // Auto-fetch on mount (only if dev tools enabled)
+    if (isDevToolsEnabled()) {
+      fetchHealth();
+    }
   }, []);
+
+  // P0: Hard gate for dev tools - AFTER all hooks
+  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="debug/health" />;
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -191,9 +191,7 @@ interface ContextAuditState {
 }
 
 export default function DevSmokeTestsScreen() {
-  // P0: Hard gate for dev tools - first line of component
-  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="dev-smoke-tests" />;
-
+  // P0 FIX: All hooks MUST be called unconditionally before any early returns
   const router = useRouter();
   const { themeColor, colors } = useTheme();
   const { data: entitlements } = useEntitlements();
@@ -245,6 +243,9 @@ export default function DevSmokeTestsScreen() {
       });
     }
   }, []);
+
+  // P0: Hard gate for dev tools - AFTER all hooks
+  if (!isDevToolsEnabled()) return <DevToolsBlockedScreen name="dev-smoke-tests" />;
 
   const handleTestPaywall = (context: PaywallContext) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
