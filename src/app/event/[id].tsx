@@ -710,8 +710,36 @@ export default function EventDetailScreen() {
     });
   }
 
-  const attendeesList = attendeesData?.attendees ?? [];
-  const totalGoing = attendeesData?.totalGoing ?? 0;
+  // P0 FIX: SSOT - derive attendees from event.joinRequests if attendees endpoint returns empty
+  // This ensures "Who's Coming" matches the "going" count shown on cards
+  const attendeesFromEndpoint = attendeesData?.attendees ?? [];
+  const attendeesFromJoinRequests: AttendeeInfo[] = (event?.joinRequests ?? [])
+    .filter((r) => r.status === "accepted")
+    .map((r) => ({
+      id: r.user.id,
+      name: r.user.name,
+      imageUrl: r.user.image,
+      isHost: false,
+    }));
+  
+  // Use endpoint data if available, fallback to joinRequests
+  const attendeesList = attendeesFromEndpoint.length > 0 ? attendeesFromEndpoint : attendeesFromJoinRequests;
+  const totalGoing = attendeesData?.totalGoing ?? event?.goingCount ?? attendeesList.length;
+
+  // P0_RSVP_LIST: DEV proof log for RSVP list consistency
+  if (__DEV__) {
+    devLog('[P0_RSVP_LIST]', {
+      eventId: id,
+      cardCount: event?.goingCount ?? 'unknown',
+      detailsCount: attendeesData?.totalGoing ?? 'unknown',
+      attendeesLen: attendeesList.length,
+      attendeesFromEndpointLen: attendeesFromEndpoint.length,
+      attendeesFromJoinRequestsLen: attendeesFromJoinRequests.length,
+      hasAttendeeObjects: attendeesList.length > 0,
+      isAuthed: !!session?.user,
+      queryKey: `events.attendees.${id}`,
+    });
+  }
 
   const interests = interestsData?.event_interest ?? [];
   
