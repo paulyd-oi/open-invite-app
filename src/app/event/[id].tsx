@@ -71,6 +71,7 @@ import {
   type EventComment,
   type CreateCommentResponse,
   type EventReportReason,
+  type SendFriendRequestResponse,
 } from "@/shared/contracts";
 import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
@@ -1005,14 +1006,54 @@ export default function EventDetailScreen() {
         if (!restrictedHostInfo?.id) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (__DEV__) {
-          devLog('[P1_PRIVATE_HOST_CTA] Host tapped:', {
+          devLog('[P0_PRIVATE_HOST_CTA] nav_to_host_profile', {
             eventIdPrefix: id?.slice(0, 6),
             hostIdPrefix: restrictedHostInfo.id.slice(0, 6),
-            reason: 'private_event',
-            target: `/user/${restrictedHostInfo.id}`,
           });
         }
         router.push(`/user/${restrictedHostInfo.id}` as any);
+      };
+
+      // Friend request mutation for adding host
+      const addHostMutation = useMutation({
+        mutationFn: () => {
+          if (__DEV__) {
+            devLog('[P0_PRIVATE_HOST_CTA] add_host_press', {
+              hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+            });
+          }
+          return api.post<SendFriendRequestResponse>("/api/friends/request", { userId: restrictedHostInfo?.id });
+        },
+        onSuccess: () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
+          if (__DEV__) {
+            devLog('[P0_PRIVATE_HOST_CTA] add_host_success', {
+              hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+            });
+          }
+          // Invalidate queries so page refreshes after becoming friends
+          queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+          queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+        },
+        onError: (error: any) => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          const message = error?.data?.message || error?.message || "Could not send request";
+          // Handle already sent / already friends cases gracefully
+          if (message.includes("already")) {
+            safeToast.info("Already Sent", message);
+          } else {
+            safeToast.error("Oops", message);
+          }
+          if (__DEV__) {
+            devLog('[P0_PRIVATE_HOST_CTA] add_host_error', { message });
+          }
+        },
+      });
+
+      const handleAddHost = () => {
+        if (!restrictedHostInfo?.id) return;
+        addHostMutation.mutate();
       };
 
       return (
@@ -1078,11 +1119,30 @@ export default function EventDetailScreen() {
             <View className="gap-3 w-full max-w-xs">
               {restrictedHostInfo?.id && (
                 <Pressable
+                  onPress={handleAddHost}
+                  disabled={addHostMutation.isPending}
+                  className="py-3 px-6 rounded-full items-center flex-row justify-center"
+                  style={{ backgroundColor: themeColor, opacity: addHostMutation.isPending ? 0.7 : 1 }}
+                >
+                  {addHostMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <UserPlus size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text className="font-semibold" style={{ color: '#FFFFFF' }}>
+                        Add Host
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+              {restrictedHostInfo?.id && (
+                <Pressable
                   onPress={handleHostPress}
                   className="py-3 px-6 rounded-full items-center"
-                  style={{ backgroundColor: themeColor }}
+                  style={{ backgroundColor: colors.surface }}
                 >
-                  <Text className="font-semibold" style={{ color: '#FFFFFF' }}>
+                  <Text className="font-medium" style={{ color: colors.text }}>
                     View Profile
                   </Text>
                 </Pressable>
@@ -1090,9 +1150,9 @@ export default function EventDetailScreen() {
               <Pressable
                 onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
                 className="py-3 px-6 rounded-full items-center"
-                style={{ backgroundColor: colors.surface }}
+                style={{ backgroundColor: 'transparent' }}
               >
-                <Text className="font-medium" style={{ color: colors.text }}>
+                <Text className="font-medium" style={{ color: colors.textSecondary }}>
                   Go Back
                 </Text>
               </Pressable>
