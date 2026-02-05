@@ -3,10 +3,14 @@
  *
  * Handles incoming deep links to open specific screens:
  * - open-invite://event/{id} - Open event details
- * - open-invite://friend/{id} - Open friend profile
+ * - open-invite://user/{userId} - Open user profile (canonical)
+ * - open-invite://friend/{userId} - Open user profile (legacy, normalized to /user/)
  * - open-invite://invite/{code} - Handle referral invites
  * - https://open-invite-api.onrender.com/share/event/{id} - Universal link for events
  * - .ics file imports - Calendar event sharing
+ * 
+ * [P0_PROFILE_ROUTE] Profile deep links ALWAYS use userId, never friendshipId.
+ * The /friend/{id} deep link format is legacy and normalized to /user/{id} routing.
  */
 
 import * as Linking from 'expo-linking';
@@ -49,10 +53,13 @@ export function getInviteShareLink(referralCode: string): string {
 }
 
 /**
- * Generate a deep link for friend profile
+ * Generate a deep link for a user profile (by userId)
+ * [P0_PROFILE_ROUTE] Deep links use userId, not friendshipId.
+ * The parsed.id will be a userId since profile shares are user-based.
  */
-export function getFriendDeepLink(friendId: string): string {
-  return Linking.createURL(`friend/${friendId}`);
+export function getUserProfileDeepLink(userId: string): string {
+  // Use 'user' path for clarity - canonical profile route
+  return Linking.createURL(`user/${userId}`);
 }
 
 /**
@@ -187,8 +194,13 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
       if (type === 'event' && id) {
         return { type: 'event', id };
       }
+      // [P0_PROFILE_ROUTE] Both 'friend' (legacy) and 'user' deep links route to user profile
+      // The id in these links is always a userId, not friendshipId
       if (type === 'friend' && id) {
-        return { type: 'friend', id };
+        return { type: 'user', id }; // Normalize legacy 'friend' type to 'user'
+      }
+      if (type === 'user' && id) {
+        return { type: 'user', id };
       }
       if (type === 'invite' && id) {
         return { type: 'invite', code: id };
@@ -253,9 +265,13 @@ export async function handleDeepLink(url: string): Promise<boolean> {
       }
       break;
 
-    case 'friend':
+    case 'user':
+      // [P0_PROFILE_ROUTE] Route to canonical /user/ profile (parsed.id is userId)
       if (parsed.id) {
-        router.push(`/friend/${parsed.id}`);
+        if (__DEV__) {
+          devLog(`[P0_PROFILE_ROUTE] kind=user chosen=user reason=canonical_profile idPrefix=${parsed.id.slice(0, 6)}`);
+        }
+        router.push(`/user/${parsed.id}`);
         return true;
       }
       break;

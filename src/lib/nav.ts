@@ -146,14 +146,23 @@ export function goToEvent(router: Router, eventId: string): void {
 }
 
 /**
- * Navigate to a specific friend by ID
+ * Navigate to a friend's profile via friendshipId (wrapper redirects to /user/)
+ * 
+ * [P0_PROFILE_ROUTE] Use this ONLY when you have a friendshipId.
+ * The /friend/[id] route is a wrapper that fetches the userId and redirects to /user/.
+ * If you already have a userId, use goToUser() directly for better performance.
+ * 
+ * @param friendshipId - The friendship record ID (NOT a userId)
  */
-export function goToFriend(router: Router, friendId: string): void {
-  router.push(`/friend/${friendId}`);
+export function goToFriend(router: Router, friendshipId: string): void {
+  router.push(`/friend/${friendshipId}`);
 }
 
 /**
- * Navigate to a specific user profile by ID
+ * Navigate to a specific user profile by ID (canonical profile route)
+ * 
+ * [P0_PROFILE_ROUTE] This is the canonical profile route - prefer this over goToFriend()
+ * when you already have a userId. All profile viewing goes through /user/[id].
  */
 export function goToUser(router: Router, userId: string): void {
   router.push(`/user/${userId}`);
