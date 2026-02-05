@@ -19,6 +19,8 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
+import { BadgePill } from "@/components/BadgePill";
+import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 
 interface Friend {
   id: string;
@@ -28,6 +30,15 @@ interface Friend {
     name: string | null;
     email: string | null;
     image: string | null;
+    Profile?: {
+      handle?: string;
+      bio?: string | null;
+      calendarBio?: string | null;
+    } | null;
+    featuredBadge?: {
+      name: string;
+      tierColor: string;
+    } | null;
   };
 }
 
@@ -205,8 +216,24 @@ export function CreateCircleModal({
   const filteredFriends = friends.filter(
     (f) =>
       f.friend.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.friend.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      f.friend.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.friend.Profile?.handle?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // DEV proof log once per modal open
+  useEffect(() => {
+    if (visible && __DEV__) {
+      const hasHandle = friends.filter(f => f.friend.Profile?.handle).length;
+      const hasBio = friends.filter(f => f.friend.Profile?.calendarBio || f.friend.Profile?.bio).length;
+      const hasBadgeLocal = friends.filter(f => f.friend.featuredBadge).length;
+      devLog("[P0_CIRCLE_MEMBER_UI]", {
+        rows: friends.length,
+        hasHandle,
+        hasBio,
+        hasBadgeLocal,
+      });
+    }
+  }, [visible, friends]);
 
   const toggleFriend = (friendId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -417,6 +444,10 @@ export function CreateCircleModal({
                 <View className="pb-8">
                   {filteredFriends.map((friendship, i) => {
                     const isSelected = selectedFriends.has(friendship.friend.id);
+                    const handle = friendship.friend.Profile?.handle;
+                    const bio = friendship.friend.Profile?.calendarBio || friendship.friend.Profile?.bio;
+                    const featuredBadge = normalizeFeaturedBadge(friendship.friend.featuredBadge);
+                    
                     return (
                       <Animated.View key={friendship.id} entering={FadeIn.delay(i * 30)}>
                         <Pressable
@@ -447,10 +478,42 @@ export function CreateCircleModal({
                           </View>
 
                           {/* Info */}
-                          <View className="flex-1 ml-3">
-                            <Text className="font-medium" style={{ color: colors.text }}>
-                              {friendship.friend.name ?? "Unknown"}
-                            </Text>
+                          <View className="flex-1 ml-3 mr-2">
+                            {/* Name row with badge */}
+                            <View className="flex-row items-center flex-nowrap gap-1.5">
+                              <Text 
+                                className="font-semibold" 
+                                style={{ color: colors.text, fontSize: 15 }}
+                                numberOfLines={1}
+                              >
+                                {friendship.friend.name ?? "Unknown"}
+                              </Text>
+                              {featuredBadge && (
+                                <BadgePill
+                                  name={featuredBadge.name}
+                                  tierColor={featuredBadge.tierColor}
+                                  variant="small"
+                                />
+                              )}
+                            </View>
+                            {/* Handle */}
+                            {handle && (
+                              <Text 
+                                style={{ color: colors.textSecondary, fontSize: 13 }}
+                                numberOfLines={1}
+                              >
+                                @{handle}
+                              </Text>
+                            )}
+                            {/* Bio */}
+                            {bio && (
+                              <Text 
+                                style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}
+                                numberOfLines={1}
+                              >
+                                {bio}
+                              </Text>
+                            )}
                           </View>
 
                           {/* Checkbox */}
