@@ -58,7 +58,7 @@ function log(step: string, data?: any) {
 
 /**
  * In-flight logout guard to prevent multiple simultaneous logout sequences.
- * Multiple 401/403 errors can trigger concurrent resetSession calls.
+ * Multiple 401 errors can trigger concurrent resetSession calls.
  */
 let logoutInFlight = false;
 

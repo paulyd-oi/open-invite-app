@@ -256,10 +256,30 @@ function BootRouter() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  // AUTH EXPIRY LISTENER: Handle 401/403 from $fetch by triggering SSOT logout
+  // AUTH EXPIRY LISTENER: Handle 401 ONLY from $fetch by triggering SSOT logout
   // One-shot per session (emitter guards against spam)
+  // [P0_AUTH_403_NO_LOGOUT] HARD GUARD: reject 403 even if emitter is called incorrectly
   useEffect(() => {
     const unsubscribe = subscribeToAuthExpiry((info) => {
+      const status = info?.status;
+
+      // HARD GUARD: 403 = permission denied, NEVER logout
+      if (status === 403) {
+        if (__DEV__) {
+          devLog('[P0_AUTH_403_NO_LOGOUT]', {
+            status: 403,
+            endpoint: info?.endpoint || 'unknown',
+            action: 'no_logout',
+          });
+        }
+        return;
+      }
+
+      // Defensive: only proceed if status is explicitly 401
+      if (status !== 401) {
+        return;
+      }
+
       // Trigger logout via SSOT - performLogout is idempotent
       performLogout({
         screen: 'auth_expiry',
