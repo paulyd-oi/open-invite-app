@@ -37,7 +37,7 @@ import { SocialMemoryCard } from "@/components/SocialMemoryCard";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dismissAllGuidance } from "@/lib/firstSessionGuidance";
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
-import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin } from "@/lib/eventQueryKeys";
+import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -126,9 +126,15 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const startDate = new Date(displayEvent.startTime);
   const endDate = displayEvent.endTime ? new Date(displayEvent.endTime) : null;
   
-  // Check if event is full (capacity exists and goingCount >= capacity)
+  // Canonical attendee count derivation (SSOT: eventQueryKeys.ts)
+  const derivedAttendeeCount = deriveAttendeeCount(displayEvent);
+  
+  // DEV: Log mismatch between goingCount and derived count
+  logRsvpMismatch(displayEvent.id, derivedAttendeeCount, displayEvent.goingCount, "social-feed");
+  
+  // Check if event is full (capacity exists and attendee count >= capacity)
   const isEventFull = displayEvent.capacity != null && 
-    (displayEvent.goingCount ?? 0) >= displayEvent.capacity;
+    derivedAttendeeCount >= displayEvent.capacity;
 
   const dateLabel = startDate.toLocaleDateString("en-US", {
     weekday: "short",
@@ -354,8 +360,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             <Users size={14} color={displayEvent.isFull ? "#EF4444" : "#22C55E"} />
             <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
               {displayEvent.isFull 
-                ? `Full • ${displayEvent.goingCount ?? 0} going`
-                : `${displayEvent.goingCount ?? 0}/${displayEvent.capacity} filled`
+                ? `Full • ${derivedAttendeeCount} going`
+                : `${derivedAttendeeCount}/${displayEvent.capacity} filled`
               }
             </Text>
           </View>

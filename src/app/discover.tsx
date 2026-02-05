@@ -34,7 +34,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
-import { eventKeys } from "@/lib/eventQueryKeys";
+import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 
 // Response from GET /api/friends/reconnect
 interface ReconnectFriend {
@@ -209,12 +209,17 @@ export default function DiscoverScreen() {
     const allEvents = Array.from(allEventsMap.values());
     const now = new Date();
     
-    // P0 FIX: Use goingCount from API if available (already includes host),
-    // otherwise fall back to computed joinRequests count + 1 for host
+    // [P0_RSVP_SOT] Use canonical derivation for attendee count
     const withAttendeeCount = allEvents.map((event) => {
-      const computedFromJoinRequests = (event.joinRequests?.filter((r) => r.status === "accepted")?.length ?? 0) + 1;
-      // Prefer goingCount from API (already includes host), fallback to computed
-      const attendeeCount = event.goingCount ?? computedFromJoinRequests;
+      const derivedCount = deriveAttendeeCount(event);
+      // Prefer goingCount from API if available, fallback to derived
+      const attendeeCount = event.goingCount ?? derivedCount;
+      
+      // [P0_RSVP_SOT] Log mismatch in DEV
+      if (__DEV__) {
+        logRsvpMismatch(event.id, derivedCount, event.goingCount, "discover_popular");
+      }
+      
       return { ...event, attendeeCount };
     });
     

@@ -96,6 +96,8 @@ import {
   getInvalidateAfterRsvpLeave,
   getInvalidateAfterJoinRequestAction,
   getInvalidateAfterComment,
+  deriveAttendeeCount,
+  logRsvpMismatch,
 } from "@/lib/eventQueryKeys";
 
 // Helper to open event location using the shared utility
@@ -680,7 +682,7 @@ export default function EventDetailScreen() {
   type AttendeesResponse = { attendees: AttendeeInfo[]; totalGoing: number };
 
   const { data: attendeesData, error: attendeesError, isLoading: isLoadingAttendees } = useQuery({
-    queryKey: ["events", "attendees", id],
+    queryKey: eventKeys.attendees(id ?? ""), // [P0_RSVP_SOT] Use canonical key
     queryFn: async () => {
       if (__DEV__) {
         devLog('[P0_EVENT_ATTENDEES_UI] fetch started', { eventId: id });
@@ -710,7 +712,7 @@ export default function EventDetailScreen() {
     });
   }
 
-  // P0 FIX: SSOT - derive attendees from event.joinRequests if attendees endpoint returns empty
+  // [P0_RSVP_SOT] SSOT - derive attendees from event.joinRequests if attendees endpoint returns empty
   // This ensures "Who's Coming" matches the "going" count shown on cards
   const attendeesFromEndpoint = attendeesData?.attendees ?? [];
   const attendeesFromJoinRequests: AttendeeInfo[] = (event?.joinRequests ?? [])
@@ -724,21 +726,15 @@ export default function EventDetailScreen() {
   
   // Use endpoint data if available, fallback to joinRequests
   const attendeesList = attendeesFromEndpoint.length > 0 ? attendeesFromEndpoint : attendeesFromJoinRequests;
-  const totalGoing = attendeesData?.totalGoing ?? event?.goingCount ?? attendeesList.length;
+  
+  // [P0_RSVP_SOT] Use canonical derivation for count
+  const derivedCount = deriveAttendeeCount(event);
+  const totalGoing = attendeesData?.totalGoing ?? derivedCount;
 
-  // P0_RSVP_LIST: DEV proof log for RSVP list consistency
-  if (__DEV__) {
-    devLog('[P0_RSVP_LIST]', {
-      eventId: id,
-      cardCount: event?.goingCount ?? 'unknown',
-      detailsCount: attendeesData?.totalGoing ?? 'unknown',
-      attendeesLen: attendeesList.length,
-      attendeesFromEndpointLen: attendeesFromEndpoint.length,
-      attendeesFromJoinRequestsLen: attendeesFromJoinRequests.length,
-      hasAttendeeObjects: attendeesList.length > 0,
-      isAuthed: !!session?.user,
-      queryKey: `events.attendees.${id}`,
-    });
+  // [P0_RSVP_SOT] DEV proof log for RSVP consistency - only logs on mismatch
+  if (__DEV__ && event && id) {
+    logRsvpMismatch(id, derivedCount, event?.goingCount, "event_details");
+    logRsvpMismatch(id, derivedCount, attendeesData?.totalGoing, "event_details_endpoint");
   }
 
   const interests = interestsData?.event_interest ?? [];

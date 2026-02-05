@@ -6,10 +6,67 @@
  * 
  * INVARIANT: No wildcard invalidations for events (e.g., invalidateQueries({queryKey:["events"]}))
  * Only specific keys may be invalidated using these SSOT helpers.
+ * 
+ * INVARIANT: [P0_RSVP_SOT] Attendee count derivation:
+ *   effectiveAttendeeCount(event) = host (1) + joinRequests where status === "accepted"
+ *   This is the canonical derivation everywhere UI shows attendee counts.
  */
 
 import type { QueryClient } from "@tanstack/react-query";
 import { devLog } from "./devLog";
+
+// ============================================================================
+// RSVP SSOT HELPER
+// ============================================================================
+
+/**
+ * [P0_RSVP_SOT] Canonical attendee count derivation.
+ * 
+ * effectiveAttendeeCount(event) = host (1) + accepted joinRequests
+ * 
+ * This MUST be used everywhere attendee counts are displayed.
+ * No screen may compute its own variant logic.
+ * 
+ * @param event - Event object with joinRequests array
+ * @returns Total attendee count including host
+ */
+export function deriveAttendeeCount(event: {
+  joinRequests?: Array<{ status: string }> | null;
+} | null | undefined): number {
+  if (!event) return 0;
+  
+  const host = 1;
+  const accepted = (event.joinRequests ?? []).filter((r) => r.status === "accepted").length;
+  
+  return host + accepted;
+}
+
+/**
+ * [P0_RSVP_SOT] DEV-only mismatch detection helper.
+ * Logs when different count sources disagree.
+ * 
+ * @param eventId - Event ID prefix for logging
+ * @param derivedCount - Count from deriveAttendeeCount
+ * @param endpointCount - Count from API endpoint (goingCount or totalGoing)
+ * @param source - Which screen/component is checking
+ */
+export function logRsvpMismatch(
+  eventId: string,
+  derivedCount: number,
+  endpointCount: number | null | undefined,
+  source: string
+): void {
+  if (!__DEV__) return;
+  
+  // Skip if endpoint count not available
+  if (endpointCount == null) return;
+  
+  const match = derivedCount === endpointCount;
+  
+  if (!match) {
+    devLog(`[P0_RSVP_SOT] MISMATCH source=${source} eventId=${eventId.slice(0, 6)} derivedCount=${derivedCount} endpointCount=${endpointCount} match=${match}`);
+  }
+}
 
 // ============================================================================
 // QUERY KEY BUILDERS
@@ -30,6 +87,7 @@ export const eventKeys = {
   comments: (id: string) => ["events", id, "comments"] as const,
   rsvp: (id: string) => ["events", id, "rsvp"] as const,
   mute: (id: string) => ["events", id, "mute"] as const,
+  attendees: (id: string) => ["events", "attendees", id] as const, // [P0_RSVP_SOT] Who's Coming list
   
   // Generic event detail (used for capacity refetch)
   detail: (id: string) => ["events", id] as const,
@@ -71,11 +129,12 @@ export function logEventKeys(label: string, keys: Array<readonly string[] | stri
 
 /**
  * Keys to invalidate after RSVP join/going action.
- * Covers: event details, interests, RSVP status, feeds, calendar, attending list.
+ * [P0_RSVP_SOT] Covers: event details, attendees, interests, RSVP status, feeds, calendar, attending list.
  */
 export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly string[]> {
   return [
     eventKeys.single(eventId),
+    eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
     eventKeys.detail(eventId),
@@ -89,11 +148,12 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
 
 /**
  * Keys to invalidate after RSVP leave/remove action.
- * Same as join - need to update all views that show RSVP state.
+ * [P0_RSVP_SOT] Same as join - need to update all views that show RSVP state.
  */
 export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly string[]> {
   return [
     eventKeys.single(eventId),
+    eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
     eventKeys.detail(eventId),
@@ -104,7 +164,6 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
     eventKeys.attending(),
   ];
 }
-
 /**
  * Keys to invalidate after join request approval/rejection.
  * Updates event details and feeds but not user's own RSVP.
