@@ -143,11 +143,12 @@ export function isNetworkError(error: any): boolean {
 }
 
 /**
- * Check if a response status indicates a true auth failure
- * (as opposed to network/server errors)
+ * Check if a response status indicates a true auth failure that requires logout.
+ * [P0_AUTH_403_NO_LOGOUT] ONLY 401 triggers logout.
+ * 403 = permission denied (privacy/pro gating) - user stays logged in.
  */
 export function isAuthError(status: number | undefined): boolean {
-  return status === 401 || status === 403;
+  return status === 401;
 }
 
 /**
@@ -178,8 +179,9 @@ export function isKnown404Endpoint(error: any): boolean {
 
 /**
  * Determine if an error should trigger logout
- * Only true auth errors (401/403 from server) should cause logout
- * Network errors, 5xx, timeouts, rate limits, 404s should NOT cause logout
+ * [P0_AUTH_403_NO_LOGOUT] ONLY 401 from server triggers logout.
+ * 403 = permission denied (privacy/pro gating) - keep session.
+ * Network errors, 5xx, timeouts, rate limits, 404s should NOT cause logout.
  */
 export function shouldLogoutOnError(error: any): boolean {
   // Network errors - never logout
@@ -200,6 +202,19 @@ export function shouldLogoutOnError(error: any): boolean {
 
   // Check for HTTP status in error
   const status = error?.status || error?.response?.status;
+  
+  // [P0_AUTH_403_NO_LOGOUT] 403 = Forbidden = privacy/permission denied - NEVER logout
+  if (status === 403) {
+    if (__DEV__) {
+      devLog("[P0_AUTH_403_NO_LOGOUT]", {
+        endpoint: error?.url || error?.config?.url || "unknown",
+        method: error?.config?.method || "GET",
+        status: 403,
+        action: "no_logout",
+      });
+    }
+    return false;
+  }
 
   // 404 - endpoint doesn't exist on backend, don't logout
   if (status === 404) {
@@ -213,10 +228,10 @@ export function shouldLogoutOnError(error: any): boolean {
     return false;
   }
 
-  // Only 401/403 from actual server response should trigger logout
+  // Only 401 from actual server response should trigger logout
   if (isAuthError(status)) {
     if (__DEV__) {
-      devLog("[Auth] Invalid session (401/403), logging out");
+      devLog("[Auth] Invalid session (401), logging out");
     }
     return true;
   }

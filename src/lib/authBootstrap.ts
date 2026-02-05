@@ -11,7 +11,8 @@
  * - Error handling with no infinite loops
  * - 15s watchdog timer
  * - Transient errors (429, 5xx, network) use cached session when available
- * - Auth errors (401, 403) trigger forced logout
+ * - Auth errors (401 ONLY) trigger forced logout
+ * - [P0_AUTH_403_NO_LOGOUT] 403 = permission denied, NOT logout
  * - Canonical state machine via authState.ts
  */
 
@@ -84,11 +85,11 @@ export async function resetSession(options?: { reason?: string; status?: number;
   const tokenExistedBeforeReset = await hasAuthToken();
   
   // POLICY: Only clear tokens on true auth failures or explicit user actions
-  // Auth errors (401/403) trigger hard reset. Other errors are logged but tokens remain.
+  // [P0_AUTH_403_NO_LOGOUT] ONLY 401 triggers hard reset. 403 = permission denied, not logout.
   const isUserInitiated = reason === "user_logout" || reason === "account_deletion";
   const isAuthCleanup = reason === "auth_cleanup"; // Login screen cleanup - no intent required
-  const isAuthExpired = reason === "auth_expired"; // System-triggered on 401/403 from $fetch
-  const isAuthFailure = reason === "auth_error" && (status === 401 || status === 403);
+  const isAuthExpired = reason === "auth_expired"; // System-triggered on 401 ONLY from $fetch
+  const isAuthFailure = reason === "auth_error" && status === 401;
   const shouldClearTokens = isUserInitiated || isAuthCleanup || isAuthExpired || isAuthFailure;
   
   if (!shouldClearTokens) {

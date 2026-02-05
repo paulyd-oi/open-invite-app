@@ -2,7 +2,10 @@
  * Auth Expiry Event Emitter
  *
  * Simple pub/sub for auth expiry events.
- * Used by authClient.ts to signal 401/403 to the React tree.
+ * Used by authClient.ts to signal 401 ONLY to the React tree.
+ * 
+ * INVARIANT: 403 (Forbidden) = permission denied, NOT auth expiry.
+ * Only 401 (Unauthorized) triggers logout.
  *
  * CRITICAL: One-shot per session - prevents spam on cascading 401s.
  */
@@ -18,7 +21,8 @@ let hasEmittedThisSession = false;
 
 /**
  * Emit auth expiry event (one-shot per session).
- * Called from authClient.$fetch when 401/403 detected on an authenticated endpoint.
+ * Called from authClient.$fetch when 401 detected on an authenticated endpoint.
+ * [P0_AUTH_403_NO_LOGOUT] 403 NEVER triggers this emitter.
  */
 export function emitAuthExpiry(info: { endpoint: string; method: string; status: number }): void {
   // One-shot guard - prevent spam from cascading 401s

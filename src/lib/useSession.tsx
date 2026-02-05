@@ -7,7 +7,7 @@
  * Features:
  * - Caches session data locally
  * - Returns cached session when offline (prevents "logged out" state)
- * - Only clears session on true auth failures (401/403)
+ * - [P0_AUTH_403_NO_LOGOUT] Only clears session on 401 (not 403)
  * - Never clears session on network errors
  */
 
