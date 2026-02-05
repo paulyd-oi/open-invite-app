@@ -74,7 +74,7 @@ import {
 } from "@/shared/contracts";
 import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
-import { EventCategoryBadge } from "@/components/EventCategoryPicker";
+// [P0_DEMO_LEAK] EventCategoryBadge import removed - category field unsupported by create/edit UI
 import { EventSummaryModal } from "@/components/EventSummaryModal";
 import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
@@ -1431,14 +1431,15 @@ export default function EventDetailScreen() {
               </View>
             </View>
 
-            {/* Category Badge */}
-            {event.category && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center">
-                  <EventCategoryBadge category={event.category} />
-                </View>
-              </View>
-            )}
+            {/* Category Badge - HIDDEN until create/edit supports category selection
+             * [P0_DEMO_LEAK] The category field exists in schema but no UI to set it.
+             * Showing it leaks demo/seed data to production users.
+             * Re-enable when EventCategoryPicker is integrated into create.tsx and edit/[id].tsx.
+             */}
+            {__DEV__ && event.category && (() => {
+              devLog(`[P0_DEMO_LEAK] suppressedPill key=category reason=unsupported_by_ui eventIdPrefix=${event.id.slice(0, 6)}`);
+              return null;
+            })()}
           </View>
         </Animated.View>
 
