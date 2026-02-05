@@ -592,24 +592,36 @@ function MiniCalendar({
                     <Pressable
                       key={event.id}
                       onPress={() => {
-                        // Don't navigate to private events that belong to other users
+                        // Don't navigate to busy blocks - they are inert privacy placeholders
                         if (isMaskedBusy) {
                           if (__DEV__) {
-                            devLog('[P0_CIRCLE_EVENT_TAP] Blocked navigation to masked busy block:', event.id);
+                            devLog('[P0_VISIBILITY] Circle mini calendar tap blocked:', {
+                              sourceSurface: 'circle-mini',
+                              eventIdPrefix: event.id?.slice(0, 6),
+                              hostIdPrefix: event.userId?.slice(0, 6),
+                              isBusy: true,
+                              viewerFriendOfHost: 'unknown',
+                              decision: 'busy_inert',
+                              reason: 'busy_block_no_tap',
+                            });
                           }
                           return;
                         }
-                        // [P0_CIRCLE_EVENT_TAP] Proof log: event tap navigation
+                        // [P0_VISIBILITY] Proof log: event tap navigation (will be evaluated by event/[id])
                         if (__DEV__) {
-                          devLog('[P0_CIRCLE_EVENT_TAP] tapped', {
-                            eventId: event.id,
-                            target: `/event/${event.id}`,
-                            isPast: new Date(event.startTime) < new Date(),
+                          devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
+                            sourceSurface: 'circle-mini',
+                            eventIdPrefix: event.id?.slice(0, 6),
+                            hostIdPrefix: event.userId?.slice(0, 6),
+                            isBusy: false,
+                            viewerFriendOfHost: 'unknown',
+                            decision: 'navigating_to_event_details',
+                            reason: 'tap_allowed_event_will_gate',
                           });
                         }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setShowDayModal(false);
-                        // Navigate to event details
+                        // Navigate to event details - event/[id] will determine full_details vs private_gate
                         if (event.id) {
                           router.push(`/event/${event.id}` as any);
                         }

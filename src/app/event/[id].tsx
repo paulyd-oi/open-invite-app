@@ -579,13 +579,15 @@ export default function EventDetailScreen() {
   
   const blockedState = getBlockedReason();
   
-  // DEV logging for visibility decision
+  // [P0_VISIBILITY] DEV logging for visibility decision (canonical audit tag)
   if (__DEV__ && !isLoadingEvent) {
-    devLog('[P0_BLOCKED_EVENT] Visibility decision:', {
-      eventId: id,
-      hasEvent: !!event,
-      eventType: event?.isBusy ? 'busy_block' : 'open_invite',
-      authorized: blockedState.authorized,
+    devLog('[P0_VISIBILITY] Event details visibility decision:', {
+      sourceSurface: 'event-details',
+      eventIdPrefix: id?.slice(0, 6),
+      hostIdPrefix: event?.userId?.slice(0, 6) ?? restrictedHostInfo?.id?.slice(0, 6) ?? 'unknown',
+      isBusy: !!event?.isBusy,
+      viewerFriendOfHost: blockedState.reason === 'authorized' ? true : blockedState.reason === 'private_event' ? false : 'unknown',
+      decision: blockedState.reason === 'busy_block' ? 'busy_inert' : blockedState.reason === 'authorized' ? 'full_details' : 'private_gate',
       reason: blockedState.reason,
     });
   }

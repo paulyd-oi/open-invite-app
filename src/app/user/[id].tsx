@@ -174,6 +174,18 @@ function EventCard({ event, index }: { event: Event; index: number }) {
     <Animated.View entering={FadeInDown.delay(index * 100).springify()}>
       <Pressable
         onPress={() => {
+          // [P0_VISIBILITY] Proof log: friend event card tap (always friend-of-host)
+          if (__DEV__) {
+            devLog('[P0_VISIBILITY] Friend event card tap navigating:', {
+              sourceSurface: 'friend-event-card',
+              eventIdPrefix: event.id?.slice(0, 6),
+              hostIdPrefix: event.userId?.slice(0, 6),
+              isBusy: false,
+              viewerFriendOfHost: true, // This card only shows friend's events
+              decision: 'full_details',
+              reason: 'friend_of_host',
+            });
+          }
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push(`/event/${event.id}` as any);
         }}
@@ -277,9 +289,22 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
     const dayEvents = eventsByDate.get(dateKey);
 
     if (dayEvents && dayEvents.length > 0) {
+      const firstEvent = dayEvents[0];
+      // [P0_VISIBILITY] Proof log: friend calendar tap (always friend-of-host since this is their calendar)
+      if (__DEV__) {
+        devLog('[P0_VISIBILITY] Friend calendar tap navigating:', {
+          sourceSurface: 'friend-calendar',
+          eventIdPrefix: firstEvent.id?.slice(0, 6),
+          hostIdPrefix: firstEvent.userId?.slice(0, 6),
+          isBusy: false,
+          viewerFriendOfHost: true, // This calendar only shows friend's events, viewer IS friend of host
+          decision: 'full_details',
+          reason: 'friend_of_host',
+        });
+      }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Navigate to the first event of that day
-      router.push(`/event/${dayEvents[0].id}` as any);
+      router.push(`/event/${firstEvent.id}` as any);
     }
   };
 
