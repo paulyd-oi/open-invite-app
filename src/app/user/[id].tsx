@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, Image, RefreshControl } from "react-native";
+import React, { useState, useMemo, useEffect } from "react";
+import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock } from "@/ui/icons";
+import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock, StickyNote, ChevronDown, Plus, Trash2 } from "@/ui/icons";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -15,8 +16,22 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { BadgePill } from "@/components/BadgePill";
-import { type FriendUser, type ProfileBadge, type Event } from "@/shared/contracts";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { safeToast } from "@/lib/safeToast";
+import { type FriendUser, type ProfileBadge, type Event, type ReportReason } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
+
+// MoreHorizontal icon using Ionicons
+const MoreHorizontal: React.FC<{ size?: number; color?: string }> = ({ size = 24, color }) => (
+  <Ionicons name="ellipsis-horizontal" size={size} color={color as any} />
+);
+
+// Friend note type
+interface FriendNote {
+  id: string;
+  content: string;
+  createdAt: string;
+}
 
 // Minimal Calendar Component (no events visible for privacy)
 function PrivateCalendar({ themeColor }: { themeColor: string }) {
@@ -354,14 +369,24 @@ function FriendCalendar({ events, themeColor }: { events: Event[]; themeColor: s
 }
 
 export default function UserProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, source } = useLocalSearchParams<{ id: string; source?: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
 
-  // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal state removed pre-launch
+  // ===== FRIEND-ONLY STATE (unlocked when isFriend=true) =====
+  const [showNotesSection, setShowNotesSection] = useState(true);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<ReportReason | null>(null);
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   // Fetch user profile data
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -370,7 +395,29 @@ export default function UserProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
   });
 
-  // [LEGACY_ADD_TO_GROUPS_REMOVED] - groups query removed pre-launch
+  // Extract values for easier use
+  const user = data?.user;
+  const isFriend = data?.isFriend ?? false;
+  const friendshipId = data?.friendshipId ?? null;
+  const hasPendingRequest = data?.hasPendingRequest ?? false;
+  const incomingRequestId = data?.incomingRequestId ?? null;
+
+  // [P0_PROFILE_SOT] DEV-only proof log on mount
+  useEffect(() => {
+    if (__DEV__ && data) {
+      devLog("[P0_PROFILE_SOT]", {
+        routeSource: source ?? "user/[id]",
+        targetUserId: id,
+        relationshipState: isFriend ? "friend" : "non-friend",
+        friendshipId: friendshipId,
+        gatedSections: {
+          notes: isFriend,
+          calendar: isFriend,
+          unfriendMenu: isFriend,
+        },
+      });
+    }
+  }, [data, id, source, isFriend, friendshipId]);
 
   // Fetch user's badge
   const { data: badgeData } = useQuery({
@@ -383,11 +430,20 @@ export default function UserProfileScreen() {
   const normalizedBadge = normalizeFeaturedBadge(userBadge);
 
   // Fetch friend events when isFriend=true (unlocked state)
-  const { data: friendEventsData } = useQuery({
-    queryKey: ["friendEvents", data?.friendshipId],
-    queryFn: () => api.get<{ events: Event[]; friend: FriendUser }>(`/api/friends/${data?.friendshipId}`),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!data?.friendshipId && data.isFriend,
+  const { data: friendEventsData, refetch: refetchFriendEvents } = useQuery({
+    queryKey: ["friendEvents", friendshipId],
+    queryFn: () => api.get<{ events: Event[]; friend: FriendUser }>(`/api/friends/${friendshipId}/events`),
+    enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId && isFriend,
   });
+
+  // Fetch notes for this friend (friend-only feature)
+  const { data: notesData, refetch: refetchNotes } = useQuery({
+    queryKey: ["friendNotes", friendshipId],
+    queryFn: () => api.get<{ notes: FriendNote[] }>(`/api/friends/${friendshipId}/notes`),
+    enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId && isFriend,
+  });
+
+  const notes = notesData?.notes ?? [];
 
   // Minute tick to force rerender when events pass their end time
   const minuteTick = useMinuteTick(true);
@@ -417,19 +473,14 @@ export default function UserProfileScreen() {
   const acceptRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put<{ success: boolean; friendshipId?: string; friend?: { id: string; name: string | null; image: string | null } }>(`/api/friends/request/${requestId}`, { status: "accepted" }),
-    onSuccess: (responseData) => {
+    onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Stay on this screen - refetch will update state to show friend features
       queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
-
-      // [LEGACY_ADD_TO_GROUPS_REMOVED] - modal trigger removed pre-launch
-      devLog('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
-      
-      // Redirect to friend profile on success
-      if (responseData.friendshipId) {
-        router.replace(`/friend/${responseData.friendshipId}` as any);
-      }
+      // Refetch to get the updated isFriend state
+      refetch();
     },
   });
 
@@ -444,16 +495,113 @@ export default function UserProfileScreen() {
     },
   });
 
-  // [LEGACY_ADD_TO_GROUPS_REMOVED] - addFriendToGroupsMutation removed pre-launch
+  // ===== FRIEND-ONLY MUTATIONS =====
+  // Add note mutation
+  const addNoteMutation = useMutation({
+    mutationFn: (content: string) =>
+      api.post<{ note: FriendNote }>(`/api/friends/${friendshipId}/notes`, { content }),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setNewNoteText("");
+      refetchNotes();
+    },
+    onError: (error: any) => {
+      safeToast.error("Error", error?.message || "Failed to add note");
+    },
+  });
 
-  const user = data?.user;
-  const isFriend = data?.isFriend ?? false;
-  const friendshipId = data?.friendshipId ?? null;
-  const hasPendingRequest = data?.hasPendingRequest ?? false;
-  const incomingRequestId = data?.incomingRequestId ?? null;
+  // Delete note mutation
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) =>
+      api.delete(`/api/friends/${friendshipId}/notes/${noteId}`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      refetchNotes();
+    },
+    onError: (error: any) => {
+      safeToast.error("Error", error?.message || "Failed to delete note");
+    },
+  });
 
-  // DO NOT auto-redirect anymore - let user stay on this screen after accepting
-  // Profile will update to show unlocked state via refetch
+  // Unfriend mutation
+  const unfriendMutation = useMutation({
+    mutationFn: () => api.delete(`/api/friends/${friendshipId}`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Unfriended", `You and ${user?.name ?? "this user"} are no longer friends`);
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
+      // Navigate back to friends list
+      router.replace("/friends" as any);
+    },
+    onError: () => {
+      safeToast.error("Error", "Failed to unfriend");
+    },
+  });
+
+  // ===== FRIEND-ONLY HANDLERS =====
+  const handleAddNote = () => {
+    if (newNoteText.trim().length === 0) return;
+    addNoteMutation.mutate(newNoteText.trim());
+  };
+
+  const handleDeleteNote = (noteId: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setNoteToDelete(noteId);
+    setShowDeleteNoteConfirm(true);
+  };
+
+  const confirmDeleteNote = () => {
+    if (noteToDelete) {
+      deleteNoteMutation.mutate(noteToDelete);
+    }
+    setShowDeleteNoteConfirm(false);
+    setNoteToDelete(null);
+  };
+
+  const handleMenuPress = () => {
+    Haptics.selectionAsync();
+    setShowMenuModal(true);
+  };
+
+  const handleUnfriend = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setShowMenuModal(false);
+    setShowUnfriendConfirm(true);
+  };
+
+  const handleReportUser = () => {
+    Haptics.selectionAsync();
+    setShowMenuModal(false);
+    setShowReportModal(true);
+  };
+
+  const submitReport = async () => {
+    if (!selectedReportReason || !id) return;
+    setIsSubmittingReport(true);
+    try {
+      await api.post('/api/reports/user', {
+        reportedUserId: id,
+        reason: selectedReportReason,
+        details: selectedReportReason === 'other' ? reportDetails.trim() || undefined : undefined,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success('Report submitted', 'Thanks — we received your report.');
+      setShowReportModal(false);
+      setSelectedReportReason(null);
+      setReportDetails('');
+    } catch (error) {
+      safeToast.error('Error', "Couldn't submit report. Please try again.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  const confirmUnfriend = () => {
+    unfriendMutation.mutate();
+    setShowUnfriendConfirm(false);
+  };
 
   if (!session) {
     return (
@@ -472,6 +620,19 @@ export default function UserProfileScreen() {
         options={{
           title: user?.name ?? "Profile",
           headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          headerTitleStyle: { color: colors.text },
+          // Show menu button only for friends (SSOT: friend features gated by relationship)
+          headerRight: isFriend ? () => (
+            <Pressable
+              onPress={handleMenuPress}
+              className="w-8 h-8 rounded-full items-center justify-center mr-1"
+              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <MoreHorizontal size={18} color={colors.textSecondary} />
+            </Pressable>
+          ) : undefined,
         }}
       />
 
@@ -654,6 +815,114 @@ export default function UserProfileScreen() {
                     <EventCard key={event.id} event={event} index={index} />
                   ))
                 )}
+
+                {/* Notes Section (FRIEND-ONLY SSOT FEATURE) */}
+                <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4 mt-4">
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowNotesSection(!showNotesSection);
+                    }}
+                    className="flex-row items-center justify-between mb-3"
+                  >
+                    <View className="flex-row items-center">
+                      <StickyNote size={18} color="#F59E0B" />
+                      <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                        Notes to Remember
+                      </Text>
+                      {notes.length > 0 && (
+                        <View
+                          className="ml-2 px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: "#F59E0B20" }}
+                        >
+                          <Text className="text-xs font-medium" style={{ color: "#F59E0B" }}>
+                            {notes.length}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <ChevronDown
+                      size={18}
+                      color={colors.textTertiary}
+                      style={{ transform: [{ rotate: showNotesSection ? "0deg" : "-90deg" }] }}
+                    />
+                  </Pressable>
+
+                  {showNotesSection && (
+                    <View
+                      className="rounded-2xl p-4"
+                      style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                    >
+                      <Text className="text-xs mb-3" style={{ color: colors.textTertiary }}>
+                        Private notes only you can see
+                      </Text>
+
+                      {/* Add new note input */}
+                      <View className="flex-row items-center mb-3">
+                        <TextInput
+                          value={newNoteText}
+                          onChangeText={setNewNoteText}
+                          placeholder="Add a note about this friend..."
+                          placeholderTextColor={colors.textTertiary}
+                          className="flex-1 rounded-xl px-4 py-3 mr-2"
+                          style={{
+                            backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                            color: colors.text,
+                          }}
+                          onSubmitEditing={handleAddNote}
+                          returnKeyType="done"
+                        />
+                        <Pressable
+                          onPress={handleAddNote}
+                          disabled={newNoteText.trim().length === 0 || addNoteMutation.isPending}
+                          className="w-10 h-10 rounded-full items-center justify-center"
+                          style={{
+                            backgroundColor: newNoteText.trim().length > 0 ? themeColor : (isDark ? "#2C2C2E" : "#E5E7EB"),
+                            opacity: addNoteMutation.isPending ? 0.5 : 1,
+                          }}
+                        >
+                          <Plus size={20} color={newNoteText.trim().length > 0 ? "#fff" : colors.textTertiary} />
+                        </Pressable>
+                      </View>
+
+                      {/* Notes list */}
+                      {notes.length === 0 ? (
+                        <View className="py-4 items-center">
+                          <Text className="text-sm" style={{ color: colors.textTertiary }}>
+                            No notes yet. Add one above!
+                          </Text>
+                        </View>
+                      ) : (
+                        <View>
+                          {notes.map((note, index) => (
+                            <View
+                              key={note.id}
+                              className="flex-row items-start py-2"
+                              style={{
+                                borderTopWidth: index > 0 ? 1 : 0,
+                                borderTopColor: colors.separator,
+                              }}
+                            >
+                              <Text className="mr-2 mt-0.5" style={{ color: "#F59E0B" }}>
+                                •
+                              </Text>
+                              <Text className="flex-1 text-sm" style={{ color: colors.text }}>
+                                {note.content}
+                              </Text>
+                              <Pressable
+                                onPress={() => handleDeleteNote(note.id)}
+                                className="ml-2 p-1"
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <Trash2 size={14} color={colors.textTertiary} />
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </Animated.View>
               </>
             ) : (
               <>
@@ -749,7 +1018,201 @@ export default function UserProfileScreen() {
         )}
       </ScrollView>
 
-      {/* [LEGACY_ADD_TO_GROUPS_REMOVED] - Add to Groups Modal removed pre-launch */}
+      {/* ===== FRIEND-ONLY MODALS (SSOT: gated by isFriend) ===== */}
+      
+      {/* Delete Note Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteNoteConfirm}
+        title="Delete Note"
+        message="Are you sure you want to delete this note?"
+        confirmText="Delete"
+        isDestructive
+        onConfirm={confirmDeleteNote}
+        onCancel={() => {
+          setShowDeleteNoteConfirm(false);
+          setNoteToDelete(null);
+        }}
+      />
+
+      {/* Menu Modal (friend-only) */}
+      <Modal
+        visible={showMenuModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenuModal(false)}
+      >
+        <Pressable 
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowMenuModal(false)}
+        >
+          <View 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.background }}
+          >
+            <Text className="text-lg font-bold mb-4" style={{ color: colors.text }}>
+              Options
+            </Text>
+            
+            <Pressable
+              className="flex-row items-center py-4 border-b"
+              style={{ borderColor: colors.border }}
+              onPress={handleReportUser}
+            >
+              <Ionicons name="flag-outline" size={22} color={colors.text} />
+              <Text className="ml-3 text-base" style={{ color: colors.text }}>
+                Report User
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              className="flex-row items-center py-4"
+              onPress={handleUnfriend}
+            >
+              <Ionicons name="person-remove-outline" size={22} color="#EF4444" />
+              <Text className="ml-3 text-base" style={{ color: '#EF4444' }}>
+                Unfriend
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              className="mt-4 py-4 rounded-xl items-center"
+              style={{ backgroundColor: colors.surface }}
+              onPress={() => setShowMenuModal(false)}
+            >
+              <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Report User Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <Pressable 
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onPress={() => setShowReportModal(false)}
+        >
+          <Pressable 
+            className="rounded-t-3xl p-6 pb-10"
+            style={{ backgroundColor: colors.background }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text className="text-xl font-bold mb-2" style={{ color: colors.text }}>
+              Report User
+            </Text>
+            <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>
+              Select a reason for your report
+            </Text>
+            
+            {(['spam', 'harassment', 'impersonation', 'inappropriate_content', 'other'] as const).map((reason) => {
+              const labels: Record<typeof reason, string> = {
+                spam: 'Spam',
+                harassment: 'Harassment',
+                impersonation: 'Impersonation',
+                inappropriate_content: 'Inappropriate Content',
+                other: 'Other',
+              };
+              const isSelected = selectedReportReason === reason;
+              return (
+                <Pressable
+                  key={reason}
+                  className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                  style={{ 
+                    backgroundColor: isSelected ? themeColor + '20' : colors.surface,
+                    borderWidth: isSelected ? 2 : 1,
+                    borderColor: isSelected ? themeColor : colors.border,
+                  }}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSelectedReportReason(reason);
+                  }}
+                >
+                  <View 
+                    className="w-5 h-5 rounded-full border-2 mr-3 items-center justify-center"
+                    style={{ borderColor: isSelected ? themeColor : colors.border }}
+                  >
+                    {isSelected && (
+                      <View 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: themeColor }}
+                      />
+                    )}
+                  </View>
+                  <Text style={{ color: colors.text }}>{labels[reason]}</Text>
+                </Pressable>
+              );
+            })}
+            
+            {selectedReportReason === 'other' && (
+              <TextInput
+                className="rounded-xl p-4 mt-2"
+                style={{ 
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  color: colors.text,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                }}
+                placeholder="Please describe the issue..."
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                value={reportDetails}
+                onChangeText={setReportDetails}
+              />
+            )}
+            
+            <View className="flex-row mt-4 gap-3">
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ backgroundColor: colors.surface }}
+                onPress={() => {
+                  setShowReportModal(false);
+                  setSelectedReportReason(null);
+                  setReportDetails('');
+                }}
+              >
+                <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                className="flex-1 py-4 rounded-xl items-center"
+                style={{ 
+                  backgroundColor: selectedReportReason ? themeColor : colors.surface,
+                  opacity: selectedReportReason ? 1 : 0.5,
+                }}
+                onPress={submitReport}
+                disabled={!selectedReportReason || isSubmittingReport}
+              >
+                <Text className="text-base font-medium" style={{ color: selectedReportReason ? '#FFFFFF' : colors.textSecondary }}>
+                  {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Unfriend Confirmation Modal */}
+      <ConfirmModal
+        visible={showUnfriendConfirm}
+        title="Unfriend?"
+        message="You'll be removed from each other's friends list. You can add them again later."
+        confirmText="Unfriend"
+        isDestructive
+        onConfirm={confirmUnfriend}
+        onCancel={() => setShowUnfriendConfirm(false)}
+      />
     </SafeAreaView>
   );
 }

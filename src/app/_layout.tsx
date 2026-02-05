@@ -471,7 +471,7 @@ function RootLayoutNav() {
           options={{
             presentation: 'card',
             headerShown: true,
-            headerTitle: 'Friend Profile',
+            headerTitle: 'Profile',
             headerStyle: { backgroundColor: headerBg },
             headerTintColor: headerTint,
           }}
