@@ -998,16 +998,66 @@ export default function EventDetailScreen() {
   if (!event) {
     // Privacy-restricted event: show explainer with CTA to view host profile
     if (isPrivacyRestricted) {
+      // Handler for tapping host avatar/name
+      const handleHostPress = () => {
+        if (!restrictedHostInfo?.id) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (__DEV__) {
+          devLog('[P1_PRIVATE_HOST_CTA] Host tapped:', {
+            eventIdPrefix: id?.slice(0, 6),
+            hostIdPrefix: restrictedHostInfo.id.slice(0, 6),
+            reason: 'private_event',
+            target: `/user/${restrictedHostInfo.id}`,
+          });
+        }
+        router.push(`/user/${restrictedHostInfo.id}` as any);
+      };
+
       return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
           <Stack.Screen options={{ title: "Event" }} />
           <View className="flex-1 items-center justify-center px-6">
-            <View 
-              className="w-16 h-16 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: colors.surface }}
-            >
-              <Lock size={28} color={colors.textSecondary} />
-            </View>
+            {/* Tappable host avatar - only when host info available */}
+            {restrictedHostInfo?.id ? (
+              <Pressable onPress={handleHostPress}>
+                {restrictedHostInfo?.image ? (
+                  <Image
+                    source={{ uri: restrictedHostInfo.image }}
+                    className="w-20 h-20 rounded-full mb-3"
+                    style={{ borderWidth: 2, borderColor: colors.separator }}
+                  />
+                ) : (
+                  <View 
+                    className="w-20 h-20 rounded-full items-center justify-center mb-3"
+                    style={{ backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.separator }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
+                      {restrictedHostName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            ) : (
+              <View 
+                className="w-16 h-16 rounded-full items-center justify-center mb-4"
+                style={{ backgroundColor: colors.surface }}
+              >
+                <Lock size={28} color={colors.textSecondary} />
+              </View>
+            )}
+            
+            {/* Tappable host name - only when host info available */}
+            {restrictedHostInfo?.id ? (
+              <Pressable onPress={handleHostPress}>
+                <Text 
+                  className="text-lg font-semibold text-center mb-1"
+                  style={{ color: themeColor }}
+                >
+                  {restrictedHostName}
+                </Text>
+              </Pressable>
+            ) : null}
+            
             <Text 
               className="text-xl font-semibold text-center mb-2"
               style={{ color: colors.text }}
@@ -1018,12 +1068,15 @@ export default function EventDetailScreen() {
               className="text-center mb-6"
               style={{ color: colors.textSecondary, lineHeight: 22 }}
             >
-              Add {restrictedHostName} to see event details.
+              {restrictedHostInfo?.id 
+                ? `Add ${restrictedHostName} to see event details.`
+                : 'Add this person to see event details.'
+              }
             </Text>
             <View className="gap-3 w-full max-w-xs">
               {restrictedHostInfo?.id && (
                 <Pressable
-                  onPress={() => router.push(`/user/${restrictedHostInfo.id}`)}
+                  onPress={handleHostPress}
                   className="py-3 px-6 rounded-full items-center"
                   style={{ backgroundColor: themeColor }}
                 >
