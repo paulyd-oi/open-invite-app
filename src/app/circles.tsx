@@ -9,12 +9,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { Users, Plus, ChevronLeft } from "@/ui/icons";
+import { Users, Plus, ChevronLeft, BellOff } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
+import { CircleCard } from "@/components/CircleCard";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -26,6 +29,7 @@ import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from 
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 import { devError } from "@/lib/devLog";
+import { safeToast } from "@/lib/safeToast";
 
 export default function CirclesScreen() {
   const router = useRouter();
@@ -55,6 +59,38 @@ export default function CirclesScreen() {
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
+  });
+
+  // Leave circle confirmation state
+  const [showLeaveCircleConfirm, setShowLeaveCircleConfirm] = useState(false);
+  const [circleToLeave, setCircleToLeave] = useState<{ id: string; name: string } | null>(null);
+
+  // Pin circle mutation
+  const pinCircleMutation = useMutation({
+    mutationFn: (circleId: string) =>
+      api.put(`/api/circles/${circleId}/pin`, {}),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+    },
+    onError: () => {
+      safeToast.error("Oops", "Could not pin group");
+    },
+  });
+
+  // Leave circle mutation
+  const leaveCircleMutation = useMutation({
+    mutationFn: (circleId: string) =>
+      api.delete(`/api/circles/${circleId}/leave`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      setShowLeaveCircleConfirm(false);
+      setCircleToLeave(null);
+    },
+    onError: () => {
+      safeToast.error("Oops", "Could not leave group");
+    },
   });
 
   const circles = data?.circles ?? [];
@@ -170,35 +206,21 @@ export default function CirclesScreen() {
               </Pressable>
             </View>
           ) : (
-            <>
+            <GestureHandlerRootView>
               {circles.map((circle: Circle, index: number) => (
-                <Animated.View key={circle.id} entering={FadeInDown.delay(index * 50)}>
-                  <Pressable
-                    onPress={() => handleCircleTap(circle.id)}
-                    className="rounded-2xl p-4 mb-3"
-                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-                  >
-                    <View className="flex-row items-center">
-                      <Text className="text-3xl mr-3">{circle.emoji}</Text>
-                      <View className="flex-1">
-                        <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-                          {circle.name}
-                        </Text>
-                        <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                          {circle.members?.length ?? 0} member{(circle.members?.length ?? 0) !== 1 ? 's' : ''}
-                          {/* [UNREAD_DOTS_REMOVED_P2.3] unread count text removed pre-launch */}
-                        </Text>
-                      </View>
-                      {circle.isPinned && (
-                        <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: themeColor + "15" }}>
-                          <Users size={16} color={themeColor} />
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
-                </Animated.View>
+                <CircleCard
+                  key={circle.id}
+                  circle={circle}
+                  index={index}
+                  onPin={(id) => pinCircleMutation.mutate(id)}
+                  onDelete={(id) => {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    setCircleToLeave({ id, name: circle.name });
+                    setShowLeaveCircleConfirm(true);
+                  }}
+                />
               ))}
-            </>
+            </GestureHandlerRootView>
           )}
         </View>
       </ScrollView>
@@ -228,6 +250,24 @@ export default function CirclesScreen() {
           context={paywallContext}
         />
       )}
+
+      {/* Leave Circle Confirmation Modal */}
+      <ConfirmModal
+        visible={showLeaveCircleConfirm}
+        onCancel={() => {
+          setShowLeaveCircleConfirm(false);
+          setCircleToLeave(null);
+        }}
+        onConfirm={() => {
+          if (circleToLeave) {
+            leaveCircleMutation.mutate(circleToLeave.id);
+          }
+        }}
+        title="Leave Group?"
+        message={`Are you sure you want to leave ${circleToLeave?.name ?? "this group"}?`}
+        confirmText="Leave"
+        isDestructive
+      />
     </SafeAreaView>
   );
 }

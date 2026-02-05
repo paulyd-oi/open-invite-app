@@ -1656,6 +1656,7 @@ export const circleSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   isPinned: z.boolean(),
+  isMuted: z.boolean().optional(),
   members: z.array(circleMemberSchema),
   messageCount: z.number().optional(),
   unreadCount: z.number().optional(),

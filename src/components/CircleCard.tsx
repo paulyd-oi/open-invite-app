@@ -10,24 +10,30 @@ import Animated, {
   runOnJS,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Pin, Trash2 } from "@/ui/icons";
+import { Pin, Trash2, Bell, BellOff } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { type Circle } from "@/shared/contracts";
 import { useTheme } from "@/lib/ThemeContext";
+import { api } from "@/lib/api";
+import { devLog } from "@/lib/devLog";
+import { safeToast } from "@/lib/safeToast";
 
 interface CircleCardProps {
   circle: Circle;
   onPin: (circleId: string) => void;
   onDelete: (circleId: string) => void;
+  onMute?: (circleId: string, isMuted: boolean) => void;
   index: number;
 }
 
 const SWIPE_THRESHOLD = 80;
 
-export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) {
+export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCardProps) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const queryClient = useQueryClient();
 
   // Ensure members is always an array to prevent crashes
   const members = circle.members ?? [];
@@ -35,6 +41,59 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
   const translateX = useSharedValue(0);
   const isSwipingLeft = useSharedValue(false);
   const isSwipingRight = useSharedValue(false);
+
+  // Mute mutation with optimistic update
+  const muteMutation = useMutation({
+    mutationFn: async ({ circleId, isMuted }: { circleId: string; isMuted: boolean }) => {
+      return api.post(`/api/circles/${circleId}/mute`, { isMuted });
+    },
+    onMutate: async ({ circleId, isMuted }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      
+      // Snapshot the previous value
+      const previousCircles = queryClient.getQueryData(["circles"]);
+      
+      // Optimistically update
+      queryClient.setQueryData(["circles"], (old: any) => {
+        if (!old?.circles) return old;
+        return {
+          ...old,
+          circles: old.circles.map((c: Circle) =>
+            c.id === circleId ? { ...c, isMuted } : c
+          ),
+        };
+      });
+      
+      return { previousCircles };
+    },
+    onSuccess: (_, { circleId, isMuted }) => {
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_UI]", {
+          circleId,
+          prevMuted: !isMuted,
+          nextMuted: isMuted,
+          success: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["circles"] });
+    },
+    onError: (error, { circleId, isMuted }, context) => {
+      // Revert optimistic update
+      if (context?.previousCircles) {
+        queryClient.setQueryData(["circles"], context.previousCircles);
+      }
+      if (__DEV__) {
+        devLog("[P0_CIRCLE_MUTE_UI]", {
+          circleId,
+          prevMuted: !isMuted,
+          nextMuted: isMuted,
+          success: false,
+        });
+      }
+      safeToast.error("Oops", "Could not update mute setting");
+    },
+  });
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -44,6 +103,15 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
   const triggerPin = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPin(circle.id);
+  };
+
+  const triggerMute = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const nextMuted = !circle.isMuted;
+    muteMutation.mutate({ circleId: circle.id, isMuted: nextMuted });
+    if (onMute) {
+      onMute(circle.id, nextMuted);
+    }
   };
 
   const triggerDelete = () => {
@@ -59,9 +127,9 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
     })
     .onEnd((event) => {
       if (event.translationX > SWIPE_THRESHOLD) {
-        // Swipe right -> Pin
+        // Swipe right -> Mute/Unmute
         translateX.value = withSpring(0);
-        runOnJS(triggerPin)();
+        runOnJS(triggerMute)();
       } else if (event.translationX < -SWIPE_THRESHOLD) {
         // Swipe left -> Delete
         translateX.value = withTiming(-300, { duration: 200 }, () => {
@@ -105,16 +173,20 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
     >
       {/* Swipe Actions Background */}
       <View className="absolute inset-0 flex-row">
-        {/* Pin Action (left side - revealed on swipe right) */}
+        {/* Mute Action (left side - revealed on swipe right) */}
         <Animated.View
           style={animatedPinStyle}
           className="absolute left-4 top-0 bottom-0 justify-center"
         >
           <View
             className="w-12 h-12 rounded-full items-center justify-center"
-            style={{ backgroundColor: "#10B981" }}
+            style={{ backgroundColor: circle.isMuted ? "#10B981" : "#F59E0B" }}
           >
-            <Pin size={20} color="#fff" />
+            {circle.isMuted ? (
+              <Bell size={20} color="#fff" />
+            ) : (
+              <BellOff size={20} color="#fff" />
+            )}
           </View>
         </Animated.View>
 
@@ -163,6 +235,14 @@ export function CircleCard({ circle, onPin, onDelete, index }: CircleCardProps) 
                   style={{ backgroundColor: "#10B981" }}
                 >
                   <Pin size={10} color="#fff" />
+                </View>
+              )}
+              {circle.isMuted && (
+                <View
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.textTertiary }}
+                >
+                  <BellOff size={10} color="#fff" />
                 </View>
               )}
               {/* [UNREAD_DOTS_REMOVED_P2.3] Unread messages badge rendering removed pre-launch */}
