@@ -1015,46 +1015,65 @@ export default function EventDetailScreen() {
       };
 
       // Friend request mutation for adding host
-      const addHostMutation = useMutation({
-        mutationFn: () => {
-          if (__DEV__) {
-            devLog('[P0_PRIVATE_HOST_CTA] add_host_press', {
-              hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
-            });
-          }
-          return api.post<SendFriendRequestResponse>("/api/friends/request", { userId: restrictedHostInfo?.id });
-        },
-        onSuccess: () => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
-          if (__DEV__) {
-            devLog('[P0_PRIVATE_HOST_CTA] add_host_success', {
-              hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
-            });
-          }
-          // Invalidate queries so page refreshes after becoming friends
-          queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-          queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
-        },
-        onError: (error: any) => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          const message = error?.data?.message || error?.message || "Could not send request";
-          // Handle already sent / already friends cases gracefully
-          if (message.includes("already")) {
-            safeToast.info("Already Sent", message);
-          } else {
-            safeToast.error("Oops", message);
-          }
-          if (__DEV__) {
-            devLog('[P0_PRIVATE_HOST_CTA] add_host_error', { message });
-          }
-        },
+const addHostMutation = useMutation({
+  mutationFn: () => {
+    if (__DEV__) {
+      devLog("[P0_PRIVATE_HOST_CTA] add_host_press", {
+        hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
       });
+    }
+    return api.post<SendFriendRequestResponse>("/api/friends/request", {
+      userId: restrictedHostInfo?.id,
+    });
+  },
+  onSuccess: () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
 
-      const handleAddHost = () => {
-        if (!restrictedHostInfo?.id) return;
-        addHostMutation.mutate();
-      };
+    if (__DEV__) {
+      devLog("[P0_PRIVATE_HOST_CTA] add_host_success", {
+        hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+        invalidated: [
+          "friendRequests",
+          "event.single",
+          "event.attendees",
+          "event.rsvp",
+          "event.interests",
+        ],
+      });
+    }
+
+    // Invalidate queries so page refreshes after becoming friends
+    queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+
+    // Core event hydration SSOT
+    queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+
+    // Optional hardening: adjacent event/[id] surfaces that depend on visibility
+    queryClient.invalidateQueries({ queryKey: eventKeys.attendees(id ?? "") });
+    queryClient.invalidateQueries({ queryKey: eventKeys.rsvp(id ?? "") });
+    queryClient.invalidateQueries({ queryKey: eventKeys.interests(id ?? "") });
+  },
+  onError: (error: any) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    const message = error?.data?.message || error?.message || "Could not send request";
+    // Handle already sent / already friends cases gracefully
+    if (message.includes("already")) {
+      safeToast.info("Already Sent", message);
+    } else {
+      safeToast.error("Oops", message);
+    }
+    if (__DEV__) {
+      devLog("[P0_PRIVATE_HOST_CTA] add_host_error", { message });
+    }
+  },
+});
+
+const handleAddHost = () => {
+  if (!restrictedHostInfo?.id) return;
+  addHostMutation.mutate();
+};
+
 
       return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
