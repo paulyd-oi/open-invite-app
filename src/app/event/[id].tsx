@@ -684,15 +684,18 @@ export default function EventDetailScreen() {
   type AttendeeInfo = { id: string; name: string | null; imageUrl?: string | null; isHost?: boolean };
   type AttendeesResponse = { attendees: AttendeeInfo[]; totalGoing: number };
 
+  // [P0_WHO_COMING] Fetch ALL attendees (includeAll=true bypasses friend-only filter)
+  // Per UX CONTRACT: If viewer can see event, they can see ALL attendees regardless of friend status
   const { data: attendeesData, error: attendeesError, isLoading: isLoadingAttendees } = useQuery({
     queryKey: eventKeys.attendees(id ?? ""), // [P0_RSVP_SOT] Use canonical key
     queryFn: async () => {
       if (__DEV__) {
-        devLog('[P0_EVENT_ATTENDEES_UI] fetch started', { eventId: id });
+        devLog('[P0_WHO_COMING] fetch started includeAll=true', { eventId: id });
       }
-      const result = await api.get<AttendeesResponse>(`/api/events/${id}/attendees`);
+      // includeAll=true: return ALL attendees, not just friends (per ATTENDEE VISIBILITY CONTRACT)
+      const result = await api.get<AttendeesResponse>(`/api/events/${id}/attendees?includeAll=true`);
       if (__DEV__) {
-        devLog('[P0_EVENT_ATTENDEES_UI] fetch status=200', {
+        devLog('[P0_WHO_COMING] fetch status=200', {
           eventId: id,
           attendeesPreviewCount: result?.attendees?.length ?? 0,
           totalGoing: result?.totalGoing ?? 0,
@@ -708,7 +711,7 @@ export default function EventDetailScreen() {
   // Handle attendees 403 gracefully (privacy denied)
   const attendeesPrivacyDenied = (attendeesError as any)?.status === 403;
   if (__DEV__ && attendeesError && !isLoadingAttendees) {
-    devLog('[P0_EVENT_ATTENDEES_UI] fetch error', {
+    devLog('[P0_WHO_COMING] fetch error', {
       eventId: id,
       status: (attendeesError as any)?.status,
       privacyDenied: attendeesPrivacyDenied,
