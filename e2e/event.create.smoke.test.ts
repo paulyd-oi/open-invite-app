@@ -105,7 +105,7 @@ describe('Create Event Smoke', () => {
       await element(by.id('create-event-submit-button')).tap();
     } catch {
       // Try scrolling to find the button
-      await element(by.type('RCTScrollView')).scrollTo('bottom');
+      await element(by.type('RCTScrollView')).scrollTo('bottom' as any);
       await element(by.id('create-event-submit-button')).tap();
     }
     

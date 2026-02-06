@@ -76,7 +76,7 @@ describe('RSVP Smoke', () => {
     try {
       await element(by.id('create-event-submit-button')).tap();
     } catch {
-      await element(by.type('RCTScrollView')).scrollTo('bottom');
+      await element(by.type('RCTScrollView')).scrollTo('bottom' as any);
       await element(by.id('create-event-submit-button')).tap();
     }
     
