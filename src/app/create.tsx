@@ -866,6 +866,7 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Title *</Text>
             <TextInput
+              testID="event-title-input"
               value={title}
               onChangeText={setTitle}
               placeholder="What are you doing?"
@@ -1335,6 +1336,7 @@ export default function CreateEventScreen() {
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Pressable
+              testID="create-event-submit-button"
               onPress={handleCreate}
               disabled={createMutation.isPending}
               className="rounded-xl p-4 items-center mt-4"

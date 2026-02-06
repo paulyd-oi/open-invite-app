@@ -656,6 +656,7 @@ export default function LoginScreen() {
                 >
                   <Mail size={20} color={theme.iconColor} />
                   <TextInput
+                    testID="login-email-input"
                     value={email}
                     onChangeText={setEmail}
                     placeholder="Email address"
@@ -691,6 +692,7 @@ export default function LoginScreen() {
                 >
                   <Lock size={20} color={theme.iconColor} />
                   <TextInput
+                    testID="login-password-input"
                     value={password}
                     onChangeText={setPassword}
                     placeholder="Password"
@@ -742,6 +744,7 @@ export default function LoginScreen() {
                 {/* Sign In Button */}
                 <Animated.View entering={FadeInUp.delay(400).springify()}>
                   <Pressable
+                    testID="login-submit-button"
                     onPress={handleSignIn}
                     disabled={isLoading}
                     style={{ marginBottom: 24 }}

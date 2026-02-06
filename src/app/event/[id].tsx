@@ -1258,7 +1258,7 @@ export default function EventDetailScreen() {
       });
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
       <Stack.Screen
         options={{
           title: event.title,
@@ -2014,6 +2014,7 @@ export default function EventDetailScreen() {
                       </View>
                     ) : (
                       <Pressable
+                        testID="rsvp-going-button"
                         onPress={() => handleRsvp("going")}
                         disabled={rsvpMutation.isPending}
                         className="flex-row items-center p-4"
@@ -2032,6 +2033,7 @@ export default function EventDetailScreen() {
 
                     {/* Interested */}
                     <Pressable
+                      testID="rsvp-interested-button"
                       onPress={() => handleRsvp("interested")}
                       disabled={rsvpMutation.isPending}
                       className="flex-row items-center p-4"

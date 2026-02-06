@@ -1133,6 +1133,7 @@ function ListView({
         <Text className="font-medium mb-1" style={{ color: colors.text }}>Nothing this month</Text>
         <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>Try a different month or create something</Text>
         <Pressable
+          testID="create-event-button"
           onPress={() => {
             if (!guardEmailVerification(session)) return;
             router.push("/create");
@@ -2278,7 +2279,7 @@ export default function CalendarScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+      <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="px-5 pt-2 pb-2">
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">
