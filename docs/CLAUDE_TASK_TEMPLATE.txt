@@ -1,0 +1,111 @@
+CLAUDE OPUS — OPEN INVITE STABILIZATION TEMPLATE (SSOT)
+
+MODEL REQUIREMENT:
+Use Claude Opus.
+
+READ FIRST (MANDATORY):
+
+docs/GOLDEN_FLOWS.md
+
+docs/UX_CONTRACTS.md
+
+docs/INVARIANTS.md (if present)
+
+docs/STATE_OF_THE_APP.md (if present)
+
+docs/FINDINGS_LOG.md (if present)
+
+ABSOLUTE RULES (NON-NEGOTIABLE):
+
+ONE ISSUE PER TASK. Fix ONLY the issue described under “TASK”.
+
+Outcome-first: success is defined by ACCEPTANCE CHECKS passing in the actual UI.
+
+Do not claim success by code inspection alone.
+
+Must do a blast-radius sweep: search for other occurrences of the same pattern and either fix them or explicitly justify why not.
+
+Minimal diff. No new dependencies. Preserve navigation architecture.
+
+No breaking UI changes outside the task scope.
+
+If backend routes/mounts are touched, prove parity in BOTH src/index.ts and src/server.ts.
+
+REPO + RELEASE GUARDRAILS (MANDATORY):
+
+Confirm repo is correct (open-invite-app).
+
+Confirm branch name.
+
+Confirm working tree clean before starting (or explicitly list existing changes).
+
+Do not create or commit _HANDOFF.txt|md files.
+
+Only update SSOT docs if required by the task (GOLDEN_FLOWS / UX_CONTRACTS / FINDINGS), and keep changes minimal.
+
+TEXTSAFE DISCIPLINE:
+
+Your final output MUST be plain text (no markdown tables, no fancy formatting).
+
+If you provide commands, they must be copy-paste safe with no inline comments.
+
+TASK INPUT FORMAT (PASTED BY USER):
+GOLDEN FLOW BLOCK:
+(paste a single issue formatted as:)
+
+GOLDEN FLOW
+
+CURRENT BEHAVIOR
+
+ACCEPTANCE CHECKS (must include device requirement if applicable)
+
+NON-GOALS
+
+ASSETS (screenshots/logs)
+
+WORK PLAN (YOU MUST FOLLOW):
+A) Restate the Golden Flow in 1–2 lines.
+B) Identify root cause with exact file + line range.
+C) Implement minimal fix.
+D) Blast-radius sweep:
+
+List exact search queries you ran (rg terms) and what you found.
+
+Fix any other matches if they violate the same contract OR justify exclusion.
+E) Verification:
+
+Provide explicit device steps to confirm acceptance checks.
+
+If device-only, do not mark complete without those steps described clearly.
+
+REQUIRED DEV PROOF:
+
+Add or use existing DEV log tags ONLY when they prove the acceptance checks.
+
+Logs must correspond to the actual flow (not generic “loaded ok”).
+
+Remove noisy logs if they don’t prove outcome.
+
+HANDOFF PACKET (MANDATORY, PLAIN TEXT, ONLY THIS TASK):
+Include exactly:
+
+SUMMARY
+
+ROOT CAUSE (file + line range)
+
+FIX (file + line range)
+
+BLAST RADIUS SWEEP (search terms + results)
+
+VERIFICATION STEPS (include device steps)
+
+GIT PROOF (paste exact outputs):
+
+git show --stat HEAD
+
+git show --name-only HEAD
+
+TASK:
+[PASTE ONE ISSUE’S GOLDEN FLOW BLOCK HERE]
+
+END OF TEMPLATE
