@@ -57,7 +57,7 @@ export default function BadgesScreen() {
   const didProRefreshRef = useRef(false);
 
   // [P1_PRO_BADGES_UI] When Pro status is recognized, invalidate badge catalog once
-  const { isPro, isLoading: isProLoading } = useIsPro();
+  const { isPro, isLoading: isProLoading, rcIsPro, backendIsPro, combinedIsPro } = useIsPro();
 
   // Get viewer userId for invalidation targeting
   const viewerUserId = session?.user?.id;
@@ -184,6 +184,15 @@ const setFeaturedMutation = useMutation({
 
   // [P0_BADGE_PRO] DEV proof logs for Pro badge selection debug
   if (__DEV__) {
+    // [P0_PRO_TRIO_UNLOCK] Log source values for Pro status debugging
+    devLog('[P0_PRO_TRIO_UNLOCK] PRO_SOURCE_VALUES', {
+      rcIsPro,
+      backendIsPro,
+      combinedIsPro,
+      isPro,
+      isProLoading,
+    });
+    
     badges.filter(b => isProTrioBadgeKey(b.badgeKey)).forEach(badge => {
       devLog('[P0_BADGE_PRO]', {
         badgeKey: badge.badgeKey,

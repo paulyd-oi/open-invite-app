@@ -20,6 +20,7 @@ import {
 } from '@expo-google-fonts/sora';
 
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
+import { SubscriptionProvider } from '@/lib/SubscriptionContext';
 import { devLog } from '@/lib/devLog';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -766,21 +767,24 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <AppThemeProvider>
-            <OfflineSyncProvider>
-              <AutoSyncProvider>
-                <ErrorBoundary>
-                  <View style={{ flex: 1 }}>
-                    <NetworkStatusBanner />
-                    <UpdateBanner />
-                    <AnnouncementBanner />
-                    <ToastContainer />
-                    <BootRouter />
-                    <RootLayoutNav />
-                  {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
-                </View>
-              </ErrorBoundary>
-              </AutoSyncProvider>
-            </OfflineSyncProvider>
+            {/* [P0_PRO_TRIO_UNLOCK] SubscriptionProvider MUST wrap app for useIsPro() to work */}
+            <SubscriptionProvider>
+              <OfflineSyncProvider>
+                <AutoSyncProvider>
+                  <ErrorBoundary>
+                    <View style={{ flex: 1 }}>
+                      <NetworkStatusBanner />
+                      <UpdateBanner />
+                      <AnnouncementBanner />
+                      <ToastContainer />
+                      <BootRouter />
+                      <RootLayoutNav />
+                    {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
+                  </View>
+                </ErrorBoundary>
+                </AutoSyncProvider>
+              </OfflineSyncProvider>
+            </SubscriptionProvider>
           </AppThemeProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>

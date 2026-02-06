@@ -412,6 +412,10 @@ export function useIsPro(): {
   isPro: boolean;
   isLoading: boolean;
   entitlements: EntitlementsResponse | undefined;
+  // [P0_PRO_TRIO_UNLOCK] Expose source values for debugging at component level
+  rcIsPro: boolean;
+  backendIsPro: boolean;
+  combinedIsPro: boolean;
 } {
   const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
   
@@ -447,6 +451,10 @@ export function useIsPro(): {
     isPro: userIsPro,
     isLoading,
     entitlements,
+    // [P0_PRO_TRIO_UNLOCK] Expose source values for component-level debugging
+    rcIsPro: revenueCatIsPremium,
+    backendIsPro,
+    combinedIsPro: userIsPro,
   };
 }
 
