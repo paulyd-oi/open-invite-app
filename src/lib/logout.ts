@@ -92,7 +92,7 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     try {
       await AsyncStorage.removeItem(ADMIN_UNLOCK_KEY);
       if (__DEV__) {
-        devLog(`[P0_ADMIN_UNLOCK_RESET] admin unlock cleared on logout`);
+        devLog(`[P0_ADMIN_UNLOCK] cleared on logout`);
       }
     } catch (e) {
       // Non-fatal, continue logout

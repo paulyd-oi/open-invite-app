@@ -609,7 +609,7 @@ export default function SettingsScreen() {
         const stored = await AsyncStorage.getItem(ADMIN_UNLOCK_KEY);
         if (stored === "true") {
           setAdminUnlocked(true);
-          if (__DEV__) devLog("[P0_ADMIN_UNLOCK_RESTORE] restored unlock state from storage");
+          if (__DEV__) devLog("[P0_ADMIN_UNLOCK] restored from storage (was previously unlocked)");
         }
       } catch (e) {
         // Fail silently - default to locked
@@ -640,7 +640,16 @@ export default function SettingsScreen() {
     recentTaps.push(now);
     adminTapTimestampsRef.current = recentTaps;
     
-    if (recentTaps.length >= ADMIN_TAP_COUNT) {
+    // [P0_ADMIN_UNLOCK] Per-tap feedback so user knows taps register
+    const tapNum = recentTaps.length;
+    if (__DEV__) devLog(`[P0_ADMIN_UNLOCK] tap ${tapNum}/${ADMIN_TAP_COUNT} within window`);
+    
+    // Light haptic feedback per tap (let user know taps are registering)
+    if (tapNum < ADMIN_TAP_COUNT) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    if (tapNum >= ADMIN_TAP_COUNT) {
       // Reset tap counter
       adminTapTimestampsRef.current = [];
       
@@ -648,22 +657,23 @@ export default function SettingsScreen() {
       if (adminUnlocked) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         safeToast.info("Already Unlocked", "Admin tools already accessible");
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] already unlocked, showing toast");
         return;
       }
       
       // Check if passcode is configured
       const passcode = getAdminPasscode();
       if (!passcode) {
-        if (__DEV__) devLog("[P0_ADMIN_UNLOCK_FAIL_CLOSED] passcode not configured");
-        return; // Fail silently in production
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] FAIL_CLOSED - no passcode configured");
+        // In production, fail silently (no feedback)
+        return;
       }
       
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TAP] 7-tap detected, showing passcode prompt");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] 7-tap SUCCESS, showing passcode prompt");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPasscodeInput("");
       setPasscodeError(false);
       setShowPasscodeModal(true);
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_PROMPT] passcode modal opened");
     }
   }, [adminUnlocked, getAdminPasscode]);
   
@@ -682,18 +692,19 @@ export default function SettingsScreen() {
       // Persist to AsyncStorage
       try {
         await AsyncStorage.setItem(ADMIN_UNLOCK_KEY, "true");
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] persisted to AsyncStorage");
       } catch (e) {
-        // Non-fatal, just won't persist
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] AsyncStorage write failed (non-fatal)");
       }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Unlocked", "Admin tools now accessible");
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_SUCCESS] admin unlock successful, persisted");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] SUCCESS - admin section now visible");
     } else {
       // Wrong passcode
       setPasscodeError(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_FAIL] incorrect passcode entered");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] WRONG_PASSCODE");
     }
   }, [passcodeInput, getAdminPasscode]);
   // =====================================================
@@ -1358,6 +1369,8 @@ export default function SettingsScreen() {
             router.push("/debug/health");
           } : undefined}
           delayLongPress={500}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 24 }}
+          style={{ paddingVertical: 4, paddingHorizontal: 4 }}
         >
           <Text style={{ color: colors.text }} className="text-xl font-sora-bold">Settings</Text>
         </Pressable>
