@@ -129,12 +129,16 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   // Canonical attendee count derivation (SSOT: eventQueryKeys.ts)
   const derivedAttendeeCount = deriveAttendeeCount(displayEvent);
   
+  // [P0_RSVP_MISMATCH] FIX: Prefer goingCount (backend authoritative) over derivedCount.
+  // derivedCount uses joinRequests which may only include friends, not ALL going users.
+  const effectiveGoingCount = displayEvent.goingCount ?? derivedAttendeeCount;
+  
   // DEV: Log mismatch between goingCount and derived count
   logRsvpMismatch(displayEvent.id, derivedAttendeeCount, displayEvent.goingCount, "social-feed");
   
   // Check if event is full (capacity exists and attendee count >= capacity)
   const isEventFull = displayEvent.capacity != null && 
-    derivedAttendeeCount >= displayEvent.capacity;
+    effectiveGoingCount >= displayEvent.capacity;
 
   const dateLabel = startDate.toLocaleDateString("en-US", {
     weekday: "short",
@@ -360,8 +364,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             <Users size={14} color={displayEvent.isFull ? "#EF4444" : "#22C55E"} />
             <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
               {displayEvent.isFull 
-                ? `Full • ${derivedAttendeeCount} going`
-                : `${derivedAttendeeCount}/${displayEvent.capacity} filled`
+                ? `Full • ${effectiveGoingCount} going`
+                : `${effectiveGoingCount}/${displayEvent.capacity} filled`
               }
             </Text>
           </View>

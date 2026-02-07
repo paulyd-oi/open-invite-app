@@ -802,50 +802,46 @@ export default function EventDetailScreen() {
   // [P0_RSVP_SOT] Use canonical derivation for count
   const derivedCount = deriveAttendeeCount(event);
   
-  // [P0_ATTENDEE_AUDIT] FIX: When endpoint returns empty attendees array but has totalGoing,
-  // we must use derivedCount to stay consistent with the fallback attendeesList.
-  // Otherwise totalGoing=3 but attendeesList=[] creates mismatch.
-  const useEndpointCount = attendeesFromEndpoint.length > 0 && attendeesData?.totalGoing != null;
-  const totalGoing = useEndpointCount ? attendeesData.totalGoing : derivedCount;
+  // [P0_RSVP_MISMATCH] FIX: totalGoing must match Discover's goingCount for the same event.
+  // Priority: 1) event.goingCount (backend authoritative, same field Discover uses)
+  //          2) attendees endpoint totalGoing
+  //          3) derivedCount (last resort fallback from joinRequests)
+  // The old logic used derivedCount when attendeesFromEndpoint was empty, but derivedCount
+  // is computed from event.joinRequests which may only include FRIENDS, not ALL attendees.
+  // event.goingCount is the backend's aggregate count of ALL accepted RSVPs.
+  const totalGoing = event?.goingCount ?? attendeesData?.totalGoing ?? derivedCount;
 
   // [P0_ATTENDEE_LIST_SOT] Proof log: track source and count alignment (once per fetch)
   React.useEffect(() => {
     if (__DEV__ && event && id && !isLoadingAttendees) {
       const hiddenCount = Math.max(0, totalGoing - attendeesList.length);
       
-      // [P0_ATTENDEE_AUDIT_DETAIL] Full audit of attendee data sources
+      // [P0_RSVP_MISMATCH] Proof log: audit all data sources for this eventId
       const eventJoinRequestsAccepted = (event?.joinRequests ?? []).filter(r => r.status === "accepted");
-      devLog('[P0_ATTENDEE_AUDIT_DETAIL]', {
+      devLog('[P0_RSVP_MISMATCH]', {
         eventId: id.slice(0, 8),
-        // Event payload fields
+        // Source priority for totalGoing: goingCount > endpoint.totalGoing > derivedCount
         eventGoingCount: event?.goingCount,
-        eventJoinRequestsTotal: event?.joinRequests?.length ?? 0,
-        eventJoinRequestsAccepted: eventJoinRequestsAccepted.length,
-        eventAcceptedUserIds: eventJoinRequestsAccepted.map(r => r.user?.id?.slice(0, 6) ?? 'null'),
-        // Attendees endpoint fields
-        endpointAttendeesCount: attendeesData?.attendees?.length ?? 0,
         endpointTotalGoing: attendeesData?.totalGoing,
-        endpointUserIds: (attendeesData?.attendees ?? []).slice(0, 5).map(a => a.id?.slice(0, 6) ?? 'null'),
-        // Derived/final values
         derivedCount,
         finalTotalGoing: totalGoing,
+        // Attendee list details
+        endpointAttendeesLen: attendeesData?.attendees?.length ?? 0,
+        joinRequestsAcceptedLen: eventJoinRequestsAccepted.length,
         finalListLen: attendeesList.length,
         source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
         hiddenCount,
         aligned: attendeesList.length === totalGoing,
+        // First 2 IDs for debugging (no full PII)
+        firstTwoIds: attendeesList.slice(0, 2).map(a => a.id?.slice(0, 6) ?? 'null'),
+        endpointKeys: attendeesData ? Object.keys(attendeesData) : [],
+        eventKeys: event ? ['goingCount', 'joinRequests', 'capacity', 'isFull'].filter(k => (event as any)[k] != null) : [],
       });
       
-      devLog('[P0_ATTENDEE_LIST_SOT]', 'render', {
-        eventId: id.slice(0, 8),
-        source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
-        endpointCount: attendeesData?.attendees?.length ?? 0,
-        joinRequestsCount: attendeesFromJoinRequests.length,
-        attendeesListLen: attendeesList.length,
-        totalGoing,
-        derivedCount,
-        hiddenCount,
-        aligned: attendeesList.length === totalGoing,
-      });
+      // [P0_RSVP_MISMATCH_WARN] Invariant: totalGoing should match rendered list + hidden for public events
+      if (totalGoing !== attendeesList.length && hiddenCount > 0) {
+        devLog('[P0_RSVP_MISMATCH_WARN]', `eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount} (expected: list shows partial, "+N others" covers rest)`);
+      }
     }
   }, [id, totalGoing, attendeesList.length, isLoadingAttendees]);
 

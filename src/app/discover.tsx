@@ -251,17 +251,18 @@ export default function DiscoverScreen() {
       devLog(`[P0_POPULAR] filtered=${filtered.length}`);
       exclusionReasons.forEach((r) => devLog(`[P0_POPULAR] exclude ${r}`));
       
-      // [P0_ATTENDEE_AUDIT_POPULAR] Log payload shape for each popular event (once per fetch)
+      // [P0_RSVP_MISMATCH] Proof log: Discover popular events going count source
       filtered.slice(0, 3).forEach((event) => {
         const acceptedJoinRequests = event.joinRequests?.filter(r => r.status === "accepted") ?? [];
-        devLog('[P0_ATTENDEE_AUDIT_POPULAR]', {
+        devLog('[P0_RSVP_MISMATCH]', {
+          screen: 'discover_popular',
           eventId: event.id.slice(0, 8),
+          displayedCount: event.attendeeCount,
           goingCount: event.goingCount,
           derivedCount: deriveAttendeeCount(event),
-          joinRequestsTotal: event.joinRequests?.length ?? 0,
-          joinRequestsAccepted: acceptedJoinRequests.length,
-          hasEmbeddedAttendees: acceptedJoinRequests.length > 0,
-          acceptedUserIds: acceptedJoinRequests.map(r => r.user?.id?.slice(0, 6) ?? 'null'),
+          joinRequestsAcceptedLen: acceptedJoinRequests.length,
+          firstTwoIds: acceptedJoinRequests.slice(0, 2).map(r => r.user?.id?.slice(0, 6) ?? 'null'),
+          endpoint: '/api/events/feed + /api/events',
         });
       });
       
