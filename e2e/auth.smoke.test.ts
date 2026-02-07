@@ -10,18 +10,15 @@
  */
 
 import { device, element, by, expect, waitFor } from 'detox';
+import { resetAppToFreshState } from './helpers';
 
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'test@openinvite.cloud';
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'TestPassword123!';
 
 describe('Auth Smoke', () => {
   beforeAll(async () => {
-    await device.launchApp({
-      newInstance: true,
-      delete: true, // Fresh install state
-    });
-    // Give app time to boot and render
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Use shared helper for deterministic isolation
+    await resetAppToFreshState();
   });
 
   it('should show welcome screen on fresh launch', async () => {

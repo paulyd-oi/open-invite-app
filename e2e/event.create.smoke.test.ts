@@ -4,50 +4,20 @@
  * P0 acceptance test for event creation flow.
  * Validates: navigate to create → fill title → submit → lands on event detail.
  * 
- * Prerequisites: User must be logged in (run auth.smoke.test.ts first or use beforeAll login)
+ * Prerequisites: User must be logged in (this test logs in first)
  */
 
 import { device, element, by, expect, waitFor } from 'detox';
+import { resetAppToFreshState, loginAsTestUser } from './helpers';
 
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL || 'test@openinvite.cloud';
 const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD || 'TestPassword123!';
 
 describe('Create Event Smoke', () => {
   beforeAll(async () => {
-    await device.launchApp({
-      newInstance: true,
-      delete: true,
-    });
-    
-    // Give app time to boot
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Navigate to login
-    try {
-      await element(by.id('welcome-login-button')).tap();
-    } catch {
-      await element(by.text('Log In')).tap();
-    }
-    
-    // Wait for login inputs
-    await waitFor(element(by.id('login-email-input')))
-      .toBeVisible()
-      .withTimeout(5000);
-    
-    // Perform login
-    await element(by.id('login-email-input')).clearText();
-    await element(by.id('login-email-input')).typeText(TEST_EMAIL);
-    
-    await element(by.id('login-password-input')).clearText();
-    await element(by.id('login-password-input')).typeText(TEST_PASSWORD);
-    await element(by.id('login-password-input')).tapReturnKey();
-    
-    await element(by.id('login-submit-button')).tap();
-    
-    // Wait for calendar screen
-    await waitFor(element(by.id('calendar-screen')))
-      .toBeVisible()
-      .withTimeout(15000);
+    // Reset to fresh state, then login
+    await resetAppToFreshState();
+    await loginAsTestUser(TEST_EMAIL, TEST_PASSWORD);
   });
 
   it('should be on calendar screen (logged in state)', async () => {
