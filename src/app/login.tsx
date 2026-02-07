@@ -123,7 +123,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // Instead, we trust that signIn.email() succeeded and proceed to bootstrap.
     
     if (__DEV__) {
-      devLog("[Login] Auth success, proceeding with cookie-based session");
+      devLog("[P0_WHITE_LOGIN] Auth success, proceeding with cookie-based session");
     }
 
     // ✅ CRITICAL: Force bootstrap re-run after login
@@ -131,22 +131,31 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
     const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
     if (__DEV__) {
-      devLog("[Login] Forcing bootstrap re-run after login...");
+      devLog("[P0_WHITE_LOGIN] Forcing bootstrap re-run after login...");
     }
-    await rebootstrapAfterLogin();
+    const finalStatus = await rebootstrapAfterLogin();
 
-    // ✅ FIXED: Don't use stale local onboarding flags
-    // Let BootRouter (via authBootstrap) decide the route based on backend /api/onboarding/status
-    // This prevents routing to /welcome when backend says onboarding is complete
+    // ✅ FIX: Route directly to the correct destination based on bootstrap result
+    // This prevents white screen from navigating to "/" which returns null during loading
     if (__DEV__) {
-      devLog("[Login] Login success, replacing to / - BootRouter will handle onboarding check");
+      devLog("[P0_WHITE_LOGIN] Bootstrap complete, finalStatus:", finalStatus);
     }
     
-    router.replace("/");
+    if (finalStatus === 'authed') {
+      devLog("[P0_WHITE_LOGIN] → Routing directly to /calendar (fully authenticated)");
+      router.replace("/calendar");
+    } else if (finalStatus === 'onboarding') {
+      devLog("[P0_WHITE_LOGIN] → Routing to /welcome (onboarding incomplete)");
+      router.replace("/welcome");
+    } else {
+      // error or degraded - stay on current screen or go to welcome
+      devWarn("[P0_WHITE_LOGIN] Unexpected status after login:", finalStatus);
+      router.replace("/welcome");
+    }
   } catch (error) {
-    devError("[Login] Error during post-login routing:", error);
+    devError("[P0_WHITE_LOGIN] Error during post-login routing:", error);
     // On error, stay on login (fail safe to avoid blocking user with redirects)
-    devLog("[Login] Staying on login screen due to error");
+    devLog("[P0_WHITE_LOGIN] Staying on login screen due to error");
   }
 }
 

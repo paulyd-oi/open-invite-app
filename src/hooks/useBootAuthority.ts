@@ -201,8 +201,9 @@ export function resetBootAuthority() {
 }
 
 // Export for post-login flow to force immediate re-bootstrap
-export async function rebootstrapAfterLogin(): Promise<void> {
-  devLog('[BOOT_AUTHORITY]', 'Post-login rebootstrap - resetting singleton and running bootstrap...');
+// Returns the final boot status so caller can route directly
+export async function rebootstrapAfterLogin(): Promise<BootStatus> {
+  devLog('[P0_WHITE_LOGIN]', 'Post-login rebootstrap - resetting singleton and running bootstrap...');
   
   // Reset singleton state
   hasBootstrappedOnce = false;
@@ -215,10 +216,13 @@ export async function rebootstrapAfterLogin(): Promise<void> {
     const result = await inFlightBootstrap;
     mapBootstrapResultToGlobalStatus(result);
     hasBootstrappedOnce = true;
+    devLog('[P0_WHITE_LOGIN]', 'Post-login rebootstrap complete, status:', globalStatus);
+    return globalStatus;
   } catch (err) {
-    devError('[BOOT_AUTHORITY]', 'Post-login bootstrap error:', err);
+    devError('[P0_WHITE_LOGIN]', 'Post-login bootstrap error:', err);
     setGlobalState('error', err instanceof Error ? err.message : String(err));
     hasBootstrappedOnce = true;
+    return 'error';
   } finally {
     inFlightBootstrap = null;
   }

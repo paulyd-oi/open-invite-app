@@ -1196,6 +1196,13 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
+  // DEV-only proof log for P0 white screen fix
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_WHITE_LOGIN]', 'CalendarScreen first render, bootStatus:', bootStatus, 'userId:', session?.user?.id?.substring(0, 8) || 'none');
+    }
+  }, []);
+
   // Event color overrides for user-controlled customization
   const { colorOverrides, getOverrideColor } = useEventColorOverrides();
 
@@ -2238,8 +2245,9 @@ export default function CalendarScreen() {
     }
 
     // Still within timeout window - show simple loading state
+    // Include testID for E2E to detect we're on calendar route
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+      <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-base" style={{ color: colors.textTertiary }}>
             Syncing your calendar…
