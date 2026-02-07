@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from "react";
  */
 export function useMinuteTick(enabled: boolean = true): number {
   const [tick, setTick] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!enabled) {

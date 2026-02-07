@@ -36,7 +36,7 @@ export function EmailVerificationBanner() {
   const { colors, themeColor, isDark } = useTheme();
   const [isResending, setIsResending] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Update cooldown countdown every second
   useEffect(() => {

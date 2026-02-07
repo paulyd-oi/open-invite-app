@@ -86,7 +86,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [offeringsStatus, setOfferingsStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const listenerRegistered = useRef(false);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // P0 INVARIANT: Loading must never stay true indefinitely - add timeout fallback
   useEffect(() => {
