@@ -750,37 +750,51 @@ export default function EventDetailScreen() {
   type AttendeeInfo = { id: string; name: string | null; imageUrl?: string | null; isHost?: boolean };
   type AttendeesResponse = { attendees: AttendeeInfo[]; totalGoing: number };
 
-  // [P0_WHO_COMING] Fetch ALL attendees (includeAll=true bypasses friend-only filter)
+  // [P0_DISCOVER_ROSTER] Fetch ALL attendees (includeAll=true bypasses friend-only filter)
   // Per UX CONTRACT: If viewer can see event, they can see ALL attendees regardless of friend status
+  // For open_invite events, backend now returns full roster to any authenticated user.
   const { data: attendeesData, error: attendeesError, isLoading: isLoadingAttendees } = useQuery({
     queryKey: eventKeys.attendees(id ?? ""), // [P0_RSVP_SOT] Use canonical key
     queryFn: async () => {
       if (__DEV__) {
-        devLog('[P0_WHO_COMING] fetch started includeAll=true', { eventId: id });
+        devLog('[P0_DISCOVER_ROSTER] fetch started', { eventId: id, endpoint: `/api/events/${id}/attendees?includeAll=true` });
       }
       // includeAll=true: return ALL attendees, not just friends (per ATTENDEE VISIBILITY CONTRACT)
-      const result = await api.get<AttendeesResponse>(`/api/events/${id}/attendees?includeAll=true`);
+      const raw = await api.get<any>(`/api/events/${id}/attendees?includeAll=true`);
+      // [P0_DISCOVER_ROSTER] Normalize: backend returns {image} but frontend expects {imageUrl}
+      const normalized: AttendeesResponse = {
+        attendees: (raw?.attendees ?? []).map((a: any) => ({
+          id: a.id,
+          name: a.name ?? null,
+          imageUrl: a.imageUrl ?? a.image ?? null,
+          isHost: a.isHost ?? false,
+        })),
+        totalGoing: raw?.totalGoing ?? raw?.attendeeCount ?? 0,
+      };
       if (__DEV__) {
-        devLog('[P0_WHO_COMING] fetch status=200', {
+        devLog('[P0_DISCOVER_ROSTER] fetch status=200', {
           eventId: id,
-          attendeesPreviewCount: result?.attendees?.length ?? 0,
-          totalGoing: result?.totalGoing ?? 0,
-          privacyDenied: false,
+          rawAttendeesLen: raw?.attendees?.length ?? 0,
+          normalizedLen: normalized.attendees.length,
+          totalGoing: normalized.totalGoing,
+          rawKeys: raw ? Object.keys(raw) : [],
+          firstThreeIds: normalized.attendees.slice(0, 3).map((a: AttendeeInfo) => a.id?.slice(0, 6) ?? 'null'),
         });
       }
-      return result;
+      return normalized;
     },
     enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
     retry: false, // Don't retry on 403 privacy errors
   });
 
-  // Handle attendees 403 gracefully (privacy denied)
+  // Handle attendees 403 gracefully (privacy denied — expected for circle/private events)
   const attendeesPrivacyDenied = (attendeesError as any)?.status === 403;
   if (__DEV__ && attendeesError && !isLoadingAttendees) {
-    devLog('[P0_WHO_COMING] fetch error', {
+    devLog('[P0_DISCOVER_ROSTER] fetch error', {
       eventId: id,
       status: (attendeesError as any)?.status,
       privacyDenied: attendeesPrivacyDenied,
+      visibility: event?.visibility ?? 'unknown',
     });
   }
 
@@ -816,10 +830,13 @@ export default function EventDetailScreen() {
     if (__DEV__ && event && id && !isLoadingAttendees) {
       const hiddenCount = Math.max(0, totalGoing - attendeesList.length);
       
-      // [P0_RSVP_MISMATCH] Proof log: audit all data sources for this eventId
+      // [P0_DISCOVER_ROSTER] Proof log: audit all data sources for this eventId
       const eventJoinRequestsAccepted = (event?.joinRequests ?? []).filter(r => r.status === "accepted");
-      devLog('[P0_RSVP_MISMATCH]', {
+      const isOpenInvite = event?.visibility === 'open_invite';
+      devLog('[P0_DISCOVER_ROSTER]', {
         eventId: id.slice(0, 8),
+        visibility: event?.visibility ?? 'unknown',
+        isOpenInvite,
         // Source priority for totalGoing: goingCount > endpoint.totalGoing > derivedCount
         eventGoingCount: event?.goingCount,
         endpointTotalGoing: attendeesData?.totalGoing,
@@ -832,15 +849,18 @@ export default function EventDetailScreen() {
         source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
         hiddenCount,
         aligned: attendeesList.length === totalGoing,
-        // First 2 IDs for debugging (no full PII)
-        firstTwoIds: attendeesList.slice(0, 2).map(a => a.id?.slice(0, 6) ?? 'null'),
-        endpointKeys: attendeesData ? Object.keys(attendeesData) : [],
-        eventKeys: event ? ['goingCount', 'joinRequests', 'capacity', 'isFull'].filter(k => (event as any)[k] != null) : [],
+        // First 3 IDs for debugging (no full PII)
+        firstThreeIds: attendeesList.slice(0, 3).map(a => a.id?.slice(0, 6) ?? 'null'),
+        endpointUrl: `/api/events/${id}/attendees?includeAll=true`,
       });
       
-      // [P0_RSVP_MISMATCH_WARN] Invariant: totalGoing should match rendered list + hidden for public events
+      // [P0_DISCOVER_ROSTER] Invariant: open_invite events should have full roster (no "+N others")
+      if (isOpenInvite && totalGoing > attendeesList.length && attendeesList.length > 0) {
+        devLog('[P0_DISCOVER_ROSTER_WARN]', `OPEN_INVITE roster incomplete: eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount}`);
+      }
+      // [P0_RSVP_MISMATCH_WARN] General invariant for all event types
       if (totalGoing !== attendeesList.length && hiddenCount > 0) {
-        devLog('[P0_RSVP_MISMATCH_WARN]', `eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount} (expected: list shows partial, "+N others" covers rest)`);
+        devLog('[P0_RSVP_MISMATCH_WARN]', `eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount}`);
       }
     }
   }, [id, totalGoing, attendeesList.length, isLoadingAttendees]);
