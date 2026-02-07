@@ -44,6 +44,9 @@ function setGlobalState(status: BootStatus, error?: string) {
   globalStatus = status;
   globalError = error;
   
+  // [BOOT_FLOW] Proof log: state transition
+  devLog('[BOOT_FLOW]', `State transition: ${prevStatus} → ${status}`, error ? `error: ${error}` : '');
+  
   // INVARIANT C: Log state transitions for debugging
   if (__DEV__) {
     devLog('[P0_BOOT_STATE]', `${prevStatus} → ${status}`, error ? `error: ${error}` : '');
@@ -165,6 +168,8 @@ export function useBootAuthority(): UseBootAuthorityResult {
 function mapBootstrapResultToGlobalStatus(
   result: Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>
 ) {
+  // [BOOT_FLOW] Proof log: bootstrap completed with state
+  devLog('[BOOT_FLOW]', 'Bootstrap complete, state:', result.state, 'timedOut:', result.timedOut, 'error:', result.error || 'none');
   devLog('[BOOT_AUTHORITY]', 'Bootstrap complete:', result.state);
 
   if (result.timedOut) {

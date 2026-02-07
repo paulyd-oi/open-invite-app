@@ -2232,6 +2232,11 @@ export default function CalendarScreen() {
 
   // Show loading while bootstrap is in progress or not authed
   if (bootStatus !== 'authed') {
+    // [BOOT_FLOW] Proof log: Calendar screen rendering loading state
+    if (__DEV__) {
+      devLog('[BOOT_FLOW]', 'CalendarScreen rendering loading state, bootStatus:', bootStatus, 'isTimedOut:', isTimedOut);
+    }
+
     // If loading has timed out, show user-friendly timeout UI with escape routes
     if (isTimedOut || bootStatus === 'error') {
       return (
@@ -2256,6 +2261,11 @@ export default function CalendarScreen() {
         <BottomNavigation />
       </SafeAreaView>
     );
+  }
+
+  // [BOOT_FLOW] Proof log: Calendar screen rendering authed state
+  if (__DEV__) {
+    devLog('[BOOT_FLOW]', 'CalendarScreen rendering authed state, userId:', session?.user?.id?.substring(0, 8) || 'none');
   }
 
   // Show error UI if queries failed (isCalendarError or isBirthdaysError)

@@ -142,6 +142,8 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     }
     
     if (finalStatus === 'authed') {
+      // [ROUTE_AFTER_LOGIN] Proof log: deterministic route to calendar
+      devLog('[ROUTE_AFTER_LOGIN]', 'finalStatus=authed → /calendar');
       devLog("[P0_WHITE_LOGIN] → Routing directly to /calendar (fully authenticated)");
       router.replace("/calendar");
     } else if (finalStatus === 'onboarding') {
@@ -206,6 +208,8 @@ export default function LoginScreen() {
           result.error.message || "Please check your credentials"
         );
       } else if (result.data) {
+        // [AUTH_SUCCESS] Proof log: login succeeded, transitioning to success view
+        devLog('[AUTH_SUCCESS]', 'Login successful, userId:', result.data.user?.id?.substring(0, 8) || 'unknown');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAuthView("success");
         setTimeout(() => {
