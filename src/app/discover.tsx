@@ -250,6 +250,21 @@ export default function DiscoverScreen() {
       devLog(`[P0_POPULAR] fetched=${allEvents.length}`);
       devLog(`[P0_POPULAR] filtered=${filtered.length}`);
       exclusionReasons.forEach((r) => devLog(`[P0_POPULAR] exclude ${r}`));
+      
+      // [P0_ATTENDEE_AUDIT_POPULAR] Log payload shape for each popular event (once per fetch)
+      filtered.slice(0, 3).forEach((event) => {
+        const acceptedJoinRequests = event.joinRequests?.filter(r => r.status === "accepted") ?? [];
+        devLog('[P0_ATTENDEE_AUDIT_POPULAR]', {
+          eventId: event.id.slice(0, 8),
+          goingCount: event.goingCount,
+          derivedCount: deriveAttendeeCount(event),
+          joinRequestsTotal: event.joinRequests?.length ?? 0,
+          joinRequestsAccepted: acceptedJoinRequests.length,
+          hasEmbeddedAttendees: acceptedJoinRequests.length > 0,
+          acceptedUserIds: acceptedJoinRequests.map(r => r.user?.id?.slice(0, 6) ?? 'null'),
+        });
+      });
+      
       if (allEvents.length > 0 && filtered.length === 0) {
         const sample = allEvents[0];
         devLog("[P0_POPULAR] Sample event debug:", {

@@ -801,12 +801,40 @@ export default function EventDetailScreen() {
   
   // [P0_RSVP_SOT] Use canonical derivation for count
   const derivedCount = deriveAttendeeCount(event);
-  const totalGoing = attendeesData?.totalGoing ?? derivedCount;
+  
+  // [P0_ATTENDEE_AUDIT] FIX: When endpoint returns empty attendees array but has totalGoing,
+  // we must use derivedCount to stay consistent with the fallback attendeesList.
+  // Otherwise totalGoing=3 but attendeesList=[] creates mismatch.
+  const useEndpointCount = attendeesFromEndpoint.length > 0 && attendeesData?.totalGoing != null;
+  const totalGoing = useEndpointCount ? attendeesData.totalGoing : derivedCount;
 
   // [P0_ATTENDEE_LIST_SOT] Proof log: track source and count alignment (once per fetch)
   React.useEffect(() => {
     if (__DEV__ && event && id && !isLoadingAttendees) {
       const hiddenCount = Math.max(0, totalGoing - attendeesList.length);
+      
+      // [P0_ATTENDEE_AUDIT_DETAIL] Full audit of attendee data sources
+      const eventJoinRequestsAccepted = (event?.joinRequests ?? []).filter(r => r.status === "accepted");
+      devLog('[P0_ATTENDEE_AUDIT_DETAIL]', {
+        eventId: id.slice(0, 8),
+        // Event payload fields
+        eventGoingCount: event?.goingCount,
+        eventJoinRequestsTotal: event?.joinRequests?.length ?? 0,
+        eventJoinRequestsAccepted: eventJoinRequestsAccepted.length,
+        eventAcceptedUserIds: eventJoinRequestsAccepted.map(r => r.user?.id?.slice(0, 6) ?? 'null'),
+        // Attendees endpoint fields
+        endpointAttendeesCount: attendeesData?.attendees?.length ?? 0,
+        endpointTotalGoing: attendeesData?.totalGoing,
+        endpointUserIds: (attendeesData?.attendees ?? []).slice(0, 5).map(a => a.id?.slice(0, 6) ?? 'null'),
+        // Derived/final values
+        derivedCount,
+        finalTotalGoing: totalGoing,
+        finalListLen: attendeesList.length,
+        source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
+        hiddenCount,
+        aligned: attendeesList.length === totalGoing,
+      });
+      
       devLog('[P0_ATTENDEE_LIST_SOT]', 'render', {
         eventId: id.slice(0, 8),
         source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
