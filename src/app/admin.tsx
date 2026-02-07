@@ -201,6 +201,7 @@ export default function AdminConsole() {
       setAvailableBadges(badgesResponse.badges);
       setUserBadges(userBadgesResponse.badges);
       setUserEntitlements(entitlementsResponse.entitlements);
+      if (__DEV__) devLog(`[ADMIN_ENTITLEMENTS] initial fetch count=${entitlementsResponse.entitlements.length}`);
     } catch (error: any) {
       if (error?.status === 401 || error?.status === 403) {
         setBadgeError("Not authorized");
@@ -999,6 +1000,7 @@ export default function AdminConsole() {
                                   // Refresh entitlements
                                   const refreshed = await getUserEntitlements(selectedUser!.id);
                                   setUserEntitlements(refreshed.entitlements);
+                                  if (__DEV__) devLog(`[ADMIN_ENTITLEMENTS] afterRevoke refetch count=${refreshed.entitlements.length}`);
                                 } else {
                                   setEntitlementError(response.message || "Failed to revoke entitlement");
                                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -1053,6 +1055,7 @@ export default function AdminConsole() {
                                 // Refresh entitlements
                                 const refreshed = await getUserEntitlements(selectedUser!.id);
                                 setUserEntitlements(refreshed.entitlements);
+                                if (__DEV__) devLog(`[ADMIN_ENTITLEMENTS] afterGrant refetch count=${refreshed.entitlements.length}`);
                               } else {
                                 setEntitlementError(response.message || "Failed to grant PRO");
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -344,13 +344,28 @@ export async function revokeBadgeByKey(userId: string, badgeKey: string): Promis
 export async function getUserEntitlements(userId: string): Promise<AdminEntitlementsResponse> {
   try {
     const response = await api.get<AdminEntitlementsResponse>(`/api/admin/users/${userId}/entitlements`);
-    if (__DEV__) {
-      devLog(`[P0_ADMIN_CONSOLE] getUserEntitlements: userId=${userId.substring(0,8)}... count=${response.entitlements?.length ?? 0}`);
+    
+    // api.get returns null on 404 (endpoint not deployed yet)
+    if (!response) {
+      if (__DEV__) {
+        devLog(`[ADMIN_ENTITLEMENTS] getUserEntitlements: userId=${userId.substring(0,8)}... response=null (likely 404)`);
+      }
+      return { entitlements: [] };
     }
-    return { entitlements: response.entitlements ?? [] };
+    
+    // Resilient field parsing: backend may return entitlements under different keys
+    const raw = response as any;
+    const entitlements: UserEntitlement[] =
+      raw.entitlements ?? raw.data ?? raw.items ?? (Array.isArray(raw) ? raw : []);
+    
+    if (__DEV__) {
+      const keys = entitlements.map((e: any) => e.entitlementKey ?? e.key ?? 'unknown');
+      devLog(`[ADMIN_ENTITLEMENTS] fetched count=${entitlements.length} keys=${JSON.stringify(keys)} responseShape=${Object.keys(raw).join(',')}`);
+    }
+    return { entitlements };
   } catch (error: any) {
     if (__DEV__) {
-      devLog(`[P0_ADMIN_CONSOLE] getUserEntitlements FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
+      devLog(`[ADMIN_ENTITLEMENTS] getUserEntitlements FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
     }
     if (error?.status === 401 || error?.status === 403) {
       throw error;
