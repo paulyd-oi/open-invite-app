@@ -1372,16 +1372,7 @@ export default function SettingsScreen() {
         {/* Profile Section */}
         {!showEditProfile ? (
           <Animated.View entering={FadeInDown.delay(0).springify()} className="mx-4 mt-4">
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                // Use shared helper for consistent precedence
-                const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
-                setEditName(displayName);
-                setEditImage(avatarUri || "");
-                setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
-                setShowEditProfile(true);
-              }}
+            <View
               className="rounded-2xl p-5 flex-row items-center"
               style={{
                 backgroundColor: colors.surface,
@@ -1391,9 +1382,9 @@ export default function SettingsScreen() {
                 shadowRadius: 8,
               }}
             >
+              {/* Avatar: admin unlock tap target ONLY — no Edit Profile navigation */}
               <Pressable
-                onPress={(e) => {
-                  e.stopPropagation?.();
+                onPress={() => {
                   handleAdminUnlockTap();
                 }}
                 className="w-16 h-16 rounded-full mr-4 overflow-hidden"
@@ -1409,14 +1400,28 @@ export default function SettingsScreen() {
                   </View>
                 )}
               </Pressable>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-lg font-semibold">
-                  {getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm">Tap to edit profile</Text>
-              </View>
-              <Text style={{ color: colors.textTertiary }} className="text-xl">›</Text>
-            </Pressable>
+              {/* Right side: Edit Profile navigation */}
+              <Pressable
+                className="flex-1 flex-row items-center"
+                onPress={() => {
+                  if (__DEV__) devLog("[P0_SETTINGS_PROFILE_NAV] edit_profile triggered");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
+                  setEditName(displayName);
+                  setEditImage(avatarUri || "");
+                  setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
+                  setShowEditProfile(true);
+                }}
+              >
+                <View className="flex-1">
+                  <Text style={{ color: colors.text }} className="text-lg font-semibold">
+                    {getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
+                  </Text>
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Tap to edit profile</Text>
+                </View>
+                <Text style={{ color: colors.textTertiary }} className="text-xl">›</Text>
+              </Pressable>
+            </View>
           </Animated.View>
         ) : (
           <Animated.View entering={FadeInDown.springify()} className="mx-4 mt-4">
