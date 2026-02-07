@@ -809,7 +809,11 @@ export default function EventDetailScreen() {
       }
     },
     enabled: showAttendeesModal && !!id,
-    retry: false, // Don't retry on 403 privacy errors
+    retry: (failureCount, error: any) => {
+      // Don't retry 403/404 (privacy/not-found), but retry 5xx once
+      if (error?.status === 403 || error?.status === 404) return false;
+      return failureCount < 1;
+    },
   });
 
   // Destructure query result for backward compatibility with existing code
@@ -869,54 +873,41 @@ export default function EventDetailScreen() {
   // [P0_RSVP_SOT] Use canonical derivation for count
   const derivedCount = deriveAttendeeCount(event);
   
-  // [P0_RSVP_MISMATCH] FIX: totalGoing must match Discover's goingCount for the same event.
-  // Priority: 1) event.goingCount (backend authoritative, same field Discover uses)
-  //          2) attendees endpoint totalGoing
-  //          3) derivedCount (last resort fallback from joinRequests)
-  // The old logic used derivedCount when attendeesFromEndpoint was empty, but derivedCount
-  // is computed from event.joinRequests which may only include FRIENDS, not ALL attendees.
-  // event.goingCount is the backend's aggregate count of ALL accepted RSVPs.
-  const totalGoing = event?.goingCount ?? attendeesData?.totalGoing ?? derivedCount;
+  // [P0_WHO_COMING_UI] COUNT SSOT — single source of truth for displayed count.
+  // Priority: A) attendeesData.totalGoing (from /api/events/:id/attendees, most precise when available)
+  //          B) event.goingCount (backend aggregate from event detail payload)
+  //          C) derivedCount (last-resort fallback from joinRequests)
+  const effectiveGoingCount = attendeesData?.totalGoing ?? event?.goingCount ?? derivedCount;
+  // Determine which source we used (for proof logging)
+  const countSource: 'attendees.totalGoing' | 'event.goingCount' | 'derived' =
+    attendeesData?.totalGoing != null ? 'attendees.totalGoing'
+    : event?.goingCount != null ? 'event.goingCount'
+    : 'derived';
+  // Alias for backward compat — all UI must use effectiveGoingCount
+  const totalGoing = effectiveGoingCount;
 
-  // [P0_ATTENDEE_LIST_SOT] Proof log: track source and count alignment (once per fetch)
+  // [P0_WHO_COMING_UI] Canonical proof log: rendered count + invariant (DEV only, fires once per render cycle)
   React.useEffect(() => {
     if (__DEV__ && event && id && !isLoadingAttendees) {
-      const hiddenCount = Math.max(0, totalGoing - attendeesList.length);
-      
-      // [P0_DISCOVER_ROSTER] Proof log: audit all data sources for this eventId
-      const eventJoinRequestsAccepted = (event?.joinRequests ?? []).filter(r => r.status === "accepted");
-      const isOpenInvite = event?.visibility === 'open_invite';
-      devLog('[P0_DISCOVER_ROSTER]', {
+      console.log('[P0_WHO_COMING_UI]', {
         eventId: id.slice(0, 8),
+        displayedCount: effectiveGoingCount,
+        sourceUsed: countSource,
+        attendeesLen: attendeesList.length,
         visibility: event?.visibility ?? 'unknown',
-        isOpenInvite,
-        // Source priority for totalGoing: goingCount > endpoint.totalGoing > derivedCount
-        eventGoingCount: event?.goingCount,
-        endpointTotalGoing: attendeesData?.totalGoing,
-        derivedCount,
-        finalTotalGoing: totalGoing,
-        // Attendee list details
-        endpointAttendeesLen: attendeesData?.attendees?.length ?? 0,
-        joinRequestsAcceptedLen: eventJoinRequestsAccepted.length,
-        finalListLen: attendeesList.length,
-        source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
-        hiddenCount,
-        aligned: attendeesList.length === totalGoing,
-        // First 3 IDs for debugging (no full PII)
-        firstThreeIds: attendeesList.slice(0, 3).map(a => a.id?.slice(0, 6) ?? 'null'),
-        endpointUrl: `/api/events/${id}/attendees?includeAll=true`,
       });
-      
-      // [P0_DISCOVER_ROSTER] Invariant: open_invite events should have full roster (no "+N others")
-      if (isOpenInvite && totalGoing > attendeesList.length && attendeesList.length > 0) {
-        devLog('[P0_DISCOVER_ROSTER_WARN]', `OPEN_INVITE roster incomplete: eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount}`);
-      }
-      // [P0_RSVP_MISMATCH_WARN] General invariant for all event types
-      if (totalGoing !== attendeesList.length && hiddenCount > 0) {
-        devLog('[P0_RSVP_MISMATCH_WARN]', `eventId=${id.slice(0, 8)} totalGoing=${totalGoing} listLen=${attendeesList.length} hidden=+${hiddenCount}`);
+      // Invariant: when we have a list AND includeAll was used, count should match list length
+      const isOpenInvite = event?.visibility === 'open_invite';
+      if (effectiveGoingCount !== attendeesList.length && attendeesList.length > 0 && (isOpenInvite || countSource === 'attendees.totalGoing')) {
+        console.warn('[P0_WHO_COMING_UI] INVARIANT: count != list length', {
+          eventId: id.slice(0, 8),
+          displayedCount: effectiveGoingCount,
+          attendeesLen: attendeesList.length,
+          countSource,
+        });
       }
     }
-  }, [id, totalGoing, attendeesList.length, isLoadingAttendees]);
+  }, [id, effectiveGoingCount, attendeesList.length, isLoadingAttendees]);
 
   // [P0_RSVP_SOT] DEV proof log for RSVP consistency - only logs on mismatch
   if (__DEV__ && event && id) {
@@ -2090,105 +2081,124 @@ export default function EventDetailScreen() {
             );
           }
 
-          // Has attendees: show roster
-          if (totalGoing > 0 || attendeesList.length > 0) {
+          // Has attendees: show compact roster preview (1-row avatar stack)
+          if (effectiveGoingCount > 0 || attendeesList.length > 0) {
+            // Build preview list: host first (if in list), then others, max 5 visible
+            const STACK_MAX = 5;
+            const AVATAR_SIZE = 36;
+            const OVERLAP = 10;
+            const hostId = event?.user?.id;
+            const hostInList = attendeesList.find(a => a.id === hostId);
+            const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
+            // Host first, then others
+            const orderedForStack: AttendeeInfo[] = [
+              ...(hostInList ? [hostInList] : []),
+              ...nonHostAttendees,
+            ];
+            // If host not in endpoint list but we know them from event.user, prepend
+            const hostAttendee: AttendeeInfo | null = (!hostInList && event?.user) ? {
+              id: event.user.id ?? 'host',
+              name: event.user.name ?? 'Host',
+              imageUrl: event.user.image ?? null,
+              isHost: true,
+            } : null;
+            const stackSource = hostAttendee ? [hostAttendee, ...orderedForStack] : orderedForStack;
+            const visibleAvatars = stackSource.slice(0, STACK_MAX);
+            const overflowCount = Math.max(0, effectiveGoingCount - visibleAvatars.length);
+            const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
+
             return (
               <Animated.View entering={FadeInDown.delay(75).springify()}>
                 <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  <View className="flex-row items-center justify-between mb-4">
-                    <View className="flex-row items-center">
+                  {/* Header row: title + count + View all */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <UserCheck size={20} color="#22C55E" />
-                      <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                      <Text style={{ fontSize: 17, fontWeight: '600', marginLeft: 8, color: colors.text }}>
                         Who's Coming
                       </Text>
-                      <View className="bg-green-100 px-2 py-1 rounded-full ml-2">
-                        <Text className="text-green-700 text-xs font-semibold">
-                          {totalGoing}
+                      <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
+                        <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
+                          {effectiveGoingCount}
                         </Text>
                       </View>
                     </View>
-                    {totalGoing > 0 && (
-                      <Pressable
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          setShowAttendeesModal(true);
-                        }}
-                      >
-                        <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
-                          View all
-                        </Text>
-                      </Pressable>
-                    )}
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setShowAttendeesModal(true);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
+                        View all
+                      </Text>
+                    </Pressable>
                   </View>
 
-                  <View className="flex-row flex-wrap">
-                    {attendeesList.slice(0, 8).map((attendee) => (
-                      <Pressable
-                        key={attendee.id}
-                        onPress={() => {
-                          Haptics.selectionAsync();
-                          router.push(`/user/${attendee.id}` as any);
-                        }}
-                        className="items-center mr-4 mb-3"
-                        style={{ width: 60 }}
-                      >
-                        <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-1 border-2 border-green-200">
-                          {attendee.imageUrl ? (
-                            <Image
-                              source={{ uri: attendee.imageUrl }}
-                              className="w-full h-full rounded-full"
-                            />
-                          ) : (
-                            <Text className="text-lg font-semibold text-green-600">
-                              {attendee.name?.[0] ?? "?"}
-                            </Text>
-                          )}
-                        </View>
-                        <Text
-                          className="text-xs text-center"
-                          style={{ color: colors.textSecondary }}
-                          numberOfLines={1}
+                  {/* Compact avatar stack (1 row, overlapping) */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: 'row' }}>
+                      {visibleAvatars.map((attendee, idx) => {
+                        const isHost = attendee.id === hostId || attendee.isHost;
+                        return (
+                          <View
+                            key={attendee.id}
+                            style={{
+                              position: 'absolute',
+                              left: idx * (AVATAR_SIZE - OVERLAP),
+                              width: AVATAR_SIZE,
+                              height: AVATAR_SIZE,
+                              borderRadius: AVATAR_SIZE / 2,
+                              backgroundColor: isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderWidth: 2,
+                              borderColor: isHost ? (isDark ? '#92400E' : '#FDBA74') : '#BBF7D0',
+                              zIndex: visibleAvatars.length - idx,
+                            }}
+                          >
+                            {attendee.imageUrl ? (
+                              <Image
+                                source={{ uri: attendee.imageUrl }}
+                                style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }}
+                              />
+                            ) : (
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: isHost ? '#92400E' : '#166534' }}>
+                                {attendee.name?.[0] ?? '?'}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                      {overflowCount > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: visibleAvatars.length * (AVATAR_SIZE - OVERLAP),
+                            width: AVATAR_SIZE,
+                            height: AVATAR_SIZE,
+                            borderRadius: AVATAR_SIZE / 2,
+                            backgroundColor: isDark ? '#2C2C2E' : '#F3F4F6',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 2,
+                            borderColor: isDark ? '#3C3C3E' : '#E5E7EB',
+                          }}
                         >
-                          {attendee.name?.split(" ")[0] ?? "Guest"}
-                        </Text>
-                      </Pressable>
-                    ))}
-                    {/* [P0_ATTENDEE_LIST_SOT] Show hidden count when list < totalGoing */}
-                    {totalGoing > attendeesList.length && attendeesList.length > 0 && (
-                      <View className="items-center mr-4 mb-3" style={{ width: 60 }}>
-                        <View className="w-12 h-12 rounded-full items-center justify-center mb-1 border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6", borderColor: isDark ? "#3C3C3E" : "#E5E7EB" }}>
-                          <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
-                            +{totalGoing - attendeesList.length}
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>
+                            +{overflowCount}
                           </Text>
                         </View>
-                        <Text className="text-xs text-center" style={{ color: colors.textTertiary }}>more</Text>
-                      </View>
+                      )}
+                    </View>
+                    {/* Host label inline */}
+                    {event?.user && (
+                      <Text style={{ marginLeft: 12, fontSize: 13, color: colors.textTertiary }}>
+                        Hosted by {isMyEvent ? 'you' : event.user.name?.split(' ')[0] ?? 'Host'}
+                      </Text>
                     )}
                   </View>
-
-                  {/* Show the host too */}
-                  {event.user && (
-                    <View className="border-t pt-3 mt-2" style={{ borderColor: colors.border }}>
-                      <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
-                      <View className="flex-row items-center">
-                        <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                          {event.user.image ? (
-                            <Image
-                              source={{ uri: event.user.image }}
-                              className="w-full h-full rounded-full"
-                            />
-                          ) : (
-                            <Text className="font-semibold" style={{ color: themeColor }}>
-                              {event.user.name?.[0] ?? "?"}
-                            </Text>
-                          )}
-                        </View>
-                        <Text className="ml-3 font-medium" style={{ color: colors.text }}>
-                          {isMyEvent ? "You" : event.user.name ?? "Host"}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
                 </View>
               </Animated.View>
             );
@@ -3117,7 +3127,8 @@ export default function EventDetailScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 paddingBottom: 40,
-                maxHeight: "70%",
+                maxHeight: "85%",
+                minHeight: 280,
               }}
             >
               {/* Handle */}
@@ -3133,7 +3144,7 @@ export default function EventDetailScreen() {
                 />
               </View>
 
-              {/* Title */}
+              {/* Title — uses effectiveGoingCount (SSOT) */}
               <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <UserCheck size={20} color="#22C55E" />
@@ -3141,8 +3152,8 @@ export default function EventDetailScreen() {
                     Who's Coming
                   </Text>
                   <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 8 }}>
-                    <Text style={{ color: "#166534", fontSize: 12, fontWeight: "600" }}>
-                      {totalGoing}
+                    <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>
+                      {effectiveGoingCount}
                     </Text>
                   </View>
                 </View>
@@ -3170,6 +3181,32 @@ export default function EventDetailScreen() {
                   <View style={{ alignItems: "center", paddingVertical: 40 }}>
                     <ActivityIndicator size="large" color={themeColor} />
                     <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading attendees…</Text>
+                  </View>
+                ) : attendeesError && !attendeesPrivacyDenied && attendeesList.length === 0 ? (
+                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                    <AlertTriangle size={32} color={colors.textTertiary} />
+                    <Text style={{ marginTop: 12, fontSize: 15, fontWeight: "600", color: colors.text, textAlign: "center" }}>
+                      Couldn’t load guest list
+                    </Text>
+                    <Text style={{ marginTop: 4, fontSize: 13, color: colors.textSecondary, textAlign: "center" }}>
+                      Something went wrong — tap to try again
+                    </Text>
+                    <Pressable
+                      onPress={() => attendeesQuery.refetch()}
+                      style={{
+                        marginTop: 16,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: themeColor,
+                        paddingHorizontal: 20,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        gap: 6,
+                      }}
+                    >
+                      <RefreshCw size={14} color="#FFFFFF" />
+                      <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 14 }}>Retry</Text>
+                    </Pressable>
                   </View>
                 ) : attendeesList.length === 0 ? (
                   <View style={{ alignItems: "center", paddingVertical: 32 }}>
@@ -3219,9 +3256,14 @@ export default function EventDetailScreen() {
                         </Text>
                       )}
                     </View>
-                    <Text style={{ marginLeft: 12, fontSize: 16, fontWeight: "500", color: colors.text, flex: 1 }}>
-                      {attendee.name ?? "Guest"}
-                    </Text>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>
+                        {attendee.name ?? "Guest"}
+                      </Text>
+                      {(attendee.isHost || attendee.id === event?.user?.id) && (
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706', marginTop: 1 }}>Host</Text>
+                      )}
+                    </View>
                     <ChevronRight size={18} color={colors.textTertiary} />
                   </Pressable>
                 ))}
