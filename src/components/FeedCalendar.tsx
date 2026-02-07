@@ -468,6 +468,7 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
               borderTopRightRadius: 24,
               flex: 1,
               paddingBottom: 34,
+              overflow: "hidden",
             }}
           >
               {/* Modal Handle */}

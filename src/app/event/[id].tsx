@@ -2846,6 +2846,7 @@ export default function EventDetailScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 paddingBottom: 40,
+                overflow: "hidden",
               }}
             >
               {/* Handle */}
@@ -3128,6 +3129,7 @@ export default function EventDetailScreen() {
                 borderTopRightRadius: 24,
                 paddingBottom: 40,
                 maxHeight: "85%",
+                overflow: "hidden",
                 minHeight: 280,
               }}
             >
@@ -3297,6 +3299,7 @@ export default function EventDetailScreen() {
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 paddingBottom: 40,
+                overflow: "hidden",
               }}
             >
               {/* Handle */}

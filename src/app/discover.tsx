@@ -59,6 +59,7 @@ interface PopularEvent {
   startTime: string;
   endTime?: string | null;
   location: string | null;
+  visibility?: string;
   user: { id: string; name: string | null; image: string | null };
   attendeeCount: number;
   capacity?: number | null;
@@ -100,10 +101,10 @@ export default function DiscoverScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  // Fetch feed data for popular events (friends' events)
+  // Fetch feed data for popular events (open_invite only — Discover Popular contract)
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
-    queryKey: eventKeys.feed(),
-    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed"),
+    queryKey: ["events", "feed", "popular"],
+    queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
@@ -229,6 +230,8 @@ export default function DiscoverScreen() {
     
     const filtered = withAttendeeCount
       .filter((event) => {
+        // [P0_DISCOVER_GOINGCOUNT_SSOT] Popular tab: open_invite events ONLY
+        if (event.visibility !== "open_invite") return false;
         const eventDate = new Date(event.startTime);
         const isPast = eventDate < now;
         const belowThreshold = event.attendeeCount < POPULAR_THRESHOLD;

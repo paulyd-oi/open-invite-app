@@ -1467,6 +1467,7 @@ export default function CircleScreen() {
                 borderTopRightRadius: 24,
                 maxHeight: "80%",
                 minHeight: 300,
+                overflow: "hidden",
               }}
             >
               {/* Modal Handle */}
@@ -1723,6 +1724,7 @@ export default function CircleScreen() {
                   borderTopRightRadius: 24,
                   paddingBottom: Math.max(insets.bottom, 20) + 8,
                   maxHeight: "85%",
+                  overflow: "hidden",
                 }}
               >
               {/* Handle */}
@@ -2001,6 +2003,7 @@ export default function CircleScreen() {
                 borderTopRightRadius: 24,
                 maxHeight: "90%",
                 minHeight: Dimensions.get('window').height * 0.85,
+                overflow: "hidden",
               }}
             >
               {/* Modal Handle */}
