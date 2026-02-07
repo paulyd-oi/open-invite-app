@@ -20,37 +20,37 @@ describe('Auth Smoke', () => {
       newInstance: true,
       delete: true, // Fresh install state
     });
+    // Give app time to boot and render
+    await new Promise(resolve => setTimeout(resolve, 3000));
   });
 
-  it('should show login or welcome screen on fresh launch', async () => {
-    // Fresh launch should show either welcome or login
-    // Wait for app to stabilize after launch
-    await waitFor(element(by.type('RCTView')))
-      .toBeVisible()
-      .withTimeout(10000);
-  });
-
-  it('should navigate to login screen', async () => {
-    // Try to find login inputs - if not visible, might need to navigate from welcome
+  it('should show welcome screen on fresh launch', async () => {
+    // Fresh install goes to welcome screen - use text matcher as fallback
     try {
-      await waitFor(element(by.id('login-email-input')))
+      await waitFor(element(by.id('welcome-screen')))
         .toBeVisible()
-        .withTimeout(5000);
+        .withTimeout(10000);
     } catch {
-      // If login inputs not visible, look for "Log In" or "Sign In" button on welcome
-      try {
-        await element(by.text('Log In')).tap();
-      } catch {
-        try {
-          await element(by.text('Sign In')).tap();
-        } catch {
-          // Already on login screen or different flow
-        }
-      }
-      await waitFor(element(by.id('login-email-input')))
+      // Fallback: check for welcome screen text
+      await waitFor(element(by.text('Your Social Calendar')))
         .toBeVisible()
         .withTimeout(5000);
     }
+  });
+
+  it('should navigate to login screen', async () => {
+    // Tap the Log In button on welcome screen
+    try {
+      await element(by.id('welcome-login-button')).tap();
+    } catch {
+      // Fallback: tap by text
+      await element(by.text('Log In')).tap();
+    }
+    
+    // Wait for login screen to appear
+    await waitFor(element(by.id('login-email-input')))
+      .toBeVisible()
+      .withTimeout(5000);
   });
 
   it('should enter credentials and submit login', async () => {

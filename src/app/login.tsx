@@ -553,7 +553,7 @@ export default function LoginScreen() {
 
   // Main Login View
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View testID="login-screen" style={{ flex: 1, backgroundColor: theme.background }}>
       <LinearGradient colors={[theme.gradientTop, theme.background]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header with back to Getting Started */}

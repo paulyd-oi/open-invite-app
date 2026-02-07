@@ -180,12 +180,14 @@ type OnboardingSlide = 1 | 2 | 3 | 4;
 const OnboardingLayout = ({
   children,
   theme,
+  testID,
 }: {
   children: React.ReactNode;
   theme: OnboardingTheme;
+  testID?: string;
 }) => {
   return (
-    <View style={[styles.layoutContainer, { backgroundColor: theme.background }]}>
+    <View testID={testID} style={[styles.layoutContainer, { backgroundColor: theme.background }]}>
       <SafeAreaView style={styles.safeArea}>
         {children}
       </SafeAreaView>
@@ -251,12 +253,15 @@ const SecondaryButton = ({
   onPress,
   title,
   theme,
+  testID,
 }: {
   onPress: () => void;
   title: string;
   theme: OnboardingTheme;
+  testID?: string;
 }) => (
   <Pressable
+    testID={testID}
     onPress={() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onPress();
@@ -1116,6 +1121,7 @@ export default function WelcomeOnboardingScreen() {
             title="Log In"
             onPress={() => router.replace("/login")}
             theme={theme}
+            testID="welcome-login-button"
           />
         </Animated.View>
       </View>
@@ -1404,7 +1410,7 @@ export default function WelcomeOnboardingScreen() {
   return (
     <>
       {/* REMOVED: SlideInRight/SlideOutLeft animations for instant slide transitions */}
-      <View key={currentSlide} style={styles.flex1}>
+      <View testID="welcome-screen" key={currentSlide} style={styles.flex1}>
         {renderCurrentSlide()}
       </View>
 

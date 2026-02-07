@@ -19,47 +19,35 @@ describe('Create Event Smoke', () => {
       delete: true,
     });
     
-    // Login first
+    // Give app time to boot
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Navigate to login
     try {
-      await waitFor(element(by.id('login-email-input')))
-        .toBeVisible()
-        .withTimeout(5000);
+      await element(by.id('welcome-login-button')).tap();
     } catch {
-      // Navigate to login if on welcome screen
-      try {
-        await element(by.text('Log In')).tap();
-      } catch {
-        try {
-          await element(by.text('Sign In')).tap();
-        } catch {
-          // May already be logged in
-        }
-      }
+      await element(by.text('Log In')).tap();
     }
     
-    // If login inputs visible, perform login
-    try {
-      const emailInput = element(by.id('login-email-input'));
-      await emailInput.clearText();
-      await emailInput.typeText(TEST_EMAIL);
-      
-      const passwordInput = element(by.id('login-password-input'));
-      await passwordInput.clearText();
-      await passwordInput.typeText(TEST_PASSWORD);
-      await passwordInput.tapReturnKey();
-      
-      await element(by.id('login-submit-button')).tap();
-      
-      // Wait for calendar screen
-      await waitFor(element(by.id('calendar-screen')))
-        .toBeVisible()
-        .withTimeout(15000);
-    } catch {
-      // Already logged in, verify on calendar
-      await waitFor(element(by.id('calendar-screen')))
-        .toBeVisible()
-        .withTimeout(10000);
-    }
+    // Wait for login inputs
+    await waitFor(element(by.id('login-email-input')))
+      .toBeVisible()
+      .withTimeout(5000);
+    
+    // Perform login
+    await element(by.id('login-email-input')).clearText();
+    await element(by.id('login-email-input')).typeText(TEST_EMAIL);
+    
+    await element(by.id('login-password-input')).clearText();
+    await element(by.id('login-password-input')).typeText(TEST_PASSWORD);
+    await element(by.id('login-password-input')).tapReturnKey();
+    
+    await element(by.id('login-submit-button')).tap();
+    
+    // Wait for calendar screen
+    await waitFor(element(by.id('calendar-screen')))
+      .toBeVisible()
+      .withTimeout(15000);
   });
 
   it('should be on calendar screen (logged in state)', async () => {

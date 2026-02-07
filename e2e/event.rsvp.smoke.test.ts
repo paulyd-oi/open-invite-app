@@ -20,37 +20,30 @@ describe('RSVP Smoke', () => {
       delete: true,
     });
     
-    // Login first
+    // Give app time to boot
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Navigate to login
     try {
-      await waitFor(element(by.id('login-email-input')))
-        .toBeVisible()
-        .withTimeout(5000);
-      
-      await element(by.id('login-email-input')).clearText();
-      await element(by.id('login-email-input')).typeText(TEST_EMAIL);
-      
-      await element(by.id('login-password-input')).clearText();
-      await element(by.id('login-password-input')).typeText(TEST_PASSWORD);
-      await element(by.id('login-password-input')).tapReturnKey();
-      
-      await element(by.id('login-submit-button')).tap();
+      await element(by.id('welcome-login-button')).tap();
     } catch {
-      // Navigate to login if on welcome
-      try {
-        await element(by.text('Log In')).tap();
-        
-        await element(by.id('login-email-input')).clearText();
-        await element(by.id('login-email-input')).typeText(TEST_EMAIL);
-        
-        await element(by.id('login-password-input')).clearText();
-        await element(by.id('login-password-input')).typeText(TEST_PASSWORD);
-        await element(by.id('login-password-input')).tapReturnKey();
-        
-        await element(by.id('login-submit-button')).tap();
-      } catch {
-        // May already be logged in
-      }
+      await element(by.text('Log In')).tap();
     }
+    
+    // Wait for login inputs
+    await waitFor(element(by.id('login-email-input')))
+      .toBeVisible()
+      .withTimeout(5000);
+    
+    // Perform login
+    await element(by.id('login-email-input')).clearText();
+    await element(by.id('login-email-input')).typeText(TEST_EMAIL);
+    
+    await element(by.id('login-password-input')).clearText();
+    await element(by.id('login-password-input')).typeText(TEST_PASSWORD);
+    await element(by.id('login-password-input')).tapReturnKey();
+    
+    await element(by.id('login-submit-button')).tap();
     
     // Wait for calendar screen
     await waitFor(element(by.id('calendar-screen')))
