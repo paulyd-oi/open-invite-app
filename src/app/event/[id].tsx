@@ -264,8 +264,75 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
   }
 };
 
+// [P1_EVENT_400] EventDetailErrorState: Deterministic error UI component
+interface EventDetailErrorStateProps {
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+  onRetry?: () => void;
+  testID?: string;
+  themeColor: string;
+  colors: any;
+}
+
+const EventDetailErrorState: React.FC<EventDetailErrorStateProps> = ({
+  title,
+  subtitle,
+  onBack,
+  onRetry,
+  testID = "event-detail-error",
+  themeColor,
+  colors,
+}) => {
+  return (
+    <SafeAreaView testID={testID} className="flex-1" style={{ backgroundColor: colors.background }}>
+      <Stack.Screen options={{ title: "Event" }} />
+      <View className="flex-1 items-center justify-center px-8">
+        <View
+          className="w-20 h-20 rounded-full items-center justify-center mb-6"
+          style={{ backgroundColor: colors.surfaceElevated }}
+        >
+          <AlertTriangle size={40} color={colors.textTertiary} />
+        </View>
+        <Text className="text-xl font-bold text-center mb-3" style={{ color: colors.text }}>
+          {title}
+        </Text>
+        <Text className="text-center mb-8" style={{ color: colors.textSecondary }}>
+          {subtitle}
+        </Text>
+        <View className="flex-row gap-3">
+          <Pressable
+            onPress={onBack}
+            className="px-6 py-3 rounded-full flex-1"
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          >
+            <Text className="text-center font-semibold" style={{ color: colors.text }}>
+              Back
+            </Text>
+          </Pressable>
+          {onRetry && (
+            <Pressable
+              onPress={onRetry}
+              className="px-6 py-3 rounded-full flex-1"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-center font-semibold text-white">Try Again</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+};
+
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  
+  // [P1_EVENT_400] Guard: Log route params immediately
+  if (__DEV__) {
+    devLog("[P1_EVENT_400]", "route params", { eventId: id ?? "missing", type: typeof id });
+  }
+  
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
@@ -454,7 +521,28 @@ export default function EventDetailScreen() {
   // Fetch single event by ID directly - this handles past events too
   const { data: singleEventData, isLoading: isLoadingEvent, error: eventError } = useQuery({
     queryKey: eventKeys.single(id ?? ""),
-    queryFn: () => api.get<{ event: Event }>(`/api/events/${id}`),
+    queryFn: async () => {
+      if (__DEV__) {
+        devLog("[P1_EVENT_400]", "query start", { eventId: id });
+      }
+      try {
+        const result = await api.get<{ event: Event }>(`/api/events/${id}`);
+        if (__DEV__) {
+          devLog("[P1_EVENT_400]", "query success", { eventId: id, title: result.event?.title });
+        }
+        return result;
+      } catch (error: any) {
+        if (__DEV__) {
+          devError("[P1_EVENT_400]", "query error", {
+            eventId: id,
+            status: error?.status ?? error?.response?.status,
+            code: error?.data?.code ?? error?.response?.data?.code,
+            message: error?.message,
+          });
+        }
+        throw error;
+      }
+    },
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     retry: false, // Don't retry on 403/404 privacy errors
   });
@@ -754,6 +842,9 @@ export default function EventDetailScreen() {
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => {
+      if (__DEV__) {
+        devLog("[P1_EVENT_400]", "rsvp tap", { eventId: id, status });
+      }
       if (isBusyBlock) {
         throw new Error("BUSY_BLOCK");
       }
@@ -1059,14 +1150,19 @@ export default function EventDetailScreen() {
     );
   }
 
-  if (!id) {
+  // [P1_EVENT_400] Guard: Missing or invalid eventId
+  if (!id || typeof id !== "string" || id.trim() === "") {
+    if (__DEV__) {
+      devError("[P1_EVENT_400]", "invalid eventId detected", { id, type: typeof id });
+    }
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Event" }} />
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Invalid event ID</Text>
-        </View>
-      </SafeAreaView>
+      <EventDetailErrorState
+        title="Invalid Event"
+        subtitle="This event link is missing or invalid. Please check the link and try again."
+        onBack={() => router.back()}
+        themeColor={themeColor}
+        colors={colors}
+      />
     );
   }
 
@@ -1087,6 +1183,10 @@ export default function EventDetailScreen() {
   }
 
   if (!event) {
+    // [P1_EVENT_400] Determine error type and show appropriate error UI
+    const errorStatus = eventErrorStatus;
+    const errorCode = eventErrorCode;
+    
     // Privacy-restricted event: show explainer with CTA to view host profile
     if (isPrivacyRestricted) {
       // Handler for tapping host avatar/name
@@ -1215,49 +1315,48 @@ export default function EventDetailScreen() {
       );
     }
 
-    // Unknown/deleted event fallback - could be network error or deleted event
-    // [P1_RSVP_FLOW] Proof log: event load error
+    // [P1_EVENT_400] Non-privacy error: show deterministic error UI
+    let errorTitle = "Event Not Found";
+    let errorSubtitle = "This event may have been deleted or is no longer available.";
+    
+    if (errorStatus === 400) {
+      errorTitle = "Invalid Request";
+      errorSubtitle = "The event link appears to be invalid or malformed. Please check the link and try again.";
+    } else if (errorStatus === 404) {
+      errorTitle = "Event Not Found";
+      errorSubtitle = "This event may have been deleted or is no longer available.";
+    } else if (errorStatus === 403) {
+      errorTitle = "Access Denied";
+      errorSubtitle = "You don't have permission to view this event.";
+    } else if (eventError) {
+      // Generic network or server error
+      errorTitle = "Unable to Load Event";
+      errorSubtitle = "There was a problem loading this event. Please check your connection and try again.";
+    }
+    
     if (__DEV__) {
-      devLog('[P1_RSVP_FLOW]', 'event load error', {
+      devLog("[P1_EVENT_400]", "rendering error state", {
         eventId: id,
-        errorStatus: eventErrorStatus,
-        errorCode: eventErrorCode,
+        errorStatus,
+        errorCode,
+        errorTitle,
       });
     }
     
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Event" }} />
-        <View className="flex-1 items-center justify-center px-6">
-          <View 
-            className="w-16 h-16 rounded-full items-center justify-center mb-4"
-            style={{ backgroundColor: colors.surface }}
-          >
-            <Lock size={28} color={colors.textSecondary} />
-          </View>
-          <Text 
-            className="text-xl font-semibold text-center mb-2"
-            style={{ color: colors.text }}
-          >
-            Event not available
-          </Text>
-          <Text 
-            className="text-center mb-6"
-            style={{ color: colors.textSecondary }}
-          >
-            This event may have been deleted or is no longer available.
-          </Text>
-          <Pressable
-            onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
-            className="py-3 px-6 rounded-full items-center"
-            style={{ backgroundColor: colors.surface }}
-          >
-            <Text className="font-medium" style={{ color: colors.text }}>
-              Go Back
-            </Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <EventDetailErrorState
+        title={errorTitle}
+        subtitle={errorSubtitle}
+        onBack={() => router.back()}
+        onRetry={() => {
+          if (__DEV__) {
+            devLog("[P1_EVENT_400]", "retry tapped", { eventId: id });
+          }
+          queryClient.invalidateQueries({ queryKey: eventKeys.single(id) });
+        }}
+        themeColor={themeColor}
+        colors={colors}
+      />
     );
   }
 
