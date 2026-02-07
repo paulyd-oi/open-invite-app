@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -651,6 +651,8 @@ export default function OnboardingScreen() {
   const onboardingGuide = useOnboardingGuide();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [pendingCalendarRoute, setPendingCalendarRoute] = useState(false);
+  const [showSetupRetry, setShowSetupRetry] = useState(false);
+  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [showFriendsAvailable, setShowFriendsAvailable] = useState(false);
@@ -961,13 +963,51 @@ export default function OnboardingScreen() {
     if (bootStatus === 'authed') {
       if (__DEV__) devLog('[Onboarding] Bootstrap refresh complete (authed) - routing to calendar');
       setPendingCalendarRoute(false);
+      setShowSetupRetry(false);
       router.replace('/calendar');
     } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
       if (__DEV__) devLog('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
       setPendingCalendarRoute(false);
+      setShowSetupRetry(false);
       router.replace('/login');
+    } else if (bootStatus === 'degraded') {
+      // [P0_ONBOARDING_STUCK_GUARD] Degraded = network/timeout issue; show retry
+      if (__DEV__) devLog('[P0_ONBOARDING_STUCK_GUARD]', 'bootStatus degraded while pending — showing retry');
+      setShowSetupRetry(true);
     }
   }, [pendingCalendarRoute, bootStatus, router]);
+
+  // [P0_ONBOARDING_STUCK_GUARD] Timeout escape hatch: if pendingCalendarRoute
+  // stays unresolved for 10s, force-escape to /welcome.
+  useEffect(() => {
+    if (!pendingCalendarRoute) {
+      // Clear any existing timer when no longer pending
+      if (pendingTimeoutRef.current) {
+        clearTimeout(pendingTimeoutRef.current);
+        pendingTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    if (__DEV__) devLog('[P0_ONBOARDING_STUCK_GUARD]', 'armed — 10s timeout started, bootStatus=' + bootStatus);
+
+    pendingTimeoutRef.current = setTimeout(() => {
+      // Only fire if still pending (not already resolved by the other effect)
+      if (pendingCalendarRoute) {
+        if (__DEV__) devLog('[P0_ONBOARDING_STUCK_GUARD]', 'timeout fired — bootStatus=' + bootStatus + ', escaping to /welcome');
+        setPendingCalendarRoute(false);
+        setShowSetupRetry(false);
+        router.replace('/welcome');
+      }
+    }, 10000);
+
+    return () => {
+      if (pendingTimeoutRef.current) {
+        clearTimeout(pendingTimeoutRef.current);
+        pendingTimeoutRef.current = null;
+      }
+    };
+  }, [pendingCalendarRoute]);
 
   // Render mock UI for each step
   const renderMockUI = () => {
@@ -1409,6 +1449,15 @@ export default function OnboardingScreen() {
     }
   };
 
+  // [P0_ONBOARDING_STUCK_GUARD] Retry handler for degraded/stuck state
+  const handleSetupRetry = () => {
+    if (__DEV__) devLog('[P0_ONBOARDING_STUCK_GUARD]', 'user tapped Retry — requesting bootstrap refresh');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowSetupRetry(false);
+    requestBootstrapRefreshOnce();
+    setPendingCalendarRoute(true);
+  };
+
   // Show "Finishing setup..." screen while waiting for bootstrap refresh
   if (pendingCalendarRoute) {
     return (
@@ -1432,8 +1481,17 @@ export default function OnboardingScreen() {
             Finishing setup...
           </Text>
           <Text className="text-base text-center" style={{ color: colors.textSecondary }}>
-            Getting everything ready for you
+            {showSetupRetry ? "Something went wrong. Please try again." : "Getting everything ready for you"}
           </Text>
+          {showSetupRetry && (
+            <Pressable
+              onPress={handleSetupRetry}
+              className="mt-6 px-6 py-3 rounded-full"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold text-base">Retry</Text>
+            </Pressable>
+          )}
         </SafeAreaView>
       </View>
     );
