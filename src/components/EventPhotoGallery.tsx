@@ -27,7 +27,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
-import { devError } from "@/lib/devLog";
+import { devError, devLog } from "@/lib/devLog";
 
 // Define types locally to avoid import issues
 interface EventPhoto {
@@ -170,6 +170,11 @@ export function EventPhotoGallery({
   };
 
   const handlePickImage = async () => {
+    // [P1_MEDIA_UPLOAD] Proof log: user taps choose photo
+    if (__DEV__) {
+      devLog('[P1_MEDIA_UPLOAD]', 'choose photo tapped', { eventId });
+    }
+    
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -178,11 +183,39 @@ export function EventPhotoGallery({
 
     if (!result.canceled && result.assets[0]) {
       setUploading(true);
+      
+      // [P1_MEDIA_UPLOAD] Proof log: upload started
+      if (__DEV__) {
+        devLog('[P1_MEDIA_UPLOAD]', 'upload started', {
+          eventId,
+          fileType: result.assets[0].type,
+          fileSize: result.assets[0].fileSize,
+        });
+      }
+      
       try {
         // Compress and upload the image to the server
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
+        
+        // [P1_MEDIA_UPLOAD] Proof log: upload success
+        if (__DEV__) {
+          const urlHost = uploadResponse.url ? new URL(uploadResponse.url).hostname : 'unknown';
+          devLog('[P1_MEDIA_UPLOAD]', 'upload success', {
+            eventId,
+            urlHost,
+            hasUrl: !!uploadResponse.url,
+          });
+        }
+        
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
+        // [P1_MEDIA_UPLOAD] Proof log: upload failure
+        if (__DEV__) {
+          devLog('[P1_MEDIA_UPLOAD]', 'upload failure', {
+            eventId,
+            error: error?.message || 'unknown',
+          });
+        }
         safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
       } finally {
         setUploading(false);
@@ -191,9 +224,17 @@ export function EventPhotoGallery({
   };
 
   const handleTakePhoto = async () => {
+    // [P1_MEDIA_UPLOAD] Proof log: user taps camera
+    if (__DEV__) {
+      devLog('[P1_MEDIA_UPLOAD]', 'camera tapped', { eventId });
+    }
+    
     // Use improved permission request with explanation
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
+      if (__DEV__) {
+        devLog('[P1_MEDIA_UPLOAD]', 'camera permission denied', { eventId });
+      }
       return;
     }
 
@@ -204,11 +245,39 @@ export function EventPhotoGallery({
 
     if (!result.canceled && result.assets[0]) {
       setUploading(true);
+      
+      // [P1_MEDIA_UPLOAD] Proof log: upload started
+      if (__DEV__) {
+        devLog('[P1_MEDIA_UPLOAD]', 'upload started (camera)', {
+          eventId,
+          fileType: result.assets[0].type,
+          fileSize: result.assets[0].fileSize,
+        });
+      }
+      
       try {
         // Compress and upload the image to the server
         const uploadResponse = await uploadImage(result.assets[0].uri, true);
+        
+        // [P1_MEDIA_UPLOAD] Proof log: upload success
+        if (__DEV__) {
+          const urlHost = uploadResponse.url ? new URL(uploadResponse.url).hostname : 'unknown';
+          devLog('[P1_MEDIA_UPLOAD]', 'upload success (camera)', {
+            eventId,
+            urlHost,
+            hasUrl: !!uploadResponse.url,
+          });
+        }
+        
         await uploadPhotoMutation.mutateAsync(uploadResponse.url);
       } catch (error: any) {
+        // [P1_MEDIA_UPLOAD] Proof log: upload failure
+        if (__DEV__) {
+          devLog('[P1_MEDIA_UPLOAD]', 'upload failure (camera)', {
+            eventId,
+            error: error?.message || 'unknown',
+          });
+        }
         safeToast.error("Upload Failed", error?.message ?? "Could not upload image. Please try again.");
       } finally {
         setUploading(false);
@@ -356,6 +425,7 @@ export function EventPhotoGallery({
         >
           <Pressable onPress={() => {}} className="mx-4 mb-8">
             <Animated.View
+              testID="upload-screen"
               entering={FadeInDown.springify()}
               className="rounded-2xl overflow-hidden"
               style={{ backgroundColor: colors.surface }}
@@ -370,7 +440,7 @@ export function EventPhotoGallery({
               </View>
 
               {uploading ? (
-                <View className="py-12 items-center">
+                <View testID="upload-loading" className="py-12 items-center">
                   <ActivityIndicator size="large" color={themeColor} />
                   <Text className="mt-4" style={{ color: colors.textSecondary }}>
                     Uploading...
@@ -379,6 +449,7 @@ export function EventPhotoGallery({
               ) : (
                 <>
                   <Pressable
+                    testID="upload-camera-button"
                     onPress={handleTakePhoto}
                     className="flex-row items-center px-5 py-4 border-b"
                     style={{ borderColor: colors.border }}
@@ -400,6 +471,7 @@ export function EventPhotoGallery({
                   </Pressable>
 
                   <Pressable
+                    testID="upload-choose-button"
                     onPress={handlePickImage}
                     className="flex-row items-center px-5 py-4"
                   >
