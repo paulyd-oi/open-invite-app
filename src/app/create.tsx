@@ -292,6 +292,13 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const onboardingGuide = useOnboardingGuide();
+  
+  // [P1_CREATE_FLOW] Proof log: create screen mounted
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P1_CREATE_FLOW]', 'create screen mounted', { bootStatus });
+    }
+  }, []);
   const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam } = useLocalSearchParams<{
     date?: string;
     template?: string;
@@ -532,7 +539,14 @@ export default function CreateEventScreen() {
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
       api.post<CreateEventResponse>("/api/events", data),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      // [P1_CREATE_FLOW] Proof log: create success
+      if (__DEV__) {
+        devLog('[P1_CREATE_FLOW]', 'create success', {
+          eventId: response?.event?.id || 'unknown',
+          title: response?.event?.title || 'unknown',
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Track for rate app prompt
       trackEventCreated();
@@ -556,6 +570,13 @@ export default function CreateEventScreen() {
       router.back();
     },
     onError: (error: any) => {
+      // [P1_CREATE_FLOW] Proof log: create failure
+      if (__DEV__) {
+        devLog('[P1_CREATE_FLOW]', 'create failure', {
+          status: error?.status || error?.response?.status,
+          code: error?.data?.error || error?.response?.data?.error,
+        });
+      }
       logError("Create Event", error);
       // Check for HOST_LIMIT_REACHED - show soft limit modal
       const errorData = error?.response?.data || error?.data || {};
@@ -604,6 +625,15 @@ export default function CreateEventScreen() {
   };
 
   const handleCreate = () => {
+    // [P1_CREATE_FLOW] Proof log: submit tapped
+    if (__DEV__) {
+      devLog('[P1_CREATE_FLOW]', 'submit tapped', {
+        hasTitle: !!title.trim(),
+        frequency,
+        visibility,
+      });
+    }
+    
     // Gate: require email verification
     if (!guardEmailVerification(session)) {
       return;
@@ -717,7 +747,7 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+    <SafeAreaView testID="create-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -1336,7 +1366,7 @@ export default function CreateEventScreen() {
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Pressable
-              testID="create-event-submit-button"
+              testID="create-submit-button"
               onPress={handleCreate}
               disabled={createMutation.isPending}
               className="rounded-xl p-4 items-center mt-4"
