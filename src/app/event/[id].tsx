@@ -761,29 +761,52 @@ export default function EventDetailScreen() {
         console.log('[P0_ROSTER_FETCH]', { eventId: id, rosterOpen: showAttendeesModal });
         devLog('[P0_DISCOVER_ROSTER] fetch started', { eventId: id, endpoint: `/api/events/${id}/attendees?includeAll=true` });
       }
-      // includeAll=true: return ALL attendees, not just friends (per ATTENDEE VISIBILITY CONTRACT)
-      const raw = await api.get<any>(`/api/events/${id}/attendees?includeAll=true`);
-      // [P0_DISCOVER_ROSTER] Normalize: backend returns {image} but frontend expects {imageUrl}
-      const normalized: AttendeesResponse = {
-        attendees: (raw?.attendees ?? []).map((a: any) => ({
-          id: a.id,
-          name: a.name ?? null,
-          imageUrl: a.imageUrl ?? a.image ?? null,
-          isHost: a.isHost ?? false,
-        })),
-        totalGoing: raw?.totalGoing ?? raw?.attendeeCount ?? 0,
-      };
-      if (__DEV__) {
-        devLog('[P0_DISCOVER_ROSTER] fetch status=200', {
-          eventId: id,
-          rawAttendeesLen: raw?.attendees?.length ?? 0,
-          normalizedLen: normalized.attendees.length,
-          totalGoing: normalized.totalGoing,
-          rawKeys: raw ? Object.keys(raw) : [],
-          firstThreeIds: normalized.attendees.slice(0, 3).map((a: AttendeeInfo) => a.id?.slice(0, 6) ?? 'null'),
-        });
+      try {
+        // includeAll=true: return ALL attendees, not just friends (per ATTENDEE VISIBILITY CONTRACT)
+        const raw = await api.get<any>(`/api/events/${id}/attendees?includeAll=true`);
+        // [P0_ROSTER_FETCH_RAW] Proof: log raw response shape before normalization
+        if (__DEV__) {
+          console.log('[P0_ROSTER_FETCH_RAW]', {
+            eventId: id,
+            rawKeys: Object.keys(raw ?? {}),
+            attendeesLen: (raw?.attendees ?? []).length,
+            totalGoing: raw?.totalGoing,
+            responseType: typeof raw,
+            firstThreeIds: (raw?.attendees ?? []).slice(0, 3).map((a: any) => a.id?.slice(0, 8) ?? 'null'),
+          });
+        }
+        // [P0_DISCOVER_ROSTER] Normalize: backend returns {image} but frontend expects {imageUrl}
+        const normalized: AttendeesResponse = {
+          attendees: (raw?.attendees ?? []).map((a: any) => ({
+            id: a.id,
+            name: a.name ?? null,
+            imageUrl: a.imageUrl ?? a.image ?? null,
+            isHost: a.isHost ?? false,
+          })),
+          totalGoing: raw?.totalGoing ?? raw?.attendeeCount ?? 0,
+        };
+        if (__DEV__) {
+          devLog('[P0_DISCOVER_ROSTER] fetch status=200', {
+            eventId: id,
+            rawAttendeesLen: raw?.attendees?.length ?? 0,
+            normalizedLen: normalized.attendees.length,
+            totalGoing: normalized.totalGoing,
+            rawKeys: raw ? Object.keys(raw) : [],
+            firstThreeIds: normalized.attendees.slice(0, 3).map((a: AttendeeInfo) => a.id?.slice(0, 6) ?? 'null'),
+          });
+        }
+        return normalized;
+      } catch (err: any) {
+        if (__DEV__) {
+          console.log('[P0_ROSTER_FETCH_ERROR]', {
+            eventId: id,
+            message: err?.message ?? String(err),
+            name: err?.name ?? 'unknown',
+            status: err?.status ?? err?.response?.status ?? null,
+          });
+        }
+        throw err;
       }
-      return normalized;
     },
     enabled: showAttendeesModal && !!id,
     retry: false, // Don't retry on 403 privacy errors
@@ -793,6 +816,20 @@ export default function EventDetailScreen() {
   const attendeesData = attendeesQuery.data;
   const attendeesError = attendeesQuery.error;
   const isLoadingAttendees = attendeesQuery.isLoading;
+
+  // [P0_ROSTER_FETCH_STATE] Dev-only: track query state transitions when sheet is open
+  React.useEffect(() => {
+    if (!showAttendeesModal) return;
+    console.log('[P0_ROSTER_FETCH_STATE]', {
+      eventId: id,
+      isLoading: attendeesQuery.isLoading,
+      isFetching: attendeesQuery.isFetching,
+      hasData: !!attendeesQuery.data,
+      dataKeys: attendeesQuery.data ? Object.keys(attendeesQuery.data) : [],
+      attendeesLen: attendeesQuery.data?.attendees?.length ?? null,
+      error: attendeesQuery.error ? String(attendeesQuery.error) : null,
+    });
+  }, [showAttendeesModal, attendeesQuery.isLoading, attendeesQuery.isFetching, attendeesQuery.data, attendeesQuery.error]);
 
   // TASK 3: Force refetch every time the sheet opens (prevents stale cache)
   React.useEffect(() => {
