@@ -127,6 +127,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     // Track computed isPro to return to caller (avoids stale React state issue)
     let computedIsPro = false;
 
+    // [P0_ENTITLEMENT_REFRESH_TRACE] fetchSubscription entry
+    if (__DEV__) {
+      devLog("[P0_ENTITLEMENT_REFRESH_TRACE] fetchSubscription ENTRY");
+    }
+
     try {
       // [PRO_SOT] Log source decision
       if (__DEV__) {
@@ -221,6 +226,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
     try {
       const listenerCallback = (customerInfo: any) => {
+        // [P0_ENTITLEMENT_REFRESH_TRACE] RC LIVE UPDATE event
+        if (__DEV__) {
+          devLog("[P0_ENTITLEMENT_REFRESH_TRACE] RC_LIVE_UPDATE received");
+        }
         // Use canonical entitlement ID
         const hasPremium = !!customerInfo.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
         
@@ -300,7 +309,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       if (result.ok) {
         if (__DEV__) {
-          devLog("[SubscriptionContext] Purchase SUCCESS - updating state immediately");
+          devLog("[SubscriptionContext][P0_ENTITLEMENT_REFRESH_TRACE] Purchase SUCCESS - updating state immediately");
         }
         
         // Immediately set isPremium for instant UI feedback
@@ -344,7 +353,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       if (result.ok) {
         if (__DEV__) {
-          devLog("[SubscriptionContext] Restore SUCCESS - checking entitlements");
+          devLog("[SubscriptionContext][P0_ENTITLEMENT_REFRESH_TRACE] Restore SUCCESS - checking entitlements");
         }
         
         // Check if restore found active entitlements

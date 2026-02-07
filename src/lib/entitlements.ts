@@ -9,6 +9,7 @@ import { useCallback, useRef, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
+import { BADGE_QUERY_KEYS } from "./badgesApi";
 import { devLog, devWarn, devError } from "./devLog";
 
 // Plan types
@@ -353,7 +354,22 @@ export function useRefreshProContract() {
 
     // [PRO_SOT] Log FINAL combined result
     if (__DEV__) {
-      devLog(`[PRO_SOT] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
+      devLog(`[PRO_SOT][P0_ENTITLEMENT_REFRESH_TRACE] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
+    }
+
+    // [P0_ENTITLEMENT_REFRESH_TRACE] Ensure badge catalog + profile re-derive with fresh Pro state
+    queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+
+    // [P0_ENTITLEMENT_INVARIANT] Upgrade assertion: if this was an upgrade-class event,
+    // combinedIsPro MUST be true. Fire a DEV warning if not.
+    if (__DEV__) {
+      const UPGRADE_REASONS = ["purchase", "restore", "promo", "redeem"];
+      if (UPGRADE_REASONS.some((r) => reason.toLowerCase().includes(r)) && !combinedIsPro) {
+        devWarn(
+          `[P0_ENTITLEMENT_INVARIANT] VIOLATION - upgrade event reason=${reason} but combinedIsPro=false! rcIsPro=${rcIsPro} backendIsPro=${backendIsPro}`,
+        );
+      }
     }
 
     return { rcIsPro, backendIsPro, combinedIsPro };
@@ -435,9 +451,9 @@ export function useIsPro(): {
   // This ensures instant UI update when RevenueCat purchase completes
   const userIsPro = backendIsPro || revenueCatIsPremium;
   
-  // [P1_BADGE_CONTRACT] Log Pro SSOT computation for debugging
+  // [P1_BADGE_CONTRACT][P0_ENTITLEMENT_UI_SYNC] Log Pro SSOT computation for debugging
   if (__DEV__) {
-    devLog("[P1_BADGE_CONTRACT]", "pro ssot", {
+    devLog("[P1_BADGE_CONTRACT][P0_ENTITLEMENT_UI_SYNC]", "pro ssot", {
       backendPlan: entitlements?.plan,
       rcEntitled: revenueCatIsPremium,
       combinedIsPro: userIsPro,

@@ -182,6 +182,18 @@ const setFeaturedMutation = useMutation({
     ? deriveBadgesWithProOverride(rawBadges, true)
     : rawBadges;
 
+  // [P0_ENTITLEMENT_UI_SYNC] Trace badge derivation output
+  if (__DEV__) {
+    devLog("[P0_ENTITLEMENT_UI_SYNC] badge derivation", {
+      isPro,
+      isProLoading,
+      rawCount: rawBadges.length,
+      derivedUnlocked: badges.filter((b) => b.unlocked).length,
+      rcIsPro,
+      backendIsPro,
+    });
+  }
+
   const unlockedBadges = badges.filter((b) => b.unlocked);
   // Hide Founder badge from locked section (not earnable by regular users)
   const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
