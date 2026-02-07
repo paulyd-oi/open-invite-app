@@ -850,6 +850,59 @@ export default function EventDetailScreen() {
       }
       return api.post(`/api/events/${id}/rsvp`, { status });
     },
+    onMutate: async (nextStatus: RsvpStatus) => {
+      // [P1_RSVP_COUNT] Optimistic update: snapshot cache, update RSVP status and totalGoing immediately
+      const prevRsvpStatus = myRsvpStatus; // Already normalized (null | "going" | "interested" | "not_going")
+      const prevTotalGoing = totalGoing;
+
+      // Calculate count delta based on status transition
+      // Only "going" status counts toward totalGoing, "interested"/"not_going"/null do not
+      let countDelta = 0;
+      const isGoingBefore = prevRsvpStatus === "going";
+      const isGoingAfter = nextStatus === "going";
+      
+      if (!isGoingBefore && isGoingAfter) {
+        countDelta = 1; // Add to count
+      } else if (isGoingBefore && !isGoingAfter) {
+        countDelta = -1; // Remove from count
+      }
+
+      const nextTotalGoing = Math.max(1, prevTotalGoing + countDelta); // Never go below 1 (host)
+
+      if (__DEV__) {
+        devLog("[P1_RSVP_COUNT]", "optimistic start", {
+          eventId: id,
+          prevStatus: prevRsvpStatus,
+          nextStatus,
+          prevTotalGoing,
+          nextTotalGoing,
+          countDelta,
+        });
+      }
+
+      // Cancel outgoing refetches so they don't overwrite optimistic update
+      await queryClient.cancelQueries({ queryKey: eventKeys.rsvp(id ?? "") });
+      await queryClient.cancelQueries({ queryKey: eventKeys.attendees(id ?? "") });
+
+      // Snapshot previous values for rollback
+      const previousRsvp = queryClient.getQueryData(eventKeys.rsvp(id ?? ""));
+      const previousAttendees = queryClient.getQueryData(eventKeys.attendees(id ?? ""));
+
+      // Optimistically update RSVP status cache
+      queryClient.setQueryData(eventKeys.rsvp(id ?? ""), (old: any) => {
+        if (!old) return { status: nextStatus, rsvpId: null };
+        return { ...old, status: nextStatus };
+      });
+
+      // Optimistically update attendees totalGoing count
+      queryClient.setQueryData(eventKeys.attendees(id ?? ""), (old: AttendeesResponse | undefined) => {
+        if (!old) return { attendees: [], totalGoing: nextTotalGoing };
+        return { ...old, totalGoing: nextTotalGoing };
+      });
+
+      // Return snapshot for rollback on error
+      return { previousRsvp, previousAttendees, prevRsvpStatus, nextStatus };
+    },
     onSuccess: async (_, status) => {
       // Haptic feedback only - no intrusive toast popups
       if (status === "going") {
@@ -857,6 +910,11 @@ export default function EventDetailScreen() {
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
+      
+      if (__DEV__) {
+        devLog("[P1_RSVP_COUNT]", "server success", { eventId: id, status });
+      }
+      
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
       setShowRsvpOptions(false);
@@ -881,7 +939,26 @@ export default function EventDetailScreen() {
         }
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, _nextStatus, context) => {
+      // [P1_RSVP_COUNT] Rollback optimistic update on error
+      if (__DEV__) {
+        devLog("[P1_RSVP_COUNT]", "error rollback", {
+          eventId: id,
+          prevStatus: context?.prevRsvpStatus,
+          attemptedStatus: context?.nextStatus,
+          errorStatus: error?.response?.status ?? error?.status,
+          errorCode: error?.data?.code ?? error?.response?.data?.code,
+        });
+      }
+
+      // Restore cache to previous state
+      if (context?.previousRsvp !== undefined) {
+        queryClient.setQueryData(eventKeys.rsvp(id ?? ""), context.previousRsvp);
+      }
+      if (context?.previousAttendees !== undefined) {
+        queryClient.setQueryData(eventKeys.attendees(id ?? ""), context.previousAttendees);
+      }
+
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
         safeToast.warning("Full", "This invite is full.");
@@ -2066,6 +2143,18 @@ export default function EventDetailScreen() {
               </View>
             ) : (
               <View className="mb-4">
+                {/* [P1_RSVP_COUNT] Proof log: Render RSVP state and count */}
+                {__DEV__ && (() => {
+                  devLog("[P1_RSVP_COUNT]", "render", {
+                    eventId: id,
+                    myRsvpStatus,
+                    totalGoing,
+                    attendeesListCount: attendeesList.length,
+                    isPending: rsvpMutation.isPending,
+                  });
+                  return null;
+                })()}
+                
                 {/* Current RSVP status display */}
                 {myRsvpStatus && (
                   <View className="mb-3">
