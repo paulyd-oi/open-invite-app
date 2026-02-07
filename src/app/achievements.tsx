@@ -26,6 +26,8 @@ import {
   getBadgeCatalog,
   setFeaturedBadge,
   BADGE_QUERY_KEYS,
+  isProTrioBadgeKey,
+  deriveBadgesWithProOverride,
   type BadgeCatalogResponse,
   type BadgeCatalogItem,
 } from "@/lib/badgesApi";
@@ -169,26 +171,39 @@ const setFeaturedMutation = useMutation({
     setFeaturedMutation.mutate(null);
   };
 
-  // Pro trio badges unlock via subscription, not progress - hide progress UI
-  const isProTrioBadgeKey = (key: string): boolean => {
-    return key === "pro_includer" || key === "pro_organizer" || key === "pro_initiator";
-  };
+  // [P0_BADGE_SOT] Pro trio badge helpers imported from badgesApi (shared SSOT).
+  // Local isProTrioBadgeKey/isEffectivelyUnlocked REMOVED — use deriveBadgesWithProOverride instead.
 
-  // P0 FIX: Compute effective unlock status (Pro trio unlocked when isPro)
-  const isEffectivelyUnlocked = (badge: BadgeCatalogItem): boolean => {
-    // If API says unlocked, trust it
-    if (badge.unlocked) return true;
-    // Pro trio badges are unlocked for Pro users even if API hasn't caught up
-    if (isProTrioBadgeKey(badge.badgeKey) && isPro && !isProLoading) return true;
-    return false;
-  };
+  const rawBadges = data?.badges ?? [];
 
-  const badges = data?.badges ?? [];
-  // P0 FIX: Use effective unlock check instead of raw API value
-  const unlockedBadges = badges.filter((b) => isEffectivelyUnlocked(b));
+  // [P0_BADGE_SOT] Deterministic derivation: patch Pro trio unlock at the DATA level.
+  // When isPro && !isProLoading, Pro trio badges are guaranteed unlocked in derived data.
+  const badges = (!isProLoading && isPro)
+    ? deriveBadgesWithProOverride(rawBadges, true)
+    : rawBadges;
+
+  const unlockedBadges = badges.filter((b) => b.unlocked);
   // Hide Founder badge from locked section (not earnable by regular users)
-  const lockedBadges = badges.filter((b) => !isEffectivelyUnlocked(b) && b.badgeKey !== "founder");
+  const lockedBadges = badges.filter((b) => !b.unlocked && b.badgeKey !== "founder");
   const featuredBadge = badges.find((b) => b.featured);
+
+  // [P0_BADGE_SOT_INVARIANT] Determinism assertion: when Pro is settled,
+  // every Pro trio badge in the catalog MUST be unlocked. Fire a warning if not.
+  if (__DEV__ && !isProLoading && isPro) {
+    const violatingBadges = badges.filter(
+      (b) => isProTrioBadgeKey(b.badgeKey) && !b.unlocked,
+    );
+    if (violatingBadges.length > 0) {
+      devLog("[P0_BADGE_SOT_INVARIANT] VIOLATION — Pro trio badge(s) still locked after derivation!", {
+        violating: violatingBadges.map((b) => b.badgeKey),
+        isPro,
+        isProLoading,
+        rcIsPro,
+        backendIsPro,
+        combinedIsPro,
+      });
+    }
+  }
 
   // [P0_BADGE_PRO] DEV proof logs for Pro badge selection debug
   if (__DEV__) {
@@ -204,12 +219,10 @@ const setFeaturedMutation = useMutation({
     badges.filter(b => isProTrioBadgeKey(b.badgeKey)).forEach(badge => {
       devLog('[P0_BADGE_PRO]', {
         badgeKey: badge.badgeKey,
-        apiUnlocked: badge.unlocked,
+        derivedUnlocked: badge.unlocked,
         isPro,
         isProLoading,
-        isEffectivelyUnlocked: isEffectivelyUnlocked(badge),
-        selectionEnabled: isEffectivelyUnlocked(badge),
-        reason: badge.unlocked ? 'api_unlocked' : (isPro && !isProLoading ? 'pro_override' : 'locked'),
+        reason: badge.unlocked ? (isPro ? 'pro_derived' : 'api_unlocked') : 'locked',
       });
     });
   }
@@ -560,8 +573,8 @@ const setFeaturedMutation = useMutation({
             <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
               {selectedBadge?.description}
             </Text>
-            {/* P0 FIX: Pro badge copy - show for Pro trio when not effectively unlocked */}
-            {selectedBadge && isProTrioBadgeKey(selectedBadge.badgeKey) && !isEffectivelyUnlocked(selectedBadge) && (
+            {/* [P0_BADGE_SOT] Pro badge copy - show for Pro trio when not unlocked (derived) */}
+            {selectedBadge && isProTrioBadgeKey(selectedBadge.badgeKey) && !selectedBadge.unlocked && (
               <View className="mt-4 p-3 rounded-lg" style={{ backgroundColor: themeColor + "15" }}>
                 <Text className="text-sm font-medium" style={{ color: themeColor }}>
                   Unlock this badge as a Pro subscriber
@@ -569,7 +582,7 @@ const setFeaturedMutation = useMutation({
               </View>
             )}
             {/* Progress bar for non-Pro progress-based badges */}
-            {selectedBadge && !isEffectivelyUnlocked(selectedBadge) && selectedBadge.unlockTarget !== null && !isProTrioBadgeKey(selectedBadge.badgeKey) && (
+            {selectedBadge && !selectedBadge.unlocked && selectedBadge.unlockTarget !== null && !isProTrioBadgeKey(selectedBadge.badgeKey) && (
               <View className="mt-4">
                 <Text className="text-sm font-semibold mb-2" style={{ color: colors.textSecondary }}>
                   Progress: {selectedBadge.progressCurrent}/{selectedBadge.unlockTarget}
@@ -585,8 +598,8 @@ const setFeaturedMutation = useMutation({
                 </View>
               </View>
             )}
-            {/* P0 FIX: Set Featured button in modal for effectively unlocked badges */}
-            {selectedBadge && isEffectivelyUnlocked(selectedBadge) && !selectedBadge.featured && (
+            {/* [P0_BADGE_SOT] Set Featured button for derived-unlocked badges */}
+            {selectedBadge && selectedBadge.unlocked && !selectedBadge.featured && (
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

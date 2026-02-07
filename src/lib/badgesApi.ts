@@ -44,6 +44,61 @@ export interface SetFeaturedBadgeResponse {
 }
 
 // ============================================
+// Pro Trio Badge SSOT Constants
+// ============================================
+
+/**
+ * [P0_BADGE_SOT] The three badge keys that unlock automatically for Pro subscribers.
+ * This is the SINGLE SOURCE OF TRUTH for which badges are Pro-gated.
+ * Any code checking Pro trio membership MUST import this constant.
+ */
+export const PRO_TRIO_BADGE_KEYS = [
+  "pro_includer",
+  "pro_organizer",
+  "pro_initiator",
+] as const;
+
+export type ProTrioBadgeKey = (typeof PRO_TRIO_BADGE_KEYS)[number];
+
+/**
+ * [P0_BADGE_SOT] Check if a badge key is a Pro trio badge.
+ * SSOT — do not duplicate this check inline.
+ */
+export function isProTrioBadgeKey(key: string): key is ProTrioBadgeKey {
+  return (PRO_TRIO_BADGE_KEYS as readonly string[]).includes(key);
+}
+
+/**
+ * [P0_BADGE_SOT] Deterministic badge derivation with Pro trio override.
+ *
+ * When isPro is true, Pro trio badges are ALWAYS marked unlocked regardless
+ * of the API response. This ensures the client never shows them as locked
+ * for entitled users, even if the backend hasn't synced RevenueCat state.
+ *
+ * Returns a NEW array — does not mutate input.
+ */
+export function deriveBadgesWithProOverride(
+  badges: BadgeCatalogItem[],
+  isPro: boolean,
+): BadgeCatalogItem[] {
+  if (!isPro) return badges;
+
+  return badges.map((badge) => {
+    if (isProTrioBadgeKey(badge.badgeKey) && !badge.unlocked) {
+      if (__DEV__) {
+        devLog("[P0_BADGE_SOT] pro_override applied", {
+          badgeKey: badge.badgeKey,
+          apiUnlocked: false,
+          derivedUnlocked: true,
+        });
+      }
+      return { ...badge, unlocked: true };
+    }
+    return badge;
+  });
+}
+
+// ============================================
 // Canonical Query Keys (SSOT)
 // ============================================
 
