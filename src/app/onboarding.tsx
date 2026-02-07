@@ -1485,6 +1485,7 @@ export default function OnboardingScreen() {
           </Text>
           {showSetupRetry && (
             <Pressable
+              testID="onboarding-setup-retry"
               onPress={handleSetupRetry}
               className="mt-6 px-6 py-3 rounded-full"
               style={{ backgroundColor: themeColor }}
@@ -1508,7 +1509,7 @@ export default function OnboardingScreen() {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
-      <SafeAreaView className="flex-1">
+      <SafeAreaView testID="onboarding-screen" className="flex-1">
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 pt-2 pb-4">
           <View className="flex-row gap-1.5">
@@ -1635,6 +1636,7 @@ export default function OnboardingScreen() {
                 </Pressable>
               ) : (
                 <Pressable
+                  testID="onboarding-get-started"
                   onPress={goToNext}
                   className="py-3 rounded-xl items-center"
                   style={{

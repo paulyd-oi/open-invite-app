@@ -1120,7 +1120,7 @@ export default function SocialScreen() {
 
   return (
     <AuthProvider state="authed">
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
+      <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="px-5 pt-4 pb-5 flex-row items-center justify-between">
         <View>
           <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
@@ -1228,6 +1228,7 @@ export default function SocialScreen() {
         </ScrollView>
       ) : (
         <ScrollView
+          testID="social-feed"
           className="flex-1 px-5"
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}

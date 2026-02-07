@@ -611,6 +611,7 @@ function FriendRequestCard({
       {type === "received" && (
         <View className="flex-row">
           <Pressable
+            testID="friend-request-reject"
             onPress={(e) => {
               e.stopPropagation();
               onReject?.();
@@ -622,6 +623,7 @@ function FriendRequestCard({
             <X size={16} color={colors.textSecondary} />
           </Pressable>
           <Pressable
+            testID="friend-request-accept"
             onPress={(e) => {
               e.stopPropagation();
               onAccept?.();
@@ -1325,7 +1327,7 @@ export default function FriendsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView testID="friends-screen" className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
       <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
         <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
         <View className="flex-row items-center">
@@ -1564,7 +1566,7 @@ export default function FriendsScreen() {
 
         {/* Friend Requests */}
         {receivedRequests.length > 0 && (
-          <View className="mb-4">
+          <View testID="friends-requests" className="mb-4">
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

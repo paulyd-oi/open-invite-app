@@ -241,7 +241,7 @@ const setFeaturedMutation = useMutation({
   }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge, isPro, isProLoading]);
 
   return (
-    <SafeAreaView className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
+    <SafeAreaView testID="achievements-screen" className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen
         options={{
           title: "Badges",
@@ -256,6 +256,7 @@ const setFeaturedMutation = useMutation({
       />
 
       <ScrollView
+        testID="achievements-list"
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={themeColor} />
@@ -323,6 +324,7 @@ const setFeaturedMutation = useMutation({
                       </Text>
                     </View>
                     <Pressable
+                      testID="achievements-featured-toggle"
                       onPress={handleRemoveFeatured}
                       className="px-3 py-2 rounded-lg"
                       style={{ backgroundColor: colors.border }}

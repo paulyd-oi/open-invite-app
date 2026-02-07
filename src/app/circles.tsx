@@ -211,7 +211,7 @@ export default function CirclesScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+    <SafeAreaView testID="circles-screen" className="flex-1" style={{ backgroundColor: colors.background }}>
       <ScrollView
         className="flex-1"
         refreshControl={
@@ -243,6 +243,7 @@ export default function CirclesScreen() {
               </View>
             </View>
             <Pressable
+              testID="circles-create-button"
               onPress={handleCreateCircle}
               className="flex-row items-center px-4 py-2 rounded-full"
               style={{ backgroundColor: themeColor }}
@@ -253,7 +254,7 @@ export default function CirclesScreen() {
           </View>
         </View>
 
-        <View className="px-6 pb-24">
+        <View testID="circles-list" className="px-6 pb-24">
           {isLoading ? (
             <View className="py-12">
               <Text className="text-center" style={{ color: colors.textTertiary }}>
