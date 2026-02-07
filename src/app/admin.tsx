@@ -29,12 +29,14 @@ import {
   getUserEntitlements,
   grantEntitlement,
   revokeEntitlement,
+  getUserSubscriptionTier,
   type UserSearchResult, 
   type BadgeDef, 
   type GrantedBadge,
   type CreateBadgePayload,
   type UpdateBadgePayload,
   type UserEntitlement,
+  type AdminUserSubscriptionInfo,
 } from "@/lib/adminApi";
 import { useTheme } from "@/lib/ThemeContext";
 import { BACKEND_URL } from "@/lib/config";
@@ -80,6 +82,7 @@ export default function AdminConsole() {
   
   // Entitlements state
   const [userEntitlements, setUserEntitlements] = useState<UserEntitlement[]>([]);
+  const [userPlan, setUserPlan] = useState<AdminUserSubscriptionInfo | null>(null);
   const [isLoadingEntitlements, setIsLoadingEntitlements] = useState(false);
   const [entitlementError, setEntitlementError] = useState<string | null>(null);
   const [entitlementActionLoading, setEntitlementActionLoading] = useState<string | null>(null);
@@ -189,19 +192,23 @@ export default function AdminConsole() {
     setIsLoadingEntitlements(true);
     setSelectedBadgeToGrant("");
     setGrantBadgeNote("");
+    setUserPlan(null);
     
     try {
-      // Load available badges, user's current badges, and entitlements in parallel
-      const [badgesResponse, userBadgesResponse, entitlementsResponse] = await Promise.all([
+      // Load available badges, user's current badges, entitlements, and plan in parallel
+      const [badgesResponse, userBadgesResponse, entitlementsResponse, planResponse] = await Promise.all([
         listBadges(),
         getUserBadges(user.id),
         getUserEntitlements(user.id),
+        getUserSubscriptionTier(user.id),
       ]);
       
       setAvailableBadges(badgesResponse.badges);
       setUserBadges(userBadgesResponse.badges);
       setUserEntitlements(entitlementsResponse.entitlements);
+      setUserPlan(planResponse);
       if (__DEV__) devLog(`[ADMIN_ENTITLEMENTS] initial fetch count=${entitlementsResponse.entitlements.length}`);
+      if (__DEV__) devLog(`[ADMIN_PRO_SOT] userId=${user.id.substring(0,8)}... plan=${planResponse.plan} tier=${planResponse.tier} computedIsPro=${planResponse.isPro}`);
     } catch (error: any) {
       if (error?.status === 401 || error?.status === 403) {
         setBadgeError("Not authorized");
@@ -931,8 +938,29 @@ export default function AdminConsole() {
             })()}
 
             {/* ENTITLEMENTS Section */}
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ENTITLEMENTS</Text>
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PLAN & ENTITLEMENTS</Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden mb-4">
+              {/* Plan/Tier SSOT from backend */}
+              <View className="px-4 py-3 border-b" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
+                {userPlan ? (
+                  <View className="flex-row items-center">
+                    <Text className="text-lg mr-2">{userPlan.isPro ? "⭐" : "👤"}</Text>
+                    <View className="flex-1">
+                      <Text style={{ color: userPlan.isPro ? "#10B981" : colors.text }} className="font-semibold">
+                        Plan: {userPlan.isPro ? "PRO" : "FREE"}
+                      </Text>
+                      <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">
+                        {userPlan.tier ? `tier=${userPlan.tier}` : "tier=unknown"}
+                        {userPlan.isLifetime ? " (Lifetime)" : ""}
+                        {userPlan.expiresAt ? ` expires=${new Date(userPlan.expiresAt).toLocaleDateString()}` : ""}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">Plan: loading...</Text>
+                )}
+              </View>
+
               {entitlementError && (
                 <View className="px-4 py-3 border-b" style={{ borderColor: isDark ? "#38383A" : "#F3F4F6" }}>
                   <Text style={{ color: "#EF4444" }} className="text-sm">
@@ -1037,7 +1065,7 @@ export default function AdminConsole() {
                   
                   {/* Quick Grant PRO Button */}
                   {(() => {
-                    const hasPro = userEntitlements.some(e => e.entitlementKey === "pro");
+                    const hasPro = userEntitlements.some(e => e.entitlementKey === "pro") || (userPlan?.isPro === true);
                     return (
                       <View className="px-4 py-3">
                         <Pressable
@@ -1056,6 +1084,10 @@ export default function AdminConsole() {
                                 const refreshed = await getUserEntitlements(selectedUser!.id);
                                 setUserEntitlements(refreshed.entitlements);
                                 if (__DEV__) devLog(`[ADMIN_ENTITLEMENTS] afterGrant refetch count=${refreshed.entitlements.length}`);
+                                // Refresh plan/tier SSOT
+                                const planRefreshed = await getUserSubscriptionTier(selectedUser!.id);
+                                setUserPlan(planRefreshed);
+                                if (__DEV__) devLog(`[ADMIN_PRO_SOT] afterGrant plan=${planRefreshed.plan} isPro=${planRefreshed.isPro}`);
                               } else {
                                 setEntitlementError(response.message || "Failed to grant PRO");
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

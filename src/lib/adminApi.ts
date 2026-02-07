@@ -334,6 +334,59 @@ export async function revokeBadgeByKey(userId: string, badgeKey: string): Promis
 }
 
 // =============================================================================
+// USER SUBSCRIPTION / PLAN ADMIN FUNCTIONS
+// =============================================================================
+
+/**
+ * Subscription/plan info for a user as seen by admin.
+ * Resilient: tries multiple field shapes the backend may return.
+ */
+export interface AdminUserSubscriptionInfo {
+  plan: "pro" | "premium" | "free" | string;
+  tier: string | null;
+  isPro: boolean;
+  isLifetime: boolean;
+  expiresAt: string | null;
+}
+
+/**
+ * Fetch a user's subscription/plan tier (admin-only).
+ * Tries GET /api/admin/users/:userId first.
+ * Returns best-effort parsed plan info; never throws.
+ */
+export async function getUserSubscriptionTier(userId: string): Promise<AdminUserSubscriptionInfo> {
+  const FREE_DEFAULT: AdminUserSubscriptionInfo = { plan: "free", tier: "free", isPro: false, isLifetime: false, expiresAt: null };
+  try {
+    const response = await api.get<any>(`/api/admin/users/${userId}`);
+    if (!response) {
+      if (__DEV__) devLog(`[ADMIN_PRO_SOT] getUserSubscriptionTier: userId=${userId.substring(0,8)}... response=null (likely 404)`);
+      return FREE_DEFAULT;
+    }
+    // Resilient field extraction — backend may nest under .user, .subscription, or flat
+    const raw = response.user ?? response;
+    const sub = raw.subscription ?? raw;
+    const tier = sub.tier ?? sub.plan ?? sub.subscriptionTier ?? null;
+    const isPro = tier === "pro" || tier === "premium" ||
+      sub.isPro === true || sub.isLifetime === true;
+    const isLifetime = sub.isLifetime === true;
+    const expiresAt = sub.expiresAt ?? null;
+    const plan = isPro ? (tier === "premium" ? "premium" : "pro") : "free";
+    if (__DEV__) {
+      devLog(`[ADMIN_PRO_SOT] userId=${userId.substring(0,8)}... plan=${plan} tier=${tier} computedIsPro=${isPro} isLifetime=${isLifetime} responseKeys=${Object.keys(raw).join(',')}`);
+    }
+    return { plan, tier, isPro, isLifetime, expiresAt };
+  } catch (error: any) {
+    if (__DEV__) {
+      devLog(`[ADMIN_PRO_SOT] getUserSubscriptionTier FAILED: userId=${userId.substring(0,8)}... error=${error?.message}`);
+    }
+    if (error?.status === 401 || error?.status === 403) {
+      throw error;
+    }
+    return FREE_DEFAULT;
+  }
+}
+
+// =============================================================================
 // ENTITLEMENT ADMIN FUNCTIONS
 // =============================================================================
 
