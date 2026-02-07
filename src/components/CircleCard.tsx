@@ -19,7 +19,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type Circle } from "@/shared/contracts";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
-import { devLog } from "@/lib/devLog";
+import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { trackAnalytics } from "@/lib/entitlements";
 
@@ -71,6 +71,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       return { previousCircles };
     },
     onSuccess: (_, { circleId, isMuted }) => {
+      devLog("[P1_CIRCLES_CARD]", "action=success", "type=mute", `circleId=${circleId}`, `muted=${isMuted}`);
       // [P0_CIRCLE_MUTE_POLISH] Light selection haptic on success
       Haptics.selectionAsync();
       if (__DEV__) {
@@ -94,6 +95,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       queryClient.invalidateQueries({ queryKey: ["circles"] });
     },
     onError: (error, { circleId, isMuted }, context) => {
+      devError("[P1_CIRCLES_CARD]", "action=failure", "type=mute", `circleId=${circleId}`, `error=${error}`);
       // Revert optimistic update
       if (context?.previousCircles) {
         queryClient.setQueryData(["circles"], context.previousCircles);
@@ -117,11 +119,13 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   };
 
   const triggerPin = () => {
+    devLog("[P1_CIRCLES_CARD]", "action=tap", "type=pin", `circleId=${circle.id}`, `wasPinned=${circle.isPinned}`);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPin(circle.id);
   };
 
   const triggerMute = () => {
+    devLog("[P1_CIRCLES_CARD]", "action=tap", "type=mute", `circleId=${circle.id}`, `wasMuted=${circle.isMuted}`, `nextMuted=${!circle.isMuted}`);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const nextMuted = !circle.isMuted;
     muteMutation.mutate({ circleId: circle.id, isMuted: nextMuted });
@@ -131,6 +135,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   };
 
   const triggerDelete = () => {
+    devLog("[P1_CIRCLES_CARD]", "action=tap", "type=delete", `circleId=${circle.id}`, `circleName=${circle.name}`);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     onDelete(circle.id);
   };
@@ -186,6 +191,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
     <Animated.View
       entering={FadeIn.delay(index * 50)}
       className="mb-3 relative overflow-hidden"
+      testID={`circle-card-${circle.id}`}
     >
       {/* Swipe Actions Background */}
       <View className="absolute inset-0 flex-row">

@@ -28,7 +28,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
-import { devError } from "@/lib/devLog";
+import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 
 export default function CirclesScreen() {
@@ -67,28 +67,89 @@ export default function CirclesScreen() {
 
   // Pin circle mutation
   const pinCircleMutation = useMutation({
-    mutationFn: (circleId: string) =>
-      api.put(`/api/circles/${circleId}/pin`, {}),
-    onSuccess: () => {
+    mutationFn: (circleId: string) => {
+      devLog("[P1_CIRCLES_CARD]", "action=start", "type=pin", `circleId=${circleId}`);
+      return api.put(`/api/circles/${circleId}/pin`, {});
+    },
+    onMutate: async (circleId: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      
+      // Snapshot previous value
+      const previousCircles = queryClient.getQueryData(["circles"]);
+      
+      // Optimistically update cache
+      queryClient.setQueryData(["circles"], (old: any) => {
+        if (!old?.circles) return old;
+        const circles = old.circles.map((c: Circle) => {
+          if (c.id === circleId) {
+            return { ...c, isPinned: !c.isPinned };
+          }
+          return c;
+        });
+        // Sort pinned circles first
+        circles.sort((a: Circle, b: Circle) => {
+          if (a.isPinned && !b.isPinned) return -1;
+          if (!a.isPinned && b.isPinned) return 1;
+          return 0;
+        });
+        return { ...old, circles };
+      });
+      
+      return { previousCircles };
+    },
+    onSuccess: (_, circleId) => {
+      devLog("[P1_CIRCLES_CARD]", "action=success", "type=pin", `circleId=${circleId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["circles"] });
     },
-    onError: () => {
+    onError: (error, circleId, context) => {
+      devError("[P1_CIRCLES_CARD]", "action=failure", "type=pin", `circleId=${circleId}`, `error=${error}`);
+      // Revert optimistic update
+      if (context?.previousCircles) {
+        queryClient.setQueryData(["circles"], context.previousCircles);
+      }
       safeToast.error("Oops", "Could not pin group");
     },
   });
 
   // Leave circle mutation
   const leaveCircleMutation = useMutation({
-    mutationFn: (circleId: string) =>
-      api.delete(`/api/circles/${circleId}/leave`),
-    onSuccess: () => {
+    mutationFn: (circleId: string) => {
+      devLog("[P1_CIRCLES_CARD]", "action=start", "type=delete", `circleId=${circleId}`);
+      return api.delete(`/api/circles/${circleId}/leave`);
+    },
+    onMutate: async (circleId: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      
+      // Snapshot previous value
+      const previousCircles = queryClient.getQueryData(["circles"]);
+      
+      // Optimistically remove from cache
+      queryClient.setQueryData(["circles"], (old: any) => {
+        if (!old?.circles) return old;
+        return {
+          ...old,
+          circles: old.circles.filter((c: Circle) => c.id !== circleId),
+        };
+      });
+      
+      return { previousCircles };
+    },
+    onSuccess: (_, circleId) => {
+      devLog("[P1_CIRCLES_CARD]", "action=success", "type=delete", `circleId=${circleId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["circles"] });
       setShowLeaveCircleConfirm(false);
       setCircleToLeave(null);
     },
-    onError: () => {
+    onError: (error, circleId, context) => {
+      devError("[P1_CIRCLES_CARD]", "action=failure", "type=delete", `circleId=${circleId}`, `error=${error}`);
+      // Revert optimistic update
+      if (context?.previousCircles) {
+        queryClient.setQueryData(["circles"], context.previousCircles);
+      }
       safeToast.error("Oops", "Could not leave group");
     },
   });
