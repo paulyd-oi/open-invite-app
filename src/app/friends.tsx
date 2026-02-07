@@ -1702,7 +1702,7 @@ export default function FriendsScreen() {
               ) : (
                 circles.map((circle, index) => (
                   <CircleCard
-                    key={`${circle.id}-${circle.isPinned ?? false}-${circle.isMuted ?? false}`}
+                    key={circle.id}
                     circle={circle}
                     index={index}
                     onPin={(id) => pinCircleMutation.mutate(id)}

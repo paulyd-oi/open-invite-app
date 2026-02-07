@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,7 @@ export default function CirclesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext | null>(null);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
+  const renderVersion = useRef(0);
   const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
   // Load guidance state when user ID is available
@@ -101,6 +102,8 @@ export default function CirclesScreen() {
     onSuccess: (_, circleId) => {
       devLog("[P1_CIRCLES_CARD]", "action=success", "type=pin", `circleId=${circleId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      renderVersion.current += 1;
+      if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'pin complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
       queryClient.invalidateQueries({ queryKey: ["circles"] });
     },
     onError: (error, circleId, context) => {
@@ -140,6 +143,8 @@ export default function CirclesScreen() {
     onSuccess: (_, circleId) => {
       devLog("[P1_CIRCLES_CARD]", "action=success", "type=delete", `circleId=${circleId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      renderVersion.current += 1;
+      if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'leave complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
       queryClient.invalidateQueries({ queryKey: ["circles"] });
       setShowLeaveCircleConfirm(false);
       setCircleToLeave(null);
@@ -282,7 +287,7 @@ export default function CirclesScreen() {
             <GestureHandlerRootView>
               {circles.map((circle: Circle, index: number) => (
                 <CircleCard
-                  key={`${circle.id}-${circle.isPinned ?? false}-${circle.isMuted ?? false}`}
+                  key={circle.id}
                   circle={circle}
                   index={index}
                   onPin={(id) => pinCircleMutation.mutate(id)}
