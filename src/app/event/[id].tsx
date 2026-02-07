@@ -753,10 +753,12 @@ export default function EventDetailScreen() {
   // [P0_DISCOVER_ROSTER] Fetch ALL attendees (includeAll=true bypasses friend-only filter)
   // Per UX CONTRACT: If viewer can see event, they can see ALL attendees regardless of friend status
   // For open_invite events, backend now returns full roster to any authenticated user.
-  const { data: attendeesData, error: attendeesError, isLoading: isLoadingAttendees } = useQuery({
+  // TASK 2: enabled is gated on showAttendeesModal so the fetch fires when the sheet opens.
+  const attendeesQuery = useQuery({
     queryKey: eventKeys.attendees(id ?? ""), // [P0_RSVP_SOT] Use canonical key
     queryFn: async () => {
       if (__DEV__) {
+        console.log('[P0_ROSTER_FETCH]', { eventId: id, rosterOpen: showAttendeesModal });
         devLog('[P0_DISCOVER_ROSTER] fetch started', { eventId: id, endpoint: `/api/events/${id}/attendees?includeAll=true` });
       }
       // includeAll=true: return ALL attendees, not just friends (per ATTENDEE VISIBILITY CONTRACT)
@@ -783,9 +785,23 @@ export default function EventDetailScreen() {
       }
       return normalized;
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
+    enabled: showAttendeesModal && !!id,
     retry: false, // Don't retry on 403 privacy errors
   });
+
+  // Destructure query result for backward compatibility with existing code
+  const attendeesData = attendeesQuery.data;
+  const attendeesError = attendeesQuery.error;
+  const isLoadingAttendees = attendeesQuery.isLoading;
+
+  // TASK 3: Force refetch every time the sheet opens (prevents stale cache)
+  React.useEffect(() => {
+    if (showAttendeesModal) {
+      console.log('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
+      attendeesQuery.refetch();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAttendeesModal]);
 
   // Handle attendees 403 gracefully (privacy denied — expected for circle/private events)
   const attendeesPrivacyDenied = (attendeesError as any)?.status === 403;
@@ -3108,11 +3124,25 @@ export default function EventDetailScreen() {
                 </Pressable>
               </View>
 
-              {/* Attendees List */}
+              {/* Attendees List - P0: guarded for loading / empty / list */}
               <KeyboardAwareScrollView
                 style={{ paddingHorizontal: 20 }}
                 contentContainerStyle={{ paddingBottom: 20 }}
               >
+                {isLoadingAttendees ? (
+                  <View style={{ alignItems: "center", paddingVertical: 40 }}>
+                    <ActivityIndicator size="large" color={themeColor} />
+                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary }}>Loading attendees…</Text>
+                  </View>
+                ) : attendeesList.length === 0 ? (
+                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
+                    <Users size={32} color={colors.textTertiary} />
+                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
+                      No attendees yet
+                    </Text>
+                  </View>
+                ) : (
+                  <>
                 {attendeesList.map((attendee) => (
                   <Pressable
                     key={attendee.id}
@@ -3158,14 +3188,7 @@ export default function EventDetailScreen() {
                     <ChevronRight size={18} color={colors.textTertiary} />
                   </Pressable>
                 ))}
-
-                {attendeesList.length === 0 && (
-                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                    <Users size={32} color={colors.textTertiary} />
-                    <Text style={{ marginTop: 12, fontSize: 14, color: colors.textSecondary, textAlign: "center" }}>
-                      No attendees yet
-                    </Text>
-                  </View>
+                  </>
                 )}
               </KeyboardAwareScrollView>
             </Animated.View>
