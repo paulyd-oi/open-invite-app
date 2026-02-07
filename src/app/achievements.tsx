@@ -209,6 +209,18 @@ const setFeaturedMutation = useMutation({
   // DEV logging for render decision
   React.useEffect(() => {
     if (__DEV__) {
+      // [P1_BADGE_CONTRACT] Log badges derived state
+      const hasOGBadge = badges.some(b => b.badgeKey === 'og');
+      const hasProBadge = badges.some(b => isProTrioBadgeKey(b.badgeKey));
+      devLog("[P1_BADGE_CONTRACT]", "badges derived", {
+        count: badges.length,
+        hasOG: hasOGBadge,
+        hasProBadge,
+        isPro,
+        unlockedCount: unlockedBadges.length,
+        lockedCount: lockedBadges.length,
+      });
+      
       devLog("[BADGES_RENDER]", {
         bootStatus,
         isLoading,

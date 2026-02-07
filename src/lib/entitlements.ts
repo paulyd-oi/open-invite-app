@@ -435,15 +435,14 @@ export function useIsPro(): {
   // This ensures instant UI update when RevenueCat purchase completes
   const userIsPro = backendIsPro || revenueCatIsPremium;
   
-  // [PRO_SOT] Log combined check for debugging
+  // [P1_BADGE_CONTRACT] Log Pro SSOT computation for debugging
   if (__DEV__) {
-    devLog("[PRO_SOT][useIsPro] ENTITLEMENT_CHECK", {
-      source_backend_plan: entitlements?.plan,
-      source_backend_isPro: backendIsPro,
-      source_revenueCat_isPremium: revenueCatIsPremium,
-      combined_isPro: userIsPro,
-      loading_backend: entitlementsLoading,
-      loading_revenueCat: revenueCatLoading,
+    devLog("[P1_BADGE_CONTRACT]", "pro ssot", {
+      backendPlan: entitlements?.plan,
+      rcEntitled: revenueCatIsPremium,
+      combinedIsPro: userIsPro,
+      backendIsPro,
+      loading: isLoading,
     });
   }
   

@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
+import { useColorScheme } from "react-native";
 
 interface BadgePillProps {
   name: string;
@@ -36,19 +37,24 @@ function getTextColorForBackground(hexColor: string): string {
  * Text-only badge pill component.
  * - NO emoji
  * - Shows badge name only
- * - Background uses tierColor with opacity
+ * - Background uses tierColor with opacity (higher alpha in dark mode for better contrast)
  * - Text color auto-determined for contrast (light bg → dark text, dark bg → white text)
  * - Small variant for cards, medium for profile header
  */
 export function BadgePill({ name, tierColor, variant = "small" }: BadgePillProps) {
   const isSmall = variant === "small";
   const textColor = getTextColorForBackground(tierColor);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  
+  // [P1_BADGE_CONTRACT] Raise alpha in dark mode for better contrast (0.125 → 0.25)
+  const backgroundAlpha = isDark ? "40" : "20";
   
   return (
     <View
       className={`rounded-full items-center justify-center ${isSmall ? "px-2 py-1" : "px-3 py-1.5"}`}
       style={{
-        backgroundColor: tierColor + "20",
+        backgroundColor: tierColor + backgroundAlpha,
         borderWidth: 0.5,
         borderColor: tierColor,
       }}
