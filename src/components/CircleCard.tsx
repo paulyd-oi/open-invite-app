@@ -38,6 +38,13 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   const { themeColor, isDark, colors } = useTheme();
   const queryClient = useQueryClient();
 
+  // [P1_CIRCLES_SWIPE_UI] Define actions in strict order: Pin, Mute, Delete
+  const swipeActions = React.useMemo(() => [
+    { type: 'pin' as const, label: circle.isPinned ? 'Unpin' : 'Pin', color: '#10B981' },
+    { type: 'mute' as const, label: circle.isMuted ? 'Unmute' : 'Mute', color: circle.isMuted ? '#10B981' : '#F59E0B' },
+    { type: 'delete' as const, label: 'Delete', color: '#EF4444' },
+  ], [circle.isPinned, circle.isMuted]);
+
   // [P1_CIRCLES_RENDER] Proof log: card render with state
   if (__DEV__) {
     devLog("[P1_CIRCLES_RENDER]", "card render", {
@@ -47,6 +54,10 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       isMuted: circle.isMuted ?? false,
       index,
     });
+    devLog("[P1_CIRCLES_SWIPE_UI]", "actionsOrder", {
+      circleId: circle.id.slice(0, 6),
+      actions: swipeActions.map(a => a.type),
+    });
   }
 
   // Ensure members is always an array to prevent crashes
@@ -54,7 +65,6 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
 
   const translateX = useSharedValue(0);
   const isSwipingLeft = useSharedValue(false);
-  const isSwipingRight = useSharedValue(false);
 
   // Mute mutation with optimistic update
   const muteMutation = useMutation({
@@ -131,14 +141,30 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
 
   const triggerPin = () => {
     devLog("[P1_CIRCLES_CARD]", "action=tap", "type=pin", `circleId=${circle.id}`, `wasPinned=${circle.isPinned}`);
+    if (__DEV__) {
+      devLog("[P1_CIRCLES_SWIPE_UI]", "action tap", {
+        type: 'pin',
+        circleId: circle.id.slice(0, 6),
+        prevState: circle.isPinned ?? false,
+        nextState: !(circle.isPinned ?? false),
+      });
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPin(circle.id);
   };
 
   const triggerMute = () => {
-    devLog("[P1_CIRCLES_CARD]", "action=tap", "type=mute", `circleId=${circle.id}`, `wasMuted=${circle.isMuted}`, `nextMuted=${!circle.isMuted}`);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const nextMuted = !circle.isMuted;
+    devLog("[P1_CIRCLES_CARD]", "action=tap", "type=mute", `circleId=${circle.id}`, `wasMuted=${circle.isMuted}`, `nextMuted=${nextMuted}`);
+    if (__DEV__) {
+      devLog("[P1_CIRCLES_SWIPE_UI]", "action tap", {
+        type: 'mute',
+        circleId: circle.id.slice(0, 6),
+        prevState: circle.isMuted ?? false,
+        nextState: nextMuted,
+      });
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     muteMutation.mutate({ circleId: circle.id, isMuted: nextMuted });
     if (onMute) {
       onMute(circle.id, nextMuted);
@@ -147,51 +173,49 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
 
   const triggerDelete = () => {
     devLog("[P1_CIRCLES_CARD]", "action=tap", "type=delete", `circleId=${circle.id}`, `circleName=${circle.name}`);
+    if (__DEV__) {
+      devLog("[P1_CIRCLES_SWIPE_UI]", "action tap", {
+        type: 'delete',
+        circleId: circle.id.slice(0, 6),
+        circleName: circle.name,
+      });
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     onDelete(circle.id);
   };
 
+  // [P1_CIRCLES_SWIPE_UI] Track card unmount on delete
+  React.useEffect(() => {
+    return () => {
+      if (__DEV__) {
+        devLog("[P1_CIRCLES_SWIPE_UI]", "card unmount", {
+          circleId: circle.id.slice(0, 6),
+          name: circle.name,
+        });
+      }
+    };
+  }, [circle.id, circle.name]);
+
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      translateX.value = event.translationX;
-      isSwipingLeft.value = event.translationX < -30;
-      isSwipingRight.value = event.translationX > 30;
+      // Only allow left swipe to reveal actions
+      if (event.translationX < 0) {
+        translateX.value = event.translationX;
+        isSwipingLeft.value = event.translationX < -30;
+      }
     })
     .onEnd((event) => {
-      if (event.translationX > SWIPE_THRESHOLD) {
-        // Swipe right -> Mute/Unmute
-        translateX.value = withSpring(0);
-        runOnJS(triggerMute)();
-      } else if (event.translationX < -SWIPE_THRESHOLD) {
-        // Swipe left -> Delete
-        translateX.value = withTiming(-300, { duration: 200 }, () => {
-          runOnJS(triggerDelete)();
-        });
+      if (event.translationX < -SWIPE_THRESHOLD) {
+        // Swipe left -> Show all actions
+        translateX.value = withSpring(-210); // Width to show all 3 actions
       } else {
         translateX.value = withSpring(0);
       }
       isSwipingLeft.value = false;
-      isSwipingRight.value = false;
-    });
-
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(600) // 600ms for long press
-    .onEnd(() => {
-      runOnJS(triggerPin)();
     });
 
   const animatedCardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
-  }));
-
-  const animatedPinStyle = useAnimatedStyle(() => ({
-    opacity: isSwipingRight.value ? withTiming(1) : withTiming(0),
-    transform: [{ scale: isSwipingRight.value ? withSpring(1) : withSpring(0.8) }],
-  }));
-
-  const animatedDeleteStyle = useAnimatedStyle(() => ({
-    opacity: isSwipingLeft.value ? withTiming(1) : withTiming(0),
-    transform: [{ scale: isSwipingLeft.value ? withSpring(1) : withSpring(0.8) }],
   }));
 
   // Calculate stacked bubble positions for members
@@ -204,41 +228,39 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       className="mb-3 relative overflow-hidden"
       testID={`circle-card-${circle.id}`}
     >
-      {/* Swipe Actions Background */}
-      <View className="absolute inset-0 flex-row">
-        {/* Mute Action (left side - revealed on swipe right) */}
-        <Animated.View
-          style={animatedPinStyle}
-          className="absolute left-4 top-0 bottom-0 justify-center"
-        >
-          <View
-            className="w-12 h-12 rounded-full items-center justify-center"
-            style={{ backgroundColor: circle.isMuted ? "#10B981" : "#F59E0B" }}
-          >
-            {circle.isMuted ? (
-              <Bell size={20} color="#fff" />
-            ) : (
-              <BellOff size={20} color="#fff" />
-            )}
-          </View>
-        </Animated.View>
-
-        {/* Delete Action (right side - revealed on swipe left) */}
-        <Animated.View
-          style={animatedDeleteStyle}
-          className="absolute right-4 top-0 bottom-0 justify-center"
-        >
-          <View
-            className="w-12 h-12 rounded-full items-center justify-center"
-            style={{ backgroundColor: "#EF4444" }}
-          >
-            <Trash2 size={20} color="#fff" />
-          </View>
-        </Animated.View>
+      {/* Swipe Actions Background - Ordered: Pin, Mute, Delete */}
+      <View className="absolute inset-0 flex-row justify-end items-center pr-4">
+        {swipeActions.map((action, idx) => {
+          const actionHandlers = {
+            pin: triggerPin,
+            mute: triggerMute,
+            delete: triggerDelete,
+          };
+          const actionIcons = {
+            pin: circle.isPinned ? <Pin size={20} color="#fff" /> : <Pin size={20} color="#fff" />,
+            mute: circle.isMuted ? <Bell size={20} color="#fff" /> : <BellOff size={20} color="#fff" />,
+            delete: <Trash2 size={20} color="#fff" />,
+          };
+          
+          return (
+            <Pressable
+              key={action.type}
+              onPress={() => {
+                translateX.value = withSpring(0);
+                actionHandlers[action.type]();
+              }}
+              className="w-16 h-16 rounded-2xl items-center justify-center ml-2"
+              style={{ backgroundColor: action.color }}
+              testID={`circle-action-${action.type}-${circle.id}`}
+            >
+              {actionIcons[action.type]}
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Card */}
-      <GestureDetector gesture={Gesture.Simultaneous(panGesture, longPressGesture)}>
+      <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedCardStyle}>
           <Pressable
             onPress={handlePress}
