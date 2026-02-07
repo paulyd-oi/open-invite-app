@@ -803,6 +803,24 @@ export default function EventDetailScreen() {
   const derivedCount = deriveAttendeeCount(event);
   const totalGoing = attendeesData?.totalGoing ?? derivedCount;
 
+  // [P0_ATTENDEE_LIST_SOT] Proof log: track source and count alignment (once per fetch)
+  React.useEffect(() => {
+    if (__DEV__ && event && id && !isLoadingAttendees) {
+      const hiddenCount = Math.max(0, totalGoing - attendeesList.length);
+      devLog('[P0_ATTENDEE_LIST_SOT]', 'render', {
+        eventId: id.slice(0, 8),
+        source: attendeesFromEndpoint.length > 0 ? 'endpoint' : 'joinRequests',
+        endpointCount: attendeesData?.attendees?.length ?? 0,
+        joinRequestsCount: attendeesFromJoinRequests.length,
+        attendeesListLen: attendeesList.length,
+        totalGoing,
+        derivedCount,
+        hiddenCount,
+        aligned: attendeesList.length === totalGoing,
+      });
+    }
+  }, [id, totalGoing, attendeesList.length, isLoadingAttendees]);
+
   // [P0_RSVP_SOT] DEV proof log for RSVP consistency - only logs on mismatch
   if (__DEV__ && event && id) {
     logRsvpMismatch(id, derivedCount, event?.goingCount, "event_details");
@@ -2038,6 +2056,17 @@ export default function EventDetailScreen() {
                         </Text>
                       </Pressable>
                     ))}
+                    {/* [P0_ATTENDEE_LIST_SOT] Show hidden count when list < totalGoing */}
+                    {totalGoing > attendeesList.length && attendeesList.length > 0 && (
+                      <View className="items-center mr-4 mb-3" style={{ width: 60 }}>
+                        <View className="w-12 h-12 rounded-full items-center justify-center mb-1 border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6", borderColor: isDark ? "#3C3C3E" : "#E5E7EB" }}>
+                          <Text className="text-sm font-semibold" style={{ color: colors.textSecondary }}>
+                            +{totalGoing - attendeesList.length}
+                          </Text>
+                        </View>
+                        <Text className="text-xs text-center" style={{ color: colors.textTertiary }}>more</Text>
+                      </View>
+                    )}
                   </View>
 
                   {/* Show the host too */}
