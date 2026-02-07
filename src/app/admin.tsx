@@ -42,6 +42,19 @@ import { useTheme } from "@/lib/ThemeContext";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 
+/** Defensively extract a usable badge key from a catalog item.
+ *  Backend may return `key`, `slug`, or only `id` instead of `badgeKey`.
+ *  listBadges() already normalizes, but this is the last-resort guard. */
+function getBadgeCatalogKey(badge: BadgeDef | Record<string, any>): string {
+  return (
+    (badge as any).badgeKey ||
+    (badge as any).key ||
+    (badge as any).slug ||
+    (badge as any).id ||
+    ""
+  );
+}
+
 export default function AdminConsole() {
   const router = useRouter();
   // P0 FIX: Prevent redirect loop with ref
@@ -235,8 +248,8 @@ export default function AdminConsole() {
         badgeCount: response.badges.length,
       }));
       if (__DEV__) {
-        const hasConnectLeader = response.badges.some(b => b.badgeKey === 'connect_leader');
-        devLog(`[P0_ADMIN_CONSOLE] loadBadgeDefinitions: count=${response.badges.length} hasConnectLeader=${hasConnectLeader}`);
+        const hasConnectLeader = response.badges.some(b => getBadgeCatalogKey(b) === 'connect_leader');
+        devLog(`[P0_ADMIN_CONSOLE] loadBadgeDefinitions: count=${response.badges.length} hasConnectLeader=${hasConnectLeader} firstKeys=${response.badges[0] ? Object.keys(response.badges[0]).join(",") : "N/A"}`);
       }
     } catch (error: any) {
       if (__DEV__) {
@@ -573,7 +586,7 @@ export default function AdminConsole() {
                           />
                         </View>
                         <Text style={{ color: colors.textTertiary }} className="text-xs font-mono">
-                          {badge.badgeKey}
+                          {getBadgeCatalogKey(badge) || badge.id}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
@@ -836,8 +849,8 @@ export default function AdminConsole() {
 
             {/* Quick Grant Connect Leader */}
             {(() => {
-              const connectLeaderBadge = allBadgeDefinitions.find(b => b.badgeKey === "connect_leader");
-              const hasConnectLeader = userBadges.some(ub => ub.badgeKey === "connect_leader");
+              const connectLeaderBadge = allBadgeDefinitions.find(b => getBadgeCatalogKey(b) === "connect_leader");
+              const hasConnectLeader = userBadges.some(ub => (ub.badgeKey || (ub as any).key) === "connect_leader");
               
               if (!connectLeaderBadge) {
                 return (
@@ -1149,16 +1162,17 @@ export default function AdminConsole() {
                     className="px-2 py-2"
                     {...(Platform.OS === "ios" ? { delaysContentTouches: false, canCancelContentTouches: false } as any : {})}
                   >
-                    {allBadgeDefinitions.filter(b => b.isActive !== false && !!b.badgeKey).map((badge) => {
-                      const isSelected = selectedBadgeToGrant === badge.badgeKey;
-                      const isAlreadyGranted = userBadges.some(ub => ub.badgeKey === badge.badgeKey);
+                    {allBadgeDefinitions.filter(b => b.isActive !== false && !!getBadgeCatalogKey(b)).map((badge) => {
+                      const derivedKey = getBadgeCatalogKey(badge);
+                      const isSelected = selectedBadgeToGrant === derivedKey;
+                      const isAlreadyGranted = userBadges.some(ub => (ub.badgeKey || (ub as any).key || (ub as any).slug) === derivedKey);
                       return (
                         <Pressable
-                          key={badge.badgeKey}
+                          key={derivedKey}
                           onPress={() => {
                             if (isAlreadyGranted) return;
-                            if (__DEV__) devLog(`[ADMIN_BADGE_GRANT] select key=${badge.badgeKey}`);
-                            setSelectedBadgeToGrant(badge.badgeKey);
+                            if (__DEV__) devLog(`[ADMIN_BADGE_GRANT] select key=${derivedKey}`);
+                            setSelectedBadgeToGrant(derivedKey);
                           }}
                           disabled={isAlreadyGranted}
                           className="px-3 py-2 mr-2 rounded-lg flex-row items-center"

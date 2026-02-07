@@ -158,10 +158,16 @@ export async function searchUsers(q: string): Promise<{ users: UserSearchResult[
 export async function listBadges(): Promise<{ badges: BadgeDef[] }> {
   try {
     const response = await api.get<AdminBadgesResponse>("/api/admin/badges");
+    // Normalize: backend may return key/slug instead of badgeKey
+    const normalized = (response.badges ?? []).map((b: any) => ({
+      ...b,
+      badgeKey: b.badgeKey || b.key || b.slug || b.id || "",
+    })) as BadgeDef[];
     if (__DEV__) {
-      devLog(`[P0_ADMIN_CONSOLE] listBadges: count=${response.badges.length}`);
+      const first = response.badges?.[0];
+      devLog(`[P0_ADMIN_CONSOLE] listBadges: count=${normalized.length} rawKeysFirst=${first ? Object.keys(first).join(",") : "N/A"}`);
     }
-    return response;
+    return { badges: normalized };
   } catch (error: any) {
     if (__DEV__) {
       devLog("[P0_ADMIN_CONSOLE] listBadges FAILED:", error?.message);
