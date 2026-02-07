@@ -2,7 +2,7 @@
 import 'fast-text-encoding';
 
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useRootNavigationState, usePathname } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState, usePathname, useSegments } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -47,7 +47,11 @@ import { performLogout } from '@/lib/logout';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const unstable_settings = {
-  initialRouteName: 'index',
+  // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
+  // This ensures fresh installs ALWAYS start at /welcome.
+  // Previously used 'index' with redirect, but Expo Router's <Redirect>
+  // is async (uses useFocusEffect), causing race conditions.
+  initialRouteName: 'welcome',
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -246,12 +250,24 @@ function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
 function BootRouter() {
   const router = useRouter();
   const pathname = usePathname();
+  const segments = useSegments();
   const navigationState = useRootNavigationState();
   const { status: bootStatus, error: bootError, retry } = useBootAuthority();
   const hasRoutedRef = useRef(false);
   const gateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showEmailGateModal, setShowEmailGateModal] = useState(false);
   const queryClient = useQueryClient();
+  
+  // [P0_INIT_ROUTE] Log initial mount and every render for debugging
+  if (__DEV__) {
+    devLog('[P0_INIT_ROUTE]', 'render', {
+      bootStatus,
+      pathname,
+      segments: segments.join('/'),
+      navReady: !!navigationState?.key,
+      hasRouted: hasRoutedRef.current,
+    });
+  }
   
   // Get session data for RevenueCat sync
   const { data: session } = useSession();
@@ -370,7 +386,11 @@ function BootRouter() {
     };
   }, [bootStatus, session?.user?.id, session?.user?.emailVerified]);
 
-  // Wait for navigation state to be ready before routing
+  // [P0_INIT_ROUTE_FIX] PRIMARY: BootRouter handles post-boot routing decisions.
+  // App starts at /welcome (initialRouteName='welcome'), then this effect redirects
+  // based on boot status:
+  // - authed → /calendar
+  // - loggedOut/error/onboarding → stay on /welcome
   useEffect(() => {
     if (!navigationState?.key) {
       return; // Navigation not ready yet
@@ -390,7 +410,7 @@ function BootRouter() {
 
     devLog(
       '[ONBOARDING_BOOT]',
-      'Routing decision:',
+      'Routing decision (fallback):',
       JSON.stringify({ bootStatus, currentPath: pathname, error: bootError || 'none' }, null, 2)
     );
 
@@ -469,6 +489,7 @@ function RootLayoutNav() {
     <ThemeProvider value={OpenInviteTheme}>
       <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
+        initialRouteName="welcome"
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
@@ -476,6 +497,7 @@ function RootLayoutNav() {
         }}
       >
         <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="calendar" />
         <Stack.Screen name="create" />
         <Stack.Screen name="friends" />

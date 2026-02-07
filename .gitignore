@@ -72,3 +72,4 @@ docs/handoff_archive/
 # Local-only (never commit)
 cookies.txt
 HANDOFF_*.txt
+artifacts/
