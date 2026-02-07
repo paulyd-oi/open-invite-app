@@ -12,13 +12,13 @@ module.exports = {
   apps: {
     'ios.debug': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/OpenInvite.app',
-      build: 'xcodebuild -workspace ios/OpenInvite.xcworkspace -scheme OpenInvite -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build',
+      binaryPath: 'ios/DerivedDataDetox/Build/Products/Debug-iphonesimulator/OpenInvite.app',
+      build: 'xcodebuild -workspace ios/OpenInvite.xcworkspace -scheme OpenInvite -configuration Debug -sdk iphonesimulator -derivedDataPath ios/DerivedDataDetox',
     },
     'ios.release': {
       type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Release-iphonesimulator/OpenInvite.app',
-      build: 'xcodebuild -workspace ios/OpenInvite.xcworkspace -scheme OpenInvite -configuration Release -sdk iphonesimulator -derivedDataPath ios/build',
+      binaryPath: 'ios/DerivedDataDetox/Build/Products/Release-iphonesimulator/OpenInvite.app',
+      build: 'xcodebuild -workspace ios/OpenInvite.xcworkspace -scheme OpenInvite -configuration Release -sdk iphonesimulator -derivedDataPath ios/DerivedDataDetox',
     },
   },
   devices: {
