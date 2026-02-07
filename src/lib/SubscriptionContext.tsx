@@ -121,15 +121,23 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [queryClient]);
 
   const fetchSubscription = useCallback(async (): Promise<{ isPro: boolean }> => {
-    // Note: session is optional enrichment - subscription endpoint validates via Bearer token
-    // If session is null but token is valid, subscription fetch will still work
+    // [P0_SUB_FETCH_GATE] Only fetch subscription when we have a session (user is authed)
+    if (!session?.user?.id) {
+      if (__DEV__) {
+        devLog("[P0_SUB_FETCH_GATE] bootStatus=not_authed allowed=false reason=no_session_user");
+      }
+      // Settle as Free without hitting backend
+      setIsPremium(false);
+      setIsLoading(false);
+      return { isPro: false };
+    }
     
     // Track computed isPro to return to caller (avoids stale React state issue)
     let computedIsPro = false;
 
-    // [P0_ENTITLEMENT_REFRESH_TRACE] fetchSubscription entry
+    // [P0_SUB_FETCH_GATE] fetchSubscription entry — session present
     if (__DEV__) {
-      devLog("[P0_ENTITLEMENT_REFRESH_TRACE] fetchSubscription ENTRY");
+      devLog("[P0_SUB_FETCH_GATE] allowed=true reason=session_present userId=" + session.user.id.slice(0, 8));
     }
 
     try {
@@ -203,9 +211,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       }
       
       return { isPro: computedIsPro };
-    } catch (error) {
+    } catch (error: any) {
       if (__DEV__) {
-        devError("[PRO_SOT] fetchSubscription error:", error);
+        // [P0_SUB_FETCH_GATE] Use devLog (not devError) for expected auth failures — no red overlay
+        const status = error?.status || error?.response?.status;
+        if (status === 401 || status === 403) {
+          devLog("[P0_SUB_FETCH_GATE] fetchSubscription auth_expected:", status);
+        } else {
+          devError("[PRO_SOT] fetchSubscription error:", error);
+        }
       }
       // On error, set to free tier defaults
       setSubscription(null);

@@ -206,6 +206,14 @@ function mapBootstrapResultToGlobalStatus(
 
 // Export for logout flow to reset singleton
 export function resetBootAuthority() {
+  // [P0_BOOT_INVARIANT] Guard: don't flip back to loading if already loggedOut
+  // This prevents spinner re-appearing when resetSession is called while already logged out
+  if (globalStatus === 'loggedOut') {
+    if (__DEV__) {
+      devLog('[P0_BOOT_INVARIANT] resetBootAuthority skipped — already loggedOut, no churn');
+    }
+    return;
+  }
   devLog('[BOOT_AUTHORITY]', 'Resetting singleton for logout...');
   hasBootstrappedOnce = false;
   inFlightBootstrap = null;

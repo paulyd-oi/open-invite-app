@@ -298,6 +298,19 @@ function BootRouter() {
         return;
       }
 
+      // [P0_AUTH_EXPIRED_GATE] Only trigger logout if we were actually authed.
+      // When bootStatus is loggedOut/loading, a stray 401 is expected noise — swallow it.
+      if (bootStatus !== 'authed') {
+        if (__DEV__) {
+          devLog('[P0_AUTH_EXPIRED_GATE] tokenExists=false wasAuthed=false allowed=false bootStatus=' + bootStatus);
+        }
+        return;
+      }
+
+      if (__DEV__) {
+        devLog('[P0_AUTH_EXPIRED_GATE] tokenExists=true wasAuthed=true allowed=true bootStatus=' + bootStatus);
+      }
+
       // Trigger logout via SSOT - performLogout is idempotent
       performLogout({
         screen: 'auth_expiry',
@@ -307,7 +320,7 @@ function BootRouter() {
       });
     });
     return unsubscribe;
-  }, [queryClient, router]);
+  }, [queryClient, router, bootStatus]);
 
   // Reset auth expiry guard on successful login (allows re-detection in new session)
   useEffect(() => {
