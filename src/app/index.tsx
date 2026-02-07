@@ -2,22 +2,29 @@
  * Index Route - Entry point placeholder
  * 
  * INVARIANT: Boot decides once.
- * This route renders nothing - BootRouter in _layout.tsx handles all routing decisions.
- * The Redirect to /calendar is a fallback if BootRouter has already routed (authed user).
+ * This route renders a loading UI while boot resolves - BootRouter handles routing.
+ * INVARIANT: No null renders - always show BootLoading during loading state.
  */
 import { View } from "react-native";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { BootLoading } from "@/components/BootLoading";
+import { devLog } from "@/lib/devLog";
 
 export default function Index() {
   const { status: bootStatus } = useBootAuthority();
   
-  // While boot is loading, render nothing (splash is shown by layout)
-  // BootRouter will handle the actual routing once bootStatus resolves
+  // DEV-only proof log
+  if (__DEV__) {
+    devLog("[P0_BOOT_INDEX]", "Index route render, bootStatus:", bootStatus);
+  }
+  
+  // INVARIANT: Always render something - never null
+  // While boot is loading, show deterministic loading UI
   if (bootStatus === 'loading') {
-    return null;
+    return <BootLoading testID="index-boot-loading" context="index-route" />;
   }
   
   // If we're here and boot resolved, return empty view
   // BootRouter already navigated to the correct screen
-  return <View />;
+  return <View testID="index-resolved" />;
 }

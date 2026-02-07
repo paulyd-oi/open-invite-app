@@ -40,8 +40,15 @@ function notifySubscribers() {
 }
 
 function setGlobalState(status: BootStatus, error?: string) {
+  const prevStatus = globalStatus;
   globalStatus = status;
   globalError = error;
+  
+  // INVARIANT C: Log state transitions for debugging
+  if (__DEV__) {
+    devLog('[P0_BOOT_STATE]', `${prevStatus} → ${status}`, error ? `error: ${error}` : '');
+  }
+  
   notifySubscribers();
 }
 // =====================================

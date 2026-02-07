@@ -397,8 +397,9 @@ function BootRouter() {
     // INVARIANT: loggedOut → /welcome (Getting Started), NOT /login
     // Login is only reachable via button tap from Getting Started or deep link
     if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      // Only replace if not already on /welcome or /login (prevent loop)
-      if (pathname !== '/welcome' && pathname !== '/login') {
+      // ALWAYS route to /welcome on loggedOut, even if already on /login
+      // This ensures fresh installs go to welcome, not login
+      if (pathname !== '/welcome') {
         devLog('[ONBOARDING_BOOT]', '→ Routing to /welcome (no valid token - Getting Started)');
         router.replace('/welcome');
       }
@@ -424,9 +425,12 @@ function BootRouter() {
     }
   }, [navigationState?.key, bootStatus, router, pathname]);
 
-  // While loading or degraded, show nothing (splash screen handled in RootLayout)
+  // INVARIANT: Always render something - never null
+  // While loading or degraded, render empty fragment (splash/loading handled by parent)
+  // BootRouter only manages modals, not loading UI
   if (bootStatus === 'loading' || bootStatus === 'degraded') {
-    return null;
+    devLog('[P0_BOOT_ROUTER]', 'BootRouter waiting, status:', bootStatus);
+    return <></>;
   }
 
   // Render email verification gate modal (global, authed shell)
