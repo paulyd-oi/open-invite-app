@@ -164,6 +164,10 @@ function MiniCalendar({
               isOwn: isOwner,
             }, isOwner);
 
+            // [P0_CIRCLES_EVENT_GUARD] Preserve backend isPrivate — OR with shouldMask
+            // so events the backend marks private stay untappable even when isBusy/isWork are missing
+            const derivedPrivate = shouldMask || !!e.isPrivate;
+
             eventMap.set(e.id, {
               ...e,
               title: displayFields.displayTitle,
@@ -173,7 +177,7 @@ function MiniCalendar({
               color: memberColorMap.get(memberData.userId) ?? themeColor,
               userName: members.find(m => m.userId === memberData.userId)?.user.name ?? "Unknown",
               attendingMemberIds: [memberData.userId],
-              isPrivate: shouldMask,
+              isPrivate: derivedPrivate,
             });
           } else {
             // Already have this event - just add this member to attendees
@@ -621,12 +625,30 @@ function MiniCalendar({
                             reason: 'tap_allowed_event_will_gate',
                           });
                         }
+                        // [P0_CIRCLES_EVENT_GUARD] Validate event ID before navigation
+                        const eventId = event.id;
+                        if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+                          if (__DEV__) {
+                            devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
+                              eventId: eventId ?? 'missing',
+                              eventTitle: event.title,
+                              circleId,
+                            });
+                          }
+                          return;
+                        }
+                        if (__DEV__) {
+                          devLog('[P0_CIRCLES_EVENT_TRACE]', {
+                            circleId,
+                            eventId,
+                            requestUrl: `/api/events/${eventId}`,
+                            eventTitle: event.title,
+                            isPrivate: event.isPrivate,
+                          });
+                        }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setShowDayModal(false);
-                        // Navigate to event details - event/[id] will determine full_details vs private_gate
-                        if (event.id) {
-                          router.push(`/event/${event.id}` as any);
-                        }
+                        router.push(`/event/${eventId}` as any);
                       }}
                       style={{ opacity: isMaskedBusy ? 0.7 : 1 }}
                     >
