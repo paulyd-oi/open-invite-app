@@ -292,6 +292,10 @@ export function EventPhotoGallery({
   };
 
   const confirmDeletePhoto = () => {
+    if (deletePhotoMutation.isPending) {
+      if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'deletePhoto ignored, photoId=' + photoToDelete);
+      return;
+    }
     if (photoToDelete) {
       deletePhotoMutation.mutate(photoToDelete);
     }

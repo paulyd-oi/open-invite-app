@@ -154,6 +154,10 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   };
 
   const triggerMute = () => {
+    if (muteMutation.isPending) {
+      if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'circleMute ignored, circleId=' + circle.id);
+      return;
+    }
     const nextMuted = !circle.isMuted;
     devLog("[P1_CIRCLES_CARD]", "action=tap", "type=mute", `circleId=${circle.id}`, `wasMuted=${circle.isMuted}`, `nextMuted=${nextMuted}`);
     if (__DEV__) {

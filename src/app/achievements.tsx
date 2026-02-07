@@ -154,10 +154,18 @@ const setFeaturedMutation = useMutation({
   };
 
   const handleSetFeatured = (badgeKey: string) => {
+    if (setFeaturedMutation.isPending) {
+      if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'featuredToggle ignored (set), badgeKey=' + badgeKey);
+      return;
+    }
     setFeaturedMutation.mutate(badgeKey);
   };
 
   const handleRemoveFeatured = () => {
+    if (setFeaturedMutation.isPending) {
+      if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'featuredToggle ignored (remove)');
+      return;
+    }
     setFeaturedMutation.mutate(null);
   };
 

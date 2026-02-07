@@ -332,6 +332,10 @@ export default function CirclesScreen() {
           setCircleToLeave(null);
         }}
         onConfirm={() => {
+          if (leaveCircleMutation.isPending) {
+            if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'leaveCircle ignored, circleId=' + circleToLeave?.id);
+            return;
+          }
           if (circleToLeave) {
             leaveCircleMutation.mutate(circleToLeave.id);
           }

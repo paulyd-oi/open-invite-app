@@ -1889,6 +1889,10 @@ export default function CircleScreen() {
                   <Switch
                     value={circle?.isMuted ?? false}
                     onValueChange={(value) => {
+                      if (muteMutation.isPending) {
+                        if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'circleMute ignored, circleId=' + id);
+                        return;
+                      }
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       muteMutation.mutate(value);
                     }}

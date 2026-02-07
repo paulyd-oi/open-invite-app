@@ -1165,6 +1165,10 @@ export default function EventDetailScreen() {
   };
 
   const confirmDeleteComment = () => {
+    if (deleteCommentMutation.isPending) {
+      if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'deleteComment ignored, commentId=' + commentToDelete);
+      return;
+    }
     if (commentToDelete) {
       deleteCommentMutation.mutate(commentToDelete);
     }
