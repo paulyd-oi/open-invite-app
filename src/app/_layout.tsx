@@ -497,7 +497,6 @@ function RootLayoutNav() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="welcome" />
         <Stack.Screen name="calendar" />
         <Stack.Screen name="create" />
         <Stack.Screen name="friends" />
