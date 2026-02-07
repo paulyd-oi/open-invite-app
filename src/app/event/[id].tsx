@@ -870,7 +870,7 @@ export default function EventDetailScreen() {
       const nextTotalGoing = Math.max(1, prevTotalGoing + countDelta); // Never go below 1 (host)
 
       if (__DEV__) {
-        devLog("[P1_RSVP_COUNT]", "optimistic start", {
+        devLog("[P1_RSVP_RACE]", "onMutate optimistic", {
           eventId: id,
           prevStatus: prevRsvpStatus,
           nextStatus,
@@ -912,7 +912,7 @@ export default function EventDetailScreen() {
       }
       
       if (__DEV__) {
-        devLog("[P1_RSVP_COUNT]", "server success", { eventId: id, status });
+        devLog("[P1_RSVP_RACE]", "success", { eventId: id, nextStatus: status });
       }
       
       // P0 FIX: Invalidate using SSOT contract
@@ -940,14 +940,15 @@ export default function EventDetailScreen() {
       }
     },
     onError: (error: any, _nextStatus, context) => {
-      // [P1_RSVP_COUNT] Rollback optimistic update on error
+      // [P1_RSVP_RACE] Rollback optimistic update on error
       if (__DEV__) {
-        devLog("[P1_RSVP_COUNT]", "error rollback", {
+        devLog("[P1_RSVP_RACE]", "rollback", {
           eventId: id,
+          reason: "mutation error",
           prevStatus: context?.prevRsvpStatus,
           attemptedStatus: context?.nextStatus,
-          errorStatus: error?.response?.status ?? error?.status,
-          errorCode: error?.data?.code ?? error?.response?.data?.code,
+          status: error?.response?.status ?? error?.status,
+          code: error?.data?.code ?? error?.response?.data?.code,
         });
       }
 
@@ -989,9 +990,17 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
-    // [P1_RSVP_FLOW] Proof log: RSVP tap
+    // [P1_RSVP_RACE] Guard: prevent rapid-tap race conditions
+    if (rsvpMutation.isPending) {
+      if (__DEV__) {
+        devLog('[P1_RSVP_RACE]', 'tap ignored (pending)', { eventId: id, nextStatus: status });
+      }
+      return;
+    }
+    
+    // [P1_RSVP_RACE] Proof log: tap accepted
     if (__DEV__) {
-      devLog('[P1_RSVP_FLOW]', 'RSVP tap', { status, eventId: id });
+      devLog('[P1_RSVP_RACE]', 'tap accepted', { eventId: id, nextStatus: status, prevStatus: myRsvpStatus });
     }
     
     if (isBusyBlock) {
@@ -1020,6 +1029,15 @@ export default function EventDetailScreen() {
 
   const confirmRemoveRsvp = () => {
     setShowRemoveRsvpConfirm(false);
+    
+    // [P1_RSVP_RACE] Guard: prevent race if mutation already pending
+    if (rsvpMutation.isPending) {
+      if (__DEV__) {
+        devLog('[P1_RSVP_RACE]', 'confirm tap ignored (pending)', { eventId: id, nextStatus: 'not_going' });
+      }
+      return;
+    }
+    
     rsvpMutation.mutate("not_going");
   };
 
@@ -2182,6 +2200,7 @@ export default function EventDetailScreen() {
                       </View>
                       <Pressable
                         onPress={() => setShowRsvpOptions(!showRsvpOptions)}
+                        disabled={rsvpMutation.isPending}
                         className="px-3 py-1.5 rounded-full"
                         style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
                       >
