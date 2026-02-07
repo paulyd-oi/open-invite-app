@@ -821,6 +821,11 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
+    // [P1_RSVP_FLOW] Proof log: RSVP tap
+    if (__DEV__) {
+      devLog('[P1_RSVP_FLOW]', 'RSVP tap', { status, eventId: id });
+    }
+    
     if (isBusyBlock) {
       return;
     }
@@ -1066,8 +1071,13 @@ export default function EventDetailScreen() {
   }
 
   if (isLoadingEvent) {
+    // [P1_RSVP_FLOW] Proof log: event detail loading
+    if (__DEV__) {
+      devLog('[P1_RSVP_FLOW]', 'event detail loading', { eventId: id });
+    }
+    
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <SafeAreaView testID="event-detail-loading" className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event Details" }} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={themeColor} />
@@ -1206,6 +1216,15 @@ export default function EventDetailScreen() {
     }
 
     // Unknown/deleted event fallback - could be network error or deleted event
+    // [P1_RSVP_FLOW] Proof log: event load error
+    if (__DEV__) {
+      devLog('[P1_RSVP_FLOW]', 'event load error', {
+        eventId: id,
+        errorStatus: eventErrorStatus,
+        errorCode: eventErrorCode,
+      });
+    }
+    
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event" }} />
@@ -1240,6 +1259,14 @@ export default function EventDetailScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  // [P1_RSVP_FLOW] Proof log: event loaded successfully
+  if (__DEV__) {
+    devLog('[P1_RSVP_FLOW]', 'event loaded', {
+      eventId: event.id,
+      title: event.title,
+    });
   }
 
   const startDate = new Date(event.startTime);
