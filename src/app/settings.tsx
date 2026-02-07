@@ -616,6 +616,17 @@ export default function SettingsScreen() {
     };
     loadUnlockState();
   }, []);
+
+  // [P0_ADMIN_UNLOCK_TRACE] Audit passcode config at mount
+  useEffect(() => {
+    if (__DEV__) {
+      const envCode = Constants.expoConfig?.extra?.adminUnlockCode
+        ?? process.env.EXPO_PUBLIC_ADMIN_UNLOCK_CODE;
+      devLog(
+        `[P0_ADMIN_UNLOCK_TRACE] passcode_configured=${!!envCode} source=EXPO_PUBLIC_ADMIN_UNLOCK_CODE length=${envCode?.length ?? 0}`
+      );
+    }
+  }, []);
   
   // Get passcode from env var with DEV fallback
   const getAdminPasscode = useCallback((): string | null => {
@@ -656,12 +667,32 @@ export default function SettingsScreen() {
         if (__DEV__) devLog('[P0_ADMIN_UNLOCK_TRACE] already_unlocked, suppressed');
         return;
       }
+
+      // DEV BYPASS: auto-unlock for admin email without passcode modal
+      // This block is tree-shaken in production builds (__DEV__ is false)
+      if (__DEV__ && userEmail === "pauljdal@gmail.com") {
+        devLog("[P0_ADMIN_UNLOCK_TRACE] dev_bypass email=pauljdal@gmail.com");
+        setAdminUnlocked(true);
+        (async () => {
+          try {
+            await AsyncStorage.setItem(ADMIN_UNLOCK_KEY, "true");
+            devLog("[P0_ADMIN_UNLOCK_TRACE] persisted to AsyncStorage");
+          } catch (e) {
+            devLog("[P0_ADMIN_UNLOCK_TRACE] AsyncStorage write failed (non-fatal)");
+          }
+        })();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        safeToast.success("Enabled", "");
+        devLog("[P0_ADMIN_UNLOCK_TRACE] admin_gate isAdmin=" + String(adminStatus?.isAdmin ?? "unknown"));
+        return;
+      }
       
       // Check if passcode is configured
       const passcode = getAdminPasscode();
       if (!passcode) {
         if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] FAIL_CLOSED - no passcode configured");
-        // In production, fail silently (no feedback)
+        // Production: show user-facing toast
+        if (!__DEV__) safeToast.warning("Admin unlock unavailable", "");
         return;
       }
       
@@ -671,7 +702,7 @@ export default function SettingsScreen() {
       setPasscodeError(false);
       setShowPasscodeModal(true);
     }
-  }, [adminUnlocked, getAdminPasscode]);
+  }, [adminUnlocked, getAdminPasscode, userEmail]);
   
   // Handle passcode submission
   const handlePasscodeSubmit = useCallback(async () => {
