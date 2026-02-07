@@ -371,12 +371,14 @@ export default function AdminConsole() {
   const handleGrantBadge = async () => {
     if (!selectedUser || !selectedBadgeToGrant || isGrantingBadge) return;
     
+    if (__DEV__) devLog(`[ADMIN_BADGE_GRANT] submit key=${selectedBadgeToGrant} userId=${selectedUser.id.substring(0,8)}...`);
     setIsGrantingBadge(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBadgeError(null);
     
     try {
       const response = await grantBadgeByKey(selectedUser.id, selectedBadgeToGrant, grantBadgeNote || undefined);
+      if (__DEV__) devLog(`[ADMIN_BADGE_GRANT] submit key=${selectedBadgeToGrant} userId=${selectedUser.id.substring(0,8)}... status=${response.success ? 'SUCCESS' : 'FAILED'}`);
       if (response.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Badge granted", `Badge granted to ${selectedUser.name || selectedUser.email}`);
@@ -1106,14 +1108,23 @@ export default function AdminConsole() {
                     borderColor: isDark ? "#38383A" : "#E5E7EB",
                   }}
                 >
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-2 py-2">
-                    {allBadgeDefinitions.filter(b => b.isActive !== false).map((badge) => {
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    className="px-2 py-2"
+                    {...(Platform.OS === "ios" ? { delaysContentTouches: false, canCancelContentTouches: false } as any : {})}
+                  >
+                    {allBadgeDefinitions.filter(b => b.isActive !== false && !!b.badgeKey).map((badge) => {
                       const isSelected = selectedBadgeToGrant === badge.badgeKey;
                       const isAlreadyGranted = userBadges.some(ub => ub.badgeKey === badge.badgeKey);
                       return (
                         <Pressable
-                          key={badge.id}
-                          onPress={() => !isAlreadyGranted && setSelectedBadgeToGrant(badge.badgeKey)}
+                          key={badge.badgeKey}
+                          onPress={() => {
+                            if (isAlreadyGranted) return;
+                            if (__DEV__) devLog(`[ADMIN_BADGE_GRANT] select key=${badge.badgeKey}`);
+                            setSelectedBadgeToGrant(badge.badgeKey);
+                          }}
                           disabled={isAlreadyGranted}
                           className="px-3 py-2 mr-2 rounded-lg flex-row items-center"
                           style={{ 
