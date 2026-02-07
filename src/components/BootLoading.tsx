@@ -20,7 +20,7 @@ interface BootLoadingProps {
 export function BootLoading({ testID = "boot-loading", context }: BootLoadingProps) {
   // DEV-only proof log
   if (__DEV__ && context) {
-    devLog("[P0_BOOT_LOADING]", "Rendering boot loading UI, context:", context);
+    devLog("[P0_BOOT_CONTRACT]", "Rendering boot loading UI, context:", context);
   }
 
   return (

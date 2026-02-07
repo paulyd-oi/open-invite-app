@@ -123,7 +123,7 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // Instead, we trust that signIn.email() succeeded and proceed to bootstrap.
     
     if (__DEV__) {
-      devLog("[P0_WHITE_LOGIN] Auth success, proceeding with cookie-based session");
+      devLog("[P0_BOOT_CONTRACT] Auth success, proceeding with cookie-based session");
     }
 
     // ✅ CRITICAL: Force bootstrap re-run after login
@@ -131,33 +131,33 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
     const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
     if (__DEV__) {
-      devLog("[P0_WHITE_LOGIN] Forcing bootstrap re-run after login...");
+      devLog("[P0_BOOT_CONTRACT] Forcing bootstrap re-run after login...");
     }
     const finalStatus = await rebootstrapAfterLogin();
 
     // ✅ FIX: Route directly to the correct destination based on bootstrap result
     // This prevents white screen from navigating to "/" which returns null during loading
     if (__DEV__) {
-      devLog("[P0_WHITE_LOGIN] Bootstrap complete, finalStatus:", finalStatus);
+      devLog("[P0_BOOT_CONTRACT] Bootstrap complete, finalStatus:", finalStatus);
     }
     
     if (finalStatus === 'authed') {
-      // [ROUTE_AFTER_LOGIN] Proof log: deterministic route to calendar
-      devLog('[ROUTE_AFTER_LOGIN]', 'finalStatus=authed → /calendar');
-      devLog("[P0_WHITE_LOGIN] → Routing directly to /calendar (fully authenticated)");
+      // [P0_BOOT_CONTRACT] Proof log: deterministic route to calendar
+      devLog('[P0_BOOT_CONTRACT]', 'finalStatus=authed → /calendar');
+      devLog("[P0_BOOT_CONTRACT] → Routing directly to /calendar (fully authenticated)");
       router.replace("/calendar");
     } else if (finalStatus === 'onboarding') {
-      devLog("[P0_WHITE_LOGIN] → Routing to /welcome (onboarding incomplete)");
+      devLog("[P0_BOOT_CONTRACT] → Routing to /welcome (onboarding incomplete)");
       router.replace("/welcome");
     } else {
       // error or degraded - stay on current screen or go to welcome
-      devWarn("[P0_WHITE_LOGIN] Unexpected status after login:", finalStatus);
+      devWarn("[P0_BOOT_CONTRACT] Unexpected status after login:", finalStatus);
       router.replace("/welcome");
     }
   } catch (error) {
-    devError("[P0_WHITE_LOGIN] Error during post-login routing:", error);
+    devError("[P0_BOOT_CONTRACT] Error during post-login routing:", error);
     // On error, stay on login (fail safe to avoid blocking user with redirects)
-    devLog("[P0_WHITE_LOGIN] Staying on login screen due to error");
+    devLog("[P0_BOOT_CONTRACT] Staying on login screen due to error");
   }
 }
 
@@ -208,8 +208,8 @@ export default function LoginScreen() {
           result.error.message || "Please check your credentials"
         );
       } else if (result.data) {
-        // [AUTH_SUCCESS] Proof log: login succeeded, transitioning to success view
-        devLog('[AUTH_SUCCESS]', 'Login successful, userId:', result.data.user?.id?.substring(0, 8) || 'unknown');
+        // [P0_BOOT_CONTRACT] Proof log: login succeeded, transitioning to success view
+        devLog('[P0_BOOT_CONTRACT]', 'Login successful, userId:', result.data.user?.id?.substring(0, 8) || 'unknown');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAuthView("success");
         setTimeout(() => {

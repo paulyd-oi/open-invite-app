@@ -28,6 +28,7 @@ import { NetworkStatusBanner } from '@/components/OfflineBanner';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { ToastContainer } from '@/components/Toast';
+import { BootLoading } from '@/components/BootLoading';
 import { AutoSyncProvider } from '@/components/AutoSyncProvider';
 import { setupDeepLinkListener } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
@@ -445,12 +446,11 @@ function BootRouter() {
     }
   }, [navigationState?.key, bootStatus, router, pathname]);
 
-  // INVARIANT: Always render something - never null
-  // While loading or degraded, render empty fragment (splash/loading handled by parent)
-  // BootRouter only manages modals, not loading UI
+  // INVARIANT: Always render something - never null or empty fragment
+  // While loading or degraded, render BootLoading to prevent white screens
   if (bootStatus === 'loading' || bootStatus === 'degraded') {
-    devLog('[P0_BOOT_ROUTER]', 'BootRouter waiting, status:', bootStatus);
-    return <></>;
+    devLog('[P0_BOOT_CONTRACT]', 'BootRouter rendering BootLoading, status:', bootStatus);
+    return <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />;
   }
 
   // Render email verification gate modal (global, authed shell)
