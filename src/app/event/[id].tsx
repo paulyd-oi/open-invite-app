@@ -94,7 +94,6 @@ import {
   invalidateEventKeys,
   getRefetchOnEventFocus,
   getInvalidateAfterRsvpJoin,
-  getInvalidateAfterRsvpLeave,
   getInvalidateAfterJoinRequestAction,
   getInvalidateAfterComment,
   deriveAttendeeCount,
@@ -338,8 +337,6 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
-  const [joinMessage, setJoinMessage] = useState("");
-  const [showJoinForm, setShowJoinForm] = useState(false);
   const [showMap, _setShowMap] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -689,25 +686,6 @@ export default function EventDetailScreen() {
     (r) => r.userId === session?.user?.id
   );
 
-  const joinMutation = useMutation({
-    mutationFn: (message?: string) => {
-      if (isBusyBlock) {
-        throw new Error("BUSY_BLOCK");
-      }
-      return api.post(`/api/events/${id}/join`, { message });
-    },
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("You're Attending!", "This event has been added to your calendar.");
-      setShowJoinForm(false);
-      // P0 FIX: Invalidate using SSOT contract
-      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), "join_success");
-    },
-    onError: () => {
-      safeToast.error("Oops", "That didn't go through. Please try again.");
-    },
-  });
-
   const handleJoinRequestAction = useMutation({
     mutationFn: ({ requestId, status }: { requestId: string; status: "accepted" | "rejected" }) => {
       if (isBusyBlock) {
@@ -972,20 +950,6 @@ export default function EventDetailScreen() {
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
       }
-    },
-  });
-
-  const removeRsvpMutation = useMutation({
-    mutationFn: () => {
-      if (isBusyBlock) {
-        throw new Error("BUSY_BLOCK");
-      }
-      return api.delete(`/api/events/${id}/rsvp`);
-    },
-    onSuccess: () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // P0 FIX: Invalidate using SSOT contract
-      invalidateEventKeys(queryClient, getInvalidateAfterRsvpLeave(id ?? ""), "rsvp_remove");
     },
   });
 
