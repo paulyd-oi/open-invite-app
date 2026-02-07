@@ -788,6 +788,11 @@ export default function SocialScreen() {
   // Handle RSVP from swipe action
   const handleSwipeRsvp = useCallback((eventId: string, status: RsvpStatus) => {
     if (!isAuthed) return;
+    // [P0_SOCIAL_RSVP_RACE_GUARD] Prevent rapid-tap duplicate mutations
+    if (rsvpMutation.isPending) {
+      if (__DEV__) devLog('[P0_SOCIAL_RSVP_RACE_GUARD]', 'swipe ignored (pending), eventId=' + eventId + ' status=' + status);
+      return;
+    }
     rsvpMutation.mutate({ eventId, status });
   }, [isAuthed, rsvpMutation]);
 
