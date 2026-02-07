@@ -83,7 +83,6 @@ import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
-import { isDevToolsEnabled } from "@/lib/devToolsGate";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -609,7 +608,7 @@ export default function SettingsScreen() {
         const stored = await AsyncStorage.getItem(ADMIN_UNLOCK_KEY);
         if (stored === "true") {
           setAdminUnlocked(true);
-          if (__DEV__) devLog("[P0_ADMIN_UNLOCK] restored from storage (was previously unlocked)");
+          if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] already_unlocked (restored from storage)");
         }
       } catch (e) {
         // Fail silently - default to locked
@@ -630,8 +629,8 @@ export default function SettingsScreen() {
     return null;
   }, []);
   
-  // Handle 7-tap detection on Settings header
-  const handleSettingsHeaderTap = useCallback(() => {
+  // Handle 7-tap detection on avatar (profile card)
+  const handleAdminUnlockTap = useCallback(() => {
     const now = Date.now();
     const cutoff = now - ADMIN_TAP_WINDOW_MS;
     
@@ -641,7 +640,7 @@ export default function SettingsScreen() {
     adminTapTimestampsRef.current = recentTaps;
     
     const tapNum = recentTaps.length;
-    if (__DEV__) devLog(`[P0_ADMIN_UNLOCK] tap ${tapNum}/${ADMIN_TAP_COUNT} within window`);
+    if (__DEV__) devLog(`[P0_ADMIN_UNLOCK_TRACE] tapCount=${tapNum}/${ADMIN_TAP_COUNT}`);
     
     // [P2_TRUST_SWEEP] Only give haptic after tap 5 to avoid signaling to casual users
     if (tapNum >= 5 && tapNum < ADMIN_TAP_COUNT) {
@@ -654,20 +653,19 @@ export default function SettingsScreen() {
       
       // Check if already unlocked
       if (adminUnlocked) {
-        // [P2_TRUST_SWEEP] Silently ignore — no toast or haptic for non-admin discovery
-        if (__DEV__) devLog('[P2_TRUST_SWEEP]', 'already unlocked, suppressed toast');
+        if (__DEV__) devLog('[P0_ADMIN_UNLOCK_TRACE] already_unlocked, suppressed');
         return;
       }
       
       // Check if passcode is configured
       const passcode = getAdminPasscode();
       if (!passcode) {
-        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] FAIL_CLOSED - no passcode configured");
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] FAIL_CLOSED - no passcode configured");
         // In production, fail silently (no feedback)
         return;
       }
       
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] 7-tap SUCCESS, showing passcode prompt");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] modal_opened");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setPasscodeInput("");
       setPasscodeError(false);
@@ -682,6 +680,7 @@ export default function SettingsScreen() {
     
     if (passcodeInput === correctCode) {
       // Correct passcode
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] code_ok");
       setAdminUnlocked(true);
       setShowPasscodeModal(false);
       setPasscodeInput("");
@@ -690,19 +689,21 @@ export default function SettingsScreen() {
       // Persist to AsyncStorage
       try {
         await AsyncStorage.setItem(ADMIN_UNLOCK_KEY, "true");
-        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] persisted to AsyncStorage");
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] persisted to AsyncStorage");
       } catch (e) {
-        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] AsyncStorage write failed (non-fatal)");
+        if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] AsyncStorage write failed (non-fatal)");
       }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Enabled", "");
-      if (__DEV__) devLog('[P2_TRUST_SWEEP]', 'unlock success, neutral toast shown');
+      
+      // [P0_ADMIN_UNLOCK_TRACE] Log admin gate status
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] admin_gate isAdmin=" + String(adminStatus?.isAdmin ?? "unknown"));
     } else {
       // Wrong passcode
       setPasscodeError(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] WRONG_PASSCODE");
+      if (__DEV__) devLog("[P0_ADMIN_UNLOCK_TRACE] code_bad");
     }
   }, [passcodeInput, getAdminPasscode]);
   // =====================================================
@@ -1360,18 +1361,7 @@ export default function SettingsScreen() {
         >
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
-        <Pressable
-          onPress={handleSettingsHeaderTap}
-          onLongPress={isDevToolsEnabled() ? () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            router.push("/debug/health");
-          } : undefined}
-          delayLongPress={500}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 24 }}
-          style={{ paddingVertical: 4, paddingHorizontal: 4 }}
-        >
-          <Text style={{ color: colors.text }} className="text-xl font-sora-bold">Settings</Text>
-        </Pressable>
+        <Text style={{ color: colors.text, paddingVertical: 4, paddingHorizontal: 4 }} className="text-xl font-sora-bold">Settings</Text>
       </View>
 
       <ScrollView
@@ -1401,7 +1391,14 @@ export default function SettingsScreen() {
                 shadowRadius: 8,
               }}
             >
-              <View className="w-16 h-16 rounded-full mr-4 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  handleAdminUnlockTap();
+                }}
+                className="w-16 h-16 rounded-full mr-4 overflow-hidden"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
+              >
                 {avatarSource ? (
                   <Image source={avatarSource} className="w-full h-full" />
                 ) : (
@@ -1411,7 +1408,7 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
                 )}
-              </View>
+              </Pressable>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-lg font-semibold">
                   {getProfileDisplay({ profileData, session, fallbackName: "Add your name" }).displayName}
