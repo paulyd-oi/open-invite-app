@@ -508,6 +508,7 @@ function FriendRequestCard({
   type,
   onAccept,
   onReject,
+  actionPending = false,
   themeColor,
   isDark,
   colors,
@@ -517,6 +518,7 @@ function FriendRequestCard({
   type: "received" | "sent";
   onAccept?: () => void;
   onReject?: () => void;
+  actionPending?: boolean;
   themeColor: string;
   isDark: boolean;
   colors: any;
@@ -613,8 +615,9 @@ function FriendRequestCard({
               e.stopPropagation();
               onReject?.();
             }}
+            disabled={actionPending}
             className="w-8 h-8 rounded-full items-center justify-center mr-2"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB", opacity: actionPending ? 0.4 : 1 }}
           >
             <X size={16} color={colors.textSecondary} />
           </Pressable>
@@ -623,8 +626,9 @@ function FriendRequestCard({
               e.stopPropagation();
               onAccept?.();
             }}
+            disabled={actionPending}
             className="w-8 h-8 rounded-full items-center justify-center"
-            style={{ backgroundColor: themeColor }}
+            style={{ backgroundColor: themeColor, opacity: actionPending ? 0.4 : 1 }}
           >
             <Check size={16} color="#fff" />
           </Pressable>
@@ -1592,8 +1596,21 @@ export default function FriendsScreen() {
                       themeColor={themeColor}
                       isDark={isDark}
                       colors={colors}
-                      onAccept={() => acceptRequestMutation.mutate(request.id)}
-                      onReject={() => rejectRequestMutation.mutate(request.id)}
+                      actionPending={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
+                      onAccept={() => {
+                        if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) {
+                          if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'accept tap ignored, requestId=' + request.id);
+                          return;
+                        }
+                        acceptRequestMutation.mutate(request.id);
+                      }}
+                      onReject={() => {
+                        if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) {
+                          if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'reject tap ignored, requestId=' + request.id);
+                          return;
+                        }
+                        rejectRequestMutation.mutate(request.id);
+                      }}
                       onViewProfile={() => {
                         if (senderId) {
                           router.push(`/user/${senderId}` as any);
