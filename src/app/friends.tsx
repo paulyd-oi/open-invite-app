@@ -1069,6 +1069,17 @@ export default function FriendsScreen() {
 
   const circles = circlesData?.circles ?? [];
 
+  // [P1_CIRCLES_RENDER] Proof log: circles render on friends screen
+  if (__DEV__ && circles.length > 0) {
+    const renderSnapshot = circles.slice(0, 5).map(c => ({
+      id: c.id.slice(0, 6),
+      name: c.name,
+      isPinned: c.isPinned ?? false,
+      isMuted: c.isMuted ?? false,
+    }));
+    devLog("[P1_CIRCLES_RENDER]", "friends screen circles render", { count: circles.length, first5: renderSnapshot });
+  }
+
   // Fetch pinned friendships
   const { data: pinnedData, isFetched: pinnedFetched } = useQuery({
     queryKey: ["pinnedFriendships"],
@@ -1672,7 +1683,7 @@ export default function FriendsScreen() {
               ) : (
                 circles.map((circle, index) => (
                   <CircleCard
-                    key={circle.id}
+                    key={`${circle.id}-${circle.isPinned ?? false}-${circle.isMuted ?? false}`}
                     circle={circle}
                     index={index}
                     onPin={(id) => pinCircleMutation.mutate(id)}

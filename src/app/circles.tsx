@@ -157,6 +157,17 @@ export default function CirclesScreen() {
   const circles = data?.circles ?? [];
   const friends = friendsData?.friends ?? [];
 
+  // [P1_CIRCLES_RENDER] Proof log: render with current circles state
+  if (__DEV__ && circles.length > 0) {
+    const renderSnapshot = circles.slice(0, 5).map(c => ({
+      id: c.id.slice(0, 6),
+      name: c.name,
+      isPinned: c.isPinned ?? false,
+      isMuted: c.isMuted ?? false,
+    }));
+    devLog("[P1_CIRCLES_RENDER]", "list render", { count: circles.length, first5: renderSnapshot });
+  }
+
   const createCircleMutation = useMutation({
     mutationFn: ({ name, emoji, memberIds }: { name: string; emoji: string; memberIds: string[] }) =>
       api.post<{ circle: Circle }>("/api/circles", { name, emoji, memberIds }),
@@ -270,7 +281,7 @@ export default function CirclesScreen() {
             <GestureHandlerRootView>
               {circles.map((circle: Circle, index: number) => (
                 <CircleCard
-                  key={circle.id}
+                  key={`${circle.id}-${circle.isPinned ?? false}-${circle.isMuted ?? false}`}
                   circle={circle}
                   index={index}
                   onPin={(id) => pinCircleMutation.mutate(id)}

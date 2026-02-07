@@ -38,6 +38,17 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   const { themeColor, isDark, colors } = useTheme();
   const queryClient = useQueryClient();
 
+  // [P1_CIRCLES_RENDER] Proof log: card render with state
+  if (__DEV__) {
+    devLog("[P1_CIRCLES_RENDER]", "card render", {
+      id: circle.id.slice(0, 6),
+      name: circle.name,
+      isPinned: circle.isPinned ?? false,
+      isMuted: circle.isMuted ?? false,
+      index,
+    });
+  }
+
   // Ensure members is always an array to prevent crashes
   const members = circle.members ?? [];
 
