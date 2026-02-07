@@ -640,12 +640,11 @@ export default function SettingsScreen() {
     recentTaps.push(now);
     adminTapTimestampsRef.current = recentTaps;
     
-    // [P0_ADMIN_UNLOCK] Per-tap feedback so user knows taps register
     const tapNum = recentTaps.length;
     if (__DEV__) devLog(`[P0_ADMIN_UNLOCK] tap ${tapNum}/${ADMIN_TAP_COUNT} within window`);
     
-    // Light haptic feedback per tap (let user know taps are registering)
-    if (tapNum < ADMIN_TAP_COUNT) {
+    // [P2_TRUST_SWEEP] Only give haptic after tap 5 to avoid signaling to casual users
+    if (tapNum >= 5 && tapNum < ADMIN_TAP_COUNT) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
@@ -655,9 +654,8 @@ export default function SettingsScreen() {
       
       // Check if already unlocked
       if (adminUnlocked) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        safeToast.info("Already Unlocked", "Admin tools already accessible");
-        if (__DEV__) devLog("[P0_ADMIN_UNLOCK] already unlocked, showing toast");
+        // [P2_TRUST_SWEEP] Silently ignore — no toast or haptic for non-admin discovery
+        if (__DEV__) devLog('[P2_TRUST_SWEEP]', 'already unlocked, suppressed toast');
         return;
       }
       
@@ -698,8 +696,8 @@ export default function SettingsScreen() {
       }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Unlocked", "Admin tools now accessible");
-      if (__DEV__) devLog("[P0_ADMIN_UNLOCK] SUCCESS - admin section now visible");
+      safeToast.success("Enabled", "");
+      if (__DEV__) devLog('[P2_TRUST_SWEEP]', 'unlock success, neutral toast shown');
     } else {
       // Wrong passcode
       setPasscodeError(true);
@@ -2362,17 +2360,7 @@ export default function SettingsScreen() {
           </Animated.View>
         )}
 
-        {/* Admin Section - Unlocked but not admin (safe stub) */}
-        {adminUnlocked && !adminStatus?.isAdmin && (
-          <Animated.View entering={FadeInDown.delay(270).springify()} className="mx-4 mt-6">
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">ADMIN</Text>
-            <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
-              <Text style={{ color: colors.textSecondary }} className="text-sm text-center">
-                Admin access unlocked, but your account does not have admin privileges.
-              </Text>
-            </View>
-          </Animated.View>
-        )}
+        {/* [P2_TRUST_SWEEP] Non-admin stub removed — unlock produces no visible UI for non-admins */}
 
         {/* Legal Section */}
         <Animated.View entering={FadeInDown.delay(275).springify()} className="mx-4 mt-6">
@@ -2500,10 +2488,10 @@ export default function SettingsScreen() {
             style={{ backgroundColor: colors.surface, maxWidth: 320, width: "85%" }}
           >
             <Text className="text-lg font-bold text-center mb-3" style={{ color: colors.text }}>
-              Enter Passcode
+              Enter Code
             </Text>
             <Text className="text-sm text-center mb-4" style={{ color: colors.textSecondary }}>
-              Enter the admin passcode to continue
+              Enter code to continue
             </Text>
             <TextInput
               value={passcodeInput}
