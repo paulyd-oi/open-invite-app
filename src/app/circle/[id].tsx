@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   ActionSheetIOS,
   Alert,
+  AppState,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
   type ViewToken,
@@ -1465,23 +1466,25 @@ export default function CircleScreen() {
     }, [session, id, bootStatus, sendReadHorizon]),
   );
 
-  // [P2_TYPING_UI] Poll typing list every 2s while focused
+  // [P2_TYPING_UI] Poll typing list every 2s while focused + app active
   useFocusEffect(
     useCallback(() => {
       if (!id || !session?.user?.id || !isAuthedForNetwork(bootStatus, session)) return;
       let active = true;
+      let paused = AppState.currentState !== "active";
       const poll = async () => {
+        if (!active || paused) return;
         try {
           const res = await api.get<{ ok: boolean; typing: Array<{ userId: string; name: string; updatedAt: number }> }>(
             `/api/circles/${id}/typing`,
           );
-          if (!active) return;
+          if (!active || paused) return;
           const filtered = (res?.typing ?? []).filter((t) => t.userId !== session.user?.id);
           setTypingUsers(filtered);
           // [P2_TYPING_UI] Log transitions
           const nowNonEmpty = filtered.length > 0;
           if (nowNonEmpty !== prevTypingNonEmptyRef.current) {
-            if (__DEV__) devLog("[P2_TYPING_UI]", nowNonEmpty ? "indicator_show" : "indicator_hide", { names: filtered.map((t) => t.name) });
+            if (__DEV__) devLog("[P2_TYPING_UI]", nowNonEmpty ? "show" : "hide", nowNonEmpty ? { count: filtered.length } : {});
             prevTypingNonEmptyRef.current = nowNonEmpty;
           }
         } catch {
@@ -1490,9 +1493,15 @@ export default function CircleScreen() {
       };
       poll();
       const interval = setInterval(poll, 2000);
+      // Pause polling when app goes to background
+      const appSub = AppState.addEventListener("change", (next) => {
+        paused = next !== "active";
+        if (!paused) poll(); // Resume immediately on foreground
+      });
       return () => {
         active = false;
         clearInterval(interval);
+        appSub.remove();
         setTypingUsers([]);
         prevTypingNonEmptyRef.current = false;
       };
@@ -1747,7 +1756,7 @@ export default function CircleScreen() {
     if (!groupLogFired.current && __DEV__) {
       devLog("[P1_CHAT_GROUP]", "enabled windowMs=120000");
       devLog("[P2_CHAT_DATESEP]", "enabled");
-      devLog("[P2_TYPING_UI]", "enabled pollMs=2000 throttleMs=1000 ttlMs=8000");
+      devLog("[P2_TYPING_UI]", "mounted");
       groupLogFired.current = true;
     }
   }, []);
