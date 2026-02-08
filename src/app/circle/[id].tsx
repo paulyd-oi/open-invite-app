@@ -20,7 +20,7 @@ import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
-import { safeAppendMessage, buildOptimisticMessage } from "@/lib/pushRouter";
+import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -44,6 +44,7 @@ import {
   Check,
   UserCheck,
   BellOff,
+  RefreshCw,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -726,14 +727,18 @@ function MessageBubble({
   themeColor,
   colors,
   isDark,
+  onRetry,
 }: {
-  message: CircleMessage;
+  message: CircleMessage & { status?: string; retryCount?: number };
   isOwn: boolean;
   themeColor: string;
   colors: any;
   isDark: boolean;
+  onRetry?: () => void;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
+  const isSending = (message as any).status === "sending";
+  const isFailed = (message as any).status === "failed";
 
   if (isSystemMessage) {
     return (
@@ -779,13 +784,32 @@ function MessageBubble({
             className={`rounded-2xl px-4 py-2.5 ${isOwn ? "rounded-br-md" : "rounded-bl-md"}`}
             style={{
               backgroundColor: isOwn ? themeColor : isDark ? "#2C2C2E" : "#F3F4F6",
+              opacity: isSending ? 0.7 : isFailed ? 0.5 : 1,
             }}
           >
             <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
           </View>
-          <Text className={`text-[10px] mt-1 ${isOwn ? "text-right mr-1" : "ml-1"}`} style={{ color: colors.textTertiary }}>
-            {new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-          </Text>
+          <View className={`flex-row items-center mt-1 ${isOwn ? "justify-end mr-1" : "ml-1"}`}>
+            <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
+              {new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </Text>
+            {isSending && (
+              <Text className="text-[10px] ml-1" style={{ color: colors.textTertiary }}>Sending…</Text>
+            )}
+            {isFailed && onRetry && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onRetry();
+                }}
+                className="flex-row items-center ml-1.5"
+                hitSlop={8}
+              >
+                <RefreshCw size={10} color="#EF4444" />
+                <Text className="text-[10px] ml-0.5" style={{ color: "#EF4444" }}>Retry</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
       </View>
     </View>
@@ -888,7 +912,9 @@ export default function CircleScreen() {
     onMutate: async (content: string) => {
       // Build optimistic message and insert into cache immediately
       const userId = session?.user?.id ?? "unknown";
-      const optimistic = buildOptimisticMessage(id, userId, content);
+      const userName = session?.user?.name ?? undefined;
+      const userImage = session?.user?.image ?? null;
+      const optimistic = buildOptimisticMessage(id, userId, content, userName, userImage);
 
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
@@ -905,10 +931,10 @@ export default function CircleScreen() {
       // Clear input immediately for instant feel
       setMessage("");
 
-      return { optimisticId: optimistic.id };
+      return { optimisticId: optimistic.id, content };
     },
     onSuccess: (serverResponse: any, _content, context) => {
-      // Reconcile: replace optimistic message with server response
+      // Reconcile: replace optimistic message with server response, mark sent
       const serverMsg = serverResponse?.message;
       if (serverMsg?.id && context?.optimisticId) {
         queryClient.setQueryData(
@@ -921,7 +947,7 @@ export default function CircleScreen() {
                 ...prev.circle,
                 messages: prev.circle.messages.map((m: any) =>
                   m.id === context.optimisticId
-                    ? { ...serverMsg, status: undefined }
+                    ? { ...serverMsg, status: "sent" }
                     : m,
                 ),
               },
@@ -929,7 +955,7 @@ export default function CircleScreen() {
           },
         );
         if (__DEV__) {
-          devLog("[P1_MSG_OPT]", `reconciled ${context.optimisticId} → ${serverMsg.id}`);
+          devLog("[P1_MSG_DELIVERY]", `sent ${context.optimisticId} → ${serverMsg.id}`);
         }
       }
 
@@ -944,7 +970,7 @@ export default function CircleScreen() {
       }, 100);
     },
     onError: (_error, _content, context) => {
-      // Rollback: remove optimistic message from cache
+      // Mark as failed — do NOT remove. Message stays visible for retry.
       if (context?.optimisticId) {
         queryClient.setQueryData(
           circleKeys.single(id),
@@ -954,18 +980,20 @@ export default function CircleScreen() {
               ...prev,
               circle: {
                 ...prev.circle,
-                messages: prev.circle.messages.filter(
-                  (m: any) => m.id !== context.optimisticId,
+                messages: prev.circle.messages.map(
+                  (m: any) => m.id === context.optimisticId
+                    ? { ...m, status: "failed" }
+                    : m,
                 ),
               },
             };
           },
         );
         if (__DEV__) {
-          devLog("[P1_MSG_OPT]", `rollback ${context.optimisticId}`);
+          devLog("[P1_MSG_DELIVERY]", `failed ${context.optimisticId}`);
         }
       }
-      safeToast.error("Error", "Message failed to send. Please try again.");
+      safeToast.error("Error", "Message failed to send. Tap to retry.");
     },
   });
 
@@ -1492,6 +1520,16 @@ export default function CircleScreen() {
               themeColor={themeColor}
               colors={colors}
               isDark={isDark}
+              onRetry={
+                (item as any).status === "failed" && (item as any).id?.startsWith("optimistic-")
+                  ? () => retryFailedMessage(
+                      id,
+                      (item as any).id,
+                      queryClient,
+                      () => sendMessageMutation.mutate(item.content),
+                    )
+                  : undefined
+              }
             />
           )}
         />

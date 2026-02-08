@@ -262,20 +262,62 @@ export function safeAppendMessage(
  * Build an optimistic message for instant UI insertion.
  * Temp id namespace "optimistic-" prevents collision with server ids.
  * status: "sending" marks the message as optimistic.
+ * Uses "content" to match CircleMessage schema (not "text").
  */
 export function buildOptimisticMessage(
   circleId: string,
   userId: string,
-  text: string,
-): { id: string; circleId: string; userId: string; text: string; createdAt: string; status: string } {
+  content: string,
+  userName?: string,
+  userImage?: string | null,
+) {
   return {
     id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     circleId,
     userId,
-    text,
+    content,
+    text: content, // compat alias
+    imageUrl: null,
     createdAt: new Date().toISOString(),
-    status: "sending",
+    status: "sending" as "sending" | "sent" | "failed",
+    retryCount: 0,
+    user: { id: userId, name: userName ?? null, email: null, image: userImage ?? null },
   };
+}
+
+/**
+ * Retry a failed message: mark as "sending", bump retryCount, re-invoke send.
+ * sendFn should call the same API mutation used for normal sends.
+ */
+export function retryFailedMessage(
+  circleId: string,
+  optimisticId: string,
+  queryClient: QueryClient,
+  sendFn: () => void,
+): void {
+  queryClient.setQueryData(
+    circleKeys.single(circleId),
+    (prev: any) => {
+      if (!prev?.circle?.messages) return prev;
+      return {
+        ...prev,
+        circle: {
+          ...prev.circle,
+          messages: prev.circle.messages.map((m: any) =>
+            m.id === optimisticId
+              ? { ...m, status: "sending", retryCount: (m.retryCount ?? 0) + 1 }
+              : m,
+          ),
+        },
+      };
+    },
+  );
+
+  if (__DEV__) {
+    devLog("[P1_MSG_DELIVERY]", `retry ${optimisticId}`);
+  }
+
+  sendFn();
 }
 
 /**

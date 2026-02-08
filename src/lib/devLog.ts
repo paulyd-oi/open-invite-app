@@ -53,6 +53,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_MSG_PATCH]",
   // P1 optimistic message send proof
   "[P1_MSG_OPT]",
+  // P1 message delivery + retry proof
+  "[P1_MSG_DELIVERY]",
 ];
 
 /**
