@@ -20,7 +20,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
 import { BadgePill } from "@/components/BadgePill";
-import { getBadgePillVariant } from "@/lib/badges";
+import { getBadgePillVariantForBadge } from "@/lib/badges";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 
 interface Friend {
@@ -494,7 +494,7 @@ export function CreateCircleModal({
                                   name={featuredBadge.name}
                                   tierColor={featuredBadge.tierColor}
                                   size="small"
-                                  variant={getBadgePillVariant(featuredBadge.name)}
+                                  variant={getBadgePillVariantForBadge(featuredBadge)}
                                 />
                               )}
                             </View>

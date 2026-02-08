@@ -1,12 +1,11 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { useColorScheme } from "react-native";
-import { devLog } from "@/lib/devLog";
 
 /** Solid token overrides per badge variant. null = use default tierColor logic. */
 const SOLID_TOKENS: Record<string, { bg: string; border: string; text: string; borderWidth: number }> = {
-  og:   { bg: "#B8963E", border: "#8C6D2A", text: "#1A1A1A", borderWidth: 1 },
-  // pro / gift reserved — add tokens here when ready
+  og:  { bg: "#8C6D2A", border: "#6F541F", text: "#141414", borderWidth: 1 },
+  pro: { bg: "#1F6F4A", border: "#165237", text: "#F7F7F7", borderWidth: 1 },
 };
 
 interface BadgePillProps {
@@ -80,18 +79,6 @@ export function BadgePill({ name, tierColor, size = "small", variant = "default"
     const effectiveBg = blendAlpha(tierColor, isDark ? 0x40 : 0x20, isDark);
     const lum = getLuminance(effectiveBg);
     textColor = lum > 0.4 ? "#1A1A1A" : "#F5F5F5";
-  }
-
-  if (__DEV__) {
-    // [P0_BADGE_APPEARANCE] One-shot proof log per pill render
-    devLog("[P0_BADGE_APPEARANCE] pill", {
-      name,
-      variant,
-      bgColor,
-      textColor,
-      borderColor,
-      isDark,
-    });
   }
 
   return (
