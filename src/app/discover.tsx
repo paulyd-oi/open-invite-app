@@ -104,7 +104,7 @@ export default function DiscoverScreen() {
 
   // Fetch feed data for popular events (open_invite only — Discover Popular contract)
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
-    queryKey: ["events", "feed", "popular"],
+    queryKey: eventKeys.feedPopular(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });

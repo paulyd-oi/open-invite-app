@@ -31,6 +31,7 @@ import {
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 import { useTheme } from "@/lib/ThemeContext";
 import {
@@ -158,7 +159,7 @@ export default function ImportCalendarScreen() {
         `Synced ${data.imported + data.updated} events to Open Invite`
       );
       // Invalidate events queries
-      queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
       queryClient.invalidateQueries({ queryKey: ["imported-events"] });
       refetchImported();
       // Clear selection

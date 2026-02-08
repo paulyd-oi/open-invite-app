@@ -29,6 +29,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
+import { eventKeys } from "@/lib/eventQueryKeys";
 import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
@@ -143,7 +144,7 @@ export default function ProfileScreen() {
   });
 
   const { data: eventsData, refetch: refetchEvents } = useQuery({
-    queryKey: ["events"],
+    queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });

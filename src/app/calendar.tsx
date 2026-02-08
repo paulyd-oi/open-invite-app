@@ -1591,7 +1591,7 @@ export default function CalendarScreen() {
   // Fetch calendar events (created + going events) for the visible range
   // STRUCTURAL FIX: Include isFetched to distinguish "loading" from "loaded with empty data"
   const { data: calendarData, refetch: refetchCalendarEvents, isLoading: isLoadingCalendar, isRefetching: isRefetchingCalendar, isError: isCalendarError, isFetched: isCalendarFetched } = useQuery({
-    queryKey: ["events", "calendar", visibleDateRange.start, visibleDateRange.end],
+    queryKey: eventKeys.calendarRange(visibleDateRange.start, visibleDateRange.end),
     queryFn: () =>
       api.get<GetCalendarEventsResponse>(
         `/api/events/calendar-events?start=${encodeURIComponent(visibleDateRange.start)}&end=${encodeURIComponent(visibleDateRange.end)}`

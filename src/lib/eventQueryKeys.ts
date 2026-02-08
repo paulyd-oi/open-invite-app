@@ -96,9 +96,11 @@ export const eventKeys = {
   // Feed/list keys
   feed: () => ["events", "feed"] as const,
   feedPaginated: () => ["events", "feed", "paginated"] as const, // For useInfiniteQuery
+  feedPopular: () => ["events", "feed", "popular"] as const, // Discover Popular tab
   mine: () => ["events", "mine"] as const,
   myEvents: () => ["events", "my-events"] as const,
   calendar: () => ["events", "calendar"] as const,
+  calendarRange: (start: string, end: string) => ["events", "calendar", start, end] as const, // Calendar date range query
   attending: () => ["events", "attending"] as const,
 } as const;
 

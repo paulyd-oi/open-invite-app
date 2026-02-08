@@ -31,6 +31,7 @@ import * as Haptics from "expo-haptics";
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { eventKeys } from "@/lib/eventQueryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import {
   type GetBlockedContactsResponse,
@@ -81,7 +82,7 @@ export default function BlockedContactsScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         queryClient.invalidateQueries({ queryKey: ["blocked-contacts"] });
         queryClient.invalidateQueries({ queryKey: ["friends"] });
-        queryClient.invalidateQueries({ queryKey: ["events"] });
+        queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
         resetAddBlockForm();
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

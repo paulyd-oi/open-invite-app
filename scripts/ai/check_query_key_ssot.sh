@@ -12,7 +12,7 @@ echo "Checking: Query key SSOT compliance..."
 # Pattern 1: queryKey: ["events" (excludes registry)
 EVENTS_KEYS=$(rg -n 'queryKey:\s*\["events"' src/ \
   --glob '!**/eventQueryKeys.ts' \
-  --type ts --type tsx 2>/dev/null || true)
+  --type-add 'tsx:*.tsx' --type ts --type tsx 2>/dev/null || true)
 
 if [ -n "$EVENTS_KEYS" ]; then
   echo "  ✗ FAIL: Hand-typed event query keys found (use eventKeys.* builders)"
@@ -25,7 +25,7 @@ fi
 # Pattern 2: queryKey: ["circles" (excludes registry)
 CIRCLES_KEYS=$(rg -n 'queryKey:\s*\["circles"' src/ \
   --glob '!**/circleQueryKeys.ts' \
-  --type ts --type tsx 2>/dev/null || true)
+  --type-add 'tsx:*.tsx' --type ts --type tsx 2>/dev/null || true)
 
 if [ -n "$CIRCLES_KEYS" ]; then
   echo "  ✗ FAIL: Hand-typed circles query keys found (use circleKeys.* builders)"
@@ -38,7 +38,7 @@ fi
 # Pattern 3: invalidateQueries({ queryKey: ["events"] (wildcard invalidation)
 EVENTS_WILDCARD=$(rg -n 'invalidateQueries\(\{\s*queryKey:\s*\["events"\]' src/ \
   --glob '!**/eventQueryKeys.ts' \
-  --type ts --type tsx 2>/dev/null || true)
+  --type-add 'tsx:*.tsx' --type ts --type tsx 2>/dev/null || true)
 
 if [ -n "$EVENTS_WILDCARD" ]; then
   echo "  ✗ FAIL: Wildcard event invalidation found (use eventKeys.feed/calendar/etc)"
@@ -52,7 +52,7 @@ fi
 # This catches the old prefix-landmine ["circle", id] pattern
 CIRCLE_SINGULAR=$(rg -n '\["circle",\s*' src/ \
   --glob '!**/circleQueryKeys.ts' \
-  --type ts --type tsx 2>/dev/null || true)
+  --type-add 'tsx:*.tsx' --type ts --type tsx 2>/dev/null || true)
 
 if [ -n "$CIRCLE_SINGULAR" ]; then
   echo "  ✗ FAIL: Prefix-landmine [\"circle\", id] pattern found (use circleKeys.single)"
