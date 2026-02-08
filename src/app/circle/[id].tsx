@@ -70,7 +70,7 @@ import { getCircleMessages, setCircleReadHorizon } from "@/lib/circlesApi";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { computeSchedule } from "@/lib/scheduling/engine";
-import type { BusyWindow } from "@/lib/scheduling/types";
+import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
 import {
   type GetCircleDetailResponse,
   type GetCircleMessagesResponse,
@@ -245,14 +245,8 @@ function MiniCalendar({
     rangeEndDate.setDate(rangeEndDate.getDate() + 14);
     const rangeEnd = rangeEndDate.toISOString();
 
-    // Build busy windows from memberEvents
-    const busyWindowsByUserId: Record<string, BusyWindow[]> = {};
-    memberEvents.forEach((m) => {
-      busyWindowsByUserId[m.userId] = m.events.map((e) => ({
-        start: e.startTime,
-        end: e.endTime ?? new Date(new Date(e.startTime).getTime() + 60 * 60 * 1000).toISOString(),
-      }));
-    });
+    // Build busy windows from memberEvents via SSOT adapter
+    const busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
 
     return computeSchedule({
       members: members.map((m) => ({ id: m.userId })),

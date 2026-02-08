@@ -12,6 +12,7 @@
 
 // Use tsx path alias resolution via tsconfig — import via @/ alias
 import { computeSchedule } from "../../src/lib/scheduling/engine";
+import { buildBusyWindowsFromMemberEvents } from "../../src/lib/scheduling/adapters";
 import type { SchedulingComputeInput } from "../../src/lib/scheduling/types";
 
 let passed = 0;
@@ -268,6 +269,70 @@ console.log("\n[TEST 12] INV-S4: transparent participation fields");
   assert(Array.isArray(slot.unavailableUserIds), "unavailableUserIds is array");
   assert(slot.availableUserIds.length + slot.unavailableUserIds.length === 3, "ids sum to totalMembers");
   assert(slot.unavailableUserIds.includes("user-1"), "user-1 in unavailableUserIds");
+}
+
+// ===== TEST 13: Adapter — valid events produce correct busy windows =====
+console.log("\n[TEST 13] Adapter: valid events → correct busy windows");
+{
+  const memberEvents = [
+    {
+      userId: "u1",
+      events: [
+        { startTime: "2026-03-01T10:00:00.000Z", endTime: "2026-03-01T11:00:00.000Z" },
+        { startTime: "2026-03-01T14:00:00.000Z", endTime: "2026-03-01T15:30:00.000Z" },
+      ],
+    },
+    {
+      userId: "u2",
+      events: [
+        { startTime: "2026-03-01T09:00:00.000Z", endTime: null }, // null end → default 1h
+      ],
+    },
+  ];
+  const result = buildBusyWindowsFromMemberEvents(memberEvents);
+  assert(result["u1"].length === 2, "u1 has 2 busy windows");
+  assert(result["u1"][0].start === "2026-03-01T10:00:00.000Z", "u1 window 0 start correct");
+  assert(result["u1"][0].end === "2026-03-01T11:00:00.000Z", "u1 window 0 end correct");
+  assert(result["u1"][1].start === "2026-03-01T14:00:00.000Z", "u1 window 1 start correct");
+  assert(result["u1"][1].end === "2026-03-01T15:30:00.000Z", "u1 window 1 end correct");
+  assert(result["u2"].length === 1, "u2 has 1 busy window");
+  assert(result["u2"][0].start === "2026-03-01T09:00:00.000Z", "u2 window start correct");
+  assert(result["u2"][0].end === "2026-03-01T10:00:00.000Z", "u2 null end → default +1h");
+}
+
+// ===== TEST 14: Adapter — invalid events are ignored =====
+console.log("\n[TEST 14] Adapter: invalid events ignored");
+{
+  const memberEvents = [
+    {
+      userId: "u1",
+      events: [
+        { startTime: "not-a-date", endTime: "2026-03-01T11:00:00.000Z" },       // NaN start
+        { startTime: "2026-03-01T12:00:00.000Z", endTime: "garbage" },           // NaN end
+        { startTime: "2026-03-01T14:00:00.000Z", endTime: "2026-03-01T13:00:00.000Z" }, // end < start
+        { startTime: "2026-03-01T15:00:00.000Z", endTime: "2026-03-01T15:00:00.000Z" }, // end == start
+        { startTime: "2026-03-01T16:00:00.000Z", endTime: "2026-03-01T17:00:00.000Z" }, // valid
+      ],
+    },
+  ];
+  const result = buildBusyWindowsFromMemberEvents(memberEvents);
+  assert(result["u1"].length === 1, "only 1 valid window survives");
+  assert(result["u1"][0].start === "2026-03-01T16:00:00.000Z", "valid window is the correct one");
+}
+
+// ===== TEST 15: Adapter — does not mutate input =====
+console.log("\n[TEST 15] Adapter: does not mutate input");
+{
+  const events = [
+    { startTime: "2026-03-01T10:00:00.000Z", endTime: "2026-03-01T11:00:00.000Z" },
+    { startTime: "2026-03-01T14:00:00.000Z", endTime: null },
+  ];
+  const memberEvents = [{ userId: "u1", events }];
+  const copy = JSON.parse(JSON.stringify(memberEvents));
+  buildBusyWindowsFromMemberEvents(memberEvents);
+  const unchanged = JSON.stringify(memberEvents) === JSON.stringify(copy);
+  assert(unchanged, "input memberEvents not mutated");
+  assert(events[1].endTime === null, "null endTime preserved on original");
 }
 
 // ===== RESULTS =====
