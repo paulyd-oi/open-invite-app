@@ -85,6 +85,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_TYPING_UI]",
   // P2 scroll-to-bottom floating button
   "[P2_CHAT_SCROLL_BTN]",
+  // Scheduling engine v1 proof logs
+  "[SCHED_ENGINE_V1]",
 ];
 
 /**

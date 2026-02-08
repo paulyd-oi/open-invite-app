@@ -101,3 +101,21 @@ The following are deferred for post-launch implementation:
 - **Recurring Events Pro Gating**: Currently available to all users. Premium gating planned as Pro feature.
 - **Push Delivery 2-Account Proof**: Multi-device notification delivery verification pending.
 - **End-to-End Encryption**: Not currently implemented. FAQ updated to remove false claim.
+
+## Scheduling SSOT — Circle Availability
+
+INVARIANT: `SchedulingEngine` (`src/lib/scheduling/engine.ts`) is the single source of truth for circle availability computation.
+
+**Rules:**
+1. UI components must not compute availability or slot ranking. All availability pills and labels must render `SchedulingEngine` output only.
+2. All availability pills and labels must render `SchedulingEngine` output only (INV-S1).
+3. Scheduling output must be deterministic for identical inputs (INV-S2).
+4. Engine must always return at least one viable slot for valid ranges (INV-S3).
+5. Each slot exposes transparent participation fields: `availableCount`, `totalMembers`, `availableUserIds`, `unavailableUserIds` (INV-S4).
+
+**Forbidden patterns:**
+- Duplicate availability logic in UI (e.g., ad-hoc `freeSlots` useMemo computing overlaps).
+- Ad-hoc slot sorting outside the engine.
+- Rendering hardcoded availability labels without engine output.
+
+**Proof tag:** `[SCHED_ENGINE_V1]` — logged once per compute in `engine.ts`.

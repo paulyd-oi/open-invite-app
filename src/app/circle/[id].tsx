@@ -69,7 +69,8 @@ import { setActiveCircle } from "@/lib/activeCircle";
 import { getCircleMessages, setCircleReadHorizon } from "@/lib/circlesApi";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
-import { formatDateTimeRange } from "@/lib/eventTime";
+import { computeSchedule } from "@/lib/scheduling/engine";
+import type { BusyWindow } from "@/lib/scheduling/types";
 import {
   type GetCircleDetailResponse,
   type GetCircleMessagesResponse,
@@ -236,55 +237,32 @@ function MiniCalendar({
     return data;
   }, [memberEvents, currentMonth, currentYear, memberColorMap, themeColor]);
 
-  // Find free times (when all members are free)
-  const freeSlots = useMemo(() => {
-    const slots: Array<{ date: Date; startHour: number; duration: number }> = [];
-    const startDate = new Date();
-    const days = Array.from({ length: 14 }, (_, i) => {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      return date;
+  // [SCHED_ENGINE_V1] SSOT: compute availability via scheduling engine
+  const scheduleResult = useMemo(() => {
+    const now = new Date();
+    const rangeStart = now.toISOString();
+    const rangeEndDate = new Date(now);
+    rangeEndDate.setDate(rangeEndDate.getDate() + 14);
+    const rangeEnd = rangeEndDate.toISOString();
+
+    // Build busy windows from memberEvents
+    const busyWindowsByUserId: Record<string, BusyWindow[]> = {};
+    memberEvents.forEach((m) => {
+      busyWindowsByUserId[m.userId] = m.events.map((e) => ({
+        start: e.startTime,
+        end: e.endTime ?? new Date(new Date(e.startTime).getTime() + 60 * 60 * 1000).toISOString(),
+      }));
     });
 
-    days.forEach((date) => {
-      const dayEvents = memberEvents.flatMap((m) =>
-        m.events.filter((e) => {
-          const eventDate = new Date(e.startTime);
-          return eventDate.toDateString() === date.toDateString();
-        })
-      );
-
-      for (let hour = 9; hour <= 20; hour++) {
-        const slotStart = new Date(date);
-        slotStart.setHours(hour, 0, 0, 0);
-        const slotEnd = new Date(date);
-        slotEnd.setHours(hour + 1, 0, 0, 0);
-
-        const hasConflict = dayEvents.some((e) => {
-          const eventStart = new Date(e.startTime);
-          const eventEnd = e.endTime
-            ? new Date(e.endTime)
-            : new Date(eventStart.getTime() + 60 * 60 * 1000);
-          return eventStart < slotEnd && eventEnd > slotStart;
-        });
-
-        if (!hasConflict) {
-          const lastSlot = slots[slots.length - 1];
-          if (
-            lastSlot &&
-            lastSlot.date.toDateString() === date.toDateString() &&
-            lastSlot.startHour + lastSlot.duration === hour
-          ) {
-            lastSlot.duration++;
-          } else {
-            slots.push({ date, startHour: hour, duration: 1 });
-          }
-        }
-      }
+    return computeSchedule({
+      members: members.map((m) => ({ id: m.userId })),
+      busyWindowsByUserId,
+      rangeStart,
+      rangeEnd,
+      intervalMinutes: 30,
+      slotDurationMinutes: 60,
     });
-
-    return slots.filter((s) => s.duration >= 1).slice(0, 5);
-  }, [memberEvents]);
+  }, [memberEvents, members]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -457,32 +435,36 @@ function MiniCalendar({
         ))}
       </View>
 
-      {/* Free Time Slots */}
-      {freeSlots.length > 0 && (
+      {/* Smart Scheduling v1 — SSOT via SchedulingEngine */}
+      {scheduleResult && (
         <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <Text style={{ fontSize: 12, fontWeight: "500", marginBottom: 6, color: colors.textSecondary }}>
-            Everyone is free:
+          <Text style={{ fontSize: 12, fontWeight: "600", marginBottom: 2, color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+            {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times (most people available)"}
+          </Text>
+          {/* Disclaimer — always visible */}
+          <Text style={{ fontSize: 10, lineHeight: 14, marginBottom: 6, color: colors.textTertiary }}>
+            Based on events in Open Invite. If someone hasn't added their plans yet, their schedule may look more open than it really is.
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {freeSlots.map((slot, i) => {
-              // Create a date object with the suggested time
-              const suggestedStartDate = new Date(slot.date);
-              suggestedStartDate.setHours(slot.startHour, 0, 0, 0);
-              const suggestedEndDate = new Date(suggestedStartDate);
-              suggestedEndDate.setHours(slot.startHour + slot.duration, 0, 0, 0);
+            {scheduleResult.topSlots.map((slot, i) => {
+              const slotDate = new Date(slot.start);
+              const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short" });
+              const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+              const pillText = `${dayLabel} ${timeLabel} · ${slot.availableCount}/${slot.totalMembers}`;
 
               return (
                 <Pressable
                   key={i}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    // Navigate to create event page with pre-filled date/time and circleId
+                    const endDate = new Date(slot.end);
+                    const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
                     router.push({
                       pathname: "/create",
                       params: {
-                        date: suggestedStartDate.toISOString(),
+                        date: slot.start,
                         circleId: circleId,
-                        duration: String(slot.duration * 60), // duration in minutes
+                        duration: String(durationMin),
                       },
                     } as any);
                   }}
@@ -494,17 +476,21 @@ function MiniCalendar({
                     paddingVertical: 4,
                     marginRight: 6,
                     marginBottom: 4,
-                    backgroundColor: "#10B98120"
+                    backgroundColor: slot.score === 1 ? "#10B98120" : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
                   }}
                 >
-                  <Clock size={10} color="#10B981" />
-                  <Text style={{ fontSize: 10, fontWeight: "500", marginLeft: 4, color: "#10B981" }}>
-                    {formatDateTimeRange(suggestedStartDate.toISOString(), suggestedEndDate.toISOString())}
+                  <Clock size={10} color={slot.score === 1 ? "#10B981" : themeColor} />
+                  <Text style={{ fontSize: 10, fontWeight: "500", marginLeft: 4, color: slot.score === 1 ? "#10B981" : themeColor }}>
+                    {pillText}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
+          {/* Nudge CTA */}
+          <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary, fontStyle: "italic" }}>
+            Encourage your circle to add events for more accurate suggestions.
+          </Text>
         </View>
       )}
 
