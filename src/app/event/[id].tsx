@@ -50,6 +50,7 @@ import {
   Palette,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import BottomSheet from "@/components/BottomSheet";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as ExpoCalendar from "expo-calendar";
@@ -2834,51 +2835,14 @@ export default function EventDetailScreen() {
         userId={session?.user?.id}
       />
 
-      {/* Event Actions Bottom Sheet */}
-      <Modal
+      {/* Event Actions Bottom Sheet (uses shared BottomSheet) */}
+      <BottomSheet
         visible={showEventActionsSheet}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEventActionsSheet(false)}
+        onClose={() => setShowEventActionsSheet(false)}
+        heightPct={0}
+        backdropOpacity={0.5}
+        title="Event Options"
       >
-        <Pressable
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowEventActionsSheet(false)}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Animated.View
-              entering={FadeInDown.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                paddingBottom: 40,
-                overflow: "hidden",
-              }}
-            >
-              {/* Handle */}
-              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.textTertiary,
-                    opacity: 0.4,
-                  }}
-                />
-              </View>
-
-              {/* Title */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                  Event Options
-                </Text>
-              </View>
-
               {/* Actions */}
               <View style={{ paddingHorizontal: 20 }}>
                 {/* Owner Actions */}
@@ -2999,10 +2963,7 @@ export default function EventDetailScreen() {
                   </Text>
                 </Pressable>
               </View>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheet>
 
       {/* Report Event Modal */}
       <Modal
@@ -3118,75 +3079,46 @@ export default function EventDetailScreen() {
         </Pressable>
       </Modal>
 
-      {/* Attendees Modal - P0: View all attendees */}
-      <Modal
+      {/* Attendees Modal - P0: View all attendees (uses shared BottomSheet) */}
+      <BottomSheet
         visible={showAttendeesModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAttendeesModal(false)}
+        onClose={() => setShowAttendeesModal(false)}
+        heightPct={0.65}
+        backdropOpacity={0}
       >
-        <Pressable
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "transparent" }}
-          onPress={() => setShowAttendeesModal(false)}
+        {/* Custom title row — uses effectiveGoingCount (SSOT) */}
+        <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <UserCheck size={20} color="#22C55E" />
+            <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+              Who's Coming
+            </Text>
+            <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 8 }}>
+              <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>
+                {effectiveGoingCount}
+              </Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={() => setShowAttendeesModal(false)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
+        {/* Attendees List - P0: guarded for loading / empty / list */}
+        <KeyboardAwareScrollView
+          style={{ flex: 1, paddingHorizontal: 20 }}
+          contentContainerStyle={{ paddingBottom: 36 }}
         >
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <Animated.View
-              entering={FadeInDown.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                height: Math.round(Dimensions.get('window').height * 0.65),
-                overflow: "hidden",
-              }}
-            >
-              {/* Handle */}
-              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.textTertiary,
-                    opacity: 0.4,
-                  }}
-                />
-              </View>
-
-              {/* Title — uses effectiveGoingCount (SSOT) */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <UserCheck size={20} color="#22C55E" />
-                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
-                    Who's Coming
-                  </Text>
-                  <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 8 }}>
-                    <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>
-                      {effectiveGoingCount}
-                    </Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={() => setShowAttendeesModal(false)}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <X size={18} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Attendees List - P0: guarded for loading / empty / list */}
-              <KeyboardAwareScrollView
-                style={{ flex: 1, paddingHorizontal: 20 }}
-                contentContainerStyle={{ paddingBottom: 36 }}
-              >
                 {isLoadingAttendees ? (
                   <View style={{ alignItems: "center", paddingVertical: 40 }}>
                     <ActivityIndicator size="large" color={themeColor} />
@@ -3280,55 +3212,18 @@ export default function EventDetailScreen() {
                   </>
                 )}
               </KeyboardAwareScrollView>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheet>
 
-      {/* Color Picker Modal */}
-      <Modal
+      {/* Color Picker (uses shared BottomSheet) */}
+      <BottomSheet
         visible={showColorPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowColorPicker(false)}
+        onClose={() => setShowColorPicker(false)}
+        heightPct={0}
+        backdropOpacity={0.5}
+        title="Block Color"
       >
-        <Pressable
-          className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-          onPress={() => setShowColorPicker(false)}
-        >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Animated.View
-              entering={FadeInDown.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                paddingBottom: 40,
-                overflow: "hidden",
-              }}
-            >
-              {/* Handle */}
-              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.textTertiary,
-                    opacity: 0.4,
-                  }}
-                />
-              </View>
-
-              {/* Title */}
-              <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
-                  Block Color
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 4 }}>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+                <Text style={{ fontSize: 14, color: colors.textSecondary }}>
                   Customize how this event appears on your calendar
                 </Text>
               </View>
@@ -3411,10 +3306,7 @@ export default function EventDetailScreen() {
                   </Text>
                 </Pressable>
               </View>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
