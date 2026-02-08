@@ -51,6 +51,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_RSVP_PATCH]",
   // P1 circle message patch proof
   "[P1_MSG_PATCH]",
+  // P1 optimistic message send proof
+  "[P1_MSG_OPT]",
 ];
 
 /**

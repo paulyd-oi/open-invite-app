@@ -241,7 +241,7 @@ export function handlePushEvent(
  * Safe append: dedupe by id, stable ordering, immutable return.
  * Works with the circle detail cache shape: { circle: { messages: [...] } }
  */
-function safeAppendMessage(
+export function safeAppendMessage(
   prev: any,
   msg: { id: string; createdAt: string; [k: string]: any },
 ): any {
@@ -256,6 +256,26 @@ function safeAppendMessage(
   );
 
   return { ...prev, circle: { ...prev.circle, messages: next } };
+}
+
+/**
+ * Build an optimistic message for instant UI insertion.
+ * Temp id namespace "optimistic-" prevents collision with server ids.
+ * status: "sending" marks the message as optimistic.
+ */
+export function buildOptimisticMessage(
+  circleId: string,
+  userId: string,
+  text: string,
+): { id: string; circleId: string; userId: string; text: string; createdAt: string; status: string } {
+  return {
+    id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    circleId,
+    userId,
+    text,
+    createdAt: new Date().toISOString(),
+    status: "sending",
+  };
 }
 
 /**

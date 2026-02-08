@@ -20,6 +20,7 @@ import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
+import { safeAppendMessage, buildOptimisticMessage } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -884,12 +885,87 @@ export default function CircleScreen() {
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) =>
       api.post(`/api/circles/${id}/messages`, { content }),
-    onSuccess: () => {
+    onMutate: async (content: string) => {
+      // Build optimistic message and insert into cache immediately
+      const userId = session?.user?.id ?? "unknown";
+      const optimistic = buildOptimisticMessage(id, userId, content);
+
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
+
+      queryClient.setQueryData(
+        circleKeys.single(id),
+        (prev: any) => safeAppendMessage(prev, optimistic),
+      );
+
+      if (__DEV__) {
+        devLog("[P1_MSG_OPT]", `optimistic insert ${optimistic.id}`);
+      }
+
+      // Clear input immediately for instant feel
       setMessage("");
-      refetch();
+
+      return { optimisticId: optimistic.id };
+    },
+    onSuccess: (serverResponse: any, _content, context) => {
+      // Reconcile: replace optimistic message with server response
+      const serverMsg = serverResponse?.message;
+      if (serverMsg?.id && context?.optimisticId) {
+        queryClient.setQueryData(
+          circleKeys.single(id),
+          (prev: any) => {
+            if (!prev?.circle?.messages) return prev;
+            return {
+              ...prev,
+              circle: {
+                ...prev.circle,
+                messages: prev.circle.messages.map((m: any) =>
+                  m.id === context.optimisticId
+                    ? { ...serverMsg, status: undefined }
+                    : m,
+                ),
+              },
+            };
+          },
+        );
+        if (__DEV__) {
+          devLog("[P1_MSG_OPT]", `reconciled ${context.optimisticId} → ${serverMsg.id}`);
+        }
+      }
+
+      // Background reconcile — inactive only
+      queryClient.invalidateQueries({
+        queryKey: circleKeys.single(id),
+        refetchType: "inactive",
+      });
+
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+    },
+    onError: (_error, _content, context) => {
+      // Rollback: remove optimistic message from cache
+      if (context?.optimisticId) {
+        queryClient.setQueryData(
+          circleKeys.single(id),
+          (prev: any) => {
+            if (!prev?.circle?.messages) return prev;
+            return {
+              ...prev,
+              circle: {
+                ...prev.circle,
+                messages: prev.circle.messages.filter(
+                  (m: any) => m.id !== context.optimisticId,
+                ),
+              },
+            };
+          },
+        );
+        if (__DEV__) {
+          devLog("[P1_MSG_OPT]", `rollback ${context.optimisticId}`);
+        }
+      }
+      safeToast.error("Error", "Message failed to send. Please try again.");
     },
   });
 
