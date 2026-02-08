@@ -104,6 +104,10 @@ export interface EventRsvpChangedPayload extends BasePushPayload {
   goingCount?: number;
   capacity?: number | null;
   isFull?: boolean;
+  deltaGoing?: number;
+  action?: "join" | "leave";
+  userId?: string;
+  user?: { id: string; name?: string; avatarUrl?: string };
 }
 
 export interface EventUpdatedPayload extends BasePushPayload {
@@ -260,7 +264,7 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
 
 /**
  * Handle event RSVP/attendee count changes
- * Strategy: Patch if safe delta provided, else invalidate
+ * Strategy: Patch-first — update cached meta + attendees, then background reconcile
  */
 function handleEventRsvpChanged(payload: Record<string, any>, queryClient: QueryClient): string {
   const eventId = payload.eventId ?? payload.event_id;
@@ -269,53 +273,80 @@ function handleEventRsvpChanged(payload: Record<string, any>, queryClient: Query
     return "missing_eventId";
   }
   
-  const { goingCount, capacity, isFull } = payload;
-  
-  // Check if we have safe patch data
-  if (
-    typeof goingCount === "number" &&
-    (capacity === null || typeof capacity === "number") &&
-    typeof isFull === "boolean"
-  ) {
-    // PATCH: Update event query data directly
+  const delta = payload.deltaGoing ?? 0;
+  const action: string | undefined = payload.action;
+  const userId: string | undefined = payload.userId ?? payload.user_id;
+  const user: { id: string; name?: string; avatarUrl?: string } | undefined = payload.user;
+  let patched = false;
+
+  // ── STEP 1: Patch event meta (goingCount / isFull) ──
+  queryClient.setQueryData(
+    eventKeys.single(eventId),
+    (prev: any) => {
+      if (!prev?.event) return prev;
+
+      const newGoingCount = Math.max(0, (prev.event.goingCount ?? 0) + delta);
+      const newIsFull =
+        prev.event.capacity != null && newGoingCount >= prev.event.capacity;
+
+      patched = true;
+      return {
+        ...prev,
+        event: {
+          ...prev.event,
+          goingCount: newGoingCount,
+          isFull: newIsFull,
+        },
+      };
+    }
+  );
+
+  // ── STEP 2: Patch attendees cache ──
+  if (userId) {
     queryClient.setQueryData(
-      eventKeys.single(eventId),
-      (old: any) => {
-        if (!old) return old;
-        
-        const updated = {
-          ...old,
-          goingCount,
-          capacity,
-          isFull,
-        };
-        
-        if (__DEV__) {
-          devLog(`[P1_PUSH_ROUTER] PATCH eventKeys.single(${eventId}) goingCount=${goingCount} capacity=${capacity} isFull=${isFull}`);
+      eventKeys.attendees(eventId),
+      (prev: any) => {
+        if (!prev?.attendees) return prev;
+
+        const exists = prev.attendees.some((a: any) => a.id === userId);
+
+        if (action === "join" && !exists && user) {
+          return {
+            ...prev,
+            attendees: [...prev.attendees, user],
+          };
         }
-        
-        return updated;
+
+        if (action === "leave") {
+          return {
+            ...prev,
+            attendees: prev.attendees.filter((a: any) => a.id !== userId),
+          };
+        }
+
+        return prev;
       }
     );
-    
-    // Also invalidate feed/calendar projections to reflect updated counts
-    queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
-    queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
-    queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
-    
-    return "patch_event_counts+invalidate_feeds";
   }
-  
-  // FALLBACK: Invalidate owner query
-  queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
-  queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
-  queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
-  
+
+  // ── STEP 3: Safe reconcile — background-only refetch (inactive queries) ──
+  queryClient.invalidateQueries({
+    queryKey: eventKeys.single(eventId),
+    refetchType: "inactive",
+  });
+
+  // ── STEP 4: DEV proof log ──
   if (__DEV__) {
-    devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.single(${eventId}), eventKeys.feed(), eventKeys.calendar()]`);
+    devLog("[P1_RSVP_PATCH]", {
+      eventId,
+      delta,
+      action,
+      userId,
+      patched,
+    });
   }
-  
-  return "invalidate_event+feeds";
+
+  return patched ? "patch_meta+attendees+reconcile" : "no_cache_hit+reconcile";
 }
 
 /**

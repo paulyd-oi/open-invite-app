@@ -47,6 +47,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_SECURESTORE]",
   // P1 loading invariant proof
   "[P1_LOADING_INV]",
+  // P1 RSVP patch proof
+  "[P1_RSVP_PATCH]",
 ];
 
 /**
