@@ -62,7 +62,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { setActiveCircle } from "@/lib/activeCircle";
-import { getCircleMessages } from "@/lib/circlesApi";
+import { getCircleMessages, setCircleReadHorizon } from "@/lib/circlesApi";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { formatDateTimeRange } from "@/lib/eventTime";
@@ -857,6 +857,9 @@ export default function CircleScreen() {
   const cursorIdRef = useRef<string | null>(null);
   const isPrependingRef = useRef(false);
 
+  // [P1_READ_HORIZON] Monotonic read horizon — only send when strictly newer
+  const lastSentReadAtRef = useRef<string | null>(null);
+
   // Viewability tracking for scroll anchor on prepend
   const firstVisibleIdRef = useRef<string | null>(null);
   const onViewableItemsChanged = useRef(
@@ -868,6 +871,64 @@ export default function CircleScreen() {
   ).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
 
+  // [P1_READ_HORIZON] Send monotonic read horizon to server
+  // Reads messages from query cache (not the `circle` local) to avoid declaration-order issues
+  const sendReadHorizon = useCallback(
+    (reason: string) => {
+      if (!id || !isAuthedForNetwork(bootStatus, session)) {
+        if (__DEV__) devLog("[P1_READ_HORIZON]", "skip", { reason: "not_authed" });
+        return;
+      }
+      if (isPrependingRef.current) {
+        if (__DEV__) devLog("[P1_READ_HORIZON]", "skip", { reason: "prepending" });
+        return;
+      }
+      const cached = queryClient.getQueryData(circleKeys.single(id)) as any;
+      const msgs = cached?.circle?.messages;
+      if (!msgs?.length) {
+        if (__DEV__) devLog("[P1_READ_HORIZON]", "skip", { reason: "no_messages" });
+        return;
+      }
+      // Newest message is last in the sorted array
+      const newest = msgs[msgs.length - 1];
+      const lastReadAt = newest.createdAt as string;
+      // Monotonic guard: only send if strictly newer
+      if (lastSentReadAtRef.current && lastReadAt <= lastSentReadAtRef.current) {
+        if (__DEV__) devLog("[P1_READ_HORIZON]", "skip", { reason: "not_newer", lastReadAt, lastSent: lastSentReadAtRef.current });
+        return;
+      }
+      lastSentReadAtRef.current = lastReadAt;
+      if (__DEV__) devLog("[P1_READ_HORIZON]", "send", { circleId: id, lastReadAt, reason });
+
+      setCircleReadHorizon({ circleId: id, lastReadAt })
+        .then(() => {
+          // Optimistic clear — exact per-circle using byCircle SSOT
+          queryClient.setQueryData(
+            circleKeys.unreadCount(),
+            (prev: any) => {
+              if (!prev) return prev;
+              const currentCircle = (prev.byCircle?.[id!] as number) ?? 0;
+              const nextTotal = Math.max(0, ((prev.totalUnread as number) ?? 0) - currentCircle);
+              return {
+                ...prev,
+                totalUnread: nextTotal,
+                byCircle: { ...(prev.byCircle ?? {}), [id!]: 0 },
+              };
+            },
+          );
+          // Background reconcile — inactive only
+          queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount(), refetchType: "inactive" });
+          queryClient.invalidateQueries({ queryKey: circleKeys.all(), refetchType: "inactive" });
+          if (__DEV__) devLog("[P1_READ_HORIZON]", "success", { circleId: id, lastReadAt });
+        })
+        .catch((e) => {
+          // Non-fatal: horizon will be retried on next trigger
+          if (__DEV__) devLog("[P1_READ_HORIZON]", "error", { circleId: id, error: String(e) });
+        });
+    },
+    [id, bootStatus, session, queryClient],
+  );
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const distanceFromBottom =
@@ -877,11 +938,12 @@ export default function CircleScreen() {
     // [P1_NEW_MSG] Clear indicator when user scrolls back to bottom
     if (!wasNearBottom && isNearBottomRef.current) {
       clearUnseen();
+      sendReadHorizon("return_to_bottom");
       if (__DEV__) {
         devLog("[P1_NEW_MSG]", "returned-to-bottom clear");
       }
     }
-  }, [AUTO_SCROLL_THRESHOLD, clearUnseen]);
+  }, [AUTO_SCROLL_THRESHOLD, clearUnseen, sendReadHorizon]);
 
   const scheduleAutoScroll = useCallback(() => {
     if (pendingScrollRef.current) return;
@@ -996,6 +1058,7 @@ export default function CircleScreen() {
     if (isNearBottomRef.current) {
       clearUnseen();
       scheduleAutoScroll();
+      sendReadHorizon("near_bottom_new_msg");
       if (__DEV__) {
         devLog("[P1_NEW_MSG]", "at-bottom auto-scroll", { delta });
       }
@@ -1193,48 +1256,7 @@ export default function CircleScreen() {
     },
   });
 
-  // Mark circle as read mutation — optimistic patch + inactive reconcile
-  const markAsReadMutation = useMutation({
-    mutationFn: () => api.post(`/api/circles/${id}/read`, {}),
-    onMutate: () => {
-      // [P1_UNREAD_V2] Exact optimistic clear using byCircle
-      queryClient.setQueryData(
-        circleKeys.unreadCount(),
-        (prev: any) => {
-          if (!prev) return prev;
-          const currentCircle = (prev.byCircle?.[id!] as number) ?? 0;
-          const nextTotal = Math.max(0, ((prev.totalUnread as number) ?? 0) - currentCircle);
-          return {
-            ...prev,
-            totalUnread: nextTotal,
-            byCircle: { ...(prev.byCircle ?? {}), [id!]: 0 },
-          };
-        },
-      );
-      if (__DEV__) {
-        const p = queryClient.getQueryData(circleKeys.unreadCount()) as any;
-        devLog("[P1_UNREAD_V2]", "optimistic clear", {
-          circleId: id,
-          cleared: (p?.byCircle?.[id!] as number) ?? 0,
-          nextTotal: p?.totalUnread ?? 0,
-        });
-      }
-    },
-    onSuccess: () => {
-      // Background reconcile — inactive only (no UI jitter)
-      queryClient.invalidateQueries({
-        queryKey: circleKeys.unreadCount(),
-        refetchType: "inactive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: circleKeys.all(),
-        refetchType: "inactive",
-      });
-      if (__DEV__) {
-        devLog("[P1_READ_UNREAD]", "circle-open reconcile inactive", { circleId: id });
-      }
-    },
-  });
+  // [P1_READ_HORIZON] markAsReadMutation removed — replaced by sendReadHorizon()
 
   // Update circle mutation (for description editing)
   const updateCircleMutation = useMutation({
@@ -1335,17 +1357,17 @@ export default function CircleScreen() {
     },
   });
 
-  // [P1_READ_UNREAD] Mark as read on focus + track active circle for push routing
+  // [P1_READ_HORIZON] Mark as read on focus + track active circle for push routing
   useFocusEffect(
     useCallback(() => {
       if (session && id && isAuthedForNetwork(bootStatus, session)) {
         setActiveCircle(id);
-        markAsReadMutation.mutate();
+        sendReadHorizon("focus");
       }
       return () => {
         setActiveCircle(null);
       };
-    }, [session, id, bootStatus]),
+    }, [session, id, bootStatus, sendReadHorizon]),
   );
 
   // [P1_CHAT_CURSOR_V2] Fetch older messages with compound cursor pagination
@@ -1801,6 +1823,7 @@ export default function CircleScreen() {
             onPress={() => {
               clearUnseen();
               scheduleAutoScroll();
+              sendReadHorizon("pill_tap");
               if (__DEV__) {
                 devLog("[P1_NEW_MSG]", "tap-scroll-to-bottom", { unseenCount });
               }

@@ -65,6 +65,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_CHAT_PAGINATION]",
   // P1 unread v2 (totalUnread + byCircle) proof
   "[P1_UNREAD_V2]",
+  // P1 read horizon v2 (multi-device correctness)
+  "[P1_READ_HORIZON]",
 ];
 
 /**

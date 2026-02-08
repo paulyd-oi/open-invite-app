@@ -34,3 +34,17 @@ export async function getCircleMessages(params: {
     `/api/circles/${circleId}/messages?${qs.toString()}`,
   );
 }
+
+/**
+ * Send a read-horizon update so the server knows the newest message this device has seen.
+ *
+ * @param circleId   - Circle to mark
+ * @param lastReadAt - ISO timestamp of the newest message the user has seen (monotonic)
+ */
+export async function setCircleReadHorizon(params: {
+  circleId: string;
+  lastReadAt: string;
+}): Promise<void> {
+  const { circleId, lastReadAt } = params;
+  await api.post(`/api/circles/${circleId}/read`, { lastReadAt });
+}
