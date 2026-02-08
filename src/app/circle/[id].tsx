@@ -830,13 +830,34 @@ export default function CircleScreen() {
   const isNearBottomRef = useRef(true);
   const pendingScrollRef = useRef(false);
   const AUTO_SCROLL_THRESHOLD = 120;
+  const unseenCountRef = useRef(0);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const prevMessageCountRef = useRef<number | null>(null);
+
+  const bumpUnseen = useCallback((delta: number) => {
+    unseenCountRef.current = Math.max(0, unseenCountRef.current + delta);
+    setUnseenCount(unseenCountRef.current);
+  }, []);
+
+  const clearUnseen = useCallback(() => {
+    unseenCountRef.current = 0;
+    setUnseenCount(0);
+  }, []);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const distanceFromBottom =
       contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    const wasNearBottom = isNearBottomRef.current;
     isNearBottomRef.current = distanceFromBottom < AUTO_SCROLL_THRESHOLD;
-  }, [AUTO_SCROLL_THRESHOLD]);
+    // [P1_NEW_MSG] Clear indicator when user scrolls back to bottom
+    if (!wasNearBottom && isNearBottomRef.current) {
+      clearUnseen();
+      if (__DEV__) {
+        devLog("[P1_NEW_MSG]", "returned-to-bottom clear");
+      }
+    }
+  }, [AUTO_SCROLL_THRESHOLD, clearUnseen]);
 
   const scheduleAutoScroll = useCallback(() => {
     if (pendingScrollRef.current) return;
@@ -927,17 +948,32 @@ export default function CircleScreen() {
     "circle-detail",
   );
 
-  // [P1_SCROLL_ANCHOR] Message append watcher — depends on count only, not full array
+  // [P1_SCROLL_ANCHOR] + [P1_NEW_MSG] Message append watcher — depends on count only, not full array
   const circle = data?.circle;
   const messageCount = circle?.messages?.length ?? 0;
   useEffect(() => {
-    if (messageCount === 0) return;
-    if (isNearBottomRef.current) {
-      scheduleAutoScroll();
-    } else if (__DEV__) {
-      devLog("[P1_SCROLL_ANCHOR]", "preserve-scroll");
+    if (prevMessageCountRef.current == null) {
+      prevMessageCountRef.current = messageCount;
+      return;
     }
-  }, [messageCount, scheduleAutoScroll]);
+    const prev = prevMessageCountRef.current;
+    prevMessageCountRef.current = messageCount;
+    const delta = messageCount - prev;
+    if (delta <= 0) return;
+
+    if (isNearBottomRef.current) {
+      clearUnseen();
+      scheduleAutoScroll();
+      if (__DEV__) {
+        devLog("[P1_NEW_MSG]", "at-bottom auto-scroll", { delta });
+      }
+    } else {
+      bumpUnseen(delta);
+      if (__DEV__) {
+        devLog("[P1_NEW_MSG]", "scrolled-up unseen++", { delta, unseen: unseenCountRef.current });
+      }
+    }
+  }, [messageCount, scheduleAutoScroll, clearUnseen, bumpUnseen]);
 
   // Fetch friends list for adding members
   const { data: friendsData } = useQuery({
@@ -1571,6 +1607,49 @@ export default function CircleScreen() {
             />
           )}
         />
+
+        {/* [P1_NEW_MSG] Floating new messages indicator */}
+        {unseenCount > 0 ? (
+          <Pressable
+            onPress={() => {
+              clearUnseen();
+              scheduleAutoScroll();
+              if (__DEV__) {
+                devLog("[P1_NEW_MSG]", "tap-scroll-to-bottom", { unseenCount });
+              }
+            }}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 92,
+              alignItems: "center",
+              zIndex: 50,
+            }}
+          >
+            <View
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 16,
+                backgroundColor: "rgba(0,0,0,0.72)",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+                New messages
+              </Text>
+              {unseenCount > 1 ? (
+                <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>
+                  {unseenCount}
+                </Text>
+              ) : null}
+              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{"\u2193"}</Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         {/* Message Input */}
         <View

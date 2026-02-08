@@ -57,6 +57,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_MSG_DELIVERY]",
   // P1 scroll anchor proof
   "[P1_SCROLL_ANCHOR]",
+  // P1 new messages indicator proof
+  "[P1_NEW_MSG]",
 ];
 
 /**
