@@ -641,7 +641,7 @@ function RootLayoutNav() {
           options={{
             presentation: 'card',
             headerShown: true,
-            headerTitle: 'Achievements',
+            headerTitle: 'Badges',
             headerStyle: { backgroundColor: headerBg },
             headerTintColor: headerTint,
           }}

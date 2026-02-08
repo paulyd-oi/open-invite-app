@@ -266,7 +266,7 @@ export default function HelpFAQScreen() {
             "See your current streak on friend profiles",
             "Streaks increase when you hang out weekly",
             "Don't break the streak! Hang out again to keep it going",
-            "Earn achievements for maintaining long streaks",
+            "Earn badges for maintaining long streaks",
           ],
         },
         {
@@ -481,26 +481,26 @@ export default function HelpFAQScreen() {
     },
     {
       id: "achievements",
-      title: "Achievements & Gamification",
+      title: "Badges & Gamification",
       icon: <Award size={22} color="#FFD700" />,
       iconColor: "#FFD700",
       features: [
         {
-          title: "Achievement System",
+          title: "Badge System",
           description: "Earn badges and rewards for being social on Open Invite.",
           howItWorks: [
-            "Go to your Profile and tap 'Achievements'",
-            "View all available achievements across categories",
-            "Track progress toward each achievement",
+            "Go to your Profile and tap 'Badges'",
+            "View all available badges across categories",
+            "Track progress toward each badge",
             "Unlock badges as you reach milestones",
             "Display earned badges on your profile",
           ],
         },
         {
-          title: "Achievement Tiers",
+          title: "Badge Tiers",
           description: "Progress through Bronze, Silver, Gold, Platinum, and Diamond tiers.",
           howItWorks: [
-            "Each achievement has 5 tier levels",
+            "Each badge has 5 tier levels",
             "Bronze: Beginner milestone",
             "Silver: Intermediate progress",
             "Gold: Significant accomplishment",
@@ -510,17 +510,17 @@ export default function HelpFAQScreen() {
           ],
         },
         {
-          title: "Hosting Achievements",
+          title: "Hosting Badges",
           description: "Earn badges for creating and hosting events.",
           howItWorks: [
-            "Create events to progress hosting achievements",
+            "Create events to progress hosting badges",
             "Track number of events hosted",
             "Earn badges like 'Party Starter' and 'Event Master'",
             "Higher tiers for hosting more events",
           ],
         },
         {
-          title: "Attending Achievements",
+          title: "Attending Badges",
           description: "Get rewarded for joining friends' events.",
           howItWorks: [
             "RSVP 'Going' to events and attend",
@@ -530,7 +530,7 @@ export default function HelpFAQScreen() {
           ],
         },
         {
-          title: "Streak Achievements",
+          title: "Streak Badges",
           description: "Unlock badges for maintaining hangout streaks with friends.",
           howItWorks: [
             "Hang out with friends regularly to build streaks",

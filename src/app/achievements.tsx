@@ -347,9 +347,9 @@ const setFeaturedMutation = useMutation({
 
   // [P0_BADGES_SCREEN] Canonical screen render trace
   if (__DEV__) {
-    devLog("[P0_BADGES_SCREEN]", {
+    devLog("[P0_BADGE_APPEARANCE] screen", {
       screenTitle: "Badges",
-      ogPillTokens: { bg: "#D4AF37", text: "#1A1A1A", border: "#A37E12" },
+      ogPillTokens: { bg: "#B8963E", text: "#1A1A1A", border: "#8C6D2A" },
       badgePillSSOT: true,
     });
   }
