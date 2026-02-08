@@ -31,7 +31,12 @@ interface CircleCardProps {
   index: number;
 }
 
-const SWIPE_THRESHOLD = 80;
+// ── SSOT swipe constants ──────────────────────────────────────
+const ACTION_WIDTH_PX = 72;          // single action pill width
+const OPEN_LEFT_PX   = ACTION_WIDTH_PX;  // delete reveal distance
+const OPEN_RIGHT_PX  = ACTION_WIDTH_PX;  // pin reveal distance
+const THRESH_OPEN_PX = 28;               // drag distance to snap open
+// ──────────────────────────────────────────────────────────────
 
 export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCardProps) {
   const router = useRouter();
@@ -65,6 +70,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
 
   const translateX = useSharedValue(0);
   const isSwipingLeft = useSharedValue(false);
+  const isSwipingRight = useSharedValue(false);
 
   // Mute mutation with optimistic update
   const muteMutation = useMutation({
@@ -201,21 +207,30 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
   }, [circle.id, circle.name]);
 
   const panGesture = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-10, 10])
     .onUpdate((event) => {
-      // Only allow left swipe to reveal actions
-      if (event.translationX < 0) {
-        translateX.value = event.translationX;
-        isSwipingLeft.value = event.translationX < -30;
-      }
+      // Clamp to [-OPEN_LEFT_PX, OPEN_RIGHT_PX]
+      translateX.value = Math.max(-OPEN_LEFT_PX, Math.min(OPEN_RIGHT_PX, event.translationX));
+      isSwipingLeft.value = event.translationX < -20;
+      isSwipingRight.value = event.translationX > 20;
     })
     .onEnd((event) => {
-      if (event.translationX < -SWIPE_THRESHOLD) {
-        // Swipe left -> Show all actions
-        translateX.value = withSpring(-210); // Width to show all 3 actions
+      const tx = event.translationX;
+      if (tx < -THRESH_OPEN_PX) {
+        // Snap open left → reveal Delete
+        if (__DEV__) runOnJS(devLog)('[P0_CIRCLE_SWIPE]', 'snap', { dir: 'left', target: -OPEN_LEFT_PX });
+        translateX.value = withSpring(-OPEN_LEFT_PX, { damping: 20, stiffness: 200 });
+      } else if (tx > THRESH_OPEN_PX) {
+        // Snap open right → reveal Pin, then auto-close after action
+        if (__DEV__) runOnJS(devLog)('[P0_CIRCLE_SWIPE]', 'snap', { dir: 'right', target: OPEN_RIGHT_PX });
+        translateX.value = withSpring(OPEN_RIGHT_PX, { damping: 20, stiffness: 200 });
       } else {
-        translateX.value = withSpring(0);
+        // Snap closed
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
       isSwipingLeft.value = false;
+      isSwipingRight.value = false;
     });
 
   const animatedCardStyle = useAnimatedStyle(() => ({
@@ -232,35 +247,36 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
       className="mb-3 relative overflow-hidden"
       testID={`circle-card-${circle.id}`}
     >
-      {/* Swipe Actions Background - Ordered: Pin, Mute, Delete */}
-      <View className="absolute inset-0 flex-row justify-end items-center pr-4">
-        {swipeActions.map((action, idx) => {
-          const actionHandlers = {
-            pin: triggerPin,
-            mute: triggerMute,
-            delete: triggerDelete,
-          };
-          const actionIcons = {
-            pin: circle.isPinned ? <Pin size={20} color="#fff" /> : <Pin size={20} color="#fff" />,
-            mute: circle.isMuted ? <Bell size={20} color="#fff" /> : <BellOff size={20} color="#fff" />,
-            delete: <Trash2 size={20} color="#fff" />,
-          };
-          
-          return (
-            <Pressable
-              key={action.type}
-              onPress={() => {
-                translateX.value = withSpring(0);
-                actionHandlers[action.type]();
-              }}
-              className="w-16 h-16 rounded-2xl items-center justify-center ml-2"
-              style={{ backgroundColor: action.color }}
-              testID={`circle-action-${action.type}-${circle.id}`}
-            >
-              {actionIcons[action.type]}
-            </Pressable>
-          );
-        })}
+      {/* Right-swipe: Pin action (revealed on the left side) */}
+      <View
+        className="absolute inset-y-0 left-0 items-center justify-center"
+        style={{ width: ACTION_WIDTH_PX }}
+      >
+        <Pressable
+          onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="w-14 h-14 rounded-2xl items-center justify-center"
+          style={{ backgroundColor: '#10B981' }}
+          testID={`circle-action-pin-${circle.id}`}
+        >
+          <Pin size={20} color="#fff" />
+        </Pressable>
+      </View>
+
+      {/* Left-swipe: Delete action (revealed on the right side) */}
+      <View
+        className="absolute inset-y-0 right-0 items-center justify-center"
+        style={{ width: ACTION_WIDTH_PX }}
+      >
+        <Pressable
+          onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerDelete(); }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="w-14 h-14 rounded-2xl items-center justify-center"
+          style={{ backgroundColor: '#EF4444' }}
+          testID={`circle-action-delete-${circle.id}`}
+        >
+          <Trash2 size={20} color="#fff" />
+        </Pressable>
       </View>
 
       {/* Card */}
