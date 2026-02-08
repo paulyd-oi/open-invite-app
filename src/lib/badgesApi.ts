@@ -102,6 +102,9 @@ export function deriveBadgesWithProOverride(
 // Canonical Query Keys (SSOT)
 // ============================================
 
+/** [P0_FEATURED_BADGE_UI] SSOT query key for the viewer's profile. */
+export const PROFILE_QUERY_KEY = ["profile"] as const;
+
 export const BADGE_QUERY_KEYS = {
   /** Query key for the full badge catalog (all badges with unlock status) */
   catalog: ["badgeCatalog"] as const,
@@ -167,6 +170,6 @@ export function getSetFeaturedInvalidationKeys(userId: string) {
   return [
     BADGE_QUERY_KEYS.catalog,
     BADGE_QUERY_KEYS.featured(userId),
-    ["profile"], // Also invalidate profile for header badge display
+    PROFILE_QUERY_KEY, // Also invalidate profile for header badge display
   ];
 }

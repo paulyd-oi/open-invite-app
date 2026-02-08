@@ -1,11 +1,5 @@
 /**
- * Normalize a featured badge to ensure it always has required fields for rendering.
- * Provides default tierColor (#F59E0B gold) if missing.
+ * Re-export from badges.ts SSOT.
+ * @deprecated Import normalizeFeaturedBadge from "@/lib/badges" instead.
  */
-export function normalizeFeaturedBadge(badge: any): { name: string; tierColor: string } | null {
-  if (!badge) return null;
-  return {
-    name: badge.name ?? "",
-    tierColor: badge.tierColor ?? "#F59E0B",
-  };
-}
+export { normalizeFeaturedBadge } from "./badges";

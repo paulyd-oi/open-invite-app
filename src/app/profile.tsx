@@ -21,8 +21,9 @@ import { StreakCounter } from "@/components/StreakCounter";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { BadgePill } from "@/components/BadgePill";
 
-import { getBadgePillVariant } from "@/lib/badges";
+import { getBadgePillVariantForBadge } from "@/lib/badges";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
+import { PROFILE_QUERY_KEY } from "@/lib/badgesApi";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -129,9 +130,10 @@ export default function ProfileScreen() {
   });
 
   const { data: profileData, refetch: refetchProfile } = useQuery({
-    queryKey: ["profile"],
+    queryKey: PROFILE_QUERY_KEY as unknown as string[],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    refetchOnMount: "always",
   });
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
@@ -265,8 +267,13 @@ export default function ProfileScreen() {
 
   if (__DEV__) {
     devLog("[P0_FEATURED_BADGE_UI] profile render", {
-      raw: profileData?.featuredBadge ?? "null",
-      normalized: featuredBadge ?? "null",
+      cacheKeyUsed: PROFILE_QUERY_KEY,
+      featuredBadgeRaw: profileData?.featuredBadge ?? "null",
+      featuredBadgeNormalized: featuredBadge ?? "null",
+    });
+    devLog("[P0_BADGE_PALETTE] profile screen", {
+      ogTokens: { bg: "#8C6D2A", text: "#141414", border: "#6F541F" },
+      proTokens: { bg: "#1F6F4A", text: "#F7F7F7", border: "#165237" },
     });
   }
 
@@ -378,7 +385,7 @@ export default function ProfileScreen() {
                       name={StringSafe(featuredBadge.name)}
                       tierColor={StringSafe(featuredBadge.tierColor, "#78909C")}
                       size="medium"
-                      variant={getBadgePillVariant(featuredBadge.name)}
+                      variant={getBadgePillVariantForBadge(featuredBadge)}
                     />
                   </View>
                 )}

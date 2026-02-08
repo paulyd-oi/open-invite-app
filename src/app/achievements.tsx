@@ -23,11 +23,12 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
 import { useIsPro } from "@/lib/entitlements";
 import { BadgePill } from "@/components/BadgePill";
-import { getBadgePillVariant } from "@/lib/badges";
+import { getBadgePillVariantForBadge } from "@/lib/badges";
 import {
   getBadgeCatalog,
   setFeaturedBadge,
   BADGE_QUERY_KEYS,
+  PROFILE_QUERY_KEY,
   isProTrioBadgeKey,
   deriveBadgesWithProOverride,
   type BadgeCatalogResponse,
@@ -99,9 +100,9 @@ const setFeaturedMutation = useMutation({
 
   onSuccess: (_data, badgeKey) => {
     // [P0_FEATURED_BADGE_UI] Optimistic cache write: push featuredBadge into the
-    // ["profile"] cache so Profile screen renders immediately — no refetch needed.
+    // PROFILE_QUERY_KEY cache so Profile screen renders immediately — no refetch needed.
     const catalogData = queryClient.getQueryData<BadgeCatalogResponse>(BADGE_QUERY_KEYS.catalog);
-    queryClient.setQueryData<GetProfileResponse>(["profile"], (old) => {
+    queryClient.setQueryData<GetProfileResponse>(PROFILE_QUERY_KEY as unknown as string[], (old) => {
       if (!old) return old;
       if (!badgeKey) {
         return { ...old, featuredBadge: null };
@@ -125,7 +126,8 @@ const setFeaturedMutation = useMutation({
       const badge = catalogData?.badges?.find((b) => b.badgeKey === badgeKey);
       devLog("[P0_FEATURED_BADGE_UI] optimistic cache write", {
         badgeKey: badgeKey ?? "null",
-        found: !!badge,
+        cacheKeyUsed: PROFILE_QUERY_KEY,
+        optimisticWriteApplied: !!badge || !badgeKey,
         name: badge?.name ?? "n/a",
         tierColor: badge?.tierColor ?? "n/a",
       });
@@ -138,7 +140,7 @@ const setFeaturedMutation = useMutation({
 
     // refresh profile cache (safe umbrella invalidation)
     queryClient.invalidateQueries({
-      queryKey: ["profile"],
+      queryKey: PROFILE_QUERY_KEY as unknown as string[],
     });
 
     // invalidate ALL featured badge queries (global safety)
@@ -345,12 +347,11 @@ const setFeaturedMutation = useMutation({
     }
   }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge, isPro, isProLoading]);
 
-  // [P0_BADGES_SCREEN] Canonical screen render trace
+  // [P0_BADGE_PALETTE] Canonical screen render trace
   if (__DEV__) {
-    devLog("[P0_BADGE_APPEARANCE] screen", {
-      screenTitle: "Badges",
-      ogPillTokens: { bg: "#B8963E", text: "#1A1A1A", border: "#8C6D2A" },
-      badgePillSSOT: true,
+    devLog("[P0_BADGE_PALETTE] achievements screen", {
+      ogTokens: { bg: "#8C6D2A", text: "#141414", border: "#6F541F" },
+      proTokens: { bg: "#1F6F4A", text: "#F7F7F7", border: "#165237" },
     });
   }
 
@@ -424,7 +425,7 @@ const setFeaturedMutation = useMutation({
                           name={featuredBadge.name}
                           tierColor={featuredBadge.tierColor}
                           size="medium"
-                          variant={getBadgePillVariant(featuredBadge.name)}
+                          variant={getBadgePillVariantForBadge(featuredBadge)}
                         />
                       </View>
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
@@ -492,7 +493,7 @@ const setFeaturedMutation = useMutation({
                                 name={badge.name}
                                 tierColor={badge.tierColor}
                                 size="small"
-                                variant={getBadgePillVariant(badge.name)}
+                                variant={getBadgePillVariantForBadge(badge)}
                               />
                             </View>
                             {badge.featured && (
@@ -664,7 +665,7 @@ const setFeaturedMutation = useMutation({
                 name={selectedBadge?.name ?? ""}
                 tierColor={selectedBadge?.tierColor ?? themeColor}
                 size="medium"
-                variant={getBadgePillVariant(selectedBadge?.name)}
+                variant={getBadgePillVariantForBadge(selectedBadge)}
               />
             </View>
             <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
