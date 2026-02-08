@@ -43,25 +43,29 @@ function getTextColorForBackground(hexColor: string): string {
  */
 export function BadgePill({ name, tierColor, variant = "small" }: BadgePillProps) {
   const isSmall = variant === "small";
-  const textColor = getTextColorForBackground(tierColor);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-  
-  // [P1_BADGE_CONTRACT] Raise alpha in dark mode for better contrast (0.125 → 0.25)
-  const backgroundAlpha = isDark ? "40" : "20";
+
+  // OG badge: solid surface treatment for dark-mode readability
+  const isOG = name.toUpperCase() === "OG";
+  const bgColor = isOG
+    ? "#1F1A08"
+    : tierColor + (isDark ? "40" : "20");
+  const borderColor = isOG ? "#6B5600" : tierColor;
+  const textColor = isOG ? "#FFD54A" : getTextColorForBackground(tierColor);
   
   return (
     <View
       className={`rounded-full items-center justify-center ${isSmall ? "px-2 py-1" : "px-3 py-1.5"}`}
       style={{
-        backgroundColor: tierColor + backgroundAlpha,
-        borderWidth: 0.5,
-        borderColor: tierColor,
+        backgroundColor: bgColor,
+        borderWidth: isOG ? 1 : 0.5,
+        borderColor,
       }}
     >
       <Text
         className={`font-semibold ${isSmall ? "text-xs" : "text-sm"}`}
-        style={{ color: textColor }}
+        style={{ color: textColor, fontWeight: "600" }}
       >
         {name}
       </Text>
