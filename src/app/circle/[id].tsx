@@ -901,6 +901,13 @@ export default function CircleScreen() {
     setUnseenCount(0);
   }, []);
 
+  // [P1_CHAT_PILL] Log when pill becomes visible
+  useEffect(() => {
+    if (__DEV__ && unseenCount > 0) {
+      devLog("[P1_CHAT_PILL]", "pill_show", { unseen: unseenCount });
+    }
+  }, [unseenCount > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // [P1_CHAT_PAGINATION] Pagination state — compound cursor (createdAt + id)
   const PAGE_SIZE = 30;
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
@@ -997,7 +1004,7 @@ export default function CircleScreen() {
       clearUnseen();
       sendReadHorizon("return_to_bottom");
       if (__DEV__) {
-        devLog("[P1_NEW_MSG]", "returned-to-bottom clear");
+        devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "return_to_bottom" });
       }
     }
   }, [AUTO_SCROLL_THRESHOLD, clearUnseen, sendReadHorizon]);
@@ -1117,12 +1124,12 @@ export default function CircleScreen() {
       scheduleAutoScroll();
       sendReadHorizon("near_bottom_new_msg");
       if (__DEV__) {
-        devLog("[P1_NEW_MSG]", "at-bottom auto-scroll", { delta });
+        devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "near_bottom", delta });
       }
     } else {
       bumpUnseen(delta);
       if (__DEV__) {
-        devLog("[P1_NEW_MSG]", "scrolled-up unseen++", { delta, unseen: unseenCountRef.current });
+        devLog("[P1_CHAT_PILL]", "unseen_inc", { delta, unseenAfter: unseenCountRef.current });
       }
     }
   }, [messageCount, scheduleAutoScroll, clearUnseen, bumpUnseen]);
@@ -2024,15 +2031,18 @@ export default function CircleScreen() {
           }}
         />
 
-        {/* [P1_NEW_MSG] Floating new messages indicator */}
+        {/* [P1_CHAT_PILL] Floating new messages indicator */}
         {unseenCount > 0 ? (
           <Pressable
             onPress={() => {
+              if (__DEV__) {
+                devLog("[P1_CHAT_PILL]", "pill_tap", { unseen: unseenCount });
+              }
               clearUnseen();
               scheduleAutoScroll();
               sendReadHorizon("pill_tap");
               if (__DEV__) {
-                devLog("[P1_NEW_MSG]", "tap-scroll-to-bottom", { unseenCount });
+                devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "tap" });
               }
             }}
             style={{
@@ -2060,7 +2070,7 @@ export default function CircleScreen() {
               </Text>
               {unseenCount > 1 ? (
                 <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>
-                  {unseenCount}
+                  {unseenCount > 99 ? "99+" : unseenCount}
                 </Text>
               ) : null}
               <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>{"\u2193"}</Text>

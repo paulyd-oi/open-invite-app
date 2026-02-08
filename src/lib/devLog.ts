@@ -77,6 +77,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_CHAT_SEND_UI]",
   // P1 chat timestamp polish (run-aware + tap-to-toggle)
   "[P1_CHAT_TS]",
+  // P1 chat new-messages pill
+  "[P1_CHAT_PILL]",
 ];
 
 /**
