@@ -901,15 +901,9 @@ export default function EventDetailScreen() {
   const derivedCount = deriveAttendeeCount(event);
   
   // [P1_EVENT_META] COUNT SSOT — single source of truth for displayed count.
-  // Priority: A) attendeesData.totalGoing (from /api/events/:id/attendees, most precise when available)
-  //          B) eventMeta.goingCount (from owner query eventKeys.single — NOT from feed/list)
-  //          C) derivedCount (last-resort fallback from joinRequests)
-  const effectiveGoingCount = attendeesData?.totalGoing ?? eventMeta.goingCount ?? derivedCount;
-  // Determine which source we used (for proof logging)
-  const countSource: 'attendees.totalGoing' | 'eventMeta.goingCount' | 'derived' =
-    attendeesData?.totalGoing != null ? 'attendees.totalGoing'
-    : eventMeta.goingCount != null ? 'eventMeta.goingCount'
-    : 'derived';
+  // INVARIANT: displayedCount MUST derive exclusively from eventMeta.goingCount (owner: eventKeys.single).
+  // attendeesData is for roster list only, NOT for count display.
+  const effectiveGoingCount = eventMeta.goingCount ?? 0;
   // Alias for backward compat — all UI must use effectiveGoingCount
   const totalGoing = effectiveGoingCount;
 
@@ -922,33 +916,22 @@ export default function EventDetailScreen() {
         isFull: eventMeta.isFull,
         capacity: eventMeta.capacity,
         goingCount: eventMeta.goingCount,
-        effectiveGoingCount,
-        countSource,
+        displayedCount: effectiveGoingCount,
         ownerLoaded: !!singleEventData?.event,
       });
     }
   }, [id, eventMeta.isFull, eventMeta.capacity, eventMeta.goingCount, effectiveGoingCount, isLoadingEvent]);
 
-  // [P0_WHO_COMING_UI] Canonical proof log: rendered count + invariant (DEV only, fires once per render cycle)
+  // [P0_WHO_COMING_UI] Canonical proof log: rendered count (DEV only, fires once per render cycle)
   React.useEffect(() => {
     if (__DEV__ && event && id && !isLoadingAttendees) {
       console.log('[P0_WHO_COMING_UI]', {
         eventId: id.slice(0, 8),
         displayedCount: effectiveGoingCount,
-        sourceUsed: countSource,
+        sourceUsed: 'eventMeta.goingCount',
         attendeesLen: attendeesList.length,
         visibility: event?.visibility ?? 'unknown',
       });
-      // Invariant: when we have a list AND includeAll was used, count should match list length
-      const isOpenInvite = event?.visibility === 'open_invite';
-      if (effectiveGoingCount !== attendeesList.length && attendeesList.length > 0 && (isOpenInvite || countSource === 'attendees.totalGoing')) {
-        console.warn('[P0_WHO_COMING_UI] INVARIANT: count != list length', {
-          eventId: id.slice(0, 8),
-          displayedCount: effectiveGoingCount,
-          attendeesLen: attendeesList.length,
-          countSource,
-        });
-      }
     }
   }, [id, effectiveGoingCount, attendeesList.length, isLoadingAttendees]);
 
