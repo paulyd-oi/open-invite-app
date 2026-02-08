@@ -17,6 +17,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -734,12 +735,12 @@ export function useNotifications() {
           }
         } else if (type === "circle_message") {
           // Refresh circles to update unread counts
-          queryClient.invalidateQueries({ queryKey: ["circles"] });
+          queryClient.invalidateQueries({ queryKey: circleKeys.all() });
           // If we have the circleId, also refresh that specific circle's messages
-          const circleId = notification.request.content.data?.circleId;
+          const circleId = notification.request.content.data?.circleId as string | undefined;
           if (circleId) {
-            queryClient.invalidateQueries({ queryKey: ["circle", circleId] });
-            queryClient.invalidateQueries({ queryKey: ["circle-messages", circleId] });
+            queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
+            queryClient.invalidateQueries({ queryKey: circleKeys.messages(circleId) });
           }
         }
         

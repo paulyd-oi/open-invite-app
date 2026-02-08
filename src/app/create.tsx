@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { circleKeys } from "@/lib/circleQueryKeys";
 import {
   MapPin,
   Clock,
@@ -562,8 +563,8 @@ export default function CreateEventScreen() {
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       // Also invalidate circle queries if this is a circle event
       if (circleId) {
-        queryClient.invalidateQueries({ queryKey: ["circle", circleId] });
-        queryClient.invalidateQueries({ queryKey: ["circles"] });
+        queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
+        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       }
       // Check if we should show notification pre-prompt (Aha moment: first event created)
       checkNotificationNudge();

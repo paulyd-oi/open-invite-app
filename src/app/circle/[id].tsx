@@ -18,6 +18,7 @@ import {
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
+import { circleKeys } from "@/lib/circleQueryKeys";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -859,7 +860,7 @@ export default function CircleScreen() {
   }, [showCalendar, calendarCollapsedByKeyboard]);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["circle", id],
+    queryKey: circleKeys.single(id),
     queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
@@ -895,8 +896,8 @@ export default function CircleScreen() {
       setSelectedFriends([]);
 
       // Invalidate and refetch circle data to update calendar with new members
-      await queryClient.invalidateQueries({ queryKey: ["circle", id] });
-      await queryClient.invalidateQueries({ queryKey: ["circles"] });
+      await queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+      await queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       await refetch();
 
       // Check if new members are friends with all existing circle members
@@ -930,8 +931,8 @@ export default function CircleScreen() {
       safeToast.success("Removed", "Member has been removed from the circle.");
       setSelectedMemberToRemove(null);
       // Invalidate and refetch circle data
-      await queryClient.invalidateQueries({ queryKey: ["circle", id] });
-      await queryClient.invalidateQueries({ queryKey: ["circles"] });
+      await queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+      await queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       await refetch();
     },
     onError: (error: any, memberUserId) => {
@@ -961,8 +962,8 @@ export default function CircleScreen() {
     mutationFn: () => api.post(`/api/circles/${id}/read`, {}),
     onSuccess: () => {
       // Invalidate circles list to update badge counts
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
-      queryClient.invalidateQueries({ queryKey: ["circleUnreadCount"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
     },
   });
 
@@ -973,8 +974,8 @@ export default function CircleScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Saved", "Description updated");
-      queryClient.invalidateQueries({ queryKey: ["circle", id] });
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       setEditingDescription(false);
     },
     onError: (error: any) => {
@@ -994,15 +995,15 @@ export default function CircleScreen() {
     },
     onMutate: async (isMuted) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
-      await queryClient.cancelQueries({ queryKey: ["circle", id] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
+      await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
 
       // Snapshot current values
-      const previousCircles = queryClient.getQueryData(["circles"]);
-      const previousCircle = queryClient.getQueryData(["circle", id]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
+      const previousCircle = queryClient.getQueryData(circleKeys.single(id));
 
       // Optimistically update circles list
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         return {
           ...old,
@@ -1013,7 +1014,7 @@ export default function CircleScreen() {
       });
 
       // Optimistically update circle detail
-      queryClient.setQueryData(["circle", id], (old: any) => {
+      queryClient.setQueryData(circleKeys.single(id), (old: any) => {
         if (!old?.circle) return old;
         return { ...old, circle: { ...old.circle, isMuted } };
       });
@@ -1041,16 +1042,16 @@ export default function CircleScreen() {
         nextMuted: isMuted,
         entryPoint: "details",
       });
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
-      queryClient.invalidateQueries({ queryKey: ["circle", id] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
     },
     onError: (error, isMuted, context) => {
       // Revert optimistic updates
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       if (context?.previousCircle) {
-        queryClient.setQueryData(["circle", id], context.previousCircle);
+        queryClient.setQueryData(circleKeys.single(id), context.previousCircle);
       }
       if (__DEV__) {
         devLog("[P0_CIRCLE_MUTE_POLISH]", {
