@@ -59,6 +59,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_SCROLL_ANCHOR]",
   // P1 new messages indicator proof
   "[P1_NEW_MSG]",
+  // P1 read/unread realtime proof
+  "[P1_READ_UNREAD]",
 ];
 
 /**

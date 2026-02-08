@@ -15,6 +15,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { getActiveCircle } from "@/lib/activeCircle";
 import { devLog } from "@/lib/devLog";
 
 // ============================================================================
@@ -375,6 +376,27 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     queryKey: circleKeys.messages(circleId),
     refetchType: "inactive",
   });
+
+  // ── STEP 4: Unread count update ──
+  const activeCircle = getActiveCircle();
+  if (activeCircle === circleId) {
+    // Viewer is currently in this circle — treat as read, no unread increment
+    if (__DEV__) {
+      devLog("[P1_READ_UNREAD]", "push treated-as-read (active)", { circleId });
+    }
+  } else if (message?.id) {
+    // Viewer is NOT in this circle — increment totalUnread
+    queryClient.setQueryData(
+      circleKeys.unreadCount(),
+      (prev: any) => ({
+        ...prev,
+        totalUnread: Math.max(0, ((prev?.totalUnread as number) ?? 0) + 1),
+      }),
+    );
+    if (__DEV__) {
+      devLog("[P1_READ_UNREAD]", "push unread++", { circleId });
+    }
+  }
 
   return message?.id ? "patch_message+reconcile" : "no_message+reconcile";
 }

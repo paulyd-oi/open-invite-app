@@ -26,7 +26,7 @@ import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage } from "@
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useLocalSearchParams, Stack } from "expo-router";
+import { useRouter, useLocalSearchParams, Stack, useFocusEffect } from "expo-router";
 import {
   ArrowLeft,
   MessageCircle,
@@ -59,6 +59,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { setActiveCircle } from "@/lib/activeCircle";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { formatDateTimeRange } from "@/lib/eventTime";
@@ -1140,13 +1141,36 @@ export default function CircleScreen() {
     },
   });
 
-  // Mark circle as read mutation
+  // Mark circle as read mutation — optimistic patch + inactive reconcile
   const markAsReadMutation = useMutation({
     mutationFn: () => api.post(`/api/circles/${id}/read`, {}),
+    onMutate: () => {
+      // Optimistically decrement totalUnread
+      queryClient.setQueryData(
+        circleKeys.unreadCount(),
+        (prev: any) => {
+          const current = (prev?.totalUnread as number) ?? 0;
+          // We don't know this circle's exact count, so decrement by 1 (floor at 0)
+          return { ...prev, totalUnread: Math.max(0, current - 1) };
+        },
+      );
+      if (__DEV__) {
+        devLog("[P1_READ_UNREAD]", "circle-open optimistic clear", { circleId: id });
+      }
+    },
     onSuccess: () => {
-      // Invalidate circles list to update badge counts
-      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-      queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
+      // Background reconcile — inactive only (no UI jitter)
+      queryClient.invalidateQueries({
+        queryKey: circleKeys.unreadCount(),
+        refetchType: "inactive",
+      });
+      queryClient.invalidateQueries({
+        queryKey: circleKeys.all(),
+        refetchType: "inactive",
+      });
+      if (__DEV__) {
+        devLog("[P1_READ_UNREAD]", "circle-open reconcile inactive", { circleId: id });
+      }
     },
   });
 
@@ -1249,12 +1273,18 @@ export default function CircleScreen() {
     },
   });
 
-  // Mark as read when component mounts or when id changes
-  useEffect(() => {
-    if (session && id) {
-      markAsReadMutation.mutate();
-    }
-  }, [session, id]);
+  // [P1_READ_UNREAD] Mark as read on focus + track active circle for push routing
+  useFocusEffect(
+    useCallback(() => {
+      if (session && id && isAuthedForNetwork(bootStatus, session)) {
+        setActiveCircle(id);
+        markAsReadMutation.mutate();
+      }
+      return () => {
+        setActiveCircle(null);
+      };
+    }, [session, id, bootStatus]),
+  );
 
   // [P0_SHEET_PRIMITIVE_GROUP_SETTINGS] proof log – once per open
   useEffect(() => {
