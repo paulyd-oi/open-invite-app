@@ -1504,6 +1504,8 @@ export default function CircleScreen() {
         appSub.remove();
         setTypingUsers([]);
         prevTypingNonEmptyRef.current = false;
+        // Best-effort clear typing on blur so others don't see stale indicator
+        api.post(`/api/circles/${id}/typing`, { isTyping: false }).catch(() => {});
       };
     }, [id, session, bootStatus]),
   );
@@ -2265,7 +2267,6 @@ export default function CircleScreen() {
               multiline
               className="flex-1 py-1"
               style={{ color: colors.text, fontSize: 16, maxHeight: 80 }}
-              onSubmitEditing={handleSend}
             />
           </View>
           <Pressable
@@ -2274,6 +2275,7 @@ export default function CircleScreen() {
             className="w-11 h-11 rounded-full items-center justify-center"
             style={{
               backgroundColor: message.trim() ? themeColor : isDark ? "#2C2C2E" : "#E5E7EB",
+              opacity: !message.trim() || sendMessageMutation.isPending ? 0.5 : 1,
             }}
           >
             <MessageCircle
