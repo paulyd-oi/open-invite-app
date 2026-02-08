@@ -132,7 +132,7 @@ const setFeaturedMutation = useMutation({
     safeToast.success("Featured badge updated");
   },
 
-  onError: (error: unknown) => {
+  onError: (error: unknown, variables: string | null) => {
     Haptics.notificationAsync(
       Haptics.NotificationFeedbackType.Error
     );
@@ -142,12 +142,32 @@ const setFeaturedMutation = useMutation({
         ? (error as { data?: { error?: string } }).data
         : null;
 
-    const message =
-      errorData?.error?.toLowerCase().includes("not unlocked")
+    const isNotUnlockedError = errorData?.error?.toLowerCase().includes("not unlocked") ?? false;
+    // [P0_BADGE_UNLOCK_PATH] Pro trio SSOT: if derived-unlocked but backend rejects,
+    // suppress misleading "not unlocked" and show sync message instead.
+    const badgeKey = variables ?? "";
+    const isProTrioOverride = isNotUnlockedError && isPro && isProTrioBadgeKey(badgeKey);
+
+    if (__DEV__) {
+      devLog("[P0_BADGE_UNLOCK_PATH] setFeatured onError", {
+        badgeKey,
+        isNotUnlockedError,
+        isPro,
+        isProTrioOverride,
+        backendError: errorData?.error ?? "unknown",
+      });
+    }
+
+    if (isProTrioOverride) {
+      // Backend hasn't synced Pro entitlement yet — retry after catalog refresh
+      queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
+      safeToast.error("Syncing badge status — please try again");
+    } else {
+      const message = isNotUnlockedError
         ? "Badge not unlocked yet"
         : "Failed to update featured badge";
-
-    safeToast.error(message);
+      safeToast.error(message);
+    }
   },
 });
 
@@ -409,6 +429,17 @@ const setFeaturedMutation = useMutation({
                   <Animated.View key={badge.badgeKey} entering={FadeInDown.delay(index * 50).springify()}>
                     <Pressable
                       onPress={() => {
+                        if (__DEV__) {
+                          devLog("[P0_BADGE_UNLOCK_PATH] badge tap", {
+                            badgeKey: badge.badgeKey,
+                            derivedUnlocked: badge.unlocked,
+                            isPro,
+                            backendIsPro,
+                            rcIsPro,
+                            combinedIsPro,
+                            source: "unlocked_list",
+                          });
+                        }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setSelectedBadge(badge);
                       }}
@@ -477,6 +508,17 @@ const setFeaturedMutation = useMutation({
                   <Animated.View key={badge.badgeKey} entering={FadeInDown.delay((unlockedBadges.length + index) * 50).springify()}>
                     <Pressable
                       onPress={() => {
+                        if (__DEV__) {
+                          devLog("[P0_BADGE_UNLOCK_PATH] badge tap", {
+                            badgeKey: badge.badgeKey,
+                            derivedUnlocked: badge.unlocked,
+                            isPro,
+                            backendIsPro,
+                            rcIsPro,
+                            combinedIsPro,
+                            source: "locked_list",
+                          });
+                        }
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         setSelectedBadge(badge);
                       }}
