@@ -22,6 +22,8 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { devLog } from "@/lib/devLog";
 import { useIsPro } from "@/lib/entitlements";
+import { BadgePill } from "@/components/BadgePill";
+import { getBadgePillVariant } from "@/lib/badges";
 import {
   getBadgeCatalog,
   setFeaturedBadge,
@@ -289,6 +291,15 @@ const setFeaturedMutation = useMutation({
     }
   }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge, isPro, isProLoading]);
 
+  // [P0_BADGES_SCREEN] Canonical screen render trace
+  if (__DEV__) {
+    devLog("[P0_BADGES_SCREEN]", {
+      screenTitle: "Badges",
+      ogPillTokens: { bg: "#D4AF37", text: "#1A1A1A", border: "#A37E12" },
+      badgePillSSOT: true,
+    });
+  }
+
   return (
     <SafeAreaView testID="achievements-screen" className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
       <Stack.Screen
@@ -354,19 +365,13 @@ const setFeaturedMutation = useMutation({
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 mr-3">
-                      <View
-                        style={{
-                          alignSelf: "flex-start",
-                          paddingHorizontal: 12,
-                          paddingVertical: 5,
-                          borderRadius: 999,
-                          backgroundColor: hexToRgba(featuredBadge.tierColor, 0.15),
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text style={{ color: featuredBadge.tierColor, fontWeight: "600", fontSize: 16 }}>
-                          {featuredBadge.name}
-                        </Text>
+                      <View style={{ alignSelf: "flex-start", marginBottom: 8 }}>
+                        <BadgePill
+                          name={featuredBadge.name}
+                          tierColor={featuredBadge.tierColor}
+                          size="medium"
+                          variant={getBadgePillVariant(featuredBadge.name)}
+                        />
                       </View>
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         {featuredBadge.description}
@@ -417,19 +422,13 @@ const setFeaturedMutation = useMutation({
                       <View className="flex-row items-center justify-between mb-2">
                         <View className="flex-1 mr-3">
                           <View className="flex-row items-center mb-2">
-                            <View
-                              style={{
-                                alignSelf: "flex-start",
-                                paddingHorizontal: 10,
-                                paddingVertical: 4,
-                                borderRadius: 999,
-                                backgroundColor: hexToRgba(badge.tierColor, 0.15),
-                                marginRight: 8,
-                              }}
-                            >
-                              <Text style={{ color: badge.tierColor, fontWeight: "600", fontSize: 14 }}>
-                                {badge.name}
-                              </Text>
+                            <View style={{ marginRight: 8 }}>
+                              <BadgePill
+                                name={badge.name}
+                                tierColor={badge.tierColor}
+                                size="small"
+                                variant={getBadgePillVariant(badge.name)}
+                              />
                             </View>
                             {badge.featured && (
                               <View
@@ -584,19 +583,13 @@ const setFeaturedMutation = useMutation({
                 <X size={16} color={colors.text} />
               </Pressable>
             </View>
-            <View
-              style={{
-                alignSelf: "flex-start",
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 999,
-                backgroundColor: hexToRgba(selectedBadge?.tierColor ?? themeColor, 0.15),
-                marginBottom: 12,
-              }}
-            >
-              <Text style={{ color: selectedBadge?.tierColor ?? colors.text, fontWeight: "600", fontSize: 20 }}>
-                {selectedBadge?.name}
-              </Text>
+            <View style={{ alignSelf: "flex-start", marginBottom: 12 }}>
+              <BadgePill
+                name={selectedBadge?.name ?? ""}
+                tierColor={selectedBadge?.tierColor ?? themeColor}
+                size="medium"
+                variant={getBadgePillVariant(selectedBadge?.name)}
+              />
             </View>
             <Text className="text-base leading-6" style={{ color: colors.textSecondary }}>
               {selectedBadge?.description}

@@ -4,7 +4,7 @@ import { useColorScheme } from "react-native";
 
 /** Solid token overrides per badge variant. null = use default tierColor logic. */
 const SOLID_TOKENS: Record<string, { bg: string; border: string; text: string; borderWidth: number }> = {
-  og:   { bg: "#FFD54A", border: "#E0B800", text: "#1F1A08", borderWidth: 1 },
+  og:   { bg: "#D4AF37", border: "#A37E12", text: "#1A1A1A", borderWidth: 1 },
   // pro / gift reserved — add tokens here when ready
 };
 
