@@ -32,6 +32,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { useIsPro } from "@/lib/entitlements";
+import { devLog } from "@/lib/devLog";
 
 import {
   type GetFriendsResponse,
@@ -261,6 +262,13 @@ export default function ProfileScreen() {
 
   // Featured badge (normalized)
   const featuredBadge = normalizeFeaturedBadge(profileData?.featuredBadge);
+
+  if (__DEV__) {
+    devLog("[P0_FEATURED_BADGE_UI] profile render", {
+      raw: profileData?.featuredBadge ?? "null",
+      normalized: featuredBadge ?? "null",
+    });
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>

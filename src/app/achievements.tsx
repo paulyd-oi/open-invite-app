@@ -33,6 +33,7 @@ import {
   type BadgeCatalogResponse,
   type BadgeCatalogItem,
 } from "@/lib/badgesApi";
+import type { GetProfileResponse } from "../../shared/contracts";
 
 // Helper to convert hex color to rgba with opacity
 function hexToRgba(hex: string, opacity: number): string {
@@ -96,7 +97,40 @@ export default function BadgesScreen() {
 const setFeaturedMutation = useMutation({
   mutationFn: (badgeKey: string | null) => setFeaturedBadge(badgeKey),
 
-  onSuccess: () => {
+  onSuccess: (_data, badgeKey) => {
+    // [P0_FEATURED_BADGE_UI] Optimistic cache write: push featuredBadge into the
+    // ["profile"] cache so Profile screen renders immediately — no refetch needed.
+    const catalogData = queryClient.getQueryData<BadgeCatalogResponse>(BADGE_QUERY_KEYS.catalog);
+    queryClient.setQueryData<GetProfileResponse>(["profile"], (old) => {
+      if (!old) return old;
+      if (!badgeKey) {
+        return { ...old, featuredBadge: null };
+      }
+      const badge = catalogData?.badges?.find((b) => b.badgeKey === badgeKey);
+      if (badge) {
+        return {
+          ...old,
+          featuredBadge: {
+            badgeKey: badge.badgeKey,
+            name: badge.name,
+            description: badge.description,
+            tierColor: badge.tierColor,
+          },
+        };
+      }
+      return old;
+    });
+
+    if (__DEV__) {
+      const badge = catalogData?.badges?.find((b) => b.badgeKey === badgeKey);
+      devLog("[P0_FEATURED_BADGE_UI] optimistic cache write", {
+        badgeKey: badgeKey ?? "null",
+        found: !!badge,
+        name: badge?.name ?? "n/a",
+        tierColor: badge?.tierColor ?? "n/a",
+      });
+    }
+
     // refresh badge catalog
     queryClient.invalidateQueries({
       queryKey: BADGE_QUERY_KEYS.catalog,
