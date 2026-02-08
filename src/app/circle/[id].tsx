@@ -582,7 +582,7 @@ function MiniCalendar({
                       No events scheduled
                     </Text>
                     <Text style={{ fontSize: 12, marginTop: 4, color: colors.textTertiary }}>
-                      Everyone is free on this day!
+                      Best times on this day — based on events in Open Invite.
                     </Text>
                   </View>
                 ) : (
