@@ -581,8 +581,11 @@ function MiniCalendar({
                     <Text style={{ fontSize: 14, fontWeight: "500", marginTop: 12, color: colors.textSecondary }}>
                       No events scheduled
                     </Text>
-                    <Text style={{ fontSize: 12, marginTop: 4, color: colors.textTertiary }}>
-                      Best times on this day — based on events in Open Invite.
+                    <Text style={{ fontSize: 12, fontWeight: "500", marginTop: 4, color: colors.textSecondary }}>
+                      Best times on this day
+                    </Text>
+                    <Text style={{ fontSize: 11, marginTop: 2, color: colors.textTertiary }}>
+                      Based on events in Open Invite.
                     </Text>
                   </View>
                 ) : (
