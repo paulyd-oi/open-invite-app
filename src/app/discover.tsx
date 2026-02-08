@@ -64,6 +64,7 @@ interface PopularEvent {
   attendeeCount: number;
   capacity?: number | null;
   goingCount?: number;
+  displayGoingCount?: number;
   isFull?: boolean;
   viewerRsvpStatus?: "going" | "not_going" | "interested" | null;
   joinRequests?: Array<{
@@ -213,8 +214,9 @@ export default function DiscoverScreen() {
     // [P0_RSVP_SOT] Use canonical derivation for attendee count
     const withAttendeeCount = allEvents.map((event) => {
       const derivedCount = deriveAttendeeCount(event);
-      // Prefer goingCount from API if available, fallback to derived
-      const attendeeCount = event.goingCount ?? derivedCount;
+      // SSOT: displayGoingCount > goingCount > derived
+      const effectivePopularGoing = event.displayGoingCount ?? event.goingCount ?? derivedCount;
+      const attendeeCount = effectivePopularGoing;
       
       // [P0_RSVP_SOT] Log mismatch in DEV
       if (__DEV__) {
@@ -230,8 +232,9 @@ export default function DiscoverScreen() {
     
     const filtered = withAttendeeCount
       .filter((event) => {
-        // [P0_DISCOVER_GOINGCOUNT_SSOT] Popular tab: open_invite events ONLY
-        if (event.visibility !== "open_invite") return false;
+        // Popular tab: open_invite + all_friends allowed; block circle_only/specific_groups/private
+        const BLOCKED_VIS = ['circle_only', 'specific_groups', 'private'];
+        if (event.visibility && BLOCKED_VIS.includes(event.visibility)) return false;
         const eventDate = new Date(event.startTime);
         const isPast = eventDate < now;
         const belowThreshold = event.attendeeCount < POPULAR_THRESHOLD;
@@ -248,38 +251,34 @@ export default function DiscoverScreen() {
       })
       .sort((a, b) => b.attendeeCount - a.attendeeCount);
     
-    // P0 DEV: Log popular events filtering for debugging
+    // [P0_DISCOVER_POPULAR_RENDER] Canonical proof log (once per render cycle)
     if (__DEV__) {
-      devLog(`[P0_POPULAR] fetched=${allEvents.length}`);
-      devLog(`[P0_POPULAR] filtered=${filtered.length}`);
-      exclusionReasons.forEach((r) => devLog(`[P0_POPULAR] exclude ${r}`));
-      
-      // [P0_RSVP_MISMATCH] Proof log: Discover popular events going count source
-      filtered.slice(0, 3).forEach((event) => {
-        const acceptedJoinRequests = event.joinRequests?.filter(r => r.status === "accepted") ?? [];
-        devLog('[P0_RSVP_MISMATCH]', {
-          screen: 'discover_popular',
-          eventId: event.id.slice(0, 8),
-          displayedCount: event.attendeeCount,
-          goingCount: event.goingCount,
-          derivedCount: deriveAttendeeCount(event),
-          joinRequestsAcceptedLen: acceptedJoinRequests.length,
-          firstTwoIds: acceptedJoinRequests.slice(0, 2).map(r => r.user?.id?.slice(0, 6) ?? 'null'),
-          endpoint: '/api/events/feed + /api/events',
-        });
+      const afterVisibilityLen = withAttendeeCount.filter(e => {
+        const BLOCKED = ['circle_only', 'specific_groups', 'private'];
+        return !(e.visibility && BLOCKED.includes(e.visibility));
+      }).length;
+      console.log('[P0_DISCOVER_POPULAR_RENDER]', {
+        rawLen: allEvents.length,
+        afterVisibilityLen,
+        afterGoingLen: filtered.length,
+        first3: filtered.slice(0, 3).map(e => ({
+          id: e.id.slice(0, 12),
+          vis: e.visibility ?? 'undefined',
+          goingCount: e.goingCount,
+          displayGoingCount: (e as any).displayGoingCount,
+          effectivePopularGoing: e.attendeeCount,
+        })),
       });
-      
+      // Invariant: warn if all events got filtered out but raw had data
       if (allEvents.length > 0 && filtered.length === 0) {
-        const sample = allEvents[0];
-        devLog("[P0_POPULAR] Sample event debug:", {
-          id: sample.id,
-          title: sample.title,
-          startTime: sample.startTime,
-          goingCount: sample.goingCount,
-          joinRequestsCount: sample.joinRequests?.length,
-          acceptedCount: sample.joinRequests?.filter(r => r.status === "accepted")?.length,
+        console.warn('[P0_DISCOVER_POPULAR_RENDER] INVARIANT: all events filtered out', {
+          rawLen: allEvents.length,
+          sampleId: allEvents[0].id.slice(0, 12),
+          sampleVis: allEvents[0].visibility,
+          sampleGoing: allEvents[0].attendeeCount,
         });
       }
+      exclusionReasons.forEach((r) => devLog(`[P0_POPULAR] exclude ${r}`));
     }
     
     return filtered;
@@ -554,13 +553,13 @@ export default function DiscoverScreen() {
                             {event.capacity != null
                               ? event.isFull
                                 ? "Full"
-                                : `${event.goingCount ?? event.attendeeCount}/${event.capacity}`
+                                : `${event.attendeeCount}/${event.capacity}`
                               : event.attendeeCount
                             }
                           </Text>
                         </View>
                         <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-                          {event.isFull ? `${event.goingCount ?? event.attendeeCount} going` : "going"}
+                          {event.isFull ? `${event.attendeeCount} going` : "going"}
                         </Text>
                       </View>
                     </View>
