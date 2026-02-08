@@ -49,6 +49,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_LOADING_INV]",
   // P1 RSVP patch proof
   "[P1_RSVP_PATCH]",
+  // P1 circle message patch proof
+  "[P1_MSG_PATCH]",
 ];
 
 /**

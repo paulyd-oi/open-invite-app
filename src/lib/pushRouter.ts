@@ -93,8 +93,10 @@ export interface CircleMessagePayload extends BasePushPayload {
   message?: {
     id: string;
     text: string;
-    senderId: string;
+    userId: string;
+    senderId?: string;
     createdAt: string;
+    readBy?: string[];
   };
 }
 
@@ -236,30 +238,83 @@ export function handlePushEvent(
 // ============================================================================
 
 /**
+ * Safe append: dedupe by id, stable ordering, immutable return.
+ * Works with the circle detail cache shape: { circle: { messages: [...] } }
+ */
+function safeAppendMessage(
+  prev: any,
+  msg: { id: string; createdAt: string; [k: string]: any },
+): any {
+  if (!prev?.circle) return prev;
+
+  const existing = prev.circle.messages ?? [];
+  const exists = existing.some((m: any) => m.id === msg.id);
+  if (exists) return prev;
+
+  const next = [...existing, msg].sort(
+    (a: any, b: any) => (a.createdAt as string).localeCompare(b.createdAt as string),
+  );
+
+  return { ...prev, circle: { ...prev.circle, messages: next } };
+}
+
+/**
  * Handle circle message push notification
- * Strategy: Invalidate messages and unread count (patch deferred to future iteration)
+ * Strategy: Patch-first — append message to cache, background reconcile only
  */
 function handleCircleMessage(payload: Record<string, any>, queryClient: QueryClient): string {
   const circleId = payload.circleId ?? payload.circle_id;
-  
+
   if (!circleId) {
     return "missing_circleId";
   }
-  
-  // Invalidate circle messages
-  queryClient.invalidateQueries({ queryKey: circleKeys.messages(circleId) });
-  
-  // Invalidate unread count
-  queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
-  
-  // Optionally invalidate circle single if it has lastMessage preview
-  queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
-  
-  if (__DEV__) {
-    devLog(`[P1_PUSH_ROUTER] invalidate keys=[circleKeys.messages(${circleId}), circleKeys.unreadCount(), circleKeys.single(${circleId})]`);
+
+  const message = payload.message;
+
+  // ── STEP 1: Patch circle detail cache (messages live under circleKeys.single) ──
+  if (message?.id && message?.createdAt) {
+    queryClient.setQueryData(
+      circleKeys.single(circleId),
+      (prev: any) => safeAppendMessage(prev, message),
+    );
+
+    // ── STEP 2: Read receipt patch (if readBy present on an existing message) ──
+    if (Array.isArray(message.readBy)) {
+      queryClient.setQueryData(
+        circleKeys.single(circleId),
+        (prev: any) => {
+          if (!prev?.circle?.messages) return prev;
+          return {
+            ...prev,
+            circle: {
+              ...prev.circle,
+              messages: prev.circle.messages.map((m: any) =>
+                m.id === message.id ? { ...m, readBy: message.readBy } : m,
+              ),
+            },
+          };
+        },
+      );
+    }
+
+    if (__DEV__) {
+      devLog("[P1_MSG_PATCH]", `append circle=${circleId} message=${message.id}`);
+    }
   }
-  
-  return "invalidate_circle_messages+unread+single";
+
+  // ── STEP 3: Background reconcile — inactive queries only ──
+  queryClient.invalidateQueries({
+    queryKey: circleKeys.single(circleId),
+    refetchType: "inactive",
+  });
+
+  // Also reconcile messages key (if anything else reads it)
+  queryClient.invalidateQueries({
+    queryKey: circleKeys.messages(circleId),
+    refetchType: "inactive",
+  });
+
+  return message?.id ? "patch_message+reconcile" : "no_message+reconcile";
 }
 
 /**
