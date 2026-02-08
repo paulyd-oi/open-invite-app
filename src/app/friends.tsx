@@ -349,10 +349,13 @@ const FriendListItem = React.memo(function FriendListItem({
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
   
-  // Swipe-to-pin gesture
+  // ── SSOT swipe constants (match CircleCard) ──────────────────
+  const ACTION_WIDTH_PX = 72;
+  const OPEN_RIGHT_PX   = ACTION_WIDTH_PX;
+  const THRESH_OPEN_PX  = 28;
+  // ─────────────────────────────────────────────────────────────
   const translateX = useSharedValue(0);
   const isSwipingRight = useSharedValue(false);
-  const SWIPE_THRESHOLD = 80;
 
   const arrowStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 180])}deg` }],
@@ -368,11 +371,6 @@ const FriendListItem = React.memo(function FriendListItem({
     transform: [{ translateX: translateX.value }],
   }));
   
-  const pinBgStyle = useAnimatedStyle(() => ({
-    opacity: isSwipingRight.value ? withTiming(1) : withTiming(0),
-    transform: [{ scale: isSwipingRight.value ? withSpring(1) : withSpring(0.8) }],
-  }));
-  
   const triggerPin = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onPin?.(friendship.id);
@@ -380,20 +378,25 @@ const FriendListItem = React.memo(function FriendListItem({
   
   const panGesture = Gesture.Pan()
     .enabled(!!onPin)
-    .activeOffsetX([10, 10])
+    .activeOffsetX([-12, 12])
     .failOffsetY([-10, 10])
     .onUpdate((event) => {
-      // Only allow swipe right for pinning
-      translateX.value = Math.max(0, event.translationX);
-      isSwipingRight.value = event.translationX > 30;
+      // Clamp to [-ACTION_WIDTH_PX, +ACTION_WIDTH_PX] (defense-in-depth)
+      const clamped = Math.max(-ACTION_WIDTH_PX, Math.min(OPEN_RIGHT_PX, event.translationX));
+      // Right swipe: allow full range; Left swipe: allow drag but will snap back
+      translateX.value = clamped;
+      isSwipingRight.value = event.translationX > 20;
     })
     .onEnd((event) => {
-      if (event.translationX > SWIPE_THRESHOLD) {
-        // Swipe right -> Pin/Unpin
-        translateX.value = withSpring(0);
-        runOnJS(triggerPin)();
+      const tx = event.translationX;
+      if (tx > THRESH_OPEN_PX) {
+        // Right swipe past threshold → snap open to reveal Pin
+        if (__DEV__) runOnJS(devLog)('[P0_FRIEND_SWIPE]', 'snap', { dir: 'right', target: OPEN_RIGHT_PX });
+        translateX.value = withSpring(OPEN_RIGHT_PX, { damping: 20, stiffness: 200 });
       } else {
-        translateX.value = withSpring(0);
+        // Left swipe or short right → always snap closed
+        if (__DEV__ && tx < -THRESH_OPEN_PX) runOnJS(devLog)('[P0_FRIEND_SWIPE]', 'snap', { dir: 'left_disabled', target: 0 });
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
       isSwipingRight.value = false;
     });
@@ -414,14 +417,20 @@ const FriendListItem = React.memo(function FriendListItem({
     <Animated.View entering={FadeInDown.delay(index * 30).springify()}>
       <View className="mb-2 overflow-hidden rounded-xl">
         {/* Pin action background - GREEN (#10B981) to match CircleCard pin styling */}
-        {__DEV__ && (() => { devLog("[DEV_DECISION] friend_pin_style_ok ok=true color=#10B981 icon=Pin"); return null; })()}
         {onPin && (
-          <Animated.View 
-            className="absolute inset-y-0 left-0 w-20 items-center justify-center rounded-l-xl"
-            style={[{ backgroundColor: "#10B981" }, pinBgStyle]}
+          <View
+            className="absolute inset-y-0 left-0 items-center justify-center"
+            style={{ width: 72 }}
           >
-            <Pin size={24} color="#FFFFFF" />
-          </Animated.View>
+            <Pressable
+              onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="w-14 h-14 rounded-2xl items-center justify-center"
+              style={{ backgroundColor: '#10B981' }}
+            >
+              <Pin size={20} color="#fff" />
+            </Pressable>
+          </View>
         )}
         
         <GestureDetector gesture={panGesture}>
