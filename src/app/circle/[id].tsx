@@ -739,7 +739,9 @@ function MessageBubble({
   isDark,
   onRetry,
   onLongPress,
+  onPress,
   isRunContinuation,
+  showTimestamp,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -748,12 +750,16 @@ function MessageBubble({
   isDark: boolean;
   onRetry?: () => void;
   onLongPress?: () => void;
+  onPress?: () => void;
   isRunContinuation?: boolean;
+  showTimestamp?: boolean;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
   const isFailed = (message as any).status === "failed";
   const isSent = (message as any).status === "sent" || (!isSending && !isFailed);
+  // Guard: prevent onPress firing after onLongPress
+  const longPressFiredRef = useRef(false);
 
   if (isSystemMessage) {
     return (
@@ -769,7 +775,12 @@ function MessageBubble({
 
   return (
     <Pressable
+      onPress={() => {
+        if (longPressFiredRef.current) { longPressFiredRef.current = false; return; }
+        onPress?.();
+      }}
       onLongPress={() => {
+        longPressFiredRef.current = true;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onLongPress?.();
       }}
@@ -813,6 +824,7 @@ function MessageBubble({
           >
             <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
           </View>
+          {showTimestamp && (
           <View className={`flex-row items-center mt-1 ${isOwn ? "justify-end mr-1" : "ml-1"}`}>
             <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
               {new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
@@ -834,6 +846,28 @@ function MessageBubble({
               </Pressable>
             )}
           </View>
+          )}
+          {/* Always show status indicators even when timestamp is hidden */}
+          {!showTimestamp && (isSending || isFailed) && (
+          <View className={`flex-row items-center mt-1 ${isOwn ? "justify-end mr-1" : "ml-1"}`}>
+            {isSending && !isSent && (
+              <Text className="text-[10px]" style={{ color: colors.textTertiary }}>Sending…</Text>
+            )}
+            {isFailed && !isSent && onRetry && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onRetry();
+                }}
+                className="flex-row items-center"
+                hitSlop={8}
+              >
+                <RefreshCw size={10} color="#EF4444" />
+                <Text className="text-[10px] ml-0.5" style={{ color: "#EF4444" }}>Retry</Text>
+              </Pressable>
+            )}
+          </View>
+          )}
         </View>
       </View>
     </View>
@@ -1612,6 +1646,24 @@ export default function CircleScreen() {
     }
   }, [hasFailed, latestFailed]);
 
+  // [P1_CHAT_TS] Tap-to-toggle timestamp state
+  const [activeTimestampId, setActiveTimestampId] = useState<string | null>(null);
+  const activeTimestampTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleBubbleTap = useCallback((msgId: string | undefined) => {
+    if (!msgId) return;
+    if (activeTimestampTimerRef.current) clearTimeout(activeTimestampTimerRef.current);
+    if (activeTimestampId === msgId) {
+      setActiveTimestampId(null);
+      return;
+    }
+    setActiveTimestampId(msgId);
+    if (__DEV__) devLog("[P1_CHAT_TS]", "toggle_on", { id: msgId, reason: "tap" });
+    activeTimestampTimerRef.current = setTimeout(() => {
+      setActiveTimestampId(null);
+      if (__DEV__) devLog("[P1_CHAT_TS]", "auto_hide", { id: msgId });
+    }, 3000);
+  }, [activeTimestampId]);
+
   // [P1_CHAT_GROUP] One-time mount log
   const groupLogFired = useRef(false);
   useEffect(() => {
@@ -1949,6 +2001,9 @@ export default function CircleScreen() {
               }
             };
 
+            const stableId = item.id ?? (item as any).clientMessageId;
+            const showTimestamp = !isRunContinuation || activeTimestampId === stableId;
+
             return (
               <MessageBubble
                 message={item}
@@ -1957,6 +2012,8 @@ export default function CircleScreen() {
                 colors={colors}
                 isDark={isDark}
                 isRunContinuation={isRunContinuation}
+                showTimestamp={showTimestamp}
+                onPress={() => handleBubbleTap(stableId)}
                 onRetry={isFailedOptimistic
                   ? handleRetry
                   : undefined
