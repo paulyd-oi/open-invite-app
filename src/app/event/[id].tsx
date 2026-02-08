@@ -11,11 +11,12 @@ import {
   Modal,
   Share,
   Switch,
+  Dimensions,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
@@ -838,6 +839,15 @@ export default function EventDetailScreen() {
   // TASK 3: Force refetch every time the sheet opens (prevents stale cache)
   React.useEffect(() => {
     if (showAttendeesModal) {
+      const screenH = Dimensions.get('window').height;
+      const sheetH = Math.round(screenH * 0.65);
+      if (__DEV__) {
+        console.log('[P0_WHO_COMING_SHEET_LAYOUT]', {
+          sheetHeightPx: sheetH,
+          sheetHeightPct: '65%',
+          backdropOpacity: 0,
+        });
+      }
       console.log('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
       attendeesQuery.refetch();
     }
@@ -3117,7 +3127,7 @@ export default function EventDetailScreen() {
       >
         <Pressable
           className="flex-1 justify-end"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          style={{ backgroundColor: "transparent" }}
           onPress={() => setShowAttendeesModal(false)}
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
@@ -3127,10 +3137,8 @@ export default function EventDetailScreen() {
                 backgroundColor: colors.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
-                paddingBottom: 40,
-                maxHeight: "85%",
+                height: Math.round(Dimensions.get('window').height * 0.65),
                 overflow: "hidden",
-                minHeight: 280,
               }}
             >
               {/* Handle */}
@@ -3176,8 +3184,8 @@ export default function EventDetailScreen() {
 
               {/* Attendees List - P0: guarded for loading / empty / list */}
               <KeyboardAwareScrollView
-                style={{ paddingHorizontal: 20 }}
-                contentContainerStyle={{ paddingBottom: 20 }}
+                style={{ flex: 1, paddingHorizontal: 20 }}
+                contentContainerStyle={{ paddingBottom: 36 }}
               >
                 {isLoadingAttendees ? (
                   <View style={{ alignItems: "center", paddingVertical: 40 }}>
