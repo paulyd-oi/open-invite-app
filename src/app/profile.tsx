@@ -23,7 +23,7 @@ import { BadgePill } from "@/components/BadgePill";
 
 import { getBadgePillVariantForBadge } from "@/lib/badges";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
-import { PROFILE_QUERY_KEY } from "@/lib/badgesApi";
+import { PROFILE_QUERY_KEY, getFeaturedBadge, BADGE_QUERY_KEYS } from "@/lib/badgesApi";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -154,6 +154,14 @@ export default function ProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
+  // [P0_VIEWER_BADGE] Dedicated featured badge query — same pattern as user/[id].tsx
+  const viewerUserId = session?.user?.id;
+  const { data: viewerBadgeData, refetch: refetchViewerBadge } = useQuery({
+    queryKey: BADGE_QUERY_KEYS.featured(viewerUserId!),
+    queryFn: () => getFeaturedBadge(viewerUserId!),
+    enabled: isAuthedForNetwork(bootStatus, session) && !!viewerUserId,
+  });
+
   // Load avatar source with auth headers (must be after profileData query)
   useEffect(() => {
     const loadAvatar = async () => {
@@ -181,6 +189,7 @@ export default function ProfileScreen() {
         refetchFriends(),
         refetchEvents(),
         refetchStats(),
+        refetchViewerBadge(),
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ]);
     } finally {
@@ -192,6 +201,7 @@ export default function ProfileScreen() {
     refetchFriends,
     refetchEvents,
     refetchStats,
+    refetchViewerBadge,
     queryClient,
   ]);
 
@@ -262,18 +272,18 @@ export default function ProfileScreen() {
     );
   };
 
-  // Featured badge (normalized)
-  const featuredBadge = normalizeFeaturedBadge(profileData?.featuredBadge);
+  // Featured badge — derived from dedicated query (not GET /api/profile)
+  const featuredBadge = normalizeFeaturedBadge(viewerBadgeData?.badge);
 
   if (__DEV__) {
-    devLog("[P0_FEATURED_BADGE_UI] profile render", {
-      cacheKeyUsed: PROFILE_QUERY_KEY,
-      featuredBadgeRaw: profileData?.featuredBadge ?? "null",
-      featuredBadgeNormalized: featuredBadge ?? "null",
-    });
-    devLog("[P0_BADGE_APPEARANCE_FINAL] profile", {
-      ogTokens: { bg: "#B58B2E", text: "#141414", border: "#8A651A" },
-      proTokens: { bg: "#2E8B67", text: "#F7F7F7", border: "#1F6B4E" },
+    const rawBadge = viewerBadgeData?.badge as Record<string, unknown> | null | undefined;
+    devLog("[P0_VIEWER_BADGE] profile render", {
+      viewerUserId: viewerUserId ?? "none",
+      queryKey: viewerUserId ? BADGE_QUERY_KEYS.featured(viewerUserId) : "disabled",
+      hasData: !!viewerBadgeData,
+      badgeKey: rawBadge?.badgeKey ?? rawBadge?.achievementId ?? "none",
+      name: rawBadge?.name ?? "none",
+      normalized: featuredBadge ?? "null",
     });
   }
 

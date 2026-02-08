@@ -138,12 +138,10 @@ const setFeaturedMutation = useMutation({
       queryKey: BADGE_QUERY_KEYS.catalog,
     });
 
-    // refresh profile cache (safe umbrella invalidation)
-    queryClient.invalidateQueries({
-      queryKey: PROFILE_QUERY_KEY as unknown as string[],
-    });
-
-    // invalidate ALL featured badge queries (global safety)
+    // [P0_VIEWER_BADGE] Invalidate dedicated featured badge queries so Profile
+    // reconciles from GET /api/achievements/user/:id/badge (the reliable endpoint).
+    // NOTE: We no longer invalidate PROFILE_QUERY_KEY here — that was self-defeating
+    // (it overwrote the optimistic write with a refetch that omits featuredBadge).
     queryClient.invalidateQueries({
       queryKey: ["featuredBadge"],
     });
@@ -156,9 +154,10 @@ const setFeaturedMutation = useMutation({
     }
 
     if (__DEV__) {
-      devLog(
-        `[P0_BADGE_SOT] setFeatured success invalidated=[catalog,profile,featured(global),featured(viewer)]`
-      );
+      devLog("[P0_VIEWER_BADGE] setFeatured success", {
+        badgeKey: badgeKey ?? "null",
+        invalidated: ["catalog", "featuredBadge(global)", viewerUserId ? `featured(${viewerUserId.slice(0, 6)})` : "no-viewer"],
+      });
     }
 
     Haptics.notificationAsync(
