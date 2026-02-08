@@ -28,6 +28,9 @@ export const circleKeys = {
   // Circle-specific sub-resources
   messages: (id: string) => ["circles", "messages", id] as const,
   
+  // Typing presence
+  typing: (id: string) => ["circles", "typing", id] as const,
+
   // Unread count
   unreadCount: () => ["circles", "unreadCount"] as const,
 } as const;

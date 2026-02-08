@@ -1038,6 +1038,10 @@ export default function CircleScreen() {
   }, []);
 
   const [message, setMessage] = useState("");
+  // [P2_TYPING_UI] Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; name: string }>>([]);
+  const lastTypingPingRef = useRef<number>(0);
+  const prevTypingNonEmptyRef = useRef(false);
   const [showCalendar, setShowCalendar] = useState(true);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [createEventVisibility, setCreateEventVisibility] = useState<"open_invite" | "circle_only">("circle_only");
@@ -1461,6 +1465,55 @@ export default function CircleScreen() {
     }, [session, id, bootStatus, sendReadHorizon]),
   );
 
+  // [P2_TYPING_UI] Poll typing list every 2s while focused
+  useFocusEffect(
+    useCallback(() => {
+      if (!id || !session?.user?.id || !isAuthedForNetwork(bootStatus, session)) return;
+      let active = true;
+      const poll = async () => {
+        try {
+          const res = await api.get<{ ok: boolean; typing: Array<{ userId: string; name: string; updatedAt: number }> }>(
+            `/api/circles/${id}/typing`,
+          );
+          if (!active) return;
+          const filtered = (res?.typing ?? []).filter((t) => t.userId !== session.user?.id);
+          setTypingUsers(filtered);
+          // [P2_TYPING_UI] Log transitions
+          const nowNonEmpty = filtered.length > 0;
+          if (nowNonEmpty !== prevTypingNonEmptyRef.current) {
+            if (__DEV__) devLog("[P2_TYPING_UI]", nowNonEmpty ? "indicator_show" : "indicator_hide", { names: filtered.map((t) => t.name) });
+            prevTypingNonEmptyRef.current = nowNonEmpty;
+          }
+        } catch {
+          // Silently ignore polling errors
+        }
+      };
+      poll();
+      const interval = setInterval(poll, 2000);
+      return () => {
+        active = false;
+        clearInterval(interval);
+        setTypingUsers([]);
+        prevTypingNonEmptyRef.current = false;
+      };
+    }, [id, session, bootStatus]),
+  );
+
+  // [P2_TYPING_UI] Throttled typing ping (max 1/sec)
+  const sendTypingPing = useCallback(() => {
+    if (!id) return;
+    const now = Date.now();
+    if (now - lastTypingPingRef.current < 1000) return;
+    lastTypingPingRef.current = now;
+    api.post(`/api/circles/${id}/typing`, { isTyping: true }).catch(() => {});
+  }, [id]);
+
+  const sendTypingClear = useCallback(() => {
+    if (!id) return;
+    lastTypingPingRef.current = 0;
+    api.post(`/api/circles/${id}/typing`, { isTyping: false }).catch(() => {});
+  }, [id]);
+
   // [P1_CHAT_CURSOR_V2] Fetch older messages with compound cursor pagination
   const fetchOlderMessages = useCallback(async () => {
     if (!id || !hasMoreOlder || isLoadingEarlier) return;
@@ -1594,6 +1647,7 @@ export default function CircleScreen() {
   const handleSend = () => {
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      sendTypingClear();
       sendMessageMutation.mutate({
         content: message.trim(),
         clientMessageId: `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -1693,6 +1747,7 @@ export default function CircleScreen() {
     if (!groupLogFired.current && __DEV__) {
       devLog("[P1_CHAT_GROUP]", "enabled windowMs=120000");
       devLog("[P2_CHAT_DATESEP]", "enabled");
+      devLog("[P2_TYPING_UI]", "enabled pollMs=2000 throttleMs=1000 ttlMs=8000");
       groupLogFired.current = true;
     }
   }, []);
@@ -2165,6 +2220,19 @@ export default function CircleScreen() {
             </Pressable>
         )}
 
+        {/* [P2_TYPING_UI] Typing indicator */}
+        {typingUsers.length > 0 && (
+          <View style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
+            <Text style={{ color: colors.textTertiary, fontSize: 13, fontStyle: "italic" }}>
+              {typingUsers.length === 1
+                ? `${typingUsers[0].name} is typing\u2026`
+                : typingUsers.length === 2
+                  ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing\u2026`
+                  : `${typingUsers.length} people are typing\u2026`}
+            </Text>
+          </View>
+        )}
+
         {/* Message Input */}
         <View
           className="px-4 py-3 border-t flex-row items-end"
@@ -2177,7 +2245,12 @@ export default function CircleScreen() {
             <TextInput
               ref={inputRef}
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(text) => {
+                setMessage(text);
+                if (text.trim().length > 0) sendTypingPing();
+                else sendTypingClear();
+              }}
+              onBlur={sendTypingClear}
               placeholder="Message..."
               placeholderTextColor={colors.textTertiary}
               multiline

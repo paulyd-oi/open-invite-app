@@ -81,6 +81,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_CHAT_PILL]",
   // P2 chat date separators
   "[P2_CHAT_DATESEP]",
+  // P2 typing indicator UI
+  "[P2_TYPING_UI]",
 ];
 
 /**
