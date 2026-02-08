@@ -2,10 +2,18 @@ import React from "react";
 import { View, Text } from "react-native";
 import { useColorScheme } from "react-native";
 
+/** Solid token overrides per badge variant. null = use default tierColor logic. */
+const SOLID_TOKENS: Record<string, { bg: string; border: string; text: string; borderWidth: number }> = {
+  og:   { bg: "#1F1A08", border: "#6B5600", text: "#FFD54A", borderWidth: 1 },
+  // pro / gift reserved — add tokens here when ready
+};
+
 interface BadgePillProps {
   name: string;
   tierColor: string;
-  variant?: "small" | "medium";
+  size?: "small" | "medium";
+  /** Solid-surface variant. Call sites set this based on badge identity. */
+  variant?: "default" | "og" | "pro" | "gift";
 }
 
 /**
@@ -37,29 +45,28 @@ function getTextColorForBackground(hexColor: string): string {
  * Text-only badge pill component.
  * - NO emoji
  * - Shows badge name only
- * - Background uses tierColor with opacity (higher alpha in dark mode for better contrast)
+ * - Solid tokens for specific variants (og, pro, gift)
+ * - Default: tierColor with opacity (higher alpha in dark mode for better contrast)
  * - Text color auto-determined for contrast (light bg → dark text, dark bg → white text)
- * - Small variant for cards, medium for profile header
+ * - Small size for cards, medium for profile header
  */
-export function BadgePill({ name, tierColor, variant = "small" }: BadgePillProps) {
-  const isSmall = variant === "small";
+export function BadgePill({ name, tierColor, size = "small", variant = "default" }: BadgePillProps) {
+  const isSmall = size === "small";
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // OG badge: solid surface treatment for dark-mode readability
-  const isOG = name.toUpperCase() === "OG";
-  const bgColor = isOG
-    ? "#1F1A08"
-    : tierColor + (isDark ? "40" : "20");
-  const borderColor = isOG ? "#6B5600" : tierColor;
-  const textColor = isOG ? "#FFD54A" : getTextColorForBackground(tierColor);
+  const tokens = variant !== "default" ? SOLID_TOKENS[variant] : undefined;
+  const bgColor = tokens?.bg ?? tierColor + (isDark ? "40" : "20");
+  const borderColor = tokens?.border ?? tierColor;
+  const textColor = tokens?.text ?? getTextColorForBackground(tierColor);
+  const bw = tokens?.borderWidth ?? 0.5;
   
   return (
     <View
       className={`rounded-full items-center justify-center ${isSmall ? "px-2 py-1" : "px-3 py-1.5"}`}
       style={{
         backgroundColor: bgColor,
-        borderWidth: isOG ? 1 : 0.5,
+        borderWidth: bw,
         borderColor,
       }}
     >

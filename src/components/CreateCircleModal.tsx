@@ -492,7 +492,8 @@ export function CreateCircleModal({
                                 <BadgePill
                                   name={featuredBadge.name}
                                   tierColor={featuredBadge.tierColor}
-                                  variant="small"
+                                  size="small"
+                                  variant={featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
                                 />
                               )}
                             </View>

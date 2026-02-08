@@ -339,7 +339,8 @@ const FriendCard = React.memo(function FriendCard({
                   <BadgePill
                     name={featured.name}
                     tierColor={featured.tierColor}
-                    variant="small"
+                    size="small"
+                    variant={featured.name?.toUpperCase() === "OG" ? "og" : "default"}
                   />
                 ) : null;
               })()}
@@ -529,7 +530,8 @@ const FriendListItem = React.memo(function FriendListItem({
                         <BadgePill
                           name={featured.name}
                           tierColor={featured.tierColor}
-                          variant="small"
+                          size="small"
+                          variant={featured.name?.toUpperCase() === "OG" ? "og" : "default"}
                         />
                       ) : null;
                     })()}
@@ -654,7 +656,8 @@ function FriendRequestCard({
             <BadgePill
               name={featuredBadge.name}
               tierColor={featuredBadge.tierColor}
-              variant="small"
+              size="small"
+              variant={featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
             />
           )}
         </View>

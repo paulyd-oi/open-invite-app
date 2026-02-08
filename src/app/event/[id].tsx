@@ -1639,7 +1639,8 @@ export default function EventDetailScreen() {
                         <BadgePill
                           name={event.user.featuredBadge.name}
                           tierColor={event.user.featuredBadge.tierColor}
-                          variant="small"
+                          size="small"
+                          variant={event.user.featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
                         />
                       </View>
                     )}

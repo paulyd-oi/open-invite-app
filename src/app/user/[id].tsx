@@ -705,7 +705,8 @@ export default function UserProfileScreen() {
                       <BadgePill
                         name={normalizedBadge.name}
                         tierColor={normalizedBadge.tierColor}
-                        variant="small"
+                        size="small"
+                        variant={normalizedBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
                       />
                     </View>
                   )}

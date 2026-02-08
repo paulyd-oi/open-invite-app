@@ -368,7 +368,8 @@ export default function ProfileScreen() {
                     <BadgePill
                       name={StringSafe(featuredBadge.name)}
                       tierColor={StringSafe(featuredBadge.tierColor, "#78909C")}
-                      variant="medium"
+                      size="medium"
+                      variant={featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
                     />
                   </View>
                 )}
