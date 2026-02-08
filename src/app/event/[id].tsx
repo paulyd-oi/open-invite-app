@@ -1286,17 +1286,21 @@ export default function EventDetailScreen() {
   const submitEventReport = async () => {
     if (!selectedReportReason || !event?.id) return;
     setIsSubmittingReport(true);
+    const notesTrimmed = reportDetails.trim().slice(0, 1000) || undefined;
+    if (__DEV__) devLog("[P0_REPORT_EVENT_SUBMIT]", { eventId: event.id, reason: selectedReportReason, notesLen: notesTrimmed?.length ?? 0 });
     try {
-      await api.post("/api/reports/event", {
-        eventId: event.id,
+      const res = await api.post<{ ok: boolean }>(`/api/events/${event.id}/report`, {
         reason: selectedReportReason,
-        details: selectedReportReason === "other" ? reportDetails.trim() || undefined : undefined,
+        notes: notesTrimmed,
       });
+      if (!res?.ok) throw new Error("Unexpected response");
+      if (__DEV__) devLog("[P0_REPORT_EVENT_OK]", { eventId: event.id });
       safeToast.success("Report submitted", "Thanks - we received your report.");
       setShowReportModal(false);
       setSelectedReportReason(null);
       setReportDetails("");
-    } catch (error) {
+    } catch (error: any) {
+      if (__DEV__) devError("[P0_REPORT_EVENT_ERR]", { eventId: event.id, message: error?.message ?? "unknown" });
       safeToast.error("Error", "Could not submit report. Please try again.");
     } finally {
       setIsSubmittingReport(false);
