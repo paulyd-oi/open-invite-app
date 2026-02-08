@@ -14,6 +14,8 @@ import {
   Share,
   Dimensions,
   Switch,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from "react-native";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
@@ -825,6 +827,28 @@ export default function CircleScreen() {
   const { themeColor, isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
+  const isNearBottomRef = useRef(true);
+  const pendingScrollRef = useRef(false);
+  const AUTO_SCROLL_THRESHOLD = 120;
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const distanceFromBottom =
+      contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    isNearBottomRef.current = distanceFromBottom < AUTO_SCROLL_THRESHOLD;
+  }, [AUTO_SCROLL_THRESHOLD]);
+
+  const scheduleAutoScroll = useCallback(() => {
+    if (pendingScrollRef.current) return;
+    pendingScrollRef.current = true;
+    requestAnimationFrame(() => {
+      pendingScrollRef.current = false;
+      flatListRef.current?.scrollToEnd({ animated: true });
+      if (__DEV__) {
+        devLog("[P1_SCROLL_ANCHOR]", "auto-scroll");
+      }
+    });
+  }, []);
 
   const [message, setMessage] = useState("");
   const [showCalendar, setShowCalendar] = useState(true);
@@ -870,6 +894,10 @@ export default function CircleScreen() {
         setShowCalendar(false);
         setCalendarCollapsedByKeyboard(true);
       }
+      // [P1_SCROLL_ANCHOR] keyboard safety: auto-scroll when user is near bottom
+      if (isNearBottomRef.current) {
+        scheduleAutoScroll();
+      }
     });
 
     const hideSubscription = Keyboard.addListener("keyboardWillHide", () => {
@@ -898,6 +926,18 @@ export default function CircleScreen() {
     { isLoading, isFetching, isSuccess, data },
     "circle-detail",
   );
+
+  // [P1_SCROLL_ANCHOR] Message append watcher — depends on count only, not full array
+  const circle = data?.circle;
+  const messageCount = circle?.messages?.length ?? 0;
+  useEffect(() => {
+    if (messageCount === 0) return;
+    if (isNearBottomRef.current) {
+      scheduleAutoScroll();
+    } else if (__DEV__) {
+      devLog("[P1_SCROLL_ANCHOR]", "preserve-scroll");
+    }
+  }, [messageCount, scheduleAutoScroll]);
 
   // Fetch friends list for adding members
   const { data: friendsData } = useQuery({
@@ -964,10 +1004,6 @@ export default function CircleScreen() {
         queryKey: circleKeys.single(id),
         refetchType: "inactive",
       });
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
     },
     onError: (_error, _content, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
@@ -1192,7 +1228,6 @@ export default function CircleScreen() {
     }
   }, [showGroupSettings]);
 
-  const circle = data?.circle;
   const isHost = circle?.createdById === session?.user?.id;
 
   // Check if new members need friend suggestions
@@ -1498,7 +1533,10 @@ export default function CircleScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl refreshing={false} onRefresh={refetch} tintColor={themeColor} />
           }

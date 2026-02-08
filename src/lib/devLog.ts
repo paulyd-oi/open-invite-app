@@ -55,6 +55,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_MSG_OPT]",
   // P1 message delivery + retry proof
   "[P1_MSG_DELIVERY]",
+  // P1 scroll anchor proof
+  "[P1_SCROLL_ANCHOR]",
 ];
 
 /**
