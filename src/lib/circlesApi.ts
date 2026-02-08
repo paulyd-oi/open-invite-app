@@ -35,6 +35,13 @@ export async function getCircleMessages(params: {
   );
 }
 
+/** Response from POST /api/circles/:id/read-horizon */
+export interface SetCircleReadHorizonResponse {
+  ok: true;
+  circleId: string;
+  lastReadAt: string;
+}
+
 /**
  * Send a read-horizon update so the server knows the newest message this device has seen.
  *
@@ -44,7 +51,10 @@ export async function getCircleMessages(params: {
 export async function setCircleReadHorizon(params: {
   circleId: string;
   lastReadAt: string;
-}): Promise<void> {
+}): Promise<SetCircleReadHorizonResponse> {
   const { circleId, lastReadAt } = params;
-  await api.post(`/api/circles/${circleId}/read`, { lastReadAt });
+  return api.post<SetCircleReadHorizonResponse>(
+    `/api/circles/${circleId}/read-horizon`,
+    { lastReadAt },
+  );
 }

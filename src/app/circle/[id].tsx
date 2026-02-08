@@ -901,7 +901,7 @@ export default function CircleScreen() {
       if (__DEV__) devLog("[P1_READ_HORIZON]", "send", { circleId: id, lastReadAt, reason });
 
       setCircleReadHorizon({ circleId: id, lastReadAt })
-        .then(() => {
+        .then((res) => {
           // Optimistic clear — exact per-circle using byCircle SSOT
           queryClient.setQueryData(
             circleKeys.unreadCount(),
@@ -919,7 +919,12 @@ export default function CircleScreen() {
           // Background reconcile — inactive only
           queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount(), refetchType: "inactive" });
           queryClient.invalidateQueries({ queryKey: circleKeys.all(), refetchType: "inactive" });
-          if (__DEV__) devLog("[P1_READ_HORIZON]", "success", { circleId: id, lastReadAt });
+          if (__DEV__) devLog("[P1_READ_HORIZON]", "ok", {
+            endpoint: `/api/circles/${id}/read-horizon`,
+            circleId: id,
+            providedLastReadAt: lastReadAt,
+            serverLastReadAt: res?.lastReadAt,
+          });
         })
         .catch((e) => {
           // Non-fatal: horizon will be retried on next trigger
