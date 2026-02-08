@@ -45,6 +45,8 @@ import * as Notifications from "expo-notifications";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { handlePushEvent } from "@/lib/pushRouter";
 import {
   useEntitlements,
   type PaywallContext,
@@ -195,6 +197,7 @@ export default function DevSmokeTestsScreen() {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
   const { data: entitlements } = useEntitlements();
+  const queryClient = useQueryClient();
 
   // Modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -819,6 +822,132 @@ export default function DevSmokeTestsScreen() {
 
             <Text className="text-xs mt-2 text-center" style={{ color: colors.textTertiary }}>
               Requires physical device with notifications enabled
+            </Text>
+          </View>
+        </Animated.View>
+
+        {/* [P1_PUSH_ROUTER] Push Router Test */}
+        <Animated.View entering={FadeInDown.delay(139).springify()} className="mb-6">
+          <Text className="text-sm font-medium uppercase mb-3" style={{ color: colors.textSecondary }}>
+            [P1_PUSH_ROUTER] Push Router Test
+          </Text>
+          <View
+            className="rounded-xl p-4"
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          >
+            <View className="flex-row items-center mb-3">
+              <Navigation size={20} color={themeColor} />
+              <Text className="font-semibold ml-2" style={{ color: colors.text }}>
+                Simulate Push Events
+              </Text>
+            </View>
+
+            <Text className="text-xs mb-3" style={{ color: colors.textSecondary }}>
+              Test centralized push router with SSOT invalidations. Check Metro logs for [P1_PUSH_ROUTER] tags.
+            </Text>
+
+            <View className="space-y-2">
+              <Pressable
+                onPress={() => {
+                  handlePushEvent(
+                    {
+                      type: "circle_message",
+                      entityId: "test-circle-123",
+                      payload: { circleId: "test-circle-123", messageId: "msg-456" },
+                    },
+                    queryClient
+                  );
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  safeToast.success("Simulated circle_message");
+                }}
+                className="py-3 px-4 rounded-lg mb-2"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  ⭕️ circle_message
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Invalidates: circleKeys.messages/unreadCount/single
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handlePushEvent(
+                    {
+                      type: "event_rsvp_changed",
+                      entityId: "test-event-789",
+                      payload: { eventId: "test-event-789", goingCount: 5, capacity: 10, isFull: false },
+                    },
+                    queryClient
+                  );
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  safeToast.success("Simulated event_rsvp_changed (with patch)");
+                }}
+                className="py-3 px-4 rounded-lg mb-2"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  📅 event_rsvp_changed (patch)
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Patches: eventKeys.single counts, invalidates feeds
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  handlePushEvent(
+                    {
+                      type: "event_updated",
+                      entityId: "test-event-999",
+                      payload: { eventId: "test-event-999" },
+                    },
+                    queryClient
+                  );
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  safeToast.success("Simulated event_updated");
+                }}
+                className="py-3 px-4 rounded-lg mb-2"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  ✏️ event_updated
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Invalidates: eventKeys.single + feed projections
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  // Test dedupe by sending same event twice
+                  const payload = {
+                    type: "circle_message",
+                    entityId: "dedupe-test-circle",
+                    payload: { circleId: "dedupe-test-circle", messageId: "msg-dedupe-123", version: "v1" },
+                  };
+                  handlePushEvent(payload, queryClient);
+                  setTimeout(() => {
+                    handlePushEvent(payload, queryClient); // Should be deduped
+                  }, 500);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  safeToast.success("Testing dedupe (2 identical events)");
+                }}
+                className="py-3 px-4 rounded-lg"
+                style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text className="font-medium" style={{ color: colors.text }}>
+                  🔄 Test Dedupe
+                </Text>
+                <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+                  Sends same event twice - second should be DEDUPE_SKIP
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text className="text-xs mt-3 text-center" style={{ color: colors.textTertiary }}>
+              Open Metro console to see [P1_PUSH_ROUTER] logs
             </Text>
           </View>
         </Animated.View>
