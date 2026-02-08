@@ -498,3 +498,105 @@ export async function revokeEntitlement(
     return { success: false, message: error?.message || "Network error - please try again" };
   }
 }
+
+// =============================================================================
+// REPORTS ADMIN FUNCTIONS
+// =============================================================================
+
+export interface AdminReport {
+  id: string;
+  eventId: string;
+  eventTitle?: string;
+  reason: "spam" | "inappropriate" | "safety" | "other";
+  notes?: string | null;
+  status: "open" | "resolved";
+  reporterId?: string;
+  reporterName?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+  /** Event metadata (may or may not be populated by backend) */
+  event?: {
+    title?: string;
+    date?: string;
+    hostName?: string;
+  } | null;
+}
+
+export interface AdminReportsListResponse {
+  reports: AdminReport[];
+  nextCursor?: string | null;
+}
+
+export interface AdminReportResolveResponse {
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * List event reports (admin-only)
+ * GET /api/admin/reports?status=open|resolved
+ */
+export async function listReports(
+  status: "open" | "resolved" = "open",
+  cursor?: string
+): Promise<AdminReportsListResponse> {
+  try {
+    let url = `/api/admin/reports?status=${status}`;
+    if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+    const response = await api.get<AdminReportsListResponse>(url);
+    const reports: AdminReport[] = response?.reports ?? (Array.isArray(response) ? response as any : []);
+    if (__DEV__) {
+      devLog("[P0_ADMIN_REPORTS_UI] list loaded", { status, count: reports.length });
+    }
+    return { reports, nextCursor: (response as any)?.nextCursor ?? null };
+  } catch (error: any) {
+    if (__DEV__) {
+      devError("[P0_ADMIN_REPORTS_UI] listReports FAILED:", error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) throw error;
+    return { reports: [] };
+  }
+}
+
+/**
+ * Get a single report detail (admin-only)
+ * GET /api/admin/reports/:reportId
+ */
+export async function getReport(reportId: string): Promise<AdminReport | null> {
+  try {
+    const response = await api.get<AdminReport>(`/api/admin/reports/${reportId}`);
+    return response ?? null;
+  } catch (error: any) {
+    if (__DEV__) {
+      devError("[P0_ADMIN_REPORTS_UI] getReport FAILED:", error?.message);
+    }
+    if (error?.status === 401 || error?.status === 403) throw error;
+    return null;
+  }
+}
+
+/**
+ * Resolve a report (admin-only)
+ * POST /api/admin/reports/:reportId/resolve
+ */
+export async function resolveReport(
+  reportId: string,
+  action: "dismiss" | "hide_event" = "dismiss"
+): Promise<AdminReportResolveResponse> {
+  try {
+    const response = await api.post<AdminReportResolveResponse>(
+      `/api/admin/reports/${reportId}/resolve`,
+      { status: "resolved", action }
+    );
+    if (__DEV__) {
+      devLog("[P0_ADMIN_REPORT_RESOLVE_UI] resolved", { reportId });
+    }
+    return response ?? { success: true };
+  } catch (error: any) {
+    if (__DEV__) {
+      devError("[P0_ADMIN_REPORT_RESOLVE_UI] FAILED:", { reportId, message: error?.message });
+    }
+    if (error?.status === 401 || error?.status === 403) throw error;
+    return { success: false, message: error?.message || "Network error" };
+  }
+}

@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { ChevronLeft, Search, Shield, Award, Plus, Pencil, X } from "@/ui/icons";
+import { ChevronLeft, ChevronRight, Search, Shield, Award, Plus, Pencil, X, Megaphone } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -529,8 +529,30 @@ export default function AdminConsole() {
           </View>
         </Animated.View>
 
+        {/* Reports Inbox Link */}
+        <Animated.View entering={FadeInDown.delay(165).springify()} className="mx-4 mt-6">
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">REPORTS</Text>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/admin-reports" as any);
+            }}
+            style={{ backgroundColor: colors.surface }}
+            className="rounded-2xl px-4 py-4 flex-row items-center"
+          >
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#EF444420", alignItems: "center", justifyContent: "center" }}>
+              <Megaphone size={18} color="#EF4444" />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text style={{ color: colors.text }} className="text-base font-medium">Reports Inbox</Text>
+              <Text style={{ color: colors.textSecondary }} className="text-sm">Review and resolve event reports</Text>
+            </View>
+            <ChevronRight size={18} color={colors.textTertiary} />
+          </Pressable>
+        </Animated.View>
+
         {/* Badge Definitions Section */}
-        <Animated.View entering={FadeInDown.delay(175).springify()} className="mx-4 mt-6">
+        <Animated.View entering={FadeInDown.delay(185).springify()} className="mx-4 mt-6">
           <View className="flex-row items-center justify-between mb-2 px-2">
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">BADGE DEFINITIONS</Text>
             <Pressable
