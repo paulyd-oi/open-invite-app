@@ -67,6 +67,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_UNREAD_V2]",
   // P1 read horizon v2 (multi-device correctness)
   "[P1_READ_HORIZON]",
+  // P1 push contract validator (malformed payload guard)
+  "[P1_PUSH_CONTRACT]",
 ];
 
 /**

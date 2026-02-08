@@ -235,6 +235,39 @@ export function handlePushEvent(
 }
 
 // ============================================================================
+// DEV-ONLY PAYLOAD VALIDATORS
+// ============================================================================
+
+/** Validate circle_message payload has the minimum fields needed for safe cache patching. */
+function validateCircleMessagePayload(payload: Record<string, any>): boolean {
+  return (
+    payload != null &&
+    typeof payload.circleId === "string" &&
+    payload.message != null &&
+    typeof payload.message.id === "string" &&
+    typeof payload.message.createdAt === "string" &&
+    payload.message.user != null &&
+    typeof payload.message.user.id === "string"
+  );
+}
+
+/** Validate event_rsvp_changed payload has the minimum fields needed for safe cache patching. */
+function validateEventRsvpPayload(payload: Record<string, any>): boolean {
+  const eventId = payload.eventId ?? payload.event_id;
+  return (
+    payload != null &&
+    typeof eventId === "string" &&
+    (payload.deltaGoing === undefined || typeof payload.deltaGoing === "number")
+  );
+}
+
+/** Validate event_updated payload has the minimum fields needed for safe invalidation. */
+function validateEventUpdatedPayload(payload: Record<string, any>): boolean {
+  const eventId = payload.eventId ?? payload.event_id;
+  return payload != null && typeof eventId === "string";
+}
+
+// ============================================================================
 // EVENT HANDLERS
 // ============================================================================
 
@@ -348,6 +381,16 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     return "missing_circleId";
   }
 
+  // [P1_PUSH_CONTRACT] DEV-only: reject malformed payload, fall back to reconcile
+  if (__DEV__ && payload.message && !validateCircleMessagePayload(payload)) {
+    devLog("[P1_PUSH_CONTRACT]", "INVALID circle_message payload", payload);
+    queryClient.invalidateQueries({
+      queryKey: circleKeys.single(circleId),
+      refetchType: "inactive",
+    });
+    return "invalid_payload+reconcile";
+  }
+
   const message = payload.message;
 
   // ── STEP 1: Patch circle detail cache (messages live under circleKeys.single) ──
@@ -439,6 +482,16 @@ function handleEventRsvpChanged(payload: Record<string, any>, queryClient: Query
   if (!eventId) {
     return "missing_eventId";
   }
+
+  // [P1_PUSH_CONTRACT] DEV-only: reject malformed payload, fall back to reconcile
+  if (__DEV__ && !validateEventRsvpPayload(payload)) {
+    devLog("[P1_PUSH_CONTRACT]", "INVALID event_rsvp_changed payload", payload);
+    queryClient.invalidateQueries({
+      queryKey: eventKeys.single(eventId),
+      refetchType: "inactive",
+    });
+    return "invalid_payload+reconcile";
+  }
   
   const delta = payload.deltaGoing ?? 0;
   const action: string | undefined = payload.action;
@@ -525,6 +578,16 @@ function handleEventUpdated(payload: Record<string, any>, queryClient: QueryClie
   
   if (!eventId) {
     return "missing_eventId";
+  }
+
+  // [P1_PUSH_CONTRACT] DEV-only: reject malformed payload, fall back to reconcile
+  if (__DEV__ && !validateEventUpdatedPayload(payload)) {
+    devLog("[P1_PUSH_CONTRACT]", "INVALID event_updated payload", payload);
+    queryClient.invalidateQueries({
+      queryKey: eventKeys.single(eventId),
+      refetchType: "inactive",
+    });
+    return "invalid_payload+reconcile";
   }
   
   // Invalidate event owner query
