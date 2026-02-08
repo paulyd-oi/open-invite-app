@@ -85,6 +85,9 @@ export const eventKeys = {
   // Event-specific sub-resources
   interests: (id: string) => ["events", id, "interests"] as const,
   comments: (id: string) => ["events", id, "comments"] as const,
+  // INVARIANT [P0_RSVP]: This key is the SOLE owner of viewer RSVP status for display.
+  // event/[id].tsx derives myRsvpStatus exclusively from this query.
+  // No screen may read event.viewerRsvpStatus for RSVP display.
   rsvp: (id: string) => ["events", id, "rsvp"] as const,
   mute: (id: string) => ["events", id, "mute"] as const,
   attendees: (id: string) => ["events", "attendees", id] as const, // [P0_RSVP_SOT] Who's Coming list

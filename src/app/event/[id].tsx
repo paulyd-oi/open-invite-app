@@ -636,6 +636,9 @@ export default function EventDetailScreen() {
   });
 
   // Find the event - prefer direct fetch, fallback to lists
+  // INVARIANT [P0_RSVP]: This `event` object is for METADATA only (title, location, isFull, goingCount).
+  // RSVP *status* display must NEVER read from event.viewerRsvpStatus.
+  // RSVP status is SSOT-owned by eventKeys.rsvp(id) → myRsvpData → myRsvpStatus.
   const event =
     singleEventData?.event ??
     myEventsData?.events.find((e) => e.id === id) ??
@@ -929,9 +932,25 @@ export default function EventDetailScreen() {
 
   const interests = interestsData?.event_interest ?? [];
   
-  // Normalize RSVP status from backend (map "maybe" -> "interested")
+  // ============================================
+  // INVARIANT [P0_RSVP]: myRsvpStatus is the SOLE source of truth for RSVP display.
+  // Owner: eventKeys.rsvp(id) query → myRsvpData.
+  // No screen may read event.viewerRsvpStatus for display.
+  // Optimistic updates target eventKeys.rsvp(id) only.
+  // ============================================
   const rawRsvpStatus = myRsvpData?.status;
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
+
+  // [P0_RSVP] Render proof: log current RSVP status and its source on every render
+  if (__DEV__ && id && !isBusyBlock) {
+    devLog('[P0_RSVP] render', {
+      eventId: id.slice(0, 8),
+      myRsvpStatus,
+      rawRsvpStatus: rawRsvpStatus ?? null,
+      source: 'eventKeys.rsvp(id)',
+      isPending: false,
+    });
+  }
 
   // RSVP mutation (unified)
   type RsvpStatus = "going" | "interested" | "not_going";
@@ -939,7 +958,7 @@ export default function EventDetailScreen() {
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => {
       if (__DEV__) {
-        devLog("[P1_EVENT_400]", "rsvp tap", { eventId: id, status });
+        devLog("[P0_RSVP]", "mutationFn", { eventId: id, status });
       }
       if (isBusyBlock) {
         throw new Error("BUSY_BLOCK");
@@ -947,7 +966,7 @@ export default function EventDetailScreen() {
       return api.post(`/api/events/${id}/rsvp`, { status });
     },
     onMutate: async (nextStatus: RsvpStatus) => {
-      // [P1_RSVP_COUNT] Optimistic update: snapshot cache, update RSVP status and totalGoing immediately
+      // [P0_RSVP] Optimistic update: snapshot cache, update RSVP status and totalGoing immediately
       const prevRsvpStatus = myRsvpStatus; // Already normalized (null | "going" | "interested" | "not_going")
       const prevTotalGoing = totalGoing;
 
@@ -966,7 +985,7 @@ export default function EventDetailScreen() {
       const nextTotalGoing = Math.max(1, prevTotalGoing + countDelta); // Never go below 1 (host)
 
       if (__DEV__) {
-        devLog("[P1_RSVP_RACE]", "onMutate optimistic", {
+        devLog("[P0_RSVP]", "onMutate optimistic", {
           eventId: id,
           prevStatus: prevRsvpStatus,
           nextStatus,
@@ -1008,7 +1027,7 @@ export default function EventDetailScreen() {
       }
       
       if (__DEV__) {
-        devLog("[P1_RSVP_RACE]", "success", { eventId: id, nextStatus: status });
+        devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
       }
       
       // P0 FIX: Invalidate using SSOT contract
@@ -1036,9 +1055,9 @@ export default function EventDetailScreen() {
       }
     },
     onError: (error: any, _nextStatus, context) => {
-      // [P1_RSVP_RACE] Rollback optimistic update on error
+      // [P0_RSVP] Rollback optimistic update on error
       if (__DEV__) {
-        devLog("[P1_RSVP_RACE]", "rollback", {
+        devLog("[P0_RSVP]", "rollback", {
           eventId: id,
           reason: "mutation error",
           prevStatus: context?.prevRsvpStatus,
@@ -1072,17 +1091,23 @@ export default function EventDetailScreen() {
   });
 
   const handleRsvp = (status: RsvpStatus) => {
-    // [P1_RSVP_RACE] Guard: prevent rapid-tap race conditions
+    // [P0_RSVP] Guard: prevent rapid-tap race conditions
     if (rsvpMutation.isPending) {
       if (__DEV__) {
-        devLog('[P1_RSVP_RACE]', 'tap ignored (pending)', { eventId: id, nextStatus: status });
+        devLog('[P0_RSVP]', 'tap ignored (pending)', { eventId: id, nextStatus: status });
       }
       return;
     }
     
-    // [P1_RSVP_RACE] Proof log: tap accepted
+    // [P0_RSVP] Tap proof: log status transition on every accepted RSVP tap
     if (__DEV__) {
-      devLog('[P1_RSVP_RACE]', 'tap accepted', { eventId: id, nextStatus: status, prevStatus: myRsvpStatus });
+      devLog('[P0_RSVP] tap', {
+        eventId: id,
+        nextStatus: status,
+        prevStatus: myRsvpStatus,
+        source: 'eventKeys.rsvp(id)',
+        isFull: event?.isFull ?? false,
+      });
     }
     
     if (isBusyBlock) {
@@ -1112,10 +1137,10 @@ export default function EventDetailScreen() {
   const confirmRemoveRsvp = () => {
     setShowRemoveRsvpConfirm(false);
     
-    // [P1_RSVP_RACE] Guard: prevent race if mutation already pending
+    // [P0_RSVP] Guard: prevent race if mutation already pending
     if (rsvpMutation.isPending) {
       if (__DEV__) {
-        devLog('[P1_RSVP_RACE]', 'confirm tap ignored (pending)', { eventId: id, nextStatus: 'not_going' });
+        devLog('[P0_RSVP]', 'confirm tap ignored (pending)', { eventId: id, nextStatus: 'not_going' });
       }
       return;
     }
@@ -2291,9 +2316,9 @@ export default function EventDetailScreen() {
               </View>
             ) : (
               <View className="mb-4">
-                {/* [P1_RSVP_COUNT] Proof log: Render RSVP state and count */}
+                {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
-                  devLog("[P1_RSVP_COUNT]", "render", {
+                  devLog("[P0_RSVP]", "ui render", {
                     eventId: id,
                     myRsvpStatus,
                     totalGoing,
