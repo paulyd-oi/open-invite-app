@@ -16,6 +16,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { BadgePill } from "@/components/BadgePill";
+import { getBadgePillVariant } from "@/lib/badges";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { safeToast } from "@/lib/safeToast";
 import { type FriendUser, type ProfileBadge, type Event, type ReportReason } from "@/shared/contracts";
@@ -706,7 +707,7 @@ export default function UserProfileScreen() {
                         name={normalizedBadge.name}
                         tierColor={normalizedBadge.tierColor}
                         size="small"
-                        variant={normalizedBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
+                        variant={getBadgePillVariant(normalizedBadge.name)}
                       />
                     </View>
                   )}

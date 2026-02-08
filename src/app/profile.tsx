@@ -21,6 +21,7 @@ import { StreakCounter } from "@/components/StreakCounter";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { BadgePill } from "@/components/BadgePill";
 
+import { getBadgePillVariant } from "@/lib/badges";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -369,7 +370,7 @@ export default function ProfileScreen() {
                       name={StringSafe(featuredBadge.name)}
                       tierColor={StringSafe(featuredBadge.tierColor, "#78909C")}
                       size="medium"
-                      variant={featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
+                      variant={getBadgePillVariant(featuredBadge.name)}
                     />
                   </View>
                 )}

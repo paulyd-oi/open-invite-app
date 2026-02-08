@@ -1,3 +1,12 @@
+export type BadgePillVariant = "default" | "og" | "pro" | "gift";
+
+/** Map a badge display-name to the correct BadgePill solid-surface variant. */
+export function getBadgePillVariant(badgeName?: string | null): BadgePillVariant {
+  const key = (badgeName ?? "").trim().toUpperCase();
+  if (key === "OG") return "og";
+  return "default";
+}
+
 export type FeaturedBadgePill = {
   name: string;
   tierColor: string;

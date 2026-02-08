@@ -67,6 +67,7 @@ import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
 import { BadgePill } from "@/components/BadgePill";
+import { getBadgePillVariant } from "@/lib/badges";
 import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
@@ -340,7 +341,7 @@ const FriendCard = React.memo(function FriendCard({
                     name={featured.name}
                     tierColor={featured.tierColor}
                     size="small"
-                    variant={featured.name?.toUpperCase() === "OG" ? "og" : "default"}
+                    variant={getBadgePillVariant(featured.name)}
                   />
                 ) : null;
               })()}
@@ -531,7 +532,7 @@ const FriendListItem = React.memo(function FriendListItem({
                           name={featured.name}
                           tierColor={featured.tierColor}
                           size="small"
-                          variant={featured.name?.toUpperCase() === "OG" ? "og" : "default"}
+                          variant={getBadgePillVariant(featured.name)}
                         />
                       ) : null;
                     })()}
@@ -657,7 +658,7 @@ function FriendRequestCard({
               name={featuredBadge.name}
               tierColor={featuredBadge.tierColor}
               size="small"
-              variant={featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
+              variant={getBadgePillVariant(featuredBadge.name)}
             />
           )}
         </View>

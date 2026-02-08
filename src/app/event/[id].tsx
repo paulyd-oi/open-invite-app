@@ -66,6 +66,7 @@ import { safeToast } from "@/lib/safeToast";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { BadgePill } from "@/components/BadgePill";
+import { getBadgePillVariant } from "@/lib/badges";
 import {
   type GetEventsResponse,
   type Event,
@@ -1640,7 +1641,7 @@ export default function EventDetailScreen() {
                           name={event.user.featuredBadge.name}
                           tierColor={event.user.featuredBadge.tierColor}
                           size="small"
-                          variant={event.user.featuredBadge.name?.toUpperCase() === "OG" ? "og" : "default"}
+                          variant={getBadgePillVariant(event.user.featuredBadge.name)}
                         />
                       </View>
                     )}
