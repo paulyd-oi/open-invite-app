@@ -101,7 +101,7 @@ export function SuggestedTimesPicker({
         },
         duration: 60,
       }),
-    enabled: selectedFriendIds.length > 0 && showModal,
+    enabled: isAuthedForNetwork(bootStatus, session) && selectedFriendIds.length > 0 && showModal,
   });
 
   const slots = suggestedTimesData?.slots ?? [];

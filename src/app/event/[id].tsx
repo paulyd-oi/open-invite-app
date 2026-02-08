@@ -826,7 +826,7 @@ export default function EventDetailScreen() {
         throw err;
       }
     },
-    enabled: showAttendeesModal && !!id,
+    enabled: isAuthedForNetwork(bootStatus, session) && showAttendeesModal && !!id,
     retry: (failureCount, error: any) => {
       // Don't retry 403/404 (privacy/not-found), but retry 5xx once
       if (error?.status === 403 || error?.status === 404) return false;

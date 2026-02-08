@@ -77,7 +77,7 @@ export function assertAuthedForNetwork(params: {
     // Always-on DEV log with canonical prefix
     const userId = session?.user?.id ?? session?.effectiveUserId ?? "none";
     devLog(
-      `[NET_GATE] DENY tag=${tag} bootStatus=${bootStatus ?? "undefined"} userId=${userId}${endpoint ? ` endpoint=${endpoint}` : ""}`
+      `[P1_NET_GATE] DENY tag=${tag} bootStatus=${bootStatus ?? "undefined"} userId=${userId}${endpoint ? ` endpoint=${endpoint}` : ""}`
     );
   }
 

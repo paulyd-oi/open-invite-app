@@ -13,6 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import {
   ChevronLeft,
   Crown,
@@ -86,6 +89,8 @@ export default function SubscriptionScreen() {
   const subscriptionContext = useSubscriptionContext();
   const refreshProContract = useRefreshProContract();
   const { source } = useLocalSearchParams<{ source?: string }>();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
 
   const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
   const [promoCode, setPromoCode] = useState("");
@@ -102,6 +107,7 @@ export default function SubscriptionScreen() {
   const { data: subscriptionData, isLoading, refetch } = useQuery({
     queryKey: ["subscriptionDetails"],
     queryFn: () => api.get<SubscriptionDetails>("/api/subscription/details"),
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   // Fetch RevenueCat offerings

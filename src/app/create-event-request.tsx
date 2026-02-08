@@ -129,7 +129,7 @@ export default function CreateEventRequestScreen() {
         },
         duration: 60,
       }),
-    enabled: selectedFriendIds.length > 0,
+    enabled: isAuthedForNetwork(bootStatus, session) && selectedFriendIds.length > 0,
   });
 
   const suggestedSlots = suggestedTimesData?.slots ?? [];

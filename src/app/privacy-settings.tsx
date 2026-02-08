@@ -10,6 +10,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import {
   ChevronLeft,
   Users,
@@ -55,6 +58,8 @@ export default function PrivacySettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
 
   const [showFriendRequestPicker, setShowFriendRequestPicker] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -65,6 +70,7 @@ export default function PrivacySettingsScreen() {
   const { data: privacyData, isLoading } = useQuery({
     queryKey: ["privacySettings"],
     queryFn: () => api.get<{ settings: PrivacySettings }>("/api/privacy"),
+    enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const settings = privacyData?.settings;
