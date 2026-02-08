@@ -1300,8 +1300,17 @@ export default function EventDetailScreen() {
       setSelectedReportReason(null);
       setReportDetails("");
     } catch (error: any) {
-      if (__DEV__) devError("[P0_REPORT_EVENT_ERR]", { eventId: event.id, message: error?.message ?? "unknown" });
-      safeToast.error("Error", "Could not submit report. Please try again.");
+      const status = error?.status ?? error?.statusCode;
+      if (status === 409) {
+        if (__DEV__) devWarn("[P0_REPORT_DUPLICATE_UI]", { eventId: event.id });
+        safeToast.warning("Already reported", "You've already reported this event.");
+      } else if (status === 429) {
+        if (__DEV__) devWarn("[P0_REPORT_RATE_LIMIT_UI]", { eventId: event.id });
+        safeToast.warning("Slow down", "You're reporting too quickly. Try again later.");
+      } else {
+        if (__DEV__) devError("[P0_REPORT_EVENT_ERR]", { eventId: event.id, message: error?.message ?? "unknown" });
+        safeToast.error("Error", "Could not submit report. Please try again.");
+      }
     } finally {
       setIsSubmittingReport(false);
     }
