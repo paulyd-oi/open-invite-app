@@ -15,6 +15,9 @@ test -f docs/HANDOFF_PACKET_LATEST.txt
 echo "== FRONTEND INVARIANT CHECK =="
 bash scripts/ai/check_invariants_frontend.sh
 
+echo "== QUERY KEY SSOT CHECK =="
+bash scripts/ai/check_query_key_ssot.sh
+
 echo "== ROGUE FETCH PATTERN CHECK =="
 # Check for direct fetch() calls to /api/* that should use authClient.$fetch
 # Allowlist: /api/health, /api/email-verification/*, /api/auth/forget-password (pre-auth endpoints)
