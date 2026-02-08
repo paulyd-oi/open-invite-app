@@ -294,14 +294,15 @@ export function safeAppendMessage(
       (m: any) => m.clientMessageId === msg.clientMessageId,
     );
     if (matchIdx !== -1) {
-      // Replace the existing entry (optimistic → server) preserving sent status
+      // Replace the existing entry (optimistic → server), lock to sent
+      const optimisticId = existing[matchIdx].id;
       const replaced = [...existing];
-      replaced[matchIdx] = { ...msg, status: "sent" };
+      replaced[matchIdx] = { ...msg, status: "sent", clientMessageId: msg.clientMessageId };
       if (__DEV__) {
-        devLog("[P1_MSG_IDEMP]", "push dedupe by clientMessageId", {
+        devLog("[P1_MSG_IDEMP]", "replace_via_push", {
           clientMessageId: msg.clientMessageId,
-          replacedId: existing[matchIdx].id,
-          serverId: msg.id,
+          optimisticId,
+          pushId: msg.id,
         });
       }
       return { ...prev, circle: { ...prev.circle, messages: replaced } };

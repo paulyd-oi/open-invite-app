@@ -746,6 +746,7 @@ function MessageBubble({
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
   const isFailed = (message as any).status === "failed";
+  const isSent = (message as any).status === "sent" || (!isSending && !isFailed);
 
   if (isSystemMessage) {
     return (
@@ -791,7 +792,7 @@ function MessageBubble({
             className={`rounded-2xl px-4 py-2.5 ${isOwn ? "rounded-br-md" : "rounded-bl-md"}`}
             style={{
               backgroundColor: isOwn ? themeColor : isDark ? "#2C2C2E" : "#F3F4F6",
-              opacity: isSending ? 0.7 : isFailed ? 0.5 : 1,
+              opacity: isSending ? 0.7 : isFailed ? 0.5 : /* isSent */ 1,
             }}
           >
             <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
@@ -800,10 +801,10 @@ function MessageBubble({
             <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
               {new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
             </Text>
-            {isSending && (
+            {isSending && !isSent && (
               <Text className="text-[10px] ml-1" style={{ color: colors.textTertiary }}>Sending…</Text>
             )}
-            {isFailed && onRetry && (
+            {isFailed && !isSent && onRetry && (
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1138,6 +1139,7 @@ export default function CircleScreen() {
       if (serverMsg?.id && context?.optimisticId) {
         // Try matching by clientMessageId first (covers push-arrived-first), fallback to optimisticId
         const cmi = context.clientMessageId;
+        let foundOptimistic = false;
         queryClient.setQueryData(
           circleKeys.single(id),
           (prev: any) => {
@@ -1146,20 +1148,22 @@ export default function CircleScreen() {
               ...prev,
               circle: {
                 ...prev.circle,
-                messages: prev.circle.messages.map((m: any) =>
-                  m.id === context.optimisticId || (cmi && m.clientMessageId === cmi && m.id !== serverMsg.id)
-                    ? { ...serverMsg, status: "sent", clientMessageId: cmi }
-                    : m,
-                ),
+                messages: prev.circle.messages.map((m: any) => {
+                  if (m.id === context.optimisticId || (cmi && m.clientMessageId === cmi && m.id !== serverMsg.id)) {
+                    foundOptimistic = true;
+                    return { ...serverMsg, status: "sent", clientMessageId: cmi };
+                  }
+                  return m;
+                }),
               },
             };
           },
         );
         if (__DEV__) {
-          devLog("[P1_MSG_IDEMP]", "reconcile", {
+          devLog("[P1_MSG_IDEMP]", "reconcile_via_http", {
             clientMessageId: cmi,
             serverId: serverMsg.id,
-            replaced: true,
+            foundOptimistic,
           });
         }
       }
