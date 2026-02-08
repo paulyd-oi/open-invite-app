@@ -489,11 +489,11 @@ function MiniCalendar({
           </View>
           {/* Availability summary — projection of bestSlot */}
           <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary }}>
-            {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} people available
+            {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} available
           </Text>
           {/* Nudge CTA */}
           <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary, fontStyle: "italic" }}>
-            Encourage your circle to add events for more accurate suggestions.
+            Encourage your circle to add events for more accurate times.
           </Text>
 
           {/* Slot Availability Bottom Sheet */}

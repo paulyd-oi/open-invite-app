@@ -108,7 +108,7 @@ export class ErrorBoundary extends Component<Props, State> {
               marginBottom: 8,
             }}
           >
-            Oops! Something went wrong
+            Something went wrong
           </Text>
 
           <Text
@@ -120,7 +120,7 @@ export class ErrorBoundary extends Component<Props, State> {
               lineHeight: 20,
             }}
           >
-            Please try again. If this keeps happening, restart the app.
+            We hit a snag. Tap below to get back on track.
           </Text>
 
           <Pressable

@@ -220,7 +220,7 @@ export default function CreateEventRequestScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Propose Event" }} />
         <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Please sign in</Text>
+          <Text style={{ color: colors.textSecondary }}>Please sign in to propose events</Text>
         </View>
       </SafeAreaView>
     );

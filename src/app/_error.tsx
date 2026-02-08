@@ -46,7 +46,7 @@ export default function GlobalErrorBoundary({ error, retry }: Props) {
           lineHeight: 20,
         }}
       >
-        Try restarting the app.
+        We hit a snag. Tap below to get back on track.
       </Text>
 
       <Pressable

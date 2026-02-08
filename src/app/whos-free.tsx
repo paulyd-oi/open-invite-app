@@ -509,7 +509,7 @@ export default function WhosFreeScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Who's Free?" }} />
         <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Please sign in</Text>
+          <Text style={{ color: colors.textSecondary }}>Please sign in to check availability</Text>
         </View>
       </SafeAreaView>
     );

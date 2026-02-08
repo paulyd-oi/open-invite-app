@@ -1412,7 +1412,7 @@ export default function EventDetailScreen() {
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ title: "Event" }} />
         <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Please sign in</Text>
+          <Text style={{ color: colors.textSecondary }}>Please sign in to view events</Text>
         </View>
       </SafeAreaView>
     );
@@ -1598,7 +1598,7 @@ export default function EventDetailScreen() {
       errorSubtitle = "You don't have permission to view this event.";
     } else if (eventError) {
       // Generic network or server error
-      errorTitle = "Unable to Load Event";
+      errorTitle = "Unable to load event";
       errorSubtitle = "There was a problem loading this event. Please check your connection and try again.";
     }
     
