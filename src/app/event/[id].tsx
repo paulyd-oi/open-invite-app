@@ -1061,7 +1061,7 @@ export default function EventDetailScreen() {
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
         // [P1_EVENT_PROJ] Proof: log which projection keys are invalidated
-        devLog('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
+        console.log('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
           eventId: id,
           nextStatus: status,
           keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
