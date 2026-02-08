@@ -30,6 +30,7 @@ import {
   LocalEvent,
 } from "./offlineStore";
 import { safeToast } from "@/lib/safeToast";
+import { eventKeys } from "./eventQueryKeys";
 
 /**
  * Normalize RSVP status from backend to valid frontend states.
@@ -227,9 +228,9 @@ export function useOfflineSync(bootStatus?: string) {
 
           // Refetch key queries
           await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ["events"] }),
-            queryClient.invalidateQueries({ queryKey: ["events", "calendar"] }),
-            queryClient.invalidateQueries({ queryKey: ["events", "feed"] }),
+            queryClient.invalidateQueries({ queryKey: eventKeys.feed() }),
+            queryClient.invalidateQueries({ queryKey: eventKeys.calendar() }),
+            queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() }),
           ]);
 
           // Show result

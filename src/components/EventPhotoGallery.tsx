@@ -28,6 +28,7 @@ import { api } from "@/lib/api";
 import { uploadImage } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
 import { devError, devLog } from "@/lib/devLog";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 // Define types locally to avoid import issues
 interface EventPhoto {
@@ -80,7 +81,7 @@ export function EventPhotoGallery({
 
   // Fetch event photos
   const { data: photosData, isLoading } = useQuery({
-    queryKey: ["events", eventId, "photos"],
+    queryKey: eventKeys.photos(eventId),
     queryFn: () => api.get<GetEventPhotosResponse>(`/api/events/${eventId}/photos`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!eventId,
   });
@@ -97,7 +98,7 @@ export function EventPhotoGallery({
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
+      queryClient.invalidateQueries({ queryKey: eventKeys.photos(eventId) });
       setShowUploadModal(false);
     },
     onError: (error: any) => {
@@ -111,7 +112,7 @@ export function EventPhotoGallery({
       api.delete(`/api/events/${eventId}/photos/${photoId}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["events", eventId, "photos"] });
+      queryClient.invalidateQueries({ queryKey: eventKeys.photos(eventId) });
     },
     onError: () => {
       safeToast.error("Error", "Failed to delete photo");

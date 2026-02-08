@@ -16,6 +16,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -712,24 +713,24 @@ export function useNotifications() {
         // Refresh relevant data based on notification type
         const type = notification.request.content.data?.type;
         if (type === "new_event" || type === "event_update") {
-          queryClient.invalidateQueries({ queryKey: ["events"] });
+          queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
         } else if (type === "friend_request" || type === "friend_accepted") {
           queryClient.invalidateQueries({ queryKey: ["friends"] });
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         } else if (type === "join_request" || type === "join_accepted" || type === "event_join" ||
   type === "new_attendee" || type === "new_attendee") {
           // RSVP/join notifications - refresh events and specific event
-          queryClient.invalidateQueries({ queryKey: ["events"] });
-          const eventId = notification.request.content.data?.eventId;
+          queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+          const eventId = notification.request.content.data?.eventId as string | undefined;
           if (eventId) {
-            queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+            queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
           }
         } else if (type === "event_comment") {
           // Comment notification - refresh event comments
-          const eventId = notification.request.content.data?.eventId;
+          const eventId = notification.request.content.data?.eventId as string | undefined;
           if (eventId) {
-            queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-            queryClient.invalidateQueries({ queryKey: ["eventComments", eventId] });
+            queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+            queryClient.invalidateQueries({ queryKey: eventKeys.comments(eventId) });
           }
         } else if (type === "circle_message") {
           // Refresh circles to update unread counts

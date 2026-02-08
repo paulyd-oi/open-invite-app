@@ -91,9 +91,7 @@ export const eventKeys = {
   rsvp: (id: string) => ["events", id, "rsvp"] as const,
   mute: (id: string) => ["events", id, "mute"] as const,
   attendees: (id: string) => ["events", "attendees", id] as const, // [P0_RSVP_SOT] Who's Coming list
-  
-  // Generic event detail (used for capacity refetch)
-  detail: (id: string) => ["events", id] as const,
+  photos: (id: string) => ["events", id, "photos"] as const,
   
   // Feed/list keys
   feed: () => ["events", "feed"] as const,
