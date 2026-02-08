@@ -61,6 +61,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_NEW_MSG]",
   // P1 read/unread realtime proof
   "[P1_READ_UNREAD]",
+  // P1 chat pagination proof
+  "[P1_CHAT_PAGINATION]",
 ];
 
 /**

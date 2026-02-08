@@ -14,15 +14,17 @@ import {
   Share,
   Dimensions,
   Switch,
+  ActivityIndicator,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
+  type ViewToken,
 } from "react-native";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
-import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage } from "@/lib/pushRouter";
+import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage, safePrependMessages } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -65,6 +67,7 @@ import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContex
 import { formatDateTimeRange } from "@/lib/eventTime";
 import {
   type GetCircleDetailResponse,
+  type GetCircleMessagesResponse,
   type CircleMessage,
   type Circle,
   type GetFriendsResponse,
@@ -845,6 +848,24 @@ export default function CircleScreen() {
     setUnseenCount(0);
   }, []);
 
+  // [P1_CHAT_PAGINATION] Pagination state
+  const PAGE_SIZE = 30;
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
+  const cursorRef = useRef<string | null>(null);
+  const isPrependingRef = useRef(false);
+
+  // Viewability tracking for scroll anchor on prepend
+  const firstVisibleIdRef = useRef<string | null>(null);
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (!viewableItems?.length) return;
+      const first = viewableItems[0]?.item;
+      if (first?.id) firstVisibleIdRef.current = first.id;
+    },
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 1 }).current;
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
     const distanceFromBottom =
@@ -955,6 +976,14 @@ export default function CircleScreen() {
   useEffect(() => {
     if (prevMessageCountRef.current == null) {
       prevMessageCountRef.current = messageCount;
+      return;
+    }
+    // [P1_CHAT_PAGINATION] Skip watcher during older-message prepend
+    if (isPrependingRef.current) {
+      prevMessageCountRef.current = messageCount;
+      if (__DEV__) {
+        devLog("[P1_CHAT_PAGINATION]", "skip-new-msg-watcher (prepend)");
+      }
       return;
     }
     const prev = prevMessageCountRef.current;
@@ -1286,6 +1315,62 @@ export default function CircleScreen() {
     }, [session, id, bootStatus]),
   );
 
+  // [P1_CHAT_PAGINATION] Fetch older messages with cursor-based pagination
+  const fetchOlderMessages = useCallback(async () => {
+    if (!id || !hasMoreOlder || isLoadingEarlier) return;
+    setIsLoadingEarlier(true);
+    isPrependingRef.current = true;
+
+    try {
+      const cursor = cursorRef.current;
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+      if (cursor) params.set("before", cursor);
+
+      const res = await api.get<GetCircleMessagesResponse>(
+        `/api/circles/${id}/messages?${params.toString()}`,
+      );
+
+      const older = res.messages ?? [];
+      const serverHasMore = res.hasMore ?? false;
+
+      if (older.length > 0) {
+        // Set cursor to oldest message createdAt for next fetch
+        const oldest = older.reduce((min, m) =>
+          m.createdAt < min.createdAt ? m : min, older[0],
+        );
+        cursorRef.current = oldest.createdAt;
+      }
+
+      setHasMoreOlder(serverHasMore && older.length >= PAGE_SIZE);
+
+      // Patch cache: prepend older messages into circleKeys.single
+      queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+        if (!prev?.circle) return prev;
+        const prevMsgs = prev.circle.messages ?? [];
+        const merged = safePrependMessages(prevMsgs, older);
+        return { ...prev, circle: { ...prev.circle, messages: merged } };
+      });
+
+      if (__DEV__) {
+        devLog("[P1_CHAT_PAGINATION]", "load-earlier success", {
+          circleId: id,
+          olderCount: older.length,
+          hasMore: serverHasMore,
+        });
+      }
+    } catch (e) {
+      if (__DEV__) {
+        devLog("[P1_CHAT_PAGINATION]", "load-earlier error", { circleId: id });
+      }
+    } finally {
+      // Allow rAF to settle layout before clearing prepend flag
+      requestAnimationFrame(() => {
+        isPrependingRef.current = false;
+      });
+      setIsLoadingEarlier(false);
+    }
+  }, [id, hasMoreOlder, isLoadingEarlier, queryClient, PAGE_SIZE]);
+
   // [P0_SHEET_PRIMITIVE_GROUP_SETTINGS] proof log – once per open
   useEffect(() => {
     if (__DEV__ && showGroupSettings) {
@@ -1603,8 +1688,34 @@ export default function CircleScreen() {
           scrollEventThrottle={16}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           removeClippedSubviews={false}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           refreshControl={
             <RefreshControl refreshing={false} onRefresh={refetch} tintColor={themeColor} />
+          }
+          ListHeaderComponent={
+            hasMoreOlder ? (
+              <View style={{ alignItems: "center", paddingVertical: 12 }}>
+                <Pressable
+                  onPress={fetchOlderMessages}
+                  disabled={isLoadingEarlier}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                  }}
+                >
+                  {isLoadingEarlier ? (
+                    <ActivityIndicator size="small" color={colors.textTertiary} />
+                  ) : (
+                    <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                      Load earlier messages
+                    </Text>
+                  )}
+                </Pressable>
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             <View className="py-12 items-center">

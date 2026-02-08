@@ -260,6 +260,22 @@ export function safeAppendMessage(
 }
 
 /**
+ * Safe prepend: dedupe by id, stable ordering, immutable return.
+ * Used by pagination to insert older messages at the front.
+ */
+export function safePrependMessages(
+  existing: Array<{ id: string; createdAt: string; [k: string]: any }>,
+  older: Array<{ id: string; createdAt: string; [k: string]: any }>,
+): Array<{ id: string; createdAt: string; [k: string]: any }> {
+  const existingIds = new Set(existing.map((m) => m.id));
+  const deduped = older.filter((m) => !existingIds.has(m.id));
+  if (deduped.length === 0) return existing;
+  return [...deduped, ...existing].sort(
+    (a, b) => (a.createdAt as string).localeCompare(b.createdAt as string),
+  );
+}
+
+/**
  * Build an optimistic message for instant UI insertion.
  * Temp id namespace "optimistic-" prevents collision with server ids.
  * status: "sending" marks the message as optimistic.
