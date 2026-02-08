@@ -62,6 +62,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { setActiveCircle } from "@/lib/activeCircle";
+import { getCircleMessages } from "@/lib/circlesApi";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { formatDateTimeRange } from "@/lib/eventTime";
@@ -1005,6 +1006,25 @@ export default function CircleScreen() {
     }
   }, [messageCount, scheduleAutoScroll, clearUnseen, bumpUnseen]);
 
+  // [P1_CHAT_PAGINATION] Init cursor from initial data
+  useEffect(() => {
+    if (!circle?.messages?.length) return;
+    // Only seed cursor once (when null)
+    if (cursorRef.current != null) return;
+    const msgs = circle.messages;
+    const oldest = msgs.reduce(
+      (min: any, m: any) => (m.createdAt < min.createdAt ? m : min),
+      msgs[0],
+    );
+    cursorRef.current = oldest.createdAt;
+    if (__DEV__) {
+      devLog("[P1_CHAT_PAGINATION]", "init", {
+        oldestCreatedAt: oldest.createdAt,
+        initialCount: msgs.length,
+      });
+    }
+  }, [circle?.messages]);
+
   // Fetch friends list for adding members
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
@@ -1322,45 +1342,47 @@ export default function CircleScreen() {
     isPrependingRef.current = true;
 
     try {
-      const cursor = cursorRef.current;
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-      if (cursor) params.set("before", cursor);
-
-      const res = await api.get<GetCircleMessagesResponse>(
-        `/api/circles/${id}/messages?${params.toString()}`,
-      );
+      const res = await getCircleMessages({
+        circleId: id,
+        before: cursorRef.current,
+        limit: PAGE_SIZE,
+      });
 
       const older = res.messages ?? [];
       const serverHasMore = res.hasMore ?? false;
 
+      // Update cursor to oldest returned message
       if (older.length > 0) {
-        // Set cursor to oldest message createdAt for next fetch
         const oldest = older.reduce((min, m) =>
           m.createdAt < min.createdAt ? m : min, older[0],
         );
         cursorRef.current = oldest.createdAt;
       }
 
-      setHasMoreOlder(serverHasMore && older.length >= PAGE_SIZE);
+      // Trust server for hasMore; fallback if empty
+      setHasMoreOlder(older.length === 0 ? false : serverHasMore);
 
       // Patch cache: prepend older messages into circleKeys.single
-      queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
-        if (!prev?.circle) return prev;
-        const prevMsgs = prev.circle.messages ?? [];
-        const merged = safePrependMessages(prevMsgs, older);
-        return { ...prev, circle: { ...prev.circle, messages: merged } };
-      });
+      if (older.length > 0) {
+        queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+          if (!prev?.circle) return prev;
+          const prevMsgs = prev.circle.messages ?? [];
+          const merged = safePrependMessages(prevMsgs, older);
+          return { ...prev, circle: { ...prev.circle, messages: merged } };
+        });
+      }
 
       if (__DEV__) {
-        devLog("[P1_CHAT_PAGINATION]", "load-earlier success", {
-          circleId: id,
+        devLog("[P1_CHAT_PAGINATION]", "prepend", {
           olderCount: older.length,
           hasMore: serverHasMore,
+          oldestAfter: cursorRef.current,
         });
       }
     } catch (e) {
+      safeToast.error("Oops", "Couldn't load older messages");
       if (__DEV__) {
-        devLog("[P1_CHAT_PAGINATION]", "load-earlier error", { circleId: id });
+        devLog("[P1_CHAT_PAGINATION]", "load-earlier error", { circleId: id, error: String(e) });
       }
     } finally {
       // Allow rAF to settle layout before clearing prepend flag
@@ -1704,10 +1726,18 @@ export default function CircleScreen() {
                     paddingVertical: 8,
                     borderRadius: 16,
                     backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
                   }}
                 >
                   {isLoadingEarlier ? (
-                    <ActivityIndicator size="small" color={colors.textTertiary} />
+                    <>
+                      <ActivityIndicator size="small" color={colors.textTertiary} />
+                      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                        Loading earlier…
+                      </Text>
+                    </>
                   ) : (
                     <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
                       Load earlier messages
