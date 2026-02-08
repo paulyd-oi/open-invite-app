@@ -73,6 +73,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_MSG_IDEMP]",
   // P1 chat grouped message runs
   "[P1_CHAT_GROUP]",
+  // P1 chat send status UI (pending + failed banner)
+  "[P1_CHAT_SEND_UI]",
 ];
 
 /**
