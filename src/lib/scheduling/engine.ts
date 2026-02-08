@@ -21,38 +21,54 @@ const DEFAULT_INTERVAL_MINUTES = 30;
 const DEFAULT_SLOT_DURATION_MINUTES = 60;
 const MAX_TOP_SLOTS = 3;
 
+/** Safety clamp: max range the engine will scan (30 days). */
+const MAX_RANGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Safety clamp: minimum interval to prevent runaway slot generation. */
+const MIN_INTERVAL_MINUTES = 5;
+
 /**
  * Check if a time window [slotStart, slotEnd) overlaps with a busy window.
  */
-function overlaps(slotStartMs: number, slotEndMs: number, busy: BusyWindow): boolean {
-  const bStart = new Date(busy.start).getTime();
-  const bEnd = new Date(busy.end).getTime();
-  return slotStartMs < bEnd && slotEndMs > bStart;
+function overlaps(slotStartMs: number, slotEndMs: number, bStartMs: number, bEndMs: number): boolean {
+  return slotStartMs < bEndMs && slotEndMs > bStartMs;
+}
+
+/** Pre-parsed busy window with ms timestamps for perf. */
+interface ParsedBusyWindow {
+  startMs: number;
+  endMs: number;
 }
 
 /**
  * Check if a user is busy during a given slot.
- * Busy windows should be sorted by start for early-exit optimisation.
+ * Busy windows must be sorted by startMs for early-exit optimisation.
  */
 function isUserBusy(
   slotStartMs: number,
   slotEndMs: number,
-  busyWindows: BusyWindow[],
+  windows: ParsedBusyWindow[],
 ): boolean {
-  for (const bw of busyWindows) {
-    // Early exit: if busy window starts after slot ends, remaining are later too
-    const bStart = new Date(bw.start).getTime();
-    if (bStart >= slotEndMs) break;
-    if (overlaps(slotStartMs, slotEndMs, bw)) return true;
+  for (const bw of windows) {
+    // Early exit: if busy window starts at or after slot end, all remaining are later
+    if (bw.startMs >= slotEndMs) break;
+    if (overlaps(slotStartMs, slotEndMs, bw.startMs, bw.endMs)) return true;
   }
   return false;
 }
 
 /**
- * Sort busy windows by start time (mutates in-place for perf).
+ * Parse and sort busy windows into pre-parsed form.
+ * Returns a NEW array — never mutates the caller's data.
  */
-function sortBusyWindows(windows: BusyWindow[]): BusyWindow[] {
-  return windows.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+function parseSortBusyWindows(windows: BusyWindow[]): ParsedBusyWindow[] {
+  return windows
+    .map((w) => ({
+      startMs: new Date(w.start).getTime(),
+      endMs: new Date(w.end).getTime(),
+    }))
+    .filter((w) => !isNaN(w.startMs) && !isNaN(w.endMs) && w.endMs > w.startMs)
+    .sort((a, b) => a.startMs - b.startMs);
 }
 
 /**
@@ -60,6 +76,11 @@ function sortBusyWindows(windows: BusyWindow[]): BusyWindow[] {
  *
  * Returns `null` if the input range is invalid or produces zero slots
  * (e.g. rangeEnd <= rangeStart). UI should not render the section in that case.
+ *
+ * Safety clamps applied:
+ * - Range clamped to MAX_RANGE_MS (30 days) to prevent pathological generation.
+ * - NaN dates → null.
+ * - intervalMinutes floored to MIN_INTERVAL_MINUTES.
  */
 export function computeSchedule(
   input: SchedulingComputeInput,
@@ -69,27 +90,38 @@ export function computeSchedule(
     busyWindowsByUserId,
     rangeStart,
     rangeEnd,
-    intervalMinutes = DEFAULT_INTERVAL_MINUTES,
+    intervalMinutes: rawInterval = DEFAULT_INTERVAL_MINUTES,
     slotDurationMinutes = DEFAULT_SLOT_DURATION_MINUTES,
     quorumCount,
   } = input;
 
   const rangeStartMs = new Date(rangeStart).getTime();
-  const rangeEndMs = new Date(rangeEnd).getTime();
+  let rangeEndMs = new Date(rangeEnd).getTime();
+  const intervalMinutes = Math.max(rawInterval, MIN_INTERVAL_MINUTES);
   const intervalMs = intervalMinutes * 60 * 1000;
   const durationMs = slotDurationMinutes * 60 * 1000;
   const totalMembers = members.length;
 
-  // Guard: invalid range
-  if (rangeEndMs <= rangeStartMs || totalMembers === 0) {
+  // Guard: NaN dates or empty members
+  if (isNaN(rangeStartMs) || isNaN(rangeEndMs) || totalMembers === 0) {
     return null;
   }
 
-  // Pre-sort busy windows per user for early-exit optimisation
-  const sortedBusy: Record<string, BusyWindow[]> = {};
+  // Guard: invalid range
+  if (rangeEndMs <= rangeStartMs) {
+    return null;
+  }
+
+  // Safety clamp: cap range to MAX_RANGE_MS
+  if (rangeEndMs - rangeStartMs > MAX_RANGE_MS) {
+    rangeEndMs = rangeStartMs + MAX_RANGE_MS;
+  }
+
+  // Pre-parse and sort busy windows per user (new arrays — no caller mutation)
+  const sortedBusy: Record<string, ParsedBusyWindow[]> = {};
   for (const m of members) {
     const windows = busyWindowsByUserId[m.id];
-    sortedBusy[m.id] = windows ? sortBusyWindows([...windows]) : [];
+    sortedBusy[m.id] = windows ? parseSortBusyWindows(windows) : [];
   }
 
   // Generate slots
