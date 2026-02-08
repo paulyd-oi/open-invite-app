@@ -225,23 +225,20 @@ const FriendCard = React.memo(function FriendCard({
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
 
-  // DEV: Track renders (for perf measurement)
-  if (__DEV__) {
-    (FriendCard as any).__renderCount = ((FriendCard as any).__renderCount || 0) + 1;
-  }
+  // ── SSOT swipe constants (match CircleCard) ──────────────────
+  const ACTION_WIDTH_PX = 72;
+  const OPEN_RIGHT_PX   = ACTION_WIDTH_PX;
+  const THRESH_OPEN_PX  = 28;
+  // ─────────────────────────────────────────────────────────────
+  const translateX = useSharedValue(0);
 
-  // Guard against undefined friend
-  if (!friend) {
-    return null;
-  }
+  const cardSwipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
-  const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
-  
-  const handleLongPress = useCallback(() => {
-    if (onPin) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onPin(friendship.id);
-    }
+  const triggerPin = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onPin?.(friendship.id);
   }, [onPin, friendship.id]);
 
   const handlePress = useCallback(() => {
@@ -249,16 +246,67 @@ const FriendCard = React.memo(function FriendCard({
     router.push(`/friend/${friendship.id}` as any);
   }, [router, friendship.id]);
 
+  const panGesture = Gesture.Pan()
+    .enabled(!!onPin)
+    .activeOffsetX([-12, 12])
+    .failOffsetY([-10, 10])
+    .onUpdate((event) => {
+      // Clamp to [-ACTION_WIDTH_PX, +ACTION_WIDTH_PX] (defense-in-depth)
+      const clamped = Math.max(-ACTION_WIDTH_PX, Math.min(OPEN_RIGHT_PX, event.translationX));
+      translateX.value = clamped;
+    })
+    .onEnd((event) => {
+      const tx = event.translationX;
+      if (tx > THRESH_OPEN_PX) {
+        // Right swipe past threshold → snap open to reveal Pin
+        if (__DEV__) runOnJS(devLog)('[P0_FRIEND_DETAILED_SWIPE]', 'snap', { dir: 'right', target: OPEN_RIGHT_PX, friendId: friendship.id });
+        translateX.value = withSpring(OPEN_RIGHT_PX, { damping: 20, stiffness: 200 });
+      } else {
+        // Left swipe or short right → always snap closed
+        if (__DEV__ && tx < -THRESH_OPEN_PX) runOnJS(devLog)('[P0_FRIEND_DETAILED_SWIPE]', 'snap', { dir: 'left_disabled', target: 0, friendId: friendship.id });
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+    });
+
+  // DEV: Track renders (for perf measurement)
+  if (__DEV__) {
+    (FriendCard as any).__renderCount = ((FriendCard as any).__renderCount || 0) + 1;
+  }
+
+  // Guard against undefined friend - must be after all hooks
+  if (!friend) {
+    return null;
+  }
+
+  const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
+
   // Only animate first 5 items to reduce initial render cost
   const shouldAnimate = index < 5;
 
   const content = (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      delayLongPress={500}
-      className="rounded-xl p-3 mb-2"
-      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
+    <View className="mb-2 overflow-hidden rounded-xl">
+      {/* Right-swipe: Pin action (revealed on the left side) */}
+      {onPin && (
+        <View
+          className="absolute inset-y-0 left-0 items-center justify-center"
+          style={{ width: ACTION_WIDTH_PX }}
+        >
+          <Pressable
+            onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="w-14 h-14 rounded-2xl items-center justify-center"
+            style={{ backgroundColor: '#10B981' }}
+          >
+            <Pin size={20} color="#fff" />
+          </Pressable>
+        </View>
+      )}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={cardSwipeStyle}>
+          <Pressable
+            onPress={handlePress}
+            className="rounded-xl p-3"
+            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
     >
         <View className="flex-row items-start">
           {/* Pin indicator */}
@@ -311,7 +359,10 @@ const FriendCard = React.memo(function FriendCard({
 
         {/* Mini Calendar */}
         <MiniCalendar friendshipId={friendship.id} bootStatus={bootStatus} session={session} />
-      </Pressable>
+          </Pressable>
+        </Animated.View>
+      </GestureDetector>
+    </View>
   );
 
   // Wrap in animation only for first items
