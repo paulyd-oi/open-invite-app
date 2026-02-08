@@ -28,6 +28,7 @@ import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
+import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
@@ -1052,10 +1053,16 @@ export default function SocialScreen() {
   const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
   
   // P1 JITTER FIX: Use sticky loading to prevent flicker on fast refetches
-  const isLoading = useStickyLoadingCombined(
+  const isStickyLoading = useStickyLoadingCombined(
     [feedLoading, myEventsLoading, attendingLoading],
     300,
     __DEV__ ? "social" : undefined
+  );
+
+  // [P1_LOADING_INV] loadedOnce discipline: skeleton only on first load, never on refetch
+  const { showInitialLoading: isLoading } = useLoadedOnce(
+    { isLoading: isStickyLoading, isFetching: isRefreshing, isSuccess: !!feedData, data: feedData },
+    "social-feed",
   );
 
   // Render loading state for non-authed states (redirect useEffect handles routing)

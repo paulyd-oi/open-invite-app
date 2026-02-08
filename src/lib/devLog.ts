@@ -45,6 +45,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_FEED_PAGINATION]",
   // P0 SecureStore error handling
   "[P0_SECURESTORE]",
+  // P1 loading invariant proof
+  "[P1_LOADING_INV]",
 ];
 
 /**

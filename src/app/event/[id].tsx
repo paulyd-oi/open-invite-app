@@ -58,6 +58,7 @@ import * as ExpoCalendar from "expo-calendar";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
@@ -519,7 +520,7 @@ export default function EventDetailScreen() {
   };
 
   // Fetch single event by ID directly - this handles past events too
-  const { data: singleEventData, isLoading: isLoadingEvent, error: eventError } = useQuery({
+  const { data: singleEventData, isLoading: isLoadingEvent, isFetching: isFetchingEvent, isSuccess: isEventSuccess, error: eventError } = useQuery({
     queryKey: eventKeys.single(id ?? ""),
     queryFn: async () => {
       if (__DEV__) {
@@ -546,6 +547,12 @@ export default function EventDetailScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     retry: false, // Don't retry on 403/404 privacy errors
   });
+
+  // [P1_LOADING_INV] loadedOnce discipline: never show spinner after first successful load
+  const { showInitialLoading: showEventLoading, showRefetchIndicator: showEventRefetch } = useLoadedOnce(
+    { isLoading: isLoadingEvent, isFetching: isFetchingEvent, isSuccess: isEventSuccess, data: singleEventData },
+    "event-detail",
+  );
 
   // ============================================
   // P0 FIX: Event Visibility Classification (SSOT)
@@ -1427,7 +1434,7 @@ export default function EventDetailScreen() {
     );
   }
 
-  if (isLoadingEvent) {
+  if (showEventLoading) {
     // [P1_RSVP_FLOW] Proof log: event detail loading
     if (__DEV__) {
       devLog('[P1_RSVP_FLOW]', 'event detail loading', { eventId: id });

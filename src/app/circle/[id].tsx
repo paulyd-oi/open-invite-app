@@ -19,6 +19,7 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -859,13 +860,19 @@ export default function CircleScreen() {
     };
   }, [showCalendar, calendarCollapsedByKeyboard]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isFetching, isSuccess, refetch } = useQuery({
     queryKey: circleKeys.single(id),
     queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
   });
+
+  // [P1_LOADING_INV] loadedOnce discipline: prevent "Loading..." flash on 10s poll
+  const { showInitialLoading: showCircleLoading, showRefetchIndicator: showCircleRefetch } = useLoadedOnce(
+    { isLoading, isFetching, isSuccess, data },
+    "circle-detail",
+  );
 
   // Fetch friends list for adding members
   const { data: friendsData } = useQuery({
@@ -1187,7 +1194,7 @@ export default function CircleScreen() {
     return friendsData.friends.filter(f => !memberIds.has(f.friendId));
   }, [friendsData?.friends, circle]);
 
-  if (!session || isLoading || !circle) {
+  if (!session || showCircleLoading || !circle) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ headerShown: false }} />
