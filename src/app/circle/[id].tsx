@@ -1594,6 +1594,24 @@ export default function CircleScreen() {
 
   const messages = circle.messages ?? [];
 
+  // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
+  const hasPending = messages.some((m: any) => m.status === "sending");
+  const latestFailed = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i] as any;
+      if (m.status === "failed" && m.id?.startsWith("optimistic-")) return m;
+    }
+    return null;
+  }, [messages]);
+  const hasFailed = !!latestFailed;
+
+  // [P1_CHAT_SEND_UI] DEV log when failed banner becomes visible
+  useEffect(() => {
+    if (__DEV__ && hasFailed && latestFailed) {
+      devLog("[P1_CHAT_SEND_UI]", "banner_shown", { failedId: latestFailed.id });
+    }
+  }, [hasFailed, latestFailed]);
+
   // [P1_CHAT_GROUP] One-time mount log
   const groupLogFired = useRef(false);
   useEffect(() => {
@@ -1842,6 +1860,14 @@ export default function CircleScreen() {
               </Text>
             </View>
           }
+          ListFooterComponent={
+            hasPending ? (
+              <View className="flex-row items-center justify-center py-2" style={{ gap: 6 }}>
+                <ActivityIndicator size="small" color={colors.textTertiary} />
+                <Text style={{ color: colors.textTertiary, fontSize: 12 }}>Sending…</Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item, index }) => {
             // -- Run grouping: consecutive same-sender within 2 min --
             const RUN_WINDOW_MS = 120_000;
@@ -1984,6 +2010,45 @@ export default function CircleScreen() {
             </View>
           </Pressable>
         ) : null}
+
+        {/* [P1_CHAT_SEND_UI] Failed message banner */}
+        {hasFailed && latestFailed && (
+            <Pressable
+              onPress={() => {
+                const cmi = latestFailed.clientMessageId;
+                if (!cmi) {
+                  safeToast.error("Error", "Cannot retry this message");
+                  return;
+                }
+                if (__DEV__) devLog("[P1_CHAT_SEND_UI]", "retry_from_banner", { failedId: latestFailed.id, clientMessageId: cmi });
+                retryFailedMessage(
+                  id,
+                  latestFailed.id,
+                  queryClient,
+                  () => sendMessageMutation.mutate({
+                    content: latestFailed.content,
+                    clientMessageId: cmi,
+                  }),
+                );
+              }}
+              style={{
+                backgroundColor: "rgba(239,68,68,0.1)",
+                borderTopWidth: 1,
+                borderColor: "rgba(239,68,68,0.2)",
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <RefreshCw size={12} color="#EF4444" />
+              <Text style={{ color: "#EF4444", fontSize: 13, fontWeight: "500" }}>
+                Message failed to send · Tap to retry
+              </Text>
+            </Pressable>
+        )}
 
         {/* Message Input */}
         <View
