@@ -79,6 +79,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_CHAT_TS]",
   // P1 chat new-messages pill
   "[P1_CHAT_PILL]",
+  // P2 chat date separators
+  "[P2_CHAT_DATESEP]",
 ];
 
 /**

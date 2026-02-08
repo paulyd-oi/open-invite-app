@@ -730,6 +730,22 @@ function MiniCalendar({
   );
 }
 
+// Date separator label helper
+function formatDateSeparator(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffMs = today.getTime() - msgDay.getTime();
+  const diffDays = Math.round(diffMs / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const day = d.getDate();
+  if (d.getFullYear() !== now.getFullYear()) return `${month} ${day}, ${d.getFullYear()}`;
+  return `${month} ${day}`;
+}
+
 // Message Bubble Component
 function MessageBubble({
   message,
@@ -1676,6 +1692,7 @@ export default function CircleScreen() {
   useEffect(() => {
     if (!groupLogFired.current && __DEV__) {
       devLog("[P1_CHAT_GROUP]", "enabled windowMs=120000");
+      devLog("[P2_CHAT_DATESEP]", "enabled");
       groupLogFired.current = true;
     }
   }, []);
@@ -2011,8 +2028,38 @@ export default function CircleScreen() {
             const stableId = item.id ?? (item as any).clientMessageId;
             const showTimestamp = !isRunContinuation || activeTimestampId === stableId;
 
+            // -- Date separator: show pill when calendar day changes --
+            let showDateSep = false;
+            if (!prev) {
+              showDateSep = true;
+            } else {
+              const prevDay = new Date(prev.createdAt);
+              const curDay = new Date(item.createdAt);
+              showDateSep =
+                prevDay.getFullYear() !== curDay.getFullYear() ||
+                prevDay.getMonth() !== curDay.getMonth() ||
+                prevDay.getDate() !== curDay.getDate();
+            }
+
             return (
-              <MessageBubble
+              <>
+                {showDateSep && (
+                  <View style={{ alignItems: "center", marginVertical: 12 }}>
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 10,
+                        backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      <Text style={{ color: colors.textTertiary, fontSize: 11, fontWeight: "500" }}>
+                        {formatDateSeparator(item.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+                <MessageBubble
                 message={item}
                 isOwn={item.userId === currentUserId}
                 themeColor={themeColor}
@@ -2027,6 +2074,7 @@ export default function CircleScreen() {
                 }
                 onLongPress={handleLongPress}
               />
+              </>
             );
           }}
         />
