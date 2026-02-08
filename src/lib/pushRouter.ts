@@ -401,16 +401,28 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
       devLog("[P1_READ_UNREAD]", "push treated-as-read (active)", { circleId });
     }
   } else if (message?.id) {
-    // Viewer is NOT in this circle — increment totalUnread
+    // Viewer is NOT in this circle — increment totalUnread + byCircle
     queryClient.setQueryData(
       circleKeys.unreadCount(),
-      (prev: any) => ({
-        ...prev,
-        totalUnread: Math.max(0, ((prev?.totalUnread as number) ?? 0) + 1),
-      }),
+      (prev: any) => {
+        if (!prev) return prev;
+        const prevCircle = (prev.byCircle?.[circleId] as number) ?? 0;
+        const nextCircle = prevCircle + 1;
+        const nextTotal = ((prev.totalUnread as number) ?? 0) + 1;
+        return {
+          ...prev,
+          totalUnread: nextTotal,
+          byCircle: { ...(prev.byCircle ?? {}), [circleId]: nextCircle },
+        };
+      },
     );
     if (__DEV__) {
-      devLog("[P1_READ_UNREAD]", "push unread++", { circleId });
+      const p = queryClient.getQueryData(circleKeys.unreadCount()) as any;
+      devLog("[P1_UNREAD_V2]", "push unread++", {
+        circleId,
+        nextCircle: p?.byCircle?.[circleId] ?? 0,
+        nextTotal: p?.totalUnread ?? 0,
+      });
     }
   }
 

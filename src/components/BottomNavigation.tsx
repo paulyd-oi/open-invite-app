@@ -210,7 +210,7 @@ export default function BottomNavigation() {
   // Fetch circle unread count for friends badge
   const { data: circleUnreadData } = useQuery({
     queryKey: circleKeys.unreadCount(),
-    queryFn: () => api.get<{ totalUnread: number }>("/api/circles/unread/count"),
+    queryFn: () => api.get<{ totalUnread: number; byCircle: Record<string, number> }>("/api/circles/unread/count"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
   });

@@ -1718,6 +1718,13 @@ export const getCircleMessagesResponseSchema = z.object({
 });
 export type GetCircleMessagesResponse = z.infer<typeof getCircleMessagesResponseSchema>;
 
+// GET /api/circles/unread/count
+export const getCircleUnreadResponseSchema = z.object({
+  totalUnread: z.number(),
+  byCircle: z.record(z.string(), z.number()),
+});
+export type GetCircleUnreadResponse = z.infer<typeof getCircleUnreadResponseSchema>;
+
 // POST /api/circles/:id/messages
 export const sendCircleMessageRequestSchema = z.object({
   content: z.string().min(1).max(2000),

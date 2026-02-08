@@ -63,6 +63,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_READ_UNREAD]",
   // P1 chat pagination proof
   "[P1_CHAT_PAGINATION]",
+  // P1 unread v2 (totalUnread + byCircle) proof
+  "[P1_UNREAD_V2]",
 ];
 
 /**

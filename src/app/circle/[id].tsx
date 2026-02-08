@@ -1194,17 +1194,27 @@ export default function CircleScreen() {
   const markAsReadMutation = useMutation({
     mutationFn: () => api.post(`/api/circles/${id}/read`, {}),
     onMutate: () => {
-      // Optimistically decrement totalUnread
+      // [P1_UNREAD_V2] Exact optimistic clear using byCircle
       queryClient.setQueryData(
         circleKeys.unreadCount(),
         (prev: any) => {
-          const current = (prev?.totalUnread as number) ?? 0;
-          // We don't know this circle's exact count, so decrement by 1 (floor at 0)
-          return { ...prev, totalUnread: Math.max(0, current - 1) };
+          if (!prev) return prev;
+          const currentCircle = (prev.byCircle?.[id!] as number) ?? 0;
+          const nextTotal = Math.max(0, ((prev.totalUnread as number) ?? 0) - currentCircle);
+          return {
+            ...prev,
+            totalUnread: nextTotal,
+            byCircle: { ...(prev.byCircle ?? {}), [id!]: 0 },
+          };
         },
       );
       if (__DEV__) {
-        devLog("[P1_READ_UNREAD]", "circle-open optimistic clear", { circleId: id });
+        const p = queryClient.getQueryData(circleKeys.unreadCount()) as any;
+        devLog("[P1_UNREAD_V2]", "optimistic clear", {
+          circleId: id,
+          cleared: (p?.byCircle?.[id!] as number) ?? 0,
+          nextTotal: p?.totalUnread ?? 0,
+        });
       }
     },
     onSuccess: () => {
