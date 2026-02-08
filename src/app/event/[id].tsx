@@ -647,6 +647,18 @@ export default function EventDetailScreen() {
   const isBusyBlock = !!event?.isBusy;
 
   // ============================================
+  // INVARIANT [P1_EVENT_META]: Capacity + counts are SSOT-owned by eventKeys.single(id).
+  // These fields must NEVER fall back to feed/list caches for rendering or gating.
+  // The `event` object above may use feed/list fallback for non-critical display
+  // (title, location, description), but capacity fields are owner-only.
+  // ============================================
+  const eventMeta = {
+    capacity: singleEventData?.event?.capacity ?? null,
+    goingCount: singleEventData?.event?.goingCount ?? null,
+    isFull: singleEventData?.event?.isFull ?? false,
+  };
+
+  // ============================================
   // P0 FIX: Final event visibility classification
   // ============================================
   type EventBlockedReason = 'private_event' | 'busy_block' | 'authorized' | 'unknown';
@@ -888,18 +900,34 @@ export default function EventDetailScreen() {
   // [P0_RSVP_SOT] Use canonical derivation for count
   const derivedCount = deriveAttendeeCount(event);
   
-  // [P0_WHO_COMING_UI] COUNT SSOT — single source of truth for displayed count.
+  // [P1_EVENT_META] COUNT SSOT — single source of truth for displayed count.
   // Priority: A) attendeesData.totalGoing (from /api/events/:id/attendees, most precise when available)
-  //          B) event.goingCount (backend aggregate from event detail payload)
+  //          B) eventMeta.goingCount (from owner query eventKeys.single — NOT from feed/list)
   //          C) derivedCount (last-resort fallback from joinRequests)
-  const effectiveGoingCount = attendeesData?.totalGoing ?? event?.goingCount ?? derivedCount;
+  const effectiveGoingCount = attendeesData?.totalGoing ?? eventMeta.goingCount ?? derivedCount;
   // Determine which source we used (for proof logging)
-  const countSource: 'attendees.totalGoing' | 'event.goingCount' | 'derived' =
+  const countSource: 'attendees.totalGoing' | 'eventMeta.goingCount' | 'derived' =
     attendeesData?.totalGoing != null ? 'attendees.totalGoing'
-    : event?.goingCount != null ? 'event.goingCount'
+    : eventMeta.goingCount != null ? 'eventMeta.goingCount'
     : 'derived';
   // Alias for backward compat — all UI must use effectiveGoingCount
   const totalGoing = effectiveGoingCount;
+
+  // [P1_EVENT_META] Render proof: log capacity + counts from owner query (DEV only)
+  React.useEffect(() => {
+    if (__DEV__ && id && !isLoadingEvent) {
+      devLog('[P1_EVENT_META] render', {
+        eventId: id.slice(0, 8),
+        source: 'eventKeys.single(id)',
+        isFull: eventMeta.isFull,
+        capacity: eventMeta.capacity,
+        goingCount: eventMeta.goingCount,
+        effectiveGoingCount,
+        countSource,
+        ownerLoaded: !!singleEventData?.event,
+      });
+    }
+  }, [id, eventMeta.isFull, eventMeta.capacity, eventMeta.goingCount, effectiveGoingCount, isLoadingEvent]);
 
   // [P0_WHO_COMING_UI] Canonical proof log: rendered count + invariant (DEV only, fires once per render cycle)
   React.useEffect(() => {
@@ -926,7 +954,7 @@ export default function EventDetailScreen() {
 
   // [P0_RSVP_SOT] DEV proof log for RSVP consistency - only logs on mismatch
   if (__DEV__ && event && id) {
-    logRsvpMismatch(id, derivedCount, event?.goingCount, "event_details");
+    logRsvpMismatch(id, derivedCount, eventMeta.goingCount, "event_details_owner");
     logRsvpMismatch(id, derivedCount, attendeesData?.totalGoing, "event_details_endpoint");
   }
 
@@ -998,10 +1026,12 @@ export default function EventDetailScreen() {
       // Cancel outgoing refetches so they don't overwrite optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.rsvp(id ?? "") });
       await queryClient.cancelQueries({ queryKey: eventKeys.attendees(id ?? "") });
+      await queryClient.cancelQueries({ queryKey: eventKeys.single(id ?? "") });
 
       // Snapshot previous values for rollback
       const previousRsvp = queryClient.getQueryData(eventKeys.rsvp(id ?? ""));
       const previousAttendees = queryClient.getQueryData(eventKeys.attendees(id ?? ""));
+      const previousSingle = queryClient.getQueryData(eventKeys.single(id ?? ""));
 
       // Optimistically update RSVP status cache
       queryClient.setQueryData(eventKeys.rsvp(id ?? ""), (old: any) => {
@@ -1015,8 +1045,27 @@ export default function EventDetailScreen() {
         return { ...old, totalGoing: nextTotalGoing };
       });
 
+      // [P1_EVENT_META] Optimistically update owner query (eventKeys.single) for capacity coherence
+      queryClient.setQueryData(eventKeys.single(id ?? ""), (old: any) => {
+        if (!old?.event) return old;
+        const updatedGoingCount = nextTotalGoing;
+        const cap = old.event.capacity;
+        const updatedIsFull = cap != null ? updatedGoingCount >= cap : false;
+        if (__DEV__) {
+          devLog('[P1_EVENT_META]', 'onMutate owner update', {
+            eventId: id,
+            prevGoingCount: old.event.goingCount,
+            nextGoingCount: updatedGoingCount,
+            capacity: cap,
+            prevIsFull: old.event.isFull,
+            nextIsFull: updatedIsFull,
+          });
+        }
+        return { ...old, event: { ...old.event, goingCount: updatedGoingCount, isFull: updatedIsFull } };
+      });
+
       // Return snapshot for rollback on error
-      return { previousRsvp, previousAttendees, prevRsvpStatus, nextStatus };
+      return { previousRsvp, previousAttendees, previousSingle, prevRsvpStatus, nextStatus };
     },
     onSuccess: async (_, status) => {
       // Haptic feedback only - no intrusive toast popups
@@ -1074,6 +1123,10 @@ export default function EventDetailScreen() {
       if (context?.previousAttendees !== undefined) {
         queryClient.setQueryData(eventKeys.attendees(id ?? ""), context.previousAttendees);
       }
+      // [P1_EVENT_META] Rollback owner query capacity fields
+      if (context?.previousSingle !== undefined) {
+        queryClient.setQueryData(eventKeys.single(id ?? ""), context.previousSingle);
+      }
 
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
@@ -1106,7 +1159,7 @@ export default function EventDetailScreen() {
         nextStatus: status,
         prevStatus: myRsvpStatus,
         source: 'eventKeys.rsvp(id)',
-        isFull: event?.isFull ?? false,
+        isFull: eventMeta.isFull,
       });
     }
     
@@ -1792,18 +1845,18 @@ export default function EventDetailScreen() {
             </View>
             )}
 
-            {/* Spots (Capacity) */}
-            {event.capacity != null && (
+            {/* Spots (Capacity) — [P1_EVENT_META] reads from eventMeta (owner query only) */}
+            {eventMeta.capacity != null && (
               <View className="py-3 border-t" style={{ borderColor: colors.border }}>
                 <View className="flex-row items-center">
-                  <Users size={20} color={event.isFull ? "#EF4444" : "#22C55E"} />
+                  <Users size={20} color={eventMeta.isFull ? "#EF4444" : "#22C55E"} />
                   <View className="ml-3 flex-1">
                     <Text className="text-sm" style={{ color: colors.textTertiary }}>Spots</Text>
-                    <Text className="font-semibold" style={{ color: event.isFull ? "#EF4444" : colors.text }}>
-                      {event.goingCount ?? 0} / {event.capacity} filled
+                    <Text className="font-semibold" style={{ color: eventMeta.isFull ? "#EF4444" : colors.text }}>
+                      {eventMeta.goingCount ?? 0} / {eventMeta.capacity} filled
                     </Text>
                   </View>
-                  {event.isFull && (
+                  {eventMeta.isFull && (
                     <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#EF444420" }}>
                       <Text className="text-xs font-semibold" style={{ color: "#EF4444" }}>Full</Text>
                     </View>
@@ -2373,8 +2426,8 @@ export default function EventDetailScreen() {
                 {/* RSVP Options */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
-                    {/* Full indicator */}
-                    {event.isFull && myRsvpStatus !== "going" && (
+                    {/* Full indicator — [P1_EVENT_META] reads from eventMeta (owner query only) */}
+                    {eventMeta.isFull && myRsvpStatus !== "going" && (
                       <View className="flex-row items-center justify-center py-3" style={{ backgroundColor: "#EF444415" }}>
                         <Users size={16} color="#EF4444" />
                         <Text className="ml-2 text-sm font-medium" style={{ color: "#EF4444" }}>This invite is full</Text>
@@ -2387,8 +2440,8 @@ export default function EventDetailScreen() {
                         <Text className="ml-2 text-sm" style={{ color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Going - disabled if full and not already going */}
-                    {event.isFull && myRsvpStatus !== "going" ? (
+                    {/* Going - disabled if full and not already going — [P1_EVENT_META] */}
+                    {eventMeta.isFull && myRsvpStatus !== "going" ? (
                       <View
                         className="flex-row items-center p-4"
                         style={{ borderBottomWidth: 1, borderBottomColor: colors.separator, opacity: 0.5 }}
