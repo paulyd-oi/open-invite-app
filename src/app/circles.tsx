@@ -28,6 +28,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
+import { circleKeys } from "@/lib/circleQueryKeys";
 import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 
@@ -51,7 +52,7 @@ export default function CirclesScreen() {
   }, [session?.user?.id]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -74,13 +75,13 @@ export default function CirclesScreen() {
     },
     onMutate: async (circleId: string) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       
       // Snapshot previous value
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
       
       // Optimistically update cache
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         const circles = old.circles.map((c: Circle) => {
           if (c.id === circleId) {
@@ -104,13 +105,13 @@ export default function CirclesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       renderVersion.current += 1;
       if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'pin complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
     },
     onError: (error, circleId, context) => {
       devError("[P1_CIRCLES_CARD]", "action=failure", "type=pin", `circleId=${circleId}`, `error=${error}`);
       // Revert optimistic update
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       safeToast.error("Oops", "Could not pin group");
     },
@@ -124,13 +125,13 @@ export default function CirclesScreen() {
     },
     onMutate: async (circleId: string) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       
       // Snapshot previous value
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
       
       // Optimistically remove from cache
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         return {
           ...old,
@@ -145,7 +146,7 @@ export default function CirclesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       renderVersion.current += 1;
       if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'leave complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       setShowLeaveCircleConfirm(false);
       setCircleToLeave(null);
     },
@@ -153,7 +154,7 @@ export default function CirclesScreen() {
       devError("[P1_CIRCLES_CARD]", "action=failure", "type=delete", `circleId=${circleId}`, `error=${error}`);
       // Revert optimistic update
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       safeToast.error("Oops", "Could not leave group");
     },
@@ -177,7 +178,7 @@ export default function CirclesScreen() {
     mutationFn: ({ name, emoji, memberIds }: { name: string; emoji: string; memberIds: string[] }) =>
       api.post<{ circle: Circle }>("/api/circles", { name, emoji, memberIds }),
     onSuccess: (response: { circle: Circle }) => {
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       setShowCreateCircle(false);
       // Mark guidance complete - user has created their first circle
       markGuidanceComplete("join_circle");
@@ -190,7 +191,7 @@ export default function CirclesScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ["circles"] });
+    await queryClient.invalidateQueries({ queryKey: circleKeys.all() });
     setRefreshing(false);
   };
 

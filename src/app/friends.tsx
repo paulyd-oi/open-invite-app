@@ -78,6 +78,7 @@ import { useStickyLoading } from "@/lib/useStickyLoading";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
@@ -1129,7 +1130,7 @@ export default function FriendsScreen() {
 
   // Fetch circles (Planning groups)
   const { data: circlesData, refetch: refetchCircles } = useQuery({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 min - circles rarely change
@@ -1193,13 +1194,13 @@ export default function FriendsScreen() {
     },
     onMutate: async (circleId: string) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       
       // Snapshot previous value
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
       
       // Optimistically update cache
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         const circles = old.circles.map((c: any) => {
           if (c.id === circleId) {
@@ -1226,7 +1227,7 @@ export default function FriendsScreen() {
       devError("[P1_CIRCLES_CARD]", "action=failure", "type=pin", `circleId=${circleId}`, `error=${error}`, "screen=friends");
       // Revert optimistic update
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
     },
   });
@@ -1238,13 +1239,13 @@ export default function FriendsScreen() {
     },
     onMutate: async (circleId: string) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       
       // Snapshot previous value
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
       
       // Optimistically remove from cache
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         return {
           ...old,
@@ -1263,7 +1264,7 @@ export default function FriendsScreen() {
       devError("[P1_CIRCLES_CARD]", "action=failure", "type=delete", `circleId=${circleId}`, `error=${error}`, "screen=friends");
       // Revert optimistic update
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
     },
   });

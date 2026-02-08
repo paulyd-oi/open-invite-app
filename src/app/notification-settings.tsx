@@ -52,6 +52,7 @@ import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { devLog, devError } from "@/lib/devLog";
 import { trackAnalytics } from "@/lib/entitlements";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 // [P0_CIRCLE_MUTE_POLISH] Storage key for dismissing circle notification info card
 const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
@@ -349,7 +350,7 @@ export default function NotificationSettingsScreen() {
 
   // [P0_CIRCLE_MUTE_V1] Fetch circles for bulk mute
   const { data: circlesData } = useQuery<{ circles: { id: string; isMuted?: boolean }[] }>({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get("/api/circles"),
   });
 
@@ -366,11 +367,11 @@ export default function NotificationSettingsScreen() {
       return { isMuted, circlesCount: circles.length, successCount, failCount };
     },
     onMutate: async (isMuted) => {
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
 
       // Optimistically update all circles
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         return {
           ...old,
@@ -408,7 +409,7 @@ export default function NotificationSettingsScreen() {
         successCount,
         failCount,
       });
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       safeToast.success(
         isMuted ? "All Circles Muted" : "All Circles Unmuted",
         isMuted ? "You won't receive message notifications" : "Notifications re-enabled for all circles"
@@ -416,7 +417,7 @@ export default function NotificationSettingsScreen() {
     },
     onError: (error, isMuted, context) => {
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       if (__DEV__) {
         devLog("[P0_CIRCLE_MUTE_POLISH]", {

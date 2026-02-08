@@ -22,6 +22,7 @@ import { api } from "@/lib/api";
 import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { trackAnalytics } from "@/lib/entitlements";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 interface CircleCardProps {
   circle: Circle;
@@ -79,13 +80,13 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
     },
     onMutate: async ({ circleId, isMuted }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["circles"] });
+      await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       
       // Snapshot the previous value
-      const previousCircles = queryClient.getQueryData(["circles"]);
+      const previousCircles = queryClient.getQueryData(circleKeys.all());
       
       // Optimistically update
-      queryClient.setQueryData(["circles"], (old: any) => {
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
         if (!old?.circles) return old;
         return {
           ...old,
@@ -119,13 +120,13 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
         nextMuted: isMuted,
         entryPoint: "swipe",
       });
-      queryClient.invalidateQueries({ queryKey: ["circles"] });
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
     },
     onError: (error, { circleId, isMuted }, context) => {
       devError("[P1_CIRCLES_CARD]", "action=failure", "type=mute", `circleId=${circleId}`, `error=${error}`);
       // Revert optimistic update
       if (context?.previousCircles) {
-        queryClient.setQueryData(["circles"], context.previousCircles);
+        queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       if (__DEV__) {
         devLog("[P0_CIRCLE_MUTE_POLISH]", {

@@ -25,6 +25,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 import { devLog } from "@/lib/devLog";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -371,7 +372,7 @@ export default function WhosFreeScreen() {
     members: Array<{ friendshipId: string }>;
   }
   const { data: circlesData } = useQuery({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get<{ circles: Circle[] }>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });

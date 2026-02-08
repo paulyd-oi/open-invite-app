@@ -19,6 +19,7 @@ import { api } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -208,7 +209,7 @@ export default function BottomNavigation() {
 
   // Fetch circle unread count for friends badge
   const { data: circleUnreadData } = useQuery({
-    queryKey: ["circleUnreadCount"],
+    queryKey: circleKeys.unreadCount(),
     queryFn: () => api.get<{ totalUnread: number }>("/api/circles/unread/count"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch

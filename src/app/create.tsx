@@ -520,7 +520,7 @@ export default function CreateEventScreen() {
   };
 
   const { data: circlesData } = useQuery({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });

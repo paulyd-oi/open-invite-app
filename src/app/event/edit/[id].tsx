@@ -47,6 +47,7 @@ import {
   getInvalidateAfterEventEdit,
   getInvalidateAfterEventDelete,
 } from "@/lib/eventQueryKeys";
+import { circleKeys } from "@/lib/circleQueryKeys";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
 const EMOJI_OPTIONS = [
@@ -122,7 +123,7 @@ export default function EditEventScreen() {
   }, [event, isLoaded]);
 
   const { data: circlesData } = useQuery({
-    queryKey: ["circles"],
+    queryKey: circleKeys.all(),
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
