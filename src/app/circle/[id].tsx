@@ -1104,14 +1104,16 @@ export default function CircleScreen() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (content: string) =>
-      api.post(`/api/circles/${id}/messages`, { content }),
-    onMutate: async (content: string) => {
+    mutationFn: ({ content, clientMessageId }: { content: string; clientMessageId: string }) =>
+      api.post(`/api/circles/${id}/messages`, { content, clientMessageId }),
+    onMutate: async ({ content, clientMessageId }: { content: string; clientMessageId: string }) => {
       // Build optimistic message and insert into cache immediately
       const userId = session?.user?.id ?? "unknown";
       const userName = session?.user?.name ?? undefined;
       const userImage = session?.user?.image ?? null;
       const optimistic = buildOptimisticMessage(id, userId, content, userName, userImage);
+      // Override clientMessageId so retry reuses the same one
+      optimistic.clientMessageId = clientMessageId;
 
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
@@ -1122,18 +1124,20 @@ export default function CircleScreen() {
       );
 
       if (__DEV__) {
-        devLog("[P1_MSG_OPT]", `optimistic insert ${optimistic.id}`);
+        devLog("[P1_MSG_IDEMP]", "mutate", { clientMessageId, optimisticId: optimistic.id });
       }
 
       // Clear input immediately for instant feel
       setMessage("");
 
-      return { optimisticId: optimistic.id, content };
+      return { optimisticId: optimistic.id, content, clientMessageId };
     },
-    onSuccess: (serverResponse: any, _content, context) => {
+    onSuccess: (serverResponse: any, _vars, context) => {
       // Reconcile: replace optimistic message with server response, mark sent
       const serverMsg = serverResponse?.message;
       if (serverMsg?.id && context?.optimisticId) {
+        // Try matching by clientMessageId first (covers push-arrived-first), fallback to optimisticId
+        const cmi = context.clientMessageId;
         queryClient.setQueryData(
           circleKeys.single(id),
           (prev: any) => {
@@ -1143,8 +1147,8 @@ export default function CircleScreen() {
               circle: {
                 ...prev.circle,
                 messages: prev.circle.messages.map((m: any) =>
-                  m.id === context.optimisticId
-                    ? { ...serverMsg, status: "sent" }
+                  m.id === context.optimisticId || (cmi && m.clientMessageId === cmi && m.id !== serverMsg.id)
+                    ? { ...serverMsg, status: "sent", clientMessageId: cmi }
                     : m,
                 ),
               },
@@ -1152,7 +1156,11 @@ export default function CircleScreen() {
           },
         );
         if (__DEV__) {
-          devLog("[P1_MSG_DELIVERY]", `sent ${context.optimisticId} → ${serverMsg.id}`);
+          devLog("[P1_MSG_IDEMP]", "reconcile", {
+            clientMessageId: cmi,
+            serverId: serverMsg.id,
+            replaced: true,
+          });
         }
       }
 
@@ -1162,7 +1170,7 @@ export default function CircleScreen() {
         refetchType: "inactive",
       });
     },
-    onError: (_error, _content, context) => {
+    onError: (_error, _vars, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
       if (context?.optimisticId) {
         queryClient.setQueryData(
@@ -1508,7 +1516,10 @@ export default function CircleScreen() {
   const handleSend = () => {
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendMessageMutation.mutate(message.trim());
+      sendMessageMutation.mutate({
+        content: message.trim(),
+        clientMessageId: `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      });
     }
   };
 
@@ -1814,7 +1825,10 @@ export default function CircleScreen() {
                       id,
                       (item as any).id,
                       queryClient,
-                      () => sendMessageMutation.mutate(item.content),
+                      () => sendMessageMutation.mutate({
+                        content: item.content,
+                        clientMessageId: (item as any).clientMessageId ?? `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+                      }),
                     )
                   : undefined
               }

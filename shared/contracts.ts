@@ -1637,6 +1637,7 @@ export const circleMessageSchema = z.object({
   content: z.string(),
   imageUrl: z.string().nullable(),
   createdAt: z.string(),
+  clientMessageId: z.string().optional(),
   user: z.object({
     id: z.string(),
     name: z.string().nullable(),
@@ -1729,6 +1730,7 @@ export type GetCircleUnreadResponse = z.infer<typeof getCircleUnreadResponseSche
 export const sendCircleMessageRequestSchema = z.object({
   content: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional(),
+  clientMessageId: z.string().optional(),
 });
 export type SendCircleMessageRequest = z.infer<typeof sendCircleMessageRequestSchema>;
 

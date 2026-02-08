@@ -69,6 +69,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_READ_HORIZON]",
   // P1 push contract validator (malformed payload guard)
   "[P1_PUSH_CONTRACT]",
+  // P1 message idempotency (clientMessageId)
+  "[P1_MSG_IDEMP]",
 ];
 
 /**

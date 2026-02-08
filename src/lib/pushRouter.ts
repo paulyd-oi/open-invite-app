@@ -272,18 +272,41 @@ function validateEventUpdatedPayload(payload: Record<string, any>): boolean {
 // ============================================================================
 
 /**
- * Safe append: dedupe by id, stable ordering, immutable return.
+ * Safe append: dedupe by id AND clientMessageId, stable ordering, immutable return.
  * Works with the circle detail cache shape: { circle: { messages: [...] } }
+ * If incoming msg has clientMessageId matching an optimistic entry, replaces it.
  */
 export function safeAppendMessage(
   prev: any,
-  msg: { id: string; createdAt: string; [k: string]: any },
+  msg: { id: string; createdAt: string; clientMessageId?: string; [k: string]: any },
 ): any {
   if (!prev?.circle) return prev;
 
   const existing = prev.circle.messages ?? [];
-  const exists = existing.some((m: any) => m.id === msg.id);
-  if (exists) return prev;
+
+  // Dedupe by server id
+  if (existing.some((m: any) => m.id === msg.id)) return prev;
+
+  // [P1_MSG_IDEMP] Dedupe by clientMessageId: if push arrives for a message
+  // whose clientMessageId already exists (optimistic or confirmed), replace it.
+  if (msg.clientMessageId) {
+    const matchIdx = existing.findIndex(
+      (m: any) => m.clientMessageId === msg.clientMessageId,
+    );
+    if (matchIdx !== -1) {
+      // Replace the existing entry (optimistic → server) preserving sent status
+      const replaced = [...existing];
+      replaced[matchIdx] = { ...msg, status: "sent" };
+      if (__DEV__) {
+        devLog("[P1_MSG_IDEMP]", "push dedupe by clientMessageId", {
+          clientMessageId: msg.clientMessageId,
+          replacedId: existing[matchIdx].id,
+          serverId: msg.id,
+        });
+      }
+      return { ...prev, circle: { ...prev.circle, messages: replaced } };
+    }
+  }
 
   const next = [...existing, msg].sort(
     (a: any, b: any) => (a.createdAt as string).localeCompare(b.createdAt as string),
@@ -313,6 +336,7 @@ export function safePrependMessages(
  * Temp id namespace "optimistic-" prevents collision with server ids.
  * status: "sending" marks the message as optimistic.
  * Uses "content" to match CircleMessage schema (not "text").
+ * clientMessageId: stable UUID for idempotent retry + push dedupe.
  */
 export function buildOptimisticMessage(
   circleId: string,
@@ -321,6 +345,7 @@ export function buildOptimisticMessage(
   userName?: string,
   userImage?: string | null,
 ) {
+  const clientMessageId = `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   return {
     id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     circleId,
@@ -331,6 +356,7 @@ export function buildOptimisticMessage(
     createdAt: new Date().toISOString(),
     status: "sending" as "sending" | "sent" | "failed",
     retryCount: 0,
+    clientMessageId,
     user: { id: userId, name: userName ?? null, email: null, image: userImage ?? null },
   };
 }
