@@ -71,6 +71,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_PUSH_CONTRACT]",
   // P1 message idempotency (clientMessageId)
   "[P1_MSG_IDEMP]",
+  // P1 chat grouped message runs
+  "[P1_CHAT_GROUP]",
 ];
 
 /**

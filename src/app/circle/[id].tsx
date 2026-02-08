@@ -739,6 +739,7 @@ function MessageBubble({
   isDark,
   onRetry,
   onLongPress,
+  isRunContinuation,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -747,6 +748,7 @@ function MessageBubble({
   isDark: boolean;
   onRetry?: () => void;
   onLongPress?: () => void;
+  isRunContinuation?: boolean;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
@@ -773,9 +775,9 @@ function MessageBubble({
       }}
       delayLongPress={400}
     >
-    <View className={`mb-3 ${isOwn ? "items-end" : "items-start"}`}>
+    <View className={`${isRunContinuation ? "mb-0.5" : "mb-3"} ${isOwn ? "items-end" : "items-start"}`}>
       <View className={`flex-row items-end ${isOwn ? "flex-row-reverse" : ""}`}>
-        {!isOwn && (
+        {!isOwn && !isRunContinuation && (
           <View
             className="w-7 h-7 rounded-full overflow-hidden mr-2"
             style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
@@ -794,8 +796,10 @@ function MessageBubble({
             )}
           </View>
         )}
+        {/* Spacer to keep alignment when avatar is hidden in a run */}
+        {!isOwn && isRunContinuation && <View style={{ width: 36 }} />}
         <View style={{ maxWidth: "75%" }}>
-          {!isOwn && (
+          {!isOwn && !isRunContinuation && (
             <Text className="text-xs mb-1 ml-1" style={{ color: colors.textTertiary }}>
               {message.user.name?.split(" ")[0] ?? "Unknown"}
             </Text>
@@ -1589,6 +1593,15 @@ export default function CircleScreen() {
   }
 
   const messages = circle.messages ?? [];
+
+  // [P1_CHAT_GROUP] One-time mount log
+  const groupLogFired = useRef(false);
+  useEffect(() => {
+    if (!groupLogFired.current && __DEV__) {
+      devLog("[P1_CHAT_GROUP]", "enabled windowMs=120000");
+      groupLogFired.current = true;
+    }
+  }, []);
   const members = circle.members ?? [];
   const currentUserId = session.user?.id;
 
@@ -1829,7 +1842,18 @@ export default function CircleScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
+            // -- Run grouping: consecutive same-sender within 2 min --
+            const RUN_WINDOW_MS = 120_000;
+            const isGroupable = (m: any) => !!m?.userId && !!m?.user && !m.content?.startsWith("\u{1F4C5}");
+            const prev = index > 0 ? messages[index - 1] : null;
+            const isRunContinuation =
+              !!prev &&
+              isGroupable(prev) &&
+              isGroupable(item) &&
+              prev.userId === item.userId &&
+              Math.abs(new Date(item.createdAt).getTime() - new Date(prev.createdAt).getTime()) <= RUN_WINDOW_MS;
+
             const isFailedOptimistic = (item as any).status === "failed" && (item as any).id?.startsWith("optimistic-");
 
             const handleCopy = async () => {
@@ -1906,6 +1930,7 @@ export default function CircleScreen() {
                 themeColor={themeColor}
                 colors={colors}
                 isDark={isDark}
+                isRunContinuation={isRunContinuation}
                 onRetry={isFailedOptimistic
                   ? handleRetry
                   : undefined
