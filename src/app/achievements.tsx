@@ -65,10 +65,10 @@ export default function BadgesScreen() {
   const viewerUserId = session?.user?.id;
 
   useEffect(() => {
-    if (!isProLoading && isPro && !didProRefreshRef.current) {
+    if (isPro && !didProRefreshRef.current) {
       didProRefreshRef.current = true;
       if (__DEV__) {
-        devLog("[P1_PRO_BADGES_UI] triggered invalidate badgeCatalog due to isPro=true");
+        devLog("[P0_PRO_TRIO_UI] triggered invalidate badgeCatalog due to isPro=true (isProLoading=" + isProLoading + ")");
       }
       queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
     }
@@ -177,21 +177,37 @@ const setFeaturedMutation = useMutation({
   const rawBadges = data?.badges ?? [];
 
   // [P0_BADGE_SOT] Deterministic derivation: patch Pro trio unlock at the DATA level.
-  // When isPro && !isProLoading, Pro trio badges are guaranteed unlocked in derived data.
-  const badges = (!isProLoading && isPro)
+  // When isPro is true (from any settled source), Pro trio badges are guaranteed unlocked.
+  // NOTE: No isProLoading guard here — isPro is already false when both sources are loading,
+  // and gating on isProLoading caused a race where backend-confirmed Pro was ignored while
+  // RevenueCat was still initializing.
+  const badges = isPro
     ? deriveBadgesWithProOverride(rawBadges, true)
     : rawBadges;
 
-  // [P0_ENTITLEMENT_UI_SYNC] Trace badge derivation output
+  // [P0_PRO_TRIO_UI] Canonical trace: isPro source + per-badge unlock state
   if (__DEV__) {
-    devLog("[P0_ENTITLEMENT_UI_SYNC] badge derivation", {
+    devLog("[P0_PRO_TRIO_UI] badge derivation", {
       isPro,
       isProLoading,
-      rawCount: rawBadges.length,
-      derivedUnlocked: badges.filter((b) => b.unlocked).length,
       rcIsPro,
       backendIsPro,
+      combinedIsPro,
+      rawCount: rawBadges.length,
+      derivedUnlocked: badges.filter((b) => b.unlocked).length,
     });
+    // Per-badge trace for the three Pro trio keys
+    for (const key of ["pro_includer", "pro_initiator", "pro_organizer"] as const) {
+      const raw = rawBadges.find((b) => b.badgeKey === key);
+      const derived = badges.find((b) => b.badgeKey === key);
+      devLog("[P0_PRO_TRIO_UI]", {
+        badgeKey: key,
+        rawUnlocked: raw?.unlocked ?? "NOT_IN_CATALOG",
+        derivedUnlocked: derived?.unlocked ?? "NOT_IN_CATALOG",
+        isPro,
+        source: isPro ? (raw?.unlocked ? "api" : "pro_override") : "api_only",
+      });
+    }
   }
 
   const unlockedBadges = badges.filter((b) => b.unlocked);
