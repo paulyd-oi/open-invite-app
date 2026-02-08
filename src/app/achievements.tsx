@@ -347,11 +347,12 @@ const setFeaturedMutation = useMutation({
     }
   }, [bootStatus, isLoading, badges.length, unlockedBadges.length, lockedBadges.length, featuredBadge, isPro, isProLoading]);
 
-  // [P0_BADGE_PALETTE] Canonical screen render trace
+  // [P0_BADGE_APPEARANCE_FINAL] Canonical screen render trace
   if (__DEV__) {
-    devLog("[P0_BADGE_PALETTE] achievements screen", {
-      ogTokens: { bg: "#8C6D2A", text: "#141414", border: "#6F541F" },
-      proTokens: { bg: "#1F6F4A", text: "#F7F7F7", border: "#165237" },
+    devLog("[P0_BADGE_APPEARANCE_FINAL]", {
+      ogTokens: { bg: "#B58B2E", text: "#141414", border: "#8A651A" },
+      proTokens: { bg: "#2E8B67", text: "#F7F7F7", border: "#1F6B4E" },
+      ctaUsesTierTint: false,
     });
   }
 
@@ -520,9 +521,9 @@ const setFeaturedMutation = useMutation({
                             handleSetFeatured(badge.badgeKey);
                           }}
                           className="py-2 rounded-lg items-center"
-                          style={{ backgroundColor: badge.tierColor + "20" }}
+                          style={{ backgroundColor: themeColor + "18" }}
                         >
-                          <Text className="text-sm font-semibold" style={{ color: badge.tierColor }}>
+                          <Text className="text-sm font-semibold" style={{ color: themeColor }}>
                             Set Featured
                           </Text>
                         </Pressable>
@@ -705,9 +706,9 @@ const setFeaturedMutation = useMutation({
                   setSelectedBadge(null);
                 }}
                 className="mt-4 py-3 rounded-lg items-center"
-                style={{ backgroundColor: selectedBadge.tierColor + "20" }}
+                style={{ backgroundColor: themeColor + "18" }}
               >
-                <Text className="text-sm font-semibold" style={{ color: selectedBadge.tierColor }}>
+                <Text className="text-sm font-semibold" style={{ color: themeColor }}>
                   Set Featured
                 </Text>
               </Pressable>

@@ -271,9 +271,9 @@ export default function ProfileScreen() {
       featuredBadgeRaw: profileData?.featuredBadge ?? "null",
       featuredBadgeNormalized: featuredBadge ?? "null",
     });
-    devLog("[P0_BADGE_PALETTE] profile screen", {
-      ogTokens: { bg: "#8C6D2A", text: "#141414", border: "#6F541F" },
-      proTokens: { bg: "#1F6F4A", text: "#F7F7F7", border: "#165237" },
+    devLog("[P0_BADGE_APPEARANCE_FINAL] profile", {
+      ogTokens: { bg: "#B58B2E", text: "#141414", border: "#8A651A" },
+      proTokens: { bg: "#2E8B67", text: "#F7F7F7", border: "#1F6B4E" },
     });
   }
 

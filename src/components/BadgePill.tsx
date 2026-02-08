@@ -4,8 +4,8 @@ import { useColorScheme } from "react-native";
 
 /** Solid token overrides per badge variant. null = use default tierColor logic. */
 const SOLID_TOKENS: Record<string, { bg: string; border: string; text: string; borderWidth: number }> = {
-  og:  { bg: "#8C6D2A", border: "#6F541F", text: "#141414", borderWidth: 1 },
-  pro: { bg: "#1F6F4A", border: "#165237", text: "#F7F7F7", borderWidth: 1 },
+  og:  { bg: "#B58B2E", border: "#8A651A", text: "#141414", borderWidth: 1 },
+  pro: { bg: "#2E8B67", border: "#1F6B4E", text: "#F7F7F7", borderWidth: 1 },
 };
 
 interface BadgePillProps {
