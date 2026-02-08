@@ -71,6 +71,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { computeSchedule } from "@/lib/scheduling/engine";
 import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
+import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import {
   type GetCircleDetailResponse,
   type GetCircleMessagesResponse,
@@ -129,6 +130,7 @@ function MiniCalendar({
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
 
   // Create member color map
   const memberColors = ["#FF6B4A", "#4ECDC4", "#9333EA", "#F59E0B", "#10B981", "#EC4899"];
@@ -451,6 +453,10 @@ function MiniCalendar({
                   key={i}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedSlot(slot);
+                  }}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     const endDate = new Date(slot.end);
                     const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
                     router.push({
@@ -489,6 +495,65 @@ function MiniCalendar({
           <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary, fontStyle: "italic" }}>
             Encourage your circle to add events for more accurate suggestions.
           </Text>
+
+          {/* Slot Availability Bottom Sheet */}
+          <BottomSheet
+            visible={selectedSlot !== null}
+            onClose={() => setSelectedSlot(null)}
+            title={selectedSlot ? (() => {
+              const d = new Date(selectedSlot.start);
+              return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }) + " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            })() : ""}
+            heightPct={0}
+            maxHeightPct={0.6}
+            backdropOpacity={0.5}
+          >
+            {selectedSlot && (
+              <ScrollView style={{ paddingHorizontal: 20 }}>
+                {/* Subheader */}
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12 }}>
+                  {selectedSlot.availableCount} of {selectedSlot.totalMembers} available
+                </Text>
+
+                {/* Available section */}
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#10B981", marginBottom: 6 }}>
+                  Available ({selectedSlot.availableCount})
+                </Text>
+                {selectedSlot.availableUserIds.map((uid) => {
+                  const m = members.find((mb) => mb.userId === uid);
+                  return (
+                    <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981", marginRight: 8 }} />
+                      <Text style={{ fontSize: 13, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                    </View>
+                  );
+                })}
+
+                {/* Busy section */}
+                {selectedSlot.unavailableUserIds.length > 0 && (
+                  <>
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textTertiary, marginTop: 12, marginBottom: 6 }}>
+                      Busy ({selectedSlot.unavailableUserIds.length})
+                    </Text>
+                    {selectedSlot.unavailableUserIds.map((uid) => {
+                      const m = members.find((mb) => mb.userId === uid);
+                      return (
+                        <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.textTertiary, marginRight: 8 }} />
+                          <Text style={{ fontSize: 13, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                        </View>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Footer */}
+                <Text style={{ fontSize: 10, lineHeight: 14, color: colors.textTertiary, marginTop: 16, marginBottom: 8 }}>
+                  Based on events in Open Invite.
+                </Text>
+              </ScrollView>
+            )}
+          </BottomSheet>
         </View>
       )}
 

@@ -335,6 +335,69 @@ console.log("\n[TEST 15] Adapter: does not mutate input");
   assert(events[1].endTime === null, "null endTime preserved on original");
 }
 
+// ===== TEST 16: availableUserIds / unavailableUserIds exist and partition correctly =====
+console.log("\n[TEST 16] INV-S4: availableUserIds/unavailableUserIds partition");
+{
+  const input: SchedulingComputeInput = {
+    members: makeMembers(4),
+    busyWindowsByUserId: {
+      "user-0": [{ start: "2026-03-01T09:00:00.000Z", end: "2026-03-01T11:00:00.000Z" }],
+      "user-2": [{ start: "2026-03-01T09:00:00.000Z", end: "2026-03-01T10:30:00.000Z" }],
+    },
+    rangeStart: BASE,
+    rangeEnd: BASE_END,
+  };
+  const result = computeSchedule(input);
+  assert(result !== null, "result is not null");
+  for (const slot of result!.topSlots) {
+    assert(Array.isArray(slot.availableUserIds), `slot has availableUserIds array`);
+    assert(Array.isArray(slot.unavailableUserIds), `slot has unavailableUserIds array`);
+    assert(
+      slot.availableUserIds.length === slot.availableCount,
+      `availableUserIds.length (${slot.availableUserIds.length}) === availableCount (${slot.availableCount})`,
+    );
+    assert(
+      slot.unavailableUserIds.length === slot.totalMembers - slot.availableCount,
+      `unavailableUserIds.length (${slot.unavailableUserIds.length}) === totalMembers - availableCount (${slot.totalMembers - slot.availableCount})`,
+    );
+    // No overlap between available and unavailable
+    const overlap = slot.availableUserIds.filter((id) => slot.unavailableUserIds.includes(id));
+    assert(overlap.length === 0, "no overlap between available and unavailable ids");
+  }
+}
+
+// ===== TEST 17: known busy input partitions correctly for first slot =====
+console.log("\n[TEST 17] INV-S4: known busy window → correct partition for slot overlapping busy");
+{
+  // user-0 busy for first 2 hours, user-1 free
+  const input: SchedulingComputeInput = {
+    members: [{ id: "user-0" }, { id: "user-1" }],
+    busyWindowsByUserId: {
+      "user-0": [{ start: "2026-03-01T09:00:00.000Z", end: "2026-03-01T11:00:00.000Z" }],
+    },
+    rangeStart: "2026-03-01T09:00:00.000Z",
+    rangeEnd: "2026-03-01T12:00:00.000Z",
+    intervalMinutes: 30,
+    slotDurationMinutes: 60,
+  };
+  const result = computeSchedule(input);
+  assert(result !== null, "result is not null");
+  // First slot 09:00-10:00 overlaps user-0 busy
+  const firstSlot = result!.topSlots.find((s) => s.start === "2026-03-01T09:00:00.000Z");
+  if (firstSlot) {
+    assert(firstSlot.unavailableUserIds.includes("user-0"), "user-0 is unavailable in 09:00 slot");
+    assert(firstSlot.availableUserIds.includes("user-1"), "user-1 is available in 09:00 slot");
+    assert(firstSlot.availableCount === 1, "availableCount is 1");
+  }
+  // Last slot should have both available (11:00-12:00)
+  const lateSlot = result!.topSlots.find((s) => s.start === "2026-03-01T11:00:00.000Z");
+  if (lateSlot) {
+    assert(lateSlot.availableUserIds.includes("user-0"), "user-0 is available in 11:00 slot");
+    assert(lateSlot.availableUserIds.includes("user-1"), "user-1 is available in 11:00 slot");
+    assert(lateSlot.availableCount === 2, "both available in late slot");
+  }
+}
+
 // ===== RESULTS =====
 console.log(`\n========================================`);
 console.log(`SCHEDULING ENGINE PROOF HARNESS RESULTS`);
