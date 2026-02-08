@@ -15,6 +15,8 @@ import {
   Dimensions,
   Switch,
   ActivityIndicator,
+  ActionSheetIOS,
+  Alert,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
   type ViewToken,
@@ -54,6 +56,7 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useSession } from "@/lib/useSession";
@@ -735,13 +738,15 @@ function MessageBubble({
   colors,
   isDark,
   onRetry,
+  onLongPress,
 }: {
-  message: CircleMessage & { status?: string; retryCount?: number };
+  message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
   themeColor: string;
   colors: any;
   isDark: boolean;
   onRetry?: () => void;
+  onLongPress?: () => void;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
@@ -761,6 +766,13 @@ function MessageBubble({
   }
 
   return (
+    <Pressable
+      onLongPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onLongPress?.();
+      }}
+      delayLongPress={400}
+    >
     <View className={`mb-3 ${isOwn ? "items-end" : "items-start"}`}>
       <View className={`flex-row items-end ${isOwn ? "flex-row-reverse" : ""}`}>
         {!isOwn && (
@@ -821,6 +833,7 @@ function MessageBubble({
         </View>
       </View>
     </View>
+    </Pressable>
   );
 }
 
@@ -1816,28 +1829,91 @@ export default function CircleScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <MessageBubble
-              message={item}
-              isOwn={item.userId === currentUserId}
-              themeColor={themeColor}
-              colors={colors}
-              isDark={isDark}
-              onRetry={
-                (item as any).status === "failed" && (item as any).id?.startsWith("optimistic-")
-                  ? () => retryFailedMessage(
-                      id,
-                      (item as any).id,
-                      queryClient,
-                      () => sendMessageMutation.mutate({
-                        content: item.content,
-                        clientMessageId: (item as any).clientMessageId ?? `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-                      }),
-                    )
-                  : undefined
+          renderItem={({ item }) => {
+            const isFailedOptimistic = (item as any).status === "failed" && (item as any).id?.startsWith("optimistic-");
+
+            const handleCopy = async () => {
+              try {
+                await Clipboard.setStringAsync(item.content);
+                safeToast.success("Copied", "Message text copied");
+                if (__DEV__) devLog("[P1_MSG_ACTIONS]", "copy", { id: item.id });
+              } catch { safeToast.error("Error", "Could not copy text"); }
+            };
+
+            const handleRetry = () => {
+              retryFailedMessage(
+                id,
+                (item as any).id,
+                queryClient,
+                () => sendMessageMutation.mutate({
+                  content: item.content,
+                  clientMessageId: (item as any).clientMessageId ?? `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+                }),
+              );
+              if (__DEV__) devLog("[P1_MSG_ACTIONS]", "retry", { id: item.id, clientMessageId: (item as any).clientMessageId });
+            };
+
+            const handleRemove = () => {
+              queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+                if (!prev?.circle?.messages) return prev;
+                return {
+                  ...prev,
+                  circle: { ...prev.circle, messages: prev.circle.messages.filter((m: any) => m.id !== item.id) },
+                };
+              });
+              if (__DEV__) devLog("[P1_MSG_ACTIONS]", "remove", { id: item.id });
+            };
+
+            const handleLongPress = () => {
+              if (!item.content || item.content.startsWith("📅")) return;
+              if (__DEV__) devLog("[P1_MSG_ACTIONS]", "open_actions", { id: item.id, status: (item as any).status });
+
+              if (Platform.OS === "ios") {
+                const options = ["Copy Text"];
+                if (isFailedOptimistic && (item as any).clientMessageId) options.push("Retry Send");
+                if (isFailedOptimistic) options.push("Remove Failed Message");
+                options.push("Cancel");
+                ActionSheetIOS.showActionSheetWithOptions(
+                  { options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.indexOf("Remove Failed Message") },
+                  (idx) => {
+                    const picked = options[idx];
+                    if (picked === "Copy Text") handleCopy();
+                    else if (picked === "Retry Send") handleRetry();
+                    else if (picked === "Remove Failed Message") handleRemove();
+                  },
+                );
+              } else {
+                // Android: use a simple alert-style approach with Modal state
+                // For simplicity and zero-dep constraint, use built-in Alert
+                const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
+                  { text: "Copy Text", onPress: handleCopy },
+                ];
+                if (isFailedOptimistic && (item as any).clientMessageId) {
+                  buttons.push({ text: "Retry Send", onPress: handleRetry });
+                }
+                if (isFailedOptimistic) {
+                  buttons.push({ text: "Remove Failed Message", onPress: handleRemove, style: "destructive" });
+                }
+                buttons.push({ text: "Cancel", style: "cancel", onPress: () => {} });
+                Alert.alert("Message", undefined, buttons);
               }
-            />
-          )}
+            };
+
+            return (
+              <MessageBubble
+                message={item}
+                isOwn={item.userId === currentUserId}
+                themeColor={themeColor}
+                colors={colors}
+                isDark={isDark}
+                onRetry={isFailedOptimistic
+                  ? handleRetry
+                  : undefined
+                }
+                onLongPress={handleLongPress}
+              />
+            );
+          }}
         />
 
         {/* [P1_NEW_MSG] Floating new messages indicator */}
