@@ -44,6 +44,7 @@ import {
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import BottomSheet from "@/components/BottomSheet";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -1071,6 +1072,14 @@ export default function CircleScreen() {
     }
   }, [session, id]);
 
+  // [P0_SHEET_PRIMITIVE_GROUP_SETTINGS] proof log – once per open
+  useEffect(() => {
+    if (__DEV__ && showGroupSettings) {
+      const capPx = Math.round(Dimensions.get("window").height * 0.85);
+      devLog("[P0_SHEET_PRIMITIVE_GROUP_SETTINGS] open", { maxHeightPct: 0.85, capPx });
+    }
+  }, [showGroupSettings]);
+
   const circle = data?.circle;
   const isHost = circle?.createdById === session?.user?.id;
 
@@ -1700,38 +1709,15 @@ export default function CircleScreen() {
         </Pressable>
       </Modal>
 
-      {/* Group Settings Modal */}
-      <Modal
+      {/* Group Settings (uses shared BottomSheet) */}
+      <BottomSheet
         visible={showGroupSettings}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowGroupSettings(false)}
+        onClose={() => setShowGroupSettings(false)}
+        heightPct={0}
+        maxHeightPct={0.85}
+        backdropOpacity={0.5}
+        keyboardMode="padding"
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <Pressable
-            style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}
-            onPress={() => setShowGroupSettings(false)}
-          >
-            <Pressable onPress={(e) => e.stopPropagation()}>
-              <Animated.View
-                entering={FadeIn.duration(200)}
-                style={{
-                  backgroundColor: colors.background,
-                  borderTopLeftRadius: 24,
-                  borderTopRightRadius: 24,
-                  paddingBottom: Math.max(insets.bottom, 20) + 8,
-                  maxHeight: "85%",
-                  overflow: "hidden",
-                }}
-              >
-              {/* Handle */}
-              <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
-                <View style={{ width: 40, height: 4, backgroundColor: colors.textTertiary, borderRadius: 2, opacity: 0.4 }} />
-              </View>
-
               {/* Header */}
               <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
@@ -1971,11 +1957,7 @@ export default function CircleScreen() {
                 </Pressable>
               </View>
               </ScrollView>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
 
       {/* Members Sheet Modal */}
       <Modal
