@@ -849,11 +849,12 @@ export default function CircleScreen() {
     setUnseenCount(0);
   }, []);
 
-  // [P1_CHAT_PAGINATION] Pagination state
+  // [P1_CHAT_PAGINATION] Pagination state — compound cursor (createdAt + id)
   const PAGE_SIZE = 30;
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
-  const cursorRef = useRef<string | null>(null);
+  const cursorCreatedAtRef = useRef<string | null>(null);
+  const cursorIdRef = useRef<string | null>(null);
   const isPrependingRef = useRef(false);
 
   // Viewability tracking for scroll anchor on prepend
@@ -1006,20 +1007,22 @@ export default function CircleScreen() {
     }
   }, [messageCount, scheduleAutoScroll, clearUnseen, bumpUnseen]);
 
-  // [P1_CHAT_PAGINATION] Init cursor from initial data
+  // [P1_CHAT_CURSOR_V2] Init compound cursor from initial data
   useEffect(() => {
     if (!circle?.messages?.length) return;
     // Only seed cursor once (when null)
-    if (cursorRef.current != null) return;
+    if (cursorCreatedAtRef.current != null) return;
     const msgs = circle.messages;
     const oldest = msgs.reduce(
       (min: any, m: any) => (m.createdAt < min.createdAt ? m : min),
       msgs[0],
     );
-    cursorRef.current = oldest.createdAt;
+    cursorCreatedAtRef.current = oldest.createdAt;
+    cursorIdRef.current = oldest.id;
     if (__DEV__) {
-      devLog("[P1_CHAT_PAGINATION]", "init", {
+      devLog("[P1_CHAT_CURSOR_V2]", "init", {
         oldestCreatedAt: oldest.createdAt,
+        oldestId: oldest.id,
         initialCount: msgs.length,
       });
     }
@@ -1345,7 +1348,7 @@ export default function CircleScreen() {
     }, [session, id, bootStatus]),
   );
 
-  // [P1_CHAT_PAGINATION] Fetch older messages with cursor-based pagination
+  // [P1_CHAT_CURSOR_V2] Fetch older messages with compound cursor pagination
   const fetchOlderMessages = useCallback(async () => {
     if (!id || !hasMoreOlder || isLoadingEarlier) return;
     setIsLoadingEarlier(true);
@@ -1354,19 +1357,21 @@ export default function CircleScreen() {
     try {
       const res = await getCircleMessages({
         circleId: id,
-        before: cursorRef.current,
+        beforeCreatedAt: cursorCreatedAtRef.current,
+        beforeId: cursorIdRef.current,
         limit: PAGE_SIZE,
       });
 
       const older = res.messages ?? [];
       const serverHasMore = res.hasMore ?? false;
 
-      // Update cursor to oldest returned message
+      // Update compound cursor to oldest returned message
       if (older.length > 0) {
         const oldest = older.reduce((min, m) =>
           m.createdAt < min.createdAt ? m : min, older[0],
         );
-        cursorRef.current = oldest.createdAt;
+        cursorCreatedAtRef.current = oldest.createdAt;
+        cursorIdRef.current = oldest.id;
       }
 
       // Trust server for hasMore; fallback if empty
@@ -1383,16 +1388,17 @@ export default function CircleScreen() {
       }
 
       if (__DEV__) {
-        devLog("[P1_CHAT_PAGINATION]", "prepend", {
+        devLog("[P1_CHAT_CURSOR_V2]", "prepend", {
           olderCount: older.length,
           hasMore: serverHasMore,
-          oldestAfter: cursorRef.current,
+          oldestCreatedAt: cursorCreatedAtRef.current,
+          oldestId: cursorIdRef.current,
         });
       }
     } catch (e) {
       safeToast.error("Oops", "Couldn't load older messages");
       if (__DEV__) {
-        devLog("[P1_CHAT_PAGINATION]", "load-earlier error", { circleId: id, error: String(e) });
+        devLog("[P1_CHAT_CURSOR_V2]", "load-earlier error", { circleId: id, error: String(e) });
       }
     } finally {
       // Allow rAF to settle layout before clearing prepend flag
