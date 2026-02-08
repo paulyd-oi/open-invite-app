@@ -163,13 +163,14 @@ export async function setFeaturedBadge(badgeKey: string | null): Promise<SetFeat
 // ============================================
 
 /**
- * Get all query keys that should be invalidated after setting featured badge
+ * Get all query keys that should be invalidated after setting featured badge.
+ * [P0_VIEWER_BADGE] PROFILE_QUERY_KEY is intentionally excluded — Profile featured
+ * badge is owned exclusively by BADGE_QUERY_KEYS.featured(userId).
  * @param userId - The user whose featured badge was updated
  */
 export function getSetFeaturedInvalidationKeys(userId: string) {
   return [
     BADGE_QUERY_KEYS.catalog,
     BADGE_QUERY_KEYS.featured(userId),
-    PROFILE_QUERY_KEY, // Also invalidate profile for header badge display
   ];
 }

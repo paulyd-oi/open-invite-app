@@ -28,13 +28,11 @@ import {
   getBadgeCatalog,
   setFeaturedBadge,
   BADGE_QUERY_KEYS,
-  PROFILE_QUERY_KEY,
   isProTrioBadgeKey,
   deriveBadgesWithProOverride,
   type BadgeCatalogResponse,
   type BadgeCatalogItem,
 } from "@/lib/badgesApi";
-import type { GetProfileResponse } from "../../shared/contracts";
 
 // Helper to convert hex color to rgba with opacity
 function hexToRgba(hex: string, opacity: number): string {
@@ -99,54 +97,22 @@ const setFeaturedMutation = useMutation({
   mutationFn: (badgeKey: string | null) => setFeaturedBadge(badgeKey),
 
   onSuccess: (_data, badgeKey) => {
-    // [P0_FEATURED_BADGE_UI] Optimistic cache write: push featuredBadge into the
-    // PROFILE_QUERY_KEY cache so Profile screen renders immediately — no refetch needed.
-    const catalogData = queryClient.getQueryData<BadgeCatalogResponse>(BADGE_QUERY_KEYS.catalog);
-    queryClient.setQueryData<GetProfileResponse>(PROFILE_QUERY_KEY as unknown as string[], (old) => {
-      if (!old) return old;
-      if (!badgeKey) {
-        return { ...old, featuredBadge: null };
-      }
-      const badge = catalogData?.badges?.find((b) => b.badgeKey === badgeKey);
-      if (badge) {
-        return {
-          ...old,
-          featuredBadge: {
-            badgeKey: badge.badgeKey,
-            name: badge.name,
-            description: badge.description,
-            tierColor: badge.tierColor,
-          },
-        };
-      }
-      return old;
-    });
-
-    if (__DEV__) {
-      const badge = catalogData?.badges?.find((b) => b.badgeKey === badgeKey);
-      devLog("[P0_FEATURED_BADGE_UI] optimistic cache write", {
-        badgeKey: badgeKey ?? "null",
-        cacheKeyUsed: PROFILE_QUERY_KEY,
-        optimisticWriteApplied: !!badge || !badgeKey,
-        name: badge?.name ?? "n/a",
-        tierColor: badge?.tierColor ?? "n/a",
-      });
-    }
-
-    // refresh badge catalog
+    // [P0_VIEWER_BADGE] Invalidation strategy:
+    // - Badge catalog: reflects "featured" flag change on badge list items
+    // - Featured badge queries: Profile + any user/[id] screens reconcile from
+    //   GET /api/achievements/user/:id/badge (the reliable dedicated endpoint).
+    // - PROFILE_QUERY_KEY is NEVER touched here. Profile featured badge is owned
+    //   exclusively by BADGE_QUERY_KEYS.featured(viewerUserId).
     queryClient.invalidateQueries({
       queryKey: BADGE_QUERY_KEYS.catalog,
     });
 
-    // [P0_VIEWER_BADGE] Invalidate dedicated featured badge queries so Profile
-    // reconciles from GET /api/achievements/user/:id/badge (the reliable endpoint).
-    // NOTE: We no longer invalidate PROFILE_QUERY_KEY here — that was self-defeating
-    // (it overwrote the optimistic write with a refetch that omits featuredBadge).
+    // Invalidate all featured badge queries (global prefix match)
     queryClient.invalidateQueries({
       queryKey: ["featuredBadge"],
     });
 
-    // targeted invalidate for viewer profile badge
+    // Targeted invalidate for viewer's featured badge query
     if (viewerUserId) {
       queryClient.invalidateQueries({
         queryKey: BADGE_QUERY_KEYS.featured(viewerUserId),
@@ -157,6 +123,7 @@ const setFeaturedMutation = useMutation({
       devLog("[P0_VIEWER_BADGE] setFeatured success", {
         badgeKey: badgeKey ?? "null",
         invalidated: ["catalog", "featuredBadge(global)", viewerUserId ? `featured(${viewerUserId.slice(0, 6)})` : "no-viewer"],
+        profileQueryKeyTouched: false,
       });
     }
 

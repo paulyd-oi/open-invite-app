@@ -272,12 +272,15 @@ export default function ProfileScreen() {
     );
   };
 
-  // Featured badge — derived from dedicated query (not GET /api/profile)
+  // [P0_VIEWER_BADGE] INVARIANT: Featured badge is derived ONLY from the dedicated
+  // featured badge query (BADGE_QUERY_KEYS.featured). NEVER from profileData.
+  // If GET /api/profile returns featuredBadge, it is intentionally ignored.
   const featuredBadge = normalizeFeaturedBadge(viewerBadgeData?.badge);
 
   if (__DEV__) {
     const rawBadge = viewerBadgeData?.badge as Record<string, unknown> | null | undefined;
     devLog("[P0_VIEWER_BADGE] profile render", {
+      dataSource: "featuredBadgeQuery",
       viewerUserId: viewerUserId ?? "none",
       queryKey: viewerUserId ? BADGE_QUERY_KEYS.featured(viewerUserId) : "disabled",
       hasData: !!viewerBadgeData,
