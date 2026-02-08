@@ -133,6 +133,12 @@ export function logEventKeys(label: string, keys: Array<readonly string[] | stri
 /**
  * Keys to invalidate after RSVP join/going action.
  * [P0_RSVP_SOT] Covers: event details, attendees, interests, RSVP status, feeds, calendar, attending list.
+ * [P1_EVENT_PROJ] Projection coherence contract:
+ *   - eventKeys.single: owner query for event metadata (capacity, counts)
+ *   - eventKeys.rsvp: owner query for viewer RSVP status
+ *   - feed/myEvents/calendar/attending: projection lists that show RSVP state + counts
+ *   - Detail key ("events", id) is NOT included: it prefix-matches rsvp/interests/comments/mute
+ *     which are already explicitly listed, causing redundant refetches.
  */
 export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly string[]> {
   return [
@@ -140,7 +146,6 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
     eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
-    eventKeys.detail(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.myEvents(),
@@ -152,6 +157,7 @@ export function getInvalidateAfterRsvpJoin(eventId: string): Array<readonly stri
 /**
  * Keys to invalidate after RSVP leave/remove action.
  * [P0_RSVP_SOT] Same as join - need to update all views that show RSVP state.
+ * [P1_EVENT_PROJ] See getInvalidateAfterRsvpJoin for contract.
  */
 export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly string[]> {
   return [
@@ -159,7 +165,6 @@ export function getInvalidateAfterRsvpLeave(eventId: string): Array<readonly str
     eventKeys.attendees(eventId), // [P0_RSVP_SOT] Who's Coming list
     eventKeys.interests(eventId),
     eventKeys.rsvp(eventId),
-    eventKeys.detail(eventId),
     eventKeys.feed(),
     eventKeys.feedPaginated(),
     eventKeys.myEvents(),

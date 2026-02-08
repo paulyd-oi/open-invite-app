@@ -778,6 +778,13 @@ export default function SocialScreen() {
     onSuccess: (_, { eventId, status }) => {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
+      if (__DEV__) {
+        devLog('[P1_EVENT_PROJ]', 'swipe rsvp onSuccess invalidation', {
+          eventId,
+          nextStatus: status,
+          keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
+        });
+      }
     },
     onError: (error: any) => {
       // Handle 409 EVENT_FULL error

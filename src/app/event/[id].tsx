@@ -1060,6 +1060,12 @@ export default function EventDetailScreen() {
       
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
+        // [P1_EVENT_PROJ] Proof: log which projection keys are invalidated
+        devLog('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
+          eventId: id,
+          nextStatus: status,
+          keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
+        });
       }
       
       // P0 FIX: Invalidate using SSOT contract
@@ -1114,9 +1120,9 @@ export default function EventDetailScreen() {
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
         safeToast.warning("Full", "This invite is full.");
-        // Refetch event details to show updated state
+        // [P1_EVENT_PROJ] Refetch owner + interests + feed on capacity error
         invalidateEventKeys(queryClient, [
-          eventKeys.detail(id ?? ""),
+          eventKeys.single(id ?? ""),
           eventKeys.interests(id ?? ""),
           eventKeys.feed(),
         ], "rsvp_error_409");
