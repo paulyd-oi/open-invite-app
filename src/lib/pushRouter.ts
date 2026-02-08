@@ -1,0 +1,403 @@
+/**
+ * Push Event Router v1 - Single Source of Truth for Push-Driven Query Updates
+ * 
+ * INVARIANT: All in-app push notification handling routes through handlePushEvent()
+ * INVARIANT: Never invalidates broad roots like ["events"] or ["circles"]
+ * INVARIANT: Uses eventKeys.* and circleKeys.* SSOT builders only
+ * 
+ * Features:
+ * - Dedupe: Ignores duplicate events with same (type, entityId, version) for 8s window
+ * - SSOT-aligned: Targets owner queries (eventKeys.single, circleKeys.messages, etc.)
+ * - Patch-when-safe: Updates query data directly if payload provides safe delta
+ * - Logs: [P1_PUSH_ROUTER] tag for all operations in DEV mode
+ */
+
+import type { QueryClient } from "@tanstack/react-query";
+import { eventKeys } from "@/lib/eventQueryKeys";
+import { circleKeys } from "@/lib/circleQueryKeys";
+import { devLog } from "@/lib/devLog";
+
+// ============================================================================
+// DEDUPE MECHANISM
+// ============================================================================
+
+interface DedupeEntry {
+  key: string;
+  timestamp: number;
+}
+
+const dedupeMap = new Map<string, DedupeEntry>();
+const DEDUPE_TTL_MS = 8000; // 8 seconds
+
+/**
+ * Cleanup expired dedupe entries (TTL-based)
+ */
+function cleanupDedupeMap(): void {
+  const now = Date.now();
+  const entries = Array.from(dedupeMap.entries());
+  for (const [key, entry] of entries) {
+    if (now - entry.timestamp > DEDUPE_TTL_MS) {
+      dedupeMap.delete(key);
+    }
+  }
+}
+
+/**
+ * Check if event should be deduped
+ * @returns true if event is duplicate and should be skipped
+ */
+function shouldDedupe(type: string, entityId: string, version?: string | number): boolean {
+  cleanupDedupeMap();
+  
+  const dedupeKey = `${type}:${entityId}:${version ?? "no-version"}`;
+  
+  if (dedupeMap.has(dedupeKey)) {
+    return true; // Duplicate detected
+  }
+  
+  // Record this event
+  dedupeMap.set(dedupeKey, {
+    key: dedupeKey,
+    timestamp: Date.now(),
+  });
+  
+  return false;
+}
+
+// ============================================================================
+// PUSH EVENT TYPES & PAYLOADS
+// ============================================================================
+
+export type PushEventType =
+  | "circle_message"
+  | "event_rsvp_changed"
+  | "event_updated"
+  | "event_created"
+  | "event_comment"
+  | "friend_request"
+  | "friend_accepted"
+  | "join_request"
+  | "join_accepted";
+
+export interface BasePushPayload {
+  type: PushEventType;
+  entityId: string;
+  version?: string | number;
+  updatedAt?: string;
+}
+
+export interface CircleMessagePayload extends BasePushPayload {
+  type: "circle_message";
+  circleId: string;
+  messageId?: string;
+  message?: {
+    id: string;
+    text: string;
+    senderId: string;
+    createdAt: string;
+  };
+}
+
+export interface EventRsvpChangedPayload extends BasePushPayload {
+  type: "event_rsvp_changed";
+  eventId: string;
+  goingCount?: number;
+  capacity?: number | null;
+  isFull?: boolean;
+}
+
+export interface EventUpdatedPayload extends BasePushPayload {
+  type: "event_updated";
+  eventId: string;
+}
+
+export interface EventCreatedPayload extends BasePushPayload {
+  type: "event_created";
+  eventId: string;
+}
+
+export interface EventCommentPayload extends BasePushPayload {
+  type: "event_comment";
+  eventId: string;
+  commentId?: string;
+}
+
+export interface FriendRequestPayload extends BasePushPayload {
+  type: "friend_request" | "friend_accepted";
+  userId: string;
+}
+
+export interface JoinRequestPayload extends BasePushPayload {
+  type: "join_request" | "join_accepted";
+  eventId: string;
+}
+
+export type PushPayload =
+  | CircleMessagePayload
+  | EventRsvpChangedPayload
+  | EventUpdatedPayload
+  | EventCreatedPayload
+  | EventCommentPayload
+  | FriendRequestPayload
+  | JoinRequestPayload;
+
+// ============================================================================
+// ROUTER IMPLEMENTATION
+// ============================================================================
+
+export interface HandlePushEventOptions {
+  type: string;
+  entityId: string;
+  payload?: Record<string, any>;
+  receivedAt?: number;
+}
+
+/**
+ * Main router entry point - handles all push-driven query updates
+ */
+export function handlePushEvent(
+  options: HandlePushEventOptions,
+  queryClient: QueryClient
+): void {
+  const { type, entityId, payload = {}, receivedAt = Date.now() } = options;
+  
+  // Extract version/updatedAt for dedupe
+  const version = payload.version ?? payload.updatedAt ?? payload.messageId;
+  
+  // DEDUPE CHECK
+  if (shouldDedupe(type, entityId, version)) {
+    if (__DEV__) {
+      devLog(`[P1_PUSH_ROUTER] DEDUPE_SKIP type=${type} entityId=${entityId} version=${version}`);
+    }
+    return;
+  }
+  
+  // Route to appropriate handler
+  let actionSummary = "unknown";
+  
+  try {
+    switch (type) {
+      case "circle_message":
+        actionSummary = handleCircleMessage(payload, queryClient);
+        break;
+        
+      case "event_rsvp_changed":
+      case "join_request":
+      case "join_accepted":
+      case "new_attendee":
+        actionSummary = handleEventRsvpChanged(payload, queryClient);
+        break;
+        
+      case "event_updated":
+      case "event_update":
+        actionSummary = handleEventUpdated(payload, queryClient);
+        break;
+        
+      case "event_created":
+      case "new_event":
+        actionSummary = handleEventCreated(payload, queryClient);
+        break;
+        
+      case "event_comment":
+        actionSummary = handleEventComment(payload, queryClient);
+        break;
+        
+      case "friend_request":
+      case "friend_accepted":
+        actionSummary = handleFriendEvent(payload, queryClient);
+        break;
+        
+      default:
+        actionSummary = "unsupported_type";
+        if (__DEV__) {
+          devLog(`[P1_PUSH_ROUTER] UNSUPPORTED type=${type} entityId=${entityId}`);
+        }
+        return;
+    }
+    
+    // Log successful handling
+    if (__DEV__) {
+      devLog(`[P1_PUSH_ROUTER] HANDLED type=${type} entityId=${entityId} action=${actionSummary}`);
+    }
+    
+  } catch (error) {
+    if (__DEV__) {
+      devLog(`[P1_PUSH_ROUTER] ERROR type=${type} entityId=${entityId} error=${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+
+/**
+ * Handle circle message push notification
+ * Strategy: Invalidate messages and unread count (patch deferred to future iteration)
+ */
+function handleCircleMessage(payload: Record<string, any>, queryClient: QueryClient): string {
+  const circleId = payload.circleId ?? payload.circle_id;
+  
+  if (!circleId) {
+    return "missing_circleId";
+  }
+  
+  // Invalidate circle messages
+  queryClient.invalidateQueries({ queryKey: circleKeys.messages(circleId) });
+  
+  // Invalidate unread count
+  queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
+  
+  // Optionally invalidate circle single if it has lastMessage preview
+  queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[circleKeys.messages(${circleId}), circleKeys.unreadCount(), circleKeys.single(${circleId})]`);
+  }
+  
+  return "invalidate_circle_messages+unread+single";
+}
+
+/**
+ * Handle event RSVP/attendee count changes
+ * Strategy: Patch if safe delta provided, else invalidate
+ */
+function handleEventRsvpChanged(payload: Record<string, any>, queryClient: QueryClient): string {
+  const eventId = payload.eventId ?? payload.event_id;
+  
+  if (!eventId) {
+    return "missing_eventId";
+  }
+  
+  const { goingCount, capacity, isFull } = payload;
+  
+  // Check if we have safe patch data
+  if (
+    typeof goingCount === "number" &&
+    (capacity === null || typeof capacity === "number") &&
+    typeof isFull === "boolean"
+  ) {
+    // PATCH: Update event query data directly
+    queryClient.setQueryData(
+      eventKeys.single(eventId),
+      (old: any) => {
+        if (!old) return old;
+        
+        const updated = {
+          ...old,
+          goingCount,
+          capacity,
+          isFull,
+        };
+        
+        if (__DEV__) {
+          devLog(`[P1_PUSH_ROUTER] PATCH eventKeys.single(${eventId}) goingCount=${goingCount} capacity=${capacity} isFull=${isFull}`);
+        }
+        
+        return updated;
+      }
+    );
+    
+    // Also invalidate feed/calendar projections to reflect updated counts
+    queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+    queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+    queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
+    
+    return "patch_event_counts+invalidate_feeds";
+  }
+  
+  // FALLBACK: Invalidate owner query
+  queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+  queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.single(${eventId}), eventKeys.feed(), eventKeys.calendar()]`);
+  }
+  
+  return "invalidate_event+feeds";
+}
+
+/**
+ * Handle event updated push notification
+ * Strategy: Invalidate owner query + projections
+ */
+function handleEventUpdated(payload: Record<string, any>, queryClient: QueryClient): string {
+  const eventId = payload.eventId ?? payload.event_id;
+  
+  if (!eventId) {
+    return "missing_eventId";
+  }
+  
+  // Invalidate event owner query
+  queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+  
+  // Invalidate projections (feed, calendar, myEvents)
+  queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.single(${eventId}), eventKeys.feed(), eventKeys.calendar(), eventKeys.myEvents()]`);
+  }
+  
+  return "invalidate_event+feeds";
+}
+
+/**
+ * Handle event created push notification
+ * Strategy: Invalidate feed projections only
+ */
+function handleEventCreated(payload: Record<string, any>, queryClient: QueryClient): string {
+  // Invalidate feed projections (new event should appear in feeds)
+  queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.feedPaginated() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+  queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.feed(), eventKeys.feedPaginated(), eventKeys.calendar(), eventKeys.myEvents()]`);
+  }
+  
+  return "invalidate_feeds";
+}
+
+/**
+ * Handle event comment push notification
+ * Strategy: Invalidate event comments + owner query
+ */
+function handleEventComment(payload: Record<string, any>, queryClient: QueryClient): string {
+  const eventId = payload.eventId ?? payload.event_id;
+  
+  if (!eventId) {
+    return "missing_eventId";
+  }
+  
+  // Invalidate comments query
+  queryClient.invalidateQueries({ queryKey: eventKeys.comments(eventId) });
+  
+  // Invalidate event owner (may have comment count)
+  queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.comments(${eventId}), eventKeys.single(${eventId})]`);
+  }
+  
+  return "invalidate_comments+event";
+}
+
+/**
+ * Handle friend request/accepted push notification
+ * Strategy: Invalidate friends list and friend requests
+ */
+function handleFriendEvent(payload: Record<string, any>, queryClient: QueryClient): string {
+  // Invalidate friends and friend requests
+  queryClient.invalidateQueries({ queryKey: ["friends"] });
+  queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+  
+  if (__DEV__) {
+    devLog(`[P1_PUSH_ROUTER] invalidate keys=[["friends"], ["friendRequests"]]`);
+  }
+  
+  return "invalidate_friends+requests";
+}

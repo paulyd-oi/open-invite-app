@@ -18,6 +18,7 @@ import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushTok
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { handlePushEvent } from "@/lib/pushRouter";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -711,37 +712,30 @@ export function useNotifications() {
         setNotification(notification);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Refresh relevant data based on notification type
-        const type = notification.request.content.data?.type;
-        if (type === "new_event" || type === "event_update") {
-          queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
-        } else if (type === "friend_request" || type === "friend_accepted") {
-          queryClient.invalidateQueries({ queryKey: ["friends"] });
-          queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-        } else if (type === "join_request" || type === "join_accepted" || type === "event_join" ||
-  type === "new_attendee" || type === "new_attendee") {
-          // RSVP/join notifications - refresh events and specific event
-          queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
-          const eventId = notification.request.content.data?.eventId as string | undefined;
-          if (eventId) {
-            queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
-          }
-        } else if (type === "event_comment") {
-          // Comment notification - refresh event comments
-          const eventId = notification.request.content.data?.eventId as string | undefined;
-          if (eventId) {
-            queryClient.invalidateQueries({ queryKey: eventKeys.single(eventId) });
-            queryClient.invalidateQueries({ queryKey: eventKeys.comments(eventId) });
-          }
-        } else if (type === "circle_message") {
-          // Refresh circles to update unread counts
-          queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-          // If we have the circleId, also refresh that specific circle's messages
-          const circleId = notification.request.content.data?.circleId as string | undefined;
-          if (circleId) {
-            queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
-            queryClient.invalidateQueries({ queryKey: circleKeys.messages(circleId) });
-          }
+        // [P1_PUSH_ROUTER] Route all push-driven refreshes through centralized router
+        const data = notification.request.content.data;
+        const type = data?.type as string | undefined;
+        
+        if (type) {
+          // Extract entityId based on type
+          const entityId = 
+            data?.eventId ?? 
+            data?.event_id ?? 
+            data?.circleId ?? 
+            data?.circle_id ?? 
+            data?.userId ?? 
+            data?.user_id ?? 
+            "unknown";
+          
+          handlePushEvent(
+            {
+              type,
+              entityId: String(entityId),
+              payload: data,
+              receivedAt: Date.now(),
+            },
+            queryClient
+          );
         }
         
         // Always refresh notifications/activity list on any notification
