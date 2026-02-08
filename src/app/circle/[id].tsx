@@ -925,6 +925,19 @@ export default function CircleScreen() {
     }
   }, [unseenCount > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // [P2_CHAT_SCROLL_BTN] Scroll-to-bottom button state
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const prevScrollBtnVisibleRef = useRef(false);
+
+  // [P2_CHAT_SCROLL_BTN] Hide button when unseen pill takes over
+  useEffect(() => {
+    if (unseenCount > 0 && prevScrollBtnVisibleRef.current) {
+      prevScrollBtnVisibleRef.current = false;
+      setShowScrollToBottom(false);
+      if (__DEV__) devLog("[P2_CHAT_SCROLL_BTN]", "hide", { reason: "unseen_pill_active" });
+    }
+  }, [unseenCount]);
+
   // [P1_CHAT_PAGINATION] Pagination state — compound cursor (createdAt + id)
   const PAGE_SIZE = 30;
   const [hasMoreOlder, setHasMoreOlder] = useState(true);
@@ -1022,6 +1035,17 @@ export default function CircleScreen() {
       sendReadHorizon("return_to_bottom");
       if (__DEV__) {
         devLog("[P1_CHAT_PILL]", "pill_clear", { reason: "return_to_bottom" });
+      }
+    }
+    // [P2_CHAT_SCROLL_BTN] Show when scrolled up AND unseen pill not active
+    const shouldShow = !isNearBottomRef.current && unseenCountRef.current === 0;
+    if (shouldShow !== prevScrollBtnVisibleRef.current) {
+      prevScrollBtnVisibleRef.current = shouldShow;
+      setShowScrollToBottom(shouldShow);
+      if (__DEV__) {
+        devLog("[P2_CHAT_SCROLL_BTN]", shouldShow ? "show" : "hide", {
+          reason: shouldShow ? "scrolled_up" : isNearBottomRef.current ? "near_bottom" : "unseen_pill_active",
+        });
       }
     }
   }, [AUTO_SCROLL_THRESHOLD, clearUnseen, sendReadHorizon]);
@@ -2144,6 +2168,38 @@ export default function CircleScreen() {
             );
           }}
         />
+
+        {/* [P2_CHAT_SCROLL_BTN] Floating scroll-to-bottom button */}
+        {showScrollToBottom && unseenCount === 0 ? (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              flatListRef.current?.scrollToEnd({ animated: true });
+              if (__DEV__) devLog("[P2_CHAT_SCROLL_BTN]", "tap", {});
+            }}
+            style={{
+              position: "absolute",
+              right: 16,
+              bottom: 92,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: isDark ? "rgba(58,58,60,0.9)" : "rgba(255,255,255,0.95)",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 49,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: isDark ? 0.4 : 0.15,
+              shadowRadius: 3,
+              elevation: 3,
+              borderWidth: isDark ? 0 : 0.5,
+              borderColor: "rgba(0,0,0,0.08)",
+            }}
+          >
+            <ChevronDown size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
 
         {/* [P1_CHAT_PILL] Floating new messages indicator */}
         {unseenCount > 0 ? (

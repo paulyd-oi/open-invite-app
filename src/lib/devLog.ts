@@ -83,6 +83,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_DATESEP]",
   // P2 typing indicator UI
   "[P2_TYPING_UI]",
+  // P2 scroll-to-bottom floating button
+  "[P2_CHAT_SCROLL_BTN]",
 ];
 
 /**
