@@ -57,6 +57,15 @@ export default function CirclesScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
+  // [P1_CIRCLE_BADGE] Per-circle unread overlay from unread v2 SSOT
+  const { data: unreadData } = useQuery({
+    queryKey: circleKeys.unreadCount(),
+    queryFn: () => api.get<{ totalUnread: number; byCircle: Record<string, number> }>("/api/circles/unread/count"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 300000,
+  });
+  const byCircle = unreadData?.byCircle ?? {};
+
   const { data: friendsData } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
@@ -291,6 +300,7 @@ export default function CirclesScreen() {
                   key={circle.id}
                   circle={circle}
                   index={index}
+                  unreadCount={byCircle[circle.id] ?? 0}
                   onPin={(id) => pinCircleMutation.mutate(id)}
                   onDelete={(id) => {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

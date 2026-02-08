@@ -30,6 +30,8 @@ interface CircleCardProps {
   onDelete: (circleId: string) => void;
   onMute?: (circleId: string, isMuted: boolean) => void;
   index: number;
+  /** Per-circle unread count from circleKeys.unreadCount() overlay */
+  unreadCount?: number;
 }
 
 // ── SSOT swipe constants ──────────────────────────────────────
@@ -39,7 +41,7 @@ const OPEN_RIGHT_PX  = ACTION_WIDTH_PX;  // pin reveal distance
 const THRESH_OPEN_PX = 28;               // drag distance to snap open
 // ──────────────────────────────────────────────────────────────
 
-export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCardProps) {
+export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount = 0 }: CircleCardProps) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const queryClient = useQueryClient();
@@ -335,20 +337,27 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index }: CircleCar
                   <BellOff size={10} color="#fff" />
                 </Animated.View>
               )}
-              {/* [P0_CIRCLE_MUTE_POLISH] Animated red dot with outline for muted+unread - min 10px */}
-              {circle.isMuted && (circle.unreadCount ?? 0) > 0 && (
+              {/* [P1_CIRCLE_BADGE] Unread badge from byCircle SSOT — muted shows dot, unmuted shows count */}
+              {unreadCount > 0 && (
                 <Animated.View
                   entering={FadeInDown.duration(150)}
                   exiting={FadeOutDown.duration(150)}
-                  className="absolute -top-1 -left-1 rounded-full"
+                  className="absolute -top-1 -left-1 rounded-full items-center justify-center"
                   style={{
-                    width: 10,
-                    height: 10,
+                    minWidth: circle.isMuted ? 10 : 18,
+                    height: circle.isMuted ? 10 : 18,
+                    paddingHorizontal: circle.isMuted ? 0 : 4,
                     backgroundColor: "#EF4444",
                     borderWidth: 1.5,
                     borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
                   }}
-                />
+                >
+                  {!circle.isMuted && (
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", lineHeight: 12 }}>
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  )}
+                </Animated.View>
               )}
             </View>
 
