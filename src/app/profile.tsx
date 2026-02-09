@@ -360,6 +360,106 @@ export default function ProfileScreen() {
     return `${Math.floor(days / 7)}w ago`;
   };
 
+  // ── Highlights derivation (SSOT: pure function of existing query data) ──
+  // HIGHLIGHTS_PURE_DERIVATION: all chips derive exclusively from existing query data
+  // HIGHLIGHTS_DETERMINISTIC: same input data → same chip output
+  // HIGHLIGHTS_NO_GAMIFICATION: this section is identity-only, no reward system
+  type HighlightChip = { type: string; emoji: string; label: string; color: string };
+
+  const highlightChips = useMemo((): HighlightChip[] => {
+    const chips: HighlightChip[] = [];
+
+    // 1. Top Event Type — from categoryBreakdown
+    const breakdown = stats?.categoryBreakdown;
+    if (breakdown && Object.keys(breakdown).length > 0) {
+      const [topCat] = Object.entries(breakdown).sort((a, b) => b[1] - a[1])[0];
+      const catInfo = EVENT_CATEGORIES.find((c) => c.value === topCat);
+      if (catInfo) {
+        chips.push({
+          type: "topEventType",
+          emoji: catInfo.emoji,
+          label: `${catInfo.label} fan`,
+          color: catInfo.color,
+        });
+      }
+    }
+
+    // 2. Most Active Day — from event timestamps
+    if (allEvents.length >= 3) {
+      const dayCounts: Record<number, number> = {};
+      for (const e of allEvents) {
+        const day = new Date(e.startTime).getDay();
+        dayCounts[day] = (dayCounts[day] ?? 0) + 1;
+      }
+      const topDay = Object.entries(dayCounts).sort(
+        (a, b) => Number(b[1]) - Number(a[1]),
+      )[0];
+      if (topDay) {
+        const dayNum = Number(topDay[0]);
+        const isWeekend = dayNum === 0 || dayNum === 6;
+        chips.push({
+          type: "mostActiveDay",
+          emoji: isWeekend ? "🌅" : "📆",
+          label: isWeekend ? "Weekend planner" : "Weekday warrior",
+          color: isWeekend ? "#E67E22" : "#3498DB",
+        });
+      }
+    }
+
+    // 3. Top Circle — from circles data (best-effort, first by member count)
+    const circles = circlesData?.circles;
+    if (circles && circles.length > 0) {
+      const topCircle = [...circles].sort(
+        (a, b) => (b.members?.length ?? 0) - (a.members?.length ?? 0),
+      )[0];
+      if (topCircle) {
+        chips.push({
+          type: "topCircle",
+          emoji: topCircle.emoji || "👥",
+          label: topCircle.name,
+          color: "#9B59B6",
+        });
+      }
+    }
+
+    // 4. Consistency — from currentStreak
+    const streak = stats?.currentStreak ?? 0;
+    if (streak >= 2) {
+      chips.push({
+        type: "streak",
+        emoji: streak >= 7 ? "🔥" : "⚡",
+        label: `${streak}-week streak`,
+        color: streak >= 7 ? "#E74C3C" : "#F39C12",
+      });
+    }
+
+    // 5. Social butterfly — from friends count
+    if (friendsCount >= 10) {
+      chips.push({
+        type: "socialButterfly",
+        emoji: "🦋",
+        label: `${friendsCount} friends`,
+        color: "#4ECDC4",
+      });
+    }
+
+    return chips.slice(0, 5);
+  }, [
+    stats?.categoryBreakdown,
+    stats?.currentStreak,
+    allEvents,
+    circlesData?.circles,
+    friendsCount,
+  ]);
+
+  // [P0_PROFILE_HIGHLIGHTS] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_PROFILE_HIGHLIGHTS]", {
+      chipCount: highlightChips.length,
+      chipTypes: highlightChips.map((c) => c.type),
+    });
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
@@ -640,6 +740,32 @@ export default function ProfileScreen() {
             ))}
           </ScrollView>
         </Animated.View>
+
+        {/* ═══ Highlights ═══ */}
+        {highlightChips.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(88).springify()} className="mb-4">
+            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+              HIGHLIGHTS
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {highlightChips.map((chip) => (
+                <View
+                  key={chip.type}
+                  className="flex-row items-center px-3.5 py-2 rounded-full border mr-2"
+                  style={{
+                    backgroundColor: `${chip.color}10`,
+                    borderColor: `${chip.color}25`,
+                  }}
+                >
+                  <Text className="text-sm mr-1.5">{chip.emoji}</Text>
+                  <Text className="text-sm font-medium" style={{ color: chip.color }}>
+                    {StringSafe(chip.label)}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        )}
 
         {/* ═══ Momentum (Streak) ═══ */}
         <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
