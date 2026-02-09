@@ -2483,20 +2483,35 @@ export default function CircleScreen() {
               setShowPlanLockSheet(true);
             }}
             style={{
+              flexDirection: "row",
               alignItems: "center",
+              justifyContent: "center",
               paddingVertical: 10,
               paddingHorizontal: 16,
               borderBottomWidth: 1,
               borderColor: colors.border,
-              backgroundColor: isDark ? "rgba(255,200,0,0.06)" : "rgba(255,200,0,0.08)",
+              backgroundColor: isDark ? "rgba(255,200,0,0.12)" : "rgba(255,200,0,0.14)",
+              gap: 8,
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text }}>{"\uD83D\uDD12"} Plan locked</Text>
-            {planLock.note ? (
-              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2, fontStyle: "italic" }} numberOfLines={1}>
-                &ldquo;{planLock.note}&rdquo;
-              </Text>
-            ) : null}
+            <View style={{ flexDirection: "column", alignItems: "center", flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text }}>{"\uD83D\uDD12"} Plan finalized</Text>
+                <View style={{
+                  backgroundColor: isDark ? "rgba(255,200,0,0.2)" : "rgba(255,180,0,0.18)",
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#FFD60A" : "#B8860B" }}>Finalized</Text>
+                </View>
+              </View>
+              {planLock.note ? (
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2, fontStyle: "italic" }} numberOfLines={1}>
+                  Plan finalized &mdash; {planLock.note}
+                </Text>
+              ) : null}
+            </View>
           </Pressable>
         )}
 
@@ -3450,6 +3465,37 @@ export default function CircleScreen() {
               {planLockMutation.isPending ? "Saving\u2026" : "Save"}
             </Text>
           </Pressable>
+
+          {/* [P1_LOCK_POLISH] Host-only unlock */}
+          {isHost && planLock?.locked && (
+            <Pressable
+              onPress={async () => {
+                if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_attempt");
+                try {
+                  await api.post(`/api/circles/${id}/plan-lock`, { locked: false, note: "" });
+                  queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
+                  if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_success");
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setShowPlanLockSheet(false);
+                } catch (e: any) {
+                  if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_error", { status: e?.status ?? "unknown" });
+                  safeToast.error("Error", "Failed to unlock plan");
+                }
+              }}
+              style={{
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: isDark ? "rgba(255,59,48,0.4)" : "rgba(255,59,48,0.3)",
+                backgroundColor: isDark ? "rgba(255,59,48,0.08)" : "rgba(255,59,48,0.06)",
+              }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#FF3B30" }}>
+                Unlock plan
+              </Text>
+            </Pressable>
+          )}
         </View>
       </BottomSheet>
 
@@ -3512,6 +3558,15 @@ export default function CircleScreen() {
             );
           })}
         </ScrollView>
+
+        {/* [P1_LOCK_POLISH] Poll finalization context */}
+        {planLock?.locked && (
+          <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: "center", fontStyle: "italic" }}>
+              This poll finalized the plan.
+            </Text>
+          </View>
+        )}
 
         {/* [P1_POLL_LOCK_BRIDGE] Lock plan with winning option */}
         {(() => {

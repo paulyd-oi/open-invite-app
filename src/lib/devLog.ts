@@ -105,6 +105,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_POLL_UI]",
   // P1 poll-to-plan-lock bridge
   "[P1_POLL_LOCK_BRIDGE]",
+  // P1 lock polish UX
+  "[P1_LOCK_POLISH]",
 ];
 
 /**
