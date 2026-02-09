@@ -1849,19 +1849,7 @@ export default function CircleScreen() {
     return friendsData.friends.filter(f => !memberIds.has(f.friendId));
   }, [friendsData?.friends, circle]);
 
-  if (!session || showCircleLoading || !circle) {
-    return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const messages = circle.messages ?? [];
-
+  // ═══ HOOK_ORDER_STABLE: All hooks declared before any early return ═══
   // [P1_AVAIL_SUMMARY_UI] Availability summary query — graceful 404 fallback
   const [showAvailSheet, setShowAvailSheet] = useState(false);
   const { data: availData } = useQuery({
@@ -1878,7 +1866,7 @@ export default function CircleScreen() {
         return null;
       }
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!data?.circle,
     retry: false,
     staleTime: 60_000,
   });
@@ -1922,7 +1910,7 @@ export default function CircleScreen() {
         return null;
       }
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!data?.circle,
     retry: false,
     staleTime: 60_000,
   });
@@ -1946,7 +1934,7 @@ export default function CircleScreen() {
         return null;
       }
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!data?.circle,
     retry: false,
     staleTime: 60_000,
   });
@@ -1978,7 +1966,7 @@ export default function CircleScreen() {
         return { ok: true, level: "all" as CircleNotificationLevel };
       }
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!data?.circle,
     retry: false,
     staleTime: 60_000,
   });
@@ -2068,7 +2056,7 @@ export default function CircleScreen() {
         return null;
       }
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!data?.circle,
     retry: false,
     staleTime: 60_000,
   });
@@ -2132,6 +2120,9 @@ export default function CircleScreen() {
       if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_error", { error: String(_err) });
     },
   });
+
+  // Derive messages safely (circle may be null before loading gate)
+  const messages = circle?.messages ?? [];
 
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
@@ -2240,6 +2231,21 @@ export default function CircleScreen() {
     });
   }, []);
 
+  // [P0_HOOK_FIX] hooks normalized — all hooks above, early return below
+  if (__DEV__) devLog("[P0_HOOK_FIX]", "hooks normalized");
+
+  // ═══ Loading gate (AFTER all hooks — HOOK_ORDER_STABLE invariant) ═══
+  if (!session || showCircleLoading || !circle) {
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textSecondary }}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // [P0_CHAT_ANCHOR] QA action helpers (DEV only, not perf-sensitive)
   const qaInjectMessages = (n: number) => {
     const snap = qaSnap();
@@ -2344,8 +2350,8 @@ export default function CircleScreen() {
     qaLog("simulate_prepend", snap, false);
   };
 
-  const members = circle.members ?? [];
-  const currentUserId = session.user?.id;
+  const members = circle!.members ?? [];
+  const currentUserId = session!.user?.id;
 
   return (
     <SafeAreaView className="flex-1" edges={["top", "bottom"]} style={{ backgroundColor: colors.background }}>
