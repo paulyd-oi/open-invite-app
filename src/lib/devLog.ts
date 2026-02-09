@@ -97,6 +97,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_REPLY_UI2]",
   // P0 chat anchor hardening QA
   "[P0_CHAT_ANCHOR]",
+  // P1 availability summary strip UI
+  "[P1_AVAIL_SUMMARY_UI]",
 ];
 
 /**

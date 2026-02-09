@@ -1860,6 +1860,48 @@ export default function CircleScreen() {
 
   const messages = circle.messages ?? [];
 
+  // [P1_AVAIL_SUMMARY_UI] Availability summary query — graceful 404 fallback
+  const [showAvailSheet, setShowAvailSheet] = useState(false);
+  const { data: availData } = useQuery({
+    queryKey: circleKeys.availabilitySummary(id!),
+    queryFn: async () => {
+      try {
+        const res = await api.get<{
+          tonight: { free: number; busy: number; tentative?: number; unknown: number; total: number };
+          members?: Array<{ userId: string; name: string; status: string }>;
+        }>(`/api/circles/${id}/availability-summary`);
+        return res;
+      } catch (e: any) {
+        if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "hidden_nonok", { status: e?.status ?? "unknown" });
+        return null;
+      }
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    retry: false,
+    staleTime: 60_000,
+  });
+  // Derive strip data; hide if query failed / not yet loaded
+  const availTonight = availData?.tonight ?? null;
+  const availMembers = availData?.members ?? null;
+  const availLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!availLogFiredRef.current && __DEV__) {
+      devLog("[P1_AVAIL_SUMMARY_UI]", "mounted");
+      availLogFiredRef.current = true;
+    }
+  }, []);
+  useEffect(() => {
+    if (__DEV__ && availTonight) {
+      devLog("[P1_AVAIL_SUMMARY_UI]", "shown", {
+        free: availTonight.free,
+        busy: availTonight.busy,
+        unknown: availTonight.unknown,
+        tentative: availTonight.tentative,
+        total: availTonight.total,
+      });
+    }
+  }, [availTonight]);
+
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
   const latestFailed = useMemo(() => {
@@ -2251,6 +2293,37 @@ export default function CircleScreen() {
             </Animated.View>
           );
         })()}
+
+        {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
+        {availTonight && (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "tap_open");
+              setShowAvailSheet(true);
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Tonight:</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free}</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy}</Text>
+            {(availTonight.tentative ?? 0) > 0 && (
+              <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative}</Text>
+            )}
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\u26AA"} {availTonight.unknown}</Text>
+            <ChevronRight size={14} color={colors.textTertiary} />
+          </Pressable>
+        )}
 
         {/* Messages List */}
         <FlatList
@@ -2996,6 +3069,106 @@ export default function CircleScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* [P1_AVAIL_SUMMARY_UI] Availability Roster Sheet */}
+      <BottomSheet
+        visible={showAvailSheet}
+        onClose={() => setShowAvailSheet(false)}
+        heightPct={0}
+        maxHeightPct={0.6}
+        backdropOpacity={0.5}
+        title="Tonight's Availability"
+      >
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {/* Summary counts */}
+          {availTonight && (
+            <View style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 16,
+              paddingVertical: 12,
+              marginBottom: 8,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+            }}>
+              <Text style={{ fontSize: 14, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free} free</Text>
+              <Text style={{ fontSize: 14, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy} busy</Text>
+              {(availTonight.tentative ?? 0) > 0 && (
+                <Text style={{ fontSize: 14, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative} tentative</Text>
+              )}
+              <Text style={{ fontSize: 14, color: colors.text }}>{"\u26AA"} {availTonight.unknown} unknown</Text>
+            </View>
+          )}
+
+          {/* Member-by-member roster */}
+          {availMembers && availMembers.length > 0 ? (
+            availMembers.map((m) => {
+              const statusEmoji = m.status === "free" ? "\uD83D\uDFE2" : m.status === "busy" ? "\uD83D\uDFE1" : m.status === "tentative" ? "\uD83D\uDFE0" : "\u26AA";
+              const statusLabel = m.status.charAt(0).toUpperCase() + m.status.slice(1);
+              // Try to find member avatar from circle members
+              const circleMember = members.find((cm: any) => cm.userId === m.userId);
+              return (
+                <View key={m.userId} style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 10,
+                  borderBottomWidth: 0.5,
+                  borderColor: colors.border,
+                }}>
+                  {/* Avatar */}
+                  <View style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                    marginRight: 12,
+                  }}>
+                    {circleMember?.user?.image ? (
+                      <Image source={{ uri: circleMember.user.image }} style={{ width: "100%", height: "100%" }} />
+                    ) : (
+                      <View style={{
+                        width: "100%",
+                        height: "100%",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: themeColor + "20",
+                      }}>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: themeColor }}>
+                          {m.name?.[0] ?? "?"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* Name */}
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: "500", color: colors.text }}>
+                    {m.name}
+                  </Text>
+                  {/* Status pill */}
+                  <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    gap: 4,
+                  }}>
+                    <Text style={{ fontSize: 12 }}>{statusEmoji}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textSecondary }}>{statusLabel}</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <View style={{ paddingVertical: 24, alignItems: "center" }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>
+                Member breakdown coming next
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </BottomSheet>
 
       {/* Group Settings (uses shared BottomSheet) */}
       <BottomSheet

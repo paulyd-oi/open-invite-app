@@ -33,4 +33,7 @@ export const circleKeys = {
 
   // Unread count
   unreadCount: () => ["circles", "unreadCount"] as const,
+
+  // Availability summary for a circle
+  availabilitySummary: (id: string) => ["circles", "availabilitySummary", id] as const,
 } as const;
