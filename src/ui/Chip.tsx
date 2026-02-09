@@ -8,7 +8,8 @@
  *   • status  → chipStatusBg, chipStatusText (override via `color` prop)
  *
  * When `color` is provided on status variant, bg = color+20, text = color.
- * When `onPress` is provided, renders as Pressable; otherwise plain View.
+ * When `onPress` is provided, renders as Pressable with opacity press feedback;
+ * otherwise plain View.
  * Uses ThemeContext tokens exclusively. No inline hex values.
  */
 import React from "react";
@@ -98,7 +99,11 @@ export function Chip({
     return (
       <Pressable
         onPress={onPress}
-        style={[containerStyle, style]}
+        style={(state) => [
+          containerStyle,
+          { opacity: state.pressed ? 0.7 : 1 },
+          style,
+        ]}
         accessibilityRole="button"
         accessibilityLabel={label}
       >
