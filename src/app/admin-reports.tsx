@@ -18,6 +18,9 @@ import { checkAdminStatus, listReports, type AdminReport } from "@/lib/adminApi"
 import { devLog } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,12 +62,17 @@ export default function AdminReportsInbox() {
   const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<"open" | "resolved">("open");
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const authed = isAuthedForNetwork(bootStatus, session);
+  if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="adminStatus" blocked — not authed');
 
   // Admin gate
   const { data: adminStatus, isLoading: adminLoading } = useQuery({
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
     retry: false,
+    enabled: authed,
   });
 
   // Reports list

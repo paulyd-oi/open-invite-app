@@ -145,6 +145,10 @@ function ReferralCounterSection({
   const [showReferrerInput, setShowReferrerInput] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const authed = isAuthedForNetwork(bootStatus, session);
+  if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="referralStats" blocked — not authed');
 
   const { data: referralStats, isLoading } = useQuery({
     queryKey: ["referralStats"],
@@ -156,6 +160,7 @@ function ReferralCounterSection({
       hasReferrer: boolean;
       nextReward: { type: string; remaining: number } | null;
     }>("/api/referral/stats"),
+    enabled: authed,
   });
 
   const handleCopyCode = async () => {

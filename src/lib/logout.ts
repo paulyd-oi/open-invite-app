@@ -55,6 +55,7 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
   // DEV-only canonical log (single source of truth)
   if (__DEV__) {
     devLog(`[LOGOUT_SSOT] start screen=${screen} reason=${reason}`);
+    devLog(`[P12_NAV_INVAR] action="to_login" reason="${reason}" from="${screen}"`);
   }
 
   // Idempotent guard - safe to call multiple times

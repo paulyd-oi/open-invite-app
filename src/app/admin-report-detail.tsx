@@ -33,6 +33,9 @@ import {
 } from "@/lib/adminApi";
 import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,12 +76,17 @@ export default function AdminReportDetail() {
   const { isDark, colors, themeColor } = useTheme();
   const queryClient = useQueryClient();
   const [resolving, setResolving] = useState(false);
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const authed = isAuthedForNetwork(bootStatus, session);
+  if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="adminStatus" blocked — not authed');
 
   // Admin gate
   const { data: adminStatus, isLoading: adminLoading } = useQuery({
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
     retry: false,
+    enabled: authed,
   });
 
   // Report detail

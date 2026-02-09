@@ -48,6 +48,9 @@ import {
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 
 // Types for calendar import
 interface ImportedCalendarEvent {
@@ -138,12 +141,17 @@ export default function ImportCalendarScreen() {
   // Track previous permission status to avoid re-rendering loops
   const prevPermissionStatusRef = useRef<string | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const authed = isAuthedForNetwork(bootStatus, session);
+  if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="imported-events" blocked — not authed');
 
   // Fetch imported events from backend
   const { data: importedEventsData, refetch: refetchImported } = useQuery({
     queryKey: ["imported-events"],
     queryFn: () => api.get<GetImportedEventsResponse>("/api/events/imported"),
     staleTime: 30000,
+    enabled: authed,
   });
 
   // Import events mutation

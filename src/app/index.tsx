@@ -13,6 +13,7 @@
 import { Redirect } from "expo-router";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { BootLoading } from "@/components/BootLoading";
+import { devLog } from "@/lib/devLog";
 
 export default function Index() {
   const { status: bootStatus } = useBootAuthority();
@@ -24,9 +25,11 @@ export default function Index() {
   
   // Authed users go to calendar
   if (bootStatus === 'authed') {
+    if (__DEV__) devLog('[P12_NAV_INVAR] action="to_app" reason="boot_authed" to="/calendar"');
     return <Redirect href="/calendar" />;
   }
   
   // All other states (loggedOut, onboarding, error, degraded) → welcome
+  if (__DEV__) devLog(`[P12_NAV_INVAR] action="to_welcome" reason="boot_${bootStatus}" to="/welcome"`);
   return <Redirect href="/welcome" />;
 }
