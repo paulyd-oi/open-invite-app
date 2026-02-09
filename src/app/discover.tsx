@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback } from "react";
+import React, { useMemo, useRef, useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
   Clock,
   TrendingUp,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -53,6 +55,9 @@ interface PopularEvent {
     user: { id: string; name: string | null; image: string | null };
   }>;
 }
+
+/** Max cards rendered per section on Discover (scale-safety invariant). */
+const PREVIEW_LIMIT = 3;
 
 export default function DiscoverScreen() {
   const { data: session } = useSession();
@@ -109,31 +114,53 @@ export default function DiscoverScreen() {
       });
   }, [feedData?.events, myEventsData?.events]);
 
-  // ── Section A: Friends Joining (events with 2+ attendees, sorted by attendeeCount desc → recency) ──
-  const friendsJoining = useMemo(() => {
+  // ── Section A: Traction (events with 2+ attendees, sorted by attendeeCount desc → recency) ──
+  const tractionAll = useMemo(() => {
     return [...enrichedEvents]
       .filter((e) => e.attendeeCount >= 2)
-      .sort((a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-      .slice(0, 3);
+      .sort((a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [enrichedEvents]);
+  const friendsJoining = useMemo(() => tractionAll.slice(0, PREVIEW_LIMIT), [tractionAll]);
 
   // ── Section B: Trending (highest attendeeCount, exclude Section A picks) ──
-  const trending = useMemo(() => {
-    const usedIds = new Set(friendsJoining.map((e) => e.id));
+  const trendingAll = useMemo(() => {
+    const usedIds = new Set(tractionAll.map((e) => e.id));
     return [...enrichedEvents]
       .filter((e) => !usedIds.has(e.id))
-      .sort((a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
-      .slice(0, 3);
-  }, [enrichedEvents, friendsJoining]);
+      .sort((a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  }, [enrichedEvents, tractionAll]);
+  const trending = useMemo(() => trendingAll.slice(0, PREVIEW_LIMIT), [trendingAll]);
 
   // ── Section C: Recently Created (newest by createdAt, exclude A+B) ──
-  const recentlyCreated = useMemo(() => {
-    const usedIds = new Set([...friendsJoining, ...trending].map((e) => e.id));
+  const recentAll = useMemo(() => {
+    const usedIds = new Set([...tractionAll, ...trendingAll].map((e) => e.id));
     return [...enrichedEvents]
       .filter((e) => !usedIds.has(e.id))
-      .sort((a, b) => new Date(b.createdAt ?? b.startTime).getTime() - new Date(a.createdAt ?? a.startTime).getTime())
-      .slice(0, 3);
-  }, [enrichedEvents, friendsJoining, trending]);
+      .sort((a, b) => new Date(b.createdAt ?? b.startTime).getTime() - new Date(a.createdAt ?? a.startTime).getTime());
+  }, [enrichedEvents, tractionAll, trendingAll]);
+  const recentlyCreated = useMemo(() => recentAll.slice(0, PREVIEW_LIMIT), [recentAll]);
+
+  // Section totals (full counts before PREVIEW_LIMIT)
+  const tractionTotal = tractionAll.length;
+  const trendingTotal = trendingAll.length;
+  const recentTotal = recentAll.length;
+  const totalActive = enrichedEvents.length;
+
+  // ── Collapse state ──
+  const [collapsed, setCollapsed] = useState({ traction: false, trending: false, recent: false });
+  const toggleSection = (key: "traction" | "trending" | "recent") => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (__DEV__) devLog("[DISCOVER_V1_SCALE]", { toggle: true, section: key, collapsed: next[key] });
+      return next;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const handleViewAll = (section: "traction" | "trending" | "recent", total: number) => {
+    if (__DEV__) devLog("[DISCOVER_V1_SCALE]", { viewAll: true, section, total });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push("/social" as any);
+  };
 
   // [DISCOVER_V1] DEV proof log (mount-once)
   const didLog = useRef(false);
@@ -149,6 +176,12 @@ export default function DiscoverScreen() {
       mode: "attendees_proxy",
       field: "attendeeCount",
       reason: "no friend-signal field on event schema",
+    });
+    devLog("[DISCOVER_V1_SCALE]", {
+      tractionTotal,
+      trendingTotal,
+      recentTotal,
+      previewLimit: PREVIEW_LIMIT,
     });
   }
 
@@ -313,97 +346,151 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <>
-            {/* ═══ Section A: Friends Joining ═══ */}
-            <Animated.View entering={FadeInDown.duration(240)} className="mb-2">
-              <View className="flex-row items-center mb-3">
-                <Users size={16} color={themeColor} />
-                <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                  EVENTS GAINING TRACTION
-                </Text>
-              </View>
+            {/* ═══ Pulse Row ═══ */}
+            <Animated.View entering={FadeInDown.duration(200)} className="mb-4">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                {totalActive > 0
+                  ? `This week: ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
+                  : "No events yet \u2014 create one to start the momentum."}
+              </Text>
             </Animated.View>
-            {friendsJoining.length > 0 ? (
-              friendsJoining.map((e, i) => renderEventCard(e, i, 40))
-            ) : (
-              <Animated.View entering={FadeInDown.delay(40).duration(240)} className="mb-4">
-                <View
-                  className="rounded-xl p-5 items-center"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-                >
-                  <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                    No active events yet — invite someone to start planning.
+
+            {/* ═══ Section A: Traction ═══ */}
+            <Animated.View entering={FadeInDown.duration(240)} className="mb-2">
+              <Pressable onPress={() => toggleSection("traction")} className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center flex-1">
+                  <Users size={16} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+                    EVENTS GAINING TRACTION
                   </Text>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/invite");
-                    }}
-                    className="mt-3 px-4 py-2 rounded-full"
-                    style={{ backgroundColor: `${themeColor}15` }}
-                  >
-                    <Text className="text-sm font-medium" style={{ color: themeColor }}>Invite a friend</Text>
-                  </Pressable>
+                  {tractionTotal > 0 && (
+                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({tractionTotal})</Text>
+                  )}
                 </View>
-              </Animated.View>
+                <View className="flex-row items-center">
+                  {tractionTotal > 0 && (
+                    <Pressable onPress={() => handleViewAll("traction", tractionTotal)} hitSlop={8} className="mr-2">
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                    </Pressable>
+                  )}
+                  {collapsed.traction ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                </View>
+              </Pressable>
+            </Animated.View>
+            {!collapsed.traction && (
+              friendsJoining.length > 0 ? (
+                friendsJoining.map((e, i) => renderEventCard(e, i, 40))
+              ) : (
+                <Animated.View entering={FadeInDown.delay(40).duration(240)} className="mb-4">
+                  <View
+                    className="rounded-xl p-5 items-center"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                  >
+                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
+                      No active events yet — invite someone to start planning.
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push("/invite");
+                      }}
+                      className="mt-3 px-4 py-2 rounded-full"
+                      style={{ backgroundColor: `${themeColor}15` }}
+                    >
+                      <Text className="text-sm font-medium" style={{ color: themeColor }}>Invite a friend</Text>
+                    </Pressable>
+                  </View>
+                </Animated.View>
+              )
             )}
 
             {/* ═══ Section B: Trending ═══ */}
             <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-2 mt-2">
-              <View className="flex-row items-center mb-3">
-                <TrendingUp size={16} color={themeColor} />
-                <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                  TRENDING WITH YOUR CIRCLE
-                </Text>
-              </View>
-            </Animated.View>
-            {trending.length > 0 ? (
-              trending.map((e, i) => renderEventCard(e, i, 160))
-            ) : (
-              <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
-                <View
-                  className="rounded-xl p-5 items-center"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-                >
-                  <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                    No trending events yet.
+              <Pressable onPress={() => toggleSection("trending")} className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center flex-1">
+                  <TrendingUp size={16} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+                    TRENDING WITH YOUR CIRCLE
                   </Text>
+                  {trendingTotal > 0 && (
+                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({trendingTotal})</Text>
+                  )}
                 </View>
-              </Animated.View>
+                <View className="flex-row items-center">
+                  {trendingTotal > 0 && (
+                    <Pressable onPress={() => handleViewAll("trending", trendingTotal)} hitSlop={8} className="mr-2">
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                    </Pressable>
+                  )}
+                  {collapsed.trending ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                </View>
+              </Pressable>
+            </Animated.View>
+            {!collapsed.trending && (
+              trending.length > 0 ? (
+                trending.map((e, i) => renderEventCard(e, i, 160))
+              ) : (
+                <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
+                  <View
+                    className="rounded-xl p-5 items-center"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                  >
+                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
+                      No trending events yet.
+                    </Text>
+                  </View>
+                </Animated.View>
+              )
             )}
 
             {/* ═══ Section C: Recently Created ═══ */}
             <Animated.View entering={FadeInDown.delay(240).duration(240)} className="mb-2 mt-2">
-              <View className="flex-row items-center mb-3">
-                <Plus size={16} color={themeColor} />
-                <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                  RECENTLY CREATED
-                </Text>
-              </View>
-            </Animated.View>
-            {recentlyCreated.length > 0 ? (
-              recentlyCreated.map((e, i) => renderEventCard(e, i, 280))
-            ) : (
-              <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-4">
-                <View
-                  className="rounded-xl p-5 items-center"
-                  style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-                >
-                  <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                    No new events — create one to get started.
+              <Pressable onPress={() => toggleSection("recent")} className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center flex-1">
+                  <Plus size={16} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+                    RECENTLY CREATED
                   </Text>
-                  <Pressable
-                    onPress={() => {
-                      if (!guardEmailVerification(session)) return;
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push("/create");
-                    }}
-                    className="mt-3 px-4 py-2 rounded-full"
-                    style={{ backgroundColor: `${themeColor}15` }}
-                  >
-                    <Text className="text-sm font-medium" style={{ color: themeColor }}>Create event</Text>
-                  </Pressable>
+                  {recentTotal > 0 && (
+                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({recentTotal})</Text>
+                  )}
                 </View>
-              </Animated.View>
+                <View className="flex-row items-center">
+                  {recentTotal > 0 && (
+                    <Pressable onPress={() => handleViewAll("recent", recentTotal)} hitSlop={8} className="mr-2">
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                    </Pressable>
+                  )}
+                  {collapsed.recent ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                </View>
+              </Pressable>
+            </Animated.View>
+            {!collapsed.recent && (
+              recentlyCreated.length > 0 ? (
+                recentlyCreated.map((e, i) => renderEventCard(e, i, 280))
+              ) : (
+                <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-4">
+                  <View
+                    className="rounded-xl p-5 items-center"
+                    style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                  >
+                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
+                      No new events — create one to get started.
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push("/create");
+                      }}
+                      className="mt-3 px-4 py-2 rounded-full"
+                      style={{ backgroundColor: `${themeColor}15` }}
+                    >
+                      <Text className="text-sm font-medium" style={{ color: themeColor }}>Create event</Text>
+                    </Pressable>
+                  </View>
+                </Animated.View>
+              )
             )}
           </>
         )}
