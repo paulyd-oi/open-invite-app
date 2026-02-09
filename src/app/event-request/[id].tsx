@@ -245,7 +245,7 @@ export default function EventRequestDetailScreen() {
             Proposed event not found or you don't have access
           </Text>
           <Button
-            variant="primary"
+            variant="secondary"
             label="Go Back"
             onPress={() => router.back()}
             style={{ marginTop: 16 }}
@@ -580,13 +580,13 @@ export default function EventRequestDetailScreen() {
             )}
 
             <Button
-              variant="ghost"
+              variant="destructive"
               label={cancelMutation.isPending ? "Cancelling..." : "Cancel Proposed Event"}
               onPress={handleCancel}
               disabled={cancelMutation.isPending}
               loading={cancelMutation.isPending}
-              leftIcon={!cancelMutation.isPending ? <Trash2 size={20} color="#EF4444" /> : undefined}
-              style={{ backgroundColor: "#EF444420", borderRadius: 12 }}
+              leftIcon={!cancelMutation.isPending ? <Trash2 size={20} color="#fff" /> : undefined}
+              style={{ borderRadius: 12 }}
             />
           </Animated.View>
         )}
@@ -611,12 +611,12 @@ export default function EventRequestDetailScreen() {
 
           <View className="flex-row gap-3">
             <Button
-              variant="ghost"
+              variant="destructive"
               label="Decline"
               onPress={handleDecline}
               disabled={respondMutation.isPending}
-              leftIcon={<X size={20} color="#EF4444" />}
-              style={{ flex: 1, backgroundColor: "#EF444420", borderRadius: 12 }}
+              leftIcon={<X size={20} color="#fff" />}
+              style={{ flex: 1, borderRadius: 12 }}
             />
             <Button
               variant="success"
@@ -820,11 +820,11 @@ export default function EventRequestDetailScreen() {
             />
 
             <Button
-              variant="ghost"
+              variant="destructive"
               label="Decline"
               onPress={handleConfirmDecline}
-              leftIcon={<X size={20} color="#EF4444" />}
-              style={{ marginBottom: 12, backgroundColor: "#EF444420", borderRadius: 12 }}
+              leftIcon={<X size={20} color="#fff" />}
+              style={{ marginBottom: 12, borderRadius: 12 }}
             />
 
             <Button

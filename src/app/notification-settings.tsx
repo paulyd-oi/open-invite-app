@@ -479,7 +479,7 @@ export default function NotificationSettingsScreen() {
           Unable to load preferences
         </Text>
         <Button
-          variant="primary"
+          variant="secondary"
           label="Go Back"
           onPress={() => router.back()}
           style={{ marginTop: 16, borderRadius: 12 }}
@@ -568,7 +568,7 @@ export default function NotificationSettingsScreen() {
             {/* P0 INVARIANT: Show clear "Enable in Settings" CTA when OS permission is denied */}
             {osPermissionStatus === "denied" && (
               <Button
-                variant="ghost"
+                variant="secondary"
                 label="Enable in Settings"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -576,7 +576,7 @@ export default function NotificationSettingsScreen() {
                 }}
                 leftIcon={<Settings size={16} color={themeColor} />}
                 size="sm"
-                style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 12, backgroundColor: `${themeColor}15` }}
+                style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 12 }}
               />
             )}
           </View>

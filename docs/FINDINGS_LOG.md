@@ -1,5 +1,35 @@
 # Findings Log — Frontend
 
+## P8 CTA + Navigation Hierarchy Audit
+
+### Audit Scope
+- Swept all ~77 Button usages across screens and components for variant/intent alignment.
+- Checked every screen for dual-primary CTA conflicts and destructive-as-non-destructive violations.
+
+### Fixes Applied (7 total)
+- SEVERITY 1 (destructive intent as ghost):
+  - event-request/[id].tsx "Cancel Proposed Event": ghost -> destructive (irreversible cancel)
+  - event-request/[id].tsx "Decline" (response buttons): ghost -> destructive (risk action)
+  - event-request/[id].tsx "Decline" (modal): ghost -> destructive (risk action)
+- SEVERITY 2 (navigation as primary):
+  - event-request/[id].tsx "Go Back": primary -> secondary (navigation intent)
+  - notification-settings.tsx "Go Back": primary -> secondary (navigation intent)
+  - admin-reports.tsx "Go Back": primary -> secondary (navigation intent)
+  - notification-settings.tsx "Enable in Settings": ghost -> secondary (P0 invariant: "clear CTA")
+
+### Intentional Exceptions (documented, no fix)
+- social.tsx "Create an Invite" ghost: 3-tier hierarchy below primary "Invite a friend" (guidance-conditional)
+- calendar.tsx "Create an Invite" ghost: side-by-side explorer pair with "Who's Free?" ghost
+- calendar.tsx "Who's Free?" ghost: exploration/browse action
+- event-request/[id].tsx "Cancel" ghost in decline modal: dismiss action (closes modal)
+- profile.tsx "Start something" / "View calendar" ghost: low-emphasis nudge inside card
+- circle/[id].tsx "Dismiss" secondary: intentional affordance in compact banner beside primary
+- settings.tsx "Got it" primary in info modal: single-CTA modal affordance, unmistakable tap target
+- user/[id].tsx "Decline" secondary for friend requests: reversible action, softer than destructive
+
+### Dual-Primary Check
+- Zero screens have competing primary CTAs. All primary pairs are either mutually exclusive states or proper primary+secondary pairings.
+
 ## P2 Button/Chip SSOT Sweep (full-codebase)
 
 ### Sweep Scope

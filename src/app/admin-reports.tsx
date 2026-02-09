@@ -104,7 +104,7 @@ export default function AdminReportsInbox() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Shield size={40} color={colors.textTertiary} />
           <Text style={{ color: colors.text, fontSize: 18, fontWeight: "600", marginTop: 16 }}>Admin access required</Text>
-          <Button variant="primary" label="Go Back" onPress={() => router.back()} style={{ marginTop: 24, borderRadius: 12 }} />
+          <Button variant="secondary" label="Go Back" onPress={() => router.back()} style={{ marginTop: 24, borderRadius: 12 }} />
         </View>
       </SafeAreaView>
     );

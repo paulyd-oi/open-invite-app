@@ -1,7 +1,8 @@
 # State of the App — Frontend
 
 ## Stable
-- UI Primitives SSOT: src/ui/Button.tsx (primary/secondary/ghost), src/ui/Chip.tsx (neutral/muted/accent/status), src/ui/Tile.tsx (standard/accent). All consume ThemeContext tokens exclusively. P2 sweep completed: 87 Button / 14 Chip instances across 26/7 files respectively. Remaining Pressable patterns are intentional exceptions (icon-only, destructive red, green accept, modal backdrops, nav rows, animated wrappers, class components).
+- UI Primitives SSOT: src/ui/Button.tsx (primary/secondary/ghost/destructive/success), src/ui/Chip.tsx (neutral/muted/accent/status), src/ui/IconButton.tsx (ghost/filled), src/ui/Tile.tsx (standard/accent). All consume ThemeContext tokens exclusively. Layout tokens in src/ui/layout.ts (SPACING, RADIUS, hitSlop). P8 CTA hierarchy audit completed: all destructive actions use destructive variant, navigation actions use secondary, no dual-primary conflicts.
+- CTA hierarchy contract: primary/success = intent actions (Create, Submit, Accept), secondary = support/navigation (Back, View, Edit), ghost = low-emphasis (Dismiss, Explore), destructive = risk (Delete, Block, Cancel Event, Decline). 8 intentional exceptions documented in FINDINGS_LOG.md.
 - Theme tokens: DARK_COLORS + LIGHT_COLORS include button* (15 tokens) and chip* (9 tokens) semantic tokens alongside surface/divider hierarchy.
 - Push notification tap deep-linking: BOTH cold start AND background taps now route deterministically via resolveNotificationRoute() SSOT
 - Push tap cold start handling: getLastNotificationResponseAsync() called on mount, routes with router.replace() to avoid stack duplication
