@@ -91,6 +91,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_REACTIONS]",
   // P2 chat reply overlay shell
   "[P2_CHAT_REPLY]",
+  // P2 chat edit/delete shell
+  "[P2_CHAT_EDITDEL]",
 ];
 
 /**

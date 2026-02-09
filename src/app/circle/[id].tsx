@@ -815,6 +815,8 @@ function MessageBubble({
   showTimestamp,
   reactions,
   replyMeta,
+  editedContent,
+  isDeleted,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -828,6 +830,8 @@ function MessageBubble({
   showTimestamp?: boolean;
   reactions?: string[];
   replyMeta?: ReplyMeta;
+  editedContent?: string;
+  isDeleted?: boolean;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
@@ -897,17 +901,23 @@ function MessageBubble({
               opacity: isSending ? 0.7 : isFailed ? 0.5 : /* isSent */ 1,
             }}
           >
-            {replyMeta && (
-              <View style={{ marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: isOwn ? "rgba(255,255,255,0.25)" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") }}>
-                <Text style={{ fontSize: 12, fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.8)" : colors.textSecondary }} numberOfLines={1}>
-                  ↩︎ {replyMeta.replyToName}: {replyMeta.replyToSnippet}
-                </Text>
-              </View>
+            {isDeleted ? (
+              <Text style={{ fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.5)" : colors.textTertiary }}>Message deleted</Text>
+            ) : (
+              <>
+                {replyMeta && (
+                  <View style={{ marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: isOwn ? "rgba(255,255,255,0.25)" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") }}>
+                    <Text style={{ fontSize: 12, fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.8)" : colors.textSecondary }} numberOfLines={1}>
+                      ↩︎ {replyMeta.replyToName}: {replyMeta.replyToSnippet}
+                    </Text>
+                  </View>
+                )}
+                <Text style={{ color: isOwn ? "#fff" : colors.text }}>{editedContent ?? message.content}</Text>
+              </>
             )}
-            <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
           </View>
           {/* [P2_CHAT_REACTIONS] Reaction chips */}
-          {reactions && reactions.length > 0 && (
+          {!isDeleted && reactions && reactions.length > 0 && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 2, ...(isOwn ? { justifyContent: "flex-end", marginRight: 2 } : { marginLeft: 2 }) }}>
               {reactions.map((emoji) => (
                 <View
@@ -934,6 +944,9 @@ function MessageBubble({
             <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
               {new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
             </Text>
+            {editedContent && !isDeleted && (
+              <Text className="text-[10px] ml-1" style={{ color: colors.textTertiary, fontStyle: "italic" }}>(edited)</Text>
+            )}
             {isSending && !isSent && (
               <Text className="text-[10px] ml-1" style={{ color: colors.textTertiary }}>Sending…</Text>
             )}
@@ -1904,6 +1917,19 @@ export default function CircleScreen() {
     if (__DEV__) devLog("[P2_CHAT_REPLY]", "clear", { reason });
   }, []);
 
+  // [P2_CHAT_EDITDEL] Local-only edit/delete state
+  const [editedContentByStableId, setEditedContentByStableId] = useState<Record<string, { content: string; editedAt: number }>>({});
+  const [deletedStableIds, setDeletedStableIds] = useState<Record<string, true>>({});
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [editDraftContent, setEditDraftContent] = useState("");
+  const editDelLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!editDelLogFiredRef.current && __DEV__) {
+      devLog("[P2_CHAT_EDITDEL]", "mounted");
+      editDelLogFiredRef.current = true;
+    }
+  }, []);
+
   // [P1_CHAT_GROUP] One-time mount log
   const groupLogFired = useRef(false);
   useEffect(() => {
@@ -2210,15 +2236,21 @@ export default function CircleScreen() {
 
             const handleLongPress = () => {
               if (!item.content || item.content.startsWith("📅")) return;
+              const isOwnMsg = item.userId === currentUserId;
+              const isDeletedMsg = !!deletedStableIds[item.id ?? (item as any).clientMessageId];
+              // Guard: no actions on deleted messages except Copy
+              if (isDeletedMsg) return;
               if (__DEV__) devLog("[P1_MSG_ACTIONS]", "open_actions", { id: item.id, status: (item as any).status });
 
               if (Platform.OS === "ios") {
                 const options = ["Reply", "Add Reaction", "Copy Text"];
+                if (isOwnMsg && !isFailedOptimistic) { options.push("Edit Message"); options.push("Delete Message"); }
                 if (isFailedOptimistic && (item as any).clientMessageId) options.push("Retry Send");
                 if (isFailedOptimistic) options.push("Remove Failed Message");
                 options.push("Cancel");
+                const destructiveIdx = Math.max(options.indexOf("Remove Failed Message"), options.indexOf("Delete Message"));
                 ActionSheetIOS.showActionSheetWithOptions(
-                  { options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.indexOf("Remove Failed Message") },
+                  { options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: destructiveIdx },
                   (idx) => {
                     const picked = options[idx];
                     if (picked === "Reply") {
@@ -2233,6 +2265,22 @@ export default function CircleScreen() {
                       setReactionTargetId(stableId);
                     }
                     else if (picked === "Copy Text") handleCopy();
+                    else if (picked === "Edit Message") {
+                      const existing = editedContentByStableId[stableId];
+                      setEditDraftContent(existing?.content ?? item.content);
+                      setEditTargetId(stableId);
+                      if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "edit_open", { messageId: stableId });
+                    }
+                    else if (picked === "Delete Message") {
+                      if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "delete_confirm", { messageId: stableId });
+                      Alert.alert("Delete Message", "This message will be removed from your view.", [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => {
+                          setDeletedStableIds((prev) => ({ ...prev, [stableId]: true }));
+                          if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "delete_apply", { messageId: stableId });
+                        }},
+                      ]);
+                    }
                     else if (picked === "Retry Send") handleRetry();
                     else if (picked === "Remove Failed Message") handleRemove();
                   },
@@ -2254,6 +2302,24 @@ export default function CircleScreen() {
                   }},
                   { text: "Copy Text", onPress: handleCopy },
                 ];
+                if (isOwnMsg && !isFailedOptimistic) {
+                  buttons.push({ text: "Edit Message", onPress: () => {
+                    const existing = editedContentByStableId[stableId];
+                    setEditDraftContent(existing?.content ?? item.content);
+                    setEditTargetId(stableId);
+                    if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "edit_open", { messageId: stableId });
+                  }});
+                  buttons.push({ text: "Delete Message", style: "destructive", onPress: () => {
+                    if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "delete_confirm", { messageId: stableId });
+                    Alert.alert("Delete Message", "This message will be removed from your view.", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Delete", style: "destructive", onPress: () => {
+                        setDeletedStableIds((prev) => ({ ...prev, [stableId]: true }));
+                        if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "delete_apply", { messageId: stableId });
+                      }},
+                    ]);
+                  }});
+                }
                 if (isFailedOptimistic && (item as any).clientMessageId) {
                   buttons.push({ text: "Retry Send", onPress: handleRetry });
                 }
@@ -2315,6 +2381,8 @@ export default function CircleScreen() {
                 onLongPress={handleLongPress}
                 reactions={stableId ? reactionsByStableId[stableId] : undefined}
                 replyMeta={stableId ? replyByStableId[stableId] : undefined}
+                editedContent={stableId ? editedContentByStableId[stableId]?.content : undefined}
+                isDeleted={stableId ? !!deletedStableIds[stableId] : false}
               />
               </>
             );
@@ -3462,6 +3530,77 @@ export default function CircleScreen() {
         context={paywallContext}
         onClose={() => setShowPaywallModal(false)}
       />
+
+      {/* [P2_CHAT_EDITDEL] Edit message overlay */}
+      {editTargetId !== null && (
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onPress={() => { setEditTargetId(null); setEditDraftContent(""); }}
+        >
+          <Pressable
+            style={{
+              width: "85%",
+              backgroundColor: isDark ? "#2c2c2e" : "#ffffff",
+              borderRadius: 16,
+              padding: 20,
+              shadowColor: "#000",
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 8,
+            }}
+            onPress={() => {}}
+          >
+            <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, marginBottom: 12 }}>Edit message</Text>
+            <TextInput
+              value={editDraftContent}
+              onChangeText={setEditDraftContent}
+              multiline
+              style={{
+                color: colors.text,
+                fontSize: 16,
+                backgroundColor: isDark ? "#1c1c1e" : "#f3f4f6",
+                borderRadius: 10,
+                padding: 12,
+                minHeight: 60,
+                maxHeight: 160,
+                textAlignVertical: "top",
+              }}
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 16, gap: 12 }}>
+              <Pressable
+                onPress={() => { setEditTargetId(null); setEditDraftContent(""); }}
+                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: "500" }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const trimmed = editDraftContent.trim();
+                  if (!trimmed) {
+                    safeToast.error("Error", "Message cannot be empty");
+                    return;
+                  }
+                  setEditedContentByStableId((prev) => ({ ...prev, [editTargetId]: { content: trimmed, editedAt: Date.now() } }));
+                  if (__DEV__) devLog("[P2_CHAT_EDITDEL]", "edit_save", { messageId: editTargetId });
+                  setEditTargetId(null);
+                  setEditDraftContent("");
+                }}
+                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, backgroundColor: themeColor }}
+              >
+                <Text style={{ color: "#fff", fontSize: 15, fontWeight: "600" }}>Save</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      )}
 
       {/* [P2_CHAT_REACTIONS] Emoji reaction picker overlay */}
       {reactionTargetId !== null && (
