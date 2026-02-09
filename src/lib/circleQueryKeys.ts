@@ -39,4 +39,7 @@ export const circleKeys = {
 
   // Plan lock state for a circle
   planLock: (id: string) => ["circles", "planLock", id] as const,
+
+  // Polls for a circle
+  polls: (id: string) => ["circles", "polls", id] as const,
 } as const;

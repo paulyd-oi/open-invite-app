@@ -1955,6 +1955,84 @@ export default function CircleScreen() {
     },
   });
 
+  // [P1_POLL_UI] Poll query — graceful 404 fallback
+  const [showPollSheet, setShowPollSheet] = useState(false);
+  const [activePollIdx, setActivePollIdx] = useState(0);
+  const { data: pollsRaw } = useQuery({
+    queryKey: circleKeys.polls(id!),
+    queryFn: async () => {
+      try {
+        return await api.get<{
+          polls: Array<{
+            id: string;
+            question: string;
+            options: Array<{ id: string; label: string; count: number; votedByMe: boolean }>;
+          }>;
+        }>(`/api/circles/${id}/polls`);
+      } catch (e: any) {
+        if (__DEV__) devLog("[P1_POLL_UI]", "hidden_nonok", { status: e?.status ?? "unknown" });
+        return null;
+      }
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const polls = pollsRaw?.polls ?? null;
+  const pollLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!pollLogFiredRef.current && __DEV__) {
+      devLog("[P1_POLL_UI]", "mount");
+      pollLogFiredRef.current = true;
+    }
+  }, []);
+  useEffect(() => {
+    if (__DEV__ && polls && polls.length > 0) {
+      devLog("[P1_POLL_UI]", "refresh", { count: polls.length });
+    }
+  }, [polls]);
+
+  // [P1_POLL_UI] Vote mutation with optimistic update
+  const voteMutation = useMutation({
+    mutationFn: async ({ pollId, optionId }: { pollId: string; optionId: string }) => {
+      return api.post(`/api/circles/${id}/polls/${pollId}/vote`, { optionId });
+    },
+    onMutate: async ({ pollId, optionId }) => {
+      await queryClient.cancelQueries({ queryKey: circleKeys.polls(id!) });
+      const prev = queryClient.getQueryData(circleKeys.polls(id!));
+      queryClient.setQueryData(circleKeys.polls(id!), (old: any) => {
+        if (!old?.polls) return old;
+        return {
+          ...old,
+          polls: old.polls.map((p: any) => {
+            if (p.id !== pollId) return p;
+            return {
+              ...p,
+              options: p.options.map((o: any) => {
+                const wasVoted = o.votedByMe;
+                const isTarget = o.id === optionId;
+                if (isTarget) return { ...o, votedByMe: true, count: wasVoted ? o.count : o.count + 1 };
+                if (wasVoted) return { ...o, votedByMe: false, count: Math.max(0, o.count - 1) };
+                return o;
+              }),
+            };
+          }),
+        };
+      });
+      if (__DEV__) devLog("[P1_POLL_UI]", "vote", { pollId, optionId });
+      return { prev };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!), refetchType: "inactive" });
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(circleKeys.polls(id!), context.prev);
+      }
+      safeToast.error("Error", "Could not submit vote");
+    },
+  });
+
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
   const latestFailed = useMemo(() => {
@@ -2346,6 +2424,54 @@ export default function CircleScreen() {
             </Animated.View>
           );
         })()}
+
+        {/* [P1_POLL_UI] Poll Strip */}
+        {polls && polls.length > 0 && polls.map((poll, pIdx) => (
+          <Pressable
+            key={poll.id}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActivePollIdx(pIdx);
+              setShowPollSheet(true);
+            }}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {poll.options.map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Haptics.selectionAsync();
+                    voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
+                    backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
+                    gap: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        ))}
 
         {/* [P1_PLAN_LOCK_UI] Plan Lock Strip */}
         {planLock?.locked && (
@@ -3325,6 +3451,67 @@ export default function CircleScreen() {
             </Text>
           </Pressable>
         </View>
+      </BottomSheet>
+
+      {/* [P1_POLL_UI] Poll Detail Sheet */}
+      <BottomSheet
+        visible={showPollSheet}
+        onClose={() => setShowPollSheet(false)}
+        heightPct={0}
+        maxHeightPct={0.6}
+        backdropOpacity={0.5}
+        title={polls?.[activePollIdx]?.question ?? "Poll"}
+      >
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {polls?.[activePollIdx]?.options.map((opt) => {
+            const isVoted = opt.votedByMe;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  voteMutation.mutate({ pollId: polls[activePollIdx].id, optionId: opt.id });
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  marginBottom: 8,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: isVoted ? themeColor : colors.border,
+                  backgroundColor: isVoted ? (themeColor + "12") : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 10 }}>
+                  <View style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    borderWidth: 2,
+                    borderColor: isVoted ? themeColor : colors.textTertiary,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isVoted ? themeColor : "transparent",
+                  }}>
+                    {isVoted && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
+                  </View>
+                  <Text style={{ fontSize: 15, fontWeight: isVoted ? "600" : "400", color: colors.text, flex: 1 }}>{opt.label}</Text>
+                </View>
+                <View style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 3,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: isVoted ? themeColor : colors.textSecondary }}>{opt.count}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </BottomSheet>
 
       {/* Group Settings (uses shared BottomSheet) */}
