@@ -58,6 +58,7 @@ import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
+import { RADIUS } from "@/ui/layout";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
@@ -1075,7 +1076,7 @@ export default function OnboardingScreen() {
                   disabled={contactsLoading}
                   loading={contactsLoading}
                   leftIcon={!contactsLoading ? <Contact size={20} color="#fff" /> : undefined}
-                  style={{ backgroundColor: "#3B82F6", width: "100%", borderRadius: 12 }}
+                  style={{ backgroundColor: "#3B82F6", width: "100%", borderRadius: RADIUS.md }}
                 />
                 <Pressable onPress={goToNext} className="mt-4">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Skip for now</Text>
@@ -1608,7 +1609,7 @@ export default function OnboardingScreen() {
                 disabled={isSharing}
                 loading={isSharing}
                 leftIcon={!isSharing ? <Share2 size={18} color="#fff" /> : undefined}
-                style={{ backgroundColor: currentStep.iconBg, marginBottom: 12, borderRadius: 12 }}
+                style={{ backgroundColor: currentStep.iconBg, marginBottom: 12, borderRadius: RADIUS.md }}
               />
             )}
 
@@ -1619,7 +1620,7 @@ export default function OnboardingScreen() {
                   variant="secondary"
                   label="Back"
                   onPress={goToPrev}
-                  style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: 12 }}
+                  style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: RADIUS.md }}
                 />
               )}
               {/* Special handling for contacts step with selected contacts */}
@@ -1633,7 +1634,7 @@ export default function OnboardingScreen() {
                   style={{
                     backgroundColor: currentStep.iconBg,
                     flex: currentIndex === 0 ? 1 : 2,
-                    borderRadius: 12,
+                    borderRadius: RADIUS.md,
                   }}
                 />
               ) : (
@@ -1645,7 +1646,7 @@ export default function OnboardingScreen() {
                   style={{
                     backgroundColor: currentStep.iconBg,
                     flex: currentIndex === 0 ? 1 : 2,
-                    borderRadius: 12,
+                    borderRadius: RADIUS.md,
                   }}
                 />
               )}

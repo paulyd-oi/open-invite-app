@@ -65,6 +65,7 @@ import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
+import { RADIUS } from "@/ui/layout";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
@@ -3111,7 +3112,7 @@ export default function EventDetailScreen() {
                 onPress={submitEventReport}
                 disabled={!selectedReportReason || isSubmittingReport}
                 loading={isSubmittingReport}
-                style={{ flex: 1, borderRadius: 12 }}
+                style={{ flex: 1, borderRadius: RADIUS.md }}
               />
             </View>
           </Pressable>
@@ -3132,7 +3133,7 @@ export default function EventDetailScreen() {
             <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
               Who's Coming
             </Text>
-            <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 8 }}>
+            <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.md, marginLeft: 8 }}>
               <Text style={{ color: "#166534", fontSize: 12, fontWeight: "700" }}>
                 {effectiveGoingCount}
               </Text>
@@ -3325,7 +3326,7 @@ export default function EventDetailScreen() {
                         safeToast.error("Error", "Failed to reset color");
                       }
                     }}
-                    style={{ borderRadius: 12 }}
+                    style={{ borderRadius: RADIUS.md }}
                   />
                 </View>
               )}
@@ -3336,7 +3337,7 @@ export default function EventDetailScreen() {
                   variant="primary"
                   label="Done"
                   onPress={() => setShowColorPicker(false)}
-                  style={{ borderRadius: 12, paddingVertical: 14 }}
+                  style={{ borderRadius: RADIUS.md, paddingVertical: 14 }}
                 />
               </View>
       </BottomSheet>

@@ -20,6 +20,7 @@ import {
   type StyleProp,
 } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
+import { SPACING, RADIUS } from "./layout";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "destructive" | "success";
@@ -49,8 +50,8 @@ export function Button({
 
   const isDisabled = disabled || loading;
 
-  const paddingH = size === "sm" ? 12 : 16;
-  const paddingV = size === "sm" ? 6 : 10;
+  const paddingH = size === "sm" ? SPACING.xl : SPACING.xxl;
+  const paddingV = size === "sm" ? SPACING.sm : SPACING.lg;
   const fontSize = size === "sm" ? 13 : 15;
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
@@ -60,7 +61,7 @@ export function Button({
       justifyContent: "center",
       paddingHorizontal: paddingH,
       paddingVertical: paddingV,
-      borderRadius: 9999,
+      borderRadius: RADIUS.pill,
     };
 
     if (variant === "primary") {

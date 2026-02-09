@@ -61,6 +61,7 @@ import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/ui/Button";
+import { RADIUS } from "@/ui/layout";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -3401,7 +3402,7 @@ export default function CircleScreen() {
                   variant="primary"
                   label="Got it!"
                   onPress={() => setShowFriendSuggestionModal(false)}
-                  style={{ flex: 1, borderRadius: 12 }}
+                  style={{ flex: 1, borderRadius: RADIUS.md }}
                 />
               </View>
             </Animated.View>
@@ -3574,7 +3575,7 @@ export default function CircleScreen() {
             }}
             disabled={planLockMutation.isPending}
             loading={planLockMutation.isPending}
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: RADIUS.md }}
           />
 
           {/* [P1_LOCK_POLISH] Host-only unlock */}
@@ -3719,7 +3720,7 @@ export default function CircleScreen() {
                     safeToast.error("Error", "Failed to lock plan");
                   }
                 }}
-                style={{ borderRadius: 12 }}
+                style={{ borderRadius: RADIUS.md }}
               />
             </View>
           );

@@ -11,6 +11,7 @@
 import React from "react";
 import { Pressable, type ViewStyle, type StyleProp } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
+import { hitSlop as computeHitSlop } from "./layout";
 
 export interface IconButtonProps {
   icon: React.ReactNode;
@@ -37,7 +38,7 @@ export function IconButton({
   const { colors } = useTheme();
 
   const dim = size === "sm" ? 32 : 40;
-  const hitPad = Math.max(0, (44 - dim) / 2);
+  const hitPad = computeHitSlop(dim);
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const base: ViewStyle = {
@@ -70,7 +71,7 @@ export function IconButton({
       onPress={onPress}
       disabled={disabled}
       testID={testID}
-      hitSlop={{ top: hitPad, bottom: hitPad, left: hitPad, right: hitPad }}
+      hitSlop={hitPad}
       style={(state) => [getContainerStyle(state.pressed), style]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}

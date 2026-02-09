@@ -20,6 +20,7 @@ import {
   type StyleProp,
 } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
+import { SPACING, RADIUS } from "./layout";
 
 export interface ChipProps {
   variant?: "neutral" | "muted" | "accent" | "status";
@@ -48,8 +49,8 @@ export function Chip({
 }: ChipProps) {
   const { themeColor, colors } = useTheme();
 
-  const paddingH = size === "sm" ? 8 : 12;
-  const paddingV = size === "sm" ? 3 : 6;
+  const paddingH = size === "sm" ? SPACING.md : SPACING.xl;
+  const paddingV = size === "sm" ? 3 : SPACING.sm;
   const fontSize = size === "sm" ? 11 : 13;
 
   const { bg, fg } = (() => {
@@ -72,7 +73,7 @@ export function Chip({
     alignItems: "center",
     paddingHorizontal: paddingH,
     paddingVertical: paddingV,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     backgroundColor: bg,
   };
 

@@ -18,6 +18,7 @@
 import React from "react";
 import { View, type ViewProps, type ViewStyle } from "react-native";
 import { useTheme, TILE_SHADOW, TILE_SHADOW_ACCENT } from "@/lib/ThemeContext";
+import { RADIUS } from "./layout";
 
 /** Faint dark-mode shadow for accent tiles only (depth cue without wash). */
 const DARK_ACCENT_SHADOW = {
@@ -41,7 +42,7 @@ export interface TileProps extends ViewProps {
 export function Tile({
   variant = "standard",
   shadow = true,
-  radius = 16,
+  radius = RADIUS.lg,
   style,
   children,
   ...rest
