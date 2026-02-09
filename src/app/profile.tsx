@@ -486,6 +486,10 @@ export default function ProfileScreen() {
     if (!didMount.current) {
       didMount.current = true;
       if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
+      if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
+      if (__DEV__) devLog("[P3_PROFILE_TYPE]", { headerSpacing: 'letterSpacing:1', margins: 'mb-3 normalized' });
+      if (__DEV__) devLog("[P3_PROFILE_LAYOUT]", { sectionSpacing: 'mb-4 uniform', statLabels: 'textTertiary' });
+      if (__DEV__) devLog("[P3_PROFILE_IDENTITY]", { highlightsLabel: 'YOUR STORY', emptyStateCopy: 'refined' });
     }
   }, []);
 
@@ -526,7 +530,7 @@ export default function ProfileScreen() {
         }
       >
         {/* ═══ Profile Identity Card ═══ */}
-        <Animated.View entering={FadeInDown.springify()}>
+        <Animated.View entering={FadeInDown.duration(240)}>
           <View
             className="rounded-2xl p-5 border mb-4"
             style={{
@@ -643,7 +647,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ What's Next Card ═══ */}
-        <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(40).duration(240)} className="mb-4">
           <View
             className="rounded-2xl p-4 border"
             style={{
@@ -651,7 +655,7 @@ export default function ProfileScreen() {
               borderColor: colors.border,
             }}
           >
-            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary }}>
+            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
               WHAT&apos;S NEXT
             </Text>
 
@@ -733,7 +737,7 @@ export default function ProfileScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold" style={{ color: colors.text }}>
-                    Nothing planned — start something
+                    Your calendar's wide open
                   </Text>
                   <Text className="text-sm" style={{ color: colors.textSecondary }}>
                     Your next hangout is one tap away
@@ -751,7 +755,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Quick Actions ═══ */}
-        <Animated.View entering={FadeInDown.delay(75).springify()} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-4">
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {[
               { label: "Create Event", icon: Plus, color: themeColor, route: "/create" as const },
@@ -766,10 +770,11 @@ export default function ProfileScreen() {
                   router.push(action.route);
                 }}
                 className="flex-row items-center px-4 py-2.5 rounded-full border mr-2"
-                style={{
+                style={({ pressed }) => ({
                   backgroundColor: `${action.color}10`,
                   borderColor: `${action.color}30`,
-                }}
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                })}
               >
                 <action.icon size={16} color={action.color} />
                 <Text className="ml-1.5 text-sm font-medium" style={{ color: action.color }}>
@@ -782,9 +787,9 @@ export default function ProfileScreen() {
 
         {/* ═══ Highlights ═══ */}
         {highlightChips.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(88).springify()} className="mt-1 mb-5">
-            <Text className="text-xs font-semibold mb-2.5" style={{ color: colors.textTertiary }}>
-              HIGHLIGHTS
+          <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
+            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+              YOUR STORY
             </Text>
             <View
               className="rounded-xl px-3 py-3 border"
@@ -816,7 +821,7 @@ export default function ProfileScreen() {
         )}
 
         {/* ═══ Momentum (Streak) ═══ */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
           <StreakCounter
             currentStreak={stats?.currentStreak ?? 0}
             longestStreak={stats?.currentStreak ?? 0}
@@ -825,8 +830,8 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Social Snapshot (2×2 grid) ═══ */}
-        <Animated.View entering={FadeInDown.delay(125).springify()} className="mb-4">
-          <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+        <Animated.View entering={FadeInDown.delay(200).duration(240)} className="mb-4">
+          <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             SOCIAL SNAPSHOT
           </Text>
           <View className="flex-row mb-2">
@@ -845,7 +850,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Users size={16} color="#4ECDC4" />
               </View>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>Friends</Text>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>Friends</Text>
             </Pressable>
             {/* Circles */}
             <Pressable
@@ -862,7 +867,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Layers size={16} color="#F39C12" />
               </View>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>Groups</Text>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>Groups</Text>
             </Pressable>
           </View>
           <View className="flex-row">
@@ -881,7 +886,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Star size={16} color={themeColor} />
               </View>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>Hosted</Text>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>Hosted</Text>
             </Pressable>
             {/* Attended */}
             <View
@@ -894,7 +899,7 @@ export default function ProfileScreen() {
                 </Text>
                 <Heart size={16} color="#4ECDC4" />
               </View>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>Attended</Text>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>Attended</Text>
             </View>
           </View>
         </Animated.View>
@@ -903,12 +908,12 @@ export default function ProfileScreen() {
         {stats?.categoryBreakdown &&
           Object.keys(stats.categoryBreakdown).length > 0 && (
             <Animated.View
-              entering={FadeInDown.delay(150).springify()}
+              entering={FadeInDown.delay(240).duration(240)}
               className="mb-4"
             >
               <Text
-                className="text-xs font-semibold mb-2"
-                style={{ color: colors.textTertiary }}
+                className="text-xs font-semibold mb-3"
+                style={{ color: colors.textTertiary, letterSpacing: 1 }}
               >
                 EVENT TYPES
               </Text>
@@ -948,8 +953,8 @@ export default function ProfileScreen() {
           )}
 
         {/* ═══ Recent Activity ═══ */}
-        <Animated.View entering={FadeInDown.delay(175).springify()} className="mb-4">
-          <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+        <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-4">
+          <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             RECENT ACTIVITY
           </Text>
           <View
