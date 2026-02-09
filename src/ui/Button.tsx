@@ -6,6 +6,7 @@
  *   • secondary   → surfaceElevated bg + border, default text
  *   • ghost       → transparent bg, themeColor text
  *   • destructive → solid red bg, white text
+ *   • success     → solid green bg, white text
  *
  * Uses ThemeContext tokens exclusively. No inline hex values.
  * Pressed state via Pressable style callback.
@@ -21,7 +22,7 @@ import {
 import { useTheme } from "@/lib/ThemeContext";
 
 export interface ButtonProps {
-  variant?: "primary" | "secondary" | "ghost" | "destructive";
+  variant?: "primary" | "secondary" | "ghost" | "destructive" | "success";
   label: string;
   onPress?: () => void;
   disabled?: boolean;
@@ -97,6 +98,17 @@ export function Button({
       };
     }
 
+    if (variant === "success") {
+      return {
+        ...base,
+        backgroundColor: isDisabled
+          ? colors.buttonSuccessDisabledBg
+          : pressed
+          ? colors.buttonSuccessPressedBg
+          : colors.buttonSuccessBg,
+      };
+    }
+
     // ghost
     return {
       ...base,
@@ -117,6 +129,11 @@ export function Button({
       return isDisabled
         ? colors.buttonDestructiveDisabledText
         : colors.buttonDestructiveText;
+    }
+    if (variant === "success") {
+      return isDisabled
+        ? colors.buttonSuccessDisabledText
+        : colors.buttonSuccessText;
     }
     // ghost
     return isDisabled ? colors.buttonGhostDisabledText : themeColor;

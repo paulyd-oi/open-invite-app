@@ -579,17 +579,15 @@ export default function EventRequestDetailScreen() {
               />
             )}
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label={cancelMutation.isPending ? "Cancelling..." : "Cancel Proposed Event"}
               onPress={handleCancel}
               disabled={cancelMutation.isPending}
-              className="flex-row items-center justify-center rounded-xl py-4"
-              style={{ backgroundColor: "#EF444420" }}
-            >
-              <Trash2 size={20} color="#EF4444" />
-              <Text className="font-semibold ml-2" style={{ color: "#EF4444" }}>
-                {cancelMutation.isPending ? "Cancelling..." : "Cancel Proposed Event"}
-              </Text>
-            </Pressable>
+              loading={cancelMutation.isPending}
+              leftIcon={!cancelMutation.isPending ? <Trash2 size={20} color="#EF4444" /> : undefined}
+              style={{ backgroundColor: "#EF444420", borderRadius: 12 }}
+            />
           </Animated.View>
         )}
 
@@ -612,28 +610,22 @@ export default function EventRequestDetailScreen() {
           />
 
           <View className="flex-row gap-3">
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Decline"
               onPress={handleDecline}
               disabled={respondMutation.isPending}
-              className="flex-1 flex-row items-center justify-center rounded-xl py-4"
-              style={{ backgroundColor: "#EF444420" }}
-            >
-              <X size={20} color="#EF4444" />
-              <Text className="font-semibold ml-2" style={{ color: "#EF4444" }}>
-                Decline
-              </Text>
-            </Pressable>
-            <Pressable
+              leftIcon={<X size={20} color="#EF4444" />}
+              style={{ flex: 1, backgroundColor: "#EF444420", borderRadius: 12 }}
+            />
+            <Button
+              variant="success"
+              label={respondMutation.isPending ? "..." : "Accept"}
               onPress={handleAccept}
               disabled={respondMutation.isPending}
-              className="flex-1 flex-row items-center justify-center rounded-xl py-4"
-              style={{ backgroundColor: "#22C55E" }}
-            >
-              <Check size={20} color="#fff" />
-              <Text className="font-semibold text-white ml-2">
-                {respondMutation.isPending ? "..." : "Accept"}
-              </Text>
-            </Pressable>
+              leftIcon={<Check size={20} color="#fff" />}
+              style={{ flex: 1, borderRadius: 12 }}
+            />
           </View>
         </View>
       )}
@@ -827,25 +819,19 @@ export default function EventRequestDetailScreen() {
               style={{ marginBottom: 12, backgroundColor: `${themeColor}15`, borderRadius: 12 }}
             />
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Decline"
               onPress={handleConfirmDecline}
-              className="flex-row items-center justify-center rounded-xl py-4 mb-3"
-              style={{ backgroundColor: "#EF444420" }}
-            >
-              <X size={20} color="#EF4444" />
-              <Text className="font-semibold ml-2" style={{ color: "#EF4444" }}>
-                Decline
-              </Text>
-            </Pressable>
+              leftIcon={<X size={20} color="#EF4444" />}
+              style={{ marginBottom: 12, backgroundColor: "#EF444420", borderRadius: 12 }}
+            />
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Cancel"
               onPress={() => setShowDeclineOptionsModal(false)}
-              className="py-4 items-center"
-            >
-              <Text className="font-medium" style={{ color: colors.textSecondary }}>
-                Cancel
-              </Text>
-            </Pressable>
+            />
           </Pressable>
         </Pressable>
       </Modal>

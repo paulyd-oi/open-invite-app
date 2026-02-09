@@ -736,20 +736,17 @@ export default function UserProfileScreen() {
                             leftIcon={!rejectRequestMutation.isPending ? <X size={18} color={colors.textSecondary} /> : undefined}
                             style={{ marginRight: 12 }}
                           />
-                          <Pressable
+                          <Button
+                            variant="success"
+                            label={acceptRequestMutation.isPending ? "Accepting..." : "Accept"}
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                               acceptRequestMutation.mutate(incomingRequestId);
                             }}
                             disabled={acceptRequestMutation.isPending}
-                            className="flex-row items-center px-5 py-3 rounded-full"
-                            style={{ backgroundColor: "#22C55E" }}
-                          >
-                            <Check size={18} color="#fff" />
-                            <Text className="font-semibold ml-2 text-white">
-                              {acceptRequestMutation.isPending ? "Accepting..." : "Accept"}
-                            </Text>
-                          </Pressable>
+                            loading={acceptRequestMutation.isPending}
+                            leftIcon={!acceptRequestMutation.isPending ? <Check size={18} color="#fff" /> : undefined}
+                          />
                         </View>
                       </View>
                     ) : (
@@ -971,20 +968,18 @@ export default function UserProfileScreen() {
                           leftIcon={!rejectRequestMutation.isPending ? <X size={16} color={colors.textSecondary} /> : undefined}
                           style={{ marginRight: 8 }}
                         />
-                        <Pressable
+                        <Button
+                          variant="success"
+                          size="sm"
+                          label={acceptRequestMutation.isPending ? "..." : "Accept"}
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             acceptRequestMutation.mutate(incomingRequestId);
                           }}
                           disabled={acceptRequestMutation.isPending}
-                          className="flex-row items-center px-4 py-2.5 rounded-full"
-                          style={{ backgroundColor: "#22C55E" }}
-                        >
-                          <Check size={16} color="#fff" />
-                          <Text className="font-medium ml-1.5 text-white">
-                            {acceptRequestMutation.isPending ? "..." : "Accept"}
-                          </Text>
-                        </Pressable>
+                          loading={acceptRequestMutation.isPending}
+                          leftIcon={!acceptRequestMutation.isPending ? <Check size={16} color="#fff" /> : undefined}
+                        />
                       </View>
                     ) : !isFriend && !hasPendingRequest ? (
                       <Button

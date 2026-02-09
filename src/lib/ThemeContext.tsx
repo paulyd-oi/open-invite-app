@@ -61,6 +61,11 @@ export const DARK_COLORS = {
   buttonDestructivePressedBg: "#B91C1C",
   buttonDestructiveDisabledBg: "#2C2C2E",
   buttonDestructiveDisabledText: "#6E6E73",
+  buttonSuccessBg: "#16A34A",
+  buttonSuccessText: "#FFFFFF",
+  buttonSuccessPressedBg: "#15803D",
+  buttonSuccessDisabledBg: "#2C2C2E",
+  buttonSuccessDisabledText: "#6E6E73",
   // Chip tokens
   chipNeutralBg: "#2A2A2E",
   chipNeutralText: "#98989F",
@@ -113,6 +118,11 @@ export const LIGHT_COLORS = {
   buttonDestructivePressedBg: "#DC2626",
   buttonDestructiveDisabledBg: "#E5E7EB",
   buttonDestructiveDisabledText: "#9CA3AF",
+  buttonSuccessBg: "#22C55E",
+  buttonSuccessText: "#FFFFFF",
+  buttonSuccessPressedBg: "#16A34A",
+  buttonSuccessDisabledBg: "#E5E7EB",
+  buttonSuccessDisabledText: "#9CA3AF",
   // Chip tokens
   chipNeutralBg: "#F3F4F6",
   chipNeutralText: "#6B7280",
