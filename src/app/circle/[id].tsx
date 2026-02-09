@@ -800,6 +800,8 @@ function formatDateSeparator(dateStr: string): string {
 }
 
 // Message Bubble Component
+type ReplyMeta = { replyToMessageId: string; replyToName: string; replyToSnippet: string };
+
 function MessageBubble({
   message,
   isOwn,
@@ -812,6 +814,7 @@ function MessageBubble({
   isRunContinuation,
   showTimestamp,
   reactions,
+  replyMeta,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -824,6 +827,7 @@ function MessageBubble({
   isRunContinuation?: boolean;
   showTimestamp?: boolean;
   reactions?: string[];
+  replyMeta?: ReplyMeta;
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
@@ -893,6 +897,13 @@ function MessageBubble({
               opacity: isSending ? 0.7 : isFailed ? 0.5 : /* isSent */ 1,
             }}
           >
+            {replyMeta && (
+              <View style={{ marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: isOwn ? "rgba(255,255,255,0.25)" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") }}>
+                <Text style={{ fontSize: 12, fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.8)" : colors.textSecondary }} numberOfLines={1}>
+                  ↩︎ {replyMeta.replyToName}: {replyMeta.replyToSnippet}
+                </Text>
+              </View>
+            )}
             <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
           </View>
           {/* [P2_CHAT_REACTIONS] Reaction chips */}
@@ -1760,9 +1771,22 @@ export default function CircleScreen() {
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendTypingClear();
+      const clientMessageId = `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      // [P2_CHAT_REPLY] Attach reply meta to outgoing message stableId
+      if (replyTarget) {
+        setReplyByStableId((prev) => ({
+          ...prev,
+          [clientMessageId]: {
+            replyToMessageId: replyTarget.messageId,
+            replyToName: replyTarget.name,
+            replyToSnippet: replyTarget.snippet,
+          },
+        }));
+        clearReplyTarget("sent");
+      }
       sendMessageMutation.mutate({
         content: message.trim(),
-        clientMessageId: `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        clientMessageId,
       });
     }
   };
@@ -1863,6 +1887,21 @@ export default function CircleScreen() {
       devLog("[P2_CHAT_REACTIONS]", "mounted");
       reactionsLogFiredRef.current = true;
     }
+  }, []);
+
+  // [P2_CHAT_REPLY] Local-only reply shell state
+  const [replyTarget, setReplyTarget] = useState<{ messageId: string; name: string; snippet: string } | null>(null);
+  const [replyByStableId, setReplyByStableId] = useState<Record<string, ReplyMeta>>({});
+  const replyLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!replyLogFiredRef.current && __DEV__) {
+      devLog("[P2_CHAT_REPLY]", "mounted");
+      replyLogFiredRef.current = true;
+    }
+  }, []);
+  const clearReplyTarget = useCallback((reason: "x" | "sent" | "blur" | "system_guard") => {
+    setReplyTarget(null);
+    if (__DEV__) devLog("[P2_CHAT_REPLY]", "clear", { reason });
   }, []);
 
   // [P1_CHAT_GROUP] One-time mount log
@@ -2174,7 +2213,7 @@ export default function CircleScreen() {
               if (__DEV__) devLog("[P1_MSG_ACTIONS]", "open_actions", { id: item.id, status: (item as any).status });
 
               if (Platform.OS === "ios") {
-                const options = ["Add Reaction", "Copy Text"];
+                const options = ["Reply", "Add Reaction", "Copy Text"];
                 if (isFailedOptimistic && (item as any).clientMessageId) options.push("Retry Send");
                 if (isFailedOptimistic) options.push("Remove Failed Message");
                 options.push("Cancel");
@@ -2182,7 +2221,14 @@ export default function CircleScreen() {
                   { options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.indexOf("Remove Failed Message") },
                   (idx) => {
                     const picked = options[idx];
-                    if (picked === "Add Reaction") {
+                    if (picked === "Reply") {
+                      const senderName = item.user?.name?.split(" ")[0] ?? "Unknown";
+                      const snippet = item.content.slice(0, 80).replace(/\n/g, " ");
+                      setReplyTarget({ messageId: stableId, name: senderName, snippet });
+                      if (__DEV__) devLog("[P2_CHAT_REPLY]", "set", { messageId: stableId });
+                      inputRef.current?.focus();
+                    }
+                    else if (picked === "Add Reaction") {
                       if (__DEV__) devLog("[P2_CHAT_REACTIONS]", "open_picker", { messageId: stableId });
                       setReactionTargetId(stableId);
                     }
@@ -2195,6 +2241,13 @@ export default function CircleScreen() {
                 // Android: use a simple alert-style approach with Modal state
                 // For simplicity and zero-dep constraint, use built-in Alert
                 const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
+                  { text: "Reply", onPress: () => {
+                    const senderName = item.user?.name?.split(" ")[0] ?? "Unknown";
+                    const snippet = item.content.slice(0, 80).replace(/\n/g, " ");
+                    setReplyTarget({ messageId: stableId, name: senderName, snippet });
+                    if (__DEV__) devLog("[P2_CHAT_REPLY]", "set", { messageId: stableId });
+                    inputRef.current?.focus();
+                  }},
                   { text: "Add Reaction", onPress: () => {
                     if (__DEV__) devLog("[P2_CHAT_REACTIONS]", "open_picker", { messageId: stableId });
                     setReactionTargetId(stableId);
@@ -2261,6 +2314,7 @@ export default function CircleScreen() {
                 }
                 onLongPress={handleLongPress}
                 reactions={stableId ? reactionsByStableId[stableId] : undefined}
+                replyMeta={stableId ? replyByStableId[stableId] : undefined}
               />
               </>
             );
@@ -2398,6 +2452,38 @@ export default function CircleScreen() {
           </View>
         )}
 
+        {/* [P2_CHAT_REPLY] Reply preview bar */}
+        {replyTarget && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderTopWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <View style={{ width: 3, borderRadius: 1.5, backgroundColor: themeColor, alignSelf: "stretch", marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: themeColor }} numberOfLines={1}>
+                Replying to {replyTarget.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }} numberOfLines={1}>
+                {replyTarget.snippet}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => clearReplyTarget("x")}
+              hitSlop={8}
+              style={{ padding: 4, marginLeft: 8 }}
+            >
+              <X size={16} color={colors.textTertiary} />
+            </Pressable>
+          </View>
+        )}
+
         {/* Message Input */}
         <View
           className="px-4 py-3 border-t flex-row items-end"
@@ -2415,7 +2501,10 @@ export default function CircleScreen() {
                 if (text.trim().length > 0) sendTypingPing();
                 else sendTypingClear();
               }}
-              onBlur={sendTypingClear}
+              onBlur={() => {
+                sendTypingClear();
+                if (replyTarget && !message.trim()) clearReplyTarget("blur");
+              }}
               placeholder="Message..."
               placeholderTextColor={colors.textTertiary}
               multiline

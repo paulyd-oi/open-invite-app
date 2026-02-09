@@ -89,6 +89,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[SCHED_ENGINE_V1]",
   // P2 chat reactions overlay
   "[P2_CHAT_REACTIONS]",
+  // P2 chat reply overlay shell
+  "[P2_CHAT_REPLY]",
 ];
 
 /**
