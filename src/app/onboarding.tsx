@@ -1495,14 +1495,13 @@ export default function OnboardingScreen() {
             {showSetupRetry ? "Something went wrong. Please try again." : "Getting everything ready for you"}
           </Text>
           {showSetupRetry && (
-            <Pressable
+            <Button
               testID="onboarding-setup-retry"
+              variant="primary"
+              label="Retry"
               onPress={handleSetupRetry}
-              className="mt-6 px-6 py-3 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold text-base">Retry</Text>
-            </Pressable>
+              style={{ marginTop: 24 }}
+            />
           )}
         </SafeAreaView>
       </View>
@@ -1638,19 +1637,17 @@ export default function OnboardingScreen() {
                   }}
                 />
               ) : (
-                <Pressable
+                <Button
                   testID="onboarding-get-started"
+                  variant="primary"
+                  label={isLastStep ? "Get Started" : "Continue"}
                   onPress={goToNext}
-                  className="py-3 rounded-xl items-center"
                   style={{
                     backgroundColor: currentStep.iconBg,
                     flex: currentIndex === 0 ? 1 : 2,
+                    borderRadius: 12,
                   }}
-                >
-                  <Text className="text-white font-semibold">
-                    {isLastStep ? "Get Started" : "Continue"}
-                  </Text>
-                </Pressable>
+                />
               )}
             </View>
           </Animated.View>

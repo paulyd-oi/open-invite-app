@@ -2630,16 +2630,13 @@ export default function SettingsScreen() {
                     {isPushDiagRunning ? "Running..." : "🚀 Register Now"}
                   </Text>
                 </Pressable>
-                <Pressable
+                <Button
+                  variant="destructive"
+                  label="🗑️ Clear Tokens"
                   onPress={handleClearTokens}
-                  disabled={isClearingTokens}
-                  className="flex-1 rounded-xl py-3 items-center"
-                  style={{ backgroundColor: isClearingTokens ? colors.separator : "#EF4444" }}
-                >
-                  <Text className="font-semibold" style={{ color: isClearingTokens ? colors.textSecondary : "#FFFFFF" }}>
-                    {isClearingTokens ? "Clearing..." : "🗑️ Clear Tokens"}
-                  </Text>
-                </Pressable>
+                  loading={isClearingTokens}
+                  style={{ flex: 1, borderRadius: 12, paddingVertical: 12 }}
+                />
               </View>
 
               {/* Copy Report Button - shown when we have results */}

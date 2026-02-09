@@ -392,51 +392,23 @@ export default function BlockedContactsScreen() {
                 )}
 
                 {/* Block Button */}
-                <Pressable
-                  onPress={handleBlock}
-                  disabled={
-                    blockMutation.isPending ||
-                    (blockMode === "user" && !selectedUser) ||
-                    (blockMode === "email" && !emailInput.trim()) ||
-                    (blockMode === "phone" && !phoneInput.trim())
-                  }
-                  className="mt-4 py-3 rounded-xl flex-row items-center justify-center"
-                  style={{
-                    backgroundColor:
-                      (blockMode === "user" && selectedUser) ||
-                      (blockMode === "email" && emailInput.trim()) ||
-                      (blockMode === "phone" && phoneInput.trim())
-                        ? "#EF4444"
-                        : isDark ? "#2C2C2E" : "#E5E7EB",
-                  }}
-                >
-                  {blockMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <UserX size={18} color={
-                        (blockMode === "user" && selectedUser) ||
-                        (blockMode === "email" && emailInput.trim()) ||
-                        (blockMode === "phone" && phoneInput.trim())
-                          ? "#fff"
-                          : colors.textTertiary
-                      } />
-                      <Text
-                        className="font-semibold ml-2"
-                        style={{
-                          color:
-                            (blockMode === "user" && selectedUser) ||
-                            (blockMode === "email" && emailInput.trim()) ||
-                            (blockMode === "phone" && phoneInput.trim())
-                              ? "#fff"
-                              : colors.textTertiary,
-                        }}
-                      >
-                        Block Contact
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                {(() => {
+                  const hasValidInput =
+                    (blockMode === "user" && !!selectedUser) ||
+                    (blockMode === "email" && !!emailInput.trim()) ||
+                    (blockMode === "phone" && !!phoneInput.trim());
+                  return (
+                    <Button
+                      variant="destructive"
+                      label="Block Contact"
+                      onPress={handleBlock}
+                      disabled={!hasValidInput}
+                      loading={blockMutation.isPending}
+                      leftIcon={<UserX size={18} color={hasValidInput ? "#fff" : colors.textTertiary} />}
+                      style={{ marginTop: 16, borderRadius: 12 }}
+                    />
+                  );
+                })()}
               </View>
             </Animated.View>
           )}

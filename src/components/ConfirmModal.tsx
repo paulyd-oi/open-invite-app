@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
+import { Button } from "@/ui/Button";
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -79,33 +80,20 @@ export function ConfirmModal({
           {/* Buttons */}
           <View className="gap-3">
             {/* Confirm Button */}
-            <Pressable
+            <Button
+              variant={isDestructive ? "destructive" : "primary"}
+              label={confirmText}
               onPress={handleConfirm}
-              className="py-4 rounded-xl items-center"
-              style={{
-                backgroundColor: isDestructive ? "#EF4444" : themeColor,
-              }}
-            >
-              <Text className="text-white font-semibold text-base">
-                {confirmText}
-              </Text>
-            </Pressable>
+              style={{ borderRadius: 12, paddingVertical: 16 }}
+            />
 
             {/* Cancel Button */}
-            <Pressable
+            <Button
+              variant="secondary"
+              label={cancelText}
               onPress={handleCancel}
-              className="py-4 rounded-xl items-center"
-              style={{
-                backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-              }}
-            >
-              <Text
-                className="font-semibold text-base"
-                style={{ color: colors.text }}
-              >
-                {cancelText}
-              </Text>
-            </Pressable>
+              style={{ borderRadius: 12, paddingVertical: 16, borderWidth: 0 }}
+            />
           </View>
         </Animated.View>
       </Animated.View>

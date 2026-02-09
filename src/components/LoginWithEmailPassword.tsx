@@ -416,13 +416,12 @@ export default function LoginWithEmailPassword() {
               {session?.user?.email ?? "No email"}
             </Text>
           </View>
-          <Pressable
+          <Button
+            variant="destructive"
+            label="Sign Out"
             onPress={handleSignOut}
-            style={{ backgroundColor: isDark ? "#DC2626" : "#EF4444" }}
-            className="p-4 rounded-lg items-center"
-          >
-            <Text className="text-white font-semibold text-base">Sign Out</Text>
-          </Pressable>
+            style={{ borderRadius: 8 }}
+          />
         </View>
       </KeyboardAwareScrollView>
     );
