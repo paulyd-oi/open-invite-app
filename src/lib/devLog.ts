@@ -109,6 +109,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_LOCK_POLISH]",
   // P1 coordination flow visual pass
   "[P1_COORDINATION_FLOW]",
+  // P1 lifecycle chip + run-it-back UI
+  "[P1_LIFECYCLE_UI]",
 ];
 
 /**

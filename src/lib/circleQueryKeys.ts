@@ -42,4 +42,7 @@ export const circleKeys = {
 
   // Polls for a circle
   polls: (id: string) => ["circles", "polls", id] as const,
+
+  // Lifecycle state for a circle
+  lifecycle: (id: string) => ["circles", "lifecycle", id] as const,
 } as const;

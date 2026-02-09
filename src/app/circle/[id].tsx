@@ -1905,7 +1905,7 @@ export default function CircleScreen() {
   // [P1_PLAN_LOCK_UI] Plan lock query — graceful 404 fallback
   const [showPlanLockSheet, setShowPlanLockSheet] = useState(false);
   const [planLockDraftNote, setPlanLockDraftNote] = useState("");
-  const [coordBannerDismissed, setCoordBannerDismissed] = useState(false);
+  const [completionDismissed, setCompletionDismissed] = useState(false);
   const { data: planLockData } = useQuery({
     queryKey: circleKeys.planLock(id!),
     queryFn: async () => {
@@ -1932,6 +1932,37 @@ export default function CircleScreen() {
       planLockLogFiredRef.current = true;
     }
   }, []);
+  // [P1_LIFECYCLE_UI] Lifecycle query — graceful 404 fallback
+  const { data: lifecycleData } = useQuery({
+    queryKey: circleKeys.lifecycle(id!),
+    queryFn: async () => {
+      try {
+        const res = await api.get<{ state: string; note?: string }>(`/api/circles/${id}/lifecycle`);
+        return res;
+      } catch (e: any) {
+        if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "hidden_nonok", { status: e?.status ?? "unknown" });
+        return null;
+      }
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const lifecycleState = lifecycleData?.state ?? null;
+  const lifecycleNote = lifecycleData?.note ?? null;
+
+  // [P1_LIFECYCLE_UI] Run-it-back mutation
+  const lifecycleMutation = useMutation({
+    mutationFn: async (body: { state: string }) => {
+      return api.post<{ state: string }>(`/api/circles/${id}/lifecycle`, body);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: circleKeys.lifecycle(id!) });
+      queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
+      queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
+    },
+  });
+
   // [P1_COORDINATION_FLOW] Log lock highlight on transition
   const prevLockedRef = useRef<boolean | null>(null);
   useEffect(() => {
@@ -2435,200 +2466,158 @@ export default function CircleScreen() {
           );
         })()}
 
-        {/* ═══ [P1_COORDINATION_FLOW] Coordination Pipeline ═══ */}
-
-        {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
-        {availTonight && (
-          <>
-            <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>Availability</Text>
-            </View>
+        {/* [P1_LIFECYCLE_UI] Finalized Chip */}
+        {lifecycleState === "finalized" && (() => {
+          if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "chip_render");
+          return (
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "tap_open");
-                setShowAvailSheet(true);
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderBottomWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
-                gap: 10,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Tonight:</Text>
-              <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free}</Text>
-              <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy}</Text>
-              {(availTonight.tentative ?? 0) > 0 && (
-                <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative}</Text>
-              )}
-              <Text style={{ fontSize: 13, color: colors.text }}>{"\u26AA"} {availTonight.unknown}</Text>
-              <ChevronRight size={14} color={colors.textTertiary} />
-            </Pressable>
-          </>
-        )}
-
-        {/* Flow connector: Availability → Decision */}
-        {availTonight && polls && polls.length > 0 && (
-          <View style={{ alignItems: "center", paddingVertical: 2 }}>
-            <Text style={{ fontSize: 10, color: colors.textTertiary, opacity: 0.5 }}>↓</Text>
-          </View>
-        )}
-
-        {/* [P1_POLL_UI] Poll Strip */}
-        {polls && polls.length > 0 && (
-          <>
-            <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>Decision</Text>
-            </View>
-            {polls.map((poll, pIdx) => {
-              const pollWinner = planLock?.locked
-                ? poll.options.reduce((best, o) => (o.count > best.count ? o : best), poll.options[0])
-                : null;
-              return (
-                <Pressable
-                  key={poll.id}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setActivePollIdx(pIdx);
-                    setShowPollSheet(true);
-                  }}
-                  style={{
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderBottomWidth: 1,
-                    borderColor: colors.border,
-                    backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                    {poll.options.map((opt) => {
-                      const isWinner = pollWinner && pollWinner.id === opt.id && pollWinner.count > 0;
-                      return (
-                        <Pressable
-                          key={opt.id}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            Haptics.selectionAsync();
-                            voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
-                          }}
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            borderRadius: 14,
-                            borderWidth: 1.5,
-                            borderColor: isWinner
-                              ? (isDark ? "#34C759" : "#30A14E")
-                              : opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
-                            backgroundColor: isWinner
-                              ? (isDark ? "rgba(52,199,89,0.15)" : "rgba(48,161,78,0.1)")
-                              : opt.votedByMe ? (themeColor + "18") : "transparent",
-                            gap: 4,
-                          }}
-                        >
-                          {isWinner && <Text style={{ fontSize: 11 }}>✓</Text>}
-                          <Text style={{ fontSize: 13, fontWeight: (opt.votedByMe || isWinner) ? "600" : "400", color: isWinner ? (isDark ? "#34C759" : "#30A14E") : opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
-                          <Text style={{ fontSize: 11, fontWeight: "600", color: isWinner ? (isDark ? "#34C759" : "#30A14E") : opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </>
-        )}
-
-        {/* Flow connector: Decision → Final Plan */}
-        {polls && polls.length > 0 && planLock?.locked && (
-          <View style={{ alignItems: "center", paddingVertical: 2 }}>
-            <Text style={{ fontSize: 10, color: colors.textTertiary, opacity: 0.5 }}>↓</Text>
-          </View>
-        )}
-
-        {/* [P1_PLAN_LOCK_UI] Plan Lock Strip */}
-        {planLock?.locked && (
-          <>
-            <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 }}>
-              <Text style={{ fontSize: 10, fontWeight: "700", letterSpacing: 1, color: colors.textTertiary, textTransform: "uppercase" }}>Final Plan</Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "tap_open");
-                setPlanLockDraftNote(planLock.note ?? "");
+                setPlanLockDraftNote(planLock?.note ?? "");
                 setShowPlanLockSheet(true);
               }}
               style={{
+                alignSelf: "center",
                 flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                borderBottomWidth: 1,
-                borderColor: colors.border,
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                marginVertical: 6,
+                borderRadius: 16,
                 backgroundColor: isDark ? "rgba(52,199,89,0.10)" : "rgba(48,161,78,0.08)",
-                gap: 8,
+                gap: 6,
               }}
             >
-              <View style={{ flexDirection: "column", alignItems: "center", flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text }}>{"\u2705"} Plan finalized</Text>
-                  <View style={{
-                    backgroundColor: isDark ? "rgba(52,199,89,0.2)" : "rgba(48,161,78,0.15)",
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: 6,
-                  }}>
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: isDark ? "#34C759" : "#1A7F37" }}>Finalized</Text>
-                  </View>
-                </View>
-                {planLock.note ? (
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2, fontWeight: "600" }} numberOfLines={1}>
-                    Plan finalized &mdash; {planLock.note}
-                  </Text>
-                ) : null}
-              </View>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: isDark ? "#34C759" : "#1A7F37" }}>
+                ✅ Finalized{lifecycleNote ? ` \u2022 ${lifecycleNote}` : (planLock?.note ? ` \u2022 ${planLock.note}` : "")}
+              </Text>
             </Pressable>
-          </>
-        )}
+          );
+        })()}
 
-        {/* [P1_COORDINATION_FLOW] Completion Banner */}
-        {planLock?.locked && !coordBannerDismissed && (
+        {/* [P1_LIFECYCLE_UI] Completion Prompt — ephemeral run-it-back */}
+        {lifecycleState === "completed" && !completionDismissed && (
           <Animated.View entering={FadeIn.duration(300)} style={{
-            flexDirection: "row",
             alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: 6,
+            paddingVertical: 10,
             paddingHorizontal: 16,
-            backgroundColor: isDark ? "rgba(52,199,89,0.08)" : "rgba(48,161,78,0.06)",
-            borderBottomWidth: 1,
-            borderColor: colors.border,
+            marginVertical: 4,
             gap: 8,
           }}>
-            <Text style={{ fontSize: 12, fontWeight: "500", color: isDark ? "#34C759" : "#1A7F37", flex: 1, textAlign: "center" }}>
-              Plan finalized — coordination complete
+            <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text, textAlign: "center" }}>
+              🎉 Event done — run it back?
             </Text>
-            <Pressable
-              onPress={() => {
-                if (__DEV__) devLog("[P1_COORDINATION_FLOW]", "banner_dismiss");
-                setCoordBannerDismissed(true);
-              }}
-              hitSlop={8}
-            >
-              <Text style={{ fontSize: 14, color: colors.textTertiary }}>✕</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                onPress={() => {
+                  if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
+                  lifecycleMutation.mutate({ state: "planning" });
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  setCompletionDismissed(true);
+                }}
+                style={{
+                  backgroundColor: themeColor,
+                  paddingHorizontal: 18,
+                  paddingVertical: 8,
+                  borderRadius: 14,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: "#fff" }}>Start new plan</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setCompletionDismissed(true)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>Dismiss</Text>
+              </Pressable>
+            </View>
           </Animated.View>
         )}
+
+        {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
+        {availTonight && lifecycleState !== "finalized" && lifecycleState !== "completed" && (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (__DEV__) devLog("[P1_AVAIL_SUMMARY_UI]", "tap_open");
+              setShowAvailSheet(true);
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Tonight:</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE2"} {availTonight.free}</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE1"} {availTonight.busy}</Text>
+            {(availTonight.tentative ?? 0) > 0 && (
+              <Text style={{ fontSize: 13, color: colors.text }}>{"\uD83D\uDFE0"} {availTonight.tentative}</Text>
+            )}
+            <Text style={{ fontSize: 13, color: colors.text }}>{"\u26AA"} {availTonight.unknown}</Text>
+            <ChevronRight size={14} color={colors.textTertiary} />
+          </Pressable>
+        )}
+
+        {/* [P1_POLL_UI] Poll Strip */}
+        {polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
+          <Pressable
+            key={poll.id}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActivePollIdx(pIdx);
+              setShowPollSheet(true);
+            }}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {poll.options.map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Haptics.selectionAsync();
+                    voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
+                    backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
+                    gap: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        ))}
 
         {/* Messages List */}
         <FlatList
