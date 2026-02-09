@@ -111,6 +111,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_COORDINATION_FLOW]",
   // P1 lifecycle chip + run-it-back UI
   "[P1_LIFECYCLE_UI]",
+  // P1 notification level UI
+  "[P1_NOTIFY_LEVEL_UI]",
 ];
 
 /**

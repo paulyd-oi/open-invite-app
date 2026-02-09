@@ -45,4 +45,7 @@ export const circleKeys = {
 
   // Lifecycle state for a circle
   lifecycle: (id: string) => ["circles", "lifecycle", id] as const,
+
+  // Per-circle notification level preference
+  notificationLevel: (id: string) => ["circles", "notificationLevel", id] as const,
 } as const;

@@ -51,6 +51,7 @@ import {
   Check,
   UserCheck,
   BellOff,
+  Bell,
   RefreshCw,
   type LucideIcon,
 } from "@/ui/icons";
@@ -1176,6 +1177,7 @@ export default function CircleScreen() {
   const [createEventVisibility, setCreateEventVisibility] = useState<"open_invite" | "circle_only">("circle_only");
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showNotifySheet, setShowNotifySheet] = useState(false);
   const [showMembersSheet, setShowMembersSheet] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<string | null>(null);
@@ -1962,6 +1964,58 @@ export default function CircleScreen() {
       queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
     },
   });
+
+  // [P1_NOTIFY_LEVEL_UI] Notification level query — graceful fallback to "all"
+  type CircleNotificationLevel = "all" | "decisions" | "mentions" | "mute";
+  const { data: notifyLevelData } = useQuery({
+    queryKey: circleKeys.notificationLevel(id!),
+    queryFn: async () => {
+      try {
+        const res = await api.get<{ ok: boolean; level: CircleNotificationLevel }>(`/api/circles/${id}/notification-level`);
+        return res;
+      } catch (e: any) {
+        if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "query_fallback", { status: e?.status ?? "unknown" });
+        return { ok: true, level: "all" as CircleNotificationLevel };
+      }
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const notifyLevel: CircleNotificationLevel = (notifyLevelData?.level as CircleNotificationLevel) ?? "all";
+
+  const notifyLevelMutation = useMutation({
+    mutationFn: async (level: CircleNotificationLevel) => {
+      return api.post<{ ok: boolean; level: CircleNotificationLevel }>(`/api/circles/${id}/notification-level`, { level });
+    },
+    onMutate: async (level) => {
+      await queryClient.cancelQueries({ queryKey: circleKeys.notificationLevel(id!) });
+      const prev = queryClient.getQueryData(circleKeys.notificationLevel(id!));
+      queryClient.setQueryData(circleKeys.notificationLevel(id!), { ok: true, level });
+      return { prev };
+    },
+    onError: (_err, _level, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(circleKeys.notificationLevel(id!), context.prev);
+      }
+      safeToast.error("Error", "Failed to update notifications");
+      if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "save_error", { level: _level });
+    },
+    onSuccess: (_data, level) => {
+      if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "save_success", { level });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: circleKeys.notificationLevel(id!) });
+    },
+  });
+
+  const notifyLevelLogRef = useRef(false);
+  useEffect(() => {
+    if (!notifyLevelLogRef.current && __DEV__) {
+      devLog("[P1_NOTIFY_LEVEL_UI]", "mounted");
+      notifyLevelLogRef.current = true;
+    }
+  }, []);
 
   // [P1_COORDINATION_FLOW] Log lock highlight on transition
   const prevLockedRef = useRef<boolean | null>(null);
@@ -3896,27 +3950,29 @@ export default function CircleScreen() {
                   />
                 </View>
 
-                {/* [P1_CIRCLE_MUTE_POLISH] Notification summary stub - V1 placeholder */}
-                <View
+                {/* [P1_NOTIFY_LEVEL_UI] Notification Level Row */}
+                <Pressable
+                  onPress={() => {
+                    if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "open_sheet");
+                    setShowNotifySheet(true);
+                  }}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
                     paddingVertical: 12,
                     borderBottomWidth: 1,
                     borderBottomColor: colors.border,
-                    opacity: 0.5,
                   }}
                 >
-                  <Calendar size={22} color={colors.textTertiary} />
+                  <Bell size={22} color={colors.textSecondary} />
                   <View style={{ flex: 1, marginLeft: 16 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary }}>
-                      Notification summary
-                    </Text>
-                    <Text style={{ fontSize: 13, color: colors.textTertiary }}>
-                      Coming soon
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Notification Level</Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                      {notifyLevel === "all" ? "All activity" : notifyLevel === "decisions" ? "Decisions only" : notifyLevel === "mentions" ? "Mentions only" : "Muted"}
                     </Text>
                   </View>
-                </View>
+                  <ChevronRight size={18} color={colors.textTertiary} />
+                </Pressable>
 
                 {/* Leave Group */}
                 <Pressable
@@ -3941,6 +3997,67 @@ export default function CircleScreen() {
                 </Pressable>
               </View>
               </ScrollView>
+      </BottomSheet>
+
+      {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}
+      <BottomSheet
+        visible={showNotifySheet}
+        onClose={() => setShowNotifySheet(false)}
+        heightPct={0}
+        maxHeightPct={0.45}
+        backdropOpacity={0.5}
+        title="Notifications"
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+          <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 16 }}>
+            Choose what you want to hear from this circle.
+          </Text>
+          {([
+            { key: "all" as const, label: "All activity", desc: "Messages, decisions, and events" },
+            { key: "decisions" as const, label: "Decisions only", desc: "Polls and plan lock updates" },
+            { key: "mentions" as const, label: "Mentions only", desc: "Only when you\u2019re mentioned" },
+            { key: "mute" as const, label: "Muted", desc: "No notifications from this circle" },
+          ]).map((opt) => (
+            <Pressable
+              key={opt.key}
+              onPress={() => {
+                if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "select", { level: opt.key });
+                Haptics.selectionAsync();
+                notifyLevelMutation.mutate(opt.key);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 14,
+                marginBottom: 6,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: notifyLevel === opt.key ? themeColor : colors.border,
+                backgroundColor: notifyLevel === opt.key ? (themeColor + "12") : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: notifyLevel === opt.key ? "600" : "400", color: notifyLevel === opt.key ? themeColor : colors.text }}>
+                  {opt.label}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{opt.desc}</Text>
+              </View>
+              <View style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                borderWidth: 2,
+                borderColor: notifyLevel === opt.key ? themeColor : colors.textTertiary,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: notifyLevel === opt.key ? themeColor : "transparent",
+              }}>
+                {notifyLevel === opt.key && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
+              </View>
+            </Pressable>
+          ))}
+        </View>
       </BottomSheet>
 
       {/* Members Sheet Modal */}
