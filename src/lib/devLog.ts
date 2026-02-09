@@ -93,6 +93,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_REPLY]",
   // P2 chat edit/delete shell
   "[P2_CHAT_EDITDEL]",
+  // P2 chat reply wired to API
+  "[P2_CHAT_REPLY_UI2]",
 ];
 
 /**

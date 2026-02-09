@@ -1644,6 +1644,12 @@ export const circleMessageSchema = z.object({
     email: z.string().nullable(),
     image: z.string().nullable(),
   }),
+  reply: z.object({
+    messageId: z.string(),
+    userId: z.string(),
+    userName: z.string(),
+    snippet: z.string(),
+  }).optional(),
 });
 export type CircleMessage = z.infer<typeof circleMessageSchema>;
 
@@ -1731,6 +1737,12 @@ export const sendCircleMessageRequestSchema = z.object({
   content: z.string().min(1).max(2000),
   imageUrl: z.string().url().optional(),
   clientMessageId: z.string().optional(),
+  reply: z.object({
+    messageId: z.string().min(1),
+    userId: z.string().min(1),
+    userName: z.string().min(1),
+    snippet: z.string().max(120),
+  }).optional(),
 });
 export type SendCircleMessageRequest = z.infer<typeof sendCircleMessageRequestSchema>;
 

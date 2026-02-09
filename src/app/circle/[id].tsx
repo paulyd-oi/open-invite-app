@@ -800,8 +800,6 @@ function formatDateSeparator(dateStr: string): string {
 }
 
 // Message Bubble Component
-type ReplyMeta = { replyToMessageId: string; replyToName: string; replyToSnippet: string };
-
 function MessageBubble({
   message,
   isOwn,
@@ -814,7 +812,6 @@ function MessageBubble({
   isRunContinuation,
   showTimestamp,
   reactions,
-  replyMeta,
   editedContent,
   isDeleted,
 }: {
@@ -829,7 +826,6 @@ function MessageBubble({
   isRunContinuation?: boolean;
   showTimestamp?: boolean;
   reactions?: string[];
-  replyMeta?: ReplyMeta;
   editedContent?: string;
   isDeleted?: boolean;
 }) {
@@ -905,10 +901,10 @@ function MessageBubble({
               <Text style={{ fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.5)" : colors.textTertiary }}>Message deleted</Text>
             ) : (
               <>
-                {replyMeta && (
+                {message.reply && (
                   <View style={{ marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: isOwn ? "rgba(255,255,255,0.25)" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") }}>
                     <Text style={{ fontSize: 12, fontStyle: "italic", color: isOwn ? "rgba(255,255,255,0.8)" : colors.textSecondary }} numberOfLines={1}>
-                      ↩︎ {replyMeta.replyToName}: {replyMeta.replyToSnippet}
+                      ↩︎ {message.reply.userName}: {message.reply.snippet}
                     </Text>
                   </View>
                 )}
@@ -1309,9 +1305,9 @@ export default function CircleScreen() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: ({ content, clientMessageId }: { content: string; clientMessageId: string }) =>
-      api.post(`/api/circles/${id}/messages`, { content, clientMessageId }),
-    onMutate: async ({ content, clientMessageId }: { content: string; clientMessageId: string }) => {
+    mutationFn: ({ content, clientMessageId, reply }: { content: string; clientMessageId: string; reply?: { messageId: string; userId: string; userName: string; snippet: string } }) =>
+      api.post(`/api/circles/${id}/messages`, { content, clientMessageId, ...(reply ? { reply } : {}) }),
+    onMutate: async ({ content, clientMessageId, reply }: { content: string; clientMessageId: string; reply?: { messageId: string; userId: string; userName: string; snippet: string } }) => {
       // Build optimistic message and insert into cache immediately
       const userId = session?.user?.id ?? "unknown";
       const userName = session?.user?.name ?? undefined;
@@ -1319,6 +1315,8 @@ export default function CircleScreen() {
       const optimistic = buildOptimisticMessage(id, userId, content, userName, userImage);
       // Override clientMessageId so retry reuses the same one
       optimistic.clientMessageId = clientMessageId;
+      // Attach reply metadata to optimistic message for immediate render
+      if (reply) (optimistic as any).reply = reply;
 
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
@@ -1785,21 +1783,22 @@ export default function CircleScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendTypingClear();
       const clientMessageId = `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      // [P2_CHAT_REPLY] Attach reply meta to outgoing message stableId
+      // [P2_CHAT_REPLY_UI2] Build reply payload for API
+      let reply: { messageId: string; userId: string; userName: string; snippet: string } | undefined;
       if (replyTarget) {
-        setReplyByStableId((prev) => ({
-          ...prev,
-          [clientMessageId]: {
-            replyToMessageId: replyTarget.messageId,
-            replyToName: replyTarget.name,
-            replyToSnippet: replyTarget.snippet,
-          },
-        }));
+        reply = {
+          messageId: replyTarget.messageId,
+          userId: replyTarget.userId,
+          userName: replyTarget.name,
+          snippet: replyTarget.snippet,
+        };
+        if (__DEV__) devLog("[P2_CHAT_REPLY_UI2]", "send_attach", { messageId: replyTarget.messageId });
         clearReplyTarget("sent");
       }
       sendMessageMutation.mutate({
         content: message.trim(),
         clientMessageId,
+        ...(reply ? { reply } : {}),
       });
     }
   };
@@ -1902,19 +1901,18 @@ export default function CircleScreen() {
     }
   }, []);
 
-  // [P2_CHAT_REPLY] Local-only reply shell state
-  const [replyTarget, setReplyTarget] = useState<{ messageId: string; name: string; snippet: string } | null>(null);
-  const [replyByStableId, setReplyByStableId] = useState<Record<string, ReplyMeta>>({});
+  // [P2_CHAT_REPLY] Reply state (wired to API)
+  const [replyTarget, setReplyTarget] = useState<{ messageId: string; userId: string; name: string; snippet: string } | null>(null);
   const replyLogFiredRef = useRef(false);
   useEffect(() => {
     if (!replyLogFiredRef.current && __DEV__) {
-      devLog("[P2_CHAT_REPLY]", "mounted");
+      devLog("[P2_CHAT_REPLY_UI2]", "mounted");
       replyLogFiredRef.current = true;
     }
   }, []);
   const clearReplyTarget = useCallback((reason: "x" | "sent" | "blur" | "system_guard") => {
     setReplyTarget(null);
-    if (__DEV__) devLog("[P2_CHAT_REPLY]", "clear", { reason });
+    if (__DEV__) devLog("[P2_CHAT_REPLY_UI2]", "clear", { reason });
   }, []);
 
   // [P2_CHAT_EDITDEL] Local-only edit/delete state
@@ -2254,10 +2252,15 @@ export default function CircleScreen() {
                   (idx) => {
                     const picked = options[idx];
                     if (picked === "Reply") {
+                      // Guard: can't reply to optimistic messages that haven't been persisted
+                      if (!item.id || item.id.startsWith("optimistic-")) {
+                        safeToast.warning("Hold on", "Can't reply until sent");
+                        return;
+                      }
                       const senderName = item.user?.name?.split(" ")[0] ?? "Unknown";
                       const snippet = item.content.slice(0, 80).replace(/\n/g, " ");
-                      setReplyTarget({ messageId: stableId, name: senderName, snippet });
-                      if (__DEV__) devLog("[P2_CHAT_REPLY]", "set", { messageId: stableId });
+                      setReplyTarget({ messageId: item.id, userId: item.userId, name: senderName, snippet });
+                      if (__DEV__) devLog("[P2_CHAT_REPLY_UI2]", "set", { messageId: item.id });
                       inputRef.current?.focus();
                     }
                     else if (picked === "Add Reaction") {
@@ -2290,10 +2293,15 @@ export default function CircleScreen() {
                 // For simplicity and zero-dep constraint, use built-in Alert
                 const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
                   { text: "Reply", onPress: () => {
+                    // Guard: can't reply to optimistic messages that haven't been persisted
+                    if (!item.id || item.id.startsWith("optimistic-")) {
+                      safeToast.warning("Hold on", "Can't reply until sent");
+                      return;
+                    }
                     const senderName = item.user?.name?.split(" ")[0] ?? "Unknown";
                     const snippet = item.content.slice(0, 80).replace(/\n/g, " ");
-                    setReplyTarget({ messageId: stableId, name: senderName, snippet });
-                    if (__DEV__) devLog("[P2_CHAT_REPLY]", "set", { messageId: stableId });
+                    setReplyTarget({ messageId: item.id, userId: item.userId, name: senderName, snippet });
+                    if (__DEV__) devLog("[P2_CHAT_REPLY_UI2]", "set", { messageId: item.id });
                     inputRef.current?.focus();
                   }},
                   { text: "Add Reaction", onPress: () => {
@@ -2380,7 +2388,6 @@ export default function CircleScreen() {
                 }
                 onLongPress={handleLongPress}
                 reactions={stableId ? reactionsByStableId[stableId] : undefined}
-                replyMeta={stableId ? replyByStableId[stableId] : undefined}
                 editedContent={stableId ? editedContentByStableId[stableId]?.content : undefined}
                 isDeleted={stableId ? !!deletedStableIds[stableId] : false}
               />
