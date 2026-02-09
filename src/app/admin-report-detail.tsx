@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import {
   FileText,
   CheckCircle,
   Clock,
+  MapPin,
+  Eye,
 } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import {
@@ -85,6 +87,18 @@ export default function AdminReportDetail() {
     queryFn: () => getReport(reportId!),
     enabled: !!adminStatus?.isAdmin && !!reportId,
   });
+
+  // [P0_ADMIN_REPORT_SNAPSHOT_UI] Proof log — fire once per load
+  const snapshotLogRef = useRef(false);
+  useEffect(() => {
+    if (!report || snapshotLogRef.current) return;
+    snapshotLogRef.current = true;
+    if (report.snapshot) {
+      if (__DEV__) devLog(`[P0_ADMIN_REPORT_SNAPSHOT_UI] present reportId=${report.id} capturedAt=${report.snapshot.capturedAt}`);
+    } else {
+      if (__DEV__) devLog(`[P0_ADMIN_REPORT_SNAPSHOT_UI] missing reportId=${report.id}`);
+    }
+  }, [report]);
 
   // Resolve handler
   const handleResolve = useCallback(() => {
@@ -301,6 +315,105 @@ export default function AdminReportDetail() {
                 ) : null}
               </View>
             </View>
+          </View>
+        </Animated.View>
+
+        {/* Snapshot at time of report */}
+        <Animated.View entering={FadeInDown.delay(275).springify()} style={{ marginTop: 20 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", marginBottom: 6, marginLeft: 2 }}>SNAPSHOT AT TIME OF REPORT</Text>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16 }}>
+            {report.snapshot ? (
+              <>
+                {/* Captured time */}
+                {report.snapshot.capturedAt ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <Clock size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Captured</Text>
+                      <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{formatDate(report.snapshot.capturedAt)}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Title */}
+                {report.snapshot.title ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <FileText size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Title</Text>
+                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: "500", marginTop: 2 }}>{report.snapshot.title}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Description */}
+                {report.snapshot.description ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <FileText size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Description</Text>
+                      <Text style={{ color: colors.text, fontSize: 14, lineHeight: 20, marginTop: 2 }} numberOfLines={6}>{report.snapshot.description}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Location */}
+                {report.snapshot.location ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <MapPin size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Location</Text>
+                      <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{report.snapshot.location}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Start / End */}
+                {(report.snapshot.startTime || report.snapshot.endTime) ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <Calendar size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      {report.snapshot.startTime ? (
+                        <>
+                          <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Start</Text>
+                          <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{formatDate(report.snapshot.startTime)}</Text>
+                        </>
+                      ) : null}
+                      {report.snapshot.endTime ? (
+                        <>
+                          <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: report.snapshot.startTime ? 8 : 0 }}>End</Text>
+                          <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{formatDate(report.snapshot.endTime)}</Text>
+                        </>
+                      ) : null}
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Visibility */}
+                {report.snapshot.visibility ? (
+                  <View style={{ flexDirection: "row", marginBottom: 12 }}>
+                    <Eye size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Visibility</Text>
+                      <Text style={{ color: colors.text, fontSize: 14, marginTop: 2 }}>{report.snapshot.visibility}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Host ID */}
+                {report.snapshot.hostId ? (
+                  <View style={{ flexDirection: "row" }}>
+                    <User size={16} color={colors.textSecondary} style={{ marginTop: 2 }} />
+                    <View style={{ marginLeft: 10, flex: 1 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Host ID</Text>
+                      <Text style={{ color: colors.textTertiary, fontSize: 12, marginTop: 2 }}>{report.snapshot.hostId}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <Text style={{ color: colors.textTertiary, fontSize: 14, fontStyle: "italic" }}>No snapshot available.</Text>
+            )}
           </View>
         </Animated.View>
 

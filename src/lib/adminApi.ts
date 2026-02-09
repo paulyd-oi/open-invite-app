@@ -503,6 +503,18 @@ export async function revokeEntitlement(
 // REPORTS ADMIN FUNCTIONS
 // =============================================================================
 
+export interface AdminReportSnapshot {
+  capturedAt: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  visibility?: string;
+  hostId?: string;
+  mediaUrls?: any;
+}
+
 export interface AdminReport {
   id: string;
   eventId: string;
@@ -520,6 +532,8 @@ export interface AdminReport {
     date?: string;
     hostName?: string;
   } | null;
+  /** Immutable snapshot captured at report time */
+  snapshot?: AdminReportSnapshot | null;
 }
 
 export interface AdminReportsListResponse {
