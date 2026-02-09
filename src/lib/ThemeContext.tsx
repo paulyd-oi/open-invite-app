@@ -20,25 +20,27 @@ export const THEME_COLORS = [
 ];
 
 // Dark mode color palette
+// Layer stack: background (canvas) < surface (tile) < surfaceElevated (nested)
+// Divider hierarchy: divider (faint) < separator (medium) < borderSubtle < border (strongest)
 export const DARK_COLORS = {
-  background: "#0C0C0C",
+  background: "#080808",
   surface: "#1C1C1E",
-  surfaceElevated: "#2C2C2E",
-  surfaceSubtle: "#1C1C1E",
-  surface2: "#2C2C2E",
+  surfaceElevated: "#2A2A2E",
+  surfaceSubtle: "#141416",
+  surface2: "#252528",
   text: "#FFFFFF",
   textSecondary: "#98989F",
   textTertiary: "#6E6E73",
-  border: "#38383A",
-  borderSubtle: "#38383A",
-  separator: "#2A2A2C",
-  divider: "#222224",
-  pillBg: "#2C2C2E",
+  border: "#3C3C40",
+  borderSubtle: "#2E2E32",
+  separator: "#252528",
+  divider: "#1A1A1C",
+  pillBg: "#2A2A2E",
   iconMuted: "#6E6E73",
   avatarBg: "#2C2C2E",
-  inputBg: "#2C2C2E",
-  segmentBg: "#1C1C1E",
-  segmentActive: "#3A3A3C",
+  inputBg: "#1A1A1C",
+  segmentBg: "#141416",
+  segmentActive: "#2C2C2E",
 };
 
 // Light mode color palette
@@ -121,6 +123,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Get the appropriate color palette
   const colors = isDark ? DARK_COLORS : LIGHT_COLORS;
+
+  // DEV-only proof log — verifies dark token stack on every theme render
+  if (__DEV__ && isDark) {
+    console.log(
+      "[THEME_DARK_POLISH] canvas=%s surface=%s elevated=%s border=%s divider=%s",
+      colors.background,
+      colors.surface,
+      colors.surfaceElevated,
+      colors.border,
+      colors.divider,
+    );
+  }
 
   // Load saved theme on mount
   useEffect(() => {

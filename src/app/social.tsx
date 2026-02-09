@@ -24,7 +24,7 @@ import { AuthErrorUI } from "@/components/AuthErrorUI";
 import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
 import { api } from "@/lib/api";
-import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
+import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
@@ -267,11 +267,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         style={{
           backgroundColor: colors.surface,
           ...getBorderStyle(),
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: isDark ? 0.2 : 0.05,
-          shadowRadius: 8,
-          elevation: 2,
+          ...(isDark ? {} : TILE_SHADOW),
         }}
       >
         <View className="flex-row items-start">

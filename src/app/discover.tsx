@@ -23,7 +23,7 @@ import * as Haptics from "expo-haptics";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
-import { useTheme } from "@/lib/ThemeContext";
+import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
@@ -74,9 +74,7 @@ export default function DiscoverScreen() {
   const [lens, setLens] = useState<Lens>("popular");
 
   // Surface tokens from theme SSOT
-  const tileShadow = !isDark
-    ? { shadowColor: "#000" as const, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }
-    : {};
+  const tileShadow = !isDark ? TILE_SHADOW : {};
 
   // SSOT: two event sources merged into one list
   const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
