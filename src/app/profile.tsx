@@ -489,7 +489,7 @@ export default function ProfileScreen() {
       if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
       if (__DEV__) devLog("[P3_PROFILE_TYPE]", { headerSpacing: 'letterSpacing:1', margins: 'mb-3 normalized' });
       if (__DEV__) devLog("[P3_PROFILE_LAYOUT]", { sectionSpacing: 'mb-4 uniform', statLabels: 'textTertiary' });
-      if (__DEV__) devLog("[P3_PROFILE_IDENTITY]", { highlightsLabel: 'YOUR STORY', emptyStateCopy: 'refined' });
+      if (__DEV__) devLog("[P3_PROFILE_IDENTITY]", { emptyStateCopy: 'intentional' });
     }
   }, []);
 
@@ -607,7 +607,7 @@ export default function ProfileScreen() {
                     className="ml-2 text-sm"
                     style={{ color: colors.textSecondary }}
                   >
-                    {calendarBio ? StringSafe(calendarBio) : "Not set yet"}
+                    {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
                   </Text>
                 </View>
               </View>
@@ -630,7 +630,7 @@ export default function ProfileScreen() {
               </Pressable>
               <Animated.View style={[{ flex: 1, marginLeft: 8 }, shareAnimatedStyle]}>
                 <Pressable
-                  onPressIn={() => { shareScale.value = withTiming(0.95, { duration: 100 }); }}
+                  onPressIn={() => { shareScale.value = withTiming(0.97, { duration: 100 }); }}
                   onPressOut={() => { shareScale.value = withTiming(1, { duration: 150 }); }}
                   onPress={handleShareProfile}
                   className="flex-row items-center justify-center py-2 rounded-lg"
@@ -988,7 +988,7 @@ export default function ProfileScreen() {
               /* EMPTY_STATE_CLARITY: preserves section height, intentional copy */
               <View className="px-4 py-5 items-center">
                 <Text className="text-sm" style={{ color: colors.textTertiary }}>
-                  Your social story starts here.
+                  Past events will appear here
                 </Text>
               </View>
             )}
