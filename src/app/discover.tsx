@@ -279,7 +279,7 @@ export default function DiscoverScreen() {
                     style={{
                       marginLeft: i > 0 ? -8 : 0,
                       borderColor: colors.surface,
-                      backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                      backgroundColor: colors.avatarBg,
                     }}
                   >
                     {request.user?.image ? (
@@ -331,7 +331,7 @@ export default function DiscoverScreen() {
         </View>
 
         {/* ═══ Lens Switcher ═══ */}
-        <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: isDark ? "#1C1C1E" : "#F2F2F7" }}>
+        <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: colors.segmentBg }}>
           {LENS_OPTIONS.map((opt) => {
             const active = lens === opt.key;
             return (

@@ -315,7 +315,7 @@ const FriendCard = React.memo(function FriendCard({
             </View>
           )}
           
-          <View className="w-12 h-12 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+          <View className="w-12 h-12 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
             {friend.image ? (
               <Image source={{ uri: friend.image }} className="w-full h-full" />
             ) : (
@@ -494,7 +494,7 @@ const FriendListItem = React.memo(function FriendListItem({
                 }}
                 className="flex-row items-center flex-1"
               >
-                <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
                   {friend.image ? (
                     <Image source={{ uri: friend.image }} className="w-full h-full" />
                   ) : (
@@ -519,7 +519,7 @@ const FriendListItem = React.memo(function FriendListItem({
               <Pressable
                 onPress={toggleExpand}
                 className="w-9 h-9 rounded-full items-center justify-center"
-                style={{ backgroundColor: isExpanded ? themeColor + "15" : (isDark ? "#2C2C2E" : "#F3F4F6") }}
+                style={{ backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
               >
                 <Animated.View style={arrowStyle}>
                   <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
@@ -601,7 +601,7 @@ function FriendRequestCard({
       className="flex-row items-center rounded-xl p-3 mb-2"
       style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
     >
-      <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+      <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
         {user?.image ? (
           <Image source={{ uri: user.image }} className="w-full h-full" />
         ) : (
@@ -647,7 +647,7 @@ function FriendRequestCard({
             }}
             disabled={actionPending}
             className="w-8 h-8 rounded-full items-center justify-center mr-2"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB", opacity: actionPending ? 0.4 : 1 }}
+            style={{ backgroundColor: colors.inputBg, opacity: actionPending ? 0.4 : 1 }}
           >
             <X size={16} color={colors.textSecondary} />
           </Pressable>
@@ -1470,7 +1470,7 @@ export default function FriendsScreen() {
 
               {/* Search Input - supports name, email, or phone */}
               <View className="flex-row items-center">
-                <View className="flex-1 flex-row items-center rounded-lg px-3 mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                <View className="flex-1 flex-row items-center rounded-lg px-3 mr-2" style={{ backgroundColor: colors.inputBg }}>
                   <Search size={18} color={colors.textSecondary} />
                   <TextInput
                     value={searchEmail}
@@ -1784,7 +1784,7 @@ export default function FriendsScreen() {
           {friendsExpanded && (
             <View className="flex-row items-center justify-between mt-2">
               {/* View Mode Toggle */}
-              <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
+              <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1903,7 +1903,7 @@ export default function FriendsScreen() {
 
           {/* Search */}
           <View className="px-4 py-3" style={{ backgroundColor: colors.surface }}>
-            <View className="flex-row items-center rounded-lg px-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+            <View className="flex-row items-center rounded-lg px-3" style={{ backgroundColor: colors.inputBg }}>
               <Search size={18} color={colors.textSecondary} />
               <TextInput
                 value={contactSearch}
@@ -1947,7 +1947,7 @@ export default function FriendsScreen() {
                     ...(isDark ? {} : TILE_SHADOW),
                   }}
                 >
-                  <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                  <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: colors.avatarBg }}>
                     {contact.imageAvailable && contact.image?.uri ? (
                       <Image
                         source={{ uri: contact.image.uri }}
@@ -1983,7 +1983,7 @@ export default function FriendsScreen() {
                       <Text className="text-white text-sm font-medium">Invite</Text>
                     </View>
                   ) : (
-                    <View className="px-3 py-1.5 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                    <View className="px-3 py-1.5 rounded-full" style={{ backgroundColor: colors.avatarBg }}>
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>No info</Text>
                     </View>
                   )}

@@ -1,15 +1,18 @@
 /**
  * Tile – SSOT floating surface primitive.
  *
- * Elevation tiers (light mode only; dark mode = flat):
+ * Elevation tiers:
  *   • Tier 0: shadow={false}  → canvas, no shadow
- *   • Tier 1: variant="standard" (default) → subtle lift
+ *   • Tier 1: variant="standard" (default) → subtle lift (shadow light, border dark)
  *   • Tier 2: variant="accent"  → slightly stronger, for featured/banner
+ *
+ * Dark mode: border is primary separation (no shadows).
+ * Light mode: shadow is primary separation.
  *
  * Uses SSOT surface tokens from ThemeContext:
  *   • backgroundColor  → colors.surface
- *   • borderColor      → colors.borderSubtle
- *   • shadow           → TILE_SHADOW / TILE_SHADOW_ACCENT
+ *   • borderColor      → colors.border (dark) / colors.borderSubtle (light)
+ *   • shadow           → TILE_SHADOW / TILE_SHADOW_ACCENT (light only)
  */
 import React from "react";
 import { View, type ViewProps, type ViewStyle } from "react-native";
@@ -45,7 +48,7 @@ export function Tile({
   const tileStyle: ViewStyle = {
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: isDark ? colors.border : colors.borderSubtle,
     borderRadius: radius,
     overflow: "hidden" as const,
     ...elevationStyle,

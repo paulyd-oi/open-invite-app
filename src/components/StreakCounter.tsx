@@ -145,7 +145,7 @@ export function StreakCounter({
             </View>
             <View
               className="h-2 rounded-full overflow-hidden"
-              style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
+              style={{ backgroundColor: colors.avatarBg }}
             >
               <View
                 className="h-full rounded-full"

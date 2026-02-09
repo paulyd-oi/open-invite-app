@@ -277,7 +277,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         <View className="flex-row items-start">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-            style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? "#2C2C2E" : "#FFF7ED" }}
+            style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? colors.surfaceElevated : "#FFF7ED" }}
           >
             <Text className="text-2xl">{displayEvent.emoji}</Text>
           </View>
@@ -319,7 +319,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             )}
             {!isSeries && (
               <View className="flex-row items-center mt-1">
-                <View className="w-6 h-6 rounded-full mr-2 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
+                <View className="w-6 h-6 rounded-full mr-2 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
                   {displayImage ? (
                     <Image source={{ uri: displayImage }} className="w-full h-full" />
                   ) : (
@@ -404,7 +404,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           className="absolute right-0 top-0 bottom-0 rounded-2xl overflow-hidden"
           style={{ 
             width: ACTION_WIDTH + 20,
-            backgroundColor: isDark ? "#1C1C1E" : "#F3F4F6",
+            backgroundColor: colors.surface2,
           }}
         >
           <View className="flex-1 flex-row items-center justify-end pr-4">

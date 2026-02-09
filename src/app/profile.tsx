@@ -414,7 +414,7 @@ export default function ProfileScreen() {
         <Pressable
           onPress={() => router.push("/settings")}
           className="w-10 h-10 rounded-full items-center justify-center"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
+          style={{ backgroundColor: colors.inputBg }}
         >
           <Settings size={20} color={colors.textSecondary} />
         </Pressable>
@@ -450,7 +450,7 @@ export default function ProfileScreen() {
                     <View
                       className="w-full h-full items-center justify-center"
                       style={{
-                        backgroundColor: isDark ? "#2C2C2E" : `${themeColor}15`,
+                        backgroundColor: isDark ? colors.surfaceElevated : `${themeColor}15`,
                       }}
                     >
                       <Text style={{ color: themeColor, fontSize: 22 }}>
@@ -522,7 +522,7 @@ export default function ProfileScreen() {
                   router.push("/settings");
                 }}
                 className="flex-1 flex-row items-center justify-center py-2 rounded-lg mr-2"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                style={{ backgroundColor: colors.surface2 }}
               >
                 <Pencil size={14} color={colors.textSecondary} />
                 <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
@@ -535,7 +535,7 @@ export default function ProfileScreen() {
                   onPressOut={() => { shareScale.value = withTiming(1, { duration: 150 }); }}
                   onPress={handleShareProfile}
                   className="flex-row items-center justify-center py-2 rounded-lg"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  style={{ backgroundColor: colors.surface2 }}
                 >
                   <Share2 size={14} color={colors.textSecondary} />
                   <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>

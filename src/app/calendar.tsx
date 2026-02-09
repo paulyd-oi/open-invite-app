@@ -2342,7 +2342,7 @@ export default function CalendarScreen() {
             {/* Calendar view modes (pinch-to-zoom) */}
             <View
               className="flex-row rounded-full p-1"
-              style={{ backgroundColor: isDark ? "#1C1C1E" : "#F2F2F7" }}
+              style={{ backgroundColor: colors.segmentBg }}
             >
               {CALENDAR_VIEW_MODES.map((mode) => {
                 const Icon = mode.icon;
@@ -2356,7 +2356,7 @@ export default function CalendarScreen() {
                     }}
                     className="px-3 py-1.5 rounded-full"
                     style={{
-                      backgroundColor: isActive ? (isDark ? "#3A3A3C" : "#fff") : "transparent",
+                      backgroundColor: isActive ? colors.segmentActive : "transparent",
                     }}
                   >
                     <Icon size={16} color={isActive ? themeColor : colors.textTertiary} />
@@ -2374,8 +2374,8 @@ export default function CalendarScreen() {
               className="w-8 h-8 rounded-full items-center justify-center ml-2"
               style={{
                 backgroundColor: isListView
-                  ? (isDark ? "#3A3A3C" : "#fff")
-                  : (isDark ? "#1C1C1E" : "#F2F2F7"),
+                  ? colors.segmentActive
+                  : colors.segmentBg,
               }}
             >
               <List size={16} color={isListView ? themeColor : colors.textTertiary} />
@@ -2708,7 +2708,7 @@ export default function CalendarScreen() {
                         <View className="flex-row items-start">
                           <View
                             className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                            style={{ backgroundColor: colors.surface2 }}
                           >
                             <Text className="text-2xl">{request.emoji}</Text>
                           </View>
@@ -2929,7 +2929,7 @@ export default function CalendarScreen() {
                   placeholderTextColor={colors.textTertiary}
                   className="px-4 py-3 rounded-xl text-base"
                   style={{
-                    backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
+                    backgroundColor: colors.inputBg,
                     color: colors.text,
                     borderWidth: 1,
                     borderColor: colors.border,
@@ -3009,7 +3009,7 @@ export default function CalendarScreen() {
                 <Pressable
                   onPress={() => setShowBusyModal(false)}
                   className="flex-1 py-3 rounded-xl items-center"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                  style={{ backgroundColor: colors.surface2 }}
                 >
                   <Text className="font-semibold" style={{ color: colors.text }}>
                     Cancel

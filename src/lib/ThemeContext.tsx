@@ -21,16 +21,24 @@ export const THEME_COLORS = [
 
 // Dark mode color palette
 export const DARK_COLORS = {
-  background: "#000000",
+  background: "#0C0C0C",
   surface: "#1C1C1E",
   surfaceElevated: "#2C2C2E",
   surfaceSubtle: "#1C1C1E",
+  surface2: "#2C2C2E",
   text: "#FFFFFF",
-  textSecondary: "#8E8E93",
-  textTertiary: "#636366",
+  textSecondary: "#98989F",
+  textTertiary: "#6E6E73",
   border: "#38383A",
-  borderSubtle: "#2C2C2E",
-  separator: "#38383A",
+  borderSubtle: "#38383A",
+  separator: "#2A2A2C",
+  divider: "#222224",
+  pillBg: "#2C2C2E",
+  iconMuted: "#6E6E73",
+  avatarBg: "#2C2C2E",
+  inputBg: "#2C2C2E",
+  segmentBg: "#1C1C1E",
+  segmentActive: "#3A3A3C",
 };
 
 // Light mode color palette
@@ -39,12 +47,20 @@ export const LIGHT_COLORS = {
   surface: "#FFFFFF",
   surfaceElevated: "#FFFFFF",
   surfaceSubtle: "#F6F7F9",
+  surface2: "#F3F4F6",
   text: "#1F2937",
   textSecondary: "#6B7280",
   textTertiary: "#9CA3AF",
   border: "#E5E7EB",
   borderSubtle: "#F0F0F0",
   separator: "#F3F4F6",
+  divider: "#F3F4F6",
+  pillBg: "#F3F4F6",
+  iconMuted: "#9CA3AF",
+  avatarBg: "#E5E7EB",
+  inputBg: "#F9FAFB",
+  segmentBg: "#F2F2F7",
+  segmentActive: "#FFFFFF",
 };
 
 /** Reusable tile shadow – Tier 1 (standard). */
