@@ -60,6 +60,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
+import { SLIDE_MS } from "@/ui/motion";
 import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
@@ -450,8 +451,8 @@ const FriendListItem = React.memo(function FriendListItem({
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsExpanded(!isExpanded);
-    rotation.value = withTiming(isExpanded ? 0 : 1, { duration: 200 });
-    height.value = withTiming(isExpanded ? 0 : 1, { duration: 250 });
+    rotation.value = withTiming(isExpanded ? 0 : 1, { duration: SLIDE_MS });
+    height.value = withTiming(isExpanded ? 0 : 1, { duration: SLIDE_MS });
   };
 
   return (

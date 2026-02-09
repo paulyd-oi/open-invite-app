@@ -6,6 +6,7 @@ import {
   Pressable,
   Image,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog } from "@/lib/devLog";
@@ -20,6 +21,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { FADE_MS, SHEET_MS } from "@/ui/motion";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -370,12 +372,12 @@ export default function DiscoverScreen() {
       >
         {isLoading ? (
           <View className="py-12 items-center">
-            <Text style={{ color: colors.textTertiary }}>Loading...</Text>
+            <ActivityIndicator size="small" color={themeColor} />
           </View>
         ) : (
           <>
             {/* ═══ Pulse Row ═══ */}
-            <Animated.View entering={FadeInDown.duration(200)} className="mb-4">
+            <Animated.View entering={FadeInDown.duration(FADE_MS)} className="mb-4">
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {totalActive > 0
                   ? `Your week is taking shape \u2014 ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
@@ -385,7 +387,7 @@ export default function DiscoverScreen() {
 
             {/* ═══ Featured Module ═══ */}
             {featured && (
-              <Animated.View entering={FadeInDown.delay(20).duration(260)} className="mb-5">
+              <Animated.View entering={FadeInDown.delay(20).duration(SHEET_MS)} className="mb-5">
                 <View className="flex-row items-center mb-2">
                   <Sparkles size={14} color={themeColor} />
                   <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>

@@ -10,6 +10,7 @@ import Animated, {
   interpolate,
   interpolateColor,
 } from "react-native-reanimated";
+import { SLIDE_MS } from "@/ui/motion";
 import { Check, X, Clock, Users } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
@@ -78,11 +79,11 @@ export function SwipeableEventRequestCard({
 
       if (e.translationX > SWIPE_THRESHOLD) {
         // Swipe right - Accept
-        translateX.value = withTiming(300, { duration: 200 });
+        translateX.value = withTiming(300, { duration: SLIDE_MS });
         runOnJS(handleAccept)();
       } else if (e.translationX < -SWIPE_THRESHOLD) {
         // Swipe left - Decline
-        translateX.value = withTiming(-300, { duration: 200 });
+        translateX.value = withTiming(-300, { duration: SLIDE_MS });
         runOnJS(handleDecline)();
       } else {
         // Return to center
