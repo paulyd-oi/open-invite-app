@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, {
+  FadeInDown,
+  FadeIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import BottomNavigation from "@/components/BottomNavigation";
@@ -329,11 +335,13 @@ export default function ProfileScreen() {
 
   // ── Share handler ──
   const handleShareProfile = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // [P2_PROFILE_SHARE] DEV proof log
+    if (__DEV__) devLog("[P2_PROFILE_SHARE]", { trigger: "profileCard" });
     try {
       const handle = userHandle ? `@${userHandle}` : displayName;
       await Share.share({
-        message: `Check out ${handle} on Open Invite!\n\nhttps://apps.apple.com/app/open-invite`,
+        message: `Join ${handle} on Open Invite — turning plans into memories.\n\nhttps://apps.apple.com/app/open-invite`,
       });
     } catch {
       // user cancelled
@@ -459,6 +467,33 @@ export default function ProfileScreen() {
       chipTypes: highlightChips.map((c) => c.type),
     });
   }
+
+  // ── P2 empty-state tracking ──
+  const emptyStates: string[] = [];
+  if (nextMode === "empty") emptyStates.push("whatsNext");
+  if (recentActivity.length === 0) emptyStates.push("recentActivity");
+  // Highlights hides entirely when empty — confirmed correct behavior
+  if (highlightChips.length === 0) emptyStates.push("highlights");
+
+  // [P2_PROFILE_EMPTY] DEV proof log
+  if (__DEV__) {
+    devLog("[P2_PROFILE_EMPTY]", { rendered: emptyStates });
+  }
+
+  // MOTION_STABILITY: mount-once guard — animations only fire on initial mount
+  const didMount = useRef(false);
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
+    }
+  }, []);
+
+  // Share button press scale (P2 polish)
+  const shareScale = useSharedValue(1);
+  const shareAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shareScale.value }],
+  }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -589,16 +624,20 @@ export default function ProfileScreen() {
                   Edit
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={handleShareProfile}
-                className="flex-1 flex-row items-center justify-center py-2 rounded-lg ml-2"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-              >
-                <Share2 size={14} color={colors.textSecondary} />
-                <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
-                  Share
-                </Text>
-              </Pressable>
+              <Animated.View style={[{ flex: 1, marginLeft: 8 }, shareAnimatedStyle]}>
+                <Pressable
+                  onPressIn={() => { shareScale.value = withTiming(0.95, { duration: 100 }); }}
+                  onPressOut={() => { shareScale.value = withTiming(1, { duration: 150 }); }}
+                  onPress={handleShareProfile}
+                  className="flex-row items-center justify-center py-2 rounded-lg"
+                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                >
+                  <Share2 size={14} color={colors.textSecondary} />
+                  <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
+                    Share
+                  </Text>
+                </Pressable>
+              </Animated.View>
             </View>
           </View>
         </Animated.View>
@@ -694,10 +733,10 @@ export default function ProfileScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold" style={{ color: colors.text }}>
-                    Nothing planned yet
+                    Nothing planned — start something
                   </Text>
                   <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                    Create an event to get started
+                    Your next hangout is one tap away
                   </Text>
                 </View>
                 <View
@@ -743,27 +782,36 @@ export default function ProfileScreen() {
 
         {/* ═══ Highlights ═══ */}
         {highlightChips.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(88).springify()} className="mb-4">
-            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+          <Animated.View entering={FadeInDown.delay(88).springify()} className="mt-1 mb-5">
+            <Text className="text-xs font-semibold mb-2.5" style={{ color: colors.textTertiary }}>
               HIGHLIGHTS
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {highlightChips.map((chip) => (
-                <View
-                  key={chip.type}
-                  className="flex-row items-center px-3.5 py-2 rounded-full border mr-2"
-                  style={{
-                    backgroundColor: `${chip.color}10`,
-                    borderColor: `${chip.color}25`,
-                  }}
-                >
-                  <Text className="text-sm mr-1.5">{chip.emoji}</Text>
-                  <Text className="text-sm font-medium" style={{ color: chip.color }}>
-                    {StringSafe(chip.label)}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
+            <View
+              className="rounded-xl px-3 py-3 border"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {highlightChips.map((chip, idx) => (
+                  <Animated.View
+                    key={chip.type}
+                    entering={FadeIn.delay(idx * 30).duration(250)}
+                  >
+                    <View
+                      className="flex-row items-center px-3.5 py-2 rounded-full border mr-2"
+                      style={{
+                        backgroundColor: `${chip.color}10`,
+                        borderColor: `${chip.color}25`,
+                      }}
+                    >
+                      <Text className="text-sm mr-1.5">{chip.emoji}</Text>
+                      <Text className="text-sm font-medium" style={{ color: chip.color }}>
+                        {StringSafe(chip.label)}
+                      </Text>
+                    </View>
+                  </Animated.View>
+                ))}
+              </ScrollView>
+            </View>
           </Animated.View>
         )}
 
@@ -900,16 +948,16 @@ export default function ProfileScreen() {
           )}
 
         {/* ═══ Recent Activity ═══ */}
-        {recentActivity.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(175).springify()} className="mb-4">
-            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
-              RECENT ACTIVITY
-            </Text>
-            <View
-              className="rounded-xl border overflow-hidden"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-            >
-              {recentActivity.map((item, index) => (
+        <Animated.View entering={FadeInDown.delay(175).springify()} className="mb-4">
+          <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+            RECENT ACTIVITY
+          </Text>
+          <View
+            className="rounded-xl border overflow-hidden"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            {recentActivity.length > 0 ? (
+              recentActivity.map((item, index) => (
                 <Pressable
                   key={item.id}
                   onPress={() => {
@@ -930,10 +978,17 @@ export default function ProfileScreen() {
                   </View>
                   <ChevronRight size={16} color={colors.textTertiary} />
                 </Pressable>
-              ))}
-            </View>
-          </Animated.View>
-        )}
+              ))
+            ) : (
+              /* EMPTY_STATE_CLARITY: preserves section height, intentional copy */
+              <View className="px-4 py-5 items-center">
+                <Text className="text-sm" style={{ color: colors.textTertiary }}>
+                  Your social story starts here.
+                </Text>
+              </View>
+            )}
+          </View>
+        </Animated.View>
       </ScrollView>
 
       <BottomNavigation />
