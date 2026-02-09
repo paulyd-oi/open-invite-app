@@ -56,6 +56,8 @@ import { WelcomeModal, hasWelcomeModalBeenShown } from "@/components/WelcomeModa
 import { checkCalendarPermission } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -2285,16 +2287,14 @@ export default function CalendarScreen() {
           <Text className="text-base text-center mb-6" style={{ color: colors.textSecondary }}>
             Couldn't refresh right now. Try again in a moment.
           </Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Retry"
             onPress={() => {
               devLog("[CalendarScreen] Retry button pressed, refetching...");
               refetchCalendarEvents();
             }}
-            className="px-6 py-3 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Retry</Text>
-          </Pressable>
+          />
         </View>
         <BottomNavigation />
       </SafeAreaView>
@@ -2535,29 +2535,23 @@ export default function CalendarScreen() {
                   })}
                 </Text>
                 <View className="flex-row items-center gap-2">
-                  <Pressable
+                  <Chip
+                    variant="muted"
+                    label="Busy"
+                    leftIcon={<Briefcase size={12} color={colors.chipMutedText} />}
                     onPress={handleOpenBusyModal}
-                    className="flex-row items-center px-2 py-1 rounded-full"
-                    style={{ backgroundColor: "#6B728015" }}
-                  >
-                    <Briefcase size={12} color="#6B7280" />
-                    <Text className="text-xs font-medium ml-1" style={{ color: "#6B7280" }}>
-                      Busy
-                    </Text>
-                  </Pressable>
-                  <Pressable
+                    size="sm"
+                  />
+                  <Chip
+                    variant="accent"
+                    label="Free?"
+                    leftIcon={<Users size={12} color={themeColor} />}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}` as any);
                     }}
-                    className="flex-row items-center px-2 py-1 rounded-full"
-                    style={{ backgroundColor: `${themeColor}15` }}
-                  >
-                    <Users size={12} color={themeColor} />
-                    <Text className="text-xs font-medium ml-1" style={{ color: themeColor }}>
-                      Free?
-                    </Text>
-                  </Pressable>
+                    size="sm"
+                  />
                 </View>
               </View>
 
@@ -2578,7 +2572,10 @@ export default function CalendarScreen() {
                     </Text>
                   )}
                   {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
-                    <Pressable
+                    <Button
+                      variant="primary"
+                      label="Invite a friend"
+                      leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
                       onPress={async () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         try {
@@ -2590,39 +2587,29 @@ export default function CalendarScreen() {
                           devError("Error sharing:", error);
                         }
                       }}
-                      className="flex-row items-center px-5 py-2.5 rounded-full mb-3"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <UserPlus size={16} color="#FFFFFF" />
-                      <Text className="font-semibold ml-2 text-white">Invite a friend</Text>
-                    </Pressable>
+                      style={{ marginBottom: 12 }}
+                    />
                   )}
                   <View className="flex-row items-center mt-1 gap-4">
-                    <Pressable
+                    <Button
+                      variant="ghost"
+                      label="Create an Invite"
+                      leftIcon={<Plus size={16} color={themeColor} />}
                       onPress={() => {
                         if (!guardEmailVerification(session)) return;
                         router.push(`/create?date=${selectedDate.toISOString()}`);
                       }}
-                      className="flex-row items-center"
-                    >
-                      <Plus size={16} color={themeColor} />
-                      <Text className="font-medium ml-1" style={{ color: themeColor }}>
-                        Create an Invite
-                      </Text>
-                    </Pressable>
+                    />
                     <View style={{ width: 1, height: 16, backgroundColor: colors.border }} />
-                    <Pressable
+                    <Button
+                      variant="ghost"
+                      label="Who's Free?"
+                      leftIcon={<Users size={16} color={themeColor} />}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         router.push(`/whos-free?date=${selectedDate.toISOString().split('T')[0]}` as any);
                       }}
-                      className="flex-row items-center"
-                    >
-                      <Users size={16} color={themeColor} />
-                      <Text className="font-medium ml-1" style={{ color: themeColor }}>
-                        Who's Free?
-                      </Text>
-                    </Pressable>
+                    />
                   </View>
                 </View>
               ) : (

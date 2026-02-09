@@ -36,6 +36,8 @@ import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { useIsPro } from "@/lib/entitlements";
 import { devLog } from "@/lib/devLog";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 import {
   type GetFriendsResponse,
@@ -481,17 +483,13 @@ export default function ProfileScreen() {
                   </Text>
                   {/* PRO pill next to name */}
                   {userIsPremium && (
-                    <View
-                      className="ml-2 px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: "#FFD70020" }}
-                    >
-                      <Text
-                        className="text-xs font-semibold"
-                        style={{ color: "#B8860B" }}
-                      >
-                        PRO
-                      </Text>
-                    </View>
+                    <Chip
+                      variant="status"
+                      label="PRO"
+                      color="#B8860B"
+                      size="sm"
+                      style={{ marginLeft: 8 }}
+                    />
                   )}
                 </View>
 
@@ -516,32 +514,26 @@ export default function ProfileScreen() {
 
             {/* Edit / Share CTAs */}
             <View className="flex-row mt-4 pt-3 border-t" style={{ borderColor: colors.border }}>
-              <Pressable
+              <Button
+                variant="secondary"
+                label="Edit"
+                leftIcon={<Pencil size={14} color={colors.textSecondary} />}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/settings");
                 }}
-                className="flex-1 flex-row items-center justify-center py-2 rounded-lg mr-2"
-                style={{ backgroundColor: colors.surface2 }}
-              >
-                <Pencil size={14} color={colors.textSecondary} />
-                <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
-                  Edit
-                </Text>
-              </Pressable>
+                size="sm"
+                style={{ flex: 1, marginRight: 8, borderRadius: 8 }}
+              />
               <Animated.View style={[{ flex: 1, marginLeft: 8 }, shareAnimatedStyle]}>
-                <Pressable
-                  onPressIn={() => { shareScale.value = withTiming(0.97, { duration: 100 }); }}
-                  onPressOut={() => { shareScale.value = withTiming(1, { duration: 150 }); }}
+                <Button
+                  variant="secondary"
+                  label="Share"
+                  leftIcon={<Share2 size={14} color={colors.textSecondary} />}
                   onPress={handleShareProfile}
-                  className="flex-row items-center justify-center py-2 rounded-lg"
-                  style={{ backgroundColor: colors.surface2 }}
-                >
-                  <Share2 size={14} color={colors.textSecondary} />
-                  <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
-                    Share
-                  </Text>
-                </Pressable>
+                  size="sm"
+                  style={{ borderRadius: 8 }}
+                />
               </Animated.View>
             </View>
           </View>
@@ -582,12 +574,7 @@ export default function ProfileScreen() {
                     {formatRelativeTime(new Date(upcomingEvent.startTime))}
                   </Text>
                 </View>
-                <View
-                  className="px-3 py-1.5 rounded-lg"
-                  style={{ backgroundColor: `${themeColor}15` }}
-                >
-                  <Text className="text-sm font-medium" style={{ color: themeColor }}>View</Text>
-                </View>
+                <Chip variant="accent" label="View" style={{ borderRadius: 8 }} />
               </Pressable>
             )}
 
@@ -613,12 +600,7 @@ export default function ProfileScreen() {
                     Waiting for your response
                   </Text>
                 </View>
-                <View
-                  className="px-3 py-1.5 rounded-lg"
-                  style={{ backgroundColor: "#FF950015" }}
-                >
-                  <Text className="text-sm font-medium" style={{ color: "#FF9500" }}>Respond</Text>
-                </View>
+                <Chip variant="status" label="Respond" color="#FF9500" style={{ borderRadius: 8 }} />
               </Pressable>
             )}
 
@@ -644,12 +626,7 @@ export default function ProfileScreen() {
                     Your next hangout is one tap away
                   </Text>
                 </View>
-                <View
-                  className="px-3 py-1.5 rounded-lg"
-                  style={{ backgroundColor: `${themeColor}15` }}
-                >
-                  <Text className="text-sm font-medium" style={{ color: themeColor }}>Create</Text>
-                </View>
+                <Chip variant="accent" label="Create" style={{ borderRadius: 8 }} />
               </Pressable>
             )}
           </View>
@@ -695,18 +672,15 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label={upcomingWeekEvents.length === 0 ? "Start something" : "View calendar"}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(upcomingWeekEvents.length === 0 ? "/create" : "/calendar");
               }}
-              className="flex-row items-center justify-center py-2.5 rounded-lg"
-              style={{ backgroundColor: `${themeColor}15` }}
-            >
-              <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                {upcomingWeekEvents.length === 0 ? "Start something" : "View calendar"}
-              </Text>
-            </Pressable>
+              style={{ backgroundColor: `${themeColor}15`, borderRadius: 8, paddingVertical: 10 }}
+            />
           </View>
         </Animated.View>
 
@@ -853,19 +827,19 @@ export default function ProfileScreen() {
                 {chips.length > 0 ? (
                   <View className="flex-row flex-wrap">
                     {chips.map((chip) => (
-                      <View
+                      <Chip
                         key={chip.key}
-                        className="flex-row items-center mr-3 mb-2 px-3 py-1.5 rounded-full"
-                        style={{ backgroundColor: `${chip.color}20` }}
-                      >
-                        <Text className="text-sm mr-1.5">{chip.emoji}</Text>
-                        <Text className="text-sm font-medium" style={{ color: chip.color }}>
-                          {chip.label}
-                        </Text>
-                        <Text className="text-xs ml-1" style={{ color: `${chip.color}90` }}>
-                          {chip.count}
-                        </Text>
-                      </View>
+                        variant="status"
+                        label={chip.label}
+                        color={chip.color}
+                        leftIcon={<Text style={{ fontSize: 14, marginRight: 2 }}>{chip.emoji}</Text>}
+                        rightAdornment={
+                          <Text style={{ fontSize: 11, marginLeft: 4, color: `${chip.color}90` }}>
+                            {chip.count}
+                          </Text>
+                        }
+                        style={{ marginRight: 12, marginBottom: 8 }}
+                      />
                     ))}
                   </View>
                 ) : (

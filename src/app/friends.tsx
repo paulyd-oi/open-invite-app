@@ -77,6 +77,8 @@ import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
@@ -1336,13 +1338,12 @@ export default function FriendsScreen() {
             <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
               Sign in to see your friends
             </Text>
-            <Pressable
+            <Button
+              variant="primary"
+              label="Sign In"
               onPress={() => router.replace("/login")}
-              className="px-6 py-3 rounded-full mt-4"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Sign In</Text>
-            </Pressable>
+              style={{ marginTop: 16 }}
+            />
           </View>
           <BottomNavigation />
         </SafeAreaView>
@@ -1482,16 +1483,13 @@ export default function FriendsScreen() {
                     style={{ color: colors.text }}
                   />
                 </View>
-                <Pressable
+                <Button
+                  variant="primary"
+                  label={sendRequestMutation.isPending ? "..." : "Add"}
                   onPress={handleDirectFriendRequest}
                   disabled={sendRequestMutation.isPending}
-                  className="px-4 py-3 rounded-lg"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-white font-medium">
-                    {sendRequestMutation.isPending ? "..." : "Add"}
-                  </Text>
-                </Pressable>
+                  style={{ borderRadius: 8 }}
+                />
               </View>
 
               {/* Helper text */}
@@ -1977,15 +1975,17 @@ export default function FriendsScreen() {
                   </View>
                   {canInvite ? (
                     <View
-                      className="px-3 py-1.5 rounded-full"
-                      style={{ backgroundColor: themeColor }}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 9999,
+                        backgroundColor: themeColor,
+                      }}
                     >
-                      <Text className="text-white text-sm font-medium">Invite</Text>
+                      <Text style={{ color: colors.buttonPrimaryText, fontSize: 13, fontWeight: "500" }}>Invite</Text>
                     </View>
                   ) : (
-                    <View className="px-3 py-1.5 rounded-full" style={{ backgroundColor: colors.avatarBg }}>
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>No info</Text>
-                    </View>
+                    <Chip variant="neutral" label="No info" />
                   )}
                 </Pressable>
               );

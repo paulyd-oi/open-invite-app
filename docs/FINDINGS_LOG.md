@@ -1,5 +1,23 @@
 # Findings Log — Frontend
 
+## P1 Button + Chip SSOT System (2026-02-09)
+
+### UI Primitive Consolidation
+
+**PROBLEM**: Button and chip/pill styling was ad-hoc across screens — each "Create" button, "Busy"/"Free?" chip, status pill, and action indicator used inline hex colors and per-instance Pressable/View styling. This caused:
+- Inconsistent padding, border-radius, font-weight across identical-purpose elements
+- Hex color drift (e.g., #6B7280 for "Busy" chip, #EF4444/#22C55E for status pills)
+- No single place to update button/chip visual language
+
+**FIX**:
+1. Added 24 semantic tokens to DARK_COLORS + LIGHT_COLORS: button{Primary,Secondary,Ghost}{Bg,Text,Pressed,Disabled} + chip{Neutral,Muted,Accent,Status}{Bg,Text} + chipBorder
+2. Created `src/ui/Button.tsx` — SSOT button primitive (primary/secondary/ghost variants, Pressable-based, token-only colors)
+3. Created `src/ui/Chip.tsx` — SSOT chip/pill primitive (neutral/muted/accent/status variants, optional onPress, `color` override for status)
+4. Migrated 5 target screens (discover, calendar, friends, profile, social): 14 Button instances + 12 Chip instances replace ad-hoc Pressable/View elements
+5. Remaining inline hex values are contextual (availability colors, stat card accent colors, birthday pink, modal shadows) — not button/chip styling
+
+**DOCTRINE**: Screens must use Button/Chip/Tile primitives for interactive/indicator elements. No new inline hex for button backgrounds, chip backgrounds, or pill styling.
+
 ## P0.5 Repo Doctrine Sync (2026-02-04)
 
 ### Support + FAQ Truth Pass

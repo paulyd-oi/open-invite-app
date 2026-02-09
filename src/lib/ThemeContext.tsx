@@ -41,6 +41,31 @@ export const DARK_COLORS = {
   inputBg: "#1A1A1C",
   segmentBg: "#141416",
   segmentActive: "#2C2C2E",
+  // Button tokens
+  buttonPrimaryBg: "#FF6B4A",
+  buttonPrimaryText: "#FFFFFF",
+  buttonPrimaryPressedBg: "#E05A3A",
+  buttonPrimaryDisabledBg: "#2C2C2E",
+  buttonPrimaryDisabledText: "#6E6E73",
+  buttonSecondaryBg: "#2A2A2E",
+  buttonSecondaryText: "#FFFFFF",
+  buttonSecondaryPressedBg: "#252528",
+  buttonSecondaryDisabledBg: "#1C1C1E",
+  buttonSecondaryDisabledText: "#6E6E73",
+  buttonSecondaryBorder: "#3C3C40",
+  buttonGhostText: "#FFFFFF",
+  buttonGhostPressedBg: "#141416",
+  buttonGhostDisabledText: "#6E6E73",
+  // Chip tokens
+  chipNeutralBg: "#2A2A2E",
+  chipNeutralText: "#98989F",
+  chipMutedBg: "#141416",
+  chipMutedText: "#6E6E73",
+  chipAccentBg: "#FF6B4A20",
+  chipAccentText: "#FF6B4A",
+  chipStatusBg: "#2C2C2E",
+  chipStatusText: "#98989F",
+  chipBorder: "#3C3C40",
 };
 
 // Light mode color palette
@@ -63,6 +88,31 @@ export const LIGHT_COLORS = {
   inputBg: "#F9FAFB",
   segmentBg: "#F2F2F7",
   segmentActive: "#FFFFFF",
+  // Button tokens
+  buttonPrimaryBg: "#FF6B4A",
+  buttonPrimaryText: "#FFFFFF",
+  buttonPrimaryPressedBg: "#E05A3A",
+  buttonPrimaryDisabledBg: "#E5E7EB",
+  buttonPrimaryDisabledText: "#9CA3AF",
+  buttonSecondaryBg: "#FFFFFF",
+  buttonSecondaryText: "#1F2937",
+  buttonSecondaryPressedBg: "#F6F7F9",
+  buttonSecondaryDisabledBg: "#F9FAFB",
+  buttonSecondaryDisabledText: "#9CA3AF",
+  buttonSecondaryBorder: "#E5E7EB",
+  buttonGhostText: "#1F2937",
+  buttonGhostPressedBg: "#F6F7F9",
+  buttonGhostDisabledText: "#9CA3AF",
+  // Chip tokens
+  chipNeutralBg: "#F3F4F6",
+  chipNeutralText: "#6B7280",
+  chipMutedBg: "#F2F2F7",
+  chipMutedText: "#9CA3AF",
+  chipAccentBg: "#FF6B4A15",
+  chipAccentText: "#FF6B4A",
+  chipStatusBg: "#F3F4F6",
+  chipStatusText: "#6B7280",
+  chipBorder: "#F0F0F0",
 };
 
 /** Reusable tile shadow – Tier 1 (standard). */

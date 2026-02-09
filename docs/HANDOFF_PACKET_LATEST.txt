@@ -1,5 +1,45 @@
 ═══════════════════════════════════════════════════════════════════════════
-HANDOFF PACKET — P0 Push Tap Deep-Link Parity
+HANDOFF PACKET — P1 Button + Chip SSOT System
+Date: 2026-02-09
+
+SUMMARY
+Created SSOT semantic tokens + primitives for Buttons and Chips, then migrated 5 target screens to remove ad-hoc styling drift.
+
+ROOT CAUSE
+Button/chip styling was ad-hoc across screens. Each Create button, Busy/Free chip, status pill used inline hex and per-instance Pressable/View styling, causing inconsistent padding/radius/font and hex color drift with no single update point.
+
+TOKENS ADDED (24 total)
+buttonPrimaryBg, buttonPrimaryText, buttonPrimaryPressedBg, buttonPrimaryDisabledBg, buttonPrimaryDisabledText
+buttonSecondaryBg, buttonSecondaryText, buttonSecondaryPressedBg, buttonSecondaryDisabledBg, buttonSecondaryDisabledText, buttonSecondaryBorder
+buttonGhostText, buttonGhostPressedBg, buttonGhostDisabledText
+chipNeutralBg, chipNeutralText, chipMutedBg, chipMutedText, chipAccentBg, chipAccentText, chipStatusBg, chipStatusText, chipBorder
+
+PRIMITIVES CREATED
+src/ui/Button.tsx — primary/secondary/ghost, label+leftIcon+loading+size props
+src/ui/Chip.tsx — neutral/muted/accent/status, label+leftIcon+rightAdornment+color+onPress props
+
+SCREENS MIGRATED
+discover.tsx — Create button, attendee pills (2), lens count badge
+social.tsx — Create button, You chip, Invite a friend button, Create an Invite ghost, Load more secondary
+calendar.tsx — Retry button, Busy chip, Free chip, Invite a friend button, Create an Invite ghost, Whos Free ghost
+friends.tsx — Sign In button, Add button, No info chip
+profile.tsx — PRO badge, Edit button, Share button, View/Respond/Create pills, event type chips, week CTA
+
+FILES CHANGED
+src/lib/ThemeContext.tsx — 24 button+chip tokens added to DARK_COLORS + LIGHT_COLORS
+src/ui/Button.tsx — NEW, SSOT button primitive
+src/ui/Chip.tsx — NEW, SSOT chip primitive
+src/app/discover.tsx — 5 migrations (Button+Chip)
+src/app/social.tsx — 5 migrations (Button+Chip)
+src/app/calendar.tsx — 7 migrations (Button+Chip)
+src/app/friends.tsx — 4 migrations (Button+Chip)
+src/app/profile.tsx — 9 migrations (Button+Chip)
+docs/STATE_OF_THE_APP.md — Added UI primitives doctrine
+docs/FINDINGS_LOG.md — Added P1 Button+Chip entry
+
+VERIFICATION
+npm run typecheck — PASS (zero errors)
+bash scripts/ai/verify_frontend.sh — PASS
 ═══════════════════════════════════════════════════════════════════════════
 
 SUMMARY (what changed, why)

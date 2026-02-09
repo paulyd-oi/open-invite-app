@@ -1,6 +1,8 @@
 # State of the App — Frontend
 
 ## Stable
+- UI Primitives SSOT: src/ui/Button.tsx (primary/secondary/ghost), src/ui/Chip.tsx (neutral/muted/accent/status), src/ui/Tile.tsx (standard/accent). All consume ThemeContext tokens exclusively.
+- Theme tokens: DARK_COLORS + LIGHT_COLORS include button* (15 tokens) and chip* (9 tokens) semantic tokens alongside surface/divider hierarchy.
 - Push notification tap deep-linking: BOTH cold start AND background taps now route deterministically via resolveNotificationRoute() SSOT
 - Push tap cold start handling: getLastNotificationResponseAsync() called on mount, routes with router.replace() to avoid stack duplication
 - Push tap routing table: Supports eventId/event_id, userId/user_id/actorId/senderId, circleId/circle_id key formats

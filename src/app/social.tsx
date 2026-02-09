@@ -39,6 +39,8 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dism
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -283,9 +285,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 {displayEvent.title}
               </Text>
               {isOwn && (
-                <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${themeColor}20` }}>
-                  <Text style={{ color: themeColor }} className="text-xs font-medium">You</Text>
-                </View>
+                <Chip variant="accent" label="You" size="sm" style={{ marginLeft: 8 }} />
               )}
             </View>
             {displayEvent.description && !isSeries && (
@@ -1142,17 +1142,16 @@ export default function SocialScreen() {
         </View>
         <View className="flex-row items-center">
           <ShareAppButton variant="icon" />
-          <Pressable
+          <Button
+            variant="primary"
+            label="Create"
             onPress={() => {
               if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/create");
             }}
-            className="flex-row items-center px-4 py-2 rounded-full ml-2"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-sora-semibold">Create</Text>
-          </Pressable>
+            style={{ marginLeft: 8 }}
+          />
         </View>
       </View>
 
@@ -1209,7 +1208,10 @@ export default function SocialScreen() {
               </Text>
             )}
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
-              <Pressable
+              <Button
+                variant="primary"
+                label="Invite a friend"
+                leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
@@ -1221,23 +1223,18 @@ export default function SocialScreen() {
                     devError("Error sharing:", error);
                   }
                 }}
-                className="flex-row items-center px-5 py-2.5 rounded-full mb-3"
-                style={{ backgroundColor: themeColor }}
-              >
-                <UserPlus size={16} color="#FFFFFF" />
-                <Text className="font-semibold ml-2 text-white">Invite a friend</Text>
-              </Pressable>
+                style={{ marginBottom: 12 }}
+              />
             )}
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Create an Invite"
               onPress={() => {
                 if (!guardEmailVerification(session)) return;
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 router.push("/create");
               }}
-              className="flex-row items-center"
-            >
-              <Text className="font-medium" style={{ color: themeColor }}>Create an Invite</Text>
-            </Pressable>
+            />
           </View>
         </ScrollView>
       ) : (
@@ -1341,18 +1338,13 @@ export default function SocialScreen() {
           />
           {/* Load more button for feed pagination */}
           {hasNextPage && (
-            <Pressable
+            <Button
+              variant="secondary"
+              label="Load more invites"
               onPress={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="mx-4 my-6 py-3 rounded-xl items-center justify-center"
-              style={{ backgroundColor: isDark ? colors.surfaceElevated : colors.surface, borderWidth: 1, borderColor: colors.border }}
-            >
-              {isFetchingNextPage ? (
-                <ActivityIndicator size="small" color={themeColor} />
-              ) : (
-                <Text style={{ color: themeColor, fontFamily: 'Sora_600SemiBold', fontSize: 14 }}>Load more invites</Text>
-              )}
-            </Pressable>
+              loading={isFetchingNextPage}
+              style={{ marginHorizontal: 16, marginVertical: 24, borderRadius: 12 }}
+            />
           )}
         </ScrollView>
       )}

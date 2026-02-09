@@ -29,6 +29,8 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 interface PopularEvent {
   id: string;
@@ -246,17 +248,16 @@ export default function DiscoverScreen() {
           </View>
 
           <View className="items-center">
-            <View
-              className="px-3 py-1.5 rounded-full flex-row items-center"
-              style={{ backgroundColor: event.isFull ? "#EF444420" : themeColor + "20" }}
-            >
-              <Users size={14} color={event.isFull ? "#EF4444" : themeColor} />
-              <Text className="font-bold ml-1" style={{ color: event.isFull ? "#EF4444" : themeColor }}>
-                {event.capacity != null
+            <Chip
+              variant={event.isFull ? "status" : "accent"}
+              color={event.isFull ? "#EF4444" : undefined}
+              label={
+                event.capacity != null
                   ? event.isFull ? "Full" : `${event.attendeeCount}/${event.capacity}`
-                  : event.attendeeCount}
-              </Text>
-            </View>
+                  : String(event.attendeeCount)
+              }
+              leftIcon={<Users size={14} color={event.isFull ? "#EF4444" : themeColor} />}
+            />
             <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
               {event.isFull ? `${event.attendeeCount} going` : "going"}
             </Text>
@@ -315,17 +316,15 @@ export default function DiscoverScreen() {
           <Text className="text-2xl font-bold" style={{ color: colors.text }}>
             Discover
           </Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Create"
             onPress={() => {
               if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               router.push("/create");
             }}
-            className="flex-row items-center px-4 py-2 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Create</Text>
-          </Pressable>
+          />
         </View>
 
         {/* ═══ Lens Switcher ═══ */}
@@ -417,10 +416,11 @@ export default function DiscoverScreen() {
                         </View>
                       )}
                     </View>
-                    <View className="px-3 py-1.5 rounded-full flex-row items-center" style={{ backgroundColor: themeColor + "20" }}>
-                      <Users size={14} color={themeColor} />
-                      <Text className="font-bold ml-1" style={{ color: themeColor }}>{featured.attendeeCount}</Text>
-                    </View>
+                    <Chip
+                      variant="accent"
+                      label={String(featured.attendeeCount)}
+                      leftIcon={<Users size={14} color={themeColor} />}
+                    />
                   </View>
                 </Pressable>
               </Animated.View>
@@ -431,9 +431,7 @@ export default function DiscoverScreen() {
               <View className="flex-row items-center">
                 <Text className="font-semibold text-sm" style={{ color: colors.text }}>{lensLabel}</Text>
                 {lensTotal > 0 && (
-                  <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: themeColor + "18" }}>
-                    <Text className="text-xs font-medium" style={{ color: themeColor }}>{lensTotal}</Text>
-                  </View>
+                  <Chip variant="accent" label={String(lensTotal)} size="sm" style={{ marginLeft: 8 }} />
                 )}
               </View>
               {lensTotal > PREVIEW_LIMIT && (
