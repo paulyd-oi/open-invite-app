@@ -28,6 +28,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import Constants from "expo-constants";
 
 import { useTheme } from "@/lib/ThemeContext";
@@ -585,23 +586,24 @@ export default function HelpFAQScreen() {
       features: [
         {
           title: "Referral Program",
-          description: "Invite friends and earn rewards.",
+          description: "Invite friends and track your referral milestones.",
           howItWorks: [
             "Go to Settings > Invite Friends",
             "Get your unique referral code or link",
             "Share with friends via text, email, or social media",
-            "When they sign up, you both benefit",
-            "Track your successful referrals",
+            "When they sign up, your referral count grows",
+            "Track your progress toward milestones",
           ],
         },
         {
-          title: "Referral Rewards",
-          description: "Earn free premium time for successful referrals.",
+          title: "Referral Milestones",
+          description: `Reach ${REFERRAL_TIERS.MONTH_PRO.count}, ${REFERRAL_TIERS.YEAR_PRO.count}, or ${REFERRAL_TIERS.LIFETIME_PRO.count} referrals to hit milestone tiers.`,
           howItWorks: [
-            "Each friend who joins counts as a successful referral",
-            "Invite 10 friends to earn 1 year FREE premium",
+            "Each friend who joins counts toward your milestone progress",
+            `${REFERRAL_TIERS.MONTH_PRO.count} referrals — first milestone`,
+            `${REFERRAL_TIERS.YEAR_PRO.count} referrals — second milestone`,
+            `${REFERRAL_TIERS.LIFETIME_PRO.count} referrals — ultimate milestone`,
             "Track progress in Settings > Invite Friends",
-            "Rewards applied automatically when milestone reached",
           ],
         },
         {
