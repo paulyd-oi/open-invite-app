@@ -811,6 +811,7 @@ function MessageBubble({
   onPress,
   isRunContinuation,
   showTimestamp,
+  reactions,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -822,6 +823,7 @@ function MessageBubble({
   onPress?: () => void;
   isRunContinuation?: boolean;
   showTimestamp?: boolean;
+  reactions?: string[];
 }) {
   const isSystemMessage = message.content.startsWith("📅");
   const isSending = (message as any).status === "sending";
@@ -893,6 +895,29 @@ function MessageBubble({
           >
             <Text style={{ color: isOwn ? "#fff" : colors.text }}>{message.content}</Text>
           </View>
+          {/* [P2_CHAT_REACTIONS] Reaction chips */}
+          {reactions && reactions.length > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 2, ...(isOwn ? { justifyContent: "flex-end", marginRight: 2 } : { marginLeft: 2 }) }}>
+              {reactions.map((emoji) => (
+                <View
+                  key={emoji}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                    borderRadius: 10,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    marginRight: 4,
+                    marginBottom: 2,
+                  }}
+                >
+                  <Text style={{ fontSize: 12 }}>{emoji}</Text>
+                  <Text style={{ fontSize: 10, marginLeft: 2, color: colors.textTertiary }}>1</Text>
+                </View>
+              ))}
+            </View>
+          )}
           {showTimestamp && (
           <View className={`flex-row items-center mt-1 ${isOwn ? "justify-end mr-1" : "ml-1"}`}>
             <Text className="text-[10px]" style={{ color: colors.textTertiary }}>
@@ -1828,6 +1853,18 @@ export default function CircleScreen() {
     }, 3000);
   }, [activeTimestampId]);
 
+  // [P2_CHAT_REACTIONS] Local-only reactions overlay state
+  const [reactionsByStableId, setReactionsByStableId] = useState<Record<string, string[]>>({});
+  const [reactionTargetId, setReactionTargetId] = useState<string | null>(null);
+  const REACTION_EMOJI = ["\uD83D\uDC4D", "\u2764\uFE0F", "\uD83D\uDE02", "\uD83D\uDE2E", "\uD83D\uDE22", "\uD83D\uDE4F"];
+  const reactionsLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!reactionsLogFiredRef.current && __DEV__) {
+      devLog("[P2_CHAT_REACTIONS]", "mounted");
+      reactionsLogFiredRef.current = true;
+    }
+  }, []);
+
   // [P1_CHAT_GROUP] One-time mount log
   const groupLogFired = useRef(false);
   useEffect(() => {
@@ -2137,7 +2174,7 @@ export default function CircleScreen() {
               if (__DEV__) devLog("[P1_MSG_ACTIONS]", "open_actions", { id: item.id, status: (item as any).status });
 
               if (Platform.OS === "ios") {
-                const options = ["Copy Text"];
+                const options = ["Add Reaction", "Copy Text"];
                 if (isFailedOptimistic && (item as any).clientMessageId) options.push("Retry Send");
                 if (isFailedOptimistic) options.push("Remove Failed Message");
                 options.push("Cancel");
@@ -2145,7 +2182,11 @@ export default function CircleScreen() {
                   { options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: options.indexOf("Remove Failed Message") },
                   (idx) => {
                     const picked = options[idx];
-                    if (picked === "Copy Text") handleCopy();
+                    if (picked === "Add Reaction") {
+                      if (__DEV__) devLog("[P2_CHAT_REACTIONS]", "open_picker", { messageId: stableId });
+                      setReactionTargetId(stableId);
+                    }
+                    else if (picked === "Copy Text") handleCopy();
                     else if (picked === "Retry Send") handleRetry();
                     else if (picked === "Remove Failed Message") handleRemove();
                   },
@@ -2154,6 +2195,10 @@ export default function CircleScreen() {
                 // Android: use a simple alert-style approach with Modal state
                 // For simplicity and zero-dep constraint, use built-in Alert
                 const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
+                  { text: "Add Reaction", onPress: () => {
+                    if (__DEV__) devLog("[P2_CHAT_REACTIONS]", "open_picker", { messageId: stableId });
+                    setReactionTargetId(stableId);
+                  }},
                   { text: "Copy Text", onPress: handleCopy },
                 ];
                 if (isFailedOptimistic && (item as any).clientMessageId) {
@@ -2215,6 +2260,7 @@ export default function CircleScreen() {
                   : undefined
                 }
                 onLongPress={handleLongPress}
+                reactions={stableId ? reactionsByStableId[stableId] : undefined}
               />
               </>
             );
@@ -3327,6 +3373,67 @@ export default function CircleScreen() {
         context={paywallContext}
         onClose={() => setShowPaywallModal(false)}
       />
+
+      {/* [P2_CHAT_REACTIONS] Emoji reaction picker overlay */}
+      {reactionTargetId !== null && (
+        <Pressable
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onPress={() => setReactionTargetId(null)}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              backgroundColor: isDark ? "#2c2c2e" : "#ffffff",
+              borderRadius: 28,
+              paddingHorizontal: 8,
+              paddingVertical: 6,
+              shadowColor: "#000",
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 8,
+            }}
+          >
+            {REACTION_EMOJI.map((emoji) => {
+              const isSelected = (reactionsByStableId[reactionTargetId] ?? []).includes(emoji);
+              return (
+                <Pressable
+                  key={emoji}
+                  onPress={() => {
+                    setReactionsByStableId((prev) => {
+                      const existing = prev[reactionTargetId] ?? [];
+                      const next = existing.includes(emoji)
+                        ? existing.filter((e) => e !== emoji)
+                        : [...existing, emoji];
+                      if (__DEV__) devLog("[P2_CHAT_REACTIONS]", existing.includes(emoji) ? "clear" : "select", { emoji, messageId: reactionTargetId });
+                      return { ...prev, [reactionTargetId]: next };
+                    });
+                    setReactionTargetId(null);
+                  }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: isSelected
+                      ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)")
+                      : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 26 }}>{emoji}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      )}
     </SafeAreaView>
   );
 }

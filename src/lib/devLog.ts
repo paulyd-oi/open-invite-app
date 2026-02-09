@@ -87,6 +87,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_SCROLL_BTN]",
   // Scheduling engine v1 proof logs
   "[SCHED_ENGINE_V1]",
+  // P2 chat reactions overlay
+  "[P2_CHAT_REACTIONS]",
 ];
 
 /**
