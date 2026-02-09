@@ -2,9 +2,10 @@
  * Button – SSOT button primitive.
  *
  * Variants:
- *   • primary   → solid themeColor bg, white text
- *   • secondary → surfaceElevated bg + border, default text
- *   • ghost     → transparent bg, themeColor text
+ *   • primary     → solid themeColor bg, white text
+ *   • secondary   → surfaceElevated bg + border, default text
+ *   • ghost       → transparent bg, themeColor text
+ *   • destructive → solid red bg, white text
  *
  * Uses ThemeContext tokens exclusively. No inline hex values.
  * Pressed state via Pressable style callback.
@@ -20,7 +21,7 @@ import {
 import { useTheme } from "@/lib/ThemeContext";
 
 export interface ButtonProps {
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "destructive";
   label: string;
   onPress?: () => void;
   disabled?: boolean;
@@ -29,6 +30,7 @@ export interface ButtonProps {
   /** Container style override (should not introduce colors). */
   style?: StyleProp<ViewStyle>;
   size?: "sm" | "md";
+  testID?: string;
 }
 
 export function Button({
@@ -40,6 +42,7 @@ export function Button({
   leftIcon,
   style,
   size = "md",
+  testID,
 }: ButtonProps) {
   const { themeColor, colors } = useTheme();
 
@@ -83,6 +86,17 @@ export function Button({
       };
     }
 
+    if (variant === "destructive") {
+      return {
+        ...base,
+        backgroundColor: isDisabled
+          ? colors.buttonDestructiveDisabledBg
+          : pressed
+          ? colors.buttonDestructivePressedBg
+          : colors.buttonDestructiveBg,
+      };
+    }
+
     // ghost
     return {
       ...base,
@@ -99,6 +113,11 @@ export function Button({
     if (variant === "secondary") {
       return isDisabled ? colors.buttonSecondaryDisabledText : themeColor;
     }
+    if (variant === "destructive") {
+      return isDisabled
+        ? colors.buttonDestructiveDisabledText
+        : colors.buttonDestructiveText;
+    }
     // ghost
     return isDisabled ? colors.buttonGhostDisabledText : themeColor;
   })();
@@ -107,6 +126,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      testID={testID}
       style={(state) => [getContainerStyle(state.pressed), style]}
       accessibilityRole="button"
       accessibilityLabel={label}
