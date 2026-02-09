@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   Image,
   RefreshControl,
+  Share,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,10 +25,12 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
 import { eventKeys } from "@/lib/eventQueryKeys";
+import { circleKeys } from "@/lib/circleQueryKeys";
 import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { useIsPro } from "@/lib/entitlements";
+import { devLog } from "@/lib/devLog";
 
 import {
   type GetFriendsResponse,
@@ -35,6 +38,7 @@ import {
   type GetProfilesResponse,
   type GetEventsResponse,
   type GetProfileStatsResponse,
+  type GetCirclesResponse,
   EVENT_CATEGORIES,
 } from "../../shared/contracts";
 
@@ -46,6 +50,13 @@ import {
   Heart,
   ChevronRight,
   Crown,
+  Share2,
+  Pencil,
+  Plus,
+  UserPlus,
+  Layers,
+  Flame,
+  Clock,
 } from "@/ui/icons";
 
 /**
@@ -135,6 +146,12 @@ export default function ProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
+  const { data: circlesData, refetch: refetchCircles } = useQuery({
+    queryKey: circleKeys.all(),
+    queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+  });
+
   // Load avatar source with auth headers (must be after profileData query)
   useEffect(() => {
     const loadAvatar = async () => {
@@ -162,6 +179,7 @@ export default function ProfileScreen() {
         refetchFriends(),
         refetchEvents(),
         refetchStats(),
+        refetchCircles(),
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ]);
     } finally {
@@ -173,6 +191,7 @@ export default function ProfileScreen() {
     refetchFriends,
     refetchEvents,
     refetchStats,
+    refetchCircles,
     queryClient,
   ]);
 
@@ -209,6 +228,7 @@ export default function ProfileScreen() {
   // Safe derived values
   const friends = (friendsData?.friends ?? []).filter((f) => f.friend != null);
   const friendsCount = friends.length;
+  const circlesCount = circlesData?.circles?.length ?? 0;
 
   const stats = statsData?.stats;
 
@@ -243,6 +263,103 @@ export default function ProfileScreen() {
     );
   };
 
+  // ── What's Next derivation (SSOT from existing queries) ──
+  const allEvents = eventsData?.events ?? [];
+  const now = new Date();
+
+  const upcomingEvent = useMemo(() => {
+    return allEvents
+      .filter((e) => new Date(e.startTime) > now && e.userId === session?.user?.id)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] ?? null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, session?.user?.id]);
+
+  const pendingInvites = useMemo(() => {
+    return allEvents.filter(
+      (e) =>
+        e.viewerRsvpStatus === null &&
+        e.userId !== session?.user?.id &&
+        new Date(e.startTime) > now,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, session?.user?.id]);
+
+  // PROFILE_NEXT_MODE_INVARIANT: exactly one mode renders
+  const nextMode: "upcoming" | "pending" | "empty" = upcomingEvent
+    ? "upcoming"
+    : pendingInvites.length > 0
+    ? "pending"
+    : "empty";
+
+  // [P0_PROFILE_NEXT] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_PROFILE_NEXT]", {
+      mode: nextMode,
+      hasUpcoming: !!upcomingEvent,
+      pendingCount: pendingInvites.length,
+      totalEvents: allEvents.length,
+    });
+  }
+
+  // ── Recent Activity derivation (SSOT from existing events query) ──
+  const recentActivity = useMemo(() => {
+    const userId = session?.user?.id;
+    if (!userId) return [];
+    return allEvents
+      .filter((e) => new Date(e.startTime) <= now)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
+      .slice(0, 5)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        emoji: e.emoji || "📅",
+        type: e.userId === userId ? "hosted" : "joined",
+        date: new Date(e.startTime),
+      }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, session?.user?.id]);
+
+  // [P0_PROFILE_ACTIVITY] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_PROFILE_ACTIVITY]", {
+      count: recentActivity.length,
+      source: "eventsData",
+    });
+  }
+
+  // ── Share handler ──
+  const handleShareProfile = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const handle = userHandle ? `@${userHandle}` : displayName;
+      await Share.share({
+        message: `Check out ${handle} on Open Invite!\n\nhttps://apps.apple.com/app/open-invite`,
+      });
+    } catch {
+      // user cancelled
+    }
+  }, [userHandle, displayName]);
+
+  // ── Time formatting helper ──
+  const formatRelativeTime = (date: Date) => {
+    const diff = date.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (hours < 1) return "Soon";
+    if (hours < 24) return `In ${hours}h`;
+    if (days === 1) return "Tomorrow";
+    return `In ${days} days`;
+  };
+
+  const formatPastDate = (date: Date) => {
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days}d ago`;
+    return `${Math.floor(days / 7)}w ago`;
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
@@ -273,7 +390,7 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* Profile Card - Premium users get gold border */}
+        {/* ═══ Profile Identity Card ═══ */}
         <Animated.View entering={FadeInDown.springify()}>
           <View
             className="rounded-2xl p-5 border mb-4"
@@ -313,7 +430,7 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              {/* Name + Handle + Badge */}
+              {/* Name + Handle */}
               <View className="flex-1 ml-4">
                 <View className="flex-row items-center">
                   <Text
@@ -351,107 +468,275 @@ export default function ProfileScreen() {
                     className="ml-2 text-sm"
                     style={{ color: colors.textSecondary }}
                   >
-                    My calendar looks like...
+                    {calendarBio ? StringSafe(calendarBio) : "Not set yet"}
                   </Text>
                 </View>
-
-                <Text style={{ marginTop: 4, color: colors.text }}>
-                  {calendarBio ? StringSafe(calendarBio) : "Not set yet"}
-                </Text>
               </View>
+            </View>
+
+            {/* Edit / Share CTAs */}
+            <View className="flex-row mt-4 pt-3 border-t" style={{ borderColor: colors.border }}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/settings");
+                }}
+                className="flex-1 flex-row items-center justify-center py-2 rounded-lg mr-2"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+              >
+                <Pencil size={14} color={colors.textSecondary} />
+                <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
+                  Edit
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={handleShareProfile}
+                className="flex-1 flex-row items-center justify-center py-2 rounded-lg ml-2"
+                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+              >
+                <Share2 size={14} color={colors.textSecondary} />
+                <Text className="ml-1.5 text-sm font-medium" style={{ color: colors.text }}>
+                  Share
+                </Text>
+              </Pressable>
             </View>
           </View>
         </Animated.View>
 
-        {/* Stats Overview */}
+        {/* ═══ What's Next Card ═══ */}
         <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
+          <View
+            className="rounded-2xl p-4 border"
+            style={{
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            }}
+          >
+            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary }}>
+              WHAT&apos;S NEXT
+            </Text>
+
+            {nextMode === "upcoming" && upcomingEvent && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/event/${upcomingEvent.id}`);
+                }}
+                className="flex-row items-center"
+              >
+                <View
+                  className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                  style={{ backgroundColor: `${themeColor}15` }}
+                >
+                  <Text className="text-lg">{upcomingEvent.emoji || "📅"}</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: colors.text }} numberOfLines={1}>
+                    {StringSafe(upcomingEvent.title)}
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    {formatRelativeTime(new Date(upcomingEvent.startTime))}
+                  </Text>
+                </View>
+                <View
+                  className="px-3 py-1.5 rounded-lg"
+                  style={{ backgroundColor: `${themeColor}15` }}
+                >
+                  <Text className="text-sm font-medium" style={{ color: themeColor }}>View</Text>
+                </View>
+              </Pressable>
+            )}
+
+            {nextMode === "pending" && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/calendar");
+                }}
+                className="flex-row items-center"
+              >
+                <View
+                  className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                  style={{ backgroundColor: "#FF950015" }}
+                >
+                  <Clock size={20} color="#FF9500" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: colors.text }}>
+                    {pendingInvites.length} pending {pendingInvites.length === 1 ? "invite" : "invites"}
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    Waiting for your response
+                  </Text>
+                </View>
+                <View
+                  className="px-3 py-1.5 rounded-lg"
+                  style={{ backgroundColor: "#FF950015" }}
+                >
+                  <Text className="text-sm font-medium" style={{ color: "#FF9500" }}>Respond</Text>
+                </View>
+              </Pressable>
+            )}
+
+            {nextMode === "empty" && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/create");
+                }}
+                className="flex-row items-center"
+              >
+                <View
+                  className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                  style={{ backgroundColor: `${themeColor}15` }}
+                >
+                  <Plus size={20} color={themeColor} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-semibold" style={{ color: colors.text }}>
+                    Nothing planned yet
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    Create an event to get started
+                  </Text>
+                </View>
+                <View
+                  className="px-3 py-1.5 rounded-lg"
+                  style={{ backgroundColor: `${themeColor}15` }}
+                >
+                  <Text className="text-sm font-medium" style={{ color: themeColor }}>Create</Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ═══ Quick Actions ═══ */}
+        <Animated.View entering={FadeInDown.delay(75).springify()} className="mb-4">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {[
+              { label: "Create Event", icon: Plus, color: themeColor, route: "/create" as const },
+              { label: "Invite Friend", icon: UserPlus, color: "#4ECDC4", route: "/invite" as const },
+              { label: "New Group", icon: Layers, color: "#F39C12", route: "/friends" as const },
+              { label: calendarBio ? "Edit Profile" : "Add Bio", icon: Pencil, color: "#9B59B6", route: "/settings" as const },
+            ].map((action, i) => (
+              <Pressable
+                key={action.label}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(action.route);
+                }}
+                className="flex-row items-center px-4 py-2.5 rounded-full border mr-2"
+                style={{
+                  backgroundColor: `${action.color}10`,
+                  borderColor: `${action.color}30`,
+                }}
+              >
+                <action.icon size={16} color={action.color} />
+                <Text className="ml-1.5 text-sm font-medium" style={{ color: action.color }}>
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
+        {/* ═══ Momentum (Streak) ═══ */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
+          <StreakCounter
+            currentStreak={stats?.currentStreak ?? 0}
+            longestStreak={stats?.currentStreak ?? 0}
+            totalHangouts={stats?.attendedCount ?? 0}
+          />
+        </Animated.View>
+
+        {/* ═══ Social Snapshot (2×2 grid) ═══ */}
+        <Animated.View entering={FadeInDown.delay(125).springify()} className="mb-4">
+          <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+            SOCIAL SNAPSHOT
+          </Text>
+          <View className="flex-row mb-2">
+            {/* Friends */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/friends");
+              }}
+              className="flex-1 rounded-xl p-4 mr-1 border"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center justify-between mb-1">
+                <Text className="text-2xl font-bold" style={{ color: "#4ECDC4" }}>
+                  {StringSafe(friendsCount)}
+                </Text>
+                <Users size={16} color="#4ECDC4" />
+              </View>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>Friends</Text>
+            </Pressable>
+            {/* Circles */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/friends");
+              }}
+              className="flex-1 rounded-xl p-4 ml-1 border"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            >
+              <View className="flex-row items-center justify-between mb-1">
+                <Text className="text-2xl font-bold" style={{ color: "#F39C12" }}>
+                  {StringSafe(circlesCount)}
+                </Text>
+                <Layers size={16} color="#F39C12" />
+              </View>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>Groups</Text>
+            </Pressable>
+          </View>
           <View className="flex-row">
-            {/* Hosted Events */}
+            {/* Hosted */}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push("/calendar");
               }}
-              className="flex-1 rounded-xl p-4 mr-2 border"
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              }}
+              className="flex-1 rounded-xl p-4 mr-1 border"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text
-                  className="text-3xl font-bold"
-                  style={{ color: themeColor }}
-                >
+              <View className="flex-row items-center justify-between mb-1">
+                <Text className="text-2xl font-bold" style={{ color: themeColor }}>
                   {StringSafe(stats?.hostedCount ?? 0)}
                 </Text>
-                <View
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: `${themeColor}20` }}
-                >
-                  <Star size={16} color={themeColor} />
-                </View>
+                <Star size={16} color={themeColor} />
               </View>
-              <Text className="text-sm font-medium" style={{ color: colors.text }}>
-                Hosted
-              </Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                events
-              </Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>Hosted</Text>
             </Pressable>
-
-            {/* Attended Events - Info display only (no action/navigation target exists) */}
+            {/* Attended */}
             <View
-              className="flex-1 rounded-xl p-4 border"
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              }}
+              className="flex-1 rounded-xl p-4 ml-1 border"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-3xl font-bold" style={{ color: "#4ECDC4" }}>
+              <View className="flex-row items-center justify-between mb-1">
+                <Text className="text-2xl font-bold" style={{ color: "#4ECDC4" }}>
                   {StringSafe(stats?.attendedCount ?? 0)}
                 </Text>
-                <View
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: "#4ECDC420" }}
-                >
-                  <Heart size={16} color="#4ECDC4" />
-                </View>
+                <Heart size={16} color="#4ECDC4" />
               </View>
-              <Text className="text-sm font-medium" style={{ color: colors.text }}>
-                Attended
-              </Text>
-              <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                events
-              </Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>Attended</Text>
             </View>
           </View>
         </Animated.View>
 
-        {/* Streak Counter - Full Width */}
-        {(stats?.currentStreak ?? 0) > 0 && (
-          <Animated.View entering={FadeInDown.delay(75).springify()} className="mb-4">
-            <StreakCounter
-              currentStreak={stats?.currentStreak ?? 0}
-              longestStreak={stats?.currentStreak ?? 0}
-              totalHangouts={stats?.attendedCount ?? 0}
-            />
-          </Animated.View>
-        )}
-
-        {/* Event Types Breakdown */}
+        {/* ═══ Event Types Breakdown ═══ */}
         {stats?.categoryBreakdown &&
           Object.keys(stats.categoryBreakdown).length > 0 && (
             <Animated.View
-              entering={FadeInDown.delay(100).springify()}
+              entering={FadeInDown.delay(150).springify()}
               className="mb-4"
             >
               <Text
-                className="text-sm font-medium mb-2"
-                style={{ color: colors.textSecondary }}
+                className="text-xs font-semibold mb-2"
+                style={{ color: colors.textTertiary }}
               >
-                Types of Events Hosted
+                EVENT TYPES
               </Text>
               <View
                 className="rounded-xl p-4 border"
@@ -488,32 +773,41 @@ export default function ProfileScreen() {
             </Animated.View>
           )}
 
-        {/* Quick Stats Row - Friends */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
-          <View className="flex-row">
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/friends");
-              }}
-              className="flex-1 rounded-xl p-4 border items-center"
-              style={{
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              }}
+        {/* ═══ Recent Activity ═══ */}
+        {recentActivity.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(175).springify()} className="mb-4">
+            <Text className="text-xs font-semibold mb-2" style={{ color: colors.textTertiary }}>
+              RECENT ACTIVITY
+            </Text>
+            <View
+              className="rounded-xl border overflow-hidden"
+              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
             >
-              <View className="flex-row items-center">
-                <Users size={18} color="#4ECDC4" />
-                <Text className="text-2xl font-bold ml-2" style={{ color: "#4ECDC4" }}>
-                  {StringSafe(friendsCount)}
-                </Text>
-              </View>
-              <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                Friends
-              </Text>
-            </Pressable>
-          </View>
-        </Animated.View>
+              {recentActivity.map((item, index) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/event/${item.id}`);
+                  }}
+                  className="flex-row items-center px-4 py-3"
+                  style={index < recentActivity.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
+                >
+                  <Text className="text-lg mr-3">{item.emoji}</Text>
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
+                      {item.type === "hosted" ? "Hosted" : "Joined"} {StringSafe(item.title)}
+                    </Text>
+                    <Text className="text-xs" style={{ color: colors.textTertiary }}>
+                      {formatPastDate(item.date)}
+                    </Text>
+                  </View>
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        )}
       </ScrollView>
 
       <BottomNavigation />
