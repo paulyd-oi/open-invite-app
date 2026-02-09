@@ -3512,6 +3512,48 @@ export default function CircleScreen() {
             );
           })}
         </ScrollView>
+
+        {/* [P1_POLL_LOCK_BRIDGE] Lock plan with winning option */}
+        {(() => {
+          const activePoll = polls?.[activePollIdx];
+          if (!activePoll || !isHost) return null;
+          const totalVotes = activePoll.options.reduce((s: number, o: any) => s + o.count, 0);
+          if (totalVotes === 0) return null;
+          const winner = activePoll.options.reduce((best: any, o: any) => o.count > best.count ? o : best, activePoll.options[0]);
+          if (!winner) return null;
+          return (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+              <Pressable
+                onPress={async () => {
+                  const note = `Locked plan: ${winner.label}`;
+                  if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_attempt", { pollId: activePoll.id, winnerId: winner.id, winnerLabel: winner.label, note });
+                  try {
+                    await api.post(`/api/circles/${id}/plan-lock`, { locked: true, note });
+                    queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!) });
+                    queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
+                    queryClient.invalidateQueries({ queryKey: circleKeys.availabilitySummary(id!) });
+                    if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_success", { note });
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    setShowPollSheet(false);
+                  } catch (e: any) {
+                    if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_error", { status: e?.status ?? "unknown" });
+                    safeToast.error("Error", "Failed to lock plan");
+                  }
+                }}
+                style={{
+                  backgroundColor: themeColor,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>
+                  🔒 Lock plan with "{winner.label}"
+                </Text>
+              </Pressable>
+            </View>
+          );
+        })()}
       </BottomSheet>
 
       {/* Group Settings (uses shared BottomSheet) */}

@@ -103,6 +103,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_PLAN_LOCK_UI]",
   // P1 circle poll UI
   "[P1_POLL_UI]",
+  // P1 poll-to-plan-lock bridge
+  "[P1_POLL_LOCK_BRIDGE]",
 ];
 
 /**
