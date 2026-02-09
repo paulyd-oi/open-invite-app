@@ -15,7 +15,6 @@ import { useRouter } from "expo-router";
 
 import Animated, {
   FadeInDown,
-  FadeIn,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -368,112 +367,28 @@ export default function ProfileScreen() {
     return `${Math.floor(days / 7)}w ago`;
   };
 
-  // ── Highlights derivation (SSOT: pure function of existing query data) ──
-  // HIGHLIGHTS_PURE_DERIVATION: all chips derive exclusively from existing query data
-  // HIGHLIGHTS_DETERMINISTIC: same input data → same chip output
-  // HIGHLIGHTS_NO_GAMIFICATION: this section is identity-only, no reward system
-  type HighlightChip = { type: string; emoji: string; label: string; color: string };
+  // ── YOUR WEEK derivation (SSOT from existing events query) ──
+  const upcomingWeekEvents = useMemo(() => {
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return allEvents
+      .filter((e) => {
+        const start = new Date(e.startTime);
+        return start > now && start <= weekFromNow && e.userId === session?.user?.id;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+      .slice(0, 3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, session?.user?.id]);
 
-  const highlightChips = useMemo((): HighlightChip[] => {
-    const chips: HighlightChip[] = [];
-
-    // 1. Top Event Type — from categoryBreakdown
-    const breakdown = stats?.categoryBreakdown;
-    if (breakdown && Object.keys(breakdown).length > 0) {
-      const [topCat] = Object.entries(breakdown).sort((a, b) => b[1] - a[1])[0];
-      const catInfo = EVENT_CATEGORIES.find((c) => c.value === topCat);
-      if (catInfo) {
-        chips.push({
-          type: "topEventType",
-          emoji: catInfo.emoji,
-          label: `${catInfo.label} fan`,
-          color: catInfo.color,
-        });
-      }
-    }
-
-    // 2. Most Active Day — from event timestamps
-    if (allEvents.length >= 3) {
-      const dayCounts: Record<number, number> = {};
-      for (const e of allEvents) {
-        const day = new Date(e.startTime).getDay();
-        dayCounts[day] = (dayCounts[day] ?? 0) + 1;
-      }
-      const topDay = Object.entries(dayCounts).sort(
-        (a, b) => Number(b[1]) - Number(a[1]),
-      )[0];
-      if (topDay) {
-        const dayNum = Number(topDay[0]);
-        const isWeekend = dayNum === 0 || dayNum === 6;
-        chips.push({
-          type: "mostActiveDay",
-          emoji: isWeekend ? "🌅" : "📆",
-          label: isWeekend ? "Weekend planner" : "Weekday warrior",
-          color: isWeekend ? "#E67E22" : "#3498DB",
-        });
-      }
-    }
-
-    // 3. Top Circle — from circles data (best-effort, first by member count)
-    const circles = circlesData?.circles;
-    if (circles && circles.length > 0) {
-      const topCircle = [...circles].sort(
-        (a, b) => (b.members?.length ?? 0) - (a.members?.length ?? 0),
-      )[0];
-      if (topCircle) {
-        chips.push({
-          type: "topCircle",
-          emoji: topCircle.emoji || "👥",
-          label: topCircle.name,
-          color: "#9B59B6",
-        });
-      }
-    }
-
-    // 4. Consistency — from currentStreak
-    const streak = stats?.currentStreak ?? 0;
-    if (streak >= 2) {
-      chips.push({
-        type: "streak",
-        emoji: streak >= 7 ? "🔥" : "⚡",
-        label: `${streak}-week streak`,
-        color: streak >= 7 ? "#E74C3C" : "#F39C12",
-      });
-    }
-
-    // 5. Social butterfly — from friends count
-    if (friendsCount >= 10) {
-      chips.push({
-        type: "socialButterfly",
-        emoji: "🦋",
-        label: `${friendsCount} friends`,
-        color: "#4ECDC4",
-      });
-    }
-
-    return chips.slice(0, 5);
-  }, [
-    stats?.categoryBreakdown,
-    stats?.currentStreak,
-    allEvents,
-    circlesData?.circles,
-    friendsCount,
-  ]);
-
-  // [P0_PROFILE_HIGHLIGHTS] DEV proof log
+  // [P0_PROFILE_WEEK] DEV proof log
   if (__DEV__) {
-    devLog("[P0_PROFILE_HIGHLIGHTS]", {
-      chipCount: highlightChips.length,
-      chipTypes: highlightChips.map((c) => c.type),
-    });
+    devLog("[P0_PROFILE_WEEK]", { weekCount: upcomingWeekEvents.length });
   }
 
   // ── P2 empty-state tracking ──
   const emptyStates: string[] = [];
   if (nextMode === "empty") emptyStates.push("whatsNext");
   if (recentActivity.length === 0) emptyStates.push("recentActivity");
-  // Highlights hides entirely when empty — confirmed correct behavior
-  if (highlightChips.length === 0) emptyStates.push("highlights");
 
   // [P2_PROFILE_EMPTY] DEV proof log
   if (__DEV__) {
@@ -785,40 +700,60 @@ export default function ProfileScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* ═══ Highlights ═══ */}
-        {highlightChips.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
-            <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-              YOUR STORY
+        {/* ═══ Your Week ═══ */}
+        <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
+          <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
+            YOUR WEEK
+          </Text>
+          <View
+            className="rounded-xl p-4 border"
+            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+          >
+            <Text className="text-sm mb-3" style={{ color: colors.textSecondary }}>
+              {upcomingWeekEvents.length > 0
+                ? `${upcomingWeekEvents.length} plan${upcomingWeekEvents.length === 1 ? "" : "s"} in the next 7 days`
+                : "No plans this week"}
             </Text>
-            <View
-              className="rounded-xl px-3 py-3 border"
-              style={{ backgroundColor: colors.surface, borderColor: colors.border }}
-            >
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {highlightChips.map((chip, idx) => (
-                  <Animated.View
-                    key={chip.type}
-                    entering={FadeIn.delay(idx * 30).duration(250)}
-                  >
-                    <View
-                      className="flex-row items-center px-3.5 py-2 rounded-full border mr-2"
-                      style={{
-                        backgroundColor: `${chip.color}10`,
-                        borderColor: `${chip.color}25`,
+
+            {upcomingWeekEvents.length > 0 && (
+              <View className="mb-3">
+                {upcomingWeekEvents.map((evt, idx) => {
+                  const dayLabel = new Date(evt.startTime).toLocaleDateString("en-US", { weekday: "short" });
+                  return (
+                    <Pressable
+                      key={evt.id}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push(`/event/${evt.id}`);
                       }}
+                      className="flex-row items-center py-1.5"
+                      style={idx < upcomingWeekEvents.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
                     >
-                      <Text className="text-sm mr-1.5">{chip.emoji}</Text>
-                      <Text className="text-sm font-medium" style={{ color: chip.color }}>
-                        {StringSafe(chip.label)}
+                      <Text className="text-base mr-2">{evt.emoji || "📅"}</Text>
+                      <Text className="flex-1 text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
+                        {StringSafe(evt.title)}
                       </Text>
-                    </View>
-                  </Animated.View>
-                ))}
-              </ScrollView>
-            </View>
-          </Animated.View>
-        )}
+                      <Text className="text-xs" style={{ color: colors.textTertiary }}>{dayLabel}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(upcomingWeekEvents.length === 0 ? "/create" : "/calendar");
+              }}
+              className="flex-row items-center justify-center py-2.5 rounded-lg"
+              style={{ backgroundColor: `${themeColor}15` }}
+            >
+              <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                {upcomingWeekEvents.length === 0 ? "Start something" : "View calendar"}
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
 
         {/* ═══ Momentum (Streak) ═══ */}
         <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
