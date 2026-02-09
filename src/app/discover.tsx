@@ -19,6 +19,7 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -185,6 +186,34 @@ export default function DiscoverScreen() {
     });
   }
 
+  // ── Featured event (UI-only selection, no data change) ──
+  const featured = useMemo(() => {
+    if (friendsJoining.length > 0) return { event: friendsJoining[0], source: "traction" as const };
+    if (trending.length > 0) return { event: trending[0], source: "trending" as const };
+    if (recentlyCreated.length > 0) return { event: recentlyCreated[0], source: "recent" as const };
+    return null;
+  }, [friendsJoining, trending, recentlyCreated]);
+
+  const didLogFeat = useRef(false);
+  if (__DEV__ && !didLogFeat.current && featured && !isLoading) {
+    didLogFeat.current = true;
+    devLog("[DISCOVER_V1_FEEL]", { featuredId: featured.event.id, source: featured.source });
+  }
+
+  // Display-only previews that exclude the featured event
+  const tractionPreview = useMemo(
+    () => (featured?.source === "traction" ? friendsJoining.filter((e) => e.id !== featured.event.id) : friendsJoining),
+    [friendsJoining, featured],
+  );
+  const trendingPreview = useMemo(
+    () => (featured?.source === "trending" ? trending.filter((e) => e.id !== featured.event.id) : trending),
+    [trending, featured],
+  );
+  const recentPreview = useMemo(
+    () => (featured?.source === "recent" ? recentlyCreated.filter((e) => e.id !== featured.event.id) : recentlyCreated),
+    [recentlyCreated, featured],
+  );
+
   const handleEventPress = (eventId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/event/${eventId}` as any);
@@ -350,145 +379,177 @@ export default function DiscoverScreen() {
             <Animated.View entering={FadeInDown.duration(200)} className="mb-4">
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {totalActive > 0
-                  ? `This week: ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
+                  ? `Your week is taking shape \u2014 ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
                   : "No events yet \u2014 create one to start the momentum."}
               </Text>
             </Animated.View>
 
+            {/* ═══ Featured Module ═══ */}
+            {featured && (
+              <Animated.View entering={FadeInDown.delay(20).duration(260)} className="mb-5">
+                <View className="flex-row items-center mb-2">
+                  <Sparkles size={14} color={themeColor} />
+                  <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>
+                </View>
+                <Pressable
+                  onPress={() => handleEventPress(featured.event.id)}
+                  className="rounded-2xl p-5"
+                  style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1 }}
+                >
+                  <View className="flex-row items-center">
+                    <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20" }}>
+                      <Text className="text-2xl">{featured.event.emoji || "\uD83D\uDCC5"}</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-bold text-lg" style={{ color: colors.text }} numberOfLines={1}>{featured.event.title}</Text>
+                      <View className="flex-row items-center mt-1">
+                        <Clock size={12} color={colors.textTertiary} />
+                        <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
+                          {new Date(featured.event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+                          {" at "}
+                          {new Date(featured.event.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                        </Text>
+                      </View>
+                      {featured.event.location && (
+                        <View className="flex-row items-center mt-0.5">
+                          <MapPin size={12} color={colors.textTertiary} />
+                          <Text className="text-sm ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>{featured.event.location}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="px-3 py-1.5 rounded-full flex-row items-center" style={{ backgroundColor: themeColor + "20" }}>
+                      <Users size={14} color={themeColor} />
+                      <Text className="font-bold ml-1" style={{ color: themeColor }}>{featured.event.attendeeCount}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              </Animated.View>
+            )}
+
             {/* ═══ Section A: Traction ═══ */}
-            <Animated.View entering={FadeInDown.duration(240)} className="mb-2">
-              <Pressable onPress={() => toggleSection("traction")} className="flex-row items-center justify-between mb-3">
+            <Animated.View entering={FadeInDown.duration(240)} className="mb-1">
+              <Pressable onPress={() => toggleSection("traction")} className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                  <Users size={16} color={themeColor} />
-                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                    EVENTS GAINING TRACTION
+                  <Users size={15} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-sm" style={{ color: colors.text }}>
+                    Gaining traction
                   </Text>
                   {tractionTotal > 0 && (
-                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({tractionTotal})</Text>
+                    <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: themeColor + "18" }}>
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>{tractionTotal}</Text>
+                    </View>
                   )}
                 </View>
                 <View className="flex-row items-center">
                   {tractionTotal > 0 && (
                     <Pressable onPress={() => handleViewAll("traction", tractionTotal)} hitSlop={8} className="mr-2">
-                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                      <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
                     </Pressable>
                   )}
-                  {collapsed.traction ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                  {collapsed.traction ? <ChevronDown size={14} color={colors.textTertiary} /> : <ChevronUp size={14} color={colors.textTertiary} />}
                 </View>
               </Pressable>
+              <Text className="text-xs ml-7 mb-2" style={{ color: colors.textTertiary }}>Events picking up momentum</Text>
             </Animated.View>
             {!collapsed.traction && (
-              friendsJoining.length > 0 ? (
-                friendsJoining.map((e, i) => renderEventCard(e, i, 40))
+              tractionPreview.length > 0 ? (
+                tractionPreview.map((e, i) => renderEventCard(e, i, 40))
               ) : (
-                <Animated.View entering={FadeInDown.delay(40).duration(240)} className="mb-4">
-                  <View
-                    className="rounded-xl p-5 items-center"
+                <Animated.View entering={FadeInDown.delay(40).duration(240)} className="mb-3">
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/invite"); }}
+                    className="flex-row items-center rounded-lg px-4 py-3"
                     style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
                   >
-                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                      No active events yet — invite someone to start planning.
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push("/invite");
-                      }}
-                      className="mt-3 px-4 py-2 rounded-full"
-                      style={{ backgroundColor: `${themeColor}15` }}
-                    >
-                      <Text className="text-sm font-medium" style={{ color: themeColor }}>Invite a friend</Text>
-                    </Pressable>
-                  </View>
+                    <Users size={14} color={colors.textTertiary} />
+                    <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>No traction yet</Text>
+                    <Text className="text-xs font-medium" style={{ color: themeColor }}>Invite</Text>
+                  </Pressable>
                 </Animated.View>
               )
             )}
 
             {/* ═══ Section B: Trending ═══ */}
-            <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-2 mt-2">
-              <Pressable onPress={() => toggleSection("trending")} className="flex-row items-center justify-between mb-3">
+            <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-1 mt-3">
+              <Pressable onPress={() => toggleSection("trending")} className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                  <TrendingUp size={16} color={themeColor} />
-                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                    TRENDING WITH YOUR CIRCLE
+                  <TrendingUp size={15} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-sm" style={{ color: colors.text }}>
+                    Trending
                   </Text>
                   {trendingTotal > 0 && (
-                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({trendingTotal})</Text>
+                    <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: themeColor + "18" }}>
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>{trendingTotal}</Text>
+                    </View>
                   )}
                 </View>
                 <View className="flex-row items-center">
                   {trendingTotal > 0 && (
                     <Pressable onPress={() => handleViewAll("trending", trendingTotal)} hitSlop={8} className="mr-2">
-                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                      <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
                     </Pressable>
                   )}
-                  {collapsed.trending ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                  {collapsed.trending ? <ChevronDown size={14} color={colors.textTertiary} /> : <ChevronUp size={14} color={colors.textTertiary} />}
                 </View>
               </Pressable>
+              <Text className="text-xs ml-7 mb-2" style={{ color: colors.textTertiary }}>Most active right now</Text>
             </Animated.View>
             {!collapsed.trending && (
-              trending.length > 0 ? (
-                trending.map((e, i) => renderEventCard(e, i, 160))
+              trendingPreview.length > 0 ? (
+                trendingPreview.map((e, i) => renderEventCard(e, i, 160))
               ) : (
-                <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
-                  <View
-                    className="rounded-xl p-5 items-center"
-                    style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-                  >
-                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                      No trending events yet.
-                    </Text>
+                <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-3">
+                  <View className="flex-row items-center rounded-lg px-4 py-3" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
+                    <TrendingUp size={14} color={colors.textTertiary} />
+                    <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>Nothing trending yet</Text>
                   </View>
                 </Animated.View>
               )
             )}
 
             {/* ═══ Section C: Recently Created ═══ */}
-            <Animated.View entering={FadeInDown.delay(240).duration(240)} className="mb-2 mt-2">
-              <Pressable onPress={() => toggleSection("recent")} className="flex-row items-center justify-between mb-3">
+            <Animated.View entering={FadeInDown.delay(240).duration(240)} className="mb-1 mt-3">
+              <Pressable onPress={() => toggleSection("recent")} className="flex-row items-center justify-between mb-1">
                 <View className="flex-row items-center flex-1">
-                  <Plus size={16} color={themeColor} />
-                  <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                    RECENTLY CREATED
+                  <Plus size={15} color={themeColor} />
+                  <Text className="font-semibold ml-2 text-sm" style={{ color: colors.text }}>
+                    New
                   </Text>
                   {recentTotal > 0 && (
-                    <Text className="ml-1.5 text-xs" style={{ color: colors.textTertiary }}>({recentTotal})</Text>
+                    <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: themeColor + "18" }}>
+                      <Text className="text-xs font-medium" style={{ color: themeColor }}>{recentTotal}</Text>
+                    </View>
                   )}
                 </View>
                 <View className="flex-row items-center">
                   {recentTotal > 0 && (
                     <Pressable onPress={() => handleViewAll("recent", recentTotal)} hitSlop={8} className="mr-2">
-                      <Text className="text-xs font-medium" style={{ color: themeColor }}>View all</Text>
+                      <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
                     </Pressable>
                   )}
-                  {collapsed.recent ? <ChevronDown size={16} color={colors.textTertiary} /> : <ChevronUp size={16} color={colors.textTertiary} />}
+                  {collapsed.recent ? <ChevronDown size={14} color={colors.textTertiary} /> : <ChevronUp size={14} color={colors.textTertiary} />}
                 </View>
               </Pressable>
+              <Text className="text-xs ml-7 mb-2" style={{ color: colors.textTertiary }}>Just created</Text>
             </Animated.View>
             {!collapsed.recent && (
-              recentlyCreated.length > 0 ? (
-                recentlyCreated.map((e, i) => renderEventCard(e, i, 280))
+              recentPreview.length > 0 ? (
+                recentPreview.map((e, i) => renderEventCard(e, i, 280))
               ) : (
-                <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-4">
-                  <View
-                    className="rounded-xl p-5 items-center"
+                <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-3">
+                  <Pressable
+                    onPress={() => {
+                      if (!guardEmailVerification(session)) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push("/create");
+                    }}
+                    className="flex-row items-center rounded-lg px-4 py-3"
                     style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
                   >
-                    <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                      No new events — create one to get started.
-                    </Text>
-                    <Pressable
-                      onPress={() => {
-                        if (!guardEmailVerification(session)) return;
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push("/create");
-                      }}
-                      className="mt-3 px-4 py-2 rounded-full"
-                      style={{ backgroundColor: `${themeColor}15` }}
-                    >
-                      <Text className="text-sm font-medium" style={{ color: themeColor }}>Create event</Text>
-                    </Pressable>
-                  </View>
+                    <Plus size={14} color={colors.textTertiary} />
+                    <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>No new events yet</Text>
+                    <Text className="text-xs font-medium" style={{ color: themeColor }}>Create</Text>
+                  </Pressable>
                 </Animated.View>
               )
             )}
