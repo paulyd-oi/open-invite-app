@@ -179,7 +179,7 @@ function ReferralCounterSection({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success(
         "Success!",
-        `${response.referrerName} earned a referral credit. Invite friends to unlock rewards!`
+        `${response.referrerName} earned a referral credit.`
       );
       setReferrerCodeInput("");
       setShowReferrerInput(false);
@@ -194,6 +194,12 @@ function ReferralCounterSection({
 
   const successfulCount = referralStats?.successfulReferrals ?? 0;
   const hasReferrer = referralStats?.hasReferrer ?? false;
+  const { isPro } = useIsPro();
+
+  // [P0_REFERRAL_PRO_GATE] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_REFERRAL_PRO_GATE]", { isPro, screen: "settings" });
+  }
 
   // [P0_REFERRAL_SSOT] DEV proof log
   if (__DEV__) {
@@ -227,7 +233,9 @@ function ReferralCounterSection({
           {isLoading ? "..." : referralStats?.referralCode ?? "---"}
         </Text>
         <Text className="text-xs mt-2" style={{ color: colors.textSecondary }}>
-          Invite friends with your referral code to progress toward milestones. The more friends on Open Invite, the easier planning becomes.
+          {isPro
+            ? "Share your code with friends so they can join you on Open Invite."
+            : "Invite friends with your referral code to progress toward milestones. The more friends on Open Invite, the easier planning becomes."}
         </Text>
       </View>
 
@@ -288,7 +296,9 @@ function ReferralCounterSection({
 
       {/* Reward Status */}
       <Text style={{ color: colors.textTertiary }} className="text-xs text-center mb-3">
-        {successfulCount >= REFERRAL_TIERS.LIFETIME_PRO.count
+        {isPro
+          ? "Pro active"
+          : successfulCount >= REFERRAL_TIERS.LIFETIME_PRO.count
           ? "Lifetime Pro milestone reached!"
           : successfulCount >= REFERRAL_TIERS.YEAR_PRO.count
           ? `${REFERRAL_TIERS.LIFETIME_PRO.count - successfulCount} more friends toward Lifetime Pro`

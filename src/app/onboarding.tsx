@@ -62,6 +62,7 @@ import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+import { useIsPro } from "@/lib/entitlements";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -557,7 +558,7 @@ const MockVisibilitySelector = ({ themeColor, isDark, colors }: { themeColor: st
 );
 
 // Mock invite/share card
-const MockInviteCard = ({ themeColor, referralCode, isDark, colors }: { themeColor: string; referralCode: string; isDark: boolean; colors: typeof LIGHT_COLORS }) => (
+const MockInviteCard = ({ themeColor, referralCode, isDark, colors, isPro }: { themeColor: string; referralCode: string; isDark: boolean; colors: typeof LIGHT_COLORS; isPro?: boolean }) => (
   <View className="mx-4 mt-4">
     <View
       className="rounded-2xl p-4"
@@ -575,8 +576,12 @@ const MockInviteCard = ({ themeColor, referralCode, isDark, colors }: { themeCol
           <Gift size={28} color={themeColor} />
         </View>
         <View className="flex-1">
-          <Text className="font-bold text-lg" style={{ color: colors.text }}>Earn Rewards!</Text>
-          <Text className="text-sm" style={{ color: colors.textTertiary }}>Invite friends to unlock premium</Text>
+          <Text className="font-bold text-lg" style={{ color: colors.text }}>
+            {isPro ? "Invite Friends" : "Earn Rewards!"}
+          </Text>
+          <Text className="text-sm" style={{ color: colors.textTertiary }}>
+            {isPro ? "Invite friends later from Settings" : "Invite friends to reach milestones"}
+          </Text>
         </View>
       </View>
 
@@ -588,24 +593,26 @@ const MockInviteCard = ({ themeColor, referralCode, isDark, colors }: { themeCol
         <Text className="font-bold text-xl text-center tracking-widest" style={{ color: colors.text }}>{referralCode}</Text>
       </View>
 
-      <View className="flex-row justify-between">
-        {[
-          { count: String(REFERRAL_TIERS.MONTH_PRO.count), reward: '1 Month' },
-          { count: String(REFERRAL_TIERS.YEAR_PRO.count), reward: '1 Year' },
-          { count: String(REFERRAL_TIERS.LIFETIME_PRO.count), reward: 'Lifetime' },
-        ].map((tier, i) => (
-          <View key={i} className="items-center flex-1">
-            <View
-              className="w-10 h-10 rounded-full items-center justify-center mb-1"
-              style={{ backgroundColor: `${themeColor}${i === 0 ? '60' : '30'}` }}
-            >
-              <Text className="font-bold" style={{ color: colors.text }}>{tier.count}</Text>
+      {!isPro && (
+        <View className="flex-row justify-between">
+          {[
+            { count: String(REFERRAL_TIERS.MONTH_PRO.count), reward: '1 Month' },
+            { count: String(REFERRAL_TIERS.YEAR_PRO.count), reward: '1 Year' },
+            { count: String(REFERRAL_TIERS.LIFETIME_PRO.count), reward: 'Lifetime' },
+          ].map((tier, i) => (
+            <View key={i} className="items-center flex-1">
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mb-1"
+                style={{ backgroundColor: `${themeColor}${i === 0 ? '60' : '30'}` }}
+              >
+                <Text className="font-bold" style={{ color: colors.text }}>{tier.count}</Text>
+              </View>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>{tier.reward}</Text>
+              <Text className="text-xs" style={{ color: colors.textTertiary }}>FREE</Text>
             </View>
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>{tier.reward}</Text>
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>FREE</Text>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   </View>
 );
@@ -659,6 +666,12 @@ export default function OnboardingScreen() {
   const [showFriendsAvailable, setShowFriendsAvailable] = useState(false);
   const [demoReferralCode] = useState("bdia_t8js");
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
+  const { isPro } = useIsPro();
+
+  // [P0_REFERRAL_PRO_GATE] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_REFERRAL_PRO_GATE]", { isPro, screen: "onboarding" });
+  }
 
   // Contact sync state
   const [contactsLoading, setContactsLoading] = useState(false);
@@ -854,11 +867,15 @@ export default function OnboardingScreen() {
     {
       id: "invite",
       title: "Invite Friends",
-      subtitle: "Earn Rewards",
-      description: "Open Invite is better with friends! Share the app and earn premium rewards.",
+      subtitle: isPro ? "Share the App" : "Earn Rewards",
+      description: isPro
+        ? "Open Invite is better with friends! Share the app so your crew can plan together."
+        : "Open Invite is better with friends! Share the app and earn premium rewards.",
       icon: <Gift size={36} color="#fff" />,
       iconBg: "#10B981",
-      tip: `${REFERRAL_TIERS.MONTH_PRO.count} friends = 1 month Pro | ${REFERRAL_TIERS.YEAR_PRO.count} friends = 1 year Pro | ${REFERRAL_TIERS.LIFETIME_PRO.count} friends = Lifetime Pro`,
+      tip: isPro
+        ? "Invite friends later from Settings"
+        : `${REFERRAL_TIERS.MONTH_PRO.count} friends = 1 month Pro | ${REFERRAL_TIERS.YEAR_PRO.count} friends = 1 year Pro | ${REFERRAL_TIERS.LIFETIME_PRO.count} friends = Lifetime Pro`,
       showShareButton: true,
     },
     {
@@ -1423,7 +1440,7 @@ export default function OnboardingScreen() {
       case "invite":
         return (
           <View className="flex-1">
-            <MockInviteCard themeColor={themeColor} referralCode={demoReferralCode} isDark={isDark} colors={colors} />
+            <MockInviteCard themeColor={themeColor} referralCode={demoReferralCode} isDark={isDark} colors={colors} isPro={isPro} />
           </View>
         );
 

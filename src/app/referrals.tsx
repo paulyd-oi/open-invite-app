@@ -24,6 +24,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError, devLog } from "@/lib/devLog";
+import { useIsPro } from "@/lib/entitlements";
 
 /** Normalize backend reward type strings to canonical _pro format for display */
 function normalizeRewardType(type: string): string {
@@ -209,6 +210,12 @@ export default function ReferralsScreen() {
   const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const { isPro } = useIsPro();
+
+  // [P0_REFERRAL_PRO_GATE] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_REFERRAL_PRO_GATE]", { isPro, screen: "referrals" });
+  }
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["referralStats"],
@@ -322,10 +329,10 @@ export default function ReferralsScreen() {
 
         {/* Reward Tiers */}
         <Text className="text-lg font-bold mb-3" style={{ color: colors.text }}>
-          Reward Tiers
+          {isPro ? "Sharing Milestones" : "Reward Tiers"}
         </Text>
         <RewardTierCard
-          title="1 Month Free"
+          title={isPro ? "3-Friend Milestone" : "1 Month Free"}
           count={REFERRAL_TIERS.MONTH_PRO.count}
           currentCount={successfulCount}
           emoji="🎁"
@@ -334,7 +341,7 @@ export default function ReferralsScreen() {
           themeColor={themeColor}
         />
         <RewardTierCard
-          title="1 Year Free"
+          title={isPro ? "10-Friend Milestone" : "1 Year Free"}
           count={REFERRAL_TIERS.YEAR_PRO.count}
           currentCount={successfulCount}
           emoji="⭐"
@@ -343,7 +350,7 @@ export default function ReferralsScreen() {
           themeColor={themeColor}
         />
         <RewardTierCard
-          title="Lifetime Free"
+          title={isPro ? "40-Friend Milestone" : "Lifetime Free"}
           count={REFERRAL_TIERS.LIFETIME_PRO.count}
           currentCount={successfulCount}
           emoji="👑"
@@ -377,7 +384,9 @@ export default function ReferralsScreen() {
               No referrals yet
             </Text>
             <Text className="text-sm text-center mt-1 px-4" style={{ color: colors.textSecondary }}>
-              Share your code with friends to start earning rewards
+              {isPro
+                ? "Share your code with friends so they can join you on Open Invite"
+                : "Share your code with friends to start earning rewards"}
             </Text>
           </View>
         )}
