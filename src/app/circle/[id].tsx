@@ -2078,12 +2078,14 @@ export default function CircleScreen() {
     if (!pollLogFiredRef.current && __DEV__) {
       devLog("[P1_POLL_UI]", "mount");
       devLog("[P1_COORDINATION_FLOW]", "mounted");
+      devLog("[P1_POLLS_E2E_UI]", "mounted", { circleId: id });
       pollLogFiredRef.current = true;
     }
   }, []);
   useEffect(() => {
     if (__DEV__ && polls && polls.length > 0) {
       devLog("[P1_POLL_UI]", "refresh", { count: polls.length });
+      devLog("[P1_POLLS_E2E_UI]", "polls_refetched", { count: polls.length });
     }
   }, [polls]);
 
@@ -2115,16 +2117,19 @@ export default function CircleScreen() {
         };
       });
       if (__DEV__) devLog("[P1_POLL_UI]", "vote", { pollId, optionId });
+      if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_attempt", { pollId, optionId });
       return { prev };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!), refetchType: "inactive" });
+      queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
+      if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_success");
     },
     onError: (_err, _vars, context) => {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(circleKeys.polls(id!), context.prev);
       }
       safeToast.error("Error", "Could not submit vote");
+      if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_error", { error: String(_err) });
     },
   });
 
@@ -2632,7 +2637,10 @@ export default function CircleScreen() {
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setActivePollIdx(pIdx);
+              setShowNotifySheet(false);
+              setShowPlanLockSheet(false);
               setShowPollSheet(true);
+              if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
             }}
             style={{
               paddingVertical: 10,
@@ -3629,7 +3637,7 @@ export default function CircleScreen() {
       {/* [P1_POLL_UI] Poll Detail Sheet */}
       <BottomSheet
         visible={showPollSheet}
-        onClose={() => setShowPollSheet(false)}
+        onClose={() => { setShowPollSheet(false); if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_close", { sheet: "poll" }); }}
         heightPct={0}
         maxHeightPct={0.6}
         backdropOpacity={0.5}
@@ -3724,10 +3732,12 @@ export default function CircleScreen() {
                     queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
                     queryClient.invalidateQueries({ queryKey: circleKeys.availabilitySummary(id!) });
                     if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_success", { note });
+                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_success", { pollId: activePoll.id, winner: winner.label });
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     setShowPollSheet(false);
                   } catch (e: any) {
                     if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_error", { status: e?.status ?? "unknown" });
+                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_error", { status: e?.status ?? "unknown" });
                     safeToast.error("Error", "Failed to lock plan");
                   }
                 }}
@@ -3954,7 +3964,9 @@ export default function CircleScreen() {
                 <Pressable
                   onPress={() => {
                     if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "open_sheet");
+                    setShowPollSheet(false);
                     setShowNotifySheet(true);
+                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "notification_level" });
                   }}
                   style={{
                     flexDirection: "row",
@@ -4002,7 +4014,7 @@ export default function CircleScreen() {
       {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}
       <BottomSheet
         visible={showNotifySheet}
-        onClose={() => setShowNotifySheet(false)}
+        onClose={() => { setShowNotifySheet(false); if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_close", { sheet: "notification_level" }); }}
         heightPct={0}
         maxHeightPct={0.45}
         backdropOpacity={0.5}
