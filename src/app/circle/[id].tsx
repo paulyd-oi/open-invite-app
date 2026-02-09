@@ -2682,6 +2682,9 @@ export default function CircleScreen() {
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
+          initialNumToRender={15}
+          maxToRenderPerBatch={10}
+          windowSize={11}
           contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}

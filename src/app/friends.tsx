@@ -1921,7 +1921,7 @@ export default function FriendsScreen() {
 
           <FlatList
             data={filteredContacts}
-            keyExtractor={(item) => item.id ?? item.name ?? Math.random().toString()}
+            keyExtractor={(item, index) => item.id ?? item.name ?? `contact-${index}`}
             contentContainerStyle={{ paddingVertical: 8 }}
             // Virtualization tuning for contacts (can have hundreds)
             initialNumToRender={12}

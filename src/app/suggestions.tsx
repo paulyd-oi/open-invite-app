@@ -377,13 +377,13 @@ export default function SuggestionsScreen() {
     setRefreshing(false);
   }, [refetch, refetchFeed]);
 
-  const handleAddFriend = (suggestion: FriendSuggestion) => {
+  const handleAddFriend = useCallback((suggestion: FriendSuggestion) => {
     // Guard: require email verification
     if (!guardEmailVerification(session)) {
       return;
     }
     sendRequestMutation.mutate(suggestion.user.id);
-  };
+  }, [session, sendRequestMutation]);
 
   // Handle direct friend request by email or phone (for Add Friend module)
   const handleDirectFriendRequest = () => {
@@ -519,6 +519,34 @@ export default function SuggestionsScreen() {
       </SafeAreaView>
     );
   }
+
+  // ─── FlatList callbacks (stable identity) ──────────────
+  const feedKeyExtractor = useCallback((item: { id: string }) => item.id, []);
+  const peopleKeyExtractor = useCallback(
+    (item: FriendSuggestion) => item.user.id,
+    [],
+  );
+  const renderFeedItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => (
+      <SuggestionFeedCard suggestion={item} index={index} />
+    ),
+    [],
+  );
+  const renderPeopleItem = useCallback(
+    ({ item, index }: { item: FriendSuggestion; index: number }) => (
+      <SuggestionCard
+        suggestion={item}
+        index={index}
+        onAddFriend={() => handleAddFriend(item)}
+        isPending={
+          sendRequestMutation.isPending &&
+          sendRequestMutation.variables === item.user.id
+        }
+        isSuccess={sentRequests.has(item.user.id)}
+      />
+    ),
+    [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests],
+  );
 
   return (
     <SafeAreaView
@@ -769,10 +797,11 @@ export default function SuggestionsScreen() {
         /* Suggestions Feed */
         <FlatList
           data={feedSuggestions}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <SuggestionFeedCard suggestion={item} index={index} />
-          )}
+          keyExtractor={feedKeyExtractor}
+          renderItem={renderFeedItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           contentContainerStyle={{
             paddingTop: 16,
             paddingBottom: 100,
@@ -798,19 +827,11 @@ export default function SuggestionsScreen() {
         /* People You May Know */
         <FlatList
           data={suggestions}
-          keyExtractor={(item) => item.user.id}
-          renderItem={({ item, index }) => (
-            <SuggestionCard
-              suggestion={item}
-              index={index}
-              onAddFriend={() => handleAddFriend(item)}
-              isPending={
-                sendRequestMutation.isPending &&
-                sendRequestMutation.variables === item.user.id
-              }
-              isSuccess={sentRequests.has(item.user.id)}
-            />
-          )}
+          keyExtractor={peopleKeyExtractor}
+          renderItem={renderPeopleItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           contentContainerStyle={{
             paddingTop: 16,
             paddingBottom: 100,
@@ -870,7 +891,7 @@ export default function SuggestionsScreen() {
             {/* Contacts List */}
             <FlatList
               data={filteredContacts}
-              keyExtractor={(item) => item.id ?? String(Math.random())}
+              keyExtractor={(item, index) => item.id ?? `contact-${index}`}
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => handleContactSelect(item)}

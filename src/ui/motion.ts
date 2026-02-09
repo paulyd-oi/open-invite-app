@@ -21,6 +21,15 @@
  *   Keep durations short and consistent. Screens MAY use Reanimated
  *   entering/exiting presets (FadeIn, SlideIn) freely — those are
  *   layout-driven and outside this contract.
+ *
+ * ## Animation boundaries (perf)
+ *   • Scroll-heavy lists: NO JS-thread Animated.timing / LayoutAnimation.
+ *     Use Reanimated (withTiming / withSpring) which run on the UI thread.
+ *   • Gesture-driven animations MUST stay in Reanimated worklets.
+ *   • Avoid animating layout props (width, height, flex) during scroll —
+ *     prefer opacity / transform which are GPU-composited.
+ *   • New choreography refactors require explicit opt-in; default is
+ *     minimal motion (fade + slide only).
  */
 import * as Haptics from "expo-haptics";
 

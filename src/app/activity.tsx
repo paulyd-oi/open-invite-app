@@ -436,7 +436,7 @@ export default function ActivityScreen() {
     return null;
   }
 
-  const handleNotificationPress = (notification: Notification) => {
+  const handleNotificationPress = useCallback((notification: Notification) => {
     // Mark as read if not already
     if (!notification.read) {
       markReadMutation.mutate(notification.id);
@@ -452,7 +452,20 @@ export default function ActivityScreen() {
         devWarn('[Activity] Notification has no valid navigation target:', notification.id);
       }
     }
-  };
+  }, [markReadMutation, router]);
+
+  // ─── FlatList callbacks (stable identity) ──────────────
+  const activityKeyExtractor = useCallback((item: Notification) => item.id, []);
+  const renderNotificationItem = useCallback(
+    ({ item, index }: { item: Notification; index: number }) => (
+      <NotificationCard
+        notification={item}
+        index={index}
+        onPress={() => handleNotificationPress(item)}
+      />
+    ),
+    [handleNotificationPress],
+  );
 
   // Show login prompt if not authenticated
   if (!session && !sessionLoading) {
@@ -511,14 +524,11 @@ export default function ActivityScreen() {
       {/* Content */}
       <FlatList
         data={uniqueNotifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <NotificationCard
-            notification={item}
-            index={index}
-            onPress={() => handleNotificationPress(item)}
-          />
-        )}
+        keyExtractor={activityKeyExtractor}
+        renderItem={renderNotificationItem}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        windowSize={9}
         contentContainerStyle={{
           paddingTop: 12,
           paddingBottom: 100,
