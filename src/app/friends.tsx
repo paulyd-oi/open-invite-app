@@ -74,7 +74,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoading } from "@/lib/useStickyLoading";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
-import { useTheme } from "@/lib/ThemeContext";
+import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -1884,7 +1884,7 @@ export default function FriendsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowContactsModal(false)}
       >
-        <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: isDark ? "#1C1C1E" : "#F5F5F7" }}>
+        <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
           <View className="flex-row items-center justify-between px-5 py-4" style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Pressable
               onPress={() => {
@@ -1944,10 +1944,7 @@ export default function FriendsScreen() {
                   className="flex-row items-center mx-4 mb-2 p-4 rounded-xl"
                   style={{
                     backgroundColor: colors.surface,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 4,
+                    ...(isDark ? {} : TILE_SHADOW),
                   }}
                 >
                   <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>

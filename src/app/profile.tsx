@@ -450,7 +450,7 @@ export default function ProfileScreen() {
                     <View
                       className="w-full h-full items-center justify-center"
                       style={{
-                        backgroundColor: isDark ? "#2C2C2E" : "#FFEDD5",
+                        backgroundColor: isDark ? "#2C2C2E" : `${themeColor}15`,
                       }}
                     >
                       <Text style={{ color: themeColor, fontSize: 22 }}>

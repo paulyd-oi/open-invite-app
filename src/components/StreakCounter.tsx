@@ -36,7 +36,7 @@ export function StreakCounter({
         entering={FadeIn.springify()}
         className="rounded-2xl p-5 overflow-hidden"
         style={{
-          backgroundColor: isDark ? "#1C1C1E" : "#FFFAF0",
+          backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: colors.border,
         }}

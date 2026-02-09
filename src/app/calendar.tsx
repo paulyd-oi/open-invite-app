@@ -46,7 +46,7 @@ import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificati
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { getEventShareLink } from "@/lib/deepLinks";
-import { useTheme, DARK_COLORS } from "@/lib/ThemeContext";
+import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
@@ -998,7 +998,7 @@ function UpcomingBirthdaysSection({
               backgroundColor: colors.surface,
               borderWidth: 1,
               borderColor: colors.borderSubtle,
-              ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
+              ...(isDark ? {} : TILE_SHADOW),
             }}
           >
             {upcomingBirthdays.map((bday, idx) => {
@@ -2568,7 +2568,7 @@ export default function CalendarScreen() {
                     backgroundColor: colors.surface,
                     borderWidth: 1,
                     borderColor: colors.borderSubtle,
-                    ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
+                    ...(isDark ? {} : TILE_SHADOW),
                   }}
                 >
                   <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
@@ -2702,7 +2702,7 @@ export default function CalendarScreen() {
                           backgroundColor: needsResponse ? `${themeColor}10` : colors.surface,
                           borderWidth: needsResponse ? 2 : 1,
                           borderColor: needsResponse ? themeColor : colors.borderSubtle,
-                          ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
+                          ...(isDark ? {} : TILE_SHADOW),
                         }}
                       >
                         <View className="flex-row items-start">
