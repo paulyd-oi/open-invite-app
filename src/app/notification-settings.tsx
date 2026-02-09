@@ -53,6 +53,7 @@ import { safeToast } from "@/lib/safeToast";
 import { devLog, devError } from "@/lib/devLog";
 import { trackAnalytics } from "@/lib/entitlements";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { Button } from "@/ui/Button";
 
 // [P0_CIRCLE_MUTE_POLISH] Storage key for dismissing circle notification info card
 const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
@@ -477,13 +478,12 @@ export default function NotificationSettingsScreen() {
         <Text style={{ color: colors.text }} className="text-lg font-semibold mt-4 text-center">
           Unable to load preferences
         </Text>
-        <Pressable
+        <Button
+          variant="primary"
+          label="Go Back"
           onPress={() => router.back()}
-          className="mt-4 px-6 py-3 rounded-xl"
-          style={{ backgroundColor: themeColor }}
-        >
-          <Text className="text-white font-semibold">Go Back</Text>
-        </Pressable>
+          style={{ marginTop: 16, borderRadius: 12 }}
+        />
       </SafeAreaView>
     );
   }
@@ -567,19 +567,17 @@ export default function NotificationSettingsScreen() {
             
             {/* P0 INVARIANT: Show clear "Enable in Settings" CTA when OS permission is denied */}
             {osPermissionStatus === "denied" && (
-              <Pressable
+              <Button
+                variant="ghost"
+                label="Enable in Settings"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   Linking.openSettings();
                 }}
-                className="flex-row items-center justify-center py-3 mx-4 mb-4 rounded-xl"
-                style={{ backgroundColor: `${themeColor}15` }}
-              >
-                <Settings size={16} color={themeColor} />
-                <Text style={{ color: themeColor }} className="text-sm font-medium ml-2">
-                  Enable in Settings
-                </Text>
-              </Pressable>
+                leftIcon={<Settings size={16} color={themeColor} />}
+                size="sm"
+                style={{ marginHorizontal: 16, marginBottom: 16, borderRadius: 12, backgroundColor: `${themeColor}15` }}
+              />
             )}
           </View>
         </Animated.View>

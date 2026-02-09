@@ -57,6 +57,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
@@ -1067,23 +1068,15 @@ export default function OnboardingScreen() {
                 <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
                   We'll check if any of your contacts are already on Open Invite
                 </Text>
-                <Pressable
+                <Button
+                  variant="primary"
+                  label="Sync Contacts"
                   onPress={loadContacts}
                   disabled={contactsLoading}
-                  className="rounded-xl py-4 px-8 w-full items-center"
-                  style={{ backgroundColor: "#3B82F6" }}
-                >
-                  {contactsLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <View className="flex-row items-center">
-                      <Contact size={20} color="#fff" />
-                      <Text className="text-white font-semibold text-base ml-2">
-                        Sync Contacts
-                      </Text>
-                    </View>
-                  )}
-                </Pressable>
+                  loading={contactsLoading}
+                  leftIcon={!contactsLoading ? <Contact size={20} color="#fff" /> : undefined}
+                  style={{ backgroundColor: "#3B82F6", width: "100%", borderRadius: 12 }}
+                />
                 <Pressable onPress={goToNext} className="mt-4">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Skip for now</Text>
                 </Pressable>
@@ -1609,49 +1602,41 @@ export default function OnboardingScreen() {
 
             {/* Share Button */}
             {currentStep.showShareButton && (
-              <Pressable
+              <Button
+                variant="primary"
+                label={isSharing ? "Sharing..." : "Share with Friends"}
                 onPress={handleShare}
                 disabled={isSharing}
-                className="flex-row items-center justify-center py-3 rounded-xl mb-3"
-                style={{ backgroundColor: currentStep.iconBg }}
-              >
-                <Share2 size={18} color="#fff" />
-                <Text className="text-white text-base font-semibold ml-2">
-                  {isSharing ? "Sharing..." : "Share with Friends"}
-                </Text>
-              </Pressable>
+                loading={isSharing}
+                leftIcon={!isSharing ? <Share2 size={18} color="#fff" /> : undefined}
+                style={{ backgroundColor: currentStep.iconBg, marginBottom: 12, borderRadius: 12 }}
+              />
             )}
 
             {/* Navigation */}
             <View className="flex-row gap-3">
               {currentIndex > 0 && (
-                <Pressable
+                <Button
+                  variant="secondary"
+                  label="Back"
                   onPress={goToPrev}
-                  className="flex-1 py-3 rounded-xl items-center"
-                  style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}
-                >
-                  <Text className="font-semibold" style={{ color: colors.text }}>Back</Text>
-                </Pressable>
+                  style={{ flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: 12 }}
+                />
               )}
               {/* Special handling for contacts step with selected contacts */}
               {currentStep.id === "contacts" && contactsSynced && selectedContacts.size > 0 ? (
-                <Pressable
+                <Button
+                  variant="primary"
+                  label={`Send ${selectedContacts.size} Invite${selectedContacts.size !== 1 ? "s" : ""}`}
                   onPress={sendSelectedInvites}
                   disabled={sendingInvites}
-                  className="py-3 rounded-xl items-center"
+                  loading={sendingInvites}
                   style={{
                     backgroundColor: currentStep.iconBg,
                     flex: currentIndex === 0 ? 1 : 2,
+                    borderRadius: 12,
                   }}
-                >
-                  {sendingInvites ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text className="text-white font-semibold">
-                      Send {selectedContacts.size} Invite{selectedContacts.size !== 1 ? "s" : ""}
-                    </Text>
-                  )}
-                </Pressable>
+                />
               ) : (
                 <Pressable
                   testID="onboarding-get-started"

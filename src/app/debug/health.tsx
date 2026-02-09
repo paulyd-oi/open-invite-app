@@ -7,6 +7,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { BACKEND_URL } from "@/lib/config";
 import * as Haptics from "expo-haptics";
 import { isDevToolsEnabled, DevToolsBlockedScreen } from "@/lib/devToolsGate";
+import { Button } from "@/ui/Button";
 
 interface HealthResponse {
   ok: boolean;
@@ -179,13 +180,12 @@ export default function DebugHealthScreen() {
 
         {/* Retry Button */}
         {status !== "loading" && (
-          <Pressable
+          <Button
+            variant="primary"
+            label="Retry"
             onPress={handleRetry}
-            className="mt-6 py-4 rounded-xl items-center"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white text-base font-semibold">Retry</Text>
-          </Pressable>
+            style={{ marginTop: 24, borderRadius: 12 }}
+          />
         )}
 
         {/* Backend URL Display */}

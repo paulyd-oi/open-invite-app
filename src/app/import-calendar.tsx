@@ -47,6 +47,7 @@ import {
 } from "@/lib/calendarSync";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 
 // Types for calendar import
 interface ImportedCalendarEvent {
@@ -537,47 +538,41 @@ export default function ImportCalendarScreen() {
               {permissionResult && !permissionResult.canAskAgain ? (
                 // Permission permanently denied - show Open Settings button
                 <>
-                  <Pressable
+                  <Button
+                    variant="primary"
+                    label="Open Settings"
                     onPress={handleOpenSettings}
-                    className="w-full py-4 rounded-xl items-center mb-3"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <View className="flex-row items-center">
-                      <Settings size={18} color="#fff" />
-                      <Text className="text-white font-semibold ml-2">Open Settings</Text>
-                    </View>
-                  </Pressable>
+                    leftIcon={<Settings size={18} color="#fff" />}
+                    style={{ width: "100%", marginBottom: 12, borderRadius: 12 }}
+                  />
                   <Text
                     className="text-xs text-center mb-4"
                     style={{ color: colors.textTertiary }}
                   >
                     Enable in Settings → Open Invite → Calendars
                   </Text>
-                  <Pressable
+                  <Button
+                    variant="secondary"
+                    label="Learn More"
                     onPress={() => router.push("/calendar-import-help")}
-                    className="w-full py-3 rounded-xl items-center"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: themeColor }} className="font-medium">Learn More</Text>
-                  </Pressable>
+                    style={{ width: "100%", borderRadius: 12 }}
+                  />
                 </>
               ) : (
                 // Can still request permission
                 <>
-                  <Pressable
+                  <Button
+                    variant="primary"
+                    label="Import from Calendar"
                     onPress={handleRequestPermission}
-                    className="w-full py-4 rounded-xl items-center mb-3"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <Text className="text-white font-semibold">Import from Calendar</Text>
-                  </Pressable>
-                  <Pressable
+                    style={{ width: "100%", marginBottom: 12, borderRadius: 12 }}
+                  />
+                  <Button
+                    variant="secondary"
+                    label="Learn More"
                     onPress={() => router.push("/calendar-import-help")}
-                    className="w-full py-3 rounded-xl items-center mb-3"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: themeColor }} className="font-medium">Learn More</Text>
-                  </Pressable>
+                    style={{ width: "100%", marginBottom: 12, borderRadius: 12 }}
+                  />
                   <Text
                     className="text-xs text-center"
                     style={{ color: colors.textTertiary }}
@@ -713,38 +708,15 @@ export default function ImportCalendarScreen() {
 
             {/* Load Events Button */}
             <Animated.View entering={FadeInDown.delay(100).springify()} className="mt-4">
-              <Pressable
+              <Button
+                variant="primary"
+                label="Load Events"
                 onPress={loadEvents}
                 disabled={isLoadingEvents || selectedCalendars.size === 0}
-                className="py-4 rounded-xl flex-row items-center justify-center"
-                style={{
-                  backgroundColor:
-                    selectedCalendars.size === 0
-                      ? isDark
-                        ? "#2C2C2E"
-                        : "#E5E7EB"
-                      : themeColor,
-                }}
-              >
-                {isLoadingEvents ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <RefreshCw
-                      size={18}
-                      color={selectedCalendars.size === 0 ? colors.textTertiary : "#fff"}
-                    />
-                    <Text
-                      className="font-semibold ml-2"
-                      style={{
-                        color: selectedCalendars.size === 0 ? colors.textTertiary : "#fff",
-                      }}
-                    >
-                      Load Events
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+                loading={isLoadingEvents}
+                leftIcon={!isLoadingEvents ? <RefreshCw size={18} color="#fff" /> : undefined}
+                style={{ width: "100%", borderRadius: 12 }}
+              />
             </Animated.View>
 
             {/* Events List */}
@@ -912,23 +884,15 @@ export default function ImportCalendarScreen() {
           exiting={FadeOut}
           className="absolute bottom-6 left-4 right-4"
         >
-          <Pressable
+          <Button
+            variant="primary"
+            label={`Sync ${selectedEvents.size} Event${selectedEvents.size !== 1 ? "s" : ""}`}
             onPress={handleSyncEvents}
             disabled={importMutation.isPending}
-            className="py-4 rounded-2xl flex-row items-center justify-center shadow-lg"
-            style={{ backgroundColor: themeColor }}
-          >
-            {importMutation.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Upload size={20} color="#fff" />
-                <Text className="text-white font-bold ml-2 text-lg">
-                  Sync {selectedEvents.size} Event{selectedEvents.size !== 1 ? "s" : ""}
-                </Text>
-              </>
-            )}
-          </Pressable>
+            loading={importMutation.isPending}
+            leftIcon={!importMutation.isPending ? <Upload size={20} color="#fff" /> : undefined}
+            style={{ borderRadius: 16 }}
+          />
         </Animated.View>
       )}
 

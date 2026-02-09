@@ -60,6 +60,7 @@ import BottomSheet from "@/components/BottomSheet";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
+import { Button } from "@/ui/Button";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -2499,18 +2500,17 @@ export default function CircleScreen() {
                   <Text className="text-center text-sm mb-4" style={{ color: colors.textSecondary }}>
                     Create the first event for this group
                   </Text>
-                  <Pressable
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    label="Create Event"
                     onPress={() => {
                       router.push({
                         pathname: "/create",
                         params: { circleId: id },
                       } as any);
                     }}
-                    className="px-5 py-2.5 rounded-full"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    <Text className="text-white text-sm font-semibold">Create Event</Text>
-                  </Pressable>
+                  />
                 </View>
               </Animated.View>
             );
@@ -2573,34 +2573,23 @@ export default function CircleScreen() {
               🎉 Event done — run it back?
             </Text>
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <Pressable
+              <Button
+                variant="primary"
+                size="sm"
+                label="Start new plan"
                 onPress={() => {
                   if (__DEV__) devLog("[P1_LIFECYCLE_UI]", "run_it_back");
                   lifecycleMutation.mutate({ state: "planning" });
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   setCompletionDismissed(true);
                 }}
-                style={{
-                  backgroundColor: themeColor,
-                  paddingHorizontal: 18,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: "600", color: "#fff" }}>Start new plan</Text>
-              </Pressable>
-              <Pressable
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                label="Dismiss"
                 onPress={() => setCompletionDismissed(true)}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>Dismiss</Text>
-              </Pressable>
+              />
             </View>
           </Animated.View>
         )}
@@ -3337,24 +3326,20 @@ export default function CircleScreen() {
               {/* Add Button */}
               {availableFriends.length > 0 && (
                 <View style={{ paddingHorizontal: 20, paddingBottom: 34, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Pressable
-                    onPress={handleAddMembers}
-                    disabled={selectedFriends.length === 0 || addMembersMutation.isPending}
-                    style={{
-                      backgroundColor: selectedFriends.length > 0 ? themeColor : colors.border,
-                      paddingVertical: 16,
-                      borderRadius: 14,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16, fontWeight: "600", color: selectedFriends.length > 0 ? "#fff" : colors.textTertiary }}>
-                      {addMembersMutation.isPending
+                  <Button
+                    variant="primary"
+                    label={
+                      addMembersMutation.isPending
                         ? "Adding..."
                         : selectedFriends.length > 0
                           ? `Add ${selectedFriends.length} Friend${selectedFriends.length > 1 ? "s" : ""}`
-                          : "Select Friends to Add"}
-                    </Text>
-                  </Pressable>
+                          : "Select Friends to Add"
+                    }
+                    onPress={handleAddMembers}
+                    disabled={selectedFriends.length === 0 || addMembersMutation.isPending}
+                    loading={addMembersMutation.isPending}
+                    style={{ borderRadius: 14 }}
+                  />
                 </View>
               )}
             </Animated.View>
@@ -3412,20 +3397,12 @@ export default function CircleScreen() {
               </Text>
 
               <View style={{ flexDirection: "row", width: "100%" }}>
-                <Pressable
+                <Button
+                  variant="primary"
+                  label="Got it!"
                   onPress={() => setShowFriendSuggestionModal(false)}
-                  style={{
-                    flex: 1,
-                    backgroundColor: themeColor,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    alignItems: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>
-                    Got it!
-                  </Text>
-                </Pressable>
+                  style={{ flex: 1, borderRadius: 12 }}
+                />
               </View>
             </Animated.View>
           </Pressable>
@@ -3587,25 +3564,18 @@ export default function CircleScreen() {
           </View>
 
           {/* Save */}
-          <Pressable
+          <Button
+            variant="primary"
+            label={planLockMutation.isPending ? "Saving\u2026" : "Save"}
             onPress={() => {
               if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
               planLockMutation.mutate({ locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
               setShowPlanLockSheet(false);
             }}
             disabled={planLockMutation.isPending}
-            style={{
-              backgroundColor: themeColor,
-              paddingVertical: 14,
-              borderRadius: 12,
-              alignItems: "center",
-              opacity: planLockMutation.isPending ? 0.6 : 1,
-            }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>
-              {planLockMutation.isPending ? "Saving\u2026" : "Save"}
-            </Text>
-          </Pressable>
+            loading={planLockMutation.isPending}
+            style={{ borderRadius: 12 }}
+          />
 
           {/* [P1_LOCK_POLISH] Host-only unlock */}
           {isHost && planLock?.locked && (
@@ -3728,7 +3698,9 @@ export default function CircleScreen() {
           if (!winner) return null;
           return (
             <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-              <Pressable
+              <Button
+                variant="primary"
+                label={`🔒 Lock plan with "${winner.label}"`}
                 onPress={async () => {
                   const note = `Locked plan: ${winner.label}`;
                   if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_attempt", { pollId: activePoll.id, winnerId: winner.id, winnerLabel: winner.label, note });
@@ -3747,17 +3719,8 @@ export default function CircleScreen() {
                     safeToast.error("Error", "Failed to lock plan");
                   }
                 }}
-                style={{
-                  backgroundColor: themeColor,
-                  paddingVertical: 14,
-                  borderRadius: 12,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>
-                  🔒 Lock plan with "{winner.label}"
-                </Text>
-              </Pressable>
+                style={{ borderRadius: 12 }}
+              />
             </View>
           );
         })()}
@@ -4306,22 +4269,18 @@ export default function CircleScreen() {
               {/* Add Button */}
               {selectedFriends.length > 0 && (
                 <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                  <Pressable
+                  <Button
+                    variant="primary"
+                    label={
+                      addMembersMutation.isPending
+                        ? "Adding..."
+                        : `Add ${selectedFriends.length} Friend${selectedFriends.length > 1 ? "s" : ""}`
+                    }
                     onPress={handleAddMembers}
                     disabled={selectedFriends.length === 0 || addMembersMutation.isPending}
-                    style={{
-                      backgroundColor: selectedFriends.length > 0 ? themeColor : colors.border,
-                      paddingVertical: 14,
-                      borderRadius: 12,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16, fontWeight: "600", color: selectedFriends.length > 0 ? "#fff" : colors.textTertiary }}>
-                      {addMembersMutation.isPending
-                        ? "Adding..."
-                        : `Add ${selectedFriends.length} Friend${selectedFriends.length > 1 ? "s" : ""}`}
-                    </Text>
-                  </Pressable>
+                    loading={addMembersMutation.isPending}
+                    style={{ borderRadius: 12 }}
+                  />
                 </View>
               )}
             </Animated.View>
@@ -4468,21 +4427,16 @@ export default function CircleScreen() {
             </Text>
 
             {/* Create Button */}
-            <Pressable
+            <Button
+              variant="primary"
+              label="Create"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 setShowCreateEvent(false);
                 router.push(`/create?circleId=${id}&visibility=circle_only` as any);
               }}
-              style={{
-                backgroundColor: themeColor,
-                paddingVertical: 14,
-                borderRadius: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "600", color: "#fff" }}>Create</Text>
-            </Pressable>
+              style={{ borderRadius: 12 }}
+            />
 
             {/* Cancel Button */}
             <Pressable

@@ -33,6 +33,7 @@ import Constants from "expo-constants";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { openSupportEmail } from "@/lib/support";
+import { Button } from "@/ui/Button";
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -840,16 +841,15 @@ export default function HelpFAQScreen() {
             <Text style={{ color: colors.textSecondary }} className="text-sm mb-3">
               We're here to help! Reach out to our support team for personalized assistance. We typically respond within 24–48 hours.
             </Text>
-            <Pressable
+            <Button
+              variant="primary"
+              label="Contact Support"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 openSupportEmail();
               }}
-              className="py-3 rounded-xl items-center"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Contact Support</Text>
-            </Pressable>
+              style={{ borderRadius: 12 }}
+            />
           </View>
         </Animated.View>
 

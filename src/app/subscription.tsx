@@ -33,6 +33,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
+import { Button } from "@/ui/Button";
 import {
   isRevenueCatEnabled,
   getOfferings,
@@ -641,28 +642,15 @@ export default function SubscriptionScreen() {
               )}
 
               {/* Purchase Button */}
-              <Pressable
+              <Button
+                variant="primary"
+                label={isPurchasing ? "" : packagesLoading ? "Loading..." : getCTAText()}
                 onPress={handlePurchase}
                 disabled={isPurchasing || packagesLoading || (isPremium && !isTrial)}
-                className="mt-4 py-4 rounded-xl items-center flex-row justify-center"
-                style={{
-                  backgroundColor: (isPremium && !isTrial) ? colors.textTertiary : themeColor,
-                  opacity: isPurchasing || packagesLoading ? 0.7 : 1
-                }}
-              >
-                {isPurchasing ? (
-                  <ActivityIndicator color="#fff" />
-                ) : packagesLoading ? (
-                  <Text className="text-white font-semibold text-base">Loading...</Text>
-                ) : (
-                  <>
-                    <Crown size={18} color="#fff" style={{ marginRight: 8 }} />
-                    <Text className="text-white font-semibold text-base">
-                      {getCTAText()}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
+                loading={isPurchasing}
+                leftIcon={!isPurchasing && !packagesLoading ? <Crown size={18} color="#fff" style={{ marginRight: 2 }} /> : undefined}
+                style={{ marginTop: 16, borderRadius: 12, paddingVertical: 14, opacity: isPurchasing || packagesLoading ? 0.7 : 1 }}
+              />
 
               {/* Microcopy */}
               {!isPremium && (
@@ -786,41 +774,30 @@ export default function SubscriptionScreen() {
 
         {/* Restore Purchases */}
         <Animated.View entering={FadeInDown.delay(400).springify()} className="mx-4 mt-6">
-          <Pressable
+          <Button
+            variant="secondary"
+            label="Restore Purchases"
             onPress={handleRestorePurchases}
             disabled={isRestoring}
-            style={{ backgroundColor: colors.surface }}
-            className="rounded-2xl p-4 flex-row items-center justify-center"
-          >
-            {isRestoring ? (
-              <ActivityIndicator color={colors.textSecondary} size="small" />
-            ) : (
-              <>
-                <RotateCcw size={18} color={colors.textSecondary} />
-                <Text style={{ color: colors.textSecondary }} className="ml-2 font-medium">
-                  Restore Purchases
-                </Text>
-              </>
-            )}
-          </Pressable>
+            loading={isRestoring}
+            leftIcon={!isRestoring ? <RotateCcw size={18} color={colors.buttonSecondaryText} /> : undefined}
+            style={{ borderRadius: 16, paddingVertical: 14 }}
+          />
         </Animated.View>
 
         {/* Manage Subscription Link */}
         {isPremium && !isLifetime && Platform.OS === "ios" && (
           <Animated.View entering={FadeInDown.delay(500).springify()} className="mx-4 mt-4">
-            <Pressable
+            <Button
+              variant="secondary"
+              label="Manage in App Store"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 Linking.openURL("https://apps.apple.com/account/subscriptions");
               }}
-              style={{ backgroundColor: colors.surface }}
-              className="rounded-2xl p-4 flex-row items-center justify-center"
-            >
-              <ExternalLink size={18} color={colors.textSecondary} />
-              <Text style={{ color: colors.textSecondary }} className="ml-2 font-medium">
-                Manage in App Store
-              </Text>
-            </Pressable>
+              leftIcon={<ExternalLink size={18} color={colors.buttonSecondaryText} />}
+              style={{ borderRadius: 16, paddingVertical: 14 }}
+            />
           </Animated.View>
         )}
 

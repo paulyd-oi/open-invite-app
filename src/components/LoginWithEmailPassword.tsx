@@ -11,6 +11,7 @@ import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { isRateLimited, getRateLimitRemaining } from "@/lib/rateLimitState";
+import { Button } from "@/ui/Button";
 
 type AuthView = "login" | "forgotPassword" | "verifyEmail";
 
@@ -382,15 +383,12 @@ export default function LoginWithEmailPassword() {
             You're all set. Let's see what your friends are up to!
           </Text>
 
-          <Pressable
+          <Button
+            variant="primary"
+            label="Get Started"
             onPress={handleGetStarted}
-            style={{ backgroundColor: themeColor }}
-            className="w-full py-4 rounded-xl items-center"
-          >
-            <Text className="text-white font-semibold text-lg">
-              Get Started
-            </Text>
-          </Pressable>
+            style={{ width: "100%", borderRadius: 12, paddingVertical: 14 }}
+          />
         </View>
       </View>
     </Modal>
@@ -503,20 +501,14 @@ export default function LoginWithEmailPassword() {
             )}
 
             {/* Verify Button */}
-            <Pressable
+            <Button
+              variant="primary"
+              label={isVerifying ? "Verifying..." : "Verify Email"}
               onPress={() => handleVerifyCode()}
               disabled={isVerifying || verificationCode.join("").length !== 5}
-              style={{
-                backgroundColor: isVerifying || verificationCode.join("").length !== 5
-                  ? (isDark ? "#4B5563" : "#D1D5DB")
-                  : themeColor,
-              }}
-              className="w-full py-4 rounded-xl items-center mb-4"
-            >
-              <Text className="text-white font-semibold text-base">
-                {isVerifying ? "Verifying..." : "Verify Email"}
-              </Text>
-            </Pressable>
+              loading={isVerifying}
+              style={{ width: "100%", borderRadius: 12, paddingVertical: 14, marginBottom: 16 }}
+            />
 
             {/* Info Box */}
             <View
@@ -631,18 +623,14 @@ export default function LoginWithEmailPassword() {
                 />
               </View>
 
-              <Pressable
+              <Button
+                variant="primary"
+                label={isLoading ? "Sending..." : "Send Reset Link"}
                 onPress={handleForgotPassword}
                 disabled={isLoading}
-                style={{
-                  backgroundColor: isLoading ? (isDark ? "#7B92B2" : "#BFDBFE") : themeColor,
-                }}
-                className="p-4 rounded-lg items-center"
-              >
-                <Text className="text-white font-semibold text-base">
-                  {isLoading ? "Sending..." : "Send Reset Link"}
-                </Text>
-              </Pressable>
+                loading={isLoading}
+                style={{ borderRadius: 8, paddingVertical: 14 }}
+              />
             </>
           )}
         </View>
@@ -749,18 +737,14 @@ export default function LoginWithEmailPassword() {
             </Pressable>
           )}
 
-          <Pressable
+          <Button
+            variant="primary"
+            label={isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
             onPress={isSignUp ? handleSignUp : handleSignIn}
             disabled={isLoading}
-            style={{
-              backgroundColor: isLoading ? (isDark ? "#7B92B2" : "#BFDBFE") : themeColor,
-            }}
-            className="p-4 rounded-lg items-center"
-          >
-            <Text className="text-white font-semibold text-base">
-              {isLoading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
-            </Text>
-          </Pressable>
+            loading={isLoading}
+            style={{ borderRadius: 8, paddingVertical: 14 }}
+          />
 
           <Pressable
             onPress={() => setIsSignUp(!isSignUp)}

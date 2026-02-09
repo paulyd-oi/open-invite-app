@@ -34,6 +34,7 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { devError } from "@/lib/devLog";
+import { Button } from "@/ui/Button";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import {
@@ -815,25 +816,14 @@ export default function CreateEventRequestScreen() {
 
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(400).springify()}>
-            <Pressable
+            <Button
+              variant="primary"
+              label={createMutation.isPending ? "Sending Invites..." : "Propose Event"}
               onPress={handleCreate}
               disabled={createMutation.isPending || !title.trim() || selectedFriendIds.length === 0}
-              className="rounded-xl p-4 items-center mt-4"
-              style={{
-                backgroundColor:
-                  createMutation.isPending || !title.trim() || selectedFriendIds.length === 0
-                    ? colors.textTertiary
-                    : themeColor,
-                opacity:
-                  createMutation.isPending || !title.trim() || selectedFriendIds.length === 0
-                    ? 0.5
-                    : 1,
-              }}
-            >
-              <Text className="text-white font-semibold text-lg">
-                {createMutation.isPending ? "Sending Invites..." : "Propose Event"}
-              </Text>
-            </Pressable>
+              loading={createMutation.isPending}
+              style={{ marginTop: 16, borderRadius: 12 }}
+            />
             <Text className="text-center text-xs mt-2" style={{ color: colors.textTertiary }}>
               Friends will be notified to accept or decline
             </Text>

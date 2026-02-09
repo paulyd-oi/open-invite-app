@@ -17,6 +17,7 @@ import { useMinuteTick } from "@/lib/useMinuteTick";
 
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
 
@@ -723,20 +724,18 @@ export default function UserProfileScreen() {
                           {user.name?.split(" ")[0] ?? "They"} sent you a friend request
                         </Text>
                         <View className="flex-row items-center justify-center">
-                          <Pressable
+                          <Button
+                            variant="secondary"
+                            label="Decline"
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                               rejectRequestMutation.mutate(incomingRequestId);
                             }}
                             disabled={rejectRequestMutation.isPending}
-                            className="flex-row items-center px-5 py-3 rounded-full mr-3"
-                            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                          >
-                            <X size={18} color={colors.textSecondary} />
-                            <Text className="font-semibold ml-2" style={{ color: colors.textSecondary }}>
-                              Decline
-                            </Text>
-                          </Pressable>
+                            loading={rejectRequestMutation.isPending}
+                            leftIcon={!rejectRequestMutation.isPending ? <X size={18} color={colors.textSecondary} /> : undefined}
+                            style={{ marginRight: 12 }}
+                          />
                           <Pressable
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -755,7 +754,15 @@ export default function UserProfileScreen() {
                       </View>
                     ) : (
                       /* Outgoing request or no request - show Add Friend button */
-                      <Pressable
+                      <Button
+                        variant={hasPendingRequest ? "secondary" : "primary"}
+                        label={
+                          sendRequestMutation.isPending
+                            ? "Sending..."
+                            : hasPendingRequest
+                              ? "Request Sent"
+                              : "Add Friend"
+                        }
                         onPress={() => {
                           if (!hasPendingRequest) {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -763,23 +770,14 @@ export default function UserProfileScreen() {
                           }
                         }}
                         disabled={hasPendingRequest || sendRequestMutation.isPending}
-                        className="mt-4 flex-row items-center px-6 py-3 rounded-full"
-                        style={{
-                          backgroundColor: hasPendingRequest ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor
-                        }}
-                      >
-                        <UserPlus size={18} color={hasPendingRequest ? colors.textSecondary : "#fff"} />
-                        <Text
-                          className="font-semibold ml-2"
-                          style={{ color: hasPendingRequest ? colors.textSecondary : "#fff" }}
-                        >
-                          {sendRequestMutation.isPending
-                            ? "Sending..."
-                            : hasPendingRequest
-                              ? "Request Sent"
-                              : "Add Friend"}
-                        </Text>
-                      </Pressable>
+                        loading={sendRequestMutation.isPending}
+                        leftIcon={
+                          !sendRequestMutation.isPending
+                            ? <UserPlus size={18} color={hasPendingRequest ? colors.textSecondary : "#fff"} />
+                            : undefined
+                        }
+                        style={{ marginTop: 16 }}
+                      />
                     )}
                   </>
                 )}
@@ -960,20 +958,19 @@ export default function UserProfileScreen() {
                     {/* Incoming request - show Accept/Decline buttons */}
                     {incomingRequestId ? (
                       <View className="flex-row items-center justify-center">
-                        <Pressable
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          label="Decline"
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             rejectRequestMutation.mutate(incomingRequestId);
                           }}
                           disabled={rejectRequestMutation.isPending}
-                          className="flex-row items-center px-4 py-2.5 rounded-full mr-2"
-                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                        >
-                          <X size={16} color={colors.textSecondary} />
-                          <Text className="font-medium ml-1.5" style={{ color: colors.textSecondary }}>
-                            Decline
-                          </Text>
-                        </Pressable>
+                          loading={rejectRequestMutation.isPending}
+                          leftIcon={!rejectRequestMutation.isPending ? <X size={16} color={colors.textSecondary} /> : undefined}
+                          style={{ marginRight: 8 }}
+                        />
                         <Pressable
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -990,20 +987,18 @@ export default function UserProfileScreen() {
                         </Pressable>
                       </View>
                     ) : !isFriend && !hasPendingRequest ? (
-                      <Pressable
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        label={sendRequestMutation.isPending ? "Sending..." : "Send Friend Request"}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                           sendRequestMutation.mutate();
                         }}
                         disabled={sendRequestMutation.isPending}
-                        className="flex-row items-center px-5 py-2.5 rounded-full"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <UserPlus size={16} color="#fff" />
-                        <Text className="text-white font-medium ml-2">
-                          {sendRequestMutation.isPending ? "Sending..." : "Send Friend Request"}
-                        </Text>
-                      </Pressable>
+                        loading={sendRequestMutation.isPending}
+                        leftIcon={!sendRequestMutation.isPending ? <UserPlus size={16} color="#fff" /> : undefined}
+                      />
                     ) : hasPendingRequest ? (
                       <View className="flex-row items-center px-5 py-2.5 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
                         <Text className="font-medium" style={{ color: colors.textSecondary }}>
@@ -1080,15 +1075,12 @@ export default function UserProfileScreen() {
               </Text>
             </Pressable>
             
-            <Pressable
-              className="mt-4 py-4 rounded-xl items-center"
-              style={{ backgroundColor: colors.surface }}
+            <Button
+              variant="secondary"
+              label="Cancel"
               onPress={() => setShowMenuModal(false)}
-            >
-              <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
-                Cancel
-              </Text>
-            </Pressable>
+              style={{ marginTop: 16 }}
+            />
           </View>
         </Pressable>
       </Modal>
@@ -1176,33 +1168,25 @@ export default function UserProfileScreen() {
             )}
             
             <View className="flex-row mt-4 gap-3">
-              <Pressable
-                className="flex-1 py-4 rounded-xl items-center"
-                style={{ backgroundColor: colors.surface }}
+              <Button
+                variant="secondary"
+                label="Cancel"
                 onPress={() => {
                   setShowReportModal(false);
                   setSelectedReportReason(null);
                   setReportDetails('');
                 }}
-              >
-                <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
-                  Cancel
-                </Text>
-              </Pressable>
+                style={{ flex: 1, borderRadius: 12 }}
+              />
               
-              <Pressable
-                className="flex-1 py-4 rounded-xl items-center"
-                style={{ 
-                  backgroundColor: selectedReportReason ? themeColor : colors.surface,
-                  opacity: selectedReportReason ? 1 : 0.5,
-                }}
+              <Button
+                variant="primary"
+                label={isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 onPress={submitReport}
                 disabled={!selectedReportReason || isSubmittingReport}
-              >
-                <Text className="text-base font-medium" style={{ color: selectedReportReason ? '#FFFFFF' : colors.textSecondary }}>
-                  {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
-                </Text>
-              </Pressable>
+                loading={isSubmittingReport}
+                style={{ flex: 1, borderRadius: 12 }}
+              />
             </View>
           </Pressable>
         </Pressable>

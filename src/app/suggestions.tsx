@@ -49,6 +49,7 @@ import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
 import { SuggestionFeedCard, SuggestionsFeedEmpty } from "@/components/SuggestionFeedCard";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import {
   type GetFriendSuggestionsResponse,
@@ -228,17 +229,16 @@ function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => 
         Invite a few people to kickstart your network.
       </Text>
       
-      <Pressable
+      <Button
+        variant="primary"
+        label="Invite friends"
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           onInvite();
         }}
-        className="px-6 py-3 rounded-full flex-row items-center mb-3"
-        style={{ backgroundColor: themeColor }}
-      >
-        <Share2 size={18} color="#fff" />
-        <Text className="text-white font-semibold ml-2">Invite friends</Text>
-      </Pressable>
+        leftIcon={<Share2 size={18} color="#fff" />}
+        style={{ marginBottom: 12 }}
+      />
       
       <Pressable
         onPress={() => {
@@ -510,13 +510,11 @@ export default function SuggestionsScreen() {
           >
             Discover people you might know based on mutual friends.
           </Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Sign In"
             onPress={() => router.replace("/login")}
-            className="px-6 py-3 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Sign In</Text>
-          </Pressable>
+          />
         </View>
       </SafeAreaView>
     );

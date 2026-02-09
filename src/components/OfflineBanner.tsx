@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useIsSyncing, useSyncProgress } from "@/lib/offlineStore";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { Button } from "@/ui/Button";
 
 /**
  * Unified Network Status Banner
@@ -208,13 +209,12 @@ export function ErrorFallback({
         Please check your connection and try again
       </Text>
       {onRetry && (
-        <Pressable
+        <Button
+          variant="primary"
+          label="Try Again"
           onPress={onRetry}
-          className="px-6 py-2.5 rounded-full"
-          style={{ backgroundColor: themeColor }}
-        >
-          <Text className="text-white font-semibold">Try Again</Text>
-        </Pressable>
+          size="sm"
+        />
       )}
     </View>
   );

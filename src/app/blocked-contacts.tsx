@@ -33,6 +33,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { Button } from "@/ui/Button";
 import {
   type GetBlockedContactsResponse,
   type BlockContactResponse,
@@ -561,16 +562,13 @@ function BlockedContactItem({
           {displaySubtitle}
         </Text>
       </View>
-      <Pressable
+      <Button
+        variant="secondary"
+        size="sm"
+        label="Unblock"
         onPress={onUnblock}
         disabled={isUnblocking}
-        className="px-4 py-2 rounded-full"
-        style={{ backgroundColor: isDark ? "#3A3A3C" : "#F3F4F6" }}
-      >
-        <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">
-          Unblock
-        </Text>
-      </Pressable>
+      />
     </View>
   );
 }

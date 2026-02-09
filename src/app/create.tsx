@@ -46,6 +46,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 import { toUserMessage, logError } from "@/lib/errors";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -734,13 +735,12 @@ export default function CreateEventScreen() {
           <Text style={{ color: colors.text }} className="text-xl font-semibold mb-2">
             Sign in to create events
           </Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Sign In"
             onPress={() => router.replace("/login")}
-            className="px-6 py-3 rounded-full mt-4"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Sign In</Text>
-          </Pressable>
+            style={{ marginTop: 16 }}
+          />
         </View>
         <BottomNavigation />
       </SafeAreaView>
@@ -1366,23 +1366,22 @@ export default function CreateEventScreen() {
 
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
-            <Pressable
-              testID="create-submit-button"
+            <Button
+              variant="primary"
+              label={createMutation.isPending ? "Creating..." : "Create Invite"}
               onPress={handleCreate}
               disabled={createMutation.isPending}
-              className="rounded-xl p-4 items-center mt-4"
+              loading={createMutation.isPending}
               style={{
-                backgroundColor: createMutation.isPending ? colors.textTertiary : themeColor,
+                borderRadius: 12,
+                paddingVertical: 14,
+                marginTop: 16,
                 shadowColor: themeColor,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: isDark ? 0.5 : 0.3,
                 shadowRadius: 8,
               }}
-            >
-              <Text className="text-white font-semibold text-lg">
-                {createMutation.isPending ? "Creating..." : "Create Invite"}
-              </Text>
-            </Pressable>
+            />
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>

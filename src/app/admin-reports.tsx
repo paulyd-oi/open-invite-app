@@ -16,6 +16,8 @@ import { ChevronLeft, ChevronRight, AlertTriangle, Shield } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { checkAdminStatus, listReports, type AdminReport } from "@/lib/adminApi";
 import { devLog } from "@/lib/devLog";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,9 +104,7 @@ export default function AdminReportsInbox() {
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
           <Shield size={40} color={colors.textTertiary} />
           <Text style={{ color: colors.text, fontSize: 18, fontWeight: "600", marginTop: 16 }}>Admin access required</Text>
-          <Pressable onPress={() => router.back()} style={{ marginTop: 24, backgroundColor: themeColor, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Go Back</Text>
-          </Pressable>
+          <Button variant="primary" label="Go Back" onPress={() => router.back()} style={{ marginTop: 24, borderRadius: 12 }} />
         </View>
       </SafeAreaView>
     );

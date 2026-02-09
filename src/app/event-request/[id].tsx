@@ -42,6 +42,7 @@ import {
   type NudgeEventRequestResponse,
   type SuggestTimeResponse,
 } from "@/shared/contracts";
+import { Button } from "@/ui/Button";
 
 export default function EventRequestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -243,13 +244,12 @@ export default function EventRequestDetailScreen() {
           <Text className="text-center" style={{ color: colors.textSecondary }}>
             Proposed event not found or you don't have access
           </Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Go Back"
             onPress={() => router.back()}
-            className="mt-4 px-6 py-3 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Go Back</Text>
-          </Pressable>
+            style={{ marginTop: 16 }}
+          />
         </View>
       </View>
     );
@@ -568,17 +568,15 @@ export default function EventRequestDetailScreen() {
           <Animated.View entering={FadeInDown.delay(150).springify()} className="mt-6">
             {/* Nudge Button */}
             {members.some((m) => m.status === "pending") && (
-              <Pressable
+              <Button
+                variant="ghost"
+                label={nudgeMutation.isPending ? "Sending..." : "Nudge Pending Members"}
                 onPress={handleNudge}
                 disabled={nudgeMutation.isPending}
-                className="flex-row items-center justify-center rounded-xl py-4 mb-3"
-                style={{ backgroundColor: `${themeColor}15` }}
-              >
-                <Bell size={20} color={themeColor} />
-                <Text className="font-semibold ml-2" style={{ color: themeColor }}>
-                  {nudgeMutation.isPending ? "Sending..." : "Nudge Pending Members"}
-                </Text>
-              </Pressable>
+                loading={nudgeMutation.isPending}
+                leftIcon={!nudgeMutation.isPending ? <Bell size={20} color={themeColor} /> : undefined}
+                style={{ marginBottom: 12, backgroundColor: `${themeColor}15`, borderRadius: 12 }}
+              />
             )}
 
             <Pressable
@@ -605,16 +603,13 @@ export default function EventRequestDetailScreen() {
           style={{ backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border }}
         >
           {/* Suggest Time Button */}
-          <Pressable
+          <Button
+            variant="ghost"
+            label="Suggest Different Time"
             onPress={() => setShowSuggestTimeModal(true)}
-            className="flex-row items-center justify-center rounded-xl py-3 mb-3"
-            style={{ backgroundColor: `${themeColor}15` }}
-          >
-            <CalendarClock size={18} color={themeColor} />
-            <Text className="font-medium ml-2" style={{ color: themeColor }}>
-              Suggest Different Time
-            </Text>
-          </Pressable>
+            leftIcon={<CalendarClock size={18} color={themeColor} />}
+            style={{ marginBottom: 12, backgroundColor: `${themeColor}15`, borderRadius: 12 }}
+          />
 
           <View className="flex-row gap-3">
             <Pressable
@@ -725,16 +720,14 @@ export default function EventRequestDetailScreen() {
             />
 
             {/* Send Button */}
-            <Pressable
+            <Button
+              variant="primary"
+              label={suggestTimeMutation.isPending ? "Sending..." : "Send Suggestion"}
               onPress={handleSuggestTime}
               disabled={suggestTimeMutation.isPending}
-              className="rounded-xl py-4 items-center"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="font-semibold text-white">
-                {suggestTimeMutation.isPending ? "Sending..." : "Send Suggestion"}
-              </Text>
-            </Pressable>
+              loading={suggestTimeMutation.isPending}
+              style={{ borderRadius: 12 }}
+            />
 
             {/* Cancel Button */}
             <Pressable
@@ -823,19 +816,16 @@ export default function EventRequestDetailScreen() {
               Would you like to suggest a different time or decline?
             </Text>
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Suggest Different Time"
               onPress={() => {
                 setShowDeclineOptionsModal(false);
                 setShowSuggestTimeModal(true);
               }}
-              className="flex-row items-center justify-center rounded-xl py-4 mb-3"
-              style={{ backgroundColor: `${themeColor}15` }}
-            >
-              <CalendarClock size={20} color={themeColor} />
-              <Text className="font-semibold ml-2" style={{ color: themeColor }}>
-                Suggest Different Time
-              </Text>
-            </Pressable>
+              leftIcon={<CalendarClock size={20} color={themeColor} />}
+              style={{ marginBottom: 12, backgroundColor: `${themeColor}15`, borderRadius: 12 }}
+            />
 
             <Pressable
               onPress={handleConfirmDecline}

@@ -64,6 +64,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
+import { Button } from "@/ui/Button";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
@@ -302,23 +303,19 @@ const EventDetailErrorState: React.FC<EventDetailErrorStateProps> = ({
           {subtitle}
         </Text>
         <View className="flex-row gap-3">
-          <Pressable
+          <Button
+            variant="secondary"
+            label="Back"
             onPress={onBack}
-            className="px-6 py-3 rounded-full flex-1"
-            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-          >
-            <Text className="text-center font-semibold" style={{ color: colors.text }}>
-              Back
-            </Text>
-          </Pressable>
+            style={{ flex: 1 }}
+          />
           {onRetry && (
-            <Pressable
+            <Button
+              variant="primary"
+              label="Try Again"
               onPress={onRetry}
-              className="px-6 py-3 rounded-full flex-1"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-center font-semibold text-white">Try Again</Text>
-            </Pressable>
+              style={{ flex: 1 }}
+            />
           )}
         </View>
       </View>
@@ -1537,44 +1534,27 @@ export default function EventDetailScreen() {
             </Text>
             <View className="gap-3 w-full max-w-xs">
               {restrictedHostInfo?.id && (
-                <Pressable
+                <Button
+                  variant="primary"
+                  label="Add Host"
                   onPress={handleAddHost}
                   disabled={addHostMutation.isPending}
-                  className="py-3 px-6 rounded-full items-center flex-row justify-center"
-                  style={{ backgroundColor: themeColor, opacity: addHostMutation.isPending ? 0.7 : 1 }}
-                >
-                  {addHostMutation.isPending ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <UserPlus size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text className="font-semibold" style={{ color: '#FFFFFF' }}>
-                        Add Host
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                  loading={addHostMutation.isPending}
+                  leftIcon={!addHostMutation.isPending ? <UserPlus size={18} color="#FFFFFF" /> : undefined}
+                />
               )}
               {restrictedHostInfo?.id && (
-                <Pressable
+                <Button
+                  variant="secondary"
+                  label="View Profile"
                   onPress={handleHostPress}
-                  className="py-3 px-6 rounded-full items-center"
-                  style={{ backgroundColor: colors.surface }}
-                >
-                  <Text className="font-medium" style={{ color: colors.text }}>
-                    View Profile
-                  </Text>
-                </Pressable>
+                />
               )}
-              <Pressable
+              <Button
+                variant="ghost"
+                label="Go Back"
                 onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
-                className="py-3 px-6 rounded-full items-center"
-                style={{ backgroundColor: 'transparent' }}
-              >
-                <Text className="font-medium" style={{ color: colors.textSecondary }}>
-                  Go Back
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
         </SafeAreaView>
@@ -1872,23 +1852,15 @@ export default function EventDetailScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Pressable
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    label="Update"
                     onPress={handleSyncToCalendar}
                     disabled={isSyncing}
-                    className="flex-row items-center px-3 py-2 rounded-full"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    {isSyncing ? (
-                      <ActivityIndicator size="small" color={themeColor} />
-                    ) : (
-                      <>
-                        <RefreshCw size={14} color={themeColor} />
-                        <Text className="font-medium text-sm ml-1.5" style={{ color: themeColor }}>
-                          Update
-                        </Text>
-                      </>
-                    )}
-                  </Pressable>
+                    loading={isSyncing}
+                    leftIcon={!isSyncing ? <RefreshCw size={14} color={themeColor} /> : undefined}
+                  />
                 </View>
               ) : (
                 <View className="flex-row items-center justify-between">
@@ -1903,18 +1875,14 @@ export default function EventDetailScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Pressable
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    label="Sync"
                     onPress={handleSyncToCalendar}
                     disabled={isSyncing}
-                    className="flex-row items-center px-4 py-2 rounded-full"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    {isSyncing ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text className="font-semibold text-sm text-white">Sync</Text>
-                    )}
-                  </Pressable>
+                    loading={isSyncing}
+                  />
                 </View>
               )}
             </View>
@@ -3137,19 +3105,14 @@ export default function EventDetailScreen() {
                 </Text>
               </Pressable>
               
-              <Pressable
-                className="flex-1 py-4 rounded-xl items-center"
-                style={{ 
-                  backgroundColor: selectedReportReason ? themeColor : colors.surface,
-                  opacity: selectedReportReason ? 1 : 0.5,
-                }}
+              <Button
+                variant="primary"
+                label={isSubmittingReport ? "Submitting..." : "Submit Report"}
                 onPress={submitEventReport}
                 disabled={!selectedReportReason || isSubmittingReport}
-              >
-                <Text className="text-base font-medium" style={{ color: selectedReportReason ? "#FFFFFF" : colors.textSecondary }}>
-                  {isSubmittingReport ? "Submitting..." : "Submit Report"}
-                </Text>
-              </Pressable>
+                loading={isSubmittingReport}
+                style={{ flex: 1, borderRadius: 12 }}
+              />
             </View>
           </Pressable>
         </Pressable>
@@ -3347,7 +3310,9 @@ export default function EventDetailScreen() {
               {/* Reset to Default */}
               {currentColorOverride && (
                 <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
-                  <Pressable
+                  <Button
+                    variant="secondary"
+                    label="Reset to Default"
                     onPress={async () => {
                       if (!id) return;
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -3360,27 +3325,19 @@ export default function EventDetailScreen() {
                         safeToast.error("Error", "Failed to reset color");
                       }
                     }}
-                    className="py-3 rounded-xl items-center"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                  >
-                    <Text style={{ color: colors.textSecondary, fontSize: 16, fontWeight: "500" }}>
-                      Reset to Default
-                    </Text>
-                  </Pressable>
+                    style={{ borderRadius: 12 }}
+                  />
                 </View>
               )}
 
               {/* Done Button */}
               <View style={{ paddingHorizontal: 20 }}>
-                <Pressable
+                <Button
+                  variant="primary"
+                  label="Done"
                   onPress={() => setShowColorPicker(false)}
-                  className="py-4 rounded-xl items-center"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "600" }}>
-                    Done
-                  </Text>
-                </Pressable>
+                  style={{ borderRadius: 12, paddingVertical: 14 }}
+                />
               </View>
       </BottomSheet>
     </SafeAreaView>

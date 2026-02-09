@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/lib/ThemeContext";
 import { devWarn } from "@/lib/devLog";
 import { Calendar, Users, Clock } from "@/ui/icons";
+import { Button } from "@/ui/Button";
 
 const POST_EVENT_REPEAT_NUDGE_KEY = "postEventRepeatNudge:v1";
 
@@ -63,46 +64,28 @@ export const PostEventRepeatNudge: React.FC<PostEventRepeatNudgeProps> = ({
 
           {/* Action Buttons */}
           <View className="space-y-3">
-            <Pressable
+            <Button
+              variant="primary"
+              label="Invite again"
               onPress={onPrimary}
-              className="rounded-xl p-4 flex-row items-center justify-center"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Calendar size={20} color="white" />
-              <Text className="text-white font-semibold ml-2">
-                Invite again
-              </Text>
-            </Pressable>
+              leftIcon={<Calendar size={20} color={colors.buttonPrimaryText} />}
+              style={{ borderRadius: 12, paddingVertical: 16 }}
+            />
 
-            <Pressable
+            <Button
+              variant="secondary"
+              label="See what's next"
               onPress={onSecondary}
-              className="rounded-xl p-4 flex-row items-center justify-center"
-              style={{
-                backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Users size={20} color={colors.text} />
-              <Text
-                style={{ color: colors.text }}
-                className="font-medium ml-2"
-              >
-                See what's next
-              </Text>
-            </Pressable>
+              leftIcon={<Users size={20} color={colors.text} />}
+              style={{ borderRadius: 12, paddingVertical: 16 }}
+            />
 
-            <Pressable
+            <Button
+              variant="ghost"
+              label="Later"
               onPress={onDismiss}
-              className="py-3 items-center"
-            >
-              <Text
-                style={{ color: colors.textTertiary }}
-                className="text-sm"
-              >
-                Later
-              </Text>
-            </Pressable>
+              size="sm"
+            />
           </View>
         </View>
       </View>

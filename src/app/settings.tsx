@@ -80,6 +80,7 @@ import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage } from "@/lib/imageUpload";
+import { Button } from "@/ui/Button";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
@@ -1382,13 +1383,11 @@ export default function SettingsScreen() {
         </View>
         <View className="flex-1 items-center justify-center px-8">
           <Text style={{ color: colors.textSecondary }} className="text-base mb-4">Please sign in to access settings</Text>
-          <Pressable
+          <Button
+            variant="primary"
+            label="Sign In"
             onPress={() => router.replace("/login")}
-            className="px-6 py-3 rounded-full"
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white font-semibold">Sign In</Text>
-          </Pressable>
+          />
         </View>
       </SafeAreaView>
     );
@@ -1584,23 +1583,20 @@ export default function SettingsScreen() {
 
               {/* Action Buttons */}
               <View className="flex-row">
-                <Pressable
+                <Button
+                  variant="secondary"
+                  label="Cancel"
                   onPress={() => setShowEditProfile(false)}
-                  className="flex-1 py-3 rounded-xl mr-2"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                >
-                  <Text style={{ color: colors.textSecondary }} className="text-center font-medium">Cancel</Text>
-                </Pressable>
-                <Pressable
+                  style={{ flex: 1, borderRadius: 12, marginRight: 8 }}
+                />
+                <Button
+                  variant="primary"
+                  label={updateProfileMutation.isPending ? "Saving..." : "Save"}
                   onPress={handleSaveProfile}
                   disabled={updateProfileMutation.isPending}
-                  className="flex-1 py-3 rounded-xl"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-center font-medium text-white">
-                    {updateProfileMutation.isPending ? "Saving..." : "Save"}
-                  </Text>
-                </Pressable>
+                  loading={updateProfileMutation.isPending}
+                  style={{ flex: 1, borderRadius: 12 }}
+                />
               </View>
             </View>
           </Animated.View>
@@ -2027,15 +2023,12 @@ export default function SettingsScreen() {
             {showBirthdaySection && (
               <View className="px-4 py-3">
                 {/* Date Picker Button */}
-                <Pressable
+                <Button
+                  variant="secondary"
+                  label={birthday ? "Change Birthday" : "Set Birthday"}
                   onPress={() => setShowDatePicker(true)}
-                  className="flex-row items-center justify-center py-3 rounded-xl mb-4"
-                  style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                >
-                  <Text style={{ color: themeColor }} className="font-medium">
-                    {birthday ? "Change Birthday" : "Set Birthday"}
-                  </Text>
-                </Pressable>
+                  style={{ borderRadius: 12, marginBottom: 16 }}
+                />
 
                 {showDatePicker && (
                   <View className="mb-4">
@@ -2049,13 +2042,13 @@ export default function SettingsScreen() {
                       themeVariant={isDark ? "dark" : "light"}
                     />
                     {Platform.OS === "ios" && (
-                      <Pressable
+                      <Button
+                        variant="primary"
+                        label="Done"
                         onPress={() => setShowDatePicker(false)}
-                        className="py-2 mt-2 rounded-xl"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <Text className="text-center text-white font-medium">Done</Text>
-                      </Pressable>
+                        size="sm"
+                        style={{ marginTop: 8, borderRadius: 12 }}
+                      />
                     )}
                   </View>
                 )}
@@ -2502,16 +2495,15 @@ export default function SettingsScreen() {
                 : "You can change your username up to 2 times every 30 days."
               }
             </Text>
-            <Pressable
+            <Button
+              variant="primary"
+              label="Got it"
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowUsernameInfoModal(false);
               }}
-              className="rounded-xl py-3 items-center"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Got it</Text>
-            </Pressable>
+              style={{ borderRadius: 12 }}
+            />
           </Pressable>
         </Pressable>
       </Modal>
@@ -2573,28 +2565,26 @@ export default function SettingsScreen() {
               </Text>
             )}
             <View className="flex-row gap-3">
-              <Pressable
+              <Button
+                variant="secondary"
+                label="Cancel"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowPasscodeModal(false);
                   setPasscodeInput("");
                   setPasscodeError(false);
                 }}
-                className="flex-1 rounded-xl py-3 items-center"
-                style={{ backgroundColor: colors.separator }}
-              >
-                <Text className="font-semibold" style={{ color: colors.text }}>Cancel</Text>
-              </Pressable>
-              <Pressable
+                style={{ flex: 1, borderRadius: 12 }}
+              />
+              <Button
+                variant="primary"
+                label="Submit"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   handlePasscodeSubmit();
                 }}
-                className="flex-1 rounded-xl py-3 items-center"
-                style={{ backgroundColor: themeColor }}
-              >
-                <Text className="text-white font-semibold">Submit</Text>
-              </Pressable>
+                style={{ flex: 1, borderRadius: 12 }}
+              />
             </View>
           </Pressable>
         </Pressable>

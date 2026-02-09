@@ -1,5 +1,18 @@
 # Findings Log — Frontend
 
+## P2 Button/Chip SSOT Sweep (full-codebase)
+
+### Sweep Scope
+- Migrated ad-hoc Pressable-based CTA buttons to `<Button>` across 21 files (9 new + 12 prior session).
+- Post-sweep: 87 `<Button>` instances across 26 files, 14 `<Chip>` instances across 7 files.
+- Intentional Pressable exceptions documented: icon-only, destructive red (#EF4444), green accept (#22C55E), AnimatedPressable, LinearGradient wrappers, modal backdrops, navigation rows, segmented controls, class components.
+
+### Key Decisions
+- **No testID on Button**: Button.tsx does not expose testID in its props. Onboarding Continue/Get Started and Retry buttons with testID were SKIPPED.
+- **Date picker Done buttons**: Embedded flush in overflow-hidden containers — Button's border-radius mismatches. SKIPPED in create-event-request.tsx.
+- **Destructive variant gap**: Button has no "destructive" variant. All red-bg buttons (Sign Out, Block Contact, Cancel Event, Decline) remain raw Pressable. Future: add `variant="destructive"` to Button.
+- **Green accept gap**: Accept buttons use #22C55E (not themeColor). SKIPPED per audit rules.
+
 ## P1 Button + Chip SSOT System (2026-02-09)
 
 ### UI Primitive Consolidation

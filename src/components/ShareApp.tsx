@@ -7,6 +7,8 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { devError } from "@/lib/devLog";
+import { Button } from "@/ui/Button";
+import { Chip } from "@/ui/Chip";
 
 const APP_STORE_URL = "https://apps.apple.com/app/open-invite"; // Placeholder
 const SHARE_MESSAGE = "Check out Open Invite - the easiest way to share plans with friends!";
@@ -45,28 +47,23 @@ export function ShareAppButton({ variant = "icon" }: ShareAppButtonProps) {
 
   if (variant === "compact") {
     return (
-      <Pressable
+      <Chip
+        variant="accent"
+        label="Share"
+        leftIcon={<Share2 size={16} color={themeColor} />}
         onPress={handleShare}
-        className="flex-row items-center px-4 py-2 rounded-full"
-        style={{ backgroundColor: `${themeColor}15` }}
-      >
-        <Share2 size={16} color={themeColor} />
-        <Text style={{ color: themeColor }} className="text-sm font-medium ml-2">
-          Share
-        </Text>
-      </Pressable>
+      />
     );
   }
 
   return (
-    <Pressable
+    <Button
+      variant="primary"
+      label="Share Open Invite"
       onPress={handleShare}
-      className="flex-row items-center justify-center py-3 rounded-xl"
-      style={{ backgroundColor: themeColor }}
-    >
-      <Share2 size={20} color="#fff" />
-      <Text className="text-white font-semibold ml-2">Share Open Invite</Text>
-    </Pressable>
+      leftIcon={<Share2 size={20} color={colors.buttonPrimaryText} />}
+      style={{ borderRadius: 12 }}
+    />
   );
 }
 
@@ -106,18 +103,13 @@ export function InviteFriendsContent() {
         >
           {APP_STORE_URL}
         </Text>
-        <Pressable
+        <Chip
+          variant="accent"
+          label="Copy"
+          leftIcon={<Copy size={14} color={themeColor} />}
           onPress={copyLink}
-          className="px-3 py-1.5 rounded-lg ml-2"
-          style={{ backgroundColor: `${themeColor}15` }}
-        >
-          <View className="flex-row items-center">
-            <Copy size={14} color={themeColor} />
-            <Text style={{ color: themeColor }} className="text-sm font-medium ml-1">
-              Copy
-            </Text>
-          </View>
-        </Pressable>
+          style={{ marginLeft: 8 }}
+        />
       </View>
 
       {/* Share Options */}

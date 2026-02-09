@@ -26,6 +26,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { Button } from "@/ui/Button";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -596,16 +597,16 @@ export default function WhosFreeScreen() {
                 <Text className="text-sm mt-2" style={{ color: colors.textSecondary }}>
                   Add friends to find the best time
                 </Text>
-                <Pressable
+                <Button
+                  variant="primary"
+                  size="sm"
+                  label="Find Friends"
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push("/friends");
                   }}
-                  className="px-4 py-2 rounded-xl mt-3"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-white font-semibold text-sm">Find Friends</Text>
-                </Pressable>
+                  style={{ marginTop: 12 }}
+                />
               </View>
             ) : (
               <View className="flex-row flex-wrap mb-4">
