@@ -145,6 +145,11 @@ export default function DiscoverScreen() {
       recentCount: recentlyCreated.length,
       totalEnriched: enrichedEvents.length,
     });
+    devLog("[DISCOVER_V1_FRIEND_SIGNAL]", {
+      mode: "attendees_proxy",
+      field: "attendeeCount",
+      reason: "no friend-signal field on event schema",
+    });
   }
 
   const handleEventPress = (eventId: string) => {
@@ -313,7 +318,7 @@ export default function DiscoverScreen() {
               <View className="flex-row items-center mb-3">
                 <Users size={16} color={themeColor} />
                 <Text className="font-semibold ml-2 text-xs" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
-                  EVENTS YOUR FRIENDS ARE JOINING
+                  EVENTS GAINING TRACTION
                 </Text>
               </View>
             </Animated.View>
@@ -326,7 +331,7 @@ export default function DiscoverScreen() {
                   style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
                 >
                   <Text className="text-sm text-center" style={{ color: colors.textTertiary }}>
-                    No friend activity yet — invite someone to start planning.
+                    No active events yet — invite someone to start planning.
                   </Text>
                   <Pressable
                     onPress={() => {
