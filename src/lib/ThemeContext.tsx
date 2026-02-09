@@ -24,24 +24,37 @@ export const DARK_COLORS = {
   background: "#000000",
   surface: "#1C1C1E",
   surfaceElevated: "#2C2C2E",
+  surfaceSubtle: "#1C1C1E",
   text: "#FFFFFF",
   textSecondary: "#8E8E93",
   textTertiary: "#636366",
   border: "#38383A",
+  borderSubtle: "#2C2C2E",
   separator: "#38383A",
 };
 
 // Light mode color palette
 export const LIGHT_COLORS = {
-  background: "#FFF9F5",
+  background: "#FFFFFF",
   surface: "#FFFFFF",
   surfaceElevated: "#FFFFFF",
+  surfaceSubtle: "#F6F7F9",
   text: "#1F2937",
   textSecondary: "#6B7280",
   textTertiary: "#9CA3AF",
   border: "#E5E7EB",
+  borderSubtle: "#F0F0F0",
   separator: "#F3F4F6",
 };
+
+/** Reusable tile shadow style (iOS-style subtle elevation). */
+export const TILE_SHADOW = {
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 2,
+} as const;
 
 interface ThemeContextType {
   themeColor: string;

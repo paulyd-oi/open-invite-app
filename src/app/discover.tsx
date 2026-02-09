@@ -57,9 +57,6 @@ interface PopularEvent {
 /** Max cards rendered per section on Discover (scale-safety invariant). */
 const PREVIEW_LIMIT = 3;
 
-/** Experiment: white canvas + floating tile styling for Discover only. */
-const USE_DISCOVER_WHITE_CANVAS = true;
-
 type Lens = "popular" | "best_friends" | "new";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "popular", label: "Popular" },
@@ -76,12 +73,9 @@ export default function DiscoverScreen() {
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("popular");
 
-  // White canvas overrides (Discover-only experiment)
-  const canvasBg = USE_DISCOVER_WHITE_CANVAS ? (isDark ? "#000000" : "#FFFFFF") : colors.background;
-  const tileBg = USE_DISCOVER_WHITE_CANVAS ? (isDark ? "#1C1C1E" : "#FFFFFF") : colors.surface;
-  const tileBorder = USE_DISCOVER_WHITE_CANVAS ? (isDark ? "#2C2C2E" : "#F0F0F0") : colors.border;
-  const tileShadow = USE_DISCOVER_WHITE_CANVAS && !isDark
-    ? { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }
+  // Surface tokens from theme SSOT
+  const tileShadow = !isDark
+    ? { shadowColor: "#000" as const, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }
     : {};
 
   // SSOT: two event sources merged into one list
@@ -201,7 +195,7 @@ export default function DiscoverScreen() {
 
   if (!session) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: canvasBg }}>
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
           <Text style={{ color: colors.textSecondary }}>Please sign in to discover events</Text>
@@ -221,7 +215,7 @@ export default function DiscoverScreen() {
       <Pressable
         onPress={() => handleEventPress(event.id)}
         className="rounded-xl p-4"
-        style={{ backgroundColor: tileBg, borderColor: tileBorder, borderWidth: 1, ...tileShadow }}
+        style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
       >
         <View className="flex-row items-center">
           <View
@@ -314,7 +308,7 @@ export default function DiscoverScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: canvasBg }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
@@ -351,7 +345,7 @@ export default function DiscoverScreen() {
                   }
                 }}
                 className="flex-1 items-center py-2 rounded-full"
-                style={active ? { backgroundColor: tileBg, ...tileShadow } : undefined}
+                style={active ? { backgroundColor: colors.surface, ...tileShadow } : undefined}
               >
                 <Text
                   className={`text-sm ${active ? "font-semibold" : "font-normal"}`}
@@ -402,7 +396,7 @@ export default function DiscoverScreen() {
                 <Pressable
                   onPress={() => handleEventPress(featured.id)}
                   className="rounded-2xl p-5"
-                  style={{ backgroundColor: tileBg, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
+                  style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
                 >
                   <View className="flex-row items-center">
                     <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20" }}>
@@ -463,7 +457,7 @@ export default function DiscoverScreen() {
                     router.push("/create");
                   }}
                   className="flex-row items-center rounded-lg px-4 py-3"
-                  style={{ backgroundColor: tileBg, borderColor: tileBorder, borderWidth: 1, ...tileShadow }}
+                  style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
                 >
                   <Plus size={14} color={colors.textTertiary} />
                   <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>No events yet</Text>

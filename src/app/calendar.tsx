@@ -954,6 +954,7 @@ function UpcomingBirthdaysSection({
   colors: typeof DARK_COLORS;
 }) {
   const router = useRouter();
+  const { isDark } = useTheme();
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (upcomingBirthdays.length === 0) {
@@ -993,7 +994,12 @@ function UpcomingBirthdaysSection({
         <Animated.View entering={FadeInDown.springify()}>
           <View
             className="rounded-xl overflow-hidden"
-            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.borderSubtle,
+              ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
+            }}
           >
             {upcomingBirthdays.map((bday, idx) => {
               const isToday = bday.daysUntil === 0;
@@ -2558,7 +2564,12 @@ export default function CalendarScreen() {
               {selectedDateEvents.length === 0 ? (
                 <View
                   className="rounded-2xl p-6 items-center"
-                  style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderColor: colors.borderSubtle,
+                    ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
+                  }}
                 >
                   <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
                   {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
@@ -2690,7 +2701,8 @@ export default function CalendarScreen() {
                         style={{
                           backgroundColor: needsResponse ? `${themeColor}10` : colors.surface,
                           borderWidth: needsResponse ? 2 : 1,
-                          borderColor: needsResponse ? themeColor : colors.border,
+                          borderColor: needsResponse ? themeColor : colors.borderSubtle,
+                          ...(isDark ? {} : { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 }),
                         }}
                       >
                         <View className="flex-row items-start">

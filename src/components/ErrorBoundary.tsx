@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       const accent = "#FF6B4A";
       const danger = "#EF4444";
-      const bg = "#FFF9F5";
+      const bg = "#FFFFFF";
       const text = "#111827";
       const subtext = "#6B7280";
 

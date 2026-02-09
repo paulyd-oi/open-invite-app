@@ -30,7 +30,7 @@ export function AuthErrorUI({ error, timedOut, onRetry, onReset }: AuthErrorUIPr
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF9F5" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <View className="flex-1 items-center justify-center px-6">
         {/* Icon */}
         <View
