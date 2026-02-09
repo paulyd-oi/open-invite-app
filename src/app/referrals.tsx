@@ -23,7 +23,21 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
-import { devError } from "@/lib/devLog";
+import { devError, devLog } from "@/lib/devLog";
+
+/** Normalize backend reward type strings to canonical _pro format for display */
+function normalizeRewardType(type: string): string {
+  const map: Record<string, string> = {
+    month_premium: "month_pro",
+    year_premium: "year_pro",
+    lifetime_premium: "lifetime_pro",
+  };
+  if (map[type]) {
+    if (__DEV__) devLog("[P0_REFERRAL_TYPEMAP]", { from: type, to: map[type] });
+    return map[type];
+  }
+  return type;
+}
 
 interface ReferralHistoryItem {
   id: string;
@@ -386,11 +400,11 @@ export default function ReferralsScreen() {
                   <Crown size={24} color="#10B981" />
                   <View className="flex-1 ml-3">
                     <Text className="font-semibold" style={{ color: "#10B981" }}>
-                      {reward.rewardType === "month_premium"
-                        ? "1 Month Free"
-                        : reward.rewardType === "year_premium"
-                        ? "1 Year Free"
-                        : "Lifetime Free"}
+                      {normalizeRewardType(reward.rewardType) === "month_pro"
+                        ? "1 Month Pro"
+                        : normalizeRewardType(reward.rewardType) === "year_pro"
+                        ? "1 Year Pro"
+                        : "Lifetime Pro"}
                     </Text>
                     <Text className="text-xs" style={{ color: colors.textSecondary }}>
                       Earned with {reward.referralCount} referrals

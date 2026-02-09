@@ -61,6 +61,7 @@ import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAu
 import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
+import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -589,9 +590,9 @@ const MockInviteCard = ({ themeColor, referralCode, isDark, colors }: { themeCol
 
       <View className="flex-row justify-between">
         {[
-          { count: '3', reward: '1 Month' },
-          { count: '10', reward: '1 Year' },
-          { count: '20', reward: 'Lifetime' },
+          { count: String(REFERRAL_TIERS.MONTH_PRO.count), reward: '1 Month' },
+          { count: String(REFERRAL_TIERS.YEAR_PRO.count), reward: '1 Year' },
+          { count: String(REFERRAL_TIERS.LIFETIME_PRO.count), reward: 'Lifetime' },
         ].map((tier, i) => (
           <View key={i} className="items-center flex-1">
             <View
@@ -857,7 +858,7 @@ export default function OnboardingScreen() {
       description: "Open Invite is better with friends! Share the app and earn premium rewards.",
       icon: <Gift size={36} color="#fff" />,
       iconBg: "#10B981",
-      tip: "3 friends = 1 month FREE | 10 friends = 1 year FREE | 20 friends = LIFETIME!",
+      tip: `${REFERRAL_TIERS.MONTH_PRO.count} friends = 1 month Pro | ${REFERRAL_TIERS.YEAR_PRO.count} friends = 1 year Pro | ${REFERRAL_TIERS.LIFETIME_PRO.count} friends = Lifetime Pro`,
       showShareButton: true,
     },
     {

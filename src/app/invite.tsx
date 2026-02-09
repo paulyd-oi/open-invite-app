@@ -32,6 +32,22 @@ import { useSession } from "@/lib/useSession";
 import { safeToast } from "@/lib/safeToast";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+import { devLog } from "@/lib/devLog";
+
+/** Normalize backend reward type strings to canonical _pro format for display */
+function normalizeRewardType(type: string): string {
+  const map: Record<string, string> = {
+    month_premium: "month_pro",
+    year_premium: "year_pro",
+    lifetime_premium: "lifetime_pro",
+  };
+  if (map[type]) {
+    if (__DEV__) devLog("[P0_REFERRAL_TYPEMAP]", { from: type, to: map[type] });
+    return map[type];
+  }
+  return type;
+}
 
 interface ReferralStats {
   referralCode: string | null;
@@ -92,25 +108,36 @@ export default function InviteScreen() {
   };
 
   const getRewardLabel = (type: string) => {
-    switch (type) {
-      case "week_premium":
-        return "1 Week Premium";
-      case "month_premium":
-        return "1 Month Premium";
-      case "year_premium":
-        return "1 Year Premium";
-      case "lifetime_premium":
-        return "Lifetime Premium";
+    const canonical = normalizeRewardType(type);
+    switch (canonical) {
+      case "week_pro":
+        return "1 Week Pro";
+      case "month_pro":
+        return "1 Month Pro";
+      case "year_pro":
+        return "1 Year Pro";
+      case "lifetime_pro":
+        return "Lifetime Pro";
       default:
         return type;
     }
   };
 
   const rewardTiers = [
-    { count: 3, reward: "1 Month FREE", icon: Gift, color: "#10B981" },
-    { count: 10, reward: "1 Year FREE", icon: Award, color: "#8B5CF6" },
-    { count: 20, reward: "Lifetime FREE", icon: Crown, color: "#EC4899" },
+    { count: REFERRAL_TIERS.MONTH_PRO.count, reward: "1 Month Pro", icon: Gift, color: "#10B981" },
+    { count: REFERRAL_TIERS.YEAR_PRO.count, reward: "1 Year Pro", icon: Award, color: "#8B5CF6" },
+    { count: REFERRAL_TIERS.LIFETIME_PRO.count, reward: "Lifetime Pro", icon: Crown, color: "#EC4899" },
   ];
+
+  // [P0_REFERRAL_SSOT] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_REFERRAL_SSOT]", {
+      screen: "invite",
+      month: REFERRAL_TIERS.MONTH_PRO.count,
+      year: REFERRAL_TIERS.YEAR_PRO.count,
+      lifetime: REFERRAL_TIERS.LIFETIME_PRO.count,
+    });
+  }
 
   if (isLoading) {
     return (
@@ -157,7 +184,7 @@ export default function InviteScreen() {
               <View className="flex-row items-center justify-center mb-2">
                 <Sparkles size={24} color="#10B981" />
                 <Text className="text-2xl font-bold text-center ml-2" style={{ color: "#10B981" }}>
-                  EARN FREE PREMIUM
+                  REFERRAL MILESTONES
                 </Text>
                 <Sparkles size={24} color="#10B981" />
               </View>
@@ -243,18 +270,18 @@ export default function InviteScreen() {
                   {successCount} friend{successCount !== 1 ? "s" : ""} joined
                 </Text>
               </View>
-              {successCount < 20 && (
+              {successCount < REFERRAL_TIERS.LIFETIME_PRO.count && (
                 <Text className="text-sm text-center mt-1" style={{ color: colors.textSecondary }}>
-                  {successCount < 3
-                    ? `${3 - successCount} more to unlock 1 month FREE`
-                    : successCount < 10
-                    ? `${10 - successCount} more to unlock 1 year FREE`
-                    : `${20 - successCount} more to unlock Lifetime FREE`}
+                  {successCount < REFERRAL_TIERS.MONTH_PRO.count
+                    ? `${REFERRAL_TIERS.MONTH_PRO.count - successCount} more toward 1 Month Pro`
+                    : successCount < REFERRAL_TIERS.YEAR_PRO.count
+                    ? `${REFERRAL_TIERS.YEAR_PRO.count - successCount} more toward 1 Year Pro`
+                    : `${REFERRAL_TIERS.LIFETIME_PRO.count - successCount} more toward Lifetime Pro`}
                 </Text>
               )}
-              {successCount >= 20 && (
+              {successCount >= REFERRAL_TIERS.LIFETIME_PRO.count && (
                 <Text className="text-sm text-center mt-1" style={{ color: "#10B981" }}>
-                  You've earned Lifetime FREE!
+                  Lifetime Pro milestone reached!
                 </Text>
               )}
             </View>
@@ -322,7 +349,7 @@ export default function InviteScreen() {
             {[
               { step: "1", text: "Share your unique invite code with friends" },
               { step: "2", text: "They sign up using your code" },
-              { step: "3", text: "You both get rewards!" },
+              { step: "3", text: "You can start planning together" },
             ].map((item, index) => (
               <View
                 key={item.step}

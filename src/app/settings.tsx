@@ -83,6 +83,7 @@ import { uploadImage } from "@/lib/imageUpload";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
+import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -194,6 +195,16 @@ function ReferralCounterSection({
   const successfulCount = referralStats?.successfulReferrals ?? 0;
   const hasReferrer = referralStats?.hasReferrer ?? false;
 
+  // [P0_REFERRAL_SSOT] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_REFERRAL_SSOT]", {
+      screen: "settings",
+      month: REFERRAL_TIERS.MONTH_PRO.count,
+      year: REFERRAL_TIERS.YEAR_PRO.count,
+      lifetime: REFERRAL_TIERS.LIFETIME_PRO.count,
+    });
+  }
+
   return (
     <View className="p-4">
       {/* YOUR REFERRAL CODE - Big and prominent */}
@@ -216,7 +227,7 @@ function ReferralCounterSection({
           {isLoading ? "..." : referralStats?.referralCode ?? "---"}
         </Text>
         <Text className="text-xs mt-2" style={{ color: colors.textSecondary }}>
-          Invite friends with your referral code to unlock rewards. The more friends on Open Invite, the easier planning becomes.
+          Invite friends with your referral code to progress toward milestones. The more friends on Open Invite, the easier planning becomes.
         </Text>
       </View>
 
@@ -239,15 +250,15 @@ function ReferralCounterSection({
           style={{ backgroundColor: successfulCount >= 3 ? "#10B98120" : `${themeColor}20` }}
         >
           <Text
-            style={{ color: successfulCount >= 3 ? "#10B981" : themeColor }}
+            style={{ color: successfulCount >= REFERRAL_TIERS.MONTH_PRO.count ? "#10B981" : themeColor }}
             className="text-xs font-bold"
           >
-            {successfulCount < 3
-              ? `${successfulCount}/3`
-              : successfulCount < 10
-              ? `${successfulCount}/10`
-              : successfulCount < 20
-              ? `${successfulCount}/20`
+            {successfulCount < REFERRAL_TIERS.MONTH_PRO.count
+              ? `${successfulCount}/${REFERRAL_TIERS.MONTH_PRO.count}`
+              : successfulCount < REFERRAL_TIERS.YEAR_PRO.count
+              ? `${successfulCount}/${REFERRAL_TIERS.YEAR_PRO.count}`
+              : successfulCount < REFERRAL_TIERS.LIFETIME_PRO.count
+              ? `${successfulCount}/${REFERRAL_TIERS.LIFETIME_PRO.count}`
               : `${successfulCount}`}
           </Text>
         </View>
@@ -262,28 +273,28 @@ function ReferralCounterSection({
           className="h-full rounded-full"
           style={{
             width: `${
-              successfulCount < 3
-                ? (successfulCount / 3) * 100
-                : successfulCount < 10
-                ? ((successfulCount - 3) / 7) * 100
-                : successfulCount < 20
-                ? ((successfulCount - 10) / 10) * 100
+              successfulCount < REFERRAL_TIERS.MONTH_PRO.count
+                ? (successfulCount / REFERRAL_TIERS.MONTH_PRO.count) * 100
+                : successfulCount < REFERRAL_TIERS.YEAR_PRO.count
+                ? ((successfulCount - REFERRAL_TIERS.MONTH_PRO.count) / (REFERRAL_TIERS.YEAR_PRO.count - REFERRAL_TIERS.MONTH_PRO.count)) * 100
+                : successfulCount < REFERRAL_TIERS.LIFETIME_PRO.count
+                ? ((successfulCount - REFERRAL_TIERS.YEAR_PRO.count) / (REFERRAL_TIERS.LIFETIME_PRO.count - REFERRAL_TIERS.YEAR_PRO.count)) * 100
                 : 100
             }%`,
-            backgroundColor: successfulCount >= 3 ? "#10B981" : themeColor,
+            backgroundColor: successfulCount >= REFERRAL_TIERS.MONTH_PRO.count ? "#10B981" : themeColor,
           }}
         />
       </View>
 
       {/* Reward Status */}
       <Text style={{ color: colors.textTertiary }} className="text-xs text-center mb-3">
-        {successfulCount >= 20
-          ? "You've earned Lifetime FREE! No more payments needed."
-          : successfulCount >= 10
-          ? `${20 - successfulCount} more friends to unlock Lifetime FREE`
-          : successfulCount >= 3
-          ? `${10 - successfulCount} more friends to unlock 1 year FREE`
-          : `${3 - successfulCount} more friends to unlock 1 month FREE`}
+        {successfulCount >= REFERRAL_TIERS.LIFETIME_PRO.count
+          ? "Lifetime Pro milestone reached!"
+          : successfulCount >= REFERRAL_TIERS.YEAR_PRO.count
+          ? `${REFERRAL_TIERS.LIFETIME_PRO.count - successfulCount} more friends toward Lifetime Pro`
+          : successfulCount >= REFERRAL_TIERS.MONTH_PRO.count
+          ? `${REFERRAL_TIERS.YEAR_PRO.count - successfulCount} more friends toward 1 Year Pro`
+          : `${REFERRAL_TIERS.MONTH_PRO.count - successfulCount} more friends toward 1 Month Pro`}
       </Text>
 
       {/* View Details Link */}
@@ -330,7 +341,7 @@ function ReferralCounterSection({
           {showReferrerInput && (
             <View className="mt-3">
               <Text className="text-xs mb-2" style={{ color: colors.textSecondary }}>
-                If someone referred you, enter their code to give them credit and get 1 week free!
+                If someone referred you, enter their code to give them credit.
               </Text>
               <View className="flex-row items-center">
                 <TextInput
