@@ -36,4 +36,7 @@ export const circleKeys = {
 
   // Availability summary for a circle
   availabilitySummary: (id: string) => ["circles", "availabilitySummary", id] as const,
+
+  // Plan lock state for a circle
+  planLock: (id: string) => ["circles", "planLock", id] as const,
 } as const;

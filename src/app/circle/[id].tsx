@@ -1902,6 +1902,59 @@ export default function CircleScreen() {
     }
   }, [availTonight]);
 
+  // [P1_PLAN_LOCK_UI] Plan lock query — graceful 404 fallback
+  const [showPlanLockSheet, setShowPlanLockSheet] = useState(false);
+  const [planLockDraftNote, setPlanLockDraftNote] = useState("");
+  const { data: planLockData } = useQuery({
+    queryKey: circleKeys.planLock(id!),
+    queryFn: async () => {
+      try {
+        const res = await api.get<{
+          locked: boolean;
+          note?: string;
+        }>(`/api/circles/${id}/plan-lock`);
+        return res;
+      } catch (e: any) {
+        if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "hidden_nonok", { status: e?.status ?? "unknown" });
+        return null;
+      }
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && !!id && !!circle,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const planLock = planLockData ?? null;
+  const planLockLogFiredRef = useRef(false);
+  useEffect(() => {
+    if (!planLockLogFiredRef.current && __DEV__) {
+      devLog("[P1_PLAN_LOCK_UI]", "mounted");
+      planLockLogFiredRef.current = true;
+    }
+  }, []);
+
+  // [P1_PLAN_LOCK_UI] Save mutation with optimistic update
+  const planLockMutation = useMutation({
+    mutationFn: async ({ locked, note }: { locked: boolean; note: string }) => {
+      return api.post<{ locked: boolean; note?: string }>(`/api/circles/${id}/plan-lock`, { locked, note });
+    },
+    onMutate: async ({ locked, note }) => {
+      await queryClient.cancelQueries({ queryKey: circleKeys.planLock(id!) });
+      const prev = queryClient.getQueryData(circleKeys.planLock(id!));
+      queryClient.setQueryData(circleKeys.planLock(id!), { locked, note: note || undefined });
+      return { prev };
+    },
+    onSuccess: () => {
+      if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { circleId: id });
+      queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!), refetchType: "inactive" });
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(circleKeys.planLock(id!), context.prev);
+      }
+      safeToast.error("Error", "Could not update plan lock");
+    },
+  });
+
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
   const latestFailed = useMemo(() => {
@@ -2293,6 +2346,33 @@ export default function CircleScreen() {
             </Animated.View>
           );
         })()}
+
+        {/* [P1_PLAN_LOCK_UI] Plan Lock Strip */}
+        {planLock?.locked && (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "tap_open");
+              setPlanLockDraftNote(planLock.note ?? "");
+              setShowPlanLockSheet(true);
+            }}
+            style={{
+              alignItems: "center",
+              paddingVertical: 10,
+              paddingHorizontal: 16,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: isDark ? "rgba(255,200,0,0.06)" : "rgba(255,200,0,0.08)",
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "700", color: colors.text }}>{"\uD83D\uDD12"} Plan locked</Text>
+            {planLock.note ? (
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2, fontStyle: "italic" }} numberOfLines={1}>
+                &ldquo;{planLock.note}&rdquo;
+              </Text>
+            ) : null}
+          </Pressable>
+        )}
 
         {/* [P1_AVAIL_SUMMARY_UI] Availability Summary Strip */}
         {availTonight && (
@@ -3168,6 +3248,83 @@ export default function CircleScreen() {
             </View>
           )}
         </ScrollView>
+      </BottomSheet>
+
+      {/* [P1_PLAN_LOCK_UI] Plan Lock Sheet */}
+      <BottomSheet
+        visible={showPlanLockSheet}
+        onClose={() => setShowPlanLockSheet(false)}
+        heightPct={0}
+        maxHeightPct={0.5}
+        backdropOpacity={0.5}
+        keyboardMode="padding"
+        title="Plan Lock"
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24, gap: 16 }}>
+          {/* Toggle */}
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>
+              {planLock?.locked ? "\uD83D\uDD12 Locked" : "\uD83D\uDD13 Unlocked"}
+            </Text>
+            <Switch
+              value={planLock?.locked ?? false}
+              onValueChange={(val) => {
+                if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "toggle", { locked: val });
+                planLockMutation.mutate({ locked: val, note: planLockDraftNote.trim() });
+              }}
+              trackColor={{ false: isDark ? "#3A3A3C" : "#E5E7EB", true: themeColor }}
+            />
+          </View>
+
+          {/* Note editor */}
+          <View>
+            <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary, marginBottom: 6 }}>
+              Note (optional)
+            </Text>
+            <TextInput
+              value={planLockDraftNote}
+              onChangeText={(t) => setPlanLockDraftNote(t.slice(0, 120))}
+              placeholder="e.g. Dinner at 7pm confirmed"
+              placeholderTextColor={colors.textTertiary}
+              maxLength={120}
+              multiline
+              style={{
+                color: colors.text,
+                fontSize: 14,
+                backgroundColor: isDark ? "#1c1c1e" : "#f3f4f6",
+                borderRadius: 10,
+                padding: 12,
+                minHeight: 48,
+                maxHeight: 100,
+                textAlignVertical: "top",
+              }}
+            />
+            <Text style={{ fontSize: 11, color: colors.textTertiary, textAlign: "right", marginTop: 4 }}>
+              {planLockDraftNote.length}/120
+            </Text>
+          </View>
+
+          {/* Save */}
+          <Pressable
+            onPress={() => {
+              if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
+              planLockMutation.mutate({ locked: planLock?.locked ?? false, note: planLockDraftNote.trim() });
+              setShowPlanLockSheet(false);
+            }}
+            disabled={planLockMutation.isPending}
+            style={{
+              backgroundColor: themeColor,
+              paddingVertical: 14,
+              borderRadius: 12,
+              alignItems: "center",
+              opacity: planLockMutation.isPending ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>
+              {planLockMutation.isPending ? "Saving\u2026" : "Save"}
+            </Text>
+          </Pressable>
+        </View>
       </BottomSheet>
 
       {/* Group Settings (uses shared BottomSheet) */}

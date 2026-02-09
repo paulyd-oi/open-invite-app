@@ -99,6 +99,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_CHAT_ANCHOR]",
   // P1 availability summary strip UI
   "[P1_AVAIL_SUMMARY_UI]",
+  // P1 plan lock strip UI
+  "[P1_PLAN_LOCK_UI]",
 ];
 
 /**
