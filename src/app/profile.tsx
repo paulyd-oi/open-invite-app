@@ -58,7 +58,6 @@ import {
   Share2,
   Pencil,
   Plus,
-  UserPlus,
   Layers,
   Flame,
   Clock,
@@ -257,17 +256,6 @@ export default function ProfileScreen() {
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
 
-  // Category helper
-  const getCategoryInfo = (category: string) => {
-    return (
-      EVENT_CATEGORIES.find((c) => c.value === category) ?? {
-        emoji: "📅",
-        label: "Other",
-        color: "#78909C",
-      }
-    );
-  };
-
   // ── What's Next derivation (SSOT from existing queries) ──
   const allEvents = eventsData?.events ?? [];
   const now = new Date();
@@ -401,10 +389,8 @@ export default function ProfileScreen() {
     if (!didMount.current) {
       didMount.current = true;
       if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
+      if (__DEV__) devLog("[P3_PROFILE_ACTION_ROW_REMOVED]", true);
       if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
-      if (__DEV__) devLog("[P3_PROFILE_TYPE]", { headerSpacing: 'letterSpacing:1', margins: 'mb-3 normalized' });
-      if (__DEV__) devLog("[P3_PROFILE_LAYOUT]", { sectionSpacing: 'mb-4 uniform', statLabels: 'textTertiary' });
-      if (__DEV__) devLog("[P3_PROFILE_IDENTITY]", { emptyStateCopy: 'intentional' });
     }
   }, []);
 
@@ -669,39 +655,8 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* ═══ Quick Actions ═══ */}
-        <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-4">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {[
-              { label: "Create Event", icon: Plus, color: themeColor, route: "/create" as const },
-              { label: "Invite Friend", icon: UserPlus, color: "#4ECDC4", route: "/invite" as const },
-              { label: "New Group", icon: Layers, color: "#F39C12", route: "/friends" as const },
-              { label: calendarBio ? "Edit Profile" : "Add Bio", icon: Pencil, color: "#9B59B6", route: "/settings" as const },
-            ].map((action, i) => (
-              <Pressable
-                key={action.label}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(action.route);
-                }}
-                className="flex-row items-center px-4 py-2.5 rounded-full border mr-2"
-                style={({ pressed }) => ({
-                  backgroundColor: `${action.color}10`,
-                  borderColor: `${action.color}30`,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                })}
-              >
-                <action.icon size={16} color={action.color} />
-                <Text className="ml-1.5 text-sm font-medium" style={{ color: action.color }}>
-                  {action.label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </Animated.View>
-
         {/* ═══ Your Week ═══ */}
-        <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-4">
           <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             YOUR WEEK
           </Text>
@@ -756,7 +711,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Momentum (Streak) ═══ */}
-        <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
           <StreakCounter
             currentStreak={stats?.currentStreak ?? 0}
             longestStreak={stats?.currentStreak ?? 0}
@@ -765,7 +720,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Social Snapshot (2×2 grid) ═══ */}
-        <Animated.View entering={FadeInDown.delay(200).duration(240)} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(160).duration(240)} className="mb-4">
           <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             SOCIAL SNAPSHOT
           </Text>
@@ -840,10 +795,46 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ═══ Event Types Breakdown ═══ */}
-        {stats?.categoryBreakdown &&
-          Object.keys(stats.categoryBreakdown).length > 0 && (
+        {(() => {
+          // Derive from allEvents + merge with stats.categoryBreakdown
+          const catCounts: Record<string, number> = {};
+          for (const e of allEvents) {
+            const raw = typeof e.category === "string" ? e.category.trim() : "";
+            if (raw.length > 0) {
+              const key = raw.toLowerCase();
+              catCounts[key] = (catCounts[key] ?? 0) + 1;
+            }
+          }
+          // Merge server-side stats for categories not in local events
+          if (stats?.categoryBreakdown) {
+            for (const [cat, count] of Object.entries(stats.categoryBreakdown)) {
+              const key = cat.toLowerCase();
+              if (!catCounts[key]) catCounts[key] = count;
+            }
+          }
+          const chips = Object.entries(catCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([key, count]) => {
+              const catInfo = EVENT_CATEGORIES.find((c) => c.value.toLowerCase() === key) ?? {
+                emoji: "📅",
+                label: key.charAt(0).toUpperCase() + key.slice(1),
+                color: "#78909C",
+              };
+              return { key, count, emoji: catInfo.emoji, label: catInfo.label, color: catInfo.color };
+            });
+
+          if (__DEV__) {
+            devLog("[P3_PROFILE_EVENT_TYPES]", {
+              rawCount: Object.keys(catCounts).length,
+              uniqueCount: chips.length,
+              labels: chips.map((c) => c.label).join(", "),
+            });
+          }
+
+          return (
             <Animated.View
-              entering={FadeInDown.delay(240).duration(240)}
+              entering={FadeInDown.delay(200).duration(240)}
               className="mb-4"
             >
               <Text
@@ -859,36 +850,38 @@ export default function ProfileScreen() {
                   borderColor: colors.border,
                 }}
               >
-                <View className="flex-row flex-wrap">
-                  {Object.entries(stats.categoryBreakdown)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([category, count]) => {
-                      const catInfo = getCategoryInfo(category);
-                      return (
-                        <View
-                          key={category}
-                          className="flex-row items-center mr-4 mb-2 px-3 py-1.5 rounded-full"
-                          style={{ backgroundColor: `${catInfo.color}20` }}
-                        >
-                          <Text className="text-base mr-1">
-                            {StringSafe(catInfo.emoji)}
-                          </Text>
-                          <Text
-                            className="text-sm font-medium"
-                            style={{ color: catInfo.color }}
-                          >
-                            {StringSafe(count)}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                </View>
+                {chips.length > 0 ? (
+                  <View className="flex-row flex-wrap">
+                    {chips.map((chip) => (
+                      <View
+                        key={chip.key}
+                        className="flex-row items-center mr-3 mb-2 px-3 py-1.5 rounded-full"
+                        style={{ backgroundColor: `${chip.color}20` }}
+                      >
+                        <Text className="text-sm mr-1.5">{chip.emoji}</Text>
+                        <Text className="text-sm font-medium" style={{ color: chip.color }}>
+                          {chip.label}
+                        </Text>
+                        <Text className="text-xs ml-1" style={{ color: `${chip.color}90` }}>
+                          {chip.count}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className="items-center py-2">
+                    <Text className="text-sm" style={{ color: colors.textTertiary }}>
+                      Event types will appear as you plan
+                    </Text>
+                  </View>
+                )}
               </View>
             </Animated.View>
-          )}
+          );
+        })()}
 
         {/* ═══ Recent Activity ═══ */}
-        <Animated.View entering={FadeInDown.delay(280).duration(240)} className="mb-4">
+        <Animated.View entering={FadeInDown.delay(240).duration(240)} className="mb-4">
           <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             RECENT ACTIVITY
           </Text>
