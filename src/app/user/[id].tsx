@@ -14,14 +14,12 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
-import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
-import { BadgePill } from "@/components/BadgePill";
-import { getBadgePillVariant } from "@/lib/badges";
+
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { safeToast } from "@/lib/safeToast";
-import { type FriendUser, type ProfileBadge, type Event, type ReportReason } from "@/shared/contracts";
+import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
-import { getFeaturedBadge, BADGE_QUERY_KEYS } from "@/lib/badgesApi";
+
 
 // MoreHorizontal icon using Ionicons
 const MoreHorizontal: React.FC<{ size?: number; color?: string }> = ({ size = 24, color }) => (
@@ -446,16 +444,6 @@ export default function UserProfileScreen() {
     }
   }, [data, id, source, isFriend, friendshipId]);
 
-  // [P0_BADGE_SOT] Fetch user's featured badge using adapter and canonical query key
-  const { data: badgeData } = useQuery({
-    queryKey: BADGE_QUERY_KEYS.featured(id),
-    queryFn: () => getFeaturedBadge(id),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!id,
-  });
-
-  const userBadge = badgeData?.badge;
-  const normalizedBadge = normalizeFeaturedBadge(userBadge);
-
   // Fetch friend events when isFriend=true (unlocked state)
   const { data: friendEventsData, refetch: refetchFriendEvents } = useQuery({
     queryKey: ["friendEvents", friendshipId],
@@ -700,17 +688,6 @@ export default function UserProfileScreen() {
                   <Text className="text-xl font-bold" style={{ color: colors.text }}>
                     {user.name ?? "No name"}
                   </Text>
-                {/* INVARIANT: Badges are pill-only. No trophy icons anywhere. */}
-                  {normalizedBadge && (
-                    <View className="ml-2">
-                      <BadgePill
-                        name={normalizedBadge.name}
-                        tierColor={normalizedBadge.tierColor}
-                        size="small"
-                        variant={getBadgePillVariant(normalizedBadge.name)}
-                      />
-                    </View>
-                  )}
                 </View>
                 {/* @handle */}
                 {user.Profile?.handle && (

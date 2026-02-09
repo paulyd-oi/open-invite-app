@@ -115,7 +115,6 @@ const PAYWALL_COPY: Record<
     bullets: [
       "Top friends analytics",
       "Group insights",
-      "Full achievements",
     ],
     primaryCta: "Unlock Pro",
     secondaryCta: "Not now",
@@ -127,17 +126,6 @@ const PAYWALL_COPY: Record<
       "Full event history",
       "Reflections over time",
       "Track your social momentum",
-    ],
-    primaryCta: "Unlock Pro",
-    secondaryCta: "Not now",
-  },
-  ACHIEVEMENTS_LOCKED: {
-    title: "Unlock all achievements",
-    subtitle: "Pro reveals every badge and milestone.",
-    bullets: [
-      "All badges",
-      "Progress tracking",
-      "Motivation to stay consistent",
     ],
     primaryCta: "Unlock Pro",
     secondaryCta: "Not now",

@@ -13,7 +13,6 @@ import {
 } from "./revenuecatClient";
 import type { PurchasesPackage, PurchasesOfferings } from "react-native-purchases";
 import Purchases from "react-native-purchases";
-import { BADGE_QUERY_KEYS } from "./badgesApi";
 
 interface SubscriptionFeatures {
   unlimitedFriends: boolean;
@@ -116,8 +115,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     queryClient.invalidateQueries({ queryKey: ["entitlements"] });
     queryClient.invalidateQueries({ queryKey: ["subscription"] });
     queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
-    queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog }); // [P0_BADGE_SOT] Refresh badge unlock status
-    queryClient.invalidateQueries({ queryKey: ["profile"] }); // Refresh profile for badge display
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
   }, [queryClient]);
 
   const fetchSubscription = useCallback(async (): Promise<{ isPro: boolean }> => {

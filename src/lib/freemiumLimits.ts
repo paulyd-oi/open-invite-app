@@ -30,7 +30,6 @@ export const FREE_TIER_LIMITS = {
 
   // Profile & Stats
   detailedAnalytics: false,     // Basic stats only
-  fullAchievements: false,      // Basic badges only
 
   // Photos & Memories
   photoUploadsUnlimited: false, // Limited photo uploads
@@ -70,7 +69,6 @@ export const PRO_TIER_LIMITS = {
 
   // Profile & Stats
   detailedAnalytics: true,      // Full analytics
-  fullAchievements: true,       // Full achievement system
 
   // Photos & Memories
   photoUploadsUnlimited: true,  // Unlimited uploads
@@ -135,7 +133,6 @@ export type FeatureKey =
   | "friend_streak_history"
   | "extended_birthdays"
   | "detailed_analytics"
-  | "full_achievements"
   | "unlimited_photos"
   | "event_memory_timeline"
   | "archive_access"
@@ -186,10 +183,6 @@ export const PRO_FEATURES: Record<FeatureKey, { title: string; description: stri
   detailed_analytics: {
     title: "Detailed Analytics",
     description: "Deep insights into your social patterns",
-  },
-  full_achievements: {
-    title: "Full Achievements",
-    description: "Unlock all badges and achievement tiers",
   },
   unlimited_photos: {
     title: "Unlimited Photos",

@@ -171,7 +171,6 @@ export function isKnown404Endpoint(error: any): boolean {
   const knownEndpoints = [
     "/api/profile",
     "/api/profiles",
-    "/api/achievements",
   ];
   
   return knownEndpoints.some(endpoint => url.includes(endpoint));

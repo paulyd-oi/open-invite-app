@@ -5,7 +5,6 @@
 
 import type { Router } from "expo-router";
 import { devLog, devWarn, devError } from "./devLog";
-import { isDevToolsEnabled } from "./devToolsGate";
 
 // ============================================
 // Route Constants
@@ -21,7 +20,6 @@ export const ROUTES = {
   SETTINGS: "/settings",
   WHOS_FREE: "/whos-free",
   SUBSCRIPTION: "/subscription",
-  DEV_SMOKE_TESTS: "/dev-smoke-tests",
   PRIVACY_SETTINGS: "/privacy-settings",
   SUGGESTIONS: "/suggestions",
   DISCOVER: "/discover",
@@ -31,98 +29,50 @@ export const ROUTES = {
 // Navigation Functions
 // ============================================
 
-/**
- * Navigate to home screen (replace - no back)
- */
 export function goToHome(router: Router): void {
   router.replace(ROUTES.HOME);
 }
 
-/**
- * Navigate to welcome/onboarding screen (replace - no back)
- */
 export function goToWelcome(router: Router): void {
   router.replace(ROUTES.WELCOME);
 }
 
-/**
- * Navigate to create event screen
- */
 export function goToCreate(router: Router): void {
   router.push(ROUTES.CREATE);
 }
 
-/**
- * Navigate to calendar screen
- */
 export function goToCalendar(router: Router): void {
   router.push(ROUTES.CALENDAR);
 }
 
-/**
- * Navigate to friends list screen
- */
 export function goToFriends(router: Router): void {
   router.push(ROUTES.FRIENDS);
 }
 
-/**
- * Navigate to user's profile screen
- */
 export function goToProfile(router: Router): void {
   router.push(ROUTES.PROFILE);
 }
 
-/**
- * Navigate to settings screen
- */
 export function goToSettings(router: Router): void {
   router.push(ROUTES.SETTINGS);
 }
 
-/**
- * Navigate to Who's Free screen
- */
 export function goToWhosFree(router: Router): void {
   router.push(ROUTES.WHOS_FREE);
 }
 
-/**
- * Navigate to subscription/upgrade screen
- */
 export function goToSubscription(router: Router): void {
   router.push(ROUTES.SUBSCRIPTION);
 }
 
-/**
- * Navigate to dev smoke tests screen
- * ⚠️ DEV-ONLY: No-op unless dev tools are enabled
- */
-export function goToDevSmokeTests(router: Router): void {
-  if (!isDevToolsEnabled()) {
-    // Silent no-op in production - no alerts, no logs
-    return;
-  }
-  router.push(ROUTES.DEV_SMOKE_TESTS);
-}
-
-/**
- * Navigate to privacy settings screen
- */
 export function goToPrivacySettings(router: Router): void {
   router.push(ROUTES.PRIVACY_SETTINGS);
 }
 
-/**
- * Navigate to friend suggestions screen
- */
 export function goToSuggestions(router: Router): void {
   router.push(ROUTES.SUGGESTIONS);
 }
 
-/**
- * Navigate to discover screen
- */
 export function goToDiscover(router: Router): void {
   router.push(ROUTES.DISCOVER);
 }
@@ -131,39 +81,18 @@ export function goToDiscover(router: Router): void {
 // Dynamic Route Navigation
 // ============================================
 
-/**
- * Navigate to a specific circle by ID
- */
 export function goToCircle(router: Router, circleId: string): void {
   router.push(`/circle/${circleId}`);
 }
 
-/**
- * Navigate to a specific event by ID
- */
 export function goToEvent(router: Router, eventId: string): void {
   router.push(`/event/${eventId}`);
 }
 
-/**
- * Navigate to a friend's profile via friendshipId (wrapper redirects to /user/)
- * 
- * [P0_PROFILE_ROUTE] Use this ONLY when you have a friendshipId.
- * The /friend/[id] route is a wrapper that fetches the userId and redirects to /user/.
- * If you already have a userId, use goToUser() directly for better performance.
- * 
- * @param friendshipId - The friendship record ID (NOT a userId)
- */
 export function goToFriend(router: Router, friendshipId: string): void {
   router.push(`/friend/${friendshipId}`);
 }
 
-/**
- * Navigate to a specific user profile by ID (canonical profile route)
- * 
- * [P0_PROFILE_ROUTE] This is the canonical profile route - prefer this over goToFriend()
- * when you already have a userId. All profile viewing goes through /user/[id].
- */
 export function goToUser(router: Router, userId: string): void {
   router.push(`/user/${userId}`);
 }
@@ -172,10 +101,6 @@ export function goToUser(router: Router, userId: string): void {
 // Safe Navigation with Error Handling
 // ============================================
 
-/**
- * Safely push a route with error handling
- * Falls back to home if navigation fails
- */
 export function safePush(router: Router, path: string): void {
   try {
     router.push(path as any);
@@ -183,7 +108,6 @@ export function safePush(router: Router, path: string): void {
     if (__DEV__) {
       devError('[Navigation] Failed to push:', path, error);
     }
-    // Fallback to home on error
     try {
       router.replace(ROUTES.HOME);
     } catch (fallbackError) {
@@ -194,10 +118,6 @@ export function safePush(router: Router, path: string): void {
   }
 }
 
-/**
- * Safely replace a route with error handling
- * Falls back to home if navigation fails
- */
 export function safeReplace(router: Router, path: string): void {
   try {
     router.replace(path as any);
@@ -205,7 +125,6 @@ export function safeReplace(router: Router, path: string): void {
     if (__DEV__) {
       devError('[Navigation] Failed to replace:', path, error);
     }
-    // Fallback to home on error
     try {
       router.replace(ROUTES.HOME);
     } catch (fallbackError) {
@@ -220,9 +139,6 @@ export function safeReplace(router: Router, path: string): void {
 // Back Navigation
 // ============================================
 
-/**
- * Go back to previous screen
- */
 export function goBack(router: Router): void {
   if (router.canGoBack()) {
     router.back();
@@ -231,9 +147,6 @@ export function goBack(router: Router): void {
   }
 }
 
-/**
- * Dismiss modal and return
- */
 export function dismissModal(router: Router): void {
   router.dismiss();
 }

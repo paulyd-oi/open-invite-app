@@ -23,7 +23,6 @@ export const FREE_TIER_LIMITS = {
   friendStreakHistory: false,
   birthdaysAheadDays: 7,
   detailedAnalytics: false,
-  fullAchievements: false,
   photoUploadsUnlimited: false,
   eventMemoryTimeline: false,
   archiveAccess: false,
@@ -44,7 +43,6 @@ export const PRO_TIER_LIMITS = {
   friendStreakHistory: true,
   birthdaysAheadDays: 90,
   detailedAnalytics: true,
-  fullAchievements: true,
   photoUploadsUnlimited: true,
   eventMemoryTimeline: true,
   archiveAccess: true,
@@ -80,7 +78,6 @@ export type FeatureKey =
   | "friend_streak_history"
   | "extended_birthdays"
   | "detailed_analytics"
-  | "full_achievements"
   | "unlimited_photos"
   | "event_memory_timeline"
   | "archive_access"
@@ -131,10 +128,6 @@ export const PRO_FEATURES: Record<FeatureKey, { title: string; description: stri
   detailed_analytics: {
     title: "Detailed Analytics",
     description: "Deep insights into your social patterns",
-  },
-  full_achievements: {
-    title: "Full Achievements",
-    description: "Unlock all badges and achievement tiers",
   },
   unlimited_photos: {
     title: "Unlimited Photos",
@@ -194,7 +187,6 @@ export interface SubscriptionData {
     birthdaysAheadDays: number;
     topFriendsAnalyticsEnabled: boolean;
     detailedAnalyticsEnabled: boolean;
-    fullAchievementsEnabled: boolean;
     photoUploadsUnlimited: boolean;
     eventMemoryTimelineEnabled: boolean;
     archiveAccessEnabled: boolean;
@@ -272,8 +264,6 @@ export function useSubscription() {
         return false;
       case "detailed_analytics":
         return data?.limits?.detailedAnalyticsEnabled ?? false;
-      case "full_achievements":
-        return data?.limits?.fullAchievementsEnabled ?? false;
       case "unlimited_photos":
         return data?.limits?.photoUploadsUnlimited ?? false;
       case "event_memory_timeline":

@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   Image,
-  Modal,
   RefreshControl,
 } from "react-native";
 
@@ -19,11 +18,6 @@ import * as Haptics from "expo-haptics";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
-import { BadgePill } from "@/components/BadgePill";
-
-import { getBadgePillVariantForBadge } from "@/lib/badges";
-import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
-import { PROFILE_QUERY_KEY, getFeaturedBadge, BADGE_QUERY_KEYS } from "@/lib/badgesApi";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -34,7 +28,6 @@ import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { useIsPro } from "@/lib/entitlements";
-import { devLog } from "@/lib/devLog";
 
 import {
   type GetFriendsResponse,
@@ -49,11 +42,9 @@ import {
   Settings,
   Users,
   Calendar,
-  Award,
   Star,
   Heart,
   ChevronRight,
-  X,
   Crown,
 } from "@/ui/icons";
 
@@ -105,17 +96,6 @@ export default function ProfileScreen() {
   // Avatar source with auth headers
   const [avatarSource, setAvatarSource] = useState<any>(null);
 
-  // Badge modal state
-  const [selectedBadge, setSelectedBadge] = useState<{
-    achievementId: string;
-    name: string;
-    description: string | null;
-    emoji: string;
-    tier: string;
-    tierColor: string;
-    grantedAt: string;
-  } | null>(null);
-
   // Redirects
   useEffect(() => {
     if (bootStatus === "onboarding") router.replace("/welcome");
@@ -131,7 +111,7 @@ export default function ProfileScreen() {
   });
 
   const { data: profileData, refetch: refetchProfile } = useQuery({
-    queryKey: PROFILE_QUERY_KEY as unknown as string[],
+    queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
     refetchOnMount: "always",
@@ -153,14 +133,6 @@ export default function ProfileScreen() {
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
-  });
-
-  // [P0_VIEWER_BADGE] Dedicated featured badge query — same pattern as user/[id].tsx
-  const viewerUserId = session?.user?.id;
-  const { data: viewerBadgeData, refetch: refetchViewerBadge } = useQuery({
-    queryKey: BADGE_QUERY_KEYS.featured(viewerUserId!),
-    queryFn: () => getFeaturedBadge(viewerUserId!),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!viewerUserId,
   });
 
   // Load avatar source with auth headers (must be after profileData query)
@@ -190,7 +162,6 @@ export default function ProfileScreen() {
         refetchFriends(),
         refetchEvents(),
         refetchStats(),
-        refetchViewerBadge(),
         queryClient.invalidateQueries({ queryKey: ["session"] }),
       ]);
     } finally {
@@ -202,7 +173,6 @@ export default function ProfileScreen() {
     refetchFriends,
     refetchEvents,
     refetchStats,
-    refetchViewerBadge,
     queryClient,
   ]);
 
@@ -272,24 +242,6 @@ export default function ProfileScreen() {
       }
     );
   };
-
-  // [P0_VIEWER_BADGE] INVARIANT: Featured badge is derived ONLY from the dedicated
-  // featured badge query (BADGE_QUERY_KEYS.featured). NEVER from profileData.
-  // If GET /api/profile returns featuredBadge, it is intentionally ignored.
-  const featuredBadge = normalizeFeaturedBadge(viewerBadgeData?.badge);
-
-  if (__DEV__) {
-    const rawBadge = viewerBadgeData?.badge as Record<string, unknown> | null | undefined;
-    devLog("[P0_VIEWER_BADGE] profile render", {
-      dataSource: "featuredBadgeQuery",
-      viewerUserId: viewerUserId ?? "none",
-      queryKey: viewerUserId ? BADGE_QUERY_KEYS.featured(viewerUserId) : "disabled",
-      hasData: !!viewerBadgeData,
-      badgeKey: rawBadge?.badgeKey ?? rawBadge?.achievementId ?? "none",
-      name: rawBadge?.name ?? "none",
-      normalized: featuredBadge ?? "null",
-    });
-  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -390,18 +342,6 @@ export default function ProfileScreen() {
                   <Text style={{ color: colors.textSecondary }}>
                     {`@${StringSafe(userHandle)}`}
                   </Text>
-                )}
-
-                {/* Featured Badge */}
-                {featuredBadge && (
-                  <View className="mt-2">
-                    <BadgePill
-                      name={StringSafe(featuredBadge.name)}
-                      tierColor={StringSafe(featuredBadge.tierColor, "#78909C")}
-                      size="medium"
-                      variant={getBadgePillVariantForBadge(featuredBadge)}
-                    />
-                  </View>
                 )}
 
                 {/* Bio */}
@@ -548,34 +488,6 @@ export default function ProfileScreen() {
             </Animated.View>
           )}
 
-        {/* Badges - INVARIANT: Use Award icon, NOT Trophy */}
-        <Animated.View entering={FadeInDown.delay(150).springify()} className="mb-4">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/achievements");
-            }}
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Award size={16} color="#FFD700" />
-                <Text
-                  className="text-sm font-medium ml-2"
-                  style={{ color: colors.textSecondary }}
-                >
-                  Badges
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                <Text className="text-sm mr-1" style={{ color: themeColor }}>
-                  View All
-                </Text>
-                <ChevronRight size={16} color={themeColor} />
-              </View>
-            </View>
-          </Pressable>
-        </Animated.View>
-
         {/* Quick Stats Row - Friends */}
         <Animated.View entering={FadeInDown.delay(200).springify()} className="mb-4">
           <View className="flex-row">
@@ -603,65 +515,6 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
       </ScrollView>
-
-      {/* Badge Details Modal */}
-      <Modal
-        visible={selectedBadge !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedBadge(null)}
-      >
-        <Pressable
-          className="flex-1 bg-black/50 items-center justify-center"
-          onPress={() => setSelectedBadge(null)}
-        >
-          <Pressable
-            className="rounded-2xl p-6 mx-6 w-80 max-w-full"
-            onPress={(e) => e.stopPropagation()}
-            style={{ backgroundColor: colors.surface }}
-          >
-            <Pressable
-              className="absolute top-4 right-4 w-8 h-8 rounded-full items-center justify-center"
-              style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-              onPress={() => setSelectedBadge(null)}
-            >
-              <X size={16} color={colors.textSecondary} />
-            </Pressable>
-            {selectedBadge && (
-              <View className="items-center">
-                <Text className="text-5xl mb-3">
-                  {StringSafe(selectedBadge.emoji)}
-                </Text>
-                <Text
-                  className="text-xl font-sora-bold text-center mb-2"
-                  style={{ color: colors.text }}
-                >
-                  {StringSafe(selectedBadge.name)}
-                </Text>
-                <View
-                  className="px-3 py-1 rounded-full mb-4"
-                  style={{
-                    backgroundColor: `${StringSafe(selectedBadge.tierColor, "#78909C")}20`,
-                  }}
-                >
-                  <Text
-                    className="text-xs font-semibold"
-                    style={{ color: StringSafe(selectedBadge.tierColor, "#78909C") }}
-                  >
-                    {StringSafe(selectedBadge.tier)}
-                  </Text>
-                </View>
-                <Text
-                  className="text-sm text-center"
-                  style={{ color: colors.textSecondary }}
-                >
-                  {StringSafe(selectedBadge.description, "A special achievement badge.")}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       <BottomNavigation />
     </SafeAreaView>
