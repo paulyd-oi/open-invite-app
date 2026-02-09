@@ -1000,6 +1000,9 @@ export default function CircleScreen() {
   const flatListRef = useRef<FlatList>(null);
   const isNearBottomRef = useRef(true);
   const pendingScrollRef = useRef(false);
+  // [P0_CHAT_ANCHOR] Scroll metrics for QA snapshot
+  const scrollOffsetRef = useRef(0);
+  const contentHeightRef = useRef(0);
   const AUTO_SCROLL_THRESHOLD = 120;
   const unseenCountRef = useRef(0);
   const [unseenCount, setUnseenCount] = useState(0);
@@ -1122,6 +1125,9 @@ export default function CircleScreen() {
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    // [P0_CHAT_ANCHOR] Store metrics for QA snapshot
+    scrollOffsetRef.current = contentOffset.y;
+    contentHeightRef.current = contentSize.height;
     const distanceFromBottom =
       contentSize.height - (contentOffset.y + layoutMeasurement.height);
     const wasNearBottom = isNearBottomRef.current;
@@ -1155,6 +1161,7 @@ export default function CircleScreen() {
       flatListRef.current?.scrollToEnd({ animated: true });
       if (__DEV__) {
         devLog("[P1_SCROLL_ANCHOR]", "auto-scroll");
+        devLog("[P0_CHAT_ANCHOR]", "auto_scroll", { scrollY: Math.round(scrollOffsetRef.current), contentH: Math.round(contentHeightRef.current), firstVisibleId: firstVisibleIdRef.current });
       }
     });
   }, []);
@@ -1938,6 +1945,132 @@ export default function CircleScreen() {
       groupLogFired.current = true;
     }
   }, []);
+
+  // ─── [P0_CHAT_ANCHOR] DEV-only QA Panel state & helpers ───
+  const [qaExpanded, setQaExpanded] = useState(false);
+  const qaSnap = useCallback(() => ({
+    isNearBottom: isNearBottomRef.current,
+    firstVisibleId: firstVisibleIdRef.current,
+    scrollY: scrollOffsetRef.current,
+    contentH: contentHeightRef.current,
+    ts: Date.now(),
+  }), []);
+  const qaLog = useCallback((action: string, before: { isNearBottom: boolean; firstVisibleId: string | null; scrollY: number; contentH: number; ts: number }, didAutoScroll: boolean) => {
+    if (!__DEV__) return;
+    requestAnimationFrame(() => {
+      devLog("[P0_CHAT_ANCHOR]", action, {
+        before: { isNearBottom: before.isNearBottom, firstVisibleId: before.firstVisibleId, scrollY: Math.round(before.scrollY), contentH: Math.round(before.contentH) },
+        after: { isNearBottom: isNearBottomRef.current, firstVisibleId: firstVisibleIdRef.current, scrollY: Math.round(scrollOffsetRef.current), contentH: Math.round(contentHeightRef.current) },
+        didAutoScroll,
+        elapsedMs: Date.now() - before.ts,
+      });
+    });
+  }, []);
+
+  // [P0_CHAT_ANCHOR] QA action helpers (DEV only, not perf-sensitive)
+  const qaInjectMessages = (n: number) => {
+    const snap = qaSnap();
+    const now = Date.now();
+    const fakes = Array.from({ length: n }, (_, i) => ({
+      id: `qa-msg-${now}-${i}`,
+      circleId: id,
+      userId: "qa-user",
+      content: `QA message #${i + 1} of ${n}`,
+      createdAt: new Date(now + i).toISOString(),
+      user: { id: "qa-user", name: "QA Bot", image: null },
+    }));
+    queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+      if (!prev?.circle) return prev;
+      return { ...prev, circle: { ...prev.circle, messages: [...(prev.circle.messages ?? []), ...fakes] } };
+    });
+    const shouldScroll = isNearBottomRef.current;
+    if (shouldScroll) scheduleAutoScroll();
+    qaLog(`inject_${n}`, snap, shouldScroll);
+  };
+  const qaToggleTyping = () => {
+    const snap = qaSnap();
+    setTypingUsers(prev => prev.length > 0 ? [] : [{ userId: "qa-1", name: "QA Alice" }, { userId: "qa-2", name: "QA Bob" }]);
+    qaLog("toggle_typing", snap, false);
+  };
+  const qaToggleFailed = () => {
+    const snap = qaSnap();
+    queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+      if (!prev?.circle?.messages) return prev;
+      const has = prev.circle.messages.some((m: any) => m.id === "optimistic-qa-fail");
+      const next = has
+        ? prev.circle.messages.filter((m: any) => m.id !== "optimistic-qa-fail")
+        : [...prev.circle.messages, { id: "optimistic-qa-fail", circleId: id, userId: session?.user?.id ?? "qa", content: "QA failed msg", createdAt: new Date().toISOString(), user: { id: session?.user?.id ?? "qa", name: "QA", image: null }, status: "failed", clientMessageId: "cmi-qa-fail" }];
+      return { ...prev, circle: { ...prev.circle, messages: next } };
+    });
+    qaLog("toggle_failed", snap, false);
+  };
+  const qaTogglePending = () => {
+    const snap = qaSnap();
+    queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+      if (!prev?.circle?.messages) return prev;
+      const has = prev.circle.messages.some((m: any) => m.id === "optimistic-qa-pending");
+      const next = has
+        ? prev.circle.messages.filter((m: any) => m.id !== "optimistic-qa-pending")
+        : [...prev.circle.messages, { id: "optimistic-qa-pending", circleId: id, userId: session?.user?.id ?? "qa", content: "QA pending msg", createdAt: new Date().toISOString(), user: { id: session?.user?.id ?? "qa", name: "QA", image: null }, status: "sending", clientMessageId: "cmi-qa-pending" }];
+      return { ...prev, circle: { ...prev.circle, messages: next } };
+    });
+    qaLog("toggle_pending", snap, false);
+  };
+  const qaToggleReactions = () => {
+    const snap = qaSnap();
+    const tid = firstVisibleIdRef.current ?? messages[0]?.id;
+    if (!tid) return;
+    setReactionsByStableId(prev => {
+      const ex = prev[tid] ?? [];
+      return { ...prev, [tid]: ex.length > 0 ? [] : ["\uD83D\uDC4D", "\u2764\uFE0F"] };
+    });
+    qaLog("toggle_reactions", snap, false);
+  };
+  const qaToggleReply = () => {
+    const snap = qaSnap();
+    setReplyTarget(prev => prev ? null : { messageId: "qa-reply", userId: "qa-user", name: "QA Alice", snippet: "QA reply preview text" });
+    qaLog("toggle_reply", snap, false);
+  };
+  const qaToggleEdit = () => {
+    const snap = qaSnap();
+    const tid = firstVisibleIdRef.current ?? messages[0]?.id;
+    if (!tid) return;
+    setEditedContentByStableId(prev => {
+      if (prev[tid]) { const { [tid]: _, ...rest } = prev; return rest; }
+      return { ...prev, [tid]: { content: "[QA edited]", editedAt: Date.now() } };
+    });
+    qaLog("toggle_edit", snap, false);
+  };
+  const qaToggleDelete = () => {
+    const snap = qaSnap();
+    const tid = firstVisibleIdRef.current ?? messages[0]?.id;
+    if (!tid) return;
+    setDeletedStableIds(prev => {
+      if (prev[tid]) { const { [tid]: _, ...rest } = prev; return rest; }
+      return { ...prev, [tid]: true as const };
+    });
+    qaLog("toggle_delete", snap, false);
+  };
+  const qaSimulatePrepend = () => {
+    const snap = qaSnap();
+    isPrependingRef.current = true;
+    const now = Date.now();
+    const fakes = Array.from({ length: 5 }, (_, i) => ({
+      id: `qa-old-${now}-${i}`,
+      circleId: id,
+      userId: "qa-user",
+      content: `QA older #${i + 1}`,
+      createdAt: new Date(now - 86400000 - i * 60000).toISOString(),
+      user: { id: "qa-user", name: "QA Bot", image: null },
+    }));
+    queryClient.setQueryData(circleKeys.single(id), (prev: any) => {
+      if (!prev?.circle) return prev;
+      return { ...prev, circle: { ...prev.circle, messages: [...fakes, ...(prev.circle.messages ?? [])] } };
+    });
+    requestAnimationFrame(() => { isPrependingRef.current = false; });
+    qaLog("simulate_prepend", snap, false);
+  };
+
   const members = circle.members ?? [];
   const currentUserId = session.user?.id;
 
@@ -3668,6 +3801,70 @@ export default function CircleScreen() {
             })}
           </View>
         </Pressable>
+      )}
+
+      {/* ─── [P0_CHAT_ANCHOR] DEV-only Chat QA Panel ─── */}
+      {__DEV__ && (
+        <View style={{ position: "absolute", top: insets.top + 56, right: 8, zIndex: 9999 }} pointerEvents="box-none">
+          <Pressable
+            onPress={() => setQaExpanded(p => !p)}
+            style={{
+              backgroundColor: "rgba(220,38,38,0.9)",
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              borderRadius: 8,
+              alignSelf: "flex-end",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
+              {qaExpanded ? "\u25BC QA" : "\u25B6 QA"}
+            </Text>
+          </Pressable>
+          {qaExpanded && (
+            <View style={{
+              backgroundColor: isDark ? "rgba(30,30,32,0.97)" : "rgba(255,255,255,0.97)",
+              borderRadius: 12,
+              padding: 8,
+              marginTop: 4,
+              width: 200,
+              maxHeight: 400,
+              shadowColor: "#000",
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 10,
+            }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {([
+                  { label: "+1 msg", fn: () => qaInjectMessages(1) },
+                  { label: "+3 msgs", fn: () => qaInjectMessages(3) },
+                  { label: "+10 msgs", fn: () => qaInjectMessages(10) },
+                  { label: "\u2328 Typing 0\u21942\u21940", fn: qaToggleTyping },
+                  { label: "\u2717 Failed banner", fn: qaToggleFailed },
+                  { label: "\u23F3 Pending footer", fn: qaTogglePending },
+                  { label: "\uD83D\uDC4D Reactions", fn: qaToggleReactions },
+                  { label: "\u21A9 Reply preview", fn: qaToggleReply },
+                  { label: "\u270E Edit indicator", fn: qaToggleEdit },
+                  { label: "\uD83D\uDDD1 Delete tombstone", fn: qaToggleDelete },
+                  { label: "\u2B06 Prepend 5 old", fn: qaSimulatePrepend },
+                ] as const).map(({ label, fn }) => (
+                  <Pressable
+                    key={label}
+                    onPress={fn}
+                    style={{
+                      paddingVertical: 7,
+                      paddingHorizontal: 10,
+                      borderRadius: 6,
+                      marginBottom: 3,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <Text style={{ color: colors.text, fontSize: 13, fontWeight: "500" }}>{label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
       )}
     </SafeAreaView>
   );

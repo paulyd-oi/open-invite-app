@@ -95,6 +95,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CHAT_EDITDEL]",
   // P2 chat reply wired to API
   "[P2_CHAT_REPLY_UI2]",
+  // P0 chat anchor hardening QA
+  "[P0_CHAT_ANCHOR]",
 ];
 
 /**
