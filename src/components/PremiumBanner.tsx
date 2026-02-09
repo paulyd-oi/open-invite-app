@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { Crown, Lock, Sparkles } from "@/ui/icons";
-import * as Haptics from "expo-haptics";
+import { hapticTap } from "@/ui/motion";
 
 import { useTheme } from "@/lib/ThemeContext";
 
@@ -21,7 +21,7 @@ export function PremiumBanner({
   const { themeColor, colors } = useTheme();
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
     router.push("/paywall");
   };
 
@@ -128,7 +128,7 @@ export function FeatureLock({ feature, children, isLocked }: FeatureLockProps) {
   }
 
   const handleUnlock = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
     router.push("/paywall");
   };
 

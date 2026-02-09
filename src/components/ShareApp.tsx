@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, Pressable, Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Share2, Copy, MessageCircle, Mail } from "@/ui/icons";
-import * as Haptics from "expo-haptics";
+import { hapticTap, hapticSuccess } from "@/ui/motion";
 
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
@@ -21,7 +21,7 @@ export function ShareAppButton({ variant = "icon" }: ShareAppButtonProps) {
   const { themeColor, colors } = useTheme();
 
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
 
     try {
       await Share.share({
@@ -71,13 +71,13 @@ export function InviteFriendsContent() {
   const { themeColor, isDark, colors } = useTheme();
 
   const copyLink = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    hapticSuccess();
     await Clipboard.setStringAsync(APP_STORE_URL);
     safeToast.success("Copied!", "Link copied to clipboard");
   };
 
   const shareVia = async (method: "message" | "email" | "other") => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
 
     try {
       await Share.share({

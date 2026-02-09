@@ -1,5 +1,5 @@
 /**
- * layout.ts – SSOT spacing, radius, hit-target & interaction tokens.
+ * layout.ts – SSOT spacing, radius & hit-target tokens.
  *
  * Every numeric padding / borderRadius / hitSlop in the UI
  * primitives (Button, Chip, IconButton, Tile) must reference
@@ -9,14 +9,14 @@
  *   2 → xxs   4 → xs   6 → sm   8 → md
  *  10 → lg   12 → xl  16 → xxl  20 → xxxl  24 → xxxxl
  *
- * ## Press-feedback contract
- *   • Button   → bg colour shift via ThemeContext tokens (per-variant pressed bg)
- *   • Chip     → opacity 0.7 on press (all variants)
- *   • IconButton → bg colour shift via ThemeContext tokens (ghost/filled)
- *   • Tile     → View-based, not interactive — no pressed state
- *   • Screens  → MAY use Reanimated scale/translate for specialised
- *                 interactions (reactions, CTAs, context menus) but must
- *                 NOT duplicate the primitive pressed-bg pattern.
+ * ## Press-feedback contract  (see also: motion.ts)
+ *   • Button     → bg colour shift via ThemeContext tokens. NO opacity.
+ *   • Chip       → opacity dim (PRESS_OPACITY from motion.ts) when tappable.
+ *   • IconButton → bg colour shift via ThemeContext tokens. NO opacity.
+ *   • Tile       → View-based, not interactive — no pressed state.
+ *   • Screens    → MAY use Reanimated scale/translate for specialised
+ *                   interactions (reactions, CTAs, context menus) but must
+ *                   NOT duplicate the primitive pressed-bg pattern.
  *
  * ## Dead-code notice
  *   AnimatedButton.tsx and AnimatedCard.tsx have ZERO usages.

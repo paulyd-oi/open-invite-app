@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
 import { SPACING, RADIUS } from "./layout";
+import { PRESS_OPACITY } from "./motion";
 
 export interface ChipProps {
   variant?: "neutral" | "muted" | "accent" | "status";
@@ -101,7 +102,7 @@ export function Chip({
         onPress={onPress}
         style={(state) => [
           containerStyle,
-          { opacity: state.pressed ? 0.7 : 1 },
+          { opacity: state.pressed ? PRESS_OPACITY : 1 },
           style,
         ]}
         accessibilityRole="button"
