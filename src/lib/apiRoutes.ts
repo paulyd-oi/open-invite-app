@@ -5,13 +5,6 @@ export const API_ROUTES = {
     stats: "/api/profile/stats",
   },
 
-  achievements: {
-    list: "/api/profile/achievements",
-    badge: "/api/achievements/badge",
-    userBadge: (userId: string) =>
-      `/api/achievements/user/${userId}/badge`,
-  },
-
   onboarding: {
     complete: "/api/onboarding/complete",
     checklist: "/api/onboarding/checklist",

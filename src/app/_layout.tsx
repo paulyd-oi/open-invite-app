@@ -637,16 +637,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="achievements"
-          options={{
-            presentation: 'card',
-            headerShown: true,
-            headerTitle: 'Badges',
-            headerStyle: { backgroundColor: headerBg },
-            headerTintColor: headerTint,
-          }}
-        />
-        <Stack.Screen
           name="account-center"
           options={{
             headerShown: false,

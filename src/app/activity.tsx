@@ -298,7 +298,7 @@ function EmptyState() {
         No notifications yet
       </Text>
       <Text className="text-sm text-center mt-2" style={{ color: colors.textSecondary }}>
-        You'll see friend requests, event updates, achievements, and more here
+        You'll see friend requests, event updates, and more here
       </Text>
     </View>
   );

@@ -9,7 +9,6 @@ import { useCallback, useRef, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
-import { BADGE_QUERY_KEYS } from "./badgesApi";
 import { devLog, devWarn, devError } from "./devLog";
 
 // Plan types
@@ -25,7 +24,6 @@ export type PaywallContext =
   | "CIRCLE_MEMBERS_LIMIT"
   | "INSIGHTS_LOCKED"
   | "HISTORY_LIMIT"
-  | "ACHIEVEMENTS_LOCKED"
   | "PRIORITY_SYNC_LOCKED";
 
 // Feature limits
@@ -44,7 +42,6 @@ export interface PlanFeatures {
   recurringEvents: boolean;
   circleInsights: boolean;
   topFriendsAnalytics: boolean;
-  fullAchievements: boolean;
   prioritySync: boolean;
   unlimitedEvents: boolean;
   unlimitedCircles: boolean;
@@ -91,7 +88,6 @@ const FREE_FEATURES: PlanFeatures = {
   recurringEvents: false,
   circleInsights: false,
   topFriendsAnalytics: false,
-  fullAchievements: false,
   prioritySync: false,
   unlimitedEvents: false,
   unlimitedCircles: false,
@@ -357,8 +353,7 @@ export function useRefreshProContract() {
       devLog(`[PRO_SOT][P0_ENTITLEMENT_REFRESH_TRACE] REFRESH_COMPLETE reason=${reason} rcIsPro=${rcIsPro} backendIsPro=${backendIsPro} combinedIsPro=${combinedIsPro}`);
     }
 
-    // [P0_ENTITLEMENT_REFRESH_TRACE] Ensure badge catalog + profile re-derive with fresh Pro state
-    queryClient.invalidateQueries({ queryKey: BADGE_QUERY_KEYS.catalog });
+    // [P0_ENTITLEMENT_REFRESH_TRACE] Ensure profile re-derives with fresh Pro state
     queryClient.invalidateQueries({ queryKey: ["profile"] });
 
     // [P0_ENTITLEMENT_INVARIANT] Upgrade assertion: if this was an upgrade-class event,
@@ -663,21 +658,6 @@ export function canUseInsights(
 }
 
 /**
- * Check if user can view full achievements
- */
-export function canViewFullAchievements(
-  entitlements: EntitlementsResponse | undefined
-): { allowed: boolean; context?: PaywallContext } {
-  const features = getFeatures(entitlements);
-
-  if (!features.fullAchievements) {
-    return { allowed: false, context: "ACHIEVEMENTS_LOCKED" };
-  }
-
-  return { allowed: true };
-}
-
-/**
  * Check if user can view full event history
  */
 export function canViewFullHistory(
@@ -706,7 +686,6 @@ export function reasonToContext(reason: string): PaywallContext {
     CIRCLE_MEMBERS_LIMIT: "CIRCLE_MEMBERS_LIMIT",
     INSIGHTS_LOCKED: "INSIGHTS_LOCKED",
     HISTORY_LIMIT: "HISTORY_LIMIT",
-    ACHIEVEMENTS_LOCKED: "ACHIEVEMENTS_LOCKED",
     PRIORITY_SYNC_LOCKED: "PRIORITY_SYNC_LOCKED",
   };
   return mapping[reason] ?? "ACTIVE_EVENTS_LIMIT";

@@ -19,7 +19,6 @@ import {
   Repeat,
   Crown,
   Bell,
-  Award,
   History,
   Settings,
   ChevronLeft,
@@ -83,7 +82,6 @@ const PAYWALL_CONTEXTS: PaywallContext[] = [
   "CIRCLE_MEMBERS_LIMIT",
   "INSIGHTS_LOCKED",
   "HISTORY_LIMIT",
-  "ACHIEVEMENTS_LOCKED",
   "PRIORITY_SYNC_LOCKED",
 ] as const;
 
@@ -150,13 +148,6 @@ const PAYWALL_TEST_CASES: Array<{
     icon: History,
     color: "#8B5CF6",
     description: "Triggers: View history beyond 30 days",
-  },
-  {
-    context: "ACHIEVEMENTS_LOCKED",
-    title: "Achievements Locked",
-    icon: Award,
-    color: "#EC4899",
-    description: "Triggers: Access full achievements",
   },
   {
     context: "PRIORITY_SYNC_LOCKED",

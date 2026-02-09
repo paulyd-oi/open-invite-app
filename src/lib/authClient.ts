@@ -373,7 +373,6 @@ async function $fetch<T = any>(
       const isKnown404 = details.status === 404 && (
         path.includes("/api/profile") ||
         path.includes("/api/profiles") ||
-        path.includes("/api/achievements") ||
         path.includes("/api/entitlements")
       );
       

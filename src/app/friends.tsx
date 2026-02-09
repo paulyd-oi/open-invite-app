@@ -66,9 +66,6 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
-import { BadgePill } from "@/components/BadgePill";
-import { getBadgePillVariantForBadge } from "@/lib/badges";
-import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
@@ -334,18 +331,6 @@ const FriendCard = React.memo(function FriendCard({
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                 {friend.name ?? friend.email ?? "Unknown"}
               </Text>
-              {/* Featured Badge - inline with name */}
-              {(() => {
-                const featured = normalizeFeaturedBadge(friend.featuredBadge);
-                return featured ? (
-                  <BadgePill
-                    name={featured.name}
-                    tierColor={featured.tierColor}
-                    size="small"
-                    variant={getBadgePillVariantForBadge(featured)}
-                  />
-                ) : null;
-              })()}
             </View>
             {bio && (
               <Text
@@ -525,18 +510,6 @@ const FriendListItem = React.memo(function FriendListItem({
                     <Text className="text-base font-sora-medium" style={{ color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                       {friend.name ?? friend.email ?? "Unknown"}
                     </Text>
-                    {/* Featured Badge - inline with name */}
-                    {(() => {
-                      const featured = normalizeFeaturedBadge(friend.featuredBadge);
-                      return featured ? (
-                        <BadgePill
-                          name={featured.name}
-                          tierColor={featured.tierColor}
-                          size="small"
-                          variant={getBadgePillVariantForBadge(featured)}
-                        />
-                      ) : null;
-                    })()}
                   </View>
                   {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
                 </View>
@@ -594,7 +567,6 @@ function FriendRequestCard({
   // Extract profile info from sender/receiver
   const username = user?.Profile?.handle;
   const calendarBio = user?.Profile?.calendarBio;
-  const featuredBadge = normalizeFeaturedBadge(user?.featuredBadge);
   
   // Build metadata line segments (Line 2)
   // Format: "X mutual friends • @username • calendarBio" or "New to Open Invite • @username • calendarBio"
@@ -654,14 +626,6 @@ function FriendRequestCard({
           >
             {user?.name ?? user?.email ?? "Unknown"}
           </Text>
-          {featuredBadge && (
-            <BadgePill
-              name={featuredBadge.name}
-              tierColor={featuredBadge.tierColor}
-              size="small"
-              variant={getBadgePillVariantForBadge(featuredBadge)}
-            />
-          )}
         </View>
         {/* Line 2: Metadata (mutual friends • @username • calendarBio) */}
         <Text 

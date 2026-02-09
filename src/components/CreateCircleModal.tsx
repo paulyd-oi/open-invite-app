@@ -19,9 +19,6 @@ import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
-import { BadgePill } from "@/components/BadgePill";
-import { getBadgePillVariantForBadge } from "@/lib/badges";
-import { normalizeFeaturedBadge } from "@/lib/normalizeBadge";
 
 interface Friend {
   id: string;
@@ -35,10 +32,6 @@ interface Friend {
       handle?: string;
       bio?: string | null;
       calendarBio?: string | null;
-    } | null;
-    featuredBadge?: {
-      name: string;
-      tierColor: string;
     } | null;
   };
 }
@@ -226,12 +219,10 @@ export function CreateCircleModal({
     if (visible && __DEV__) {
       const hasHandle = friends.filter(f => f.friend.Profile?.handle).length;
       const hasBio = friends.filter(f => f.friend.Profile?.calendarBio || f.friend.Profile?.bio).length;
-      const hasBadgeLocal = friends.filter(f => f.friend.featuredBadge).length;
       devLog("[P0_CIRCLE_MEMBER_UI]", {
         rows: friends.length,
         hasHandle,
         hasBio,
-        hasBadgeLocal,
       });
     }
   }, [visible, friends]);
@@ -447,7 +438,6 @@ export function CreateCircleModal({
                     const isSelected = selectedFriends.has(friendship.friend.id);
                     const handle = friendship.friend.Profile?.handle;
                     const bio = friendship.friend.Profile?.calendarBio || friendship.friend.Profile?.bio;
-                    const featuredBadge = normalizeFeaturedBadge(friendship.friend.featuredBadge);
                     
                     return (
                       <Animated.View key={friendship.id} entering={FadeIn.delay(i * 30)}>
@@ -480,7 +470,7 @@ export function CreateCircleModal({
 
                           {/* Info */}
                           <View className="flex-1 ml-3 mr-2">
-                            {/* Name row with badge */}
+                            {/* Name row */}
                             <View className="flex-row items-center flex-nowrap gap-1.5">
                               <Text 
                                 className="font-semibold" 
@@ -489,14 +479,6 @@ export function CreateCircleModal({
                               >
                                 {friendship.friend.name ?? "Unknown"}
                               </Text>
-                              {featuredBadge && (
-                                <BadgePill
-                                  name={featuredBadge.name}
-                                  tierColor={featuredBadge.tierColor}
-                                  size="small"
-                                  variant={getBadgePillVariantForBadge(featuredBadge)}
-                                />
-                              )}
                             </View>
                             {/* Handle */}
                             {handle && (
