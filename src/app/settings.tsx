@@ -11,6 +11,7 @@ import {
   Linking,
   Modal,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -1483,6 +1484,10 @@ export default function SettingsScreen() {
         <Text style={{ color: colors.text, paddingVertical: 4, paddingHorizontal: 4 }} className="text-xl font-sora-bold">Settings</Text>
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -2577,6 +2582,7 @@ export default function SettingsScreen() {
           Made with love for sharing plans
         </Text>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Sign Out Confirm Modal */}
       <ConfirmModal
