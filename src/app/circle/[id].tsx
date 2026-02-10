@@ -84,6 +84,15 @@ import { computeSchedule } from "@/lib/scheduling/engine";
 import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
 import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import {
+  type QuietHoursPreset,
+  getQuietHoursForPreset,
+  rankSlotsForPreset,
+  loadQuietHoursPreset,
+  saveQuietHoursPreset,
+  PRESET_LABELS,
+  ALL_PRESETS,
+} from "@/lib/quietHours";
+import {
   type GetCircleDetailResponse,
   type GetCircleMessagesResponse,
   type CircleMessage,
@@ -149,6 +158,13 @@ function MiniCalendar({
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  const [quietPreset, setQuietPreset] = useState<QuietHoursPreset>("default");
+  const [showPresetPicker, setShowPresetPicker] = useState(false);
+
+  // Load persisted quiet-hours preset on mount
+  useEffect(() => {
+    loadQuietHoursPreset().then((p) => setQuietPreset(p));
+  }, []);
 
   // Create member color map
   const memberColors = ["#FF6B4A", "#4ECDC4", "#9333EA", "#F59E0B", "#10B981", "#EC4899"];
@@ -297,31 +313,21 @@ function MiniCalendar({
     });
   }, [memberEvents, members, bestTimesDate]);
 
-  // Quiet hours filter — only recommend slots fully within 06:00–22:00 local
-  const QUIET_START_HOUR = 6;
-  const QUIET_END_HOUR = 22;
-  function isSlotWithinQuietHours(start: string | Date, end: string | Date): boolean {
-    const s = new Date(start);
-    const e = new Date(end);
-    const sMinutes = s.getHours() * 60 + s.getMinutes();
-    const eMinutes = e.getHours() * 60 + e.getMinutes();
-    return sMinutes >= QUIET_START_HOUR * 60 && eMinutes <= QUIET_END_HOUR * 60;
-  }
-
+  // Quiet hours filter + social ranking via SSOT (src/lib/quietHours.ts)
+  const quietWindow = getQuietHoursForPreset(quietPreset);
   const quietSlots = useMemo(() => {
     const raw = dateScheduleResult?.topSlots ?? [];
-    const filtered = raw.filter((s) => isSlotWithinQuietHours(s.start, s.end));
+    const ranked = rankSlotsForPreset(raw, quietPreset);
     if (__DEV__) {
-      devLog("[P1_EVERYONES_FREE_QUIET_HOURS]", {
-        date: bestTimesDate.toISOString(),
-        before: raw.length,
-        after: filtered.length,
-        startHour: QUIET_START_HOUR,
-        endHour: QUIET_END_HOUR,
+      devLog("[P1_QUIET_HOURS_APPLIED]", {
+        dateISO: bestTimesDate.toISOString(),
+        totalSlotsBefore: raw.length,
+        totalSlotsAfter: ranked.length,
+        droppedCount: raw.length - ranked.length,
       });
     }
-    return filtered;
-  }, [dateScheduleResult, bestTimesDate]);
+    return ranked;
+  }, [dateScheduleResult, bestTimesDate, quietPreset]);
   const quietBestSlot = quietSlots[0] ?? null;
   const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
 
@@ -502,7 +508,7 @@ function MiniCalendar({
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: quietSlots.length, topAvailable: quietBestSlot?.availableCount ?? 0, total: quietBestSlot?.totalMembers ?? members.length });
+              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { dateISO: bestTimesDate.toISOString(), preset: quietPreset, startHour: quietWindow.startHour, endHour: quietWindow.endHour });
               setShowBestTimeSheet(true);
             }}
             accessibilityRole="button"
@@ -590,6 +596,73 @@ function MiniCalendar({
               <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 12 }}>
                 Based on availability shared in this circle
               </Text>
+
+              {/* Quiet hours row */}
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setShowPresetPicker((v) => !v);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 10,
+                  paddingHorizontal: 10,
+                  marginBottom: 12,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+                }}
+              >
+                <View>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Quiet hours</Text>
+                  <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
+                    {PRESET_LABELS[quietPreset].range}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>Change</Text>
+              </Pressable>
+
+              {/* Inline preset picker */}
+              {showPresetPicker && (
+                <View style={{ marginBottom: 12, borderRadius: 10, overflow: "hidden", backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
+                  {ALL_PRESETS.map((p) => {
+                    const isActive = p === quietPreset;
+                    return (
+                      <Pressable
+                        key={p}
+                        onPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          setQuietPreset(p);
+                          saveQuietHoursPreset(p);
+                          if (__DEV__) {
+                            const w = getQuietHoursForPreset(p);
+                            devLog("[P1_QUIET_HOURS_PRESET_SET]", { preset: p, startHour: w.startHour, endHour: w.endHour });
+                          }
+                          setShowPresetPicker(false);
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingVertical: 12,
+                          paddingHorizontal: 14,
+                          borderBottomWidth: 0.5,
+                          borderBottomColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        <View>
+                          <Text style={{ fontSize: 14, fontWeight: isActive ? "600" : "400", color: isActive ? themeColor : colors.text }}>
+                            {PRESET_LABELS[p].label}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: colors.textTertiary }}>{PRESET_LABELS[p].range}</Text>
+                        </View>
+                        {isActive && <Check size={16} color={themeColor} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
 
               {/* Date selector row */}
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
