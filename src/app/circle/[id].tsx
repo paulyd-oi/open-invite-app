@@ -592,9 +592,14 @@ function MiniCalendar({
         {selectedDateEvents.map((event, index) => {
           const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
 
+          if (__DEV__ && isMaskedBusy) {
+            devLog('[P0_BUSY_ROW]', { eventId: event.id, viewerIsOwner: false, masked: true });
+          }
+
           return (
             <Pressable
               key={event.id}
+              disabled={isMaskedBusy}
               onPress={() => {
                 if (isMaskedBusy) {
                   if (__DEV__) {

@@ -1608,6 +1608,43 @@ export default function EventDetailScreen() {
     );
   }
 
+  // [P0_BUSY_DETAIL_GUARD] Busy block: non-owner sees safe screen, no title leak, no "Add this person" CTA
+  if (isBusyBlock && !isMyEvent) {
+    if (__DEV__) {
+      devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, viewerIsOwner: false, isBusy: true });
+    }
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: "Busy", headerBackTitle: "Back" }} />
+        <View className="flex-1 items-center justify-center px-6">
+          <View
+            className="w-16 h-16 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: colors.surface }}
+          >
+            <Lock size={28} color={colors.textSecondary} />
+          </View>
+          <Text
+            className="text-xl font-semibold text-center mb-2"
+            style={{ color: colors.text }}
+          >
+            Busy
+          </Text>
+          <Text
+            className="text-center mb-6"
+            style={{ color: colors.textSecondary, lineHeight: 22 }}
+          >
+            This time is blocked on the host's calendar.
+          </Text>
+          <Button
+            variant="ghost"
+            label="Go Back"
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // [P1_RSVP_FLOW] Proof log: event loaded successfully
   if (__DEV__) {
     devLog('[P1_RSVP_FLOW]', 'event loaded', {
