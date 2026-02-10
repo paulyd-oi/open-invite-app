@@ -58,14 +58,9 @@ export interface UploadByKindOptions {
 
 /** Shape returned by POST /api/uploads/sign. */
 interface SignedUploadParams {
-  timestamp: number;
-  signature: string;
-  apiKey: string;
-  folder: string;
-  publicId: string;
-  overwrite: boolean;
-  invalidate: boolean;
   cloudName: string;
+  /** Cloudinary-ready key/value pairs — append verbatim to FormData. */
+  signedParams: Record<string, string>;
 }
 
 /** Shape sent to POST /api/uploads/complete. */
@@ -249,38 +244,29 @@ export async function uploadByKind(
     if (__DEV__) {
       devLog('[P0_BANNER_UPLOAD]', 'sign_response', {
         hasCloudName: !!signed?.cloudName,
-        hasSignature: !!signed?.signature,
-        hasApiKey: !!signed?.apiKey,
-        folder: signed?.folder,
-        publicId: signed?.publicId,
-        overwrite: signed?.overwrite,
+        signedParamKeys: signed?.signedParams ? Object.keys(signed.signedParams) : [],
       });
     }
 
-    if (!signed?.cloudName || !signed?.signature || !signed?.apiKey) {
-      throw new Error(`Backend sign response missing required fields (cloudName=${!!signed?.cloudName}, sig=${!!signed?.signature}, key=${!!signed?.apiKey}).`);
+    if (!signed?.cloudName || !signed?.signedParams) {
+      throw new Error(`Backend sign response missing required fields (cloudName=${!!signed?.cloudName}, signedParams=${!!signed?.signedParams}).`);
     }
 
     // --- C. Upload to Cloudinary (signed) ----------------------------------
     const formData = new FormData();
+    for (const [key, value] of Object.entries(signed.signedParams)) {
+      formData.append(key, value);
+    }
     formData.append("file", {
       uri: compressedUri,
       type: "image/jpeg",
       name: profile.filename,
     } as any);
-    formData.append("api_key", signed.apiKey);
-    formData.append("timestamp", String(signed.timestamp));
-    formData.append("signature", signed.signature);
-    formData.append("folder", signed.folder);
-    formData.append("public_id", signed.publicId);
-    if (signed.overwrite) formData.append("overwrite", "true");
-    if (signed.invalidate) formData.append("invalidate", "true");
 
     if (__DEV__) {
       devLog('[P0_BANNER_UPLOAD]', 'cloudinary_request', {
         kind,
-        publicId: signed.publicId,
-        folder: signed.folder,
+        signedParamKeys: Object.keys(signed.signedParams),
         fileName: profile.filename,
         mimeType: 'image/jpeg',
         compressedUriPrefix: compressedUri?.slice(0, 60),
@@ -335,7 +321,7 @@ export async function uploadByKind(
     const completeBody: UploadCompleteBody = {
       kind,
       secureUrl,
-      publicId: publicId ?? signed.publicId,
+      publicId: publicId ?? signed.signedParams.public_id ?? '',
     };
     if (opts?.eventId) completeBody.eventId = opts.eventId;
     if (opts?.circleId) completeBody.circleId = opts.circleId;
