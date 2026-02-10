@@ -570,6 +570,17 @@ function RootLayoutNav() {
         <Stack.Screen name="friends" />
         <Stack.Screen name="circles" />
         <Stack.Screen name="profile" />
+        <Stack.Screen
+          name="public-profile"
+          options={{
+            presentation: 'card',
+            headerShown: true,
+            headerTitle: 'Public Profile',
+            headerBackButtonDisplayMode: 'minimal',
+            headerStyle: { backgroundColor: headerBg },
+            headerTintColor: headerTint,
+          }}
+        />
         <Stack.Screen name="settings" />
         <Stack.Screen
           name="login"
