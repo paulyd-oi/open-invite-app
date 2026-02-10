@@ -4317,11 +4317,6 @@ export default function CircleScreen() {
 
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
                 {/* Members List — SSOT via UserListRow */}
-                {__DEV__ && once('P1_USER_LIST_ROW_SOT_CIRCLE') && (devLog('[P1_USER_LIST_ROW_SOT]', {
-                  screen: 'circle-members', totalRows: members.length,
-                  rowsWithHandle: members.filter(m => !!m.user.Profile?.handle).length,
-                  rowsWithBio: members.filter(m => !!m.user.Profile?.calendarBio).length,
-                }), null)}
                 {members.map((member, idx) => {
                   const isHostOfCircle = circle?.createdById === member.userId;
                   return (
@@ -4333,9 +4328,9 @@ export default function CircleScreen() {
                       }}
                     >
                       <UserListRow
-                        handle={member.user.Profile?.handle}
+                        handle={null}
                         displayName={member.user.name}
-                        calendarBio={member.user.Profile?.calendarBio}
+                        calendarBio={null}
                         avatarUrl={member.user.image}
                         badgeText={isHostOfCircle ? "Host" : null}
                         onPress={() => {
