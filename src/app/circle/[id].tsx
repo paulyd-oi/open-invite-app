@@ -53,6 +53,7 @@ import {
   BellOff,
   Bell,
   RefreshCw,
+  Camera,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -60,6 +61,7 @@ import BottomSheet from "@/components/BottomSheet";
 import DayAgendaSheet from "@/components/DayAgendaSheet";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -70,6 +72,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { setActiveCircle } from "@/lib/activeCircle";
+import { uploadCirclePhoto } from "@/lib/imageUpload";
 import { getCircleMessages, setCircleReadHorizon } from "@/lib/circlesApi";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
@@ -1125,6 +1128,8 @@ export default function CircleScreen() {
   }, [selectedMemberToRemove]);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState("");
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
     newMemberName: string;
     existingMemberName: string;
@@ -2304,10 +2309,14 @@ export default function CircleScreen() {
 
         <Pressable className="flex-1 flex-row items-center">
           <View
-            className="w-10 h-10 rounded-full items-center justify-center mr-3"
+            className="w-10 h-10 rounded-xl items-center justify-center mr-3 overflow-hidden"
             style={{ backgroundColor: themeColor + "20" }}
           >
-            <Text className="text-xl">{circle.emoji}</Text>
+            {circle.photoUrl ? (
+              <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
+            ) : (
+              <Text className="text-xl">{circle.emoji}</Text>
+            )}
           </View>
           <View className="flex-1">
             <Text className="font-semibold" style={{ color: colors.text }}>
@@ -3687,14 +3696,19 @@ export default function CircleScreen() {
                   style={{
                     width: 56,
                     height: 56,
-                    borderRadius: 28,
+                    borderRadius: 12,
                     backgroundColor: `${themeColor}20`,
                     alignItems: "center",
                     justifyContent: "center",
                     marginRight: 16,
+                    overflow: "hidden",
                   }}
                 >
-                  <Text style={{ fontSize: 28 }}>{circle?.emoji}</Text>
+                  {circle?.photoUrl ? (
+                    <Image source={{ uri: circle.photoUrl }} style={{ width: 56, height: 56 }} />
+                  ) : (
+                    <Text style={{ fontSize: 28 }}>{circle?.emoji}</Text>
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>
@@ -3779,6 +3793,29 @@ export default function CircleScreen() {
 
               {/* Settings Options */}
               <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+                {/* Circle Photo (host only) */}
+                {isHost && (
+                  <Pressable
+                    onPress={() => setShowPhotoSheet(true)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
+                    <Camera size={22} color={themeColor} />
+                    <View style={{ flex: 1, marginLeft: 16 }}>
+                      <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Circle Photo</Text>
+                      <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                        {circle?.photoUrl ? "Change or remove photo" : "Add a group photo"}
+                      </Text>
+                    </View>
+                    <ChevronRight size={20} color={colors.textTertiary} />
+                  </Pressable>
+                )}
+
                 {/* Members List */}
                 <Pressable
                   onPress={() => {
@@ -3912,6 +3949,108 @@ export default function CircleScreen() {
                 </Pressable>
               </View>
               </ScrollView>
+      </BottomSheet>
+
+      {/* Circle Photo Picker Sheet */}
+      <BottomSheet
+        visible={showPhotoSheet}
+        onClose={() => setShowPhotoSheet(false)}
+        heightPct={0}
+        maxHeightPct={0.35}
+        backdropOpacity={0.5}
+        title="Circle Photo"
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+          <Pressable
+            onPress={async () => {
+              setShowPhotoSheet(false);
+              try {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== "granted") {
+                  safeToast.warning("Permission Required", "Please allow access to your photos.");
+                  return;
+                }
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ["images"],
+                  allowsEditing: true,
+                  aspect: [1, 1],
+                  quality: 0.8,
+                });
+                if (result.canceled || !result.assets?.[0]) return;
+
+                setUploadingPhoto(true);
+                const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
+                await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url });
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                safeToast.success("Saved", "Circle photo updated");
+                queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+                queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+              } catch (error: any) {
+                if (__DEV__) devError("[CIRCLE_PHOTO]", "upload failed", error);
+                safeToast.error("Upload Failed", error?.message || "Please try again.");
+              } finally {
+                setUploadingPhoto(false);
+              }
+            }}
+            disabled={uploadingPhoto}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+              opacity: uploadingPhoto ? 0.5 : 1,
+            }}
+          >
+            <Camera size={22} color={themeColor} />
+            <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text, marginLeft: 16, flex: 1 }}>
+              {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+            </Text>
+          </Pressable>
+
+          {circle?.photoUrl && (
+            <Pressable
+              onPress={async () => {
+                setShowPhotoSheet(false);
+                try {
+                  await api.put(`/api/circles/${id}`, { photoUrl: null });
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  safeToast.success("Removed", "Circle photo removed");
+                  queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+                  queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+                } catch (error: any) {
+                  if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
+                  safeToast.error("Error", "Failed to remove photo.");
+                }
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <X size={22} color="#FF3B30" />
+              <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30", marginLeft: 16, flex: 1 }}>
+                Remove Photo
+              </Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            onPress={() => setShowPhotoSheet(false)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              paddingVertical: 16,
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary, marginLeft: 38 }}>
+              Cancel
+            </Text>
+          </Pressable>
+        </View>
       </BottomSheet>
 
       {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}

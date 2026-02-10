@@ -313,10 +313,14 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               accessibilityHint={circle.isMuted ? "Swipe right to unmute" : undefined}
             >
               <View
-                className="w-14 h-14 rounded-2xl items-center justify-center"
+                className="w-14 h-14 rounded-2xl items-center justify-center overflow-hidden"
                 style={{ backgroundColor: themeColor + "20" }}
               >
-                <Text className="text-2xl">{circle.emoji}</Text>
+                {circle.photoUrl ? (
+                  <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
+                ) : (
+                  <Text className="text-2xl">{circle.emoji}</Text>
+                )}
               </View>
               {circle.isPinned && (
                 <View

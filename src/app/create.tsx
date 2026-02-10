@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
+  Image,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -1237,10 +1238,14 @@ export default function CreateEventScreen() {
                           style={{ backgroundColor: selectedGroupIds.includes(circle.id) ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F9FAFB" }}
                         >
                           <View
-                            className="w-8 h-8 rounded-full items-center justify-center mr-3"
+                            className="w-8 h-8 rounded-lg items-center justify-center mr-3 overflow-hidden"
                             style={{ backgroundColor: `${themeColor}20` }}
                           >
-                            <Text className="text-base">{circle.emoji}</Text>
+                            {circle.photoUrl ? (
+                              <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
+                            ) : (
+                              <Text className="text-base">{circle.emoji}</Text>
+                            )}
                           </View>
                           <Text style={{ color: colors.text }} className="flex-1 font-medium">{circle.name}</Text>
                           {selectedGroupIds.includes(circle.id) && (

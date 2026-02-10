@@ -1659,6 +1659,7 @@ export const circleSchema = z.object({
   name: z.string(),
   emoji: z.string(),
   description: z.string().nullable().optional(),
+  photoUrl: z.string().nullable().optional(),
   createdById: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),

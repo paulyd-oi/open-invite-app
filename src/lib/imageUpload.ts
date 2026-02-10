@@ -203,6 +203,84 @@ export async function uploadImage(
 }
 
 /**
+ * SSOT Cloudinary folder for circle photos
+ */
+const CIRCLE_PHOTO_FOLDER = "openinvite/circle_photos";
+
+/**
+ * Uploads a circle photo with aggressive compression (512x512, JPEG 0.75).
+ * Hard cap: final file must be < 1.0 MB.
+ */
+export async function uploadCirclePhoto(uri: string): Promise<UploadResponse> {
+  try {
+    assertCloudinaryConfigured();
+
+    // Get original size for DEV proof
+    const origInfo = await FileSystem.getInfoAsync(uri);
+    const originalBytes = (origInfo as any).size ?? 0;
+
+    // Step 1: compress to 512x512 JPEG q=0.75
+    let quality = 0.75;
+    let compressedUri = await compressImage(uri, { maxWidth: 512, maxHeight: 512, quality });
+    let fileInfo = await FileSystem.getInfoAsync(compressedUri);
+    let finalBytes = (fileInfo as any).size ?? 0;
+
+    // Step 2: If still >= 1MB, recompress more aggressively
+    while (typeof finalBytes === "number" && finalBytes >= 1_000_000 && quality > 0.3) {
+      quality -= 0.1;
+      compressedUri = await compressImage(uri, { maxWidth: 512, maxHeight: 512, quality });
+      fileInfo = await FileSystem.getInfoAsync(compressedUri);
+      finalBytes = (fileInfo as any).size ?? 0;
+    }
+
+    if (__DEV__) {
+      devLog("[CIRCLE_PHOTO_COMPRESS]", {
+        originalBytes,
+        finalBytes,
+        width: 512,
+        height: 512,
+        quality,
+      });
+    }
+
+    if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
+      throw new Error("Circle photo is too large after compression.");
+    }
+
+    // Upload to Cloudinary with folder override
+    const formData = new FormData();
+    formData.append("file", {
+      uri: compressedUri,
+      type: "image/jpeg",
+      name: "circle_photo.jpg",
+    } as any);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
+    formData.append("folder", CIRCLE_PHOTO_FOLDER);
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    const res = await fetch(endpoint, { method: "POST", body: formData });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { json = null; }
+
+    if (!res.ok) {
+      const msg = (json && (json.error?.message || json.error)) || text?.substring(0, 200) || "Upload failed";
+      if (__DEV__) devError("[imageUpload] Circle photo upload failed:", res.status, msg);
+      throw new Error(msg);
+    }
+
+    const secureUrl = json?.secure_url as string | undefined;
+    if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
+    if (__DEV__) devLog("[imageUpload] Circle photo uploaded:", secureUrl);
+
+    return { success: true, url: secureUrl, filename: json?.public_id };
+  } catch (error: any) {
+    if (__DEV__) devError("[imageUpload] Circle photo upload error:", error);
+    throw new Error(error?.message || "Failed to upload circle photo");
+  }
+}
+
+/**
  * Picks and uploads an image with compression
  */
 export async function uploadImageFromPicker(
