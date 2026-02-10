@@ -415,7 +415,6 @@ Both use per-user keys and won't re-show after dismissal.
 |-------|--------------|------|
 | `/debug/health` | Long-press "Settings" title | Low - hidden |
 | `/design-showcase` | No route links in app | Low - unreachable |
-| `/dev-smoke-tests` | No route links in app | Low - unreachable |
 
 **Recommendation**: No action needed. Routes exist in `_layout.tsx` Stack but have no in-app navigation paths.
 

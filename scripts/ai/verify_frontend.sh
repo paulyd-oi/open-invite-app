@@ -67,8 +67,8 @@ echo "== P14 ENFORCEMENT =="
 
 # --- Part 1: Network Gate — useQuery must include enabled: guard ----------
 # Scan: grep 60 lines after each useQuery({ and flag blocks with no `enabled`.
-# Allowlist: known pre-existing debt (dead example code + admin.tsx legacy).
-P14_QUERY_ALLOWLIST="ComponentWithDataFetchingExample\.tsx|src/app/admin\.tsx:56"
+# Allowlist: known pre-existing debt (admin.tsx legacy).
+P14_QUERY_ALLOWLIST="src/app/admin\.tsx:56"
 
 P14_UNGATED=$(grep -rn --include="*.tsx" --include="*.ts" -A60 "useQuery({" src/ 2>/dev/null \
   | grep -v node_modules \
