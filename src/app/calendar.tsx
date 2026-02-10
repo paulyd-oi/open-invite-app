@@ -35,6 +35,7 @@ import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useSession } from "@/lib/useSession";
@@ -2169,6 +2170,7 @@ export default function CalendarScreen() {
             <Text className="text-2xl font-sora-bold ml-2" style={{ color: colors.text }}>
               {currentYear}
             </Text>
+            <HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />
           </View>
           <View className="flex-row items-center">
             <Pressable

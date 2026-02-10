@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
@@ -1137,7 +1138,10 @@ export default function SocialScreen() {
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="px-5 pt-4 pb-5 flex-row items-center justify-between">
         <View>
-          <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
+          <View className="flex-row items-center">
+            <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
+            <HelpSheet screenKey="social" config={HELP_SHEETS.social} />
+          </View>
           <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>
         </View>
         <View className="flex-row items-center">

@@ -64,6 +64,7 @@ import { SLIDE_MS } from "@/ui/motion";
 import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
@@ -1370,7 +1371,10 @@ export default function FriendsScreen() {
   return (
     <SafeAreaView testID="friends-screen" className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
       <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-        <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
+        <View className="flex-row items-center">
+          <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
+          <HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />
+        </View>
         <View className="flex-row items-center">
           {receivedRequests.length > 0 && (
             <View

@@ -30,6 +30,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
@@ -315,9 +316,12 @@ export default function DiscoverScreen() {
       {/* Header */}
       <View className="px-5 pt-4 pb-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-            Discover
-          </Text>
+          <View className="flex-row items-center">
+            <Text className="text-2xl font-bold" style={{ color: colors.text }}>
+              Discover
+            </Text>
+            <HelpSheet screenKey="discover" config={HELP_SHEETS.discover} />
+          </View>
           <Button
             variant="primary"
             label="Create"

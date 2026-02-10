@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { CircleCard } from "@/components/CircleCard";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -249,9 +250,12 @@ export default function CirclesScreen() {
                 <ChevronLeft size={24} color={colors.text} />
               </Pressable>
               <View>
-                <Text className="text-2xl font-bold tracking-tight" style={{ color: colors.text }}>
-                  Groups
-                </Text>
+                <View className="flex-row items-center">
+                  <Text className="text-2xl font-bold tracking-tight" style={{ color: colors.text }}>
+                    Groups
+                  </Text>
+                  <HelpSheet screenKey="circles" config={HELP_SHEETS.circles} />
+                </View>
                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
                   Plan events together
                 </Text>
