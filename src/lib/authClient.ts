@@ -30,6 +30,18 @@ let explicitCookieValue: string | null = null;
 // [P15_NET_INVAR] DEV-only once-per-endpoint dedup set
 const _p15NetSeen = new Set<string>();
 
+// [P16_API_INVAR] Lazy import to avoid circular deps at module init
+let _validateApiContract: ((endpoint: string, data: unknown) => void) | null = null;
+function getApiContractValidator() {
+  if (!__DEV__) return null;
+  if (!_validateApiContract) {
+    try {
+      _validateApiContract = require('@/lib/apiContractInvariant').validateApiContract;
+    } catch { /* ignore if module not available */ }
+  }
+  return _validateApiContract;
+}
+
 // OI Session Token - header fallback for unreliable iOS cookie jar
 // Single source of truth for mobile session token
 export const OI_SESSION_TOKEN_KEY = "oi_session_token_v1";
@@ -340,6 +352,12 @@ async function $fetch<T = any>(
     }
     
     const result = await response.json().catch(() => ({})) as T;
+
+    // [P16_API_INVAR] DEV-only: validate response shape at network boundary
+    if (__DEV__) {
+      const validator = getApiContractValidator();
+      if (validator) validator(path, result);
+    }
     
     // Log SESSION_SHAPE for /api/auth/session only (per spec)
     if (path === "/api/auth/session" || path.endsWith("/api/auth/session")) {
