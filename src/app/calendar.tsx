@@ -2208,16 +2208,16 @@ export default function CalendarScreen() {
             <HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />
           </View>
           <View className="flex-row items-center">
-            <Pressable
+            <Button
+              variant="primary"
+              size="sm"
+              label="Create"
               onPress={() => {
                 if (!guardEmailVerification(session)) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push("/create");
               }}
-              className="flex-row items-center px-4 py-2 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Create</Text>
-            </Pressable>
+            />
           </View>
         </View>
 

@@ -8,7 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { devLog } from "@/lib/devLog";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { useQuery } from "@tanstack/react-query";
@@ -173,6 +173,20 @@ export default function DiscoverScreen() {
   };
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
+  // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
+  const didLogCreatePill = useRef(false);
+  const discoverInsets = useSafeAreaInsets();
+  if (__DEV__ && !didLogCreatePill.current) {
+    didLogCreatePill.current = true;
+    devLog('[P0_CREATE_PILL_RENDER]', {
+      screen: 'discover',
+      visible: true,
+      bottomInset: discoverInsets.bottom,
+      hasSafeAreaInsets: discoverInsets.bottom > 0,
+      container: 'SafeAreaView>Header',
+    });
+  }
+
   const didLog = useRef(false);
   if (__DEV__ && !didLog.current && !isLoading) {
     didLog.current = true;
@@ -330,6 +344,7 @@ export default function DiscoverScreen() {
           </View>
           <Button
             variant="primary"
+            size="sm"
             label="Create"
             onPress={() => {
               if (!guardEmailVerification(session)) return;

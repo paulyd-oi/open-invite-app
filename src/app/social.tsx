@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
@@ -603,6 +603,20 @@ export default function SocialScreen() {
   const [insightDismissed, setInsightDismissed] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
   const hasBootstrapped = useRef(false);
+
+  // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Social
+  const didLogCreatePill = useRef(false);
+  const socialInsets = useSafeAreaInsets();
+  if (__DEV__ && !didLogCreatePill.current) {
+    didLogCreatePill.current = true;
+    devLog('[P0_CREATE_PILL_RENDER]', {
+      screen: 'social',
+      visible: true,
+      bottomInset: socialInsets.bottom,
+      hasSafeAreaInsets: socialInsets.bottom > 0,
+      container: 'SafeAreaView>Header',
+    });
+  }
   
   // Collapse state for sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -1160,6 +1174,7 @@ export default function SocialScreen() {
           <ShareAppButton variant="icon" />
           <Button
             variant="primary"
+            size="sm"
             label="Create"
             onPress={() => {
               if (!guardEmailVerification(session)) return;
