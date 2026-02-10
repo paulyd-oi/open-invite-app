@@ -12,6 +12,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
@@ -1162,29 +1163,27 @@ export default function SocialScreen() {
   return (
     <AuthProvider state="authed">
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <View className="px-5 pt-4 pb-5 flex-row items-center justify-between">
-        <View>
-          <View className="flex-row items-center">
-            <Text style={{ color: colors.text }} className="text-3xl font-sora-bold">Open Invites</Text>
-            <HelpSheet screenKey="social" config={HELP_SHEETS.social} />
-          </View>
-          <Text style={{ color: colors.textSecondary }} className="mt-1 font-sora">See what's happening</Text>
-        </View>
-        <View className="flex-row items-center">
-          <ShareAppButton variant="icon" />
-          <Button
-            variant="primary"
-            size="sm"
-            label="Create"
-            onPress={() => {
-              if (!guardEmailVerification(session)) return;
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/create");
-            }}
-            style={{ marginLeft: 8 }}
-          />
-        </View>
-      </View>
+        <AppHeader
+          title="Open Invites"
+          subtitle="See what's happening"
+          left={<HelpSheet screenKey="social" config={HELP_SHEETS.social} />}
+          right={
+            <View className="flex-row items-center">
+              <ShareAppButton variant="icon" />
+              <Button
+                variant="primary"
+                size="sm"
+                label="Create"
+                onPress={() => {
+                  if (!guardEmailVerification(session)) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/create");
+                }}
+                style={{ marginLeft: 8 }}
+              />
+            </View>
+          }
+        />
 
       {/* Micro Social Proof Line */}
       {!isLoading && plansIn14Days > 0 && (

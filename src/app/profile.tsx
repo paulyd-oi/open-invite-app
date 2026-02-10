@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
+import { AppHeader } from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
@@ -409,22 +410,18 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       {/* Header */}
-      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-        <Text
-          className="text-3xl font-sora-bold"
-          style={{ color: colors.text }}
-        >
-          Profile
-        </Text>
-
-        <Pressable
-          onPress={() => router.push("/settings")}
-          className="w-10 h-10 rounded-full items-center justify-center"
-          style={{ backgroundColor: colors.inputBg }}
-        >
-          <Settings size={20} color={colors.textSecondary} />
-        </Pressable>
-      </View>
+      <AppHeader
+        title="Profile"
+        right={
+          <Pressable
+            onPress={() => router.push("/settings")}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: colors.inputBg }}
+          >
+            <Settings size={20} color={colors.textSecondary} />
+          </Pressable>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}

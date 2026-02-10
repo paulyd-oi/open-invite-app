@@ -31,6 +31,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
+import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { Button } from "@/ui/Button";
@@ -334,14 +335,10 @@ export default function DiscoverScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <View className="px-5 pt-4 pb-2">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <Text className="text-2xl font-bold" style={{ color: colors.text }}>
-              Discover
-            </Text>
-            <HelpSheet screenKey="discover" config={HELP_SHEETS.discover} />
-          </View>
+      <AppHeader
+        title="Discover"
+        left={<HelpSheet screenKey="discover" config={HELP_SHEETS.discover} />}
+        right={
           <Button
             variant="primary"
             size="sm"
@@ -352,8 +349,10 @@ export default function DiscoverScreen() {
               router.push("/create");
             }}
           />
-        </View>
+        }
+      />
 
+      <View className="px-5">
         {/* ═══ Lens Switcher ═══ */}
         <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: colors.segmentBg }}>
           {LENS_OPTIONS.map((opt) => {

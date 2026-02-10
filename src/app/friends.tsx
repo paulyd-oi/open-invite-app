@@ -64,6 +64,7 @@ import { SLIDE_MS } from "@/ui/motion";
 import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
@@ -1405,9 +1406,7 @@ export default function FriendsScreen() {
     }
     return (
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-        <View className="px-5 pt-2 pb-4">
-          <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
-        </View>
+        <AppHeader title="Friends" />
         <FriendsListSkeleton />
         <BottomNavigation />
       </SafeAreaView>
@@ -1416,29 +1415,29 @@ export default function FriendsScreen() {
 
   return (
     <SafeAreaView testID="friends-screen" className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-      <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <Text className="text-3xl font-sora-bold" style={{ color: colors.text }}>Friends</Text>
-          <HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />
-        </View>
-        <View className="flex-row items-center">
-          {receivedRequests.length > 0 && (
-            <View
-              className="w-6 h-6 rounded-full items-center justify-center mr-2"
+      <AppHeader
+        title="Friends"
+        left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
+        right={
+          <View className="flex-row items-center">
+            {receivedRequests.length > 0 && (
+              <View
+                className="w-6 h-6 rounded-full items-center justify-center mr-2"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
+              </View>
+            )}
+            <Pressable
+              onPress={() => setShowAddFriend(!showAddFriend)}
+              className="w-10 h-10 rounded-full items-center justify-center"
               style={{ backgroundColor: themeColor }}
             >
-              <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
-            </View>
-          )}
-          <Pressable
-            onPress={() => setShowAddFriend(!showAddFriend)}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: themeColor }}
-          >
-            <UserPlus size={20} color="#fff" />
-          </Pressable>
-        </View>
-      </View>
+              <UserPlus size={20} color="#fff" />
+            </Pressable>
+          </View>
+        }
+      />
 
       {/* Social Features Quick Access */}
       <View className="px-5 pb-3">
