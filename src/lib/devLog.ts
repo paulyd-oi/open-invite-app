@@ -121,6 +121,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_POLLS_E2E_UI]",
   // P1 Who's Coming sheet lifecycle
   "[P1_WHO_COMING_SHEET]",
+  // P1 back label resolution proof
+  "[P1_BACK_LABEL]",
 ];
 
 /**

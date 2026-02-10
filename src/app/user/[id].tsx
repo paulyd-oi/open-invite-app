@@ -459,6 +459,11 @@ export default function UserProfileScreen() {
           unfriendMenu: isFriend,
         },
       });
+      devLog("[P1_BACK_LABEL]", {
+        screen: "user/[id]",
+        previousRoute: source ?? "unknown",
+        resolvedBackTitle: "Back",
+      });
     }
   }, [data, id, source, isFriend, friendshipId]);
 

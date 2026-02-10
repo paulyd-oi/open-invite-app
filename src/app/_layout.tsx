@@ -718,6 +718,7 @@ function RootLayoutNav() {
           options={{
             presentation: 'card',
             headerShown: false,
+            headerBackTitle: 'Back',
           }}
         />
         <Stack.Screen
