@@ -3457,7 +3457,7 @@ export default function EventDetailScreen() {
                 const upload = await uploadEventPhoto(result.assets[0].uri);
                 await api.put(`/api/events/${id}/photo`, {
                   eventPhotoUrl: upload.url,
-                  eventPhotoPublicId: upload.filename,
+                  eventPhotoPublicId: upload.publicId,
                 });
                 queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
                 queryClient.invalidateQueries({ queryKey: eventKeys.all() });
