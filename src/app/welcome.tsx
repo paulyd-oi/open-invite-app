@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  useColorScheme,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,9 +22,6 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import Animated, {
   FadeIn,
   FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
@@ -57,6 +53,9 @@ import { uploadImage } from "@/lib/imageUpload";
 import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
+import { useTheme } from "@/lib/ThemeContext";
+import { Button } from "@/ui/Button";
+import { RADIUS } from "@/ui/layout";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,48 +89,6 @@ function getBucketExplanation(bucket: AppleAuthErrorBucket): string {
     case "other_native_error":
       return "Unknown native error - check error code/message for details";
   }
-}
-
-// ============ THEME HELPERS (LOCAL SCOPE ONLY) ============
-interface OnboardingTheme {
-  background: string;
-  surface: string;
-  surfaceBorder: string;
-  text: string;
-  textSecondary: string;
-  textTertiary: string;
-  accent: string;
-  inputBg: string;
-  inputBorder: string;
-}
-
-const lightTheme: OnboardingTheme = {
-  background: "#FAFAFA",
-  surface: "#FFFFFF",
-  surfaceBorder: "rgba(0,0,0,0.08)",
-  text: "#1A1A1A",
-  textSecondary: "#666666",
-  textTertiary: "#999999",
-  accent: "#E85D4C",
-  inputBg: "#FFFFFF",
-  inputBorder: "rgba(0,0,0,0.12)",
-};
-
-const darkTheme: OnboardingTheme = {
-  background: "#121218",
-  surface: "rgba(255,255,255,0.06)",
-  surfaceBorder: "rgba(255,255,255,0.08)",
-  text: "#FFFFFF",
-  textSecondary: "rgba(255,255,255,0.65)",
-  textTertiary: "rgba(255,255,255,0.4)",
-  accent: "#E85D4C",
-  inputBg: "rgba(255,255,255,0.06)",
-  inputBorder: "rgba(255,255,255,0.12)",
-};
-
-function useOnboardingTheme(): OnboardingTheme {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? darkTheme : lightTheme;
 }
 
 // ============ NORMALIZE URL HELPER ============
@@ -179,130 +136,21 @@ type OnboardingSlide = 1 | 2 | 3 | 4;
 // ============ SHARED LAYOUT ============
 const OnboardingLayout = ({
   children,
-  theme,
+  background,
   testID,
 }: {
   children: React.ReactNode;
-  theme: OnboardingTheme;
+  background: string;
   testID?: string;
 }) => {
   return (
-    <View testID={testID} style={[styles.layoutContainer, { backgroundColor: theme.background }]}>
+    <View testID={testID} style={[styles.layoutContainer, { backgroundColor: background }]}>
       <SafeAreaView style={styles.safeArea}>
         {children}
       </SafeAreaView>
     </View>
   );
 };
-
-// ============ PRIMARY BUTTON ============
-const PrimaryButton = ({
-  onPress,
-  title,
-  loading = false,
-  theme,
-}: {
-  onPress: () => void;
-  title: string;
-  loading?: boolean;
-  theme: OnboardingTheme;
-}) => {
-  const scale = useSharedValue(1);
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.96, { damping: 15 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15 });
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onPress();
-        }}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[
-          styles.primaryButton,
-          { backgroundColor: theme.accent },
-        ]}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <>
-            <Text style={styles.primaryButtonText}>{title}</Text>
-            <ArrowRight size={20} color="#fff" />
-          </>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-};
-
-// ============ SECONDARY BUTTON ============
-const SecondaryButton = ({
-  onPress,
-  title,
-  theme,
-  testID,
-}: {
-  onPress: () => void;
-  title: string;
-  theme: OnboardingTheme;
-  testID?: string;
-}) => (
-  <Pressable
-    testID={testID}
-    onPress={() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onPress();
-    }}
-    style={styles.secondaryButton}
-  >
-    <Text style={[styles.secondaryButtonText, { color: theme.textSecondary }]}>
-      {title}
-    </Text>
-  </Pressable>
-);
-
-// ============ AUTH BUTTON ============
-const AuthButton = ({
-  onPress,
-  title,
-  loading = false,
-  theme,
-}: {
-  onPress: () => void;
-  title: string;
-  loading?: boolean;
-  theme: OnboardingTheme;
-}) => (
-  <Pressable
-    onPress={() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onPress();
-    }}
-    style={[
-      styles.authButton,
-      { backgroundColor: theme.surface, borderColor: theme.surfaceBorder },
-    ]}
-  >
-    {loading ? (
-      <ActivityIndicator color={theme.text} size="small" />
-    ) : (
-      <Text style={[styles.authButtonText, { color: theme.text }]}>{title}</Text>
-    )}
-  </Pressable>
-);
 
 // ============ STYLED INPUT ============
 const StyledInput = ({
@@ -316,7 +164,7 @@ const StyledInput = ({
   onTogglePassword,
   autoFocus = false,
   error,
-  theme,
+  colors,
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -328,15 +176,15 @@ const StyledInput = ({
   onTogglePassword?: () => void;
   autoFocus?: boolean;
   error?: string;
-  theme: OnboardingTheme;
+  colors: { inputBg: string; borderSubtle: string; textTertiary: string; text: string };
 }) => (
   <View>
     <View
       style={[
         styles.inputContainer,
         {
-          backgroundColor: theme.inputBg,
-          borderColor: error ? "#E85D4C" : theme.inputBorder,
+          backgroundColor: colors.inputBg,
+          borderColor: error ? "#E85D4C" : colors.borderSubtle,
         },
       ]}
     >
@@ -344,19 +192,19 @@ const StyledInput = ({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={theme.textTertiary}
+        placeholderTextColor={colors.textTertiary}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         secureTextEntry={secureTextEntry && !showPassword}
         autoFocus={autoFocus}
-        style={[styles.input, { color: theme.text }]}
+        style={[styles.input, { color: colors.text }]}
       />
       {onTogglePassword && (
         <Pressable onPress={onTogglePassword} style={styles.eyeButton}>
           {showPassword ? (
-            <EyeOff size={20} color={theme.textTertiary} />
+            <EyeOff size={20} color={colors.textTertiary} />
           ) : (
-            <Eye size={20} color={theme.textTertiary} />
+            <Eye size={20} color={colors.textTertiary} />
           )}
         </Pressable>
       )}
@@ -369,7 +217,8 @@ const StyledInput = ({
 export default function WelcomeOnboardingScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const theme = useOnboardingTheme();
+  const { themeColor, isDark, colors } = useTheme();
+  if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome', button: 'SSOT', theme: 'ThemeContext' });
   const isMountedRef = useRef(true);
   const hasLoggedMountRef = useRef(false);
 
@@ -1095,33 +944,35 @@ export default function WelcomeOnboardingScreen() {
   // ============ RENDER SLIDES ============
 
   const renderSlide1 = () => (
-    <OnboardingLayout theme={theme}>
+    <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
         <Animated.View entering={smoothFadeIn(100)} style={styles.centeredContent}>
-          <View style={[styles.iconContainer, { backgroundColor: `${theme.accent}20` }]}>
-            <CalendarIcon size={48} color={theme.accent} />
+          <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
+            <CalendarIcon size={48} color={themeColor} />
           </View>
 
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text style={[styles.title, { color: colors.text }]}>
             Your Social Calendar
           </Text>
 
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             See what friends are up to.{"\n"}Share plans in seconds.{"\n"}Stay in sync, effortlessly.
           </Text>
         </Animated.View>
 
         <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
-          <PrimaryButton
-            title="Continue"
+          <Button
+            variant="primary"
+            label="Continue"
             onPress={() => setCurrentSlide(2)}
-            theme={theme}
+            leftIcon={<ArrowRight size={20} color="#fff" />}
+            style={{ borderRadius: RADIUS.lg }}
           />
-          <SecondaryButton
-            title="Log In"
-            onPress={() => router.replace("/login")}
-            theme={theme}
+          <Button
             testID="welcome-login-button"
+            variant="ghost"
+            label="Log In"
+            onPress={() => router.replace("/login")}
           />
         </Animated.View>
       </View>
@@ -1129,7 +980,7 @@ export default function WelcomeOnboardingScreen() {
   );
 
   const renderSlide2 = () => (
-    <OnboardingLayout theme={theme}>
+    <OnboardingLayout background={colors.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex1}
@@ -1139,10 +990,10 @@ export default function WelcomeOnboardingScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
-            <Text style={[styles.title, { color: theme.text }]}>
+            <Text style={[styles.title, { color: colors.text }]}>
               Create Account
             </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               So friends can find and connect with you
             </Text>
           </Animated.View>
@@ -1179,7 +1030,7 @@ export default function WelcomeOnboardingScreen() {
               }}
               style={{ padding: 8, alignItems: "center" }}
             >
-              <Text style={{ color: theme.textTertiary, fontSize: 10, textDecorationLine: "underline" }}>
+              <Text style={{ color: colors.textTertiary, fontSize: 10, textDecorationLine: "underline" }}>
                 [DEV] Run Apple Sign-In Diagnostics
               </Text>
             </Pressable>
@@ -1191,7 +1042,7 @@ export default function WelcomeOnboardingScreen() {
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
                 buttonStyle={
-                  theme === darkTheme
+                  isDark
                     ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
                     : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
                 }
@@ -1204,9 +1055,9 @@ export default function WelcomeOnboardingScreen() {
 
           {canShowAppleSignIn && (
             <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.surfaceBorder }]} />
-              <Text style={[styles.dividerText, { color: theme.textTertiary }]}>or</Text>
-              <View style={[styles.dividerLine, { backgroundColor: theme.surfaceBorder }]} />
+              <View style={[styles.dividerLine, { backgroundColor: colors.borderSubtle }]} />
+              <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.borderSubtle }]} />
             </View>
           )}
 
@@ -1217,7 +1068,7 @@ export default function WelcomeOnboardingScreen() {
               placeholder="Email"
               keyboardType="email-address"
               autoCapitalize="none"
-              theme={theme}
+              colors={colors}
             />
             <StyledInput
               value={password}
@@ -1226,27 +1077,28 @@ export default function WelcomeOnboardingScreen() {
               secureTextEntry
               showPassword={showPassword}
               onTogglePassword={() => setShowPassword(!showPassword)}
-              theme={theme}
+              colors={colors}
             />
           </Animated.View>
 
           <Animated.View entering={smoothFadeIn(300)}>
-            <Text style={[styles.termsText, { color: theme.textTertiary }]}>
+            <Text style={[styles.termsText, { color: colors.textTertiary }]}>
               By continuing, you agree to our Terms of Service and Privacy Policy.
             </Text>
 
-            <AuthButton
-              title="Continue with Email"
+            <Button
+              variant="secondary"
+              label="Continue with Email"
               onPress={handleEmailAuth}
               loading={isLoading}
-              theme={theme}
+              style={{ borderRadius: RADIUS.lg, marginBottom: 8 }}
             />
           </Animated.View>
 
-          <SecondaryButton
-            title="Already have an account? Log In"
+          <Button
+            variant="ghost"
+            label="Already have an account? Log In"
             onPress={() => router.replace("/login")}
-            theme={theme}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1254,7 +1106,7 @@ export default function WelcomeOnboardingScreen() {
   );
 
   const renderSlide3 = () => (
-    <OnboardingLayout theme={theme}>
+    <OnboardingLayout background={colors.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex1}
@@ -1264,10 +1116,10 @@ export default function WelcomeOnboardingScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
-            <Text style={[styles.title, { color: theme.text }]}>
+            <Text style={[styles.title, { color: colors.text }]}>
               Set Up Your Profile
             </Text>
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Help friends find and recognize you
             </Text>
           </Animated.View>
@@ -1281,11 +1133,11 @@ export default function WelcomeOnboardingScreen() {
           {/* Photo picker (optional) */}
           <Animated.View entering={smoothFadeIn(100)} style={styles.photoSection}>
             <Pressable onPress={handlePickPhoto} disabled={uploadBusy}>
-              <View style={[styles.photoPlaceholder, { borderColor: theme.accent }]}>
+              <View style={[styles.photoPlaceholder, { borderColor: themeColor }]}>
                 {avatarLocalUri ? (
                   <Image source={{ uri: avatarLocalUri }} style={styles.photoImage} />
                 ) : (
-                  <Camera size={32} color={theme.accent} />
+                  <Camera size={32} color={themeColor} />
                 )}
                 {uploadBusy && (
                   <View style={styles.uploadOverlay}>
@@ -1295,7 +1147,7 @@ export default function WelcomeOnboardingScreen() {
               </View>
             </Pressable>
             <Pressable onPress={handlePickPhoto} disabled={uploadBusy}>
-              <Text style={[styles.addPhotoText, { color: theme.accent }]}>
+              <Text style={[styles.addPhotoText, { color: themeColor }]}>
                 {avatarLocalUri ? "Change Photo" : "Add Photo"} (optional)
               </Text>
             </Pressable>
@@ -1311,11 +1163,11 @@ export default function WelcomeOnboardingScreen() {
               placeholder="Full Name"
               autoCapitalize="words"
               error={nameError || undefined}
-              theme={theme}
+              colors={colors}
             />
             <View>
               <View style={styles.handleInputWrapper}>
-                <Text style={[styles.handlePrefix, { color: theme.textTertiary }]}>@</Text>
+                <Text style={[styles.handlePrefix, { color: colors.textTertiary }]}>@</Text>
                 <TextInput
                   value={handle}
                   onChangeText={(text) => {
@@ -1323,15 +1175,15 @@ export default function WelcomeOnboardingScreen() {
                     setHandleError(null);
                   }}
                   placeholder="Unique handle"
-                  placeholderTextColor={theme.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   autoCapitalize="none"
                   autoCorrect={false}
                   style={[
                     styles.handleInput,
                     {
-                      color: theme.text,
-                      backgroundColor: theme.inputBg,
-                      borderColor: handleError ? "#E85D4C" : theme.inputBorder,
+                      color: colors.text,
+                      backgroundColor: colors.inputBg,
+                      borderColor: handleError ? "#E85D4C" : colors.borderSubtle,
                     },
                   ]}
                 />
@@ -1341,11 +1193,13 @@ export default function WelcomeOnboardingScreen() {
           </Animated.View>
 
           <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
-            <PrimaryButton
-              title="Continue"
+            <Button
+              variant="primary"
+              label="Continue"
               onPress={handleSlide3Continue}
               loading={isLoading}
-              theme={theme}
+              leftIcon={<ArrowRight size={20} color="#fff" />}
+              style={{ borderRadius: RADIUS.lg }}
             />
           </Animated.View>
         </ScrollView>
@@ -1354,28 +1208,30 @@ export default function WelcomeOnboardingScreen() {
   );
 
   const renderSlide4 = () => (
-    <OnboardingLayout theme={theme}>
+    <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
         <Animated.View entering={smoothFadeIn()} style={styles.centeredContent}>
-          <View style={[styles.iconContainer, { backgroundColor: `${theme.accent}20` }]}>
-            <Sparkles size={36} color={theme.accent} />
+          <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
+            <Sparkles size={36} color={themeColor} />
           </View>
 
-          <View style={[styles.quoteCard, { backgroundColor: theme.surface, borderColor: theme.surfaceBorder }]}>
-            <Text style={[styles.quoteText, { color: theme.text }]}>
+          <View style={[styles.quoteCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+            <Text style={[styles.quoteText, { color: colors.text }]}>
               "The quality of your life is measured by the quality of your relationships."
             </Text>
-            <Text style={[styles.quoteAttribution, { color: theme.textSecondary }]}>
+            <Text style={[styles.quoteAttribution, { color: colors.textSecondary }]}>
               — Jürgen Matthesius
             </Text>
           </View>
         </Animated.View>
 
         <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
-          <PrimaryButton
-            title="Continue"
+          <Button
+            variant="primary"
+            label="Continue"
             onPress={handleFinishOnboarding}
-            theme={theme}
+            leftIcon={<ArrowRight size={20} color="#fff" />}
+            style={{ borderRadius: RADIUS.lg }}
           />
         </Animated.View>
       </View>
@@ -1386,8 +1242,8 @@ export default function WelcomeOnboardingScreen() {
 
   if (!fontsLoaded) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.accent} />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={themeColor} />
       </View>
     );
   }
@@ -1475,47 +1331,6 @@ const styles = StyleSheet.create({
   },
   buttonGroup: {
     gap: 8,
-  },
-  primaryButton: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-    shadowColor: "#E85D4C",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 17,
-    fontFamily: "Sora_600SemiBold",
-  },
-  secondaryButton: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontFamily: "Sora_400Regular",
-  },
-  authButton: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  authButtonText: {
-    fontSize: 16,
-    fontFamily: "Sora_600SemiBold",
   },
   inputContainer: {
     borderRadius: 16,

@@ -655,6 +655,7 @@ const FloatingAddButton = ({
 export default function OnboardingScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'onboarding', button: 'SSOT', theme: 'ThemeContext' });
   const queryClient = useQueryClient();
   const { status: bootStatus } = useBootAuthority();
   const { data: session } = useSession();

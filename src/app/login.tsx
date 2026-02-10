@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
-  useColorScheme,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -51,59 +50,11 @@ import {
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
+import { useTheme } from "@/lib/ThemeContext";
+import { Button } from "@/ui/Button";
+import { RADIUS } from "@/ui/layout";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// ============ THEME HELPERS (MATCH ONBOARDING PATTERN) ============
-interface LoginTheme {
-  background: string;
-  surface: string;
-  surfaceBorder: string;
-  text: string;
-  textSecondary: string;
-  textTertiary: string;
-  accent: string;
-  accentLight: string;
-  inputBg: string;
-  inputBorder: string;
-  iconColor: string;
-  gradientTop: string;
-}
-
-const lightTheme: LoginTheme = {
-  background: "#FAFAFA",
-  surface: "#FFFFFF",
-  surfaceBorder: "rgba(0,0,0,0.08)",
-  text: "#1A1A1A",
-  textSecondary: "#666666",
-  textTertiary: "#999999",
-  accent: "#E85D4C",
-  accentLight: "#FF8A7A",
-  inputBg: "#FFFFFF",
-  inputBorder: "rgba(0,0,0,0.12)",
-  iconColor: "rgba(0,0,0,0.4)",
-  gradientTop: "#FFF5F3",
-};
-
-const darkTheme: LoginTheme = {
-  background: "#121218",
-  surface: "rgba(255,255,255,0.06)",
-  surfaceBorder: "rgba(255,255,255,0.08)",
-  text: "#FFFFFF",
-  textSecondary: "rgba(255,255,255,0.65)",
-  textTertiary: "rgba(255,255,255,0.4)",
-  accent: "#E85D4C",
-  accentLight: "#FF8A7A",
-  inputBg: "rgba(255,255,255,0.06)",
-  inputBorder: "rgba(255,255,255,0.12)",
-  iconColor: "rgba(255,255,255,0.4)",
-  gradientTop: "#1A1A2E",
-};
-
-function useLoginTheme(): LoginTheme {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? darkTheme : lightTheme;
-}
 
 // Backend URL
 const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
@@ -166,7 +117,8 @@ type AuthView = "login" | "forgotPassword" | "success";
 export default function LoginScreen() {
   const router = useRouter();
   const { data: session } = useSession();
-  const theme = useLoginTheme();
+  const { themeColor, isDark, colors } = useTheme();
+  if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'login', button: 'SSOT', theme: 'ThemeContext' });
 
   const [fontsLoaded] = useFonts({
     Sora_400Regular,
@@ -285,12 +237,12 @@ export default function LoginScreen() {
       <View
         style={{
           flex: 1,
-          backgroundColor: theme.background,
+          backgroundColor: colors.background,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
-        <ActivityIndicator color={theme.accent} size="large" />
+        <ActivityIndicator color={themeColor} size="large" />
       </View>
     );
   }
@@ -298,9 +250,9 @@ export default function LoginScreen() {
   // Success View
   if (authView === "success") {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <LinearGradient
-          colors={[theme.gradientTop, theme.background]}
+          colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
           <Animated.View
@@ -324,7 +276,7 @@ export default function LoginScreen() {
               style={{
                 fontFamily: "Sora_700Bold",
                 fontSize: 28,
-                color: theme.text,
+                color: colors.text,
                 marginBottom: 8,
               }}
             >
@@ -334,7 +286,7 @@ export default function LoginScreen() {
               style={{
                 fontFamily: "Sora_400Regular",
                 fontSize: 16,
-                color: theme.textSecondary,
+                color: colors.textSecondary,
               }}
             >
               Redirecting you now...
@@ -348,9 +300,9 @@ export default function LoginScreen() {
   // Forgot Password View
   if (authView === "forgotPassword") {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <LinearGradient
-          colors={[theme.gradientTop, theme.background]}
+          colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1 }}
         >
           <SafeAreaView style={{ flex: 1 }}>
@@ -371,13 +323,13 @@ export default function LoginScreen() {
                 }}
                 hitSlop={20}
               >
-                <ArrowLeft size={24} color={theme.text} />
+                <ArrowLeft size={24} color={colors.text} />
               </Pressable>
               <Text
                 style={{
                   fontFamily: "Sora_600SemiBold",
                   fontSize: 18,
-                  color: theme.text,
+                  color: colors.text,
                 }}
               >
                 Reset Password
@@ -405,13 +357,13 @@ export default function LoginScreen() {
                       width: 80,
                       height: 80,
                       borderRadius: 40,
-                      backgroundColor: `${theme.accent}20`,
+                      backgroundColor: `${themeColor}20`,
                       justifyContent: "center",
                       alignItems: "center",
                       marginBottom: 24,
                     }}
                   >
-                    <Mail size={40} color={theme.accent} />
+                    <Mail size={40} color={themeColor} />
                   </View>
 
                   {resetEmailSent ? (
@@ -420,7 +372,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_700Bold",
                           fontSize: 24,
-                          color: theme.text,
+                          color: colors.text,
                           textAlign: "center",
                           marginBottom: 8,
                         }}
@@ -431,14 +383,14 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_400Regular",
                           fontSize: 14,
-                          color: theme.textSecondary,
+                          color: colors.textSecondary,
                           textAlign: "center",
                           marginBottom: 32,
                           lineHeight: 22,
                         }}
                       >
                         We've sent a password reset link to{"\n"}
-                        <Text style={{ color: theme.text, fontWeight: "600" }}>
+                        <Text style={{ color: colors.text, fontWeight: "600" }}>
                           {email}
                         </Text>
                       </Text>
@@ -451,7 +403,7 @@ export default function LoginScreen() {
                           style={{
                             fontFamily: "Sora_600SemiBold",
                             fontSize: 14,
-                            color: theme.accent,
+                            color: themeColor,
                           }}
                         >
                           Try another email
@@ -464,7 +416,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_700Bold",
                           fontSize: 24,
-                          color: theme.text,
+                          color: colors.text,
                           textAlign: "center",
                           marginBottom: 8,
                         }}
@@ -475,7 +427,7 @@ export default function LoginScreen() {
                         style={{
                           fontFamily: "Sora_400Regular",
                           fontSize: 14,
-                          color: theme.textSecondary,
+                          color: colors.textSecondary,
                           textAlign: "center",
                           marginBottom: 32,
                         }}
@@ -487,22 +439,22 @@ export default function LoginScreen() {
                       <View
                         style={{
                           width: "100%",
-                          backgroundColor: theme.inputBg,
+                          backgroundColor: colors.inputBg,
                           borderRadius: 14,
                           borderWidth: 1,
-                          borderColor: theme.inputBorder,
+                          borderColor: colors.borderSubtle,
                           flexDirection: "row",
                           alignItems: "center",
                           paddingHorizontal: 16,
                           marginBottom: 24,
                         }}
                       >
-                        <Mail size={20} color={theme.iconColor} />
+                        <Mail size={20} color={colors.iconMuted} />
                         <TextInput
                           value={email}
                           onChangeText={setEmail}
                           placeholder="Email address"
-                          placeholderTextColor={theme.textTertiary}
+                          placeholderTextColor={colors.textTertiary}
                           keyboardType="email-address"
                           autoCapitalize="none"
                           autoCorrect={false}
@@ -510,7 +462,7 @@ export default function LoginScreen() {
                             flex: 1,
                             paddingVertical: 18,
                             paddingHorizontal: 12,
-                            color: theme.text,
+                            color: colors.text,
                             fontSize: 16,
                             fontFamily: "Sora_400Regular",
                           }}
@@ -519,40 +471,14 @@ export default function LoginScreen() {
                       </View>
 
                       {/* Reset Button */}
-                      <Pressable
+                      <Button
+                        variant="primary"
+                        label="Send Reset Link"
                         onPress={handleForgotPassword}
                         disabled={isLoading}
-                        style={{ width: "100%" }}
-                      >
-                        <LinearGradient
-                          colors={
-                            isLoading
-                              ? ["#4B5563", "#374151"]
-                              : [theme.accentLight, theme.accent]
-                          }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={{
-                            paddingVertical: 18,
-                            borderRadius: 16,
-                            alignItems: "center",
-                          }}
-                        >
-                          {isLoading ? (
-                            <ActivityIndicator color="#fff" />
-                          ) : (
-                            <Text
-                              style={{
-                                fontFamily: "Sora_600SemiBold",
-                                fontSize: 16,
-                                color: "#fff",
-                              }}
-                            >
-                              Send Reset Link
-                            </Text>
-                          )}
-                        </LinearGradient>
-                      </Pressable>
+                        loading={isLoading}
+                        style={{ width: "100%", borderRadius: RADIUS.lg }}
+                      />
                     </>
                   )}
                 </Animated.View>
@@ -566,8 +492,8 @@ export default function LoginScreen() {
 
   // Main Login View
   return (
-    <View testID="login-screen" style={{ flex: 1, backgroundColor: theme.background }}>
-      <LinearGradient colors={[theme.gradientTop, theme.background]} style={{ flex: 1 }}>
+    <View testID="login-screen" style={{ flex: 1, backgroundColor: colors.background }}>
+      <LinearGradient colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header with back to Getting Started */}
           <View
@@ -586,13 +512,13 @@ export default function LoginScreen() {
               }}
               hitSlop={20}
             >
-              <ArrowLeft size={24} color={theme.text} />
+              <ArrowLeft size={24} color={colors.text} />
             </Pressable>
             <Text
               style={{
                 fontFamily: "Sora_600SemiBold",
                 fontSize: 18,
-                color: theme.text,
+                color: colors.text,
               }}
             >
               Welcome Back
@@ -621,12 +547,12 @@ export default function LoginScreen() {
                       width: 80,
                       height: 80,
                       borderRadius: 40,
-                      backgroundColor: `${theme.accent}20`,
+                      backgroundColor: `${themeColor}20`,
                       justifyContent: "center",
                       alignItems: "center",
                     }}
                   >
-                    <Sparkles size={40} color={theme.accent} />
+                    <Sparkles size={40} color={themeColor} />
                   </View>
                 </View>
 
@@ -634,7 +560,7 @@ export default function LoginScreen() {
                   style={{
                     fontFamily: "Sora_700Bold",
                     fontSize: 28,
-                    color: theme.text,
+                    color: colors.text,
                     textAlign: "center",
                     marginBottom: 8,
                   }}
@@ -645,7 +571,7 @@ export default function LoginScreen() {
                   style={{
                     fontFamily: "Sora_400Regular",
                     fontSize: 14,
-                    color: theme.textSecondary,
+                    color: colors.textSecondary,
                     textAlign: "center",
                     marginBottom: 32,
                   }}
@@ -657,23 +583,23 @@ export default function LoginScreen() {
                 <Animated.View
                   entering={FadeInUp.delay(100).springify()}
                   style={{
-                    backgroundColor: theme.inputBg,
+                    backgroundColor: colors.inputBg,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: theme.inputBorder,
+                    borderColor: colors.borderSubtle,
                     flexDirection: "row",
                     alignItems: "center",
                     paddingHorizontal: 16,
                     marginBottom: 16,
                   }}
                 >
-                  <Mail size={20} color={theme.iconColor} />
+                  <Mail size={20} color={colors.iconMuted} />
                   <TextInput
                     testID="login-email-input"
                     value={email}
                     onChangeText={setEmail}
                     placeholder="Email address"
-                    placeholderTextColor={theme.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -681,7 +607,7 @@ export default function LoginScreen() {
                       flex: 1,
                       paddingVertical: 18,
                       paddingHorizontal: 12,
-                      color: theme.text,
+                      color: colors.text,
                       fontSize: 16,
                       fontFamily: "Sora_400Regular",
                     }}
@@ -693,29 +619,29 @@ export default function LoginScreen() {
                 <Animated.View
                   entering={FadeInUp.delay(200).springify()}
                   style={{
-                    backgroundColor: theme.inputBg,
+                    backgroundColor: colors.inputBg,
                     borderRadius: 14,
                     borderWidth: 1,
-                    borderColor: theme.inputBorder,
+                    borderColor: colors.borderSubtle,
                     flexDirection: "row",
                     alignItems: "center",
                     paddingHorizontal: 16,
                     marginBottom: 12,
                   }}
                 >
-                  <Lock size={20} color={theme.iconColor} />
+                  <Lock size={20} color={colors.iconMuted} />
                   <TextInput
                     testID="login-password-input"
                     value={password}
                     onChangeText={setPassword}
                     placeholder="Password"
-                    placeholderTextColor={theme.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     secureTextEntry={!showPassword}
                     style={{
                       flex: 1,
                       paddingVertical: 18,
                       paddingHorizontal: 12,
-                      color: theme.text,
+                      color: colors.text,
                       fontSize: 16,
                       fontFamily: "Sora_400Regular",
                     }}
@@ -726,9 +652,9 @@ export default function LoginScreen() {
                     hitSlop={10}
                   >
                     {showPassword ? (
-                      <EyeOff size={20} color={theme.iconColor} />
+                      <EyeOff size={20} color={colors.iconMuted} />
                     ) : (
-                      <Eye size={20} color={theme.iconColor} />
+                      <Eye size={20} color={colors.iconMuted} />
                     )}
                   </Pressable>
                 </Animated.View>
@@ -746,7 +672,7 @@ export default function LoginScreen() {
                       style={{
                         fontFamily: "Sora_600SemiBold",
                         fontSize: 13,
-                        color: theme.accent,
+                        color: themeColor,
                       }}
                     >
                       Forgot password?
@@ -756,45 +682,15 @@ export default function LoginScreen() {
 
                 {/* Sign In Button */}
                 <Animated.View entering={FadeInUp.delay(400).springify()}>
-                  <Pressable
+                  <Button
                     testID="login-submit-button"
+                    variant="primary"
+                    label="Sign In"
                     onPress={handleSignIn}
                     disabled={isLoading}
-                    style={{ marginBottom: 24 }}
-                  >
-                    <LinearGradient
-                      colors={
-                        isLoading
-                          ? ["#4B5563", "#374151"]
-                          : [theme.accentLight, theme.accent]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 18,
-                        borderRadius: 16,
-                        alignItems: "center",
-                        shadowColor: theme.accent,
-                        shadowOffset: { width: 0, height: 8 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 16,
-                      }}
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <Text
-                          style={{
-                            fontFamily: "Sora_600SemiBold",
-                            fontSize: 16,
-                            color: "#fff",
-                          }}
-                        >
-                          Sign In
-                        </Text>
-                      )}
-                    </LinearGradient>
-                  </Pressable>
+                    loading={isLoading}
+                    style={{ marginBottom: 24, borderRadius: RADIUS.lg }}
+                  />
                 </Animated.View>
 
                 {/* Sign Up Link */}
@@ -813,14 +709,14 @@ export default function LoginScreen() {
                       style={{
                         fontFamily: "Sora_400Regular",
                         fontSize: 14,
-                        color: theme.textSecondary,
+                        color: colors.textSecondary,
                       }}
                     >
                       Don't have an account?{" "}
                       <Text
                         style={{
                           fontFamily: "Sora_600SemiBold",
-                          color: theme.accent,
+                          color: themeColor,
                         }}
                       >
                         Sign Up

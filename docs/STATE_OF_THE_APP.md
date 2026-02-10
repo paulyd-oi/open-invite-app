@@ -2,6 +2,7 @@
 
 ## Stable
 - UI Primitives SSOT: src/ui/Button.tsx (primary/secondary/ghost/destructive/success), src/ui/Chip.tsx (neutral/muted/accent/status), src/ui/IconButton.tsx (ghost/filled), src/ui/Tile.tsx (standard/accent). All consume ThemeContext tokens exclusively. Layout tokens in src/ui/layout.ts (SPACING, RADIUS, hitSlop). P8 CTA hierarchy audit completed: all destructive actions use destructive variant, navigation actions use secondary, no dual-primary conflicts.
+- Auth/onboarding UI SSOT sweep: login.tsx and welcome.tsx migrated from per-screen custom themes (LoginTheme, OnboardingTheme) to shared ThemeContext + SSOT Button. Custom PrimaryButton/SecondaryButton/AuthButton removed from welcome.tsx, replaced with SSOT Button variants. onboarding.tsx already compliant. DEV proof: [P2_ONBOARDING_UI_SSOT] on all three screens.
 - CTA hierarchy contract: primary/success = intent actions (Create, Submit, Accept), secondary = support/navigation (Back, View, Edit), ghost = low-emphasis (Dismiss, Explore), destructive = risk (Delete, Block, Cancel Event, Decline). 8 intentional exceptions documented in FINDINGS_LOG.md.
 - Theme tokens: DARK_COLORS + LIGHT_COLORS include button* (15 tokens) and chip* (9 tokens) semantic tokens alongside surface/divider hierarchy.
 - Push notification tap deep-linking: BOTH cold start AND background taps now route deterministically via resolveNotificationRoute() SSOT

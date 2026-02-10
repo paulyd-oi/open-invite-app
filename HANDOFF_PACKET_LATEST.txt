@@ -1,100 +1,34 @@
 ================================================================================
-HANDOFF: P0 PRO STATUS REFRESH CONTRACT FIX
+HANDOFF: P2 Onboarding UI SSOT Sweep
 ================================================================================
-Commit: e45908e
-Branch: main
-Date: 2025-01-XX
 
-SUMMARY
--------
-Fixed P0 bug where Pro membership status remained "FREE" after promo code
-redemption in paywall.tsx and subscription.tsx. Both screens now use the same
-refresh contract as settings.tsx handleRefreshEntitlements.
+1) Summary
+- login.tsx: Removed custom LoginTheme, replaced with shared ThemeContext + SSOT Button
+- welcome.tsx: Removed OnboardingTheme + 3 custom buttons, replaced with SSOT Button variants
+- onboarding.tsx: Already SSOT-compliant. Proof log added only.
+- All three screens emit DEV proof: [P2_ONBOARDING_UI_SSOT]
+- TypeScript typecheck: PASS. verify_frontend.sh: PASS.
 
-ROOT CAUSE
-----------
-- paywall.tsx handleRedeemCode: Called refetch() only, not the refresh contract
-- subscription.tsx handleApplyPromoCode: Only invalidated React Query cache,
-  didn't call subscription.refresh() or refreshEntitlements()
+2) Files changed
+- src/app/login.tsx
+- src/app/welcome.tsx
+- src/app/onboarding.tsx
+- docs/STATE_OF_THE_APP.md
 
-SSOT LOGIC (SINGLE SOURCE OF TRUTH)
------------------------------------
-combined_isPro = rcIsPro || backendIsPro
+3) Key diffs
+- login.tsx: -LoginTheme/-useLoginTheme, +useTheme/Button/RADIUS, 2x gradient CTA -> Button primary
+- welcome.tsx: -OnboardingTheme/-PrimaryButton/-SecondaryButton/-AuthButton, +SSOT Button variants
+- onboarding.tsx: +1 proof log line
 
-- rcIsPro: From subscriptionContext.refresh() -> RevenueCat entitlements.active.premium
-- backendIsPro: From refreshEntitlements() -> backend /api/entitlements
+4) Runtime status
+- npx tsc --noEmit: PASS
+- bash scripts/ai/verify_frontend.sh: PASS
+- Expected: Auth screens render with ThemeContext tokens, SSOT buttons. No behavior changes.
 
-CHANGES MADE
-------------
-1. src/app/paywall.tsx - handleRedeemCode():
-   - Added useRefreshEntitlements() import and hook
-   - After API success, now calls:
-     * subscription.refresh() -> rcIsPro
-     * refreshEntitlements() -> backendIsPro
-   - Uses combined_isPro for toast logic
-   - Added [PRO_SOT] DEV logging
+5) Assumptions
+- theme.inputBorder -> colors.borderSubtle, theme.iconColor -> colors.iconMuted (closest match)
+- Decorative LinearGradients in login.tsx kept (not CTA buttons)
+- Pressable in onboarding.tsx for calendar cells/list items is correct (not CTAs)
 
-2. src/app/subscription.tsx - handleApplyPromoCode():
-   - Fixed import collision: aliased useSubscription from:
-     * useSubscription.ts as useSubscriptionData (data-only)
-     * SubscriptionContext.tsx as useSubscriptionContext (has refresh())
-   - After API success, now calls:
-     * subscriptionContext.refresh() -> rcIsPro
-     * refreshEntitlements() -> backendIsPro
-   - Uses combined_isPro for toast logic
-   - Added [PRO_SOT] DEV logging
-
-REFRESH CONTRACT (STANDARD PATTERN)
------------------------------------
-const { isPro: rcIsPro } = await subscription.refresh();
-const { isPro: backendIsPro } = await refreshEntitlements();
-const combinedIsPro = rcIsPro || backendIsPro;
-
-if (__DEV__) {
-  console.log("[PRO_SOT] rcIsPro=", rcIsPro, "backendIsPro=", backendIsPro, "combined=", combinedIsPro);
-}
-
-VERIFICATION
-------------
-✅ npm run typecheck - PASS
-✅ bash scripts/ai/verify_frontend.sh - PASS
-✅ git push - PASS
-
-FILES CHANGED
--------------
-- src/app/paywall.tsx
-- src/app/subscription.tsx
-
-NO CHANGES TO
--------------
-- src/lib/entitlements.ts (useIsPro, useRefreshEntitlements already correct)
-- src/lib/SubscriptionContext.tsx (refresh: fetchSubscription already correct)
-- src/app/settings.tsx (handleRefreshEntitlements already correct - was the model)
-- src/app/redeem-code.tsx (already calls refreshSubscription correctly)
-
-BLAST RADIUS SWEEP (PRIOR TO FIX)
----------------------------------
-- refresh patterns: 21
-- restore patterns: 37
-- subscription.refresh: 1
-- useIsPro: 5
-- promo strings: 15
-
-TEST INSTRUCTIONS
------------------
-1. Open app as non-Pro user
-2. Go to Paywall or Subscription screen
-3. Enter valid promo code
-4. Verify Pro status updates immediately (no app restart needed)
-5. Check DEV console for [PRO_SOT] logs showing refresh flow
-
-KNOWN WORKING PATHS
--------------------
-- Settings > Refresh Entitlements button (was already correct)
-- Redeem Code screen (was already correct)
-- Paywall promo code (NOW FIXED)
-- Subscription promo code (NOW FIXED)
-
-================================================================================
-END HANDOFF
-================================================================================
+6) Next step
+- Visual QA: Open login, welcome, onboarding in light + dark mode on device
