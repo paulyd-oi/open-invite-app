@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import {
   Calendar,
   Users,
@@ -1121,20 +1122,16 @@ export default function OnboardingScreen() {
                             borderColor: "#3B82F6",
                           }}
                         >
-                          <View
-                            className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                            style={{ backgroundColor: isSelected ? "#3B82F640" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)") }}
-                          >
-                            {item.imageAvailable && item.image?.uri ? (
-                              <Image
-                                source={{ uri: item.image.uri }}
-                                className="w-full h-full rounded-full"
-                              />
-                            ) : (
-                              <Text className="font-semibold" style={{ color: colors.text }}>
-                                {item.name?.[0]?.toUpperCase() ?? "?"}
-                              </Text>
-                            )}
+                          <View className="mr-3">
+                            <EntityAvatar
+                              photoUrl={item.imageAvailable && item.image?.uri ? item.image.uri : undefined}
+                              initials={item.name?.[0]?.toUpperCase() ?? "?"}
+                              size={40}
+                              borderRadius={20}
+                              backgroundColor={isSelected ? "#3B82F640" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)")}
+                              foregroundColor={colors.text}
+                              fallbackIcon="person-outline"
+                            />
                           </View>
                           <View className="flex-1">
                             <Text className="font-medium" style={{ color: colors.text }}>

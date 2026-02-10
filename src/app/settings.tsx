@@ -69,6 +69,7 @@ import { authClient } from "@/lib/authClient";
 import { updateProfileAndSync } from "@/lib/profileSync";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
 import {
@@ -1488,18 +1489,17 @@ export default function SettingsScreen() {
                 onPress={() => {
                   handleAdminUnlockTap();
                 }}
-                className="w-16 h-16 rounded-full mr-4 overflow-hidden"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
+                className="mr-4"
               >
-                {avatarSource ? (
-                  <Image source={avatarSource} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                    <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                      {getProfileInitial({ profileData, session })}
-                    </Text>
-                  </View>
-                )}
+                <EntityAvatar
+                  imageSource={avatarSource}
+                  initials={getProfileInitial({ profileData, session })}
+                  size={64}
+                  borderRadius={32}
+                  backgroundColor={avatarSource ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}20`}
+                  foregroundColor={themeColor}
+                  fallbackIcon="person-outline"
+                />
               </Pressable>
               {/* Right side: Edit Profile navigation */}
               <Pressable
@@ -1542,17 +1542,15 @@ export default function SettingsScreen() {
               {/* Profile Picture */}
               <View className="items-center mb-4">
                 <Pressable onPress={handlePickImage} className="relative">
-                  <View className="w-24 h-24 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                    {editImage ? (
-                      <Image source={{ uri: editImage }} className="w-full h-full" />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                        <Text style={{ color: themeColor }} className="text-3xl font-bold">
-                          {editName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <EntityAvatar
+                    photoUrl={editImage || undefined}
+                    initials={editName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
+                    size={96}
+                    borderRadius={48}
+                    backgroundColor={editImage ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}20`}
+                    foregroundColor={themeColor}
+                    fallbackIcon="person-outline"
+                  />
                   <View
                     className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center border-2"
                     style={{ backgroundColor: themeColor, borderColor: colors.surface }}

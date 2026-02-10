@@ -22,6 +22,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError, devLog } from "@/lib/devLog";
 import { useIsPro } from "@/lib/entitlements";
@@ -159,16 +160,17 @@ function ReferralHistoryCard({
         className="flex-row items-center p-3 rounded-xl mb-2"
         style={{ backgroundColor: colors.surface }}
       >
-        {/* Avatar or Initial */}
-        <View
-          className="w-10 h-10 rounded-full items-center justify-center mr-3"
-          style={{ backgroundColor: isSuccess ? "#10B98120" : isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          {item.referredUser?.image ? (
-            <Image source={{ uri: item.referredUser.image }} className="w-10 h-10 rounded-full" />
-          ) : (
-            <Users size={18} color={isSuccess ? "#10B981" : colors.textSecondary} />
-          )}
+        {/* Avatar — SSOT via EntityAvatar */}
+        <View className="mr-3">
+          <EntityAvatar
+            photoUrl={item.referredUser?.image}
+            initials={item.referredUser?.name?.[0]?.toUpperCase()}
+            size={40}
+            borderRadius={20}
+            backgroundColor={isSuccess ? "#10B98120" : isDark ? "#2C2C2E" : "#F3F4F6"}
+            foregroundColor={isSuccess ? "#10B981" : colors.textSecondary}
+            fallbackIcon="people-outline"
+          />
         </View>
 
         {/* Name/Email */}
