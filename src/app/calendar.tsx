@@ -1227,7 +1227,7 @@ export default function CalendarScreen() {
   }, []);
 
   // Event color overrides for user-controlled customization
-  const { colorOverrides, getOverrideColor } = useEventColorOverrides();
+  const { colorOverrides, getOverrideColor, setOverrideColor } = useEventColorOverrides();
 
   // Timeout for graceful degraded mode when loading takes too long
   const isBootLoading = bootStatus === 'loading';
@@ -1627,16 +1627,19 @@ export default function CalendarScreen() {
     },
   });
 
-  // Update event color mutation
+  // Update event color mutation — viewer-scoped, saves local + backend [P0_EVENT_COLOR_UI]
   const updateEventColorMutation = useMutation({
-    mutationFn: ({ eventId, color }: { eventId: string; color: string }) =>
-      api.put(`/api/events/${eventId}`, { color }),
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Invalidate calendar events query to refresh
-      queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
+    mutationFn: async ({ eventId, color }: { eventId: string; color: string }) => {
+      if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'calendar_color_set', { eventId, color });
+      // setOverrideColor handles: AsyncStorage + local state + query invalidation + backend API
+      await setOverrideColor(eventId, color);
     },
-    onError: () => {
+    onSuccess: (_data, variables) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'calendar_color_done', { eventId: variables.eventId, color: variables.color });
+    },
+    onError: (_err, variables) => {
+      if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'calendar_color_error', { eventId: variables.eventId, error: String(_err) });
       safeToast.error("Oops", "That didn't go through. Please try again.");
     },
   });

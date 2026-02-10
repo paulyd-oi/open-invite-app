@@ -21,6 +21,7 @@ import {
 } from "@/lib/eventColorOverrides";
 import { useSession } from "@/lib/useSession";
 import { eventKeys } from "@/lib/eventQueryKeys";
+import { api } from "@/lib/api";
 
 interface UseEventColorOverridesResult {
   colorOverrides: Record<string, string>;
@@ -82,7 +83,7 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
     [colorOverrides]
   );
 
-  // Set override for specific event
+  // Set override for specific event — saves locally + persists to backend [P0_EVENT_COLOR_UI]
   const setOverrideColor = useCallback(
     async (eventId: string, color: string): Promise<void> => {
       if (!userId) return;
@@ -102,8 +103,15 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
         queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
-          devLog("[useEventColorOverrides] Set color:", { eventId, color });
+          devLog("[P0_EVENT_COLOR_UI]", "setOverrideColor", { eventId, color });
         }
+
+        // Fire-and-forget: persist to backend for cross-device sync
+        api.put(`/api/events/${eventId}/color`, { color }).catch((err: unknown) => {
+          if (__DEV__) {
+            devWarn("[P0_EVENT_COLOR_UI]", "backend_persist_failed", { eventId, error: String(err) });
+          }
+        });
       } catch (error) {
         if (__DEV__) {
           devError("[useEventColorOverrides] Set failed:", error);
@@ -114,7 +122,7 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
     [userId, queryClient]
   );
 
-  // Reset color to default
+  // Reset color to default — removes local + tells backend [P0_EVENT_COLOR_UI]
   const resetColor = useCallback(
     async (eventId: string): Promise<void> => {
       if (!userId) return;
@@ -135,8 +143,15 @@ export function useEventColorOverrides(): UseEventColorOverridesResult {
         queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
         
         if (__DEV__) {
-          devLog("[useEventColorOverrides] Reset color:", { eventId });
+          devLog("[P0_EVENT_COLOR_UI]", "resetColor", { eventId });
         }
+
+        // Fire-and-forget: clear on backend (null color = reset)
+        api.put(`/api/events/${eventId}/color`, { color: null }).catch((err: unknown) => {
+          if (__DEV__) {
+            devWarn("[P0_EVENT_COLOR_UI]", "backend_reset_failed", { eventId, error: String(err) });
+          }
+        });
       } catch (error) {
         if (__DEV__) {
           devError("[useEventColorOverrides] Reset failed:", error);

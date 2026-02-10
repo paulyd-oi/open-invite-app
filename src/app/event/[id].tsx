@@ -3484,12 +3484,12 @@ export default function EventDetailScreen() {
                         key={color}
                         onPress={async () => {
                           if (!id) return;
-                          // Defense-in-depth: block non-host + busy [P0_EVENT_COLOR_GATE]
-                          if (!isMyEvent || isBusyBlock) {
-                            if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'blocked', { eventId: id, isMyEvent, isBusyBlock });
+                          // Busy blocks cannot be recolored [P0_EVENT_COLOR_UI]
+                          if (isBusyBlock) {
+                            if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_busy', { eventId: id, isBusyBlock });
                             return;
                           }
-                          if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'allowed', { eventId: id, isMyEvent });
+                          if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'color_pick', { eventId: id, color, isMyEvent });
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           try {
                             await setOverrideColor(id, color);
@@ -3528,9 +3528,9 @@ export default function EventDetailScreen() {
                     label="Reset to Default"
                     onPress={async () => {
                       if (!id) return;
-                      // Defense-in-depth: block non-host + busy [P0_EVENT_COLOR_GATE]
-                      if (!isMyEvent || isBusyBlock) {
-                        if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'blocked_reset', { eventId: id, isMyEvent, isBusyBlock });
+                      // Busy blocks cannot be reset [P0_EVENT_COLOR_UI]
+                      if (isBusyBlock) {
+                        if (__DEV__) devLog('[P0_EVENT_COLOR_UI]', 'blocked_reset_busy', { eventId: id, isBusyBlock });
                         return;
                       }
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
