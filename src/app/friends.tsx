@@ -399,6 +399,7 @@ const FriendListItem = React.memo(function FriendListItem({
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
   const [isExpanded, setIsExpanded] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
   
@@ -466,12 +467,10 @@ const FriendListItem = React.memo(function FriendListItem({
   const line2 = hasBio ? friend.Profile!.calendarBio!.trim() : "";
   const showsTwoLines = !!line2;
 
-  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_SHAPE')) {
-    devLog('[P0_FRIENDS_LIST_ROW_SHAPE]', {
-      hasHandle,
-      hasBio,
-      rowFlexDirection: 'row',
-      showsTwoLines,
+  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_NATIVEWIND_PROOF')) {
+    devLog('[P0_FRIENDS_LIST_ROW_NATIVEWIND_PROOF]', {
+      usedFunctionStyle: false,
+      flexDirection: 'row',
     });
   }
 
@@ -513,15 +512,18 @@ const FriendListItem = React.memo(function FriendListItem({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/friend/${friendship.id}` as any);
               }}
-              style={({ pressed }) => ({
-                flexDirection: "row" as const,
-                alignItems: "center" as const,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                backgroundColor: pressed
-                  ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")
-                  : "transparent",
-              })}
+              onPressIn={() => setPressed(true)}
+              onPressOut={() => setPressed(false)}
+              style={[
+                {
+                  flexDirection: "row" as const,
+                  alignItems: "center" as const,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  backgroundColor: "transparent",
+                },
+                pressed && { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
+              ]}
             >
               {/* Pin indicator */}
               {isPinned && (
