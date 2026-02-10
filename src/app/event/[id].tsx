@@ -845,7 +845,7 @@ export default function EventDetailScreen() {
   // [P0_ROSTER_FETCH_STATE] Dev-only: track query state transitions when sheet is open
   React.useEffect(() => {
     if (!showAttendeesModal) return;
-    console.log('[P0_ROSTER_FETCH_STATE]', {
+    if (__DEV__) console.log('[P0_ROSTER_FETCH_STATE]', {
       eventId: id,
       isLoading: attendeesQuery.isLoading,
       isFetching: attendeesQuery.isFetching,
@@ -868,7 +868,7 @@ export default function EventDetailScreen() {
           backdropOpacity: 0,
         });
       }
-      console.log('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
+      if (__DEV__) console.log('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
       attendeesQuery.refetch();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

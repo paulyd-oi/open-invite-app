@@ -10,6 +10,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
 import { ChevronLeft, ChevronRight, Search, Shield, Megaphone } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -34,6 +37,10 @@ export default function AdminConsole() {
   // P0 FIX: Prevent redirect loop with ref
   const didRedirectRef = useRef(false);
   const { isDark, colors, themeColor } = useTheme();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const authed = isAuthedForNetwork(bootStatus, session);
+  if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="adminStatus" blocked — not authed');
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -57,6 +64,7 @@ export default function AdminConsole() {
     queryKey: ["adminStatus"],
     queryFn: checkAdminStatus,
     retry: false,
+    enabled: authed,
   });
 
   // [P0_ADMIN_ROUTE] DEV proof logs for admin gating
