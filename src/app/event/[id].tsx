@@ -1574,25 +1574,30 @@ export default function EventDetailScreen() {
                 } : { elevation: 2 }),
               }}
             >
-              {/* Tappable host avatar - only when host info available */}
+              {/* Tappable host avatar — SSOT via EntityAvatar */}
               {hasHostId ? (
                 <Pressable onPress={goToHostProfile}>
-                  {fb.hostImage ? (
-                    <Image
-                      source={{ uri: fb.hostImage }}
-                      className="w-20 h-20 rounded-full mb-4"
-                      style={{ borderWidth: 2, borderColor: colors.separator }}
+                  {(() => {
+                    if (__DEV__) {
+                      devLog('[P0_MEDIA_IDENTITY]', {
+                        surface: 'EventHero',
+                        usedPrimitive: 'EntityAvatar',
+                        hasPhotoUrl: !!fb.hostImage,
+                      });
+                    }
+                    return null;
+                  })()}
+                  <View style={{ marginBottom: 16, borderWidth: 2, borderColor: colors.separator, borderRadius: 40, overflow: 'hidden' }}>
+                    <EntityAvatar
+                      photoUrl={fb.hostImage}
+                      initials={fb.hostFirst ? fb.hostFirst.charAt(0).toUpperCase() : undefined}
+                      size={80}
+                      borderRadius={40}
+                      backgroundColor={colors.background}
+                      foregroundColor={colors.textSecondary}
+                      fallbackIcon="person-outline"
                     />
-                  ) : (
-                    <View
-                      className="w-20 h-20 rounded-full items-center justify-center mb-4"
-                      style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: colors.separator }}
-                    >
-                      <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
-                        {fb.hostFirst.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
+                  </View>
                 </Pressable>
               ) : (
                 <View

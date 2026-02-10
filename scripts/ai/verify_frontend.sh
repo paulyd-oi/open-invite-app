@@ -197,4 +197,40 @@ fi
 echo ""
 echo "P17 enforcement checks PASS"
 
+# ── P0_MEDIA_IDENTITY_AVATAR_SSOT enforcement ───────────────────────
+echo ""
+echo "Running P0_MEDIA_IDENTITY_AVATAR_SSOT checks…"
+
+# Part 1 (FAIL): UserListRow files must not contain raw <Image (should use EntityAvatar)
+ULR_RAW=$(grep -rn '<Image' src/components/UserListRow.tsx 2>/dev/null || true)
+if [ -n "$ULR_RAW" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — UserListRow.tsx contains raw <Image:"
+  echo "$ULR_RAW"
+  exit 1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 1: UserListRow has no raw <Image"
+fi
+
+# Part 2 (FAIL): BottomNavigation must not contain raw <Image for profile avatar
+BN_RAW=$(grep -n '<Image' src/components/BottomNavigation.tsx 2>/dev/null || true)
+if [ -n "$BN_RAW" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — BottomNavigation.tsx contains raw <Image:"
+  echo "$BN_RAW"
+  exit 1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 2: BottomNavigation has no raw <Image"
+fi
+
+# Part 3 (WARN only): other raw <Image in src/app — informational, content images are valid
+OTHER_RAW=$(grep -rn '<Image' src/app/ --include='*.tsx' 2>/dev/null | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' || true)
+if [ -n "$OTHER_RAW" ]; then
+  OTHER_COUNT=$(echo "$OTHER_RAW" | wc -l | tr -d ' ')
+  echo "  ⚠ P0_MEDIA_IDENTITY Info: ${OTHER_COUNT} raw <Image occurrences in src/app/ (review if avatar-related)"
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 3: No raw <Image in src/app/"
+fi
+
+echo ""
+echo "P0_MEDIA_IDENTITY_AVATAR_SSOT checks PASS"
+
 echo "PASS: verify_frontend"

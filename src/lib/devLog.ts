@@ -129,6 +129,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_PROFILE_BANNER]",
   // P0 media route (upload kind + folder routing)
   "[P0_MEDIA_ROUTE]",
+  // P0 media identity SSOT enforcement proof
+  "[P0_MEDIA_IDENTITY]",
 ];
 
 /**
