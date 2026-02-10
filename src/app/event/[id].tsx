@@ -341,6 +341,8 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const editTop = Math.max(12, (insets?.top ?? 0) + 6);
   const [showMap, _setShowMap] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -1762,7 +1764,14 @@ export default function EventDetailScreen() {
               {/* Title overlay */}
               <View style={{ position: "absolute", bottom: 16, left: 16, right: 16 }}>
                 <Text
-                  style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}
+                  style={{
+                    color: "#fff",
+                    fontSize: 22,
+                    fontWeight: "700",
+                    textShadowColor: "rgba(0,0,0,0.35)",
+                    textShadowOffset: { width: 0, height: 2 },
+                    textShadowRadius: 8,
+                  }}
                   numberOfLines={2}
                 >
                   {event.emoji} {event.title}
@@ -1774,7 +1783,7 @@ export default function EventDetailScreen() {
                   onPress={() => setShowPhotoSheet(true)}
                   style={{
                     position: "absolute",
-                    top: 12,
+                    top: editTop,
                     right: 12,
                     borderRadius: 20,
                     padding: 8,
