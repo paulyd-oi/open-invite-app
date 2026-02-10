@@ -55,6 +55,7 @@ import {
   RefreshCw,
   Camera,
   Lock,
+  Info,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -448,10 +449,6 @@ function MiniCalendar({
           <Text style={{ fontSize: 12, fontWeight: "600", marginBottom: 2, color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
             {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times (most people available)"}
           </Text>
-          {/* Disclaimer — always visible */}
-          <Text style={{ fontSize: 10, lineHeight: 14, marginBottom: 6, color: colors.textTertiary }}>
-            Based on events in Open Invite. If someone hasn't added their plans yet, their schedule may look more open than it really is.
-          </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {scheduleResult.topSlots.map((slot, i) => {
               const slotDate = new Date(slot.start);
@@ -501,10 +498,6 @@ function MiniCalendar({
           {/* Availability summary — projection of bestSlot */}
           <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary }}>
             {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} available
-          </Text>
-          {/* Nudge CTA */}
-          <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary, fontStyle: "italic" }}>
-            Encourage your circle to add events for more accurate times.
           </Text>
 
           {/* Slot Availability Bottom Sheet */}
@@ -1223,6 +1216,7 @@ export default function CircleScreen() {
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [showNotifySheet, setShowNotifySheet] = useState(false);
   const [showMembersSheet, setShowMembersSheet] = useState(false);
+  const [showInfoSheet, setShowInfoSheet] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<string | null>(null);
 
@@ -2482,7 +2476,7 @@ export default function CircleScreen() {
         </Pressable>
 
         {/* Create Event Button */}
-        <View className="items-center">
+        <View className="items-center mr-3">
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -2495,6 +2489,24 @@ export default function CircleScreen() {
           </Pressable>
           <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
             Create
+          </Text>
+        </View>
+
+        {/* Info Button */}
+        <View className="items-center">
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowInfoSheet(true);
+              if (__DEV__) devLog("[P0_CIRCLE_INFO]", "opened");
+            }}
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+          >
+            <Info size={18} color={colors.textSecondary} />
+          </Pressable>
+          <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
+            Info
           </Text>
         </View>
       </View>
@@ -2670,56 +2682,60 @@ export default function CircleScreen() {
           </Pressable>
         )}
 
-        {/* [P1_POLL_UI] Poll Strip */}
-        {polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
-          <Pressable
-            key={poll.id}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActivePollIdx(pIdx);
-              setShowNotifySheet(false);
-              setShowPlanLockSheet(false);
-              setShowPollSheet(true);
-              if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
-            }}
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderBottomWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {poll.options.map((opt) => (
-                <Pressable
-                  key={opt.id}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    Haptics.selectionAsync();
-                    voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
-                  }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 14,
-                    borderWidth: 1.5,
-                    borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
-                    backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
-                    gap: 4,
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
-                  <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
-                </Pressable>
-              ))}
-            </View>
-          </Pressable>
-        ))}
+        {/* [P1_POLL_UI] Poll Strip — [P0_POLL_HIDDEN] gated off */}
+        {(() => {
+          const POLLS_ENABLED = false;
+          if (!POLLS_ENABLED) return null;
+          return polls && polls.length > 0 && lifecycleState !== "finalized" && lifecycleState !== "completed" && polls.map((poll, pIdx) => (
+            <Pressable
+              key={poll.id}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActivePollIdx(pIdx);
+                setShowNotifySheet(false);
+                setShowPlanLockSheet(false);
+                setShowPollSheet(true);
+                if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
+              }}
+              style={{
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                borderBottomWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: isDark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.04)",
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textSecondary, marginBottom: 3 }}>{"\uD83D\uDCCA"} Poll</Text>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6 }} numberOfLines={1}>{poll.question}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {poll.options.map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Haptics.selectionAsync();
+                      voteMutation.mutate({ pollId: poll.id, optionId: opt.id });
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 14,
+                      borderWidth: 1.5,
+                      borderColor: opt.votedByMe ? themeColor : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"),
+                      backgroundColor: opt.votedByMe ? (themeColor + "18") : "transparent",
+                      gap: 4,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: opt.votedByMe ? "600" : "400", color: opt.votedByMe ? themeColor : colors.text }}>{opt.label}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: opt.votedByMe ? themeColor : colors.textTertiary }}>({opt.count})</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </Pressable>
+          ));
+        })()}
 
         {/* Messages List */}
         <FlatList
@@ -3772,6 +3788,30 @@ export default function CircleScreen() {
             </View>
           );
         })()}
+      </BottomSheet>
+
+      {/* [P0_CIRCLE_INFO] Info Sheet */}
+      <BottomSheet
+        visible={showInfoSheet}
+        onClose={() => {
+          setShowInfoSheet(false);
+          if (__DEV__) devLog("[P0_CIRCLE_INFO]", "closed");
+        }}
+        heightPct={0}
+        maxHeightPct={0.5}
+        backdropOpacity={0.5}
+        title="Everyone's Free"
+      >
+        <ScrollView style={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          <Text style={{ fontSize: 14, lineHeight: 20, color: colors.textSecondary }}>
+            Based on events in Open Invite. If someone hasn't added their plans yet, their schedule may look more open than it really is. Encourage your circle to add events for more accurate times.
+          </Text>
+          {__DEV__ && (
+            <Text style={{ fontSize: 10, marginTop: 12, color: colors.textTertiary, fontStyle: "italic" }}>
+              [P0_FREE_INFO_COPY]
+            </Text>
+          )}
+        </ScrollView>
       </BottomSheet>
 
       {/* Group Settings (uses shared BottomSheet) */}
