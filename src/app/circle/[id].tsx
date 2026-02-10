@@ -3824,7 +3824,7 @@ export default function CircleScreen() {
         </ScrollView>
       </BottomSheet>
 
-      {/* Group Settings (uses shared BottomSheet) */}
+      {/* Circle Settings (uses shared BottomSheet) */}
       <BottomSheet
         visible={showGroupSettings}
         onClose={() => setShowGroupSettings(false)}
@@ -3836,7 +3836,7 @@ export default function CircleScreen() {
               {/* Header */}
               <View style={{ paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                 <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
-                  Group Settings
+                  Circle Settings
                 </Text>
               </View>
 
@@ -3845,7 +3845,7 @@ export default function CircleScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
-              {/* Group Info */}
+              {/* Circle Info */}
               <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", alignItems: "center" }}>
                 <View
                   style={{
@@ -3891,7 +3891,7 @@ export default function CircleScreen() {
                     <TextInput
                       value={descriptionText}
                       onChangeText={(text) => setDescriptionText(text.slice(0, 160))}
-                      placeholder="Add a group description..."
+                      placeholder="Add a circle description..."
                       placeholderTextColor={colors.textTertiary}
                       multiline
                       maxLength={160}
@@ -3960,7 +3960,7 @@ export default function CircleScreen() {
                     <View style={{ flex: 1, marginLeft: 16 }}>
                       <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>Circle Photo</Text>
                       <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {circle?.photoUrl ? "Change or remove photo" : "Add a group photo"}
+                        {circle?.photoUrl ? "Change or remove photo" : "Add a circle photo"}
                       </Text>
                     </View>
                     <ChevronRight size={20} color={colors.textTertiary} />
@@ -4114,8 +4114,13 @@ export default function CircleScreen() {
         <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
           <Pressable
             onPress={async () => {
+              if (uploadingPhoto) return;
               setShowPhotoSheet(false);
+              // Wait for sheet dismiss animation to complete before opening picker
+              // Prevents iOS gesture/touch blocker overlay freeze
+              await new Promise(r => setTimeout(r, 300));
               try {
+                if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_START]');
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== "granted") {
                   safeToast.warning("Permission Required", "Please allow access to your photos.");
@@ -4127,7 +4132,11 @@ export default function CircleScreen() {
                   aspect: [1, 1],
                   quality: 0.8,
                 });
-                if (result.canceled || !result.assets?.[0]) return;
+                if (result.canceled || !result.assets?.[0]) {
+                  if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_CANCEL]');
+                  return;
+                }
+                if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
 
                 setUploadingPhoto(true);
                 const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
