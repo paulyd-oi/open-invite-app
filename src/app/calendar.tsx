@@ -34,7 +34,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
 
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, HEADER_TITLE_SIZE } from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { safeToast } from "@/lib/safeToast";
@@ -2200,10 +2200,10 @@ export default function CalendarScreen() {
               }
               className="flex-row items-center"
             >
-              <Text className="text-3xl font-sora-bold" style={{ color: themeColor }}>
+              <Text className="font-sora-bold" style={{ color: themeColor, fontSize: HEADER_TITLE_SIZE }}>
                 {MONTHS[currentMonth]}
               </Text>
-              <Text className="text-3xl font-sora-bold ml-2" style={{ color: colors.text }}>
+              <Text className="font-sora-bold ml-2" style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}>
                 {currentYear}
               </Text>
             </Animated.View>

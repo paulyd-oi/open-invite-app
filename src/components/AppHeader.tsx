@@ -19,6 +19,8 @@ const HEADER_PX = 20;       // paddingHorizontal
 const HEADER_PT = 8;        // paddingTop (below safe-area, provided by parent)
 const HEADER_PB = 16;       // paddingBottom
 const HEADER_MIN_H = 44;    // minHeight for title row
+/** SSOT title font size (reduced from 30 → 28 for visual balance on long titles) */
+export const HEADER_TITLE_SIZE = 28;
 /** Minimum width reserved for the right slot so title doesn't shift across tabs */
 const RIGHT_SLOT_MIN_W = 48;
 
@@ -64,6 +66,7 @@ export function AppHeader({
       devLog(`[P2_HEADER_SAFEAREA] ${title} insetTop=${insets.top} paddingTop=${effectivePaddingTop}`);
       devLog(`[P2_HEADER_SAFEAREA_MODE] ${title} includeSafeAreaTop=${includeSafeAreaTop} insetTop=${insets.top} effectivePaddingTop=${effectivePaddingTop}`);
       devLog(`[P2_HEADER_RIGHTSLOT] ${title} rightSlotMinWidth=${RIGHT_SLOT_MIN_W}`);
+      devLog(`[P2_HEADER_TYPE_SCALE] AppHeader title font scaled to ${HEADER_TITLE_SIZE}`);
     }
   }, [title, variant, insets.top, includeSafeAreaTop, effectivePaddingTop]);
 
@@ -88,8 +91,8 @@ export function AppHeader({
         <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
           {titleContent ?? (
             <Text
-              className="text-3xl font-sora-bold"
-              style={{ color: colors.text }}
+              className="font-sora-bold"
+              style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}
             >
               {title}
             </Text>
