@@ -155,9 +155,27 @@ export async function uploadByKind(
     const profile = COMPRESSION_PROFILES[kind];
     const entityId = opts?.eventId ?? opts?.circleId ?? null;
 
+    if (__DEV__) {
+      devLog('[P0_BANNER_UPLOAD]', 'uploadByKind_entry', {
+        kind,
+        uriPrefix: uri?.slice(0, 60),
+        entityId,
+        compressionProfile: { maxW: profile.maxWidth, maxH: profile.maxHeight, q: profile.quality, maxBytes: profile.maxBytes },
+      });
+    }
+
     // --- A. Compress -------------------------------------------------------
     const origInfo = await FileSystem.getInfoAsync(uri);
     const originalBytes = (origInfo as any).size ?? 0;
+    const origExists = (origInfo as any).exists ?? false;
+
+    if (__DEV__) {
+      devLog('[P0_BANNER_UPLOAD]', 'original_file', { exists: origExists, bytes: originalBytes, uriPrefix: uri?.slice(0, 60) });
+    }
+
+    if (!origExists) {
+      throw new Error(`Source image does not exist at URI: ${uri?.slice(0, 80)}`);
+    }
 
     let quality = profile.quality;
     let compressedUri = await compressImage(uri, {
@@ -188,11 +206,13 @@ export async function uploadByKind(
     const finalBytes = (finalInfo as any).size ?? 0;
 
     if (__DEV__) {
-      devLog("[P0_MEDIA_ROUTE]", {
-        action: "compression_result",
+      devLog('[P0_BANNER_UPLOAD]', 'compression_result', {
         kind,
         originalBytes,
         finalBytes,
+        finalExists: finalInfo.exists,
+        compressedUriPrefix: compressedUri?.slice(0, 60),
+        qualityUsed: quality,
       });
     }
 
@@ -202,24 +222,43 @@ export async function uploadByKind(
 
     // --- B. Request signed params from backend -----------------------------
     if (__DEV__) {
-      devLog("[P0_MEDIA_ROUTE]", {
-        action: "sign_request",
-        kind,
-        entityId,
-      });
+      devLog('[P0_BANNER_UPLOAD]', 'sign_request', { kind, entityId, endpoint: API_ROUTES.uploads.sign });
     }
 
     const signBody: Record<string, unknown> = { kind };
     if (opts?.eventId) signBody.eventId = opts.eventId;
     if (opts?.circleId) signBody.circleId = opts.circleId;
 
-    const signed = await api.post<SignedUploadParams>(
-      API_ROUTES.uploads.sign,
-      signBody,
-    );
+    let signed: SignedUploadParams | null = null;
+    try {
+      signed = await api.post<SignedUploadParams>(
+        API_ROUTES.uploads.sign,
+        signBody,
+      );
+    } catch (signErr: any) {
+      if (__DEV__) {
+        devError('[P0_BANNER_UPLOAD]', 'sign_FAILED', {
+          status: signErr?.status,
+          message: signErr?.message,
+          data: signErr?.data ? JSON.stringify(signErr.data).slice(0, 200) : 'none',
+        });
+      }
+      throw new Error(`Upload sign failed (${signErr?.status || 'network'}): ${signErr?.message || 'unknown'}`);
+    }
+
+    if (__DEV__) {
+      devLog('[P0_BANNER_UPLOAD]', 'sign_response', {
+        hasCloudName: !!signed?.cloudName,
+        hasSignature: !!signed?.signature,
+        hasApiKey: !!signed?.apiKey,
+        folder: signed?.folder,
+        publicId: signed?.publicId,
+        overwrite: signed?.overwrite,
+      });
+    }
 
     if (!signed?.cloudName || !signed?.signature || !signed?.apiKey) {
-      throw new Error("Backend sign response missing required fields.");
+      throw new Error(`Backend sign response missing required fields (cloudName=${!!signed?.cloudName}, sig=${!!signed?.signature}, key=${!!signed?.apiKey}).`);
     }
 
     // --- C. Upload to Cloudinary (signed) ----------------------------------
@@ -238,18 +277,36 @@ export async function uploadByKind(
     if (signed.invalidate) formData.append("invalidate", "true");
 
     if (__DEV__) {
-      devLog("[P0_MEDIA_ROUTE]", {
-        action: "upload_cloudinary",
+      devLog('[P0_BANNER_UPLOAD]', 'cloudinary_request', {
         kind,
         publicId: signed.publicId,
+        folder: signed.folder,
+        fileName: profile.filename,
+        mimeType: 'image/jpeg',
+        compressedUriPrefix: compressedUri?.slice(0, 60),
       });
     }
 
     const endpoint = `https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`;
-    const res = await fetch(endpoint, { method: "POST", body: formData });
+    let res: Response;
+    try {
+      res = await fetch(endpoint, { method: "POST", body: formData });
+    } catch (fetchErr: any) {
+      if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'cloudinary_network_FAILED', { error: fetchErr?.message });
+      throw new Error(`Cloudinary network error: ${fetchErr?.message || 'fetch failed'}`);
+    }
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { json = null; }
+
+    if (__DEV__) {
+      devLog('[P0_BANNER_UPLOAD]', 'cloudinary_response', {
+        status: res.status,
+        ok: res.ok,
+        hasSecureUrl: !!json?.secure_url,
+        errorSnippet: !res.ok ? (json?.error?.message || text?.slice(0, 120)) : undefined,
+      });
+    }
 
     if (!res.ok) {
       const msg =
@@ -257,25 +314,22 @@ export async function uploadByKind(
         text?.substring(0, 200) ||
         "Upload failed";
       if (__DEV__) {
-        devError("[imageUpload] Cloudinary upload failed:", res.status, msg);
-        if (json) devLog("[imageUpload] Cloudinary error payload:", json);
+        devError('[P0_BANNER_UPLOAD]', 'cloudinary_upload_FAILED', { status: res.status, msg });
+        if (json) devLog('[P0_BANNER_UPLOAD]', 'cloudinary_error_payload', json);
       }
-      throw new Error(msg);
+      throw new Error(`Cloudinary upload failed (${res.status}): ${msg}`);
     }
 
     const secureUrl = json?.secure_url as string | undefined;
     const publicId = json?.public_id as string | undefined;
     if (!secureUrl || secureUrl.length === 0) {
-      if (__DEV__) devError("[imageUpload] Missing secure_url:", json);
+      if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'missing_secure_url', json);
       throw new Error("Upload succeeded but no URL was returned.");
     }
 
     // --- D. Notify backend complete ----------------------------------------
     if (__DEV__) {
-      devLog("[P0_MEDIA_ROUTE]", {
-        action: "complete_request",
-        kind,
-      });
+      devLog('[P0_BANNER_UPLOAD]', 'complete_request', { kind, secureUrlPrefix: secureUrl?.slice(0, 50) });
     }
 
     const completeBody: UploadCompleteBody = {
@@ -286,11 +340,22 @@ export async function uploadByKind(
     if (opts?.eventId) completeBody.eventId = opts.eventId;
     if (opts?.circleId) completeBody.circleId = opts.circleId;
 
-    await api.post(API_ROUTES.uploads.complete, completeBody);
+    try {
+      await api.post(API_ROUTES.uploads.complete, completeBody);
+    } catch (completeErr: any) {
+      if (__DEV__) {
+        devError('[P0_BANNER_UPLOAD]', 'complete_FAILED', {
+          status: completeErr?.status,
+          message: completeErr?.message,
+        });
+      }
+      throw new Error(`Upload complete failed (${completeErr?.status || 'network'}): ${completeErr?.message || 'unknown'}`);
+    }
 
+    if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_pipeline_SUCCESS', { kind, url: secureUrl?.slice(0, 60) });
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
-    if (__DEV__) devError("[imageUpload] Upload error:", error);
+    if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'upload_pipeline_ERROR', { kind, message: error?.message, status: error?.status });
     throw new Error(error?.message || "Failed to upload image");
   }
 }

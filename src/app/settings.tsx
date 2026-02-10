@@ -1179,7 +1179,18 @@ export default function SettingsScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setEditBanner(result.assets[0].uri);
+        const asset = result.assets[0];
+        if (__DEV__) {
+          devLog('[P0_BANNER_UPLOAD]', 'picker_result', {
+            uri: asset.uri?.slice(0, 80),
+            width: asset.width,
+            height: asset.height,
+            fileSize: (asset as any).fileSize ?? 'unknown',
+            fileName: (asset as any).fileName ?? 'missing',
+            mimeType: (asset as any).mimeType ?? (asset as any).type ?? 'missing',
+          });
+        }
+        setEditBanner(asset.uri);
       }
     } catch (error) {
       logError("Pick Banner", error);
@@ -1238,15 +1249,21 @@ export default function SettingsScreen() {
         if (editBanner === "") {
           // User wants to remove the banner
           updates.bannerPhotoUrl = null;
-          if (__DEV__) devLog("[P1_PROFILE_BANNER] banner_remove_success");
+          if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'banner_remove');
         } else if (editBanner.startsWith("file://")) {
           try {
-            if (__DEV__) devLog("[EditProfile] Uploading banner photo...");
+            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_start', { uri: editBanner.slice(0, 80) });
             const bannerResponse = await uploadBannerPhoto(editBanner);
             updates.bannerPhotoUrl = bannerResponse.url;
-          } catch (bannerError) {
+            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_success', { url: bannerResponse.url?.slice(0, 60) });
+          } catch (bannerError: any) {
             logError("Banner Photo Upload", bannerError);
-            safeToast.error("Upload Failed", "Failed to upload banner photo. Please try again.");
+            const errMsg = bannerError?.message || String(bannerError);
+            if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_FAILED', { error: errMsg, status: bannerError?.status });
+            safeToast.error(
+              "Upload Failed",
+              __DEV__ ? `Banner upload error: ${errMsg}` : "Failed to upload banner photo. Please try again.",
+            );
             return;
           }
         } else {
