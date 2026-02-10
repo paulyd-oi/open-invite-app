@@ -15,7 +15,7 @@ export const API_ROUTES = {
     getSession: "/api/auth/get-session",
   },
 
-  /** Backend-signed upload flow (not yet deployed — stubs for forward compat). */
+  /** Backend-signed upload flow. */
   uploads: {
     sign: "/api/uploads/sign",
     complete: "/api/uploads/complete",

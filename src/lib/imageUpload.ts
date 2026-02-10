@@ -1,27 +1,32 @@
 /**
- * Image Upload Utility (Cloudinary Direct Upload)
+ * Image Upload Utility (Backend-Signed Cloudinary Upload)
  *
  * Single entry-point: `uploadByKind(uri, kind, opts?)`.
  * Legacy wrappers (`uploadImage`, `uploadCirclePhoto`, etc.) delegate here.
  *
- * Folder routing:
- * - Currently uses _LEGACY_FOLDER_BY_KIND (client-side SSOT).
- * - Once backend /api/uploads/sign is deployed the backend will own folder
- *   assignment and _LEGACY_FOLDER_BY_KIND becomes dead code.
+ * Upload flow (SSOT):
+ *   1. Compress locally per COMPRESSION_PROFILES[kind]
+ *   2. POST /api/uploads/sign  → backend returns signed params + folder + publicId
+ *   3. POST to Cloudinary with signed params (NO unsigned preset, NO client folder)
+ *   4. POST /api/uploads/complete → backend confirms + stores URL
  *
- * Compression is kind-aware via COMPRESSION_PROFILES.
+ * The frontend NEVER decides Cloudinary folder or public_id.
+ * The backend owns folder assignment, overwrite, and invalidation semantics.
  */
 
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
 import { devLog, devWarn, devError } from "./devLog";
+import { api } from "./api";
+import { API_ROUTES } from "./apiRoutes";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /**
- * SSOT upload kind — determines compression profile + Cloudinary folder.
+ * SSOT upload kind — determines compression profile.
+ * Backend uses this to decide folder + public_id + overwrite semantics.
  */
 export type UploadKind =
   | "avatar"
@@ -51,28 +56,33 @@ export interface UploadByKindOptions {
   circleId?: string;
 }
 
+/** Shape returned by POST /api/uploads/sign. */
+interface SignedUploadParams {
+  timestamp: number;
+  signature: string;
+  apiKey: string;
+  folder: string;
+  publicId: string;
+  overwrite: boolean;
+  invalidate: boolean;
+  cloudName: string;
+}
+
+/** Shape sent to POST /api/uploads/complete. */
+interface UploadCompleteBody {
+  kind: UploadKind;
+  secureUrl: string;
+  publicId: string;
+  eventId?: string;
+  circleId?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 /** Maximum file size: 5 MB */
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-
-const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
-function assertCloudinaryConfigured() {
-  if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME.length === 0) {
-    throw new Error(
-      "Cloudinary cloud name not configured (EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME)."
-    );
-  }
-  if (!CLOUDINARY_UPLOAD_PRESET || CLOUDINARY_UPLOAD_PRESET.length === 0) {
-    throw new Error(
-      "Cloudinary upload preset not configured (EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET)."
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Compression profiles (SSOT per kind)
@@ -94,22 +104,6 @@ const COMPRESSION_PROFILES: Record<UploadKind, CompressionProfile> = {
   event_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_500_000, filename: "event_photo.jpg" },
   circle_photo: { maxWidth: 512, maxHeight: 512, quality: 0.75, maxBytes: 1_000_000, filename: "circle_photo.jpg" },
   event_memory_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_500_000, filename: "memory_photo.jpg" },
-};
-
-// ---------------------------------------------------------------------------
-// Folder routing (legacy — backend sign will replace)
-// ---------------------------------------------------------------------------
-
-/**
- * Client-side folder map. Once backend `/api/uploads/sign` is live the
- * backend response will supply the folder and this map becomes dead code.
- */
-const _LEGACY_FOLDER_BY_KIND: Partial<Record<UploadKind, string>> = {
-  circle_photo: "openinvite/circle_photos",
-  event_photo: "openinvite/event_photos",
-  banner: "openinvite/banner_photos",
-  event_memory_photo: "openinvite/event_photos",
-  // avatar: undefined → preset default
 };
 
 // ---------------------------------------------------------------------------
@@ -136,15 +130,21 @@ export async function compressImage(
 }
 
 // ---------------------------------------------------------------------------
-// Core upload — uploadByKind
+// Core upload — uploadByKind (backend-signed SSOT)
 // ---------------------------------------------------------------------------
 
 /**
- * Unified upload entry-point. Compresses per `kind`, uploads to Cloudinary.
+ * Unified upload entry-point.
+ *
+ * Flow:
+ *   A. Compress per COMPRESSION_PROFILES[kind]
+ *   B. POST /api/uploads/sign → signed params
+ *   C. POST to Cloudinary with signed params
+ *   D. POST /api/uploads/complete → backend stores URL
  *
  * @param uri   Local file:// URI
- * @param kind  Upload kind (determines compression + folder)
- * @param opts  Optional entity IDs (for future backend sign flow)
+ * @param kind  Upload kind (determines compression; backend decides folder)
+ * @param opts  Optional entity IDs forwarded to backend sign + complete
  */
 export async function uploadByKind(
   uri: string,
@@ -152,11 +152,10 @@ export async function uploadByKind(
   opts?: UploadByKindOptions,
 ): Promise<UploadResponse> {
   try {
-    assertCloudinaryConfigured();
-
     const profile = COMPRESSION_PROFILES[kind];
+    const entityId = opts?.eventId ?? opts?.circleId ?? null;
 
-    // --- 1. Compress -------------------------------------------------------
+    // --- A. Compress -------------------------------------------------------
     const origInfo = await FileSystem.getInfoAsync(uri);
     const originalBytes = (origInfo as any).size ?? 0;
 
@@ -183,7 +182,7 @@ export async function uploadByKind(
       }
     }
 
-    // --- 2. Size guard -----------------------------------------------------
+    // Size guard
     const finalInfo = await FileSystem.getInfoAsync(compressedUri);
     if (!finalInfo.exists) throw new Error("Image file does not exist");
     const finalBytes = (finalInfo as any).size ?? 0;
@@ -192,31 +191,52 @@ export async function uploadByKind(
       throw new Error(`${kind} photo is too large after compression (max 5 MB).`);
     }
 
-    // --- 3. Proof log ------------------------------------------------------
+    // --- B. Request signed params from backend -----------------------------
     if (__DEV__) {
       devLog("[P0_MEDIA_ROUTE]", {
-        action: "upload_start",
+        action: "sign_request",
         kind,
-        entityId: opts?.eventId ?? opts?.circleId ?? null,
-        sizeBefore: originalBytes,
-        sizeAfter: finalBytes,
-        quality,
+        entityId,
       });
     }
 
-    // --- 4. Build FormData -------------------------------------------------
-    const folder = _LEGACY_FOLDER_BY_KIND[kind]; // undefined for avatar
+    const signBody: Record<string, unknown> = { kind };
+    if (opts?.eventId) signBody.eventId = opts.eventId;
+    if (opts?.circleId) signBody.circleId = opts.circleId;
+
+    const signed = await api.post<SignedUploadParams>(
+      API_ROUTES.uploads.sign,
+      signBody,
+    );
+
+    if (!signed?.cloudName || !signed?.signature || !signed?.apiKey) {
+      throw new Error("Backend sign response missing required fields.");
+    }
+
+    // --- C. Upload to Cloudinary (signed) ----------------------------------
     const formData = new FormData();
     formData.append("file", {
       uri: compressedUri,
       type: "image/jpeg",
       name: profile.filename,
     } as any);
-    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
-    if (folder) formData.append("folder", folder);
+    formData.append("api_key", signed.apiKey);
+    formData.append("timestamp", String(signed.timestamp));
+    formData.append("signature", signed.signature);
+    formData.append("folder", signed.folder);
+    formData.append("public_id", signed.publicId);
+    if (signed.overwrite) formData.append("overwrite", "true");
+    if (signed.invalidate) formData.append("invalidate", "true");
 
-    // --- 5. POST to Cloudinary ---------------------------------------------
-    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    if (__DEV__) {
+      devLog("[P0_MEDIA_ROUTE]", {
+        action: "upload_cloudinary",
+        kind,
+        publicId: signed.publicId,
+      });
+    }
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`;
     const res = await fetch(endpoint, { method: "POST", body: formData });
     const text = await res.text();
     let json: any = null;
@@ -241,14 +261,23 @@ export async function uploadByKind(
       throw new Error("Upload succeeded but no URL was returned.");
     }
 
+    // --- D. Notify backend complete ----------------------------------------
     if (__DEV__) {
       devLog("[P0_MEDIA_ROUTE]", {
-        action: "upload_success",
+        action: "complete_request",
         kind,
-        entityId: opts?.eventId ?? opts?.circleId ?? null,
-        hasUrl: true,
       });
     }
+
+    const completeBody: UploadCompleteBody = {
+      kind,
+      secureUrl,
+      publicId: publicId ?? signed.publicId,
+    };
+    if (opts?.eventId) completeBody.eventId = opts.eventId;
+    if (opts?.circleId) completeBody.circleId = opts.circleId;
+
+    await api.post(API_ROUTES.uploads.complete, completeBody);
 
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
@@ -264,38 +293,9 @@ export async function uploadByKind(
 /** Avatar / generic upload. Delegates to uploadByKind("avatar"). */
 export async function uploadImage(
   uri: string,
-  compress: boolean = true,
+  _compress: boolean = true,
 ): Promise<UploadResponse> {
-  if (!compress) {
-    // Rare path: skip compression entirely, direct upload with no folder
-    try {
-      assertCloudinaryConfigured();
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) throw new Error("Image file does not exist");
-      const fileSize = (fileInfo as any).size;
-      if (typeof fileSize === "number" && fileSize > MAX_UPLOAD_BYTES) {
-        throw new Error("Image is too large (max 5 MB).");
-      }
-      const formData = new FormData();
-      formData.append("file", { uri, type: "image/jpeg", name: "upload.jpg" } as any);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
-      const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-      const res = await fetch(endpoint, { method: "POST", body: formData });
-      const text = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(text); } catch { json = null; }
-      if (!res.ok) {
-        const msg = (json && (json.error?.message || json.error)) || text?.substring(0, 200) || "Upload failed";
-        throw new Error(msg);
-      }
-      const secureUrl = json?.secure_url as string | undefined;
-      if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
-      return { success: true, url: secureUrl, publicId: json?.public_id };
-    } catch (error: any) {
-      if (__DEV__) devError("[imageUpload] Upload error:", error);
-      throw new Error(error?.message || "Failed to upload image");
-    }
-  }
+  // compress param is now a no-op; uploadByKind always compresses per profile.
   return uploadByKind(uri, "avatar");
 }
 
