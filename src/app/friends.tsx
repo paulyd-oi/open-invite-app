@@ -457,6 +457,8 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
+  const [rowPressed, setRowPressed] = useState(false);
+
   // Username-first layout: @handle as primary, bio as secondary
   const listHandle = friend.Profile?.handle
     ? `@${friend.Profile.handle}`
@@ -496,7 +498,7 @@ const FriendListItem = React.memo(function FriendListItem({
             style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
           >
             {/* Main row */}
-            <View className="flex-row items-center p-3">
+            <View className="flex-row items-center" style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
               {/* Pin indicator */}
               {isPinned && (
                 <View className="mr-2">
@@ -504,13 +506,27 @@ const FriendListItem = React.memo(function FriendListItem({
                 </View>
               )}
               
-              {/* Avatar - taps to profile */}
+              {/* Avatar + text — taps to profile */}
               <Pressable
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/friend/${friendship.id}` as any);
                 }}
-                className="flex-row items-center flex-1"
+                onPressIn={() => setRowPressed(true)}
+                onPressOut={() => setRowPressed(false)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  flex: 1,
+                  borderRadius: 10,
+                  marginHorizontal: -4,
+                  paddingHorizontal: 4,
+                  paddingVertical: 2,
+                  backgroundColor: rowPressed
+                    ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")
+                    : "transparent",
+                  opacity: rowPressed ? 0.85 : 1,
+                }}
               >
                 <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
                   {friend.image ? (
@@ -523,16 +539,16 @@ const FriendListItem = React.memo(function FriendListItem({
                     </View>
                   )}
                 </View>
-                <View className="flex-1">
+                <View className="flex-1" style={{ justifyContent: listBio ? "flex-start" : "center" }}>
                   <Text
-                    style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+                    style={{ fontSize: 15, fontWeight: "600", color: colors.text, letterSpacing: -0.2 }}
                     numberOfLines={1}
                   >
                     {listHandle}
                   </Text>
                   {listBio ? (
                     <Text
-                      style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}
+                      style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
