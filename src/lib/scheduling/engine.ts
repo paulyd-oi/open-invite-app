@@ -168,7 +168,7 @@ export function computeSchedule(
     return new Date(a.start).getTime() - new Date(b.start).getTime();
   });
 
-  const topSlots = slots.slice(0, MAX_TOP_SLOTS);
+  const topSlots = slots.slice(0, input.maxTopSlots ?? MAX_TOP_SLOTS);
   const bestSlot = topSlots[0];
   const hasPerfectOverlap = bestSlot.score === 1;
 

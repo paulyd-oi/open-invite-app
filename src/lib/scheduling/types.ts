@@ -28,6 +28,8 @@ export interface SchedulingComputeInput {
   slotDurationMinutes?: number;
   /** Optional quorum: minimum people needed for a slot to count. */
   quorumCount?: number;
+  /** Max top-ranked slots to return (default 3). */
+  maxTopSlots?: number;
 }
 
 /** A single ranked availability slot. */

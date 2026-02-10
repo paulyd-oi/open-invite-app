@@ -86,6 +86,7 @@ import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import {
   type SuggestedHoursPreset,
   getSuggestedHoursForPreset,
+  filterSlotsToSuggestedHours,
   rankSlotsForPreset,
   loadSuggestedHoursPreset,
   saveSuggestedHoursPreset,
@@ -293,6 +294,7 @@ function MiniCalendar({
       rangeEnd,
       intervalMinutes: 30,
       slotDurationMinutes: 60,
+      maxTopSlots: 1000, // Return all slots so per-day dot indicators can be derived
     });
   }, [memberEvents, members]);
 
@@ -330,6 +332,18 @@ function MiniCalendar({
   }, [dateScheduleResult, bestTimesDate, quietPreset]);
   const quietBestSlot = quietSlots[0] ?? null;
   const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
+
+  // Per-day dot indicators: days that have ≥1 slot within suggested hours
+  const daysWithSuggestedSlots = useMemo(() => {
+    const set = new Set<string>();
+    if (!scheduleResult) return set;
+    const window = getSuggestedHoursForPreset(quietPreset);
+    const filtered = filterSlotsToSuggestedHours(scheduleResult.topSlots, window);
+    for (const slot of filtered) {
+      set.add(new Date(slot.start).toDateString());
+    }
+    return set;
+  }, [scheduleResult, quietPreset]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -544,6 +558,7 @@ function MiniCalendar({
               const isSelected = d.toDateString() === bestTimesDate.toDateString();
               const dayAbbr = d.toLocaleDateString("en-US", { weekday: "short" });
               const dayNum = d.getDate();
+              const hasSuggestedSlot = daysWithSuggestedSlots.has(d.toDateString());
               return (
                 <Pressable
                   key={i}
@@ -567,6 +582,9 @@ function MiniCalendar({
                 >
                   <Text style={{ fontSize: 10, fontWeight: "500", color: isSelected ? themeColor : colors.textTertiary }}>{dayAbbr}</Text>
                   <Text style={{ fontSize: 12, fontWeight: isSelected ? "700" : "500", color: isSelected ? themeColor : colors.text }}>{dayNum}</Text>
+                  {hasSuggestedSlot && (
+                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSelected ? themeColor : "#10B981", marginTop: 2 }} />
+                  )}
                 </Pressable>
               );
             })}
@@ -622,6 +640,9 @@ function MiniCalendar({
                 </View>
                 <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>Change</Text>
               </Pressable>
+              <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>
+                We only recommend times within these hours.
+              </Text>
 
               {/* Inline preset picker */}
               {showPresetPicker && (
@@ -838,6 +859,9 @@ function MiniCalendar({
               {/* Privacy disclaimer */}
               <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
                 {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact. Times outside your suggested hours are hidden."}
+              </Text>
+              <Text style={{ fontSize: 11, lineHeight: 15, color: colors.textTertiary, marginTop: 6, textAlign: "center" }}>
+                Suggested hours can be changed in Best time to meet.
               </Text>
             </ScrollView>
           </BottomSheet>
