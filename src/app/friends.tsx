@@ -709,6 +709,9 @@ function FriendRequestCard({
   );
 }
 
+// ── Module-scope cache: eliminates detail→list jump on remount ──
+let _friendsViewModeCache: "list" | "detailed" | null = null;
+
 export default function FriendsScreen() {
   // DEV: Track first render timing
   const firstRenderTimeRef = React.useRef<number | null>(null);
@@ -746,11 +749,18 @@ export default function FriendsScreen() {
   const latestQueryRef = React.useRef("");
   const networkStatus = useNetworkStatus();
 
-  // View mode and filter states
-  const [viewMode, setViewMode] = useState<"list" | "detailed">("detailed");
+  // View mode and filter states — sync from in-memory cache to prevent jump
+  const [viewMode, setViewMode] = useState<"list" | "detailed">(
+    () => _friendsViewModeCache ?? "detailed"
+  );
 
-  // Restore view mode preference on mount
+  // Hydrate from storage ONLY on cold start (cache null)
   useEffect(() => {
+    if (_friendsViewModeCache !== null) {
+      // Already cached from a previous mount this session — skip storage read
+      if (__DEV__) devLog("[P0_FRIENDS_VIEW_INIT]", { source: "cache", mode: _friendsViewModeCache });
+      return;
+    }
     const loadViewMode = async () => {
       try {
         const userId = session?.user?.id;
@@ -758,18 +768,26 @@ export default function FriendsScreen() {
         const key = `friends_view_mode:${userId}`;
         const saved = await AsyncStorage.getItem(key);
         if (saved === "list" || saved === "detailed") {
+          _friendsViewModeCache = saved;
           setViewMode(saved);
+          if (__DEV__) devLog("[P0_FRIENDS_VIEW_INIT]", { source: "storage", mode: saved });
+        } else {
+          _friendsViewModeCache = "detailed";
+          if (__DEV__) devLog("[P0_FRIENDS_VIEW_INIT]", { source: "default", mode: "detailed" });
         }
       } catch {
         // Ignore errors - use default
+        _friendsViewModeCache = "detailed";
       }
     };
     loadViewMode();
   }, [session?.user?.id]);
 
-  // Persist view mode changes
+  // Persist view mode changes — update cache + storage
   const handleViewModeChange = useCallback(async (mode: "list" | "detailed") => {
+    _friendsViewModeCache = mode;
     setViewMode(mode);
+    if (__DEV__) devLog("[P0_FRIENDS_VIEW_SET]", { mode });
     try {
       const userId = session?.user?.id;
       if (!userId) return;
