@@ -444,10 +444,10 @@ function MiniCalendar({
       </View>
 
       {/* Smart Scheduling v1 — SSOT via SchedulingEngine */}
-      {scheduleResult && (
-        <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <Text style={{ fontSize: 12, fontWeight: "600", marginBottom: 2, color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
-            {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times (most people available)"}
+      {scheduleResult && scheduleResult.topSlots.length > 0 && (
+        <View style={{ marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
+          <Text style={{ fontSize: 11, fontWeight: "600", marginBottom: 2, color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+            {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {scheduleResult.topSlots.map((slot, i) => {
@@ -456,15 +456,20 @@ function MiniCalendar({
               const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
               const pillText = `${dayLabel} ${timeLabel} · ${slot.availableCount}/${slot.totalMembers}`;
 
+              const shareLabel = `Best time: ${dayLabel} ${timeLabel}`;
+
               return (
                 <Pressable
                   key={i}
                   onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    Haptics.selectionAsync().catch(() => {});
+                    Clipboard.setStringAsync(shareLabel).catch(() => {});
+                    safeToast.success("Copied", shareLabel);
+                    if (__DEV__) devLog("[P1_FREE_CHIP_PRESS]", { label: pillText, value: shareLabel });
                     setSelectedSlot(slot);
                   }}
                   onLongPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                     const endDate = new Date(slot.end);
                     const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
                     router.push({
@@ -476,16 +481,17 @@ function MiniCalendar({
                       },
                     } as any);
                   }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
+                  style={({ pressed }) => ({
+                    flexDirection: "row" as const,
+                    alignItems: "center" as const,
                     borderRadius: 12,
                     paddingHorizontal: 8,
                     paddingVertical: 4,
                     marginRight: 6,
                     marginBottom: 4,
+                    opacity: pressed ? 0.6 : 1,
                     backgroundColor: slot.score === 1 ? "#10B98120" : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  }}
+                  })}
                 >
                   <Clock size={10} color={slot.score === 1 ? "#10B981" : themeColor} />
                   <Text style={{ fontSize: 10, fontWeight: "500", marginLeft: 4, color: slot.score === 1 ? "#10B981" : themeColor }}>
@@ -496,7 +502,7 @@ function MiniCalendar({
             })}
           </View>
           {/* Availability summary — projection of bestSlot */}
-          <Text style={{ fontSize: 10, lineHeight: 14, marginTop: 4, color: colors.textTertiary }}>
+          <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
             {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} available
           </Text>
 
@@ -551,13 +557,17 @@ function MiniCalendar({
                   </>
                 )}
 
-                {/* Footer */}
-                <Text style={{ fontSize: 10, lineHeight: 14, color: colors.textTertiary, marginTop: 16, marginBottom: 8 }}>
-                  Based on events in Open Invite.
-                </Text>
+
               </ScrollView>
             )}
           </BottomSheet>
+        </View>
+      )}
+
+      {/* Empty state: no shared free times */}
+      {!scheduleResult && (
+        <View style={{ marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
+          <Text style={{ fontSize: 11, color: colors.textTertiary }}>No shared free times yet</Text>
         </View>
       )}
 
@@ -2107,6 +2117,7 @@ export default function CircleScreen() {
       devLog("[P1_POLL_UI]", "mount");
       devLog("[P1_COORDINATION_FLOW]", "mounted");
       devLog("[P1_POLLS_E2E_UI]", "mounted", { circleId: id });
+      devLog("[P1_CIRCLE_POLLS_DISABLED]", { applied: true });
       pollLogFiredRef.current = true;
     }
   }, []);
@@ -2496,12 +2507,11 @@ export default function CircleScreen() {
         <View className="items-center">
           <Pressable
             onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
               setShowInfoSheet(true);
-              if (__DEV__) devLog("[P0_CIRCLE_INFO]", "opened");
+              if (__DEV__) devLog("[P1_CIRCLE_INFO_OPEN]", { circleId: id });
             }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
           >
             <Info size={18} color={colors.textSecondary} />
           </Pressable>
@@ -3795,7 +3805,7 @@ export default function CircleScreen() {
         visible={showInfoSheet}
         onClose={() => {
           setShowInfoSheet(false);
-          if (__DEV__) devLog("[P0_CIRCLE_INFO]", "closed");
+          if (__DEV__) devLog("[P1_CIRCLE_INFO_OPEN]", "closed");
         }}
         heightPct={0}
         maxHeightPct={0.5}
