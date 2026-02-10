@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, type NativeScrollEvent, type NativeSyntheticEvent, Modal, Share, Linking, Platform, TextInput } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -1420,39 +1420,16 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [isListView, setIsListView] = useState(false);
 
-  // Scroll-to-change-month state
+  // ScrollView ref (kept for programmatic scrollTo if needed)
   const scrollViewRef = useRef<ScrollView>(null);
-  const [showPrevMonthIndicator, setShowPrevMonthIndicator] = useState(false);
-  const [showNextMonthIndicator, setShowNextMonthIndicator] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const isChangingMonth = useRef(false);
-  const lastScrollY = useRef(0);
-  const overscrolledTopRef = useRef(false);
-  const overscrolledBottomRef = useRef(false);
-  
-  const didOverscrollTopRef = useRef(false);
-  const didOverscrollBottomRef = useRef(false);
-  const SCROLL_THRESHOLD = 80; // Threshold for overscroll to trigger month change
 
   // Month/year ref for deterministic updates without closure issues
   const monthYearRef = useRef({ month: today.getMonth(), year: today.getFullYear() });
-  // Timer refs for cleanup
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const unlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync monthYearRef with state
   useEffect(() => {
     monthYearRef.current = { month: currentMonth, year: currentYear };
   }, [currentMonth, currentYear]);
-
-  // Clear month timers on unmount
-  useEffect(() => {
-    return () => {
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
-    };
-  }, []);
 
   // Unified height system - one continuous value that determines both view mode and multiplier
   // Range: 40 (compact min) -> 64 (stacked) -> 80 (details) -> 160 (details max)
@@ -2044,154 +2021,31 @@ export default function CalendarScreen() {
     setSelectedDate(today);
   };
 
-  // Handle scroll events to detect overscroll
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isChangingMonth.current) return;
+  // ── Horizontal swipe gesture for month navigation (replaces vertical overscroll) ──
+  const swipeMonthGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])      // activate only after 20px horizontal movement
+    .failOffsetY([-15, 15])        // fail early if vertical intent
+    .onEnd((event) => {
+      "worklet";
+      const { translationX, velocityX, translationY } = event;
+      // Direction lock: must be clearly horizontal
+      if (Math.abs(translationX) <= Math.abs(translationY) * 1.2) return;
+      // Threshold: minimum 60px distance OR 800 velocity
+      const meetsThreshold =
+        Math.abs(translationX) >= 60 || Math.abs(velocityX) >= 800;
+      if (!meetsThreshold) return;
 
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const offsetY = contentOffset.y;
-    const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height);
-    const canScrollDown = maxScroll > 10;
+      if (translationX < 0) {
+        runOnJS(goToNextMonth)();
+        if (__DEV__) runOnJS(devLog)("[P0_CAL_SWIPE_MONTH]", { dir: "next" });
+      } else {
+        runOnJS(goToPrevMonth)();
+        if (__DEV__) runOnJS(devLog)("[P0_CAL_SWIPE_MONTH]", { dir: "prev" });
+      }
+    });
 
-    // Compute current overscroll state
-    const overscrolledTopNow = offsetY < -SCROLL_THRESHOLD;
-    const overscrolledBottomNow = canScrollDown
-      ? offsetY > maxScroll + SCROLL_THRESHOLD
-      : offsetY > SCROLL_THRESHOLD;
-
-    // Update live refs for visual indicators
-    overscrolledTopRef.current = overscrolledTopNow;
-    overscrolledBottomRef.current = overscrolledBottomNow;
-
-    // Latch: if overscroll happens during this drag, remember it
-    if (overscrolledTopNow) {
-      didOverscrollTopRef.current = true;
-    }
-    if (overscrolledBottomNow) {
-      didOverscrollBottomRef.current = true;
-    }
-
-    // Track scroll position
-    lastScrollY.current = offsetY;
-
-    // Update visual indicators
-    if (overscrolledTopNow) {
-      setShowPrevMonthIndicator(true);
-    } else {
-      setShowPrevMonthIndicator(false);
-    }
-
-    if (overscrolledBottomNow) {
-      setShowNextMonthIndicator(true);
-    } else {
-      setShowNextMonthIndicator(false);
-    }
-
-    if (__DEV__) {
-      devLog("[CalendarGesture] scroll", {
-        offsetY: Math.round(offsetY),
-        maxScroll: Math.round(maxScroll),
-        canScrollDown,
-        threshold: SCROLL_THRESHOLD,
-        overscrolledTopNow,
-        overscrolledBottomNow,
-        didOverscrollTop: didOverscrollTopRef.current,
-        didOverscrollBottom: didOverscrollBottomRef.current,
-      });
-    }
-  }, [SCROLL_THRESHOLD]);
-
-  // Handle scroll end drag to trigger month change (only on user release, not momentum)
-  const handleScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isChangingMonth.current) return;
-
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const offsetY = contentOffset.y;
-    const maxScroll = Math.max(0, contentSize.height - layoutMeasurement.height);
-    const canScrollDown = maxScroll > 10;
-
-    if (__DEV__) {
-      devLog("[CalendarGesture] endDrag snapshot", {
-        offsetY: Math.round(offsetY),
-        maxScroll: Math.round(maxScroll),
-        canScrollDown,
-        threshold: SCROLL_THRESHOLD,
-        overscrolledTopLive: overscrolledTopRef.current,
-        overscrolledBottomLive: overscrolledBottomRef.current,
-        didOverscrollTop: didOverscrollTopRef.current,
-        didOverscrollBottom: didOverscrollBottomRef.current,
-      });
-    }
-
-    // Check latched refs to determine if we should trigger month change
-    if (didOverscrollTopRef.current) {
-      isChangingMonth.current = true;
-      setShowPrevMonthIndicator(false);
-      
-      // Reset all refs
-      didOverscrollTopRef.current = false;
-      didOverscrollBottomRef.current = false;
-      overscrolledTopRef.current = false;
-      overscrolledBottomRef.current = false;
-      
-      goToPrevMonth();
-
-      // Reset scroll position after state update
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-        lastScrollY.current = 0;
-      }, 50);
-
-      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
-      unlockTimerRef.current = setTimeout(() => {
-        isChangingMonth.current = false;
-      }, 600);
-      return;
-    }
-
-    if (didOverscrollBottomRef.current) {
-      isChangingMonth.current = true;
-      setShowNextMonthIndicator(false);
-      
-      // Reset all refs
-      didOverscrollTopRef.current = false;
-      didOverscrollBottomRef.current = false;
-      overscrolledTopRef.current = false;
-      overscrolledBottomRef.current = false;
-      
-      goToNextMonth();
-
-      // Reset scroll position after state update
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-        lastScrollY.current = 0;
-      }, 50);
-
-      if (unlockTimerRef.current) clearTimeout(unlockTimerRef.current);
-      unlockTimerRef.current = setTimeout(() => {
-        isChangingMonth.current = false;
-      }, 600);
-      return;
-    }
-
-    // Always reset all refs even if no trigger
-    didOverscrollTopRef.current = false;
-    didOverscrollBottomRef.current = false;
-    overscrolledTopRef.current = false;
-    overscrolledBottomRef.current = false;
-  }, [SCROLL_THRESHOLD, goToPrevMonth, goToNextMonth]);
-
-  // Clear indicators when momentum scroll ends (bounce back)
-  const handleMomentumEnd = useCallback(() => {
-    setShowPrevMonthIndicator(false);
-    setShowNextMonthIndicator(false);
-  }, []);
-
-  // Get previous and next month names
-  const prevMonthName = MONTHS[(currentMonth - 1 + 12) % 12];
-  const nextMonthName = MONTHS[(currentMonth + 1) % 12];
+  // Compose pinch + horizontal swipe so both work on the calendar grid
+  const calendarGesture = Gesture.Race(swipeMonthGesture, pinchGesture);
 
   const selectedDateEvents = getEventsForDate(selectedDate).sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
@@ -2432,25 +2286,7 @@ export default function CalendarScreen() {
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          onScrollEndDrag={handleScrollEndDrag}
-          onMomentumScrollEnd={handleMomentumEnd}
-          scrollEventThrottle={16}
-          bounces={true}
-          alwaysBounceVertical={true}
         >
-          {/* Previous month indicator - shown when scrolling up */}
-          {showPrevMonthIndicator && (
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              className="items-center py-3 -mt-2"
-            >
-              <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                {prevMonthName}
-              </Text>
-            </Animated.View>
-          )}
-
           {isListView ? (
           <ListView
             events={allEvents}
@@ -2469,7 +2305,7 @@ export default function CalendarScreen() {
         ) : (
           <>
             {/* Calendar Grid with Pinch-to-Expand */}
-            <GestureDetector gesture={pinchGesture}>
+            <GestureDetector gesture={calendarGesture}>
               <Animated.View className="px-3">
                 {/* Day Labels */}
                 <View className="flex-row mb-1">
@@ -2766,17 +2602,6 @@ export default function CalendarScreen() {
           </>
         )}
 
-        {/* Next month indicator - shown when scrolling down */}
-        {showNextMonthIndicator && (
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            className="items-center py-3"
-          >
-            <Text className="text-sm font-medium" style={{ color: themeColor }}>
-              {nextMonthName}
-            </Text>
-          </Animated.View>
-        )}
         </ScrollView>
 
       {/* Bottom Navigation */}
