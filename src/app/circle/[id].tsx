@@ -276,7 +276,7 @@ function MiniCalendar({
     return data;
   }, [memberEvents, currentMonth, currentYear, memberColorMap, themeColor]);
 
-  // [SCHED_ENGINE_V1] SSOT: compute availability via scheduling engine
+  // [SCHED_INVAR_V1] SSOT: compute availability via scheduling engine
   const scheduleResult = useMemo(() => {
     const now = new Date();
     const rangeStart = now.toISOString();

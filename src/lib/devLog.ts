@@ -85,8 +85,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_TYPING_UI]",
   // P2 scroll-to-bottom floating button
   "[P2_CHAT_SCROLL_BTN]",
-  // Scheduling engine v1 proof logs
-  "[SCHED_ENGINE_V1]",
+  // Scheduling engine invariant proof logs
+  "[SCHED_INVAR_V1]",
+  // Suggested hours invariant proof logs
+  "[SUGGESTED_HOURS_INVAR_V1]",
   // P2 chat reactions overlay
   "[P2_CHAT_REACTIONS]",
   // P2 chat reply overlay shell
