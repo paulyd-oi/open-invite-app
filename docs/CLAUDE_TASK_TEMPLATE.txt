@@ -1,4 +1,4 @@
-CLAUDE OPUS — OPEN INVITE STABILIZATION TEMPLATE (GOLDEN FLOWS + TESTFLIGHT BATCHING)
+CLAUDE OPUS — OPEN INVITE STABILIZATION TEMPLATE (GOLDEN FLOWS + TESTFLIGHT BATCHING + USERROW SSOT)
 
 MODEL REQUIREMENT:
 Use Claude Opus.
@@ -12,6 +12,7 @@ docs/STATE_OF_THE_APP.md (if present)
 docs/FINDINGS_LOG.md (if present)
 
 ABSOLUTE RULES (NON-NEGOTIABLE):
+
 ONE ISSUE PER TASK. Fix ONLY the issue described under “TASK (GOLDEN FLOW)”.
 
 Outcome-first: success is defined by ACCEPTANCE CHECKS passing in the actual UI on the required surface (SIMULATOR vs TESTFLIGHT DEVICE), not by code inspection.
@@ -24,100 +25,183 @@ Minimal diff. No new dependencies. Preserve navigation architecture. No refactor
 
 No breaking UI changes outside the task scope.
 
-UI / Pressable / NativeWind:
-Never use Pressable style function callback (style={({pressed})=>...}) in SSOT components;
-NativeWind wrapper may not run it. Use pressed state (useState + onPressIn/onPressOut) + static style arrays.
+USER ROW + BOTTOM SHEET SSOT DOCTRINE (MANDATORY)
+
+UserRow is the SSOT list-row primitive for people surfaces.
+
+All people rows (friends lists, rosters, pickers, sheets) MUST use UserRow unless the task explicitly justifies a deviation.
+
+Row layout invariants:
+
+Horizontal layout only: avatar | text column | optional accessory
+
+flexDirection: "row" and alignItems: "center" must be enforced inside UserRow, not caller styles
+
+Callers must NOT override row layout props
+
+Text contract:
+
+Roster/navigation lists: primary = display name
+
+Picker lists: primary = @handle, secondary = bio (if present)
+
+Chevron rules:
+
+Push-navigation lists MAY show chevrons
+
+Bottom sheets MUST NOT show chevrons
+
+Sheets are modal contexts, not navigation surfaces
+
+Right accessory rules:
+
+Accessories (trash, checkbox, etc.) must be explicit and not wrapped in layout-breaking containers
+
+Accessory taps must not trigger row onPress
+
+PRESSABLE + NATIVEWIND DOCTRINE (MANDATORY)
+
+Never use Pressable style callback:
+style={({pressed}) => ...}
+
+NativeWind wrappers may not execute this callback, causing layout styles (flexDirection/alignItems) to fail.
+
+Instead ALWAYS use:
+
+useState pressed flag
+
+onPressIn / onPressOut
+
+static style arrays with conditional pressed styling
+
+This rule is REQUIRED for all SSOT interactive components.
 
 If backend routes/mounts are touched, prove parity in BOTH src/index.ts and src/server.ts.
 
 REPO + RELEASE GUARDRAILS (MANDATORY):
+
 Confirm repo is correct (open-invite-app).
 Confirm branch name.
 Confirm working tree clean before starting (or explicitly list existing changes).
-Do not create or commit *_HANDOFF*.txt|md files. (Only docs/HANDOFF_PACKET_LATEST.txt if repo doctrine requires it; otherwise HANDOFF is chat output only.)
+
+Do not create or commit _HANDOFF.txt|md files.
+(Only docs/HANDOFF_PACKET_LATEST.txt if repo doctrine requires it; otherwise HANDOFF is chat output only.)
+
 Only update SSOT docs if REQUIRED by the task (GOLDEN_FLOWS / UX_CONTRACTS / FINDINGS / RC_BATCH_NEXT), and keep changes minimal.
+
 If this task changes frontend behavior, PUSH FRONTEND (commit + push) before claiming ready for TestFlight batching.
 
 TEXTSAFE DISCIPLINE:
-Your final output MUST be plain text (no markdown tables, no fancy formatting).
-If you provide commands, they must be copy-paste safe with no inline comments.
-Do not output multiple “optional paths”. Provide ONE path that matches the task.
 
-TESTFLIGHT BATCHING RULES (CRITICAL):
-Some acceptance checks are device/TestFlight-only. Do NOT pretend we can “immediately test on device” if a new binary is required.
+Final output MUST be plain text.
+No markdown tables.
+No fancy formatting.
+
+Commands must be copy-paste safe with no inline comments.
+
+Provide ONE implementation path — no branching options.
+
+TESTFLIGHT BATCHING RULES (CRITICAL)
+
+Some acceptance checks are device/TestFlight-only. Do NOT pretend we can immediately validate device behavior without a new binary.
 
 If ACCEPTANCE CHECKS specify TESTFLIGHT DEVICE:
-1) You MUST mark the task as “BATCHED” and append it to docs/RC_BATCH_NEXT.md (or update its existing entry).
-2) You MUST still implement the minimal fix now and provide strongest possible non-device proof:
-   - exact code path + root cause
-   - blast-radius sweep results
-   - local reproduction steps if possible
-   - simulator steps if applicable
-   - logs that prove the flow is executing (DEV tags)
-3) You MUST NOT claim “COMPLETE”. Use status:
-   STATUS: READY FOR TESTFLIGHT VALIDATION (BATCHED)
-4) In VERIFICATION, include the exact TestFlight device steps to run AFTER the next build ships.
-5) In HANDOFF, include a line: BATCH ENTRY UPDATED: yes/no + what changed.
+
+Mark task as BATCHED and append/update docs/RC_BATCH_NEXT.md
+
+Implement minimal fix now
+
+Provide strongest non-device proof:
+
+exact code path + root cause
+
+blast-radius sweep
+
+simulator/local steps if possible
+
+DEV proof logs
+
+Do NOT mark COMPLETE
+
+Status must be:
+STATUS: READY FOR TESTFLIGHT VALIDATION (BATCHED)
+
+VERIFICATION must include exact TestFlight steps to run after shipping.
+
+HANDOFF must include:
+BATCH ENTRY UPDATED: yes/no + what changed
 
 If ACCEPTANCE CHECKS specify SIMULATOR OK:
-You MAY mark complete if simulator steps pass AND you provide proof logs tied to the Golden Flow.
+Task may be marked COMPLETE with matching UI proof + DEV logs.
 
-TASK INPUT FORMAT (PASTED BY USER):
+TASK INPUT FORMAT (PASTED BY USER)
 
 TASK (GOLDEN FLOW)
 
-GOLDEN FLOW (1–2 sentences, user intent)
+GOLDEN FLOW
+(1–2 sentences describing user intent)
 
-CURRENT BEHAVIOR (what actually happens; include screenshots/logs references)
+CURRENT BEHAVIOR
+(actual behavior; reference screenshots/logs)
 
 ACCEPTANCE CHECKS
-- Each check must be observable in UI
-- Must explicitly declare surface: SIMULATOR or TESTFLIGHT DEVICE
-- Must include “done when…” criteria (counts, labels, visibility, navigation outcome)
 
-NON-GOALS (what not to change)
+Each check observable in UI
+
+Explicit surface: SIMULATOR or TESTFLIGHT DEVICE
+
+Must include “done when…” criteria
+
+NON-GOALS
 
 ASSETS
-- screenshots
-- logs
-- reproduction steps
-- any relevant contract excerpt (from UX_CONTRACTS)
 
-WORK PLAN (YOU MUST FOLLOW):
-A) Restate the Golden Flow in 1–2 lines (intent, not implementation).
-B) Identify root cause with exact file + line range(s).
-C) Implement minimal fix.
-D) Blast-radius sweep:
-   - List exact search queries you ran (rg terms) and what you found.
-   - Fix any other matches that violate the same contract OR explicitly justify exclusion.
-E) Verification:
-   - If SIMULATOR: give exact steps + what to observe.
-   - If TESTFLIGHT DEVICE: update RC_BATCH_NEXT.md and give exact steps to run post-build.
-F) REQUIRED DEV PROOF:
-   - Add or use existing DEV log tags ONLY when they prove acceptance checks.
-   - Logs must correspond to the actual flow (not generic “loaded ok”).
-   - Prefer a single canonical tag for the task (e.g., [P0_WHO_COMING]) and avoid multiple tags.
+screenshots
 
-HANDOFF PACKET (MANDATORY, PLAIN TEXT, ONLY THIS TASK):
-Include exactly:
+logs
 
-STATUS (COMPLETE or READY FOR TESTFLIGHT VALIDATION (BATCHED))
+reproduction steps
+
+relevant UX contract excerpt
+
+WORK PLAN (YOU MUST FOLLOW)
+
+A) Restate Golden Flow intent
+B) Identify root cause (file + line range)
+C) Minimal fix
+D) Blast-radius sweep
+
+list search queries
+
+results + fixes or justification
+E) Verification
+
+simulator OR TestFlight steps
+F) REQUIRED DEV PROOF
+
+canonical DEV tag tied to flow
+
+logs must prove acceptance checks
+
+HANDOFF PACKET (MANDATORY — ONLY THIS TASK)
+
+STATUS
 
 SUMMARY
 
-GOLDEN FLOW (1–2 lines)
+GOLDEN FLOW
 
 ROOT CAUSE (file + line range)
 
 FIX (file + line range)
 
-BLAST RADIUS SWEEP (search terms + results)
+BLAST RADIUS SWEEP
 
-VERIFICATION STEPS (must match Acceptance Checks; include SIMULATOR vs TESTFLIGHT DEVICE)
+VERIFICATION STEPS
 
-BATCH ENTRY UPDATED (yes/no; if yes, what line/item added/edited in docs/RC_BATCH_NEXT.md)
+BATCH ENTRY UPDATED
 
-GIT PROOF (paste exact outputs; MUST match actual commit):
+GIT PROOF:
 git show --stat HEAD
 git show --name-only HEAD
 
