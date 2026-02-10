@@ -32,6 +32,7 @@ export interface UploadResponse {
   message?: string;
   url: string;
   filename?: string;
+  publicId?: string;
   error?: string;
 }
 
@@ -273,7 +274,7 @@ export async function uploadCirclePhoto(uri: string): Promise<UploadResponse> {
     if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
     if (__DEV__) devLog("[imageUpload] Circle photo uploaded:", secureUrl);
 
-    return { success: true, url: secureUrl, filename: json?.public_id };
+    return { success: true, url: secureUrl, filename: json?.public_id, publicId: json?.public_id };
   } catch (error: any) {
     if (__DEV__) devError("[imageUpload] Circle photo upload error:", error);
     throw new Error(error?.message || "Failed to upload circle photo");
@@ -340,7 +341,7 @@ export async function uploadEventPhoto(uri: string): Promise<UploadResponse> {
     if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
     if (__DEV__) devLog("[imageUpload] Event photo uploaded:", secureUrl);
 
-    return { success: true, url: secureUrl, filename: publicId };
+    return { success: true, url: secureUrl, filename: publicId, publicId };
   } catch (error: any) {
     if (__DEV__) devError("[imageUpload] Event photo upload error:", error);
     throw new Error(error?.message || "Failed to upload event photo");

@@ -4081,7 +4081,8 @@ export default function CircleScreen() {
 
                 setUploadingPhoto(true);
                 const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
-                await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url });
+                if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
+                await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 safeToast.success("Saved", "Circle photo updated");
                 queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
@@ -4114,7 +4115,7 @@ export default function CircleScreen() {
               onPress={async () => {
                 setShowPhotoSheet(false);
                 try {
-                  await api.put(`/api/circles/${id}`, { photoUrl: null });
+                  await api.put(`/api/circles/${id}`, { photoUrl: null, photoPublicId: null });
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   safeToast.success("Removed", "Circle photo removed");
                   queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
