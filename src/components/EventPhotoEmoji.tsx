@@ -9,6 +9,8 @@ interface EventPhotoEmojiProps {
   emojiClassName?: string;
   /** Inline style for the emoji Text (e.g. { fontSize: 28 }) */
   emojiStyle?: TextStyle;
+  /** Optional callback fired when the photo overlay finishes loading (e.g. hero title animation) */
+  onPhotoLoad?: () => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function EventPhotoEmoji({
   emoji,
   emojiClassName,
   emojiStyle,
+  onPhotoLoad,
 }: EventPhotoEmojiProps) {
   const [errored, setErrored] = useState(false);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -33,7 +36,8 @@ export function EventPhotoEmoji({
       duration: 200,
       useNativeDriver: true,
     }).start();
-  }, [opacity]);
+    onPhotoLoad?.();
+  }, [opacity, onPhotoLoad]);
 
   const handleError = useCallback(() => {
     setErrored(true);

@@ -61,6 +61,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
@@ -1800,11 +1801,11 @@ export default function EventDetailScreen() {
                 marginBottom: 16,
               }}
             >
-              <Image
-                source={{ uri: event.eventPhotoUrl }}
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-                onLoad={() => {
+              <EventPhotoEmoji
+                photoUrl={event.eventPhotoUrl}
+                emoji={event.emoji}
+                emojiStyle={{ fontSize: 64 }}
+                onPhotoLoad={() => {
                   if (__DEV__) devLog("[EVENT_HERO_PHOTO_LOADED]", `url=${event.eventPhotoUrl}`);
                   if (heroLoadedUrl.current === event.eventPhotoUrl) return;
                   heroLoadedUrl.current = event.eventPhotoUrl ?? null;
