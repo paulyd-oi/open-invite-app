@@ -604,14 +604,22 @@ export default function EventDetailScreen() {
     ? restrictedHostName.split(' ')[0]
     : 'the host';
 
+  // Canonical friend-boundary object (single source of truth for render branch)
+  const fb = {
+    restricted: !!errorBody?.restricted,
+    hostId: errorBody?.host?.id ?? null,
+    hostName: restrictedHostName,
+    hostImage: errorBody?.host?.image ?? null,
+  };
+
   // [P0_EVENT_FRIEND_BOUNDARY_FETCH] Log restricted response interception
   if (__DEV__ && !isLoadingEvent && eventError) {
     if (isPrivacyRestricted) {
       devLog('[P0_EVENT_FRIEND_BOUNDARY_FETCH]', {
         status: eventErrorStatus,
-        restricted: !!errorBody?.restricted,
-        hostId: restrictedHostInfo?.id ?? null,
-        hostName: restrictedHostName,
+        restricted: fb.restricted,
+        hostId: fb.hostId,
+        hostName: fb.hostName,
       });
     } else {
       devLog('[P0_EVENT_FETCH_ERROR]', {
@@ -1481,14 +1489,17 @@ export default function EventDetailScreen() {
     
     // [P0_EVENT_FRIEND_BOUNDARY] Friend-boundary gate: viewer is not connected to host
     if (isPrivacyRestricted) {
-      const ownerId = restrictedHostInfo?.id ?? null;
+      const ownerId = fb.hostId;
 
       if (__DEV__) {
         devLog('[P0_EVENT_FRIEND_BOUNDARY_RENDER]', {
-          hostId: ownerId,
-          hostName: restrictedHostName,
           hasOwnerId: !!ownerId,
+          hostId: fb.hostId,
+          hostName: fb.hostName,
         });
+        if (!ownerId && fb.hostName !== 'the host') {
+          devLog('[P0_EVENT_FRIEND_BOUNDARY_RENDER] missing_host_id', { hostName: fb.hostName });
+        }
       }
 
       // Handler for tapping View Profile → canonical profile route
@@ -1561,7 +1572,7 @@ export default function EventDetailScreen() {
               {`Connect with ${restrictedFirstName} to see this event.`}
             </Text>
             
-            {ownerId && (
+            {ownerId ? (
               <View className="w-full max-w-xs">
                 <Button
                   variant="primary"
@@ -1569,6 +1580,13 @@ export default function EventDetailScreen() {
                   onPress={handleViewHostProfile}
                 />
               </View>
+            ) : (
+              <Text
+                className="text-sm text-center"
+                style={{ color: colors.textTertiary }}
+              >
+                Profile unavailable right now.
+              </Text>
             )}
           </View>
         </SafeAreaView>
