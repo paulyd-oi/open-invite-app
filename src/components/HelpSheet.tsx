@@ -97,6 +97,7 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
     visibility: [
       "Circle activity is visible only to members",
       "Events never leak outside the group",
+      "\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact",
     ],
   },
 };
