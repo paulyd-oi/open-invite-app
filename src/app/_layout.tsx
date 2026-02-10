@@ -46,6 +46,7 @@ import { hasShownGateModal, markGateModalShown } from '@/lib/emailVerificationGa
 import { subscribeToAuthExpiry, resetAuthExpiryGuard } from '@/lib/authExpiry';
 import { performLogout } from '@/lib/logout';
 import { useQueryClient } from '@tanstack/react-query';
+import { p15, once } from '@/lib/runtimeInvariants';
 
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
@@ -274,6 +275,17 @@ function BootRouter() {
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
+  // [P15_AUTH_INVAR] DEV-only: detect session vs bootStatus mismatch
+  if (__DEV__ && bootStatus !== 'loading') {
+    const hasSession = !!session?.user?.id;
+    if (bootStatus === 'loggedOut' && hasSession && once('auth_mismatch_loggedOut_hasSession')) {
+      p15('[P15_AUTH_INVAR]', { mismatch: 'loggedOut_but_hasSession', bootStatus, userId: session?.user?.id });
+    }
+    if (bootStatus === 'authed' && !hasSession && once('auth_mismatch_authed_noSession')) {
+      p15('[P15_AUTH_INVAR]', { mismatch: 'authed_but_noSession', bootStatus, hasSession: false });
+    }
+  }
+
   // AUTH EXPIRY LISTENER: Handle 401 ONLY from $fetch by triggering SSOT logout
   // One-shot per session (emitter guards against spam)
   // [P0_AUTH_403_NO_LOGOUT] HARD GUARD: reject 403 even if emitter is called incorrectly
@@ -421,6 +433,18 @@ function BootRouter() {
     }
 
     hasRoutedRef.current = true;
+
+    // [P15_NAV_INVAR] DEV-only: detect illegal auth-route for bootStatus
+    if (__DEV__) {
+      const AUTHED_ROOTS = ['/calendar', '/social', '/discover', '/friends', '/settings'];
+      const isAuthedRoute = AUTHED_ROOTS.some(r => pathname.startsWith(r));
+      if (bootStatus === 'loggedOut' && isAuthedRoute && once(`nav_illegal_${pathname}`)) {
+        p15('[P15_NAV_INVAR]', { illegalTarget: pathname, bootStatus, action: 'will_redirect' });
+      }
+      if ((bootStatus === 'loggedOut' || bootStatus === 'error') && pathname === '/login') {
+        // Not a violation — login is reachable from welcome
+      }
+    }
 
     devLog(
       '[ONBOARDING_BOOT]',

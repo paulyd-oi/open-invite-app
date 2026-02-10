@@ -27,6 +27,9 @@ const EXPO_SCHEME = "open-invite"; // Must match app.json scheme
 // Module-level cache for Better Auth cookie token (avoids reading SecureStore on every request)
 let explicitCookieValue: string | null = null;
 
+// [P15_NET_INVAR] DEV-only once-per-endpoint dedup set
+const _p15NetSeen = new Set<string>();
+
 // OI Session Token - header fallback for unreliable iOS cookie jar
 // Single source of truth for mobile session token
 export const OI_SESSION_TOKEN_KEY = "oi_session_token_v1";
@@ -230,6 +233,19 @@ async function $fetch<T = any>(
 
   // Use cached Better Auth cookie (refreshed after signIn)
   const hasCookie = !!explicitCookieValue;
+
+  // [P15_NET_INVAR] DEV-only: log authed endpoint request without session cookie
+  if (__DEV__ && !hasCookie) {
+    const isPublic = path.startsWith('/api/auth/') || path === '/api/health';
+    if (!isPublic) {
+      // Lazy-import to avoid circular deps (devLog is already imported at top)
+      const tag = `net_noCookie_${path}`;
+      if (!_p15NetSeen.has(tag)) {
+        _p15NetSeen.add(tag);
+        devLog('[P15_NET_INVAR]', { blockedAttempt: path, reason: 'no_cookie', method: init?.method || 'GET' });
+      }
+    }
+  }
 
   if (AUTH_DEBUG) {
     devLog(`[authClient.$fetch] ${init?.method || 'GET'} ${url}`);

@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
 import { SPACING, RADIUS } from "./layout";
+import { p15, once } from "@/lib/runtimeInvariants";
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "destructive" | "success";
@@ -140,9 +141,25 @@ export function Button({
     return isDisabled ? colors.buttonGhostDisabledText : themeColor;
   })();
 
+  // [P15_UI_INVAR] DEV-only: detect press attempts while disabled/loading
+  const wrappedOnPress = onPress
+    ? () => {
+        if (__DEV__ && isDisabled && once(`btn_disabled_${label}_${variant}`)) {
+          p15('[P15_UI_INVAR]', {
+            pressWhileDisabled: true,
+            label,
+            variant,
+            loading,
+            disabled,
+          });
+        }
+        onPress();
+      }
+    : undefined;
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={wrappedOnPress}
       disabled={isDisabled}
       testID={testID}
       style={(state) => [getContainerStyle(state.pressed), style]}
