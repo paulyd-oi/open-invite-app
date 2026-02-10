@@ -750,11 +750,13 @@ export default function CreateEventScreen() {
   }
 
   // [CREATE_CTA_RENDER] DEV-only: confirm CTA is reachable
+  const computedPaddingBottom = 100 + insets.bottom;
   if (__DEV__) {
     devLog('[CREATE_CTA_RENDER]', {
       disabled: createMutation.isPending,
       hasOnPress: true,
       bottomInset: insets.bottom,
+      paddingBottom: computedPaddingBottom,
     });
   }
 
@@ -780,7 +782,7 @@ export default function CreateEventScreen() {
 
         <ScrollView
           className="flex-1 px-5"
-          contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+          contentContainerStyle={{ paddingBottom: computedPaddingBottom }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

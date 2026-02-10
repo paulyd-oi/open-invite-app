@@ -382,6 +382,7 @@ export default function EventDetailScreen() {
   // Event Photo Lite state
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
 
   // Hero micro-animation refs (title reveal + edit tap)
@@ -3564,7 +3565,8 @@ export default function EventDetailScreen() {
         <View className="px-5 pb-6">
           <Pressable
             onPress={async () => {
-              if (uploadingPhoto) return; // re-entry guard
+              if (uploadingPhoto || pickerLaunching.current) return; // re-entry guard
+              pickerLaunching.current = true;
               setShowPhotoSheet(false);
               // Wait for sheet dismiss animation before opening picker
               // Prevents iOS gesture/touch blocker overlay freeze
@@ -3601,6 +3603,7 @@ export default function EventDetailScreen() {
                 safeToast.error("Upload failed", e?.message ?? "Please try again.");
               } finally {
                 setUploadingPhoto(false);
+                pickerLaunching.current = false;
               }
             }}
             className="flex-row items-center py-3"
