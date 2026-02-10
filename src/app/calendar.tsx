@@ -27,7 +27,7 @@ import {
   Briefcase,
   CalendarDays,
 } from "@/ui/icons";
-import Animated, { FadeIn, FadeInDown, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight, useSharedValue, withSpring, runOnJS } from "react-native-reanimated";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -1427,6 +1427,9 @@ export default function CalendarScreen() {
   // Month/year ref for deterministic updates without closure issues
   const monthYearRef = useRef({ month: today.getMonth(), year: today.getFullYear() });
 
+  // Direction of last month navigation — drives header animation
+  const monthNavDirRef = useRef<"next" | "prev">("next");
+
   // Sync monthYearRef with state
   useEffect(() => {
     monthYearRef.current = { month: currentMonth, year: currentYear };
@@ -1991,12 +1994,14 @@ export default function CalendarScreen() {
 
   const goToPrevMonth = useCallback(() => {
     Haptics.selectionAsync().catch(() => {});
+    monthNavDirRef.current = "prev";
     const ref = monthYearRef.current;
     const newMonth = ref.month === 0 ? 11 : ref.month - 1;
     const newYear = ref.month === 0 ? ref.year - 1 : ref.year;
     if (__DEV__) {
       devLog("[P0_CAL_HAPTIC]", { dir: "prev" });
       devLog("[CalendarGesture] TRIGGER prev", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
+      devLog("[P1_CAL_MONTH_HEADER_ANIM]", { dir: "prev", monthKey: `${newYear}-${String(newMonth + 1).padStart(2, "0")}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
@@ -2005,12 +2010,14 @@ export default function CalendarScreen() {
 
   const goToNextMonth = useCallback(() => {
     Haptics.selectionAsync().catch(() => {});
+    monthNavDirRef.current = "next";
     const ref = monthYearRef.current;
     const newMonth = ref.month === 11 ? 0 : ref.month + 1;
     const newYear = ref.month === 11 ? ref.year + 1 : ref.year;
     if (__DEV__) {
       devLog("[P0_CAL_HAPTIC]", { dir: "next" });
       devLog("[CalendarGesture] TRIGGER next", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
+      devLog("[P1_CAL_MONTH_HEADER_ANIM]", { dir: "next", monthKey: `${newYear}-${String(newMonth + 1).padStart(2, "0")}` });
     }
     setCurrentMonth(newMonth);
     setCurrentYear(newYear);
@@ -2163,13 +2170,28 @@ export default function CalendarScreen() {
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="px-5 pt-2 pb-2">
         <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <Text className="text-2xl font-sora-bold" style={{ color: themeColor }}>
-              {MONTHS[currentMonth]}
-            </Text>
-            <Text className="text-2xl font-sora-bold ml-2" style={{ color: colors.text }}>
-              {currentYear}
-            </Text>
+          <View className="flex-row items-center" style={{ overflow: "hidden" }}>
+            <Animated.View
+              key={`${currentYear}-${currentMonth}`}
+              entering={
+                monthNavDirRef.current === "next"
+                  ? FadeInRight.duration(240).withInitialValues({ transform: [{ translateX: 10 }] })
+                  : FadeInLeft.duration(240).withInitialValues({ transform: [{ translateX: -10 }] })
+              }
+              exiting={
+                monthNavDirRef.current === "next"
+                  ? FadeOutLeft.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
+                  : FadeOutRight.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
+              }
+              className="flex-row items-center"
+            >
+              <Text className="text-2xl font-sora-bold" style={{ color: themeColor }}>
+                {MONTHS[currentMonth]}
+              </Text>
+              <Text className="text-2xl font-sora-bold ml-2" style={{ color: colors.text }}>
+                {currentYear}
+              </Text>
+            </Animated.View>
             <HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />
           </View>
           <View className="flex-row items-center">
