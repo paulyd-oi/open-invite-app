@@ -55,7 +55,6 @@ import {
   RefreshCw,
   Camera,
   Lock,
-  Info,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -2522,23 +2521,6 @@ export default function CircleScreen() {
           </Pressable>
           <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
             Create
-          </Text>
-        </View>
-
-        {/* Info Button */}
-        <View className="items-center">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              setShowInfoSheet(true);
-              if (__DEV__) devLog("[P1_CIRCLE_INFO_OPEN]", { circleId: id });
-            }}
-            style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-          >
-            <Info size={18} color={colors.textSecondary} />
-          </Pressable>
-          <Text className="text-xs mt-1 font-medium" style={{ color: colors.textSecondary }}>
-            Info
           </Text>
         </View>
       </View>
