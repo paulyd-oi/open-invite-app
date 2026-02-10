@@ -289,6 +289,14 @@ const searchPlaces = async (query: string, lat?: number, lon?: number): Promise<
   return searchPlacesViaBackend(query, lat, lon);
 };
 
+/** Parse a route param string into a Date, returning null for any garbage. */
+function safeParseDate(param: unknown): Date | null {
+  if (typeof param !== 'string' || param.length === 0) return null;
+  const ms = Date.parse(param);
+  if (isNaN(ms)) return null;
+  return new Date(ms);
+}
+
 export default function CreateEventScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -384,13 +392,12 @@ export default function CreateEventScreen() {
     fetchUserLocation();
   }, []);
 
-  // Initialize date from URL param or use current date
-  const getInitialDate = () => {
-    if (date) {
-      const parsedDate = new Date(date);
-      if (!isNaN(parsedDate.getTime())) {
-        return parsedDate;
-      }
+  // Initialize date from URL param or use current date (hardened)
+  const getInitialDate = (): Date => {
+    const parsed = safeParseDate(date);
+    if (parsed) return parsed;
+    if (__DEV__ && date) {
+      devWarn('[P1_PREFILL_EVENT]', 'params_invalid', { field: 'date', reason: 'unparseable' });
     }
     return new Date();
   };
@@ -406,23 +413,38 @@ export default function CreateEventScreen() {
   const [emoji, setEmoji] = useState(templateEmoji ?? "📅");
   const [startDate, setStartDate] = useState(getInitialDate);
   const [endDate, setEndDate] = useState(() => {
-    const initial = getInitialDate();
-    // Prefill: endDate param → duration param → default +1 hour
-    if (endDateParam) {
-      const parsed = new Date(endDateParam);
-      if (!isNaN(parsed.getTime())) {
-        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'endDate from param', { endDateParam });
-        return parsed;
+    const start = getInitialDate();
+    const ONE_HOUR = 60 * 60 * 1000;
+    let coerced = false;
+
+    // Priority 1: explicit endDate param
+    const parsedEnd = safeParseDate(endDateParam);
+    if (parsedEnd) {
+      if (parsedEnd.getTime() > start.getTime()) {
+        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'params_valid', { hasDateParam: !!date, hasEndDateParam: true, hasDurationParam: !!duration, coerced: false });
+        return parsedEnd;
       }
+      // endDate <= start → coerce
+      coerced = true;
+      if (__DEV__) devWarn('[P1_PREFILL_EVENT]', 'params_invalid', { field: 'endDate', reason: 'endDate_lte_start' });
+    } else if (endDateParam) {
+      // endDateParam present but garbage
+      if (__DEV__) devWarn('[P1_PREFILL_EVENT]', 'params_invalid', { field: 'endDate', reason: 'unparseable' });
     }
-    if (duration) {
+
+    // Priority 2: duration param (legacy)
+    if (!coerced && duration) {
       const mins = parseInt(duration, 10);
       if (!isNaN(mins) && mins > 0) {
-        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'endDate from duration', { duration });
-        return new Date(initial.getTime() + mins * 60 * 1000);
+        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'params_valid', { hasDateParam: !!date, hasEndDateParam: false, hasDurationParam: true, coerced: false });
+        return new Date(start.getTime() + mins * 60 * 1000);
       }
+      if (__DEV__) devWarn('[P1_PREFILL_EVENT]', 'params_invalid', { field: 'duration', reason: 'unparseable' });
     }
-    return new Date(initial.getTime() + 60 * 60 * 1000); // Default: start + 1 hour
+
+    // Default: start + 1 hour
+    if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'params_valid', { hasDateParam: !!date, hasEndDateParam: !!endDateParam, hasDurationParam: !!duration, coerced });
+    return new Date(start.getTime() + ONE_HOUR);
   });
   const [userModifiedEndTime, setUserModifiedEndTime] = useState(false); // Track if user manually changed end time
   const [visibility, setVisibility] = useState<"all_friends" | "specific_groups" | "circle_only">(() => {
