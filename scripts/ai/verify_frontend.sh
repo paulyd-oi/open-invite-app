@@ -60,4 +60,100 @@ fi
 echo "== TYPECHECK =="
 npm run typecheck
 
+# =========================================================================
+# P14 — Invariant Enforcement (static scans, no deps, no ESLint)
+# =========================================================================
+echo "== P14 ENFORCEMENT =="
+
+# --- Part 1: Network Gate — useQuery must include enabled: guard ----------
+# Scan: grep 60 lines after each useQuery({ and flag blocks with no `enabled`.
+# Allowlist: known pre-existing debt (dead example code + admin.tsx legacy).
+P14_QUERY_ALLOWLIST="ComponentWithDataFetchingExample\.tsx|src/app/admin\.tsx:56"
+
+P14_UNGATED=$(grep -rn --include="*.tsx" --include="*.ts" -A60 "useQuery({" src/ 2>/dev/null \
+  | grep -v node_modules \
+  | awk '
+    /useQuery\(\{/ {
+      if (block && !has_en) print saved_loc
+      block = 1; has_en = 0; saved_loc = $0
+    }
+    block && /enabled/ { has_en = 1 }
+    /^--$/ {
+      if (block && !has_en) print saved_loc
+      block = 0
+    }
+    END { if (block && !has_en) print saved_loc }
+  ' \
+  | grep -v -E "$P14_QUERY_ALLOWLIST" || true)
+
+if [ -n "$P14_UNGATED" ]; then
+  echo "❌ P14 FAIL — useQuery missing enabled auth/network gate"
+  echo "$P14_UNGATED"
+  exit 1
+else
+  echo "  ✓ P14 Part 1: All useQuery blocks have enabled: guard"
+fi
+
+# --- Part 2: Navigation Invariant — no router.push('/login') -------------
+P14_PUSH_LOGIN=$(grep -rn --include="*.tsx" --include="*.ts" \
+  "router\.push.*['\"/]login" src/ 2>/dev/null \
+  | grep -v node_modules || true)
+
+if [ -n "$P14_PUSH_LOGIN" ]; then
+  echo "❌ P14 FAIL — router.push('/login') violates logout invariant"
+  echo "$P14_PUSH_LOGIN"
+  exit 1
+else
+  echo "  ✓ P14 Part 2: No router.push('/login') — replace-only invariant holds"
+fi
+
+# --- Part 3: UI Primitive Drift — Pressable + inline backgroundColor hex --
+# Flag only when <Pressable and backgroundColor with hex literal appear within
+# 5 lines of each other in the same file (signals inline CTA styling).
+P14_CTA_DRIFT=$(find src/app/ src/components/ \( -name "*.tsx" -o -name "*.ts" \) \
+  -not -path "*/node_modules/*" -print0 2>/dev/null \
+  | xargs -0 awk '
+    FNR == 1 { delete pr; delete bg; pc = 0; bc = 0 }
+    /<Pressable/  { pr[pc++] = FNR }
+    /backgroundColor.*["'"'"']#[0-9A-Fa-f]/ { bg[bc++] = FNR }
+    END {
+      for (p = 0; p < pc; p++)
+        for (b = 0; b < bc; b++) {
+          d = bg[b] - pr[p]
+          if (d >= 0 && d <= 5)
+            printf "%s: Pressable@L%d + inline backgroundColor@L%d\n", FILENAME, pr[p], bg[b]
+        }
+    }
+  ' 2>/dev/null || true)
+
+if [ -n "$P14_CTA_DRIFT" ]; then
+  echo "❌ P14 FAIL — inline CTA styling detected, use Button/Chip primitive"
+  echo "$P14_CTA_DRIFT"
+  exit 1
+else
+  echo "  ✓ P14 Part 3: No inline CTA styling drift detected"
+fi
+
+# --- Part 4: Motion Token — no literal pressed-opacity values -------------
+# Detect: opacity in pressed callback using a literal decimal instead of
+# PRESS_OPACITY token. Scope: only pressed-state contexts.
+# Allowlist: ui/motion.ts (token definition) and ui/ primitives that import it.
+P14_PRESSED_OPACITY=$(grep -rn --include="*.tsx" --include="*.ts" \
+  'pressed.*opacity.*0\.\|\.pressed.*opacity.*0\.' src/ 2>/dev/null \
+  | grep -v node_modules \
+  | grep -v "motion\.ts" \
+  | grep -v "PRESS_OPACITY" \
+  | grep -v "src/ui/" || true)
+
+if [ -n "$P14_PRESSED_OPACITY" ]; then
+  echo "❌ P14 FAIL — animation literal detected, use motion.ts tokens"
+  echo "$P14_PRESSED_OPACITY"
+  exit 1
+else
+  echo "  ✓ P14 Part 4: No literal pressed-opacity values outside motion.ts"
+fi
+
+echo ""
+echo "P14 enforcement checks PASS"
+
 echo "PASS: verify_frontend"
