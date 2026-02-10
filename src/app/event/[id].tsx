@@ -3438,7 +3438,7 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
-                {__DEV__ && attendeesList.length > 0 && once('P0_USERROW_SOT_event') && void devLog('[P0_USERROW_SOT]', { screen: 'event_attendees_sheet', count: attendeesList.length })}
+                {__DEV__ && attendeesList.length > 0 && once('P0_USERROW_SHEET_SOT_event') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'event_attendees_sheet', showChevron: false, usesPressedState: true, rowsSampled: attendeesList.length })}
                 {attendeesList.map((attendee) => (
                   <View
                     key={attendee.id}
@@ -3458,7 +3458,6 @@ export default function EventDetailScreen() {
                         setShowAttendeesModal(false);
                         router.push(`/user/${attendee.id}` as any);
                       }}
-                      rightAccessory={<ChevronRight size={18} color={colors.textTertiary} />}
                     />
                   </View>
                 ))}

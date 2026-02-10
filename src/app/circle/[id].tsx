@@ -4299,7 +4299,7 @@ export default function CircleScreen() {
 
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
                 {/* Members List — SSOT via UserRow */}
-                {__DEV__ && members.length > 0 && once('P0_USERROW_SOT_circle') && void devLog('[P0_USERROW_SOT]', { screen: 'circle_members_sheet', count: members.length })}
+                {__DEV__ && members.length > 0 && once('P0_USERROW_SHEET_SOT_circle') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: members.length })}
                 {members.map((member, idx) => {
                   const isHostOfCircle = circle?.createdById === member.userId;
                   return (
@@ -4323,9 +4323,7 @@ export default function CircleScreen() {
                           router.push(`/user/${member.userId}`);
                         }}
                         rightAccessory={
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            {/* Remove button (host only, cannot remove self) */}
-                            {isHost && !isHostOfCircle && (
+                          isHost && !isHostOfCircle ? (
                               <Pressable
                                 onPress={(e) => {
                                   e.stopPropagation();
@@ -4357,15 +4355,12 @@ export default function CircleScreen() {
                                   alignItems: "center",
                                   justifyContent: "center",
                                   backgroundColor: "#FF3B3015",
-                                  marginRight: 8,
                                 }}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                               >
                                 <TrashIcon size={16} color="#FF3B30" />
                               </Pressable>
-                            )}
-                            <ChevronRight size={18} color={colors.textTertiary} />
-                          </View>
+                          ) : undefined
                         }
                       />
                     </View>
@@ -4382,6 +4377,7 @@ export default function CircleScreen() {
                       contentContainerStyle={{ paddingBottom: 8 }}
                       showsVerticalScrollIndicator={false}
                     >
+                      {__DEV__ && availableFriends.length > 0 && once('P0_USERROW_SHEET_SOT_circle_add') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_add_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: availableFriends.length })}
                       {availableFriends.map((friend) => {
                         const isSelected = selectedFriends.includes(friend.friendId);
                         return (
