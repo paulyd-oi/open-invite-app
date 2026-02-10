@@ -75,8 +75,10 @@ import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoading } from "@/lib/useStickyLoading";
+import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
@@ -673,8 +675,13 @@ export default function FriendsScreen() {
   }
 
   const { data: session } = useSession();
-  const { status: bootStatus } = useBootAuthority();
+  const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
+
+  // [P0_LOADING_ESCAPE] Timeout safety for boot gate
+  const isBootWaiting = (!session || bootStatus !== 'authed') && bootStatus !== 'loggedOut';
+  const { isTimedOut: isBootTimedOut, reset: resetBootTimeout } = useLoadingTimeout(isBootWaiting, { timeout: 3000 });
+  const [isRetrying, setIsRetrying] = useState(false);
   const params = useLocalSearchParams<{ search?: string }>();
   // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
@@ -942,6 +949,16 @@ export default function FriendsScreen() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
+
+  // [P0_LOADING_ESCAPE] Retry handler (after queries are available)
+  const handleLoadingRetry = useCallback(() => {
+    setIsRetrying(true);
+    resetBootTimeout();
+    retryBootstrap();
+    refetch();
+    refetchRequests();
+    setTimeout(() => setIsRetrying(false), 1500);
+  }, [resetBootTimeout, retryBootstrap, refetch, refetchRequests]);
 
   const sendRequestMutation = useMutation({
     mutationFn: (data: { email?: string; phone?: string }) =>
@@ -1367,6 +1384,19 @@ export default function FriendsScreen() {
     if (__DEV__) {
       devLog('[P0_FRIENDS_AUTH] → Showing skeleton (bootStatus=' + bootStatus + ', waiting for session)');
     }
+
+    // [P0_LOADING_ESCAPE] Timeout escape
+    if (isBootTimedOut) {
+      return (
+        <LoadingTimeoutUI
+          context="friends"
+          onRetry={handleLoadingRetry}
+          isRetrying={isRetrying}
+          showBottomNav={true}
+        />
+      );
+    }
+
     return (
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
         <AppHeader title="Friends" />

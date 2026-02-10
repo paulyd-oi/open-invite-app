@@ -75,6 +75,8 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
+import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { setActiveCircle } from "@/lib/activeCircle";
 import { uploadCirclePhoto } from "@/lib/imageUpload";
@@ -1639,7 +1641,7 @@ export default function CircleScreen() {
     };
   }, [showCalendar, calendarCollapsedByKeyboard]);
 
-  const { data, isLoading, isFetching, isSuccess, refetch } = useQuery({
+  const { data, isLoading, isFetching, isSuccess, isError, refetch } = useQuery({
     queryKey: circleKeys.single(id),
     queryFn: async () => {
       const response = await api.get<GetCircleDetailResponse>(`/api/circles/${id}`);
@@ -1667,6 +1669,19 @@ export default function CircleScreen() {
     { isLoading, isFetching, isSuccess, data },
     "circle-detail",
   );
+
+  // [P0_LOADING_ESCAPE] Timeout safety for initial load
+  const { isTimedOut: isCircleTimedOut, reset: resetCircleTimeout } = useLoadingTimeout(
+    !!(showCircleLoading || (!data?.circle && !isError)) && !!id,
+    { timeout: 3000 },
+  );
+  const [isRetrying, setIsRetrying] = useState(false);
+  const handleLoadingRetry = useCallback(() => {
+    setIsRetrying(true);
+    resetCircleTimeout();
+    refetch();
+    setTimeout(() => setIsRetrying(false), 1500);
+  }, [resetCircleTimeout, refetch]);
 
   // [P1_SCROLL_ANCHOR] + [P1_NEW_MSG] Message append watcher — depends on count only, not full array
   const circle = data?.circle;
@@ -2671,6 +2686,18 @@ export default function CircleScreen() {
 
   // ═══ Loading gate (AFTER all hooks — HOOK_ORDER_STABLE invariant) ═══
   if (!session || showCircleLoading || !circle) {
+    // [P0_LOADING_ESCAPE] Timeout / error escape
+    if (isCircleTimedOut || (isError && !circle)) {
+      return (
+        <LoadingTimeoutUI
+          context="circle"
+          onRetry={handleLoadingRetry}
+          isRetrying={isRetrying}
+          showBottomNav={false}
+          message={isError ? "Something went wrong loading this circle." : undefined}
+        />
+      );
+    }
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
         <Stack.Screen options={{ headerShown: false }} />

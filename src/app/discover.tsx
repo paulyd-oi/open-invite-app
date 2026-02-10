@@ -29,9 +29,12 @@ import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import BottomNavigation from "@/components/BottomNavigation";
+import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
@@ -75,7 +78,7 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
 
 export default function DiscoverScreen() {
   const { data: session } = useSession();
-  const { status: bootStatus } = useBootAuthority();
+  const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -86,19 +89,40 @@ export default function DiscoverScreen() {
   const tileShadow = !isDark ? TILE_SHADOW : {};
 
   // SSOT: two event sources merged into one list
-  const { data: feedData, isLoading: loadingFeed, refetch: refetchFeed } = useQuery({
+  const { data: feedData, isLoading: loadingFeed, isFetching: fetchingFeed, refetch: refetchFeed, isError: feedError } = useQuery({
     queryKey: eventKeys.feedPopular(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  const { data: myEventsData, isLoading: loadingMyEvents, refetch: refetchMyEvents } = useQuery({
+  const { data: myEventsData, isLoading: loadingMyEvents, isFetching: fetchingMyEvents, refetch: refetchMyEvents, isError: myEventsError } = useQuery({
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
   const isLoading = loadingFeed || loadingMyEvents;
+  const isError = feedError || myEventsError;
+
+  // [P0_LOADING_ESCAPE] loadedOnce discipline: skeleton only on first load
+  const { showInitialLoading: showDiscoverLoading } = useLoadedOnce(
+    { isLoading, isFetching: fetchingFeed || fetchingMyEvents, isSuccess: !!(feedData || myEventsData), data: feedData },
+    "discover-feed",
+  );
+
+  // [P0_LOADING_ESCAPE] Timeout safety
+  const isBootLoading = bootStatus === 'loading';
+  const { isTimedOut, reset: resetTimeout } = useLoadingTimeout(isBootLoading || showDiscoverLoading, { timeout: 3000 });
+  const [isRetrying, setIsRetrying] = useState(false);
+  const handleRetry = useCallback(() => {
+    setIsRetrying(true);
+    resetTimeout();
+    retryBootstrap();
+    refetchFeed();
+    refetchMyEvents();
+    setTimeout(() => setIsRetrying(false), 1500);
+  }, [resetTimeout, retryBootstrap, refetchFeed, refetchMyEvents]);
+
   const handleRefresh = useCallback(() => {
     refetchFeed();
     refetchMyEvents();
@@ -223,6 +247,30 @@ export default function DiscoverScreen() {
         </View>
         <BottomNavigation />
       </SafeAreaView>
+    );
+  }
+
+  // [P0_LOADING_ESCAPE] Timeout / error gate
+  if ((isBootLoading || showDiscoverLoading) && isTimedOut) {
+    return (
+      <LoadingTimeoutUI
+        context="discover"
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+        showBottomNav={true}
+      />
+    );
+  }
+
+  if (isError && !showDiscoverLoading) {
+    return (
+      <LoadingTimeoutUI
+        context="discover"
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+        showBottomNav={true}
+        message="Something went wrong loading events. Please try again."
+      />
     );
   }
 
@@ -389,7 +437,7 @@ export default function DiscoverScreen() {
           />
         }
       >
-        {isLoading ? (
+        {showDiscoverLoading ? (
           <View className="py-12 items-center">
             <ActivityIndicator size="small" color={themeColor} />
           </View>
