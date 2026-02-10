@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, Lock, Shield, Eye } from "@/ui/icons";
+import { Calendar, ChevronRight, ChevronLeft, Lock, Shield, Eye, Clock, MapPin } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -14,12 +14,32 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { devLog } from "@/lib/devLog";
-import { type FriendUser } from "@/shared/contracts";
+import { eventKeys } from "@/lib/eventQueryKeys";
+import { type FriendUser, type Event, type GetEventsResponse } from "@/shared/contracts";
 
-// ── Minimal Calendar (same as user/[id] PrivateCalendar) ──
-function PreviewCalendar({ themeColor }: { themeColor: string }) {
+// ── Owner-aware Calendar (shows event indicators when events available) ──
+function PreviewCalendar({
+  themeColor,
+  events = [],
+}: {
+  themeColor: string;
+  events?: Event[];
+}) {
   const { colors } = useTheme();
+  const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const hasEvents = events.length > 0;
+
+  // Build date→events lookup (same pattern as FriendCalendar in user/[id])
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, Event[]>();
+    events.forEach((ev) => {
+      const dateKey = new Date(ev.startTime).toDateString();
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push(ev);
+    });
+    return map;
+  }, [events]);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -44,6 +64,16 @@ function PreviewCalendar({ themeColor }: { themeColor: string }) {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
+  const handleDayPress = (day: number) => {
+    const selectedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateKey = selectedDate.toDateString();
+    const dayEvents = eventsByDate.get(dateKey);
+    if (dayEvents && dayEvents.length > 0) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push(`/event/${dayEvents[0].id}` as any);
+    }
+  };
+
   const renderDays = () => {
     const days = [];
     const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -63,22 +93,41 @@ function PreviewCalendar({ themeColor }: { themeColor: string }) {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const dateKey = date.toDateString();
+      const dayEvts = eventsByDate.get(dateKey) ?? [];
+      const hasDayEvents = dayEvts.length > 0;
       const isToday = today.toDateString() === dateKey;
 
-      days.push(
-        <View key={`day-${day}`} className="w-[14.28%] h-9 items-center justify-center">
-          <View
-            className={`w-8 h-8 rounded-full items-center justify-center ${isToday ? "border-2" : ""}`}
-            style={{ borderColor: isToday ? themeColor : undefined }}
+      const cell = (
+        <View
+          className={`w-8 h-8 rounded-full items-center justify-center ${isToday ? "border-2" : ""}`}
+          style={{
+            borderColor: isToday ? themeColor : undefined,
+            backgroundColor: hasDayEvents ? themeColor + "20" : undefined,
+          }}
+        >
+          <Text
+            className={`text-sm ${hasDayEvents ? "font-semibold" : "font-normal"}`}
+            style={{ color: hasDayEvents ? themeColor : isToday ? themeColor : colors.text }}
           >
-            <Text
-              className="text-sm font-normal"
-              style={{ color: isToday ? themeColor : colors.text }}
-            >
-              {day}
-            </Text>
-          </View>
+            {day}
+          </Text>
         </View>
+      );
+
+      days.push(
+        hasDayEvents ? (
+          <Pressable
+            key={`day-${day}`}
+            onPress={() => handleDayPress(day)}
+            className="w-[14.28%] h-9 items-center justify-center"
+          >
+            {cell}
+          </Pressable>
+        ) : (
+          <View key={`day-${day}`} className="w-[14.28%] h-9 items-center justify-center">
+            {cell}
+          </View>
+        )
       );
     }
 
@@ -103,10 +152,13 @@ function PreviewCalendar({ themeColor }: { themeColor: string }) {
         <View className="flex-row flex-wrap">{renderDays()}</View>
       </ScrollView>
 
-      <View className="flex-row items-center justify-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
-        <Lock size={12} color={colors.textTertiary} />
-        <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>Events hidden for privacy</Text>
-      </View>
+      {/* Footer: owner sees event count, non-friend would see lock */}
+      {!hasEvents && (
+        <View className="flex-row items-center justify-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
+          <Lock size={12} color={colors.textTertiary} />
+          <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>No upcoming events</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -138,6 +190,22 @@ export default function PublicProfileScreen() {
 
   const user = data?.user;
 
+  // Fetch owner's own events (self preview — NOT the foreign friend-events endpoint)
+  const { data: eventsData } = useQuery({
+    queryKey: eventKeys.myEvents(),
+    queryFn: () => api.get<GetEventsResponse>("/api/events"),
+    enabled: isAuthedForNetwork(bootStatus, session) && !!viewerId,
+  });
+
+  // Filter to upcoming events, sorted soonest-first
+  const upcomingEvents = useMemo(() => {
+    if (!eventsData?.events) return [];
+    const now = new Date();
+    return eventsData.events
+      .filter((e) => new Date(e.startTime) >= now)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [eventsData?.events]);
+
   // [P0_PUBLIC_PROFILE] DEV proof log
   useEffect(() => {
     if (__DEV__ && viewerId) {
@@ -148,6 +216,15 @@ export default function PublicProfileScreen() {
         friendActionsHidden: true,
         dataLoaded: !!data,
         userName: user?.name ?? null,
+      });
+      devLog("[P0_PUBLIC_PREVIEW_PRIVACY]", {
+        viewerId: viewerId?.slice(0, 8),
+        ownerId: viewerId?.slice(0, 8),
+        previewMode: true,
+        viewerIsOwner: true,
+        decision: "show_own_events",
+        eventCount: upcomingEvents.length,
+        reason: "owner_self_preview_must_not_mask_own_data",
       });
       devLog("[P1_PUBLIC_PREVIEW_UI]", {
         viewerId: viewerId?.slice(0, 8),
@@ -163,7 +240,7 @@ export default function PublicProfileScreen() {
         animationMounted: true,
       });
     }
-  }, [viewerId, data, user?.name]);
+  }, [viewerId, data, user?.name, upcomingEvents.length]);
 
   if (!session) {
     return (
@@ -276,7 +353,7 @@ export default function PublicProfileScreen() {
               </View>
             </Animated.View>
 
-            {/* Calendar (locked view — same as non-friend sees) */}
+            {/* Calendar — owner sees their actual events as indicators */}
             <Animated.View entering={FadeInDown.delay(100).springify()}>
               <View className="flex-row items-center mb-3">
                 <Calendar size={18} color={themeColor} />
@@ -284,10 +361,87 @@ export default function PublicProfileScreen() {
                   {user.name?.split(" ")[0] ?? "Your"}&apos;s Calendar
                 </Text>
               </View>
-              <PreviewCalendar themeColor={themeColor} />
+              <PreviewCalendar themeColor={themeColor} events={upcomingEvents} />
             </Animated.View>
 
-            {/* Privacy Notice — same as non-friend sees, but no CTA buttons */}
+            {/* Owner's upcoming event cards */}
+            {upcomingEvents.length > 0 && (
+              <Animated.View entering={FadeInDown.delay(120).springify()}>
+                <View className="flex-row items-center mb-3">
+                  <Clock size={16} color={themeColor} />
+                  <Text className="text-base font-semibold ml-2" style={{ color: colors.text }}>
+                    Upcoming Events
+                  </Text>
+                </View>
+                {upcomingEvents.slice(0, 5).map((event, index) => {
+                  const startDate = new Date(event.startTime);
+                  const isToday = new Date().toDateString() === startDate.toDateString();
+                  const isTomorrow = new Date(Date.now() + 86400000).toDateString() === startDate.toDateString();
+                  const dateLabel = isToday ? "Today" : isTomorrow ? "Tomorrow" : startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                  const timeLabel = startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+                  return (
+                    <Animated.View key={event.id} entering={FadeInDown.delay(140 + index * 80).springify()}>
+                      <Pressable
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push(`/event/${event.id}` as any);
+                        }}
+                        className="rounded-2xl p-4 mb-3"
+                        style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
+                      >
+                        <View className="flex-row items-start justify-between">
+                          <View className="flex-1">
+                            <View className="flex-row items-center mb-2">
+                              <EntityAvatar
+                                photoUrl={event.eventPhotoUrl}
+                                emoji={event.emoji ?? "📅"}
+                                size={36}
+                                borderRadius={10}
+                                backgroundColor={`${themeColor}15`}
+                                emojiStyle={{ fontSize: 20 }}
+                              />
+                              <View style={{ width: 8 }} />
+                              <View className="flex-1">
+                                <Text className="text-lg font-semibold" style={{ color: colors.text }}>
+                                  {event.title}
+                                </Text>
+                                <View className="flex-row items-center mt-1">
+                                  <Calendar size={12} color={colors.textSecondary} />
+                                  <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>
+                                    {dateLabel}
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+
+                            <View className="flex-row items-center flex-wrap gap-2">
+                              <View className="flex-row items-center">
+                                <Clock size={12} color={themeColor} />
+                                <Text className="text-xs ml-1 font-medium" style={{ color: themeColor }}>
+                                  {timeLabel}
+                                </Text>
+                              </View>
+                              {event.location && (
+                                <View className="flex-row items-center">
+                                  <MapPin size={12} color={colors.textTertiary} />
+                                  <Text className="text-xs ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>
+                                    {event.location}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                          <ChevronRight size={20} color={colors.textTertiary} />
+                        </View>
+                      </Pressable>
+                    </Animated.View>
+                  );
+                })}
+              </Animated.View>
+            )}
+
+            {/* Non-friend view notice — tells owner what others see */}
             <Animated.View entering={FadeInDown.delay(150).springify()}>
               <View
                 className="rounded-2xl p-6 items-center"
@@ -300,7 +454,7 @@ export default function PublicProfileScreen() {
                   <Shield size={28} color={colors.textTertiary} />
                 </View>
                 <Text className="text-lg font-semibold text-center mb-1" style={{ color: colors.text }}>
-                  Events are Private
+                  Non-friends see this as private
                 </Text>
                 <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
                   Only friends can see your open invites and events
