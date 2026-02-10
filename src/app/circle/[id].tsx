@@ -157,6 +157,7 @@ function MiniCalendar({
       userName: string;
       attendingMemberIds: string[];
       isPrivate: boolean;
+      isBusy?: boolean;
     }>();
 
     memberEvents.forEach((memberData) => {
@@ -201,6 +202,7 @@ function MiniCalendar({
               userName: members.find(m => m.userId === memberData.userId)?.user.name ?? "Unknown",
               attendingMemberIds: [memberData.userId],
               isPrivate: derivedPrivate,
+              isBusy: e.isBusy,
             });
           } else {
             // Already have this event - just add this member to attendees
@@ -590,18 +592,23 @@ function MiniCalendar({
         themeColor={themeColor}
       >
         {selectedDateEvents.map((event, index) => {
-          const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
+          const viewerIsOwner = event.userId === currentUserId;
+          // INV_BUSY_1: SSOT masking via shouldMaskEvent (primary) + isPrivate fallback (backend signal)
+          const maskedBusy = shouldMaskEvent(
+            { isBusy: event.isBusy, isWork: false, isOwn: viewerIsOwner },
+            viewerIsOwner
+          ) || (event.isPrivate && !viewerIsOwner);
 
-          if (__DEV__ && isMaskedBusy) {
-            devLog('[P0_BUSY_ROW]', { eventId: event.id, viewerIsOwner: event.userId === currentUserId, masked: true });
+          if (__DEV__) {
+            devLog('[P0_BUSY_ROW]', { eventId: event.id, maskedBusy, viewerIsOwner, hasIsBusy: typeof event.isBusy === 'boolean' });
           }
 
           return (
             <Pressable
               key={event.id}
-              disabled={isMaskedBusy}
+              disabled={maskedBusy}
               onPress={() => {
-                if (isMaskedBusy) {
+                if (maskedBusy) {
                   if (__DEV__) {
                     devLog('[P0_VISIBILITY] Circle mini calendar tap blocked:', {
                       sourceSurface: 'circle-mini',
@@ -650,7 +657,7 @@ function MiniCalendar({
                 setShowDayModal(false);
                 router.push(`/event/${eventId}` as any);
               }}
-              style={{ opacity: isMaskedBusy ? 0.7 : 1 }}
+              style={{ opacity: maskedBusy ? 0.7 : 1 }}
             >
               <Animated.View
                 entering={FadeInDown.delay(index * 50).springify()}
@@ -671,8 +678,8 @@ function MiniCalendar({
                       backgroundColor: event.color
                     }}
                   />
-                  <Text style={{ fontWeight: "500", flex: 1, color: isMaskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
-                    {event.title}
+                  <Text style={{ fontWeight: "500", flex: 1, color: maskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
+                    {maskedBusy ? "Busy" : event.title}
                   </Text>
                   <Text style={{ fontSize: 11, color: colors.textTertiary }}>
                     {event.endTime
@@ -683,7 +690,7 @@ function MiniCalendar({
                         })}
                   </Text>
                 </View>
-                {!isMaskedBusy && (
+                {!maskedBusy && (
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
                     <Text style={{ fontSize: 11, color: colors.textSecondary }}>
                       {event.attendingMemberIds.length > 1

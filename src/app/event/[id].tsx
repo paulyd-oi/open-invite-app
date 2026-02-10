@@ -1614,7 +1614,7 @@ export default function EventDetailScreen() {
   const busyMasked = event ? shouldMaskEvent({ isBusy: event.isBusy, isWork: (event as any).isWork, isOwn: isMyEvent }, isMyEvent) : false;
   if (isBusyBlock && busyMasked && !isMyEvent) {
     if (__DEV__) {
-      devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, viewerIsOwner: isMyEvent, isBusy: true, masked: true });
+      devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, maskedBusy: true, viewerIsOwner: isMyEvent });
     }
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
