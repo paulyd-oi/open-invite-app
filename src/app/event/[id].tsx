@@ -1228,7 +1228,7 @@ export default function EventDetailScreen() {
   const addHostMutation = useMutation({
     mutationFn: () => {
       if (__DEV__) {
-        devLog("[P0_PRIVATE_HOST_CTA] add_host_press", {
+        devLog("[P0_EVENT_FRIEND_BOUNDARY] add_host_press", {
           hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
         });
       }
@@ -1241,7 +1241,7 @@ export default function EventDetailScreen() {
       safeToast.success("Request Sent", "Friend request sent to " + restrictedHostName);
 
       if (__DEV__) {
-        devLog("[P0_PRIVATE_HOST_CTA] add_host_success", {
+        devLog("[P0_EVENT_FRIEND_BOUNDARY] add_host_success", {
           hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
           invalidated: [
             "friendRequests",
@@ -1274,7 +1274,7 @@ export default function EventDetailScreen() {
         safeToast.error("Oops", message);
       }
       if (__DEV__) {
-        devLog("[P0_PRIVATE_HOST_CTA] add_host_error", { message });
+        devLog("[P0_EVENT_FRIEND_BOUNDARY] add_host_error", { message });
       }
     },
   });
@@ -1468,35 +1468,44 @@ export default function EventDetailScreen() {
     const errorStatus = eventErrorStatus;
     const errorCode = eventErrorCode;
     
-    // Privacy-restricted event: show explainer with CTA to view host profile
+    // [P0_EVENT_FRIEND_BOUNDARY] Friend-boundary gate: viewer is not connected to host
     if (isPrivacyRestricted) {
-      // Handler for tapping host avatar/name
-      const handleHostPress = () => {
-        if (!restrictedHostInfo?.id) return;
+      const ownerId = restrictedHostInfo?.id ?? null;
+
+      if (__DEV__) {
+        devLog('[P0_EVENT_FRIEND_BOUNDARY]', {
+          eventId: id,
+          hasOwnerId: !!ownerId,
+          ownerId,
+        });
+      }
+
+      // Handler for tapping host avatar/name → canonical profile route
+      const handleViewHostProfile = () => {
+        if (!ownerId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (__DEV__) {
-          devLog('[P0_PRIVATE_HOST_CTA] nav_to_host_profile', {
+          devLog('[P0_EVENT_FRIEND_BOUNDARY] nav_to_host_profile', {
             eventIdPrefix: id?.slice(0, 6),
-            hostIdPrefix: restrictedHostInfo.id.slice(0, 6),
+            hostIdPrefix: ownerId.slice(0, 6),
           });
         }
-        router.push(`/user/${restrictedHostInfo.id}` as any);
+        router.push(`/user/${ownerId}` as any);
       };
 
-      // P0 FIX: addHostMutation moved to top level - use via closure
-      const handleAddHost = () => {
-        if (!restrictedHostInfo?.id) return;
+      // Send friend request without navigating away
+      const handleSendRequest = () => {
+        if (!ownerId) return;
         addHostMutation.mutate();
       };
-
 
       return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
           <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
           <View className="flex-1 items-center justify-center px-6">
             {/* Tappable host avatar - only when host info available */}
-            {restrictedHostInfo?.id ? (
-              <Pressable onPress={handleHostPress}>
+            {ownerId ? (
+              <Pressable onPress={handleViewHostProfile}>
                 {restrictedHostInfo?.image ? (
                   <Image
                     source={{ uri: restrictedHostInfo.image }}
@@ -1524,8 +1533,8 @@ export default function EventDetailScreen() {
             )}
             
             {/* Tappable host name - only when host info available */}
-            {restrictedHostInfo?.id ? (
-              <Pressable onPress={handleHostPress}>
+            {ownerId ? (
+              <Pressable onPress={handleViewHostProfile}>
                 <Text 
                   className="text-lg font-semibold text-center mb-1"
                   style={{ color: themeColor }}
@@ -1539,33 +1548,33 @@ export default function EventDetailScreen() {
               className="text-xl font-semibold text-center mb-2"
               style={{ color: colors.text }}
             >
-              This event is private
+              Event details hidden
             </Text>
             <Text 
               className="text-center mb-6"
               style={{ color: colors.textSecondary, lineHeight: 22 }}
             >
-              {restrictedHostInfo?.id 
-                ? `Add ${restrictedHostName} to see event details.`
-                : 'Add this person to see event details.'
+              {ownerId
+                ? `Connect with ${restrictedHostName} to see this event.`
+                : 'Connect with the host to see this event.'
               }
             </Text>
             <View className="gap-3 w-full max-w-xs">
-              {restrictedHostInfo?.id && (
+              {ownerId && (
                 <Button
                   variant="primary"
-                  label="Add Host"
-                  onPress={handleAddHost}
-                  disabled={addHostMutation.isPending}
-                  loading={addHostMutation.isPending}
-                  leftIcon={!addHostMutation.isPending ? <UserPlus size={18} color="#FFFFFF" /> : undefined}
+                  label="View Host Profile"
+                  onPress={handleViewHostProfile}
                 />
               )}
-              {restrictedHostInfo?.id && (
+              {ownerId && (
                 <Button
                   variant="secondary"
-                  label="View Profile"
-                  onPress={handleHostPress}
+                  label="Send Friend Request"
+                  onPress={handleSendRequest}
+                  disabled={addHostMutation.isPending}
+                  loading={addHostMutation.isPending}
+                  leftIcon={!addHostMutation.isPending ? <UserPlus size={18} color={themeColor} /> : undefined}
                 />
               )}
               <Button
@@ -1624,7 +1633,7 @@ export default function EventDetailScreen() {
     );
   }
 
-  // [P0_BUSY_DETAIL_GUARD] Busy block: non-owner sees safe screen, no title leak, no "Add this person" CTA
+  // [P0_BUSY_DETAIL_GUARD] Busy block: non-owner sees safe screen, no title leak, no friend-boundary CTA
   // INV_BUSY_1 + INV_BUSY_3: shouldMaskEvent is the SSOT privacy predicate
   const busyMasked = event ? shouldMaskEvent({ isBusy: event.isBusy, isWork: (event as any).isWork, isOwn: isMyEvent }, isMyEvent) : false;
   if (isBusyBlock && busyMasked && !isMyEvent) {
