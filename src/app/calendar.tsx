@@ -34,6 +34,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ContextMenu from "zeego/context-menu";
 import * as ExpoCalendar from "expo-calendar";
 
+import { AppHeader } from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { safeToast } from "@/lib/safeToast";
@@ -2181,9 +2182,10 @@ export default function CalendarScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <View className="px-5 pt-2 pb-2">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center" style={{ overflow: "hidden" }}>
+        <AppHeader
+          title={`${MONTHS[currentMonth]} ${currentYear}`}
+          variant="calendar"
+          titleContent={
             <Animated.View
               key={`${currentYear}-${currentMonth}`}
               entering={
@@ -2198,16 +2200,16 @@ export default function CalendarScreen() {
               }
               className="flex-row items-center"
             >
-              <Text className="text-2xl font-sora-bold" style={{ color: themeColor }}>
+              <Text className="text-3xl font-sora-bold" style={{ color: themeColor }}>
                 {MONTHS[currentMonth]}
               </Text>
-              <Text className="text-2xl font-sora-bold ml-2" style={{ color: colors.text }}>
+              <Text className="text-3xl font-sora-bold ml-2" style={{ color: colors.text }}>
                 {currentYear}
               </Text>
             </Animated.View>
-            <HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />
-          </View>
-          <View className="flex-row items-center">
+          }
+          left={<HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />}
+          right={
             <Button
               variant="primary"
               size="sm"
@@ -2218,71 +2220,70 @@ export default function CalendarScreen() {
                 router.push("/create");
               }}
             />
-          </View>
-        </View>
+          }
+          bottom={
+            <View className="flex-row items-center justify-between mt-3">
+              <Pressable onPress={goToPrevMonth} className="flex-row items-center p-2">
+                <ChevronLeft size={20} color={themeColor} />
+                <Text className="font-bold ml-1" style={{ color: themeColor, fontSize: 15 }}>
+                  {MONTHS[(currentMonth - 1 + 12) % 12].slice(0, 3)}
+                </Text>
+              </Pressable>
 
-        {/* Month Navigation */}
-        <View className="flex-row items-center justify-between mt-3">
-          <Pressable onPress={goToPrevMonth} className="flex-row items-center p-2">
-            <ChevronLeft size={20} color={themeColor} />
-            <Text className="font-bold ml-1" style={{ color: themeColor, fontSize: 15 }}>
-              {MONTHS[(currentMonth - 1 + 12) % 12].slice(0, 3)}
-            </Text>
-          </Pressable>
+              {/* View Mode Selector - Calendar modes + separate List button */}
+              <View className="flex-row items-center">
+                {/* Calendar view modes (pinch-to-zoom) */}
+                <View
+                  className="flex-row rounded-full p-1"
+                  style={{ backgroundColor: colors.segmentBg }}
+                >
+                  {CALENDAR_VIEW_MODES.map((mode) => {
+                    const Icon = mode.icon;
+                    const isActive = !isListView && viewMode === mode.id;
+                    return (
+                      <Pressable
+                        key={mode.id}
+                        onPress={() => {
+                          setIsListView(false);
+                          setViewModeManually(mode.id);
+                        }}
+                        className="px-3 py-1.5 rounded-full"
+                        style={{
+                          backgroundColor: isActive ? colors.segmentActive : "transparent",
+                        }}
+                      >
+                        <Icon size={16} color={isActive ? themeColor : colors.textTertiary} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
 
-          {/* View Mode Selector - Calendar modes + separate List button */}
-          <View className="flex-row items-center">
-            {/* Calendar view modes (pinch-to-zoom) */}
-            <View
-              className="flex-row rounded-full p-1"
-              style={{ backgroundColor: colors.segmentBg }}
-            >
-              {CALENDAR_VIEW_MODES.map((mode) => {
-                const Icon = mode.icon;
-                const isActive = !isListView && viewMode === mode.id;
-                return (
-                  <Pressable
-                    key={mode.id}
-                    onPress={() => {
-                      setIsListView(false);
-                      setViewModeManually(mode.id);
-                    }}
-                    className="px-3 py-1.5 rounded-full"
-                    style={{
-                      backgroundColor: isActive ? colors.segmentActive : "transparent",
-                    }}
-                  >
-                    <Icon size={16} color={isActive ? themeColor : colors.textTertiary} />
-                  </Pressable>
-                );
-              })}
+                {/* List view - separate button */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setIsListView(true);
+                  }}
+                  className="w-8 h-8 rounded-full items-center justify-center ml-2"
+                  style={{
+                    backgroundColor: isListView
+                      ? colors.segmentActive
+                      : colors.segmentBg,
+                  }}
+                >
+                  <List size={16} color={isListView ? themeColor : colors.textTertiary} />
+                </Pressable>
+              </View>
+
+              <Pressable onPress={goToNextMonth} className="flex-row items-center p-2">
+                <Text className="font-bold mr-1" style={{ color: themeColor, fontSize: 15 }}>
+                  {MONTHS[(currentMonth + 1) % 12].slice(0, 3)}
+                </Text>
+                <ChevronRight size={20} color={themeColor} />
+              </Pressable>
             </View>
-
-            {/* List view - separate button */}
-            <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                setIsListView(true);
-              }}
-              className="w-8 h-8 rounded-full items-center justify-center ml-2"
-              style={{
-                backgroundColor: isListView
-                  ? colors.segmentActive
-                  : colors.segmentBg,
-              }}
-            >
-              <List size={16} color={isListView ? themeColor : colors.textTertiary} />
-            </Pressable>
-          </View>
-
-          <Pressable onPress={goToNextMonth} className="flex-row items-center p-2">
-            <Text className="font-bold mr-1" style={{ color: themeColor, fontSize: 15 }}>
-              {MONTHS[(currentMonth + 1) % 12].slice(0, 3)}
-            </Text>
-            <ChevronRight size={20} color={themeColor} />
-          </Pressable>
-        </View>
-      </View>
+          }
+        />
 
       {/* Calendar Import Nudge Banner - shown if permission not granted and not dismissed */}
       {showCalendarImportNudge && (

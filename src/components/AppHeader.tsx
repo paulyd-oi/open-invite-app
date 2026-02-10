@@ -25,6 +25,8 @@ const RIGHT_SLOT_MIN_W = 48;
 export interface AppHeaderProps {
   /** Screen title displayed in the header */
   title: string;
+  /** Optional custom title content (overrides default Text rendering of title) */
+  titleContent?: React.ReactNode;
   /** Optional subtitle below the title */
   subtitle?: string;
   /** Content rendered to the left of the title (e.g. HelpSheet) */
@@ -35,18 +37,23 @@ export interface AppHeaderProps {
   variant?: "standard" | "calendar";
   /** Extra content below the title row (calendar month controls, etc.) */
   bottom?: React.ReactNode;
+  /** When true, AppHeader applies safe-area top inset itself (default false — parent handles it) */
+  includeSafeAreaTop?: boolean;
 }
 
 export function AppHeader({
   title,
+  titleContent,
   subtitle,
   left,
   right,
   variant = "standard",
   bottom,
+  includeSafeAreaTop = false,
 }: AppHeaderProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const effectivePaddingTop = includeSafeAreaTop ? insets.top + HEADER_PT : HEADER_PT;
 
   // DEV-only render proof logs (once per mount)
   const logged = useRef(false);
@@ -54,16 +61,17 @@ export function AppHeader({
     if (__DEV__ && !logged.current) {
       logged.current = true;
       devLog(`[P2_HEADER_SSOT] ${title} using AppHeader ${variant}`);
-      devLog(`[P2_HEADER_SAFEAREA] ${title} insetTop=${insets.top} paddingTop=${HEADER_PT}`);
+      devLog(`[P2_HEADER_SAFEAREA] ${title} insetTop=${insets.top} paddingTop=${effectivePaddingTop}`);
+      devLog(`[P2_HEADER_SAFEAREA_MODE] ${title} includeSafeAreaTop=${includeSafeAreaTop} insetTop=${insets.top} effectivePaddingTop=${effectivePaddingTop}`);
       devLog(`[P2_HEADER_RIGHTSLOT] ${title} rightSlotMinWidth=${RIGHT_SLOT_MIN_W}`);
     }
-  }, [title, variant, insets.top]);
+  }, [title, variant, insets.top, includeSafeAreaTop, effectivePaddingTop]);
 
   return (
     <View
       style={{
         paddingHorizontal: HEADER_PX,
-        paddingTop: HEADER_PT,
+        paddingTop: effectivePaddingTop,
         paddingBottom: HEADER_PB,
       }}
     >
@@ -77,13 +85,15 @@ export function AppHeader({
         }}
       >
         {/* Left cluster: title + optional inline element (HelpSheet, etc.) */}
-        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
-          <Text
-            className="text-3xl font-sora-bold"
-            style={{ color: colors.text }}
-          >
-            {title}
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, overflow: "hidden" }}>
+          {titleContent ?? (
+            <Text
+              className="text-3xl font-sora-bold"
+              style={{ color: colors.text }}
+            >
+              {title}
+            </Text>
+          )}
           {left}
         </View>
 
