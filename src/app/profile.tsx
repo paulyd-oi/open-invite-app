@@ -390,6 +390,15 @@ export default function ProfileScreen() {
     });
   }
 
+  // [P1_HEADER_SOT] Header consistency proof
+  if (__DEV__) {
+    devLog("[P1_HEADER_SOT]", {
+      route: "profile",
+      resolvedTitle: "Profile",
+      backMode: "n/a (tab root)",
+    });
+  }
+
   // ── Time formatting helper ──
   const formatRelativeTime = (date: Date) => {
     const diff = date.getTime() - now.getTime();

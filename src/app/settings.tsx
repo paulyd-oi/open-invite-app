@@ -10,6 +10,7 @@ import {
   Platform,
   Linking,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -774,6 +775,7 @@ export default function SettingsScreen() {
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
   const [editBanner, setEditBanner] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   // null = unchanged, "" = removed, "file://..." or "https://..." = new/existing
   const [editCalendarBio, setEditCalendarBio] = useState("");
   const [editHandle, setEditHandle] = useState("");
@@ -1215,6 +1217,8 @@ export default function SettingsScreen() {
     }
 
     setHandleError(null);
+    setIsUploading(true);
+    if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_start");
 
     try {
       const updates: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; handle?: string; adminBypassCooldown?: boolean } = {};
@@ -1231,10 +1235,12 @@ export default function SettingsScreen() {
           // Local file - need to upload first
           try {
             if (__DEV__) devLog("[EditProfile] Uploading profile photo...");
+            if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_locked", { type: "avatar" });
             const uploadResponse = await uploadImage(editImage, true);
             updates.avatarUrl = uploadResponse.url;
             if (__DEV__) devLog("[EditProfile] Photo uploaded:", uploadResponse.url);
           } catch (uploadError) {
+            setIsUploading(false);
             logError("Profile Photo Upload", uploadError);
             safeToast.error("Upload Failed", "Failed to upload profile photo. Please try again.");
             return; // Stop save if upload fails
@@ -1254,10 +1260,12 @@ export default function SettingsScreen() {
         } else if (editBanner.startsWith("file://")) {
           try {
             if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_start', { uri: editBanner.slice(0, 80) });
+            if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_locked", { type: "banner" });
             const bannerResponse = await uploadBannerPhoto(editBanner);
             updates.bannerPhotoUrl = bannerResponse.url;
             if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_success', { url: bannerResponse.url?.slice(0, 60) });
           } catch (bannerError: any) {
+            setIsUploading(false);
             logError("Banner Photo Upload", bannerError);
             const errMsg = bannerError?.message || String(bannerError);
             if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_FAILED', { error: errMsg, status: bannerError?.status });
@@ -1289,11 +1297,15 @@ export default function SettingsScreen() {
       
       if (Object.keys(updates).length > 0) {
         if (__DEV__) devLog("[EditProfile] Save payload:", updates);
+        if (__DEV__) devLog("[P1_MEDIA_UX]", "upload_success");
+        setIsUploading(false);
         updateProfileMutation.mutate(updates);
       } else {
+        setIsUploading(false);
         setShowEditProfile(false);
       }
     } catch (error) {
+      setIsUploading(false);
       logError("EditProfile Save", error);
       const { title, message } = toUserMessage(error);
       safeToast.error(title, message || "Failed to save profile");
@@ -1563,7 +1575,7 @@ export default function SettingsScreen() {
 
               {/* Profile Picture */}
               <View className="items-center mb-4">
-                <Pressable onPress={handlePickImage} className="relative">
+                <Pressable onPress={handlePickImage} disabled={isUploading} className="relative" style={{ opacity: isUploading ? 0.6 : 1 }}>
                   <EntityAvatar
                     photoUrl={editImage || undefined}
                     initials={editName?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
@@ -1573,14 +1585,20 @@ export default function SettingsScreen() {
                     foregroundColor={themeColor}
                     fallbackIcon="person-outline"
                   />
-                  <View
-                    className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center border-2"
-                    style={{ backgroundColor: themeColor, borderColor: colors.surface }}
-                  >
-                    <Camera size={16} color="#fff" />
-                  </View>
+                  {isUploading ? (
+                    <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 48 }}>
+                      <ActivityIndicator color="#fff" size="small" />
+                    </View>
+                  ) : (
+                    <View
+                      className="absolute bottom-0 right-0 w-8 h-8 rounded-full items-center justify-center border-2"
+                      style={{ backgroundColor: themeColor, borderColor: colors.surface }}
+                    >
+                      <Camera size={16} color="#fff" />
+                    </View>
+                  )}
                 </Pressable>
-                <Text style={{ color: colors.textSecondary }} className="text-sm mt-2">Tap to change photo</Text>
+                <Text style={{ color: colors.textSecondary }} className="text-sm mt-2">{isUploading ? "Uploading..." : "Tap to change photo"}</Text>
               </View>
 
               {/* Profile Banner */}
@@ -1595,6 +1613,7 @@ export default function SettingsScreen() {
                   <View className="mb-4">
                     <Pressable
                       onPress={handlePickBanner}
+                      disabled={isUploading}
                       className="rounded-xl overflow-hidden"
                       style={{
                         height: 80,
@@ -1602,14 +1621,22 @@ export default function SettingsScreen() {
                         borderWidth: 1,
                         borderColor: colors.border,
                         borderStyle: showBanner ? "solid" : "dashed",
+                        opacity: isUploading ? 0.6 : 1,
                       }}
                     >
                       {showBanner && bannerSource ? (
-                        <Image
-                          source={{ uri: bannerSource }}
-                          style={{ width: "100%", height: 80 }}
-                          resizeMode="cover"
-                        />
+                        <View>
+                          <Image
+                            source={{ uri: bannerSource }}
+                            style={{ width: "100%", height: 80 }}
+                            resizeMode="cover"
+                          />
+                          {isUploading && (
+                            <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                              <ActivityIndicator color="#fff" size="small" />
+                            </View>
+                          )}
+                        </View>
                       ) : (
                         <View className="flex-1 items-center justify-center">
                           <ImagePlus size={20} color={colors.textTertiary} />
@@ -1618,9 +1645,10 @@ export default function SettingsScreen() {
                       )}
                     </Pressable>
                     {showBanner && (
-                      <View className="flex-row mt-2" style={{ gap: 8 }}>
+                      <View className="flex-row mt-2" style={{ gap: 8, opacity: isUploading ? 0.5 : 1 }}>
                         <Pressable
                           onPress={handlePickBanner}
+                          disabled={isUploading}
                           className="flex-1 py-2 rounded-lg items-center"
                           style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
                         >
@@ -1628,6 +1656,7 @@ export default function SettingsScreen() {
                         </Pressable>
                         <Pressable
                           onPress={() => { setEditBanner(""); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                          disabled={isUploading}
                           className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
                           style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
                         >
@@ -1719,10 +1748,10 @@ export default function SettingsScreen() {
                 />
                 <Button
                   variant="primary"
-                  label={updateProfileMutation.isPending ? "Saving..." : "Save"}
+                  label={isUploading ? "Uploading..." : updateProfileMutation.isPending ? "Saving..." : "Save"}
                   onPress={handleSaveProfile}
-                  disabled={updateProfileMutation.isPending}
-                  loading={updateProfileMutation.isPending}
+                  disabled={isUploading || updateProfileMutation.isPending}
+                  loading={isUploading || updateProfileMutation.isPending}
                   style={{ flex: 1, borderRadius: 12 }}
                 />
               </View>

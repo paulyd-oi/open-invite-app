@@ -490,6 +490,11 @@ export default function UserProfileScreen() {
         headerBackButtonDisplayMode: "minimal",
         title: user?.name ?? "Profile",
       });
+      devLog("[P1_HEADER_SOT]", {
+        route: "user/[id]",
+        resolvedTitle: user?.name ?? "Profile",
+        backMode: "minimal",
+      });
     }
   }, [data, id, source, isFriend, friendshipId]);
 

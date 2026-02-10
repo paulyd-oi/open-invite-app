@@ -149,6 +149,15 @@ export default function PublicProfileScreen() {
         dataLoaded: !!data,
         userName: user?.name ?? null,
       });
+      devLog("[P1_PUBLIC_PREVIEW_UI]", {
+        viewerId: viewerId?.slice(0, 8),
+        bannerMounted: true,
+      });
+      devLog("[P1_HEADER_SOT]", {
+        route: "public-profile",
+        resolvedTitle: "Public Profile",
+        backMode: "minimal",
+      });
     }
   }, [viewerId, data, user?.name]);
 
@@ -184,17 +193,27 @@ export default function PublicProfileScreen() {
         }
       >
         {/* Preview banner */}
-        <Animated.View entering={FadeInDown.springify()} className="mb-4">
+        <View className="mb-4">
           <View
             className="rounded-2xl px-4 py-3 flex-row items-center"
             style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}40`, borderWidth: 1 }}
           >
-            <Eye size={18} color={themeColor} />
-            <Text className="ml-2 text-sm font-medium flex-1" style={{ color: themeColor }}>
-              This is how others see your profile
-            </Text>
+            <View
+              className="w-9 h-9 rounded-full items-center justify-center mr-3"
+              style={{ backgroundColor: `${themeColor}20` }}
+            >
+              <Eye size={18} color={themeColor} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold" style={{ color: themeColor }}>
+                Public Preview
+              </Text>
+              <Text className="text-xs mt-0.5" style={{ color: `${themeColor}CC` }}>
+                This is how others see your profile
+              </Text>
+            </View>
           </View>
-        </Animated.View>
+        </View>
 
         {isLoading ? (
           <View className="py-8 items-center">
