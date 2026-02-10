@@ -52,19 +52,6 @@ export function Button({
   const isDisabled = disabled || loading;
   const [pressed, setPressed] = useState(false);
 
-  // [P0_BUTTON_PRIMARY_STYLE] DEV-only proof log for primary visibility fix
-  if (__DEV__ && variant === "primary" && once(`btn_primary_style_${label}`)) {
-    const bg = isDisabled ? colors.buttonPrimaryDisabledBg : themeColor;
-    const txt = isDisabled ? colors.buttonPrimaryDisabledText : colors.buttonPrimaryText;
-    console.log("[P0_BUTTON_PRIMARY_STYLE]", {
-      label,
-      isDark,
-      backgroundColor: bg,
-      textColor: txt,
-      themeColor,
-    });
-  }
-
   const paddingH = size === "sm" ? SPACING.xl : SPACING.xxl;
   const paddingV = size === "sm" ? SPACING.sm : SPACING.lg;
   const fontSize = size === "sm" ? 13 : 15;

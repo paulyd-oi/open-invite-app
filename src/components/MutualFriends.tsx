@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { devLog } from "@/lib/devLog";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -74,7 +75,7 @@ export function MutualFriends({ userId, userName }: MutualFriendsProps) {
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
-                  if (__DEV__) console.log('[P0_PROFILE_AUDIT] source=mutual-friends target=/user/[id] idType=userId');
+                  if (__DEV__) devLog('[P0_PROFILE_AUDIT] source=mutual-friends target=/user/[id] idType=userId');
                   router.push(`/user/${friend.id}` as any);
                 }}
                 className="items-center mr-3"

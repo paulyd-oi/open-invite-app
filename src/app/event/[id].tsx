@@ -847,7 +847,7 @@ export default function EventDetailScreen() {
     queryKey: eventKeys.attendees(id ?? ""), // [P0_RSVP_SOT] Use canonical key
     queryFn: async () => {
       if (__DEV__) {
-        console.log('[P0_ROSTER_FETCH]', { eventId: id, rosterOpen: showAttendeesModal });
+        devLog('[P0_ROSTER_FETCH]', { eventId: id, rosterOpen: showAttendeesModal });
         devLog('[P0_DISCOVER_ROSTER] fetch started', { eventId: id, endpoint: `/api/events/${id}/attendees?includeAll=true` });
       }
       try {
@@ -855,7 +855,7 @@ export default function EventDetailScreen() {
         const raw = await api.get<any>(`/api/events/${id}/attendees?includeAll=true`);
         // [P0_ROSTER_FETCH_RAW] Proof: log raw response shape before normalization
         if (__DEV__) {
-          console.log('[P0_ROSTER_FETCH_RAW]', {
+          devLog('[P0_ROSTER_FETCH_RAW]', {
             eventId: id,
             rawKeys: Object.keys(raw ?? {}),
             attendeesLen: (raw?.attendees ?? []).length,
@@ -887,7 +887,7 @@ export default function EventDetailScreen() {
         return normalized;
       } catch (err: any) {
         if (__DEV__) {
-          console.log('[P0_ROSTER_FETCH_ERROR]', {
+          devLog('[P0_ROSTER_FETCH_ERROR]', {
             eventId: id,
             message: err?.message ?? String(err),
             name: err?.name ?? 'unknown',
@@ -913,7 +913,7 @@ export default function EventDetailScreen() {
   // [P0_ROSTER_FETCH_STATE] Dev-only: track query state transitions when sheet is open
   React.useEffect(() => {
     if (!showAttendeesModal) return;
-    if (__DEV__) console.log('[P0_ROSTER_FETCH_STATE]', {
+    if (__DEV__) devLog('[P0_ROSTER_FETCH_STATE]', {
       eventId: id,
       isLoading: attendeesQuery.isLoading,
       isFetching: attendeesQuery.isFetching,
@@ -930,13 +930,13 @@ export default function EventDetailScreen() {
       const screenH = Dimensions.get('window').height;
       const sheetH = Math.round(screenH * 0.65);
       if (__DEV__) {
-        console.log('[P0_WHO_COMING_SHEET_LAYOUT]', {
+        devLog('[P0_WHO_COMING_SHEET_LAYOUT]', {
           sheetHeightPx: sheetH,
           sheetHeightPct: '65%',
           backdropOpacity: 0,
         });
       }
-      if (__DEV__) console.log('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
+      if (__DEV__) devLog('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
       attendeesQuery.refetch();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -996,7 +996,7 @@ export default function EventDetailScreen() {
   // [P0_WHO_COMING_UI] Canonical proof log: rendered count (DEV only, fires once per render cycle)
   React.useEffect(() => {
     if (__DEV__ && event && id && !isLoadingAttendees) {
-      console.log('[P0_WHO_COMING_UI]', {
+      devLog('[P0_WHO_COMING_UI]', {
         eventId: id.slice(0, 8),
         displayedCount: effectiveGoingCount,
         sourceUsed: 'eventMeta.goingCount',
@@ -1132,7 +1132,7 @@ export default function EventDetailScreen() {
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
         // [P1_EVENT_PROJ] Proof: log which projection keys are invalidated
-        console.log('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
+        devLog('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
           eventId: id,
           nextStatus: status,
           keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from "react-native";
+import { devLog } from "@/lib/devLog";
 
 const THEME_COLOR_KEY = "@openinvite_theme_color";
 const THEME_MODE_KEY = "@openinvite_theme_mode";
@@ -196,7 +197,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // DEV-only proof log — verifies dark token stack on every theme render
   if (__DEV__ && isDark) {
-    console.log(
+    devLog(
       "[THEME_DARK_POLISH] canvas=%s surface=%s elevated=%s border=%s divider=%s",
       colors.background,
       colors.surface,

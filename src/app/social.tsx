@@ -804,7 +804,7 @@ export default function SocialScreen() {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {
-        console.log('[P1_EVENT_PROJ]', 'swipe rsvp onSuccess invalidation', {
+        devLog('[P1_EVENT_PROJ]', 'swipe rsvp onSuccess invalidation', {
           eventId,
           nextStatus: status,
           keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
