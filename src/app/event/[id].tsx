@@ -1728,47 +1728,94 @@ export default function EventDetailScreen() {
       >
         {/* Event Header */}
         <Animated.View entering={FadeInDown.springify()}>
-          {/* Event Photo Hero */}
-          {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && (
-            <View className="rounded-2xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
-              <Image source={{ uri: event.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
+          {/* Hero header surface — photo with overlay title */}
+          {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
+            <View
+              style={{
+                height: 240,
+                borderRadius: 20,
+                overflow: "hidden",
+                marginBottom: 12,
+              }}
+            >
+              <Image
+                source={{ uri: event.eventPhotoUrl }}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
+              {/* Gradient-style overlay for title readability */}
+              <View
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: 100,
+                  backgroundColor: "transparent",
+                }}
+              >
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.0)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.15)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }} />
+              </View>
+              {/* Title overlay */}
+              <View style={{ position: "absolute", bottom: 16, left: 16, right: 16 }}>
+                <Text
+                  style={{ color: "#fff", fontSize: 22, fontWeight: "700" }}
+                  numberOfLines={2}
+                >
+                  {event.emoji} {event.title}
+                </Text>
+              </View>
+              {/* Floating edit button (host only) */}
               {isMyEvent && (
                 <Pressable
                   onPress={() => setShowPhotoSheet(true)}
-                  className="absolute top-3 right-3 rounded-full p-2"
-                  style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    borderRadius: 20,
+                    padding: 8,
+                    backgroundColor: "rgba(0,0,0,0.5)",
+                  }}
                 >
                   <Pencil size={16} color="#fff" />
                 </Pressable>
               )}
             </View>
-          )}
-
-          {/* Host-only photo nudge */}
-          {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
-            <View className="rounded-2xl p-4 mb-3 items-center" style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}>
-              <Camera size={28} color={isDark ? "#9CA3AF" : "#6B7280"} />
-              <Text className="text-sm font-medium mt-2" style={{ color: colors.textSecondary }}>Add a photo (optional)</Text>
-              <Pressable
-                onPress={() => setShowPhotoSheet(true)}
-                className="mt-3 rounded-lg px-5 py-2"
-                style={{ backgroundColor: themeColor }}
-              >
-                <Text className="text-sm font-semibold text-white">Add photo</Text>
-              </Pressable>
-              <Pressable
-                onPress={async () => {
-                  setPhotoNudgeDismissed(true);
-                  await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
-                }}
-                className="mt-2 p-1"
-              >
-                <Text className="text-xs" style={{ color: colors.textTertiary }}>Not now</Text>
-              </Pressable>
-            </View>
+          ) : (
+            <>
+              {/* Host-only photo nudge (no photo yet) */}
+              {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
+                <View className="rounded-2xl p-4 mb-3 items-center" style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}>
+                  <Camera size={28} color={isDark ? "#9CA3AF" : "#6B7280"} />
+                  <Text className="text-sm font-medium mt-2" style={{ color: colors.textSecondary }}>Add a photo (optional)</Text>
+                  <Pressable
+                    onPress={() => setShowPhotoSheet(true)}
+                    className="mt-3 rounded-lg px-5 py-2"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <Text className="text-sm font-semibold text-white">Add photo</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={async () => {
+                      setPhotoNudgeDismissed(true);
+                      await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
+                    }}
+                    className="mt-2 p-1"
+                  >
+                    <Text className="text-xs" style={{ color: colors.textTertiary }}>Not now</Text>
+                  </Pressable>
+                </View>
+              )}
+            </>
           )}
 
           <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            {/* Emoji + title card — only when there's NO hero photo */}
+            {!(event.eventPhotoUrl && !event.isBusy && event.visibility !== "private") && (
             <View className="items-center mb-4">
               <View className="w-20 h-20 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
                 <Text className="text-4xl">{event.emoji}</Text>
@@ -1777,6 +1824,7 @@ export default function EventDetailScreen() {
                 {event.title}
               </Text>
             </View>
+            )}
 
             {/* Host Info */}
             {event.user && (
