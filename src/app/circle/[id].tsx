@@ -54,6 +54,7 @@ import {
   Bell,
   RefreshCw,
   Camera,
+  Lock,
   type LucideIcon,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
@@ -595,119 +596,187 @@ function MiniCalendar({
         eventCount={selectedDateEvents.length}
         themeColor={themeColor}
       >
-        {selectedDateEvents.map((event, index) => {
-          const viewerIsOwner = event.userId === currentUserId;
-          // INV_BUSY_1: SSOT masking via shouldMaskEvent (primary) + isPrivate fallback (backend signal)
-          const maskedBusy = shouldMaskEvent(
-            { isBusy: event.isBusy, isWork: false, isOwn: viewerIsOwner },
-            viewerIsOwner
-          ) || (event.isPrivate && !viewerIsOwner);
-
-          const busyOwnerName = maskedBusy
-            ? (event.userName || "Someone")
-            : null;
-
-          if (__DEV__) {
-            devLog('[P0_BUSY_ROW]', { eventId: event.id, maskedBusy, viewerIsOwner, hasIsBusy: typeof event.isBusy === 'boolean' });
+        {(() => {
+          // PART B — Split events into masked-busy vs visible buckets
+          const maskedBusyEvents: typeof selectedDateEvents = [];
+          const visibleEvents: typeof selectedDateEvents = [];
+          for (const event of selectedDateEvents) {
+            const viewerIsOwner = event.userId === currentUserId;
+            const maskedBusy = shouldMaskEvent(
+              { isBusy: event.isBusy, isWork: false, isOwn: viewerIsOwner },
+              viewerIsOwner
+            ) || (event.isPrivate && !viewerIsOwner);
             if (maskedBusy) {
-              devLog('[P0_BUSY_WHO]', { eventId: event.id, busyOwnerName: busyOwnerName ?? null });
+              maskedBusyEvents.push(event);
+            } else {
+              visibleEvents.push(event);
+            }
+          }
+
+          // PART C — Group masked-busy events per person
+          const busyGroupMap = new Map<string, {
+            ownerName: string;
+            ranges: { start: string; end: string | null }[];
+          }>();
+          for (const ev of maskedBusyEvents) {
+            const key = ev.userId || ev.userName || "unknown";
+            if (!busyGroupMap.has(key)) {
+              busyGroupMap.set(key, {
+                ownerName: ev.userName || "Someone",
+                ranges: [],
+              });
+            }
+            busyGroupMap.get(key)!.ranges.push({
+              start: ev.startTime,
+              end: ev.endTime,
+            });
+          }
+          // Sort each group's ranges by start time
+          for (const group of busyGroupMap.values()) {
+            group.ranges.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+          }
+          const busyGroups = Array.from(busyGroupMap.values());
+
+          // Time formatting helper
+          const fmtTime = (iso: string) =>
+            new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+          const buildRangeString = (ranges: { start: string; end: string | null }[]) => {
+            const MAX_DISPLAY = 2;
+            const displayed = ranges.slice(0, MAX_DISPLAY).map(r =>
+              r.end ? `${fmtTime(r.start)}\u2013${fmtTime(r.end)}` : fmtTime(r.start)
+            );
+            const extra = ranges.length - MAX_DISPLAY;
+            return extra > 0
+              ? `${displayed.join(", ")} +${extra} more`
+              : displayed.join(", ");
+          };
+
+          // PART E — DEV proof logs
+          if (__DEV__) {
+            devLog('[P0_BUSY_SUMMARY]', {
+              selectedDate: selectedDate?.toDateString() ?? null,
+              busyCount: maskedBusyEvents.length,
+              groups: busyGroups.length,
+              names: busyGroups.map(g => g.ownerName).join(", "),
+            });
+            for (const g of busyGroups) {
+              devLog('[P0_BUSY_SUMMARY_GROUP]', { ownerName: g.ownerName, count: g.ranges.length });
             }
           }
 
           return (
-            <Pressable
-              key={event.id}
-              disabled={maskedBusy}
-              onPress={() => {
-                if (maskedBusy) {
-                  if (__DEV__) {
-                    devLog('[P0_VISIBILITY] Circle mini calendar tap blocked:', {
-                      sourceSurface: 'circle-mini',
-                      eventIdPrefix: event.id?.slice(0, 6),
-                      hostIdPrefix: event.userId?.slice(0, 6),
-                      isBusy: true,
-                      viewerFriendOfHost: 'unknown',
-                      decision: 'busy_inert',
-                      reason: 'busy_block_no_tap',
-                    });
-                  }
-                  return;
-                }
-                if (__DEV__) {
-                  devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
-                    sourceSurface: 'circle-mini',
-                    eventIdPrefix: event.id?.slice(0, 6),
-                    hostIdPrefix: event.userId?.slice(0, 6),
-                    isBusy: false,
-                    viewerFriendOfHost: 'unknown',
-                    decision: 'navigating_to_event_details',
-                    reason: 'tap_allowed_event_will_gate',
-                  });
-                }
-                const eventId = event.id;
-                if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
-                  if (__DEV__) {
-                    devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
-                      eventId: eventId ?? 'missing',
-                      eventTitle: event.title,
-                      circleId,
-                    });
-                  }
-                  return;
-                }
-                if (__DEV__) {
-                  devLog('[P0_CIRCLES_EVENT_TRACE]', {
-                    circleId,
-                    eventId,
-                    requestUrl: `/api/events/${eventId}`,
-                    eventTitle: event.title,
-                    isPrivate: event.isPrivate,
-                  });
-                }
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowDayModal(false);
-                router.push(`/event/${eventId}` as any);
-              }}
-              style={{ opacity: maskedBusy ? 0.7 : 1 }}
-            >
-              <Animated.View
-                entering={FadeInDown.delay(index * 50).springify()}
-                style={{
-                  borderRadius: 12,
-                  padding: 12,
-                  marginBottom: 8,
-                  backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View
+            <>
+              {/* INV_BUSY_SUM_2/3: Per-person busy summary rows */}
+              {busyGroups.length > 0 && (
+                <>
+                  <Text style={{
+                    fontSize: 10,
+                    fontWeight: "600",
+                    letterSpacing: 1,
+                    color: colors.textTertiary,
+                    marginBottom: 6,
+                    marginTop: 2,
+                  }}>
+                    BUSY BLOCKS
+                  </Text>
+                  {busyGroups.map((group, gIdx) => (
+                    <Animated.View
+                      key={`busy-group-${gIdx}`}
+                      entering={FadeInDown.delay(gIdx * 50).springify()}
+                      style={{
+                        borderRadius: 12,
+                        padding: 12,
+                        marginBottom: 8,
+                        backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
+                        opacity: 0.85,
+                      }}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: colors.textTertiary }} />
+                        <Text style={{ fontWeight: "500", flex: 1, color: colors.textSecondary }} numberOfLines={1}>
+                          {`${group.ownerName} is busy`}
+                        </Text>
+                        <Lock size={12} color={colors.textTertiary} />
+                      </View>
+                      <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4, marginLeft: 18 }} numberOfLines={1}>
+                        {buildRangeString(group.ranges)}
+                      </Text>
+                    </Animated.View>
+                  ))}
+                </>
+              )}
+
+              {/* Visible (non-busy) event rows — unchanged behavior */}
+              {visibleEvents.map((event, index) => (
+                <Pressable
+                  key={event.id}
+                  onPress={() => {
+                    if (__DEV__) {
+                      devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
+                        sourceSurface: 'circle-mini',
+                        eventIdPrefix: event.id?.slice(0, 6),
+                        hostIdPrefix: event.userId?.slice(0, 6),
+                        isBusy: false,
+                        viewerFriendOfHost: 'unknown',
+                        decision: 'navigating_to_event_details',
+                        reason: 'tap_allowed_event_will_gate',
+                      });
+                    }
+                    const eventId = event.id;
+                    if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+                      if (__DEV__) {
+                        devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
+                          eventId: eventId ?? 'missing',
+                          eventTitle: event.title,
+                          circleId,
+                        });
+                      }
+                      return;
+                    }
+                    if (__DEV__) {
+                      devLog('[P0_CIRCLES_EVENT_TRACE]', {
+                        circleId,
+                        eventId,
+                        requestUrl: `/api/events/${eventId}`,
+                        eventTitle: event.title,
+                        isPrivate: event.isPrivate,
+                      });
+                    }
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowDayModal(false);
+                    router.push(`/event/${eventId}` as any);
+                  }}
+                >
+                  <Animated.View
+                    entering={FadeInDown.delay((busyGroups.length + index) * 50).springify()}
                     style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      marginRight: 8,
-                      backgroundColor: event.color
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 8,
+                      backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
                     }}
-                  />
-                  <Text style={{ fontWeight: "500", flex: 1, color: maskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
-                    {maskedBusy ? "Busy" : event.title}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: colors.textTertiary }}>
-                    {event.endTime
-                      ? `${new Date(event.startTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${new Date(event.endTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                      : new Date(event.startTime).toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
-                  {maskedBusy ? (
-                    <Text style={{ fontSize: 11, color: colors.textTertiary }}>
-                      {`${busyOwnerName} is busy`}
-                    </Text>
-                  ) : (
-                    <>
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 5,
+                          marginRight: 8,
+                          backgroundColor: event.color
+                        }}
+                      />
+                      <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
+                        {event.title}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.textTertiary }}>
+                        {event.endTime
+                          ? `${fmtTime(event.startTime)} – ${fmtTime(event.endTime)}`
+                          : fmtTime(event.startTime)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
                       <Text style={{ fontSize: 11, color: colors.textSecondary }}>
                         {event.attendingMemberIds.length > 1
                           ? `${event.attendingMemberIds.length} attending`
@@ -721,13 +790,13 @@ function MiniCalendar({
                           </Text>
                         </View>
                       )}
-                    </>
-                  )}
-                </View>
-              </Animated.View>
-            </Pressable>
+                    </View>
+                  </Animated.View>
+                </Pressable>
+              ))}
+            </>
           );
-        })}
+        })()}
       </DayAgendaSheet>
     </View>
   );
