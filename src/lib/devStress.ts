@@ -8,14 +8,16 @@
  *   EXPO_PUBLIC_DEV_STRESS_ENABLE=1        master switch
  *   EXPO_PUBLIC_DEV_STRESS_NET_MODE=flaky   off|slow|flaky|offline|timeout|http500
  *   EXPO_PUBLIC_DEV_STRESS_RATE=0.15        flaky failure probability [0-1]
- *   EXPO_PUBLIC_DEV_STRESS_DELAY_MS=800     slow-mode delay (ms)
+ *   EXPO_PUBLIC_DEV_STRESS_DELAY_MS=800     slow-mode delay / flaky jitter ceiling (ms)
  *   EXPO_PUBLIC_DEV_STRESS_INVARIANTS=1     fire synthetic invariant signals
  *   EXPO_PUBLIC_DEV_STRESS_MUTATION_RACE=1  double-fire mutations
+ *   EXPO_PUBLIC_DEV_STRESS_SCENARIO=1       timed scenario runner (mode sequence after boot)
  *
  * Canonical tags:
- *   [STRESS_NET]   — network chaos intercepts
- *   [STRESS_MUT]   — mutation race outcomes
- *   [STRESS_INVAR] — synthetic invariant triggers
+ *   [STRESS_NET]      — network chaos intercepts
+ *   [STRESS_MUT]      — mutation race outcomes
+ *   [STRESS_INVAR]    — synthetic invariant triggers
+ *   [STRESS_SCENARIO] — scenario runner phase transitions
  */
 import { devLog } from "@/lib/devLog";
 
@@ -28,6 +30,7 @@ interface StressConfig {
   delayMs: number;
   invariants: boolean;
   mutationRace: boolean;
+  scenario: boolean;
 }
 
 interface FailResult {
@@ -41,6 +44,10 @@ const _onceKeys = new Set<string>();
 const _raceLabels = new Set<string>();
 let _invariantsFired = false;
 let _enableLogFired = false;
+let _scenarioStarted = false;
+
+// Runtime override for net mode (used by scenario runner)
+let _netModeOverride: NetMode | null = null;
 
 // ─── Exempt paths (never chaos'd) ──────────────────────────────
 function isExemptPath(pathname: string): boolean {
@@ -62,22 +69,28 @@ export function getDevStressConfig(): StressConfig {
   const netMode: NetMode = validModes.includes(raw as NetMode) ? (raw as NetMode) : "off";
 
   return {
-    netMode,
+    netMode: _netModeOverride ?? netMode,
     rate: Math.min(1, Math.max(0, parseFloat(process.env.EXPO_PUBLIC_DEV_STRESS_RATE ?? "0.15"))),
     delayMs: parseInt(process.env.EXPO_PUBLIC_DEV_STRESS_DELAY_MS ?? "800", 10) || 800,
     invariants: process.env.EXPO_PUBLIC_DEV_STRESS_INVARIANTS === "1",
     mutationRace: process.env.EXPO_PUBLIC_DEV_STRESS_MUTATION_RACE === "1",
+    scenario: process.env.EXPO_PUBLIC_DEV_STRESS_SCENARIO === "1",
   };
 }
 
 // ─── Network chaos ──────────────────────────────────────────────
 
-/** Delay helper for slow mode. No-op unless enabled + mode=slow. */
+/** Delay helper for slow + flaky modes. No-op unless enabled. */
 export async function maybeDelay(): Promise<void> {
   if (!isDevStressEnabled()) return;
   const cfg = getDevStressConfig();
-  if (cfg.netMode !== "slow") return;
-  await new Promise((r) => setTimeout(r, cfg.delayMs));
+  if (cfg.netMode === "slow") {
+    await new Promise((r) => setTimeout(r, cfg.delayMs));
+  } else if (cfg.netMode === "flaky") {
+    // Jittered delay: random 0..delayMs to simulate real-world variance
+    const jitter = Math.floor(Math.random() * cfg.delayMs);
+    if (jitter > 0) await new Promise((r) => setTimeout(r, jitter));
+  }
 }
 
 /**
@@ -201,4 +214,55 @@ export function maybeTriggerInvariantsOnce(): void {
   } catch {
     // P16 module not found — skip gracefully
   }
+}
+
+// ─── Scenario runner ────────────────────────────────────────────
+
+/** Timed scenario phases: [mode, durationMs] */
+const SCENARIO_PHASES: [NetMode, number][] = [
+  ["slow", 5_000],
+  ["flaky", 8_000],
+  ["offline", 3_000],
+  ["http500", 3_000],
+  ["timeout", 3_000],
+  ["off", 0], // terminal — restores normal operation
+];
+
+/**
+ * Run a timed sequence of chaos modes after boot (DEV-only).
+ * Requires EXPO_PUBLIC_DEV_STRESS_ENABLE=1 AND EXPO_PUBLIC_DEV_STRESS_SCENARIO=1.
+ * Safe no-op otherwise. Runs once per app lifecycle.
+ * Always restores netMode to "off" at the end.
+ */
+export function maybeRunScenarioOnce(): void {
+  if (!__DEV__ || !isDevStressEnabled()) return;
+  if (!getDevStressConfig().scenario) return;
+  if (_scenarioStarted) return;
+  _scenarioStarted = true;
+
+  devLog("[STRESS_SCENARIO]", {
+    action: "start",
+    phases: SCENARIO_PHASES.map(([mode, ms]) => `${mode}:${ms}ms`),
+  });
+
+  let elapsed = 0;
+  SCENARIO_PHASES.forEach(([mode, durationMs], idx) => {
+    setTimeout(() => {
+      _netModeOverride = mode === "off" ? null : mode;
+      devLog("[STRESS_SCENARIO]", {
+        action: "phase_transition",
+        phase: idx + 1,
+        mode,
+        durationMs,
+        elapsedMs: elapsed,
+      });
+    }, elapsed);
+    elapsed += durationMs;
+  });
+
+  // Safety: always restore to off after all phases complete
+  setTimeout(() => {
+    _netModeOverride = null;
+    devLog("[STRESS_SCENARIO]", { action: "complete", totalMs: elapsed });
+  }, elapsed + 100);
 }
