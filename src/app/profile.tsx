@@ -65,6 +65,7 @@ import {
   Layers,
   Flame,
   Clock,
+  Eye,
 } from "@/ui/icons";
 
 /**
@@ -567,6 +568,20 @@ export default function ProfileScreen() {
                 />
               </Animated.View>
             </View>
+
+            {/* View Public Profile */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/public-profile" as any);
+              }}
+              className="flex-row items-center justify-center mt-3 py-2"
+            >
+              <Eye size={14} color={colors.textTertiary} />
+              <Text className="text-sm ml-1.5" style={{ color: colors.textTertiary }}>
+                View Public Profile
+              </Text>
+            </Pressable>
             </View>
           </View>
         </Animated.View>

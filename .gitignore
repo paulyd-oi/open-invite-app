@@ -73,3 +73,7 @@ docs/handoff_archive/
 cookies.txt
 HANDOFF_*.txt
 artifacts/
+
+# Handoff artifacts (never commit)
+HANDOFF_*
+docs/HANDOFF_*
