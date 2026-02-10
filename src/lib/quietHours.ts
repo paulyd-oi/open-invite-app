@@ -26,19 +26,22 @@ export interface SuggestedHoursWindow {
 }
 
 const PRESET_MAP: Record<SuggestedHoursPreset, SuggestedHoursWindow> = {
-  early_bird: { startHour: 5, endHour: 21 },
-  default:    { startHour: 5, endHour: 22 },
-  night_owl:  { startHour: 7, endHour: 24 },
-  // V1: late_late clamped to endHour 24 (midnight) for safety.
-  // Cross-midnight (endHour 26 = 2 AM next day) deferred to V2 — documented in HANDOFF.
-  late_late:  { startHour: 9, endHour: 24 },
+  early_bird: { startHour: 6, endHour: 21 },   // 6 AM – 9 PM
+  default:    { startHour: 8, endHour: 22 },   // 8 AM – 10 PM
+  night_owl:  { startHour: 12, endHour: 24 },  // 12 PM – 12 AM
+  late_late:  { startHour: 15, endHour: 26 },  // 3 PM – 2 AM (overnight)
 };
 
+/** True when the window crosses midnight (startHour's minutes > endHour's minutes in mod-1440 terms). */
+export function isOvernightWindow(w: SuggestedHoursWindow): boolean {
+  return w.endHour > 24;
+}
+
 export const PRESET_LABELS: Record<SuggestedHoursPreset, { label: string; range: string }> = {
-  early_bird: { label: "Early bird",  range: "5:00 AM \u2013 9:00 PM" },
-  default:    { label: "Default",     range: "5:00 AM \u2013 10:00 PM" },
-  night_owl:  { label: "Night owl",   range: "7:00 AM \u2013 12:00 AM" },
-  late_late:  { label: "Late late",   range: "9:00 AM \u2013 12:00 AM" },
+  early_bird: { label: "Early bird",  range: "6:00 AM \u2013 9:00 PM" },
+  default:    { label: "Default",     range: "8:00 AM \u2013 10:00 PM" },
+  night_owl:  { label: "Night owl",   range: "12:00 PM \u2013 12:00 AM" },
+  late_late:  { label: "Late late",   range: "3:00 PM \u2013 2:00 AM (overnight)" },
 };
 
 export const ALL_PRESETS: SuggestedHoursPreset[] = ["early_bird", "default", "night_owl", "late_late"];
@@ -86,19 +89,25 @@ export const saveQuietHoursPreset = saveSuggestedHoursPreset;
 
 /**
  * Filter slots to those fully within the suggested-hours window.
- * A slot passes if its LOCAL start hour:minute >= startHour:00
- * AND its LOCAL end hour:minute <= endHour:00.
  *
- * For endHour == 24, we treat it as 00:00 next day (1440 minutes).
- * For endHour > 24 (V2 cross-midnight), currently clamped to 24 in PRESET_MAP.
+ * Normal window (endHour <= 24): slot passes if localStart >= startMin AND localEnd <= endMin.
+ * Overnight window (endHour > 24): slot passes if it falls in the evening portion
+ *   (localStart >= startMin, before midnight) OR the morning portion (localEnd <= overflowMin,
+ *   starting from midnight). This avoids accidentally including mid-morning times.
+ *
+ * For endHour == 24, treat as 1440 (midnight boundary).
+ * For endHour > 24, overflowMin = (endHour - 24) * 60 (e.g. 26 → 120 = 2:00 AM).
  */
 export function filterSlotsToSuggestedHours(
   slots: SchedulingSlotResult[],
   window: SuggestedHoursWindow,
 ): SchedulingSlotResult[] {
   const startMin = window.startHour * 60;
-  // endHour 24 → 1440 minutes, which matches a slot ending at exactly midnight (00:00 next day = 24*60)
-  const endMin = window.endHour * 60;
+  const overnight = window.endHour > 24;
+  // For normal windows and the evening portion of overnight: cap at 1440 (midnight)
+  const endMinCapped = overnight ? 1440 : window.endHour * 60;
+  // For overnight windows: the morning overflow cap (e.g. 2 AM = 120 min)
+  const overflowMin = overnight ? (window.endHour - 24) * 60 : 0;
 
   return slots.filter((slot) => {
     const s = new Date(slot.start);
@@ -108,7 +117,16 @@ export function filterSlotsToSuggestedHours(
     const eH = e.getHours();
     const eM = e.getMinutes();
     const eMin = (eH === 0 && eM === 0) ? 1440 : eH * 60 + eM;
-    return sMin >= startMin && eMin <= endMin;
+
+    // Case A: Normal window (no midnight crossing)
+    if (!overnight) {
+      return sMin >= startMin && eMin <= endMinCapped;
+    }
+    // Case B: Overnight — evening portion (slot starts at/after startMin, ends at/before midnight)
+    if (sMin >= startMin && eMin <= 1440) return true;
+    // Case C: Overnight — morning overflow (slot starts at/after midnight, ends at/before overflowMin)
+    if (sMin >= 0 && sMin < overflowMin && eMin <= overflowMin) return true;
+    return false;
   });
 }
 

@@ -86,6 +86,7 @@ import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import {
   type SuggestedHoursPreset,
   getSuggestedHoursForPreset,
+  isOvernightWindow,
   filterSlotsToSuggestedHours,
   rankSlotsForPreset,
   loadSuggestedHoursPreset,
@@ -320,33 +321,25 @@ function MiniCalendar({
   const quietWindow = getSuggestedHoursForPreset(quietPreset);
   const quietSlots = useMemo(() => {
     const raw = dateScheduleResult?.topSlots ?? [];
-    const ranked = rankSlotsForPreset(raw, quietPreset);
-    if (__DEV__) {
-      devLog("[P1_SUGGESTED_HOURS_APPLIED]", {
-        dateISO: bestTimesDate.toISOString(),
-        totalSlotsBefore: raw.length,
-        totalSlotsAfter: ranked.length,
-        droppedCount: raw.length - ranked.length,
-      });
-    }
-    return ranked;
+    return rankSlotsForPreset(raw, quietPreset);
   }, [dateScheduleResult, bestTimesDate, quietPreset]);
   const quietBestSlot = quietSlots[0] ?? null;
   const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
 
-  // DEV proof: log slot counts once per sheet-open or date change
+  // DEV proof: single canonical log on sheet-open or date/preset change
   useEffect(() => {
     if (!__DEV__) return;
     if (!showBestTimeSheet) return;
-    devLog('[P1_SUGGESTED_HOURS_COUNTS]', {
+    const overnight = isOvernightWindow(quietWindow);
+    devLog('[P1_SUGGESTED_HOURS_PROOF]', {
+      preset: quietPreset,
+      window: { startHour: quietWindow.startHour, endHour: quietWindow.endHour, overnight },
       date: bestTimesDate.toISOString(),
-      suggestedWindow: { startHour: quietWindow.startHour, endHour: quietWindow.endHour },
       rawSlotsCount: dateScheduleResult?.topSlots?.length ?? 0,
-      suggestedSlotsCount: quietSlots.length,
+      filteredSlotsCount: quietSlots.length,
       membersTotal: members.length,
-      note: 'maxTopSlots=1000 per-day',
     });
-  }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, members]);
+  }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
   // Per-day dot indicators: days that have ≥1 slot within suggested hours
   const daysWithSuggestedSlots = useMemo(() => {
@@ -537,7 +530,6 @@ function MiniCalendar({
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_SUGGESTED_HOURS_SHEET_OPEN]", { dateISO: bestTimesDate.toISOString(), preset: quietPreset, startHour: quietWindow.startHour, endHour: quietWindow.endHour });
               setShowBestTimeSheet(true);
             }}
             accessibilityRole="button"
@@ -671,10 +663,6 @@ function MiniCalendar({
                           Haptics.selectionAsync().catch(() => {});
                           setQuietPreset(p);
                           saveSuggestedHoursPreset(p);
-                          if (__DEV__) {
-                            const w = getSuggestedHoursForPreset(p);
-                            devLog("[P1_SUGGESTED_HOURS_PRESET_SET]", { preset: p, startHour: w.startHour, endHour: w.endHour });
-                          }
                           setShowPresetPicker(false);
                         }}
                         style={{
@@ -708,7 +696,6 @@ function MiniCalendar({
                     const prev = new Date(bestTimesDate);
                     prev.setDate(prev.getDate() - 1);
                     prev.setHours(0, 0, 0, 0);
-                    if (__DEV__) devLog("[P1_EVERYONES_FREE_DATE_CHANGE]", { from: bestTimesDate.toISOString(), to: prev.toISOString() });
                     setBestTimesDate(prev);
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -725,7 +712,6 @@ function MiniCalendar({
                     const next = new Date(bestTimesDate);
                     next.setDate(next.getDate() + 1);
                     next.setHours(0, 0, 0, 0);
-                    if (__DEV__) devLog("[P1_EVERYONES_FREE_DATE_CHANGE]", { from: bestTimesDate.toISOString(), to: next.toISOString() });
                     setBestTimesDate(next);
                   }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
