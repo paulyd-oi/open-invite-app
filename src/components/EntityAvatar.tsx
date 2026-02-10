@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, type TextStyle } from "react-native";
+import { View, Text, Image, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EventPhotoEmoji } from "./EventPhotoEmoji";
 
@@ -26,6 +26,8 @@ export interface EntityAvatarProps {
   emojiStyle?: TextStyle;
   /** Badge overlay — rendered at absolute position inside the container */
   badge?: React.ReactNode;
+  /** Extra styles applied to the outer container (e.g. margin for layout spacing) */
+  style?: ViewStyle;
 }
 
 /**
@@ -53,6 +55,7 @@ export function EntityAvatar({
   emojiClassName,
   emojiStyle,
   badge,
+  style,
 }: EntityAvatarProps) {
   const radius = borderRadius ?? size / 2;
   const hasPhoto = !!photoUrl;
@@ -113,7 +116,7 @@ export function EntityAvatar({
 
   return (
     <View
-      style={{
+      style={[{
         width: size,
         height: size,
         borderRadius: radius,
@@ -121,7 +124,7 @@ export function EntityAvatar({
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
-      }}
+      }, style]}
     >
       {content}
       {badge}

@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import Animated, {
   FadeIn,
   useAnimatedStyle,
@@ -149,25 +150,15 @@ export function FriendCard({
               borderColor: colors.border,
             }}
           >
-            {/* Avatar */}
+            {/* Avatar — SSOT via EntityAvatar */}
             <View className="relative">
-              <View
-                className="w-12 h-12 rounded-full overflow-hidden"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
-              >
-                {friend.image ? (
-                  <Image source={{ uri: friend.image }} className="w-full h-full" />
-                ) : (
-                  <View
-                    className="w-full h-full items-center justify-center"
-                    style={{ backgroundColor: themeColor + "20" }}
-                  >
-                    <Text className="text-lg font-bold" style={{ color: themeColor }}>
-                      {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <EntityAvatar
+                photoUrl={friend.image}
+                initials={friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
+                size={48}
+                backgroundColor={friend.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "20"}
+                foregroundColor={themeColor}
+              />
               {isPinned && (
                 <View
                   className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"

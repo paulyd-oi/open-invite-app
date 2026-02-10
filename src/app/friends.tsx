@@ -65,6 +65,7 @@ import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { AppHeader } from "@/components/AppHeader";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
@@ -329,17 +330,14 @@ const FriendCard = React.memo(function FriendCard({
             </View>
           )}
           
-          <View className="w-12 h-12 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
-            {friend.image ? (
-              <Image source={{ uri: friend.image }} className="w-full h-full" />
-            ) : (
-              <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
-                <Text className="text-lg font-semibold" style={{ color: themeColor }}>
-                  {friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
-                </Text>
-              </View>
-            )}
-          </View>
+          <EntityAvatar
+            photoUrl={friend.image}
+            initials={friend.name?.[0] ?? friend.email?.[0]?.toUpperCase() ?? "?"}
+            size={48}
+            backgroundColor={friend.image ? colors.avatarBg : themeColor + "20"}
+            foregroundColor={themeColor}
+            style={{ marginRight: 12 }}
+          />
           <View className="flex-1">
             <View className="flex-row items-center flex-nowrap gap-1.5">
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
@@ -598,20 +596,14 @@ function FriendRequestCard({
       className="flex-row items-center rounded-xl p-3 mb-2"
       style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
     >
-      <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
-        {user?.image ? (
-          <Image source={{ uri: user.image }} className="w-full h-full" />
-        ) : (
-          <View
-            className="w-full h-full items-center justify-center"
-            style={{ backgroundColor: themeColor + "20" }}
-          >
-            <Text style={{ color: themeColor }} className="text-sm font-semibold">
-              {user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
-            </Text>
-          </View>
-        )}
-      </View>
+      <EntityAvatar
+        photoUrl={user?.image}
+        initials={user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
+        size={40}
+        backgroundColor={user?.image ? colors.avatarBg : themeColor + "20"}
+        foregroundColor={themeColor}
+        style={{ marginRight: 12 }}
+      />
       <View className="flex-1 mr-2">
         {/* Line 1: Name + Badge Pill */}
         <View className="flex-row items-center flex-nowrap gap-1.5">
@@ -1554,21 +1546,13 @@ export default function FriendsScreen() {
                           style={{ borderTopColor: colors.separator }}
                         >
                           {/* Avatar */}
-                          {user.avatarUrl ? (
-                            <Image
-                              source={{ uri: user.avatarUrl }}
-                              className="w-10 h-10 rounded-full"
-                            />
-                          ) : (
-                            <View
-                              className="w-10 h-10 rounded-full items-center justify-center"
-                              style={{ backgroundColor: themeColor + "20" }}
-                            >
-                              <Text className="text-base font-semibold" style={{ color: themeColor }}>
-                                {user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
-                              </Text>
-                            </View>
-                          )}
+                          <EntityAvatar
+                            photoUrl={user.avatarUrl}
+                            initials={user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
+                            size={40}
+                            backgroundColor={user.avatarUrl ? "transparent" : themeColor + "20"}
+                            foregroundColor={themeColor}
+                          />
 
                           {/* User info */}
                           <View className="flex-1 ml-3">
@@ -1969,9 +1953,10 @@ export default function FriendsScreen() {
                 >
                   <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: colors.avatarBg }}>
                     {contact.imageAvailable && contact.image?.uri ? (
-                      <Image
-                        source={{ uri: contact.image.uri }}
-                        className="w-full h-full rounded-full"
+                      <EntityAvatar
+                        photoUrl={contact.image.uri}
+                        size={48}
+                        backgroundColor={colors.avatarBg}
                       />
                     ) : (
                       <Text className="text-lg font-semibold" style={{ color: colors.textSecondary }}>

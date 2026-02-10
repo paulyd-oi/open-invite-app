@@ -71,6 +71,7 @@ import { RADIUS } from "@/ui/layout";
 import { once } from "@/lib/runtimeInvariants";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -1274,18 +1275,13 @@ function MessageBubble({
             className="w-7 h-7 rounded-full overflow-hidden mr-2"
             style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
           >
-            {message.user.image ? (
-              <Image source={{ uri: message.user.image }} className="w-full h-full" />
-            ) : (
-              <View
-                className="w-full h-full items-center justify-center"
-                style={{ backgroundColor: themeColor + "20" }}
-              >
-                <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                  {message.user.name?.[0] ?? "?"}
-                </Text>
-              </View>
-            )}
+            <EntityAvatar
+              photoUrl={message.user.image}
+              initials={message.user.name?.[0] ?? "?"}
+              size={28}
+              backgroundColor={message.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "20"}
+              foregroundColor={themeColor}
+            />
           </View>
         )}
         {/* Spacer to keep alignment when avatar is hidden in a run */}
@@ -2821,25 +2817,19 @@ export default function CircleScreen() {
           {members.slice(0, 3).map((member, i) => (
             <View
               key={member.userId}
-              className="w-8 h-8 rounded-full overflow-hidden border-2"
+              className="rounded-full border-2"
               style={{
                 marginLeft: i > 0 ? -12 : 0,
                 borderColor: colors.surface,
-                backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
               }}
             >
-              {member.user.image ? (
-                <Image source={{ uri: member.user.image }} className="w-full h-full" />
-              ) : (
-                <View
-                  className="w-full h-full items-center justify-center"
-                  style={{ backgroundColor: themeColor + "30" }}
-                >
-                  <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                    {member.user.name?.[0] ?? "?"}
-                  </Text>
-                </View>
-              )}
+              <EntityAvatar
+                photoUrl={member.user.image}
+                initials={member.user.name?.[0] ?? "?"}
+                size={28}
+                backgroundColor={member.user.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
+                foregroundColor={themeColor}
+              />
             </View>
           ))}
           {members.length > 3 && (
@@ -3854,28 +3844,15 @@ export default function CircleScreen() {
                 }}>
                   {/* Avatar */}
                   <View style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    overflow: "hidden",
-                    backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
                     marginRight: 12,
                   }}>
-                    {circleMember?.user?.image ? (
-                      <Image source={{ uri: circleMember.user.image }} style={{ width: "100%", height: "100%" }} />
-                    ) : (
-                      <View style={{
-                        width: "100%",
-                        height: "100%",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: themeColor + "20",
-                      }}>
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: themeColor }}>
-                          {m.name?.[0] ?? "?"}
-                        </Text>
-                      </View>
-                    )}
+                    <EntityAvatar
+                      photoUrl={circleMember?.user?.image}
+                      initials={m.name?.[0] ?? "?"}
+                      size={36}
+                      backgroundColor={circleMember?.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "20"}
+                      foregroundColor={themeColor}
+                    />
                   </View>
                   {/* Name */}
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: "500", color: colors.text }}>

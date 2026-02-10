@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -623,20 +624,14 @@ export default function WhosFreeScreen() {
                         borderColor: themeColor,
                       }}
                     >
-                      <View
-                        className="w-6 h-6 rounded-full overflow-hidden mr-2"
-                        style={{ backgroundColor: `${themeColor}30` }}
-                      >
-                        {friendship.friend.image ? (
-                          <Image source={{ uri: friendship.friend.image }} className="w-full h-full" />
-                        ) : (
-                          <View className="w-full h-full items-center justify-center">
-                            <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                              {friendship.friend.name?.[0] ?? "?"}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
+                      <EntityAvatar
+                        photoUrl={friendship.friend.image}
+                        initials={friendship.friend.name?.[0] ?? "?"}
+                        size={24}
+                        backgroundColor={`${themeColor}30`}
+                        foregroundColor={themeColor}
+                        style={{ marginRight: 8 }}
+                      />
                       <Text
                         className="text-sm font-medium"
                         style={{ color: isSelected ? themeColor : colors.text }}

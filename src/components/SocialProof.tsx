@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, Image, Pressable } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { Users } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
+import { EntityAvatar } from "@/components/EntityAvatar";
 
 interface Attendee {
   id: string;
@@ -81,38 +82,21 @@ export function SocialProof({
         {displayedAttendees.map((attendee, index) => (
           <View
             key={attendee.id}
-            className="rounded-full overflow-hidden"
+            className="rounded-full"
             style={{
-              width: avatarSize,
-              height: avatarSize,
               marginLeft: index > 0 ? overlapOffset : 0,
               borderWidth: 2,
               borderColor: isDark ? "#000" : "#fff",
-              backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
               zIndex: maxDisplay - index,
             }}
           >
-            {attendee.image ? (
-              <Image
-                source={{ uri: attendee.image }}
-                style={{ width: "100%", height: "100%" }}
-              />
-            ) : (
-              <View
-                className="w-full h-full items-center justify-center"
-                style={{ backgroundColor: themeColor + "30" }}
-              >
-                <Text
-                  className="font-bold"
-                  style={{
-                    color: themeColor,
-                    fontSize: avatarSize * 0.4,
-                  }}
-                >
-                  {attendee.name?.[0] ?? "?"}
-                </Text>
-              </View>
-            )}
+            <EntityAvatar
+              photoUrl={attendee.image}
+              initials={attendee.name?.[0] ?? "?"}
+              size={avatarSize - 4}
+              backgroundColor={attendee.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
+              foregroundColor={themeColor}
+            />
           </View>
         ))}
 
@@ -236,30 +220,21 @@ export function MutualFriendsGoing({
         {mutualFriends.slice(0, 3).map((friend, index) => (
           <View
             key={friend.id}
-            className="w-5 h-5 rounded-full overflow-hidden"
+            className="rounded-full"
             style={{
               marginLeft: index > 0 ? -6 : 0,
               borderWidth: 1.5,
               borderColor: "#22C55E",
-              backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
               zIndex: 3 - index,
             }}
           >
-            {friend.image ? (
-              <Image
-                source={{ uri: friend.image }}
-                style={{ width: "100%", height: "100%" }}
-              />
-            ) : (
-              <View
-                className="w-full h-full items-center justify-center"
-                style={{ backgroundColor: "#22C55E20" }}
-              >
-                <Text className="text-xs font-bold" style={{ color: "#22C55E" }}>
-                  {friend.name?.[0] ?? "?"}
-                </Text>
-              </View>
-            )}
+            <EntityAvatar
+              photoUrl={friend.image}
+              initials={friend.name?.[0] ?? "?"}
+              size={17}
+              backgroundColor={friend.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : "#22C55E20"}
+              foregroundColor="#22C55E"
+            />
           </View>
         ))}
       </View>

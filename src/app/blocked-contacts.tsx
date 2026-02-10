@@ -29,6 +29,7 @@ import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { eventKeys } from "@/lib/eventQueryKeys";
@@ -317,20 +318,14 @@ export default function BlockedContactsScreen() {
                               borderColor: themeColor,
                             }}
                           >
-                            <View
-                              className="w-10 h-10 rounded-full mr-3 overflow-hidden"
-                              style={{ backgroundColor: isDark ? "#3A3A3C" : "#E5E7EB" }}
-                            >
-                              {user.image ? (
-                                <Image source={{ uri: user.image }} className="w-full h-full" />
-                              ) : (
-                                <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                                  <Text style={{ color: themeColor }} className="font-bold">
-                                    {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
+                            <EntityAvatar
+                              photoUrl={user.image}
+                              initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                              size={40}
+                              backgroundColor={user.image ? (isDark ? "#3A3A3C" : "#E5E7EB") : `${themeColor}20`}
+                              foregroundColor={themeColor}
+                              style={{ marginRight: 12 }}
+                            />
                             <View className="flex-1">
                               <Text style={{ color: colors.text }} className="font-medium" numberOfLines={1}>
                                 {user.name ?? "Unknown"}
@@ -508,24 +503,15 @@ function BlockedContactItem({
         borderBottomColor: isDark ? "#38383A" : "#F3F4F6",
       }}
     >
-      <View
-        className="w-12 h-12 rounded-full mr-3 overflow-hidden"
-        style={{ backgroundColor: isDark ? "#3A3A3C" : "#E5E7EB" }}
-      >
-        {contact.blockedUser?.image ? (
-          <Image source={{ uri: contact.blockedUser.image }} className="w-full h-full" />
-        ) : (
-          <View className="w-full h-full items-center justify-center" style={{ backgroundColor: "#EF444420" }}>
-            {contact.blockedEmail ? (
-              <Mail size={20} color="#EF4444" />
-            ) : contact.blockedPhone ? (
-              <Phone size={20} color="#EF4444" />
-            ) : (
-              <UserX size={20} color="#EF4444" />
-            )}
-          </View>
-        )}
-      </View>
+      <EntityAvatar
+        photoUrl={contact.blockedUser?.image}
+        initials={displayName[0]?.toUpperCase() ?? "?"}
+        size={48}
+        backgroundColor={contact.blockedUser?.image ? (isDark ? "#3A3A3C" : "#E5E7EB") : "#EF444420"}
+        foregroundColor="#EF4444"
+        fallbackIcon="person-outline"
+        style={{ marginRight: 12 }}
+      />
       <View className="flex-1">
         <Text style={{ color: colors.text }} className="font-medium" numberOfLines={1}>
           {displayName}

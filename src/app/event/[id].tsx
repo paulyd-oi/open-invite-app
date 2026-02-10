@@ -60,6 +60,7 @@ import * as ExpoCalendar from "expo-calendar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
@@ -1911,17 +1912,14 @@ export default function EventDetailScreen() {
             {event.user && (
               <View className="border-t" style={{ borderColor: colors.border }}>
                 <View className="flex-row items-center py-3">
-                  <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                    {event.user?.image ? (
-                      <Image source={{ uri: event.user?.image }} className="w-full h-full" />
-                    ) : (
-                      <View className="w-full h-full items-center justify-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                        <Text className="text-sm font-semibold" style={{ color: themeColor }}>
-                          {event.user?.name?.[0] ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <EntityAvatar
+                    photoUrl={event.user?.image}
+                    initials={event.user?.name?.[0] ?? "?"}
+                    size={40}
+                    backgroundColor={event.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : (isDark ? "#2C2C2E" : "#FFF7ED")}
+                    foregroundColor={themeColor}
+                    style={{ marginRight: 12 }}
+                  />
                   <View className="flex-1">
                     <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
                     <Text className="font-semibold" style={{ color: colors.text }}>
@@ -2454,16 +2452,13 @@ export default function EventDetailScreen() {
                               zIndex: visibleAvatars.length - idx,
                             }}
                           >
-                            {attendee.imageUrl ? (
-                              <Image
-                                source={{ uri: attendee.imageUrl }}
-                                style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }}
-                              />
-                            ) : (
-                              <Text style={{ fontSize: 14, fontWeight: '600', color: isHost ? '#92400E' : '#166534' }}>
-                                {attendee.name?.[0] ?? '?'}
-                              </Text>
-                            )}
+                            <EntityAvatar
+                              photoUrl={attendee.imageUrl}
+                              initials={attendee.name?.[0] ?? '?'}
+                              size={AVATAR_SIZE - 4}
+                              backgroundColor={isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7'}
+                              foregroundColor={isHost ? '#92400E' : '#166534'}
+                            />
                           </View>
                         );
                       })}
@@ -2516,17 +2511,14 @@ export default function EventDetailScreen() {
                   <View className="mb-3">
                     <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
                     <View className="flex-row items-center">
-                      <View className="w-10 h-10 rounded-full items-center justify-center border-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED", borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                        {event.user.image ? (
-                          <Image
-                            source={{ uri: event.user.image }}
-                            className="w-full h-full rounded-full"
-                          />
-                        ) : (
-                          <Text className="font-semibold" style={{ color: themeColor }}>
-                            {event.user.name?.[0] ?? "?"}
-                          </Text>
-                        )}
+                      <View className="rounded-full border-2" style={{ borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
+                        <EntityAvatar
+                          photoUrl={event.user.image}
+                          initials={event.user.name?.[0] ?? "?"}
+                          size={36}
+                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
+                          foregroundColor={themeColor}
+                        />
                       </View>
                       <Text className="ml-3 font-medium" style={{ color: colors.text }}>
                         {isMyEvent ? "You" : event.user.name ?? "Host"}
@@ -2732,20 +2724,14 @@ export default function EventDetailScreen() {
                     className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
                     style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
                   >
-                    <View
-                      className="w-6 h-6 rounded-full overflow-hidden mr-2"
-                      style={{ backgroundColor: "#EC489930" }}
-                    >
-                      {interest.user.image ? (
-                        <Image source={{ uri: interest.user.image }} className="w-full h-full" />
-                      ) : (
-                        <View className="w-full h-full items-center justify-center">
-                          <Text className="text-xs font-bold" style={{ color: "#EC4899" }}>
-                            {interest.user.name?.[0] ?? "?"}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    <EntityAvatar
+                      photoUrl={interest.user.image}
+                      initials={interest.user.name?.[0] ?? "?"}
+                      size={24}
+                      backgroundColor="#EC489930"
+                      foregroundColor="#EC4899"
+                      style={{ marginRight: 8 }}
+                    />
                     <Text className="text-sm" style={{ color: colors.text }}>
                       {interest.user.name ?? "Unknown"}
                     </Text>
@@ -2925,18 +2911,14 @@ export default function EventDetailScreen() {
                       style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
                     >
                       <View className="flex-row">
-                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                          {comment.user.image ? (
-                            <Image
-                              source={{ uri: comment.user.image }}
-                              className="w-full h-full rounded-full"
-                            />
-                          ) : (
-                            <Text className="font-semibold" style={{ color: themeColor }}>
-                              {comment.user.name?.[0] ?? "?"}
-                            </Text>
-                          )}
-                        </View>
+                        <EntityAvatar
+                          photoUrl={comment.user.image}
+                          initials={comment.user.name?.[0] ?? "?"}
+                          size={40}
+                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
+                          foregroundColor={themeColor}
+                          style={{ marginRight: 12 }}
+                        />
                         <View className="flex-1">
                           <View className="flex-row items-center justify-between">
                             <Text className="font-semibold" style={{ color: colors.text }}>

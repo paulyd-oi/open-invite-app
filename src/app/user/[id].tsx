@@ -698,17 +698,13 @@ export default function UserProfileScreen() {
             <Animated.View entering={FadeInDown.springify()} className="mb-4">
               <View className="rounded-2xl p-5 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
                 {/* INVARIANT: Badges are pill-only. No badge overlay on avatar. */}
-                <View className="w-20 h-20 rounded-full overflow-hidden" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                  {(user.Profile?.avatarUrl ?? user.image) ? (
-                    <Image source={{ uri: (user.Profile?.avatarUrl ?? user.image)! }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor + "30" }}>
-                      <Text className="text-3xl font-bold" style={{ color: themeColor }}>
-                        {user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                <EntityAvatar
+                  photoUrl={user.Profile?.avatarUrl ?? user.image}
+                  initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                  size={80}
+                  backgroundColor={(user.Profile?.avatarUrl ?? user.image) ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
+                  foregroundColor={themeColor}
+                />
                 <View className="flex-row items-center mt-3">
                   <Text className="text-xl font-bold" style={{ color: colors.text }}>
                     {user.name ?? "No name"}

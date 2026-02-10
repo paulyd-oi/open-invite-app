@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, Pressable, Image, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { Heart, ChevronRight, Plus } from "@/ui/icons";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -118,23 +119,14 @@ export function ReconnectReminder({
             }}
           >
             <View className="items-center">
-              <View
-                className="w-14 h-14 rounded-full overflow-hidden mb-2"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
-              >
-                {item.friend.image ? (
-                  <Image source={{ uri: item.friend.image }} className="w-full h-full" />
-                ) : (
-                  <View
-                    className="w-full h-full items-center justify-center"
-                    style={{ backgroundColor: themeColor + "30" }}
-                  >
-                    <Text className="text-xl font-bold" style={{ color: themeColor }}>
-                      {item.friend.name?.[0] ?? "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <EntityAvatar
+                photoUrl={item.friend.image}
+                initials={item.friend.name?.[0] ?? "?"}
+                size={56}
+                backgroundColor={item.friend.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
+                foregroundColor={themeColor}
+                style={{ marginBottom: 8 }}
+              />
               <Text
                 className="font-medium text-center"
                 style={{ color: colors.text }}

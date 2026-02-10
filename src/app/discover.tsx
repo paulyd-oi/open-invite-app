@@ -11,6 +11,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { devLog } from "@/lib/devLog";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
@@ -298,25 +299,19 @@ export default function DiscoverScreen() {
                 .map((request, i) => (
                   <View
                     key={request.id}
-                    className="w-7 h-7 rounded-full overflow-hidden border-2"
+                    className="rounded-full border-2"
                     style={{
                       marginLeft: i > 0 ? -8 : 0,
                       borderColor: colors.surface,
-                      backgroundColor: colors.avatarBg,
                     }}
                   >
-                    {request.user?.image ? (
-                      <Image source={{ uri: request.user.image }} className="w-full h-full" />
-                    ) : (
-                      <View
-                        className="w-full h-full items-center justify-center"
-                        style={{ backgroundColor: themeColor + "30" }}
-                      >
-                        <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                          {request.user?.name?.[0] ?? "?"}
-                        </Text>
-                      </View>
-                    )}
+                    <EntityAvatar
+                      photoUrl={request.user?.image}
+                      initials={request.user?.name?.[0] ?? "?"}
+                      size={24}
+                      backgroundColor={request.user?.image ? colors.avatarBg : themeColor + "30"}
+                      foregroundColor={themeColor}
+                    />
                   </View>
                 ))}
             </View>

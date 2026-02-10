@@ -27,6 +27,7 @@ import {
   Gift,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import * as Haptics from "expo-haptics";
 
 import { performLogout } from "@/lib/logout";
@@ -98,19 +99,14 @@ function ProfileRow({
         className="flex-row items-center p-4 active:opacity-70"
       >
         {/* Avatar */}
-        {profile.image ? (
-          <Image
-            source={{ uri: profile.image }}
-            className="w-14 h-14 rounded-full bg-zinc-200"
-          />
-        ) : (
-          <View
-            className="w-14 h-14 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-          >
-            <User size={26} color={isDark ? "#8E8E93" : "#6B7280"} />
-          </View>
-        )}
+        <EntityAvatar
+          photoUrl={profile.image}
+          initials={profile.name?.[0]?.toUpperCase() ?? "?"}
+          size={56}
+          backgroundColor={profile.image ? (isDark ? "#2C2C2E" : "#F3F4F6") : (isDark ? "#2C2C2E" : "#F3F4F6")}
+          foregroundColor={isDark ? "#8E8E93" : "#6B7280"}
+          fallbackIcon="person-outline"
+        />
 
         {/* Info */}
         <View className="flex-1 ml-3">
@@ -266,22 +262,18 @@ export default function AccountCenterScreen() {
         <Animated.View entering={FadeInDown.delay(0).springify()} className="px-4 pt-4">
           <View className="items-center">
             {session.user?.image ? (
-              <Image
-                source={{ uri: session.user.image }}
-                className="w-20 h-20 rounded-full bg-zinc-200"
+              <EntityAvatar
+                photoUrl={session.user.image}
+                size={80}
+                backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
               />
             ) : (
-              <View
-                className="w-20 h-20 rounded-full items-center justify-center"
-                style={{ backgroundColor: `${themeColor}20` }}
-              >
-                <Text
-                  className="text-3xl font-bold"
-                  style={{ color: themeColor }}
-                >
-                  {session.user?.name?.[0]?.toUpperCase() ?? "?"}
-                </Text>
-              </View>
+              <EntityAvatar
+                initials={session.user?.name?.[0]?.toUpperCase() ?? "?"}
+                size={80}
+                backgroundColor={`${themeColor}20`}
+                foregroundColor={themeColor}
+              />
             )}
             <Text
               className="text-lg font-semibold mt-3"

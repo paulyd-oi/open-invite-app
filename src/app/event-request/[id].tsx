@@ -30,6 +30,7 @@ import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -458,18 +459,13 @@ export default function EventRequestDetailScreen() {
                 className="w-12 h-12 rounded-full overflow-hidden mr-3"
                 style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
               >
-                {eventRequest.creator?.image ? (
-                  <Image source={{ uri: eventRequest.creator.image }} className="w-full h-full" />
-                ) : (
-                  <View
-                    className="w-full h-full items-center justify-center"
-                    style={{ backgroundColor: `${themeColor}30` }}
-                  >
-                    <Text className="text-lg font-bold" style={{ color: themeColor }}>
-                      {eventRequest.creator?.name?.[0] ?? "?"}
-                    </Text>
-                  </View>
-                )}
+                <EntityAvatar
+                  photoUrl={eventRequest.creator?.image}
+                  initials={eventRequest.creator?.name?.[0] ?? "?"}
+                  size={48}
+                  backgroundColor={eventRequest.creator?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}30`}
+                  foregroundColor={themeColor}
+                />
               </View>
               <View className="flex-1">
                 <Text className="font-semibold" style={{ color: colors.text }}>
@@ -516,23 +512,14 @@ export default function EventRequestDetailScreen() {
                     borderBottomColor: colors.border,
                   }}
                 >
-                  <View
-                    className="w-12 h-12 rounded-full overflow-hidden mr-3"
-                    style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
-                  >
-                    {member.user?.image ? (
-                      <Image source={{ uri: member.user.image }} className="w-full h-full" />
-                    ) : (
-                      <View
-                        className="w-full h-full items-center justify-center"
-                        style={{ backgroundColor: statusColor + "30" }}
-                      >
-                        <Text className="text-lg font-bold" style={{ color: statusColor }}>
-                          {member.user?.name?.[0] ?? "?"}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <EntityAvatar
+                    photoUrl={member.user?.image}
+                    initials={member.user?.name?.[0] ?? "?"}
+                    size={48}
+                    backgroundColor={member.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : statusColor + "30"}
+                    foregroundColor={statusColor}
+                    style={{ marginRight: 12 }}
+                  />
                   <View className="flex-1">
                     <Text className="font-semibold" style={{ color: colors.text }}>
                       {member.user?.name ?? "Unknown"}

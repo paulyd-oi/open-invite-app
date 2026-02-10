@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Text, Pressable, Image, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { Users } from "@/ui/icons";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import Animated, { FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";
@@ -82,21 +83,16 @@ export function MutualFriends({ userId, userName }: MutualFriendsProps) {
                 style={{ width: 60 }}
               >
                 <View
-                  className="w-14 h-14 rounded-full overflow-hidden border-2"
+                  className="rounded-full border-2"
                   style={{ borderColor: `${themeColor}40` }}
                 >
-                  {friend.image ? (
-                    <Image source={{ uri: friend.image }} className="w-full h-full" />
-                  ) : (
-                    <View
-                      className="w-full h-full items-center justify-center"
-                      style={{ backgroundColor: `${themeColor}20` }}
-                    >
-                      <Text className="text-lg font-bold" style={{ color: themeColor }}>
-                        {friend.name?.[0] ?? "?"}
-                      </Text>
-                    </View>
-                  )}
+                  <EntityAvatar
+                    photoUrl={friend.image}
+                    initials={friend.name?.[0] ?? "?"}
+                    size={52}
+                    backgroundColor={friend.image ? "transparent" : `${themeColor}20`}
+                    foregroundColor={themeColor}
+                  />
                 </View>
                 <Text
                   className="text-xs mt-1 text-center"

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, Image, type ViewStyle } from "react-native";
+import { View, Text, Pressable, type ViewStyle } from "react-native";
 import { useTheme } from "@/lib/ThemeContext";
 import { ChevronRight } from "@/ui/icons";
+import { EntityAvatar } from "@/components/EntityAvatar";
 
 // ═══════════════════════════════════════════════════════════════
 //  UserRow — SSOT for every list-style user row in the app.
@@ -110,32 +111,15 @@ export const UserRow = React.memo(function UserRow({
       {/* Left accessory (e.g. pin indicator) */}
       {leftAccessory != null && leftAccessory}
 
-      {/* Avatar */}
-      <View
-        style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          borderRadius: AVATAR_SIZE / 2,
-          overflow: "hidden",
-          backgroundColor: colors.avatarBg,
-        }}
-      >
-        {avatarUri ? (
-          <Image source={{ uri: avatarUri }} style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }} />
-        ) : (
-          <View
-            style={{
-              width: AVATAR_SIZE,
-              height: AVATAR_SIZE,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: themeColor + "20",
-            }}
-          >
-            <Text style={{ fontWeight: "600", color: themeColor }}>{initial}</Text>
-          </View>
-        )}
-      </View>
+      {/* Avatar — SSOT via EntityAvatar */}
+      <EntityAvatar
+        photoUrl={avatarUri}
+        initials={initial}
+        size={AVATAR_SIZE}
+        backgroundColor={avatarUri ? colors.avatarBg : themeColor + "20"}
+        foregroundColor={themeColor}
+        fallbackIcon="person-outline"
+      />
 
       {/* Text column */}
       <View style={{ flex: 1, marginLeft: 12, justifyContent: "center" }}>

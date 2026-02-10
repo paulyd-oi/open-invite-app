@@ -31,6 +31,7 @@ import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { devError } from "@/lib/devLog";
@@ -420,20 +421,14 @@ export default function CreateEventRequestScreen() {
                     className="flex-row items-center rounded-full px-3 py-1.5 mr-2 mb-2"
                     style={{ backgroundColor: `${themeColor}20`, borderWidth: 1, borderColor: themeColor }}
                   >
-                    <View
-                      className="w-6 h-6 rounded-full overflow-hidden mr-2"
-                      style={{ backgroundColor: `${themeColor}30` }}
-                    >
-                      {f.friend.image ? (
-                        <Image source={{ uri: f.friend.image }} className="w-full h-full" />
-                      ) : (
-                        <View className="w-full h-full items-center justify-center">
-                          <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                            {f.friend.name?.[0] ?? "?"}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                    <EntityAvatar
+                      photoUrl={f.friend.image}
+                      initials={f.friend.name?.[0] ?? "?"}
+                      size={24}
+                      backgroundColor={`${themeColor}30`}
+                      foregroundColor={themeColor}
+                      style={{ marginRight: 8 }}
+                    />
                     <Text className="text-sm font-medium" style={{ color: themeColor }}>
                       {f.friend.name?.split(" ")[0] ?? "Friend"}
                     </Text>
@@ -485,23 +480,14 @@ export default function CreateEventRequestScreen() {
                               backgroundColor: isSelected ? `${themeColor}10` : "transparent",
                             }}
                           >
-                            <View
-                              className="w-10 h-10 rounded-full overflow-hidden mr-3"
-                              style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
-                            >
-                              {f.friend.image ? (
-                                <Image source={{ uri: f.friend.image }} className="w-full h-full" />
-                              ) : (
-                                <View
-                                  className="w-full h-full items-center justify-center"
-                                  style={{ backgroundColor: `${themeColor}30` }}
-                                >
-                                  <Text className="font-bold" style={{ color: themeColor }}>
-                                    {f.friend.name?.[0] ?? "?"}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
+                            <EntityAvatar
+                              photoUrl={f.friend.image}
+                              initials={f.friend.name?.[0] ?? "?"}
+                              size={40}
+                              backgroundColor={f.friend.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${themeColor}30`}
+                              foregroundColor={themeColor}
+                              style={{ marginRight: 12 }}
+                            />
                             <View className="flex-1">
                               <Text className="font-medium" style={{ color: colors.text }}>
                                 {f.friend.name ?? "Unknown"}

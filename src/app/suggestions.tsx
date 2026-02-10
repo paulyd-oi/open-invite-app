@@ -39,6 +39,7 @@ import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
 
 import { useSession } from "@/lib/useSession";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -111,25 +112,14 @@ function SuggestionCard({
         style={{ backgroundColor: colors.surface }}
       >
         <View className="flex-row items-center">
-          {/* User Avatar */}
-          {suggestion.user.avatarUrl ? (
-            <Image
-              source={{ uri: suggestion.user.avatarUrl }}
-              className="w-14 h-14 rounded-full"
-            />
-          ) : (
-            <View
-              className="w-14 h-14 rounded-full items-center justify-center"
-              style={{ backgroundColor: themeColor + "20" }}
-            >
-              <Text
-                className="text-xl font-semibold"
-                style={{ color: themeColor }}
-              >
-                {displayName?.charAt(0).toUpperCase() ?? "?"}
-              </Text>
-            </View>
-          )}
+          {/* User Avatar — SSOT via EntityAvatar */}
+          <EntityAvatar
+            photoUrl={suggestion.user.avatarUrl}
+            initials={displayName?.charAt(0).toUpperCase() ?? "?"}
+            size={56}
+            backgroundColor={suggestion.user.avatarUrl ? "transparent" : themeColor + "20"}
+            foregroundColor={themeColor}
+          />
 
           {/* User Info */}
           <View className="flex-1 ml-3">
@@ -688,21 +678,13 @@ export default function SuggestionsScreen() {
                         style={{ borderTopColor: colors.separator }}
                       >
                         {/* Avatar */}
-                        {user.avatarUrl ? (
-                          <Image
-                            source={{ uri: user.avatarUrl }}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <View
-                            className="w-10 h-10 rounded-full items-center justify-center"
-                            style={{ backgroundColor: themeColor + "20" }}
-                          >
-                            <Text className="text-base font-semibold" style={{ color: themeColor }}>
-                              {user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
-                            </Text>
-                          </View>
-                        )}
+                        <EntityAvatar
+                          photoUrl={user.avatarUrl}
+                          initials={user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
+                          size={40}
+                          backgroundColor={user.avatarUrl ? "transparent" : themeColor + "20"}
+                          foregroundColor={themeColor}
+                        />
 
                         {/* User info */}
                         <View className="flex-1 ml-3">

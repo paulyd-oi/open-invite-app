@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { AppHeader } from "@/components/AppHeader";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { ShareAppButton } from "@/components/ShareApp";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
@@ -329,17 +330,14 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             )}
             {!isSeries && (
               <View className="flex-row items-center mt-1">
-                <View className="w-6 h-6 rounded-full mr-2 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
-                  {displayImage ? (
-                    <Image source={{ uri: displayImage }} className="w-full h-full" />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                      <Text style={{ color: themeColor }} className="text-xs font-medium">
-                        {displayName?.[0] ?? "?"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                <EntityAvatar
+                  photoUrl={displayImage}
+                  initials={displayName?.[0] ?? "?"}
+                  size={24}
+                  backgroundColor={displayImage ? colors.avatarBg : `${themeColor}20`}
+                  foregroundColor={themeColor}
+                  style={{ marginRight: 8 }}
+                />
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
                   {isOwn ? "Your event" : displayEvent.user?.name ?? "Someone"}
                 </Text>

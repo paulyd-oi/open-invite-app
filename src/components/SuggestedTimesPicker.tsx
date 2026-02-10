@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -207,20 +208,14 @@ export function SuggestedTimesPicker({
                         borderColor: themeColor,
                       }}
                     >
-                      <View
-                        className="w-6 h-6 rounded-full overflow-hidden mr-2"
-                        style={{ backgroundColor: `${themeColor}30` }}
-                      >
-                        {friendship.friend.image ? (
-                          <Image source={{ uri: friendship.friend.image }} className="w-full h-full" />
-                        ) : (
-                          <View className="w-full h-full items-center justify-center">
-                            <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                              {friendship.friend.name?.[0] ?? "?"}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
+                      <EntityAvatar
+                        photoUrl={friendship.friend.image}
+                        initials={friendship.friend.name?.[0] ?? "?"}
+                        size={24}
+                        backgroundColor={friendship.friend.image ? `${themeColor}30` : `${themeColor}30`}
+                        foregroundColor={themeColor}
+                        style={{ marginRight: 8 }}
+                      />
                       <Text
                         className="text-sm font-medium"
                         style={{ color: isSelected ? themeColor : colors.text }}

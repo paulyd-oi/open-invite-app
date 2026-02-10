@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, Check, Users, Search } from "@/ui/icons";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
@@ -446,27 +447,14 @@ export function CreateCircleModal({
                           className="flex-row items-center py-3 border-b"
                           style={{ borderColor: colors.border }}
                         >
-                          {/* Avatar */}
-                          <View
-                            className="w-11 h-11 rounded-full overflow-hidden"
-                            style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}
-                          >
-                            {friendship.friend.image ? (
-                              <Image
-                                source={{ uri: friendship.friend.image }}
-                                className="w-full h-full"
-                              />
-                            ) : (
-                              <View
-                                className="w-full h-full items-center justify-center"
-                                style={{ backgroundColor: themeColor + "20" }}
-                              >
-                                <Text className="text-sm font-bold" style={{ color: themeColor }}>
-                                  {friendship.friend.name?.[0] ?? "?"}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
+                          {/* Avatar — SSOT via EntityAvatar */}
+                          <EntityAvatar
+                            photoUrl={friendship.friend.image}
+                            initials={friendship.friend.name?.[0] ?? "?"}
+                            size={44}
+                            backgroundColor={friendship.friend.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "20"}
+                            foregroundColor={themeColor}
+                          />
 
                           {/* Info */}
                           <View className="flex-1 ml-3 mr-2">

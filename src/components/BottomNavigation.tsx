@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Pressable, Text, Image } from "react-native";
+import { View, Pressable, Text } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { type LucideIcon } from "../ui/icons";
 import Animated, {
@@ -17,6 +17,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/imageUrl";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
 import { circleKeys } from "@/lib/circleQueryKeys";
@@ -35,6 +36,7 @@ interface NavButtonProps {
   badgeCount?: number;
   onLongPress?: () => void;
   customImage?: string | null;
+  customInitial?: string;
 }
 
 function NavButton({
@@ -49,6 +51,7 @@ function NavButton({
   badgeCount,
   onLongPress,
   customImage,
+  customInitial,
   bootStatus,
 }: NavButtonProps & { bootStatus: string }) {
   const router = useRouter();
@@ -153,15 +156,17 @@ function NavButton({
                   borderWidth: isActive ? 2 : 1,
                   borderColor: isActive ? accentColor : (isDark ? "#48484A" : "#D1D5DB"),
                   padding: 1,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <Image
-                  source={{ uri: customImage }}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: 12,
-                  }}
+                <EntityAvatar
+                  photoUrl={customImage}
+                  initials={customInitial}
+                  size={isActive ? 20 : 22}
+                  foregroundColor={accentColor}
+                  backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
+                  fallbackIcon="person-outline"
                 />
               </View>
             {/* Business profile indicator hidden for now */}
@@ -234,6 +239,7 @@ export default function BottomNavigation() {
   // Use resolveImageUrl to handle both absolute Cloudinary URLs and legacy /uploads/ paths
   const rawProfileImage = activeProfile?.image ?? (session?.user as any)?.image;
   const profileImage = resolveImageUrl(rawProfileImage);
+  const profileInitial = (activeProfile?.name ?? session?.user?.name)?.[0]?.toUpperCase() ?? "?";
 
   // Check if user has multiple profiles (show indicator)
   const hasMultipleProfiles = (profilesData?.profiles?.length ?? 0) > 1;
@@ -283,6 +289,7 @@ export default function BottomNavigation() {
               inactiveColor={colors.textTertiary}
               badgeCount={item.badgeCount}
               customImage={item.label === "Profile" ? profileImage : undefined}
+              customInitial={item.label === "Profile" ? profileInitial : undefined}
               bootStatus={bootStatus}
             />
           ))}
