@@ -290,7 +290,7 @@ const EventDetailErrorState: React.FC<EventDetailErrorStateProps> = ({
 }) => {
   return (
     <SafeAreaView testID={testID} className="flex-1" style={{ backgroundColor: colors.background }}>
-      <Stack.Screen options={{ title: "Event" }} />
+      <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
       <View className="flex-1 items-center justify-center px-8">
         <View
           className="w-20 h-20 rounded-full items-center justify-center mb-6"
@@ -1407,7 +1407,7 @@ export default function EventDetailScreen() {
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Event" }} />
+        <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
         <View className="flex-1 items-center justify-center">
           <Text style={{ color: colors.textSecondary }}>Please sign in to view events</Text>
         </View>
@@ -1439,7 +1439,7 @@ export default function EventDetailScreen() {
     
     return (
       <SafeAreaView testID="event-detail-loading" className="flex-1" style={{ backgroundColor: colors.background }}>
-        <Stack.Screen options={{ title: "Event Details" }} />
+        <Stack.Screen options={{ title: "Event Details", headerBackTitle: "Back" }} />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color={themeColor} />
         </View>
@@ -1476,7 +1476,7 @@ export default function EventDetailScreen() {
 
       return (
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-          <Stack.Screen options={{ title: "Event" }} />
+          <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
           <View className="flex-1 items-center justify-center px-6">
             {/* Tappable host avatar - only when host info available */}
             {restrictedHostInfo?.id ? (
@@ -1636,6 +1636,7 @@ export default function EventDetailScreen() {
       <Stack.Screen
         options={{
           title: event.title,
+          headerBackTitle: "Back",
           headerStyle: { backgroundColor: colors.background },
           headerRight: () => (
             <Pressable
