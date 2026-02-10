@@ -458,8 +458,6 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  const [rowPressed, setRowPressed] = useState(false);
-
   // Username-first layout: @handle as primary, bio as secondary
   const listHandle = friend.Profile?.handle
     ? `@${friend.Profile.handle}`
@@ -513,9 +511,7 @@ const FriendListItem = React.memo(function FriendListItem({
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/friend/${friendship.id}` as any);
                 }}
-                onPressIn={() => setRowPressed(true)}
-                onPressOut={() => setRowPressed(false)}
-                style={{
+                style={({ pressed }) => ({
                   flexDirection: "row",
                   alignItems: "center",
                   flex: 1,
@@ -523,11 +519,10 @@ const FriendListItem = React.memo(function FriendListItem({
                   marginHorizontal: -4,
                   paddingHorizontal: 4,
                   paddingVertical: 2,
-                  backgroundColor: rowPressed
+                  backgroundColor: pressed
                     ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")
                     : "transparent",
-                  opacity: rowPressed ? 0.85 : 1,
-                }}
+                })}
               >
                 <View className="w-10 h-10 rounded-full mr-3 overflow-hidden" style={{ backgroundColor: colors.avatarBg }}>
                   {friend.image ? (
