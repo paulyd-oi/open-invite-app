@@ -102,6 +102,7 @@ import {
 } from "@/shared/contracts";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { wrapRace } from "@/lib/devStress";
+import { once } from "@/lib/runtimeInvariants";
 
 // Mini calendar component for friend cards
 const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus, session }: { friendshipId: string; bootStatus: string; session: any }) {
@@ -460,6 +461,13 @@ const FriendListItem = React.memo(function FriendListItem({
   }
 
   // Text derivation now handled by UserListRow SSOT
+  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_LAYOUT_FIX')) {
+    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT_FIX]', {
+      layout: 'row',
+      hasBio: !!friend.Profile?.calendarBio,
+      hasHandle: !!friend.Profile?.handle,
+    });
+  }
 
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -494,7 +502,7 @@ const FriendListItem = React.memo(function FriendListItem({
             style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
           >
             {/* Main row — SSOT via UserListRow */}
-            <View className="flex-row items-center" style={{ paddingVertical: 0 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
               {/* Pin indicator */}
               {isPinned && (
                 <View style={{ marginLeft: 12, marginRight: -4 }}>

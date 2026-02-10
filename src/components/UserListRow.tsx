@@ -67,8 +67,10 @@ export const UserListRow = React.memo(function UserListRow({
       onPress={onPress}
       disabled={!onPress}
       style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
+        // Caller overrides go first so layout-critical props always win
+        ...(style as object),
+        flexDirection: "row" as const,
+        alignItems: "center" as const,
         minHeight: ROW_MIN_H,
         paddingHorizontal: 12,
         paddingVertical: 10,
@@ -79,7 +81,6 @@ export const UserListRow = React.memo(function UserListRow({
               ? "rgba(255,255,255,0.06)"
               : "rgba(0,0,0,0.04)"
             : "transparent",
-        ...(style as object),
       })}
     >
       {/* Avatar */}
