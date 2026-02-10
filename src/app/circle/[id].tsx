@@ -1641,7 +1641,22 @@ export default function CircleScreen() {
 
   const { data, isLoading, isFetching, isSuccess, refetch } = useQuery({
     queryKey: circleKeys.single(id),
-    queryFn: () => api.get<GetCircleDetailResponse>(`/api/circles/${id}`),
+    queryFn: async () => {
+      const response = await api.get<GetCircleDetailResponse>(`/api/circles/${id}`);
+      // [P0_MUTE_TOGGLE] Carry forward cached isMuted when backend omits it.
+      // The detail endpoint declares isMuted as optional; when it returns undefined
+      // the 10s poll (or any invalidation-triggered refetch) would overwrite the
+      // optimistic value, causing the toggle to flip back to OFF.
+      if (response?.circle && response.circle.isMuted === undefined) {
+        const cached = queryClient.getQueryData(circleKeys.single(id)) as GetCircleDetailResponse | undefined;
+        if (cached?.circle?.isMuted !== undefined) {
+          if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "carry_forward_isMuted", { circleId: id, cachedValue: cached.circle.isMuted });
+          return { ...response, circle: { ...response.circle, isMuted: cached.circle.isMuted } };
+        }
+      }
+      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "refetch_settled", { circleId: id, isMuted: response?.circle?.isMuted });
+      return response;
+    },
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
     refetchInterval: 10000, // Poll every 10 seconds for new messages
     refetchIntervalInBackground: false, // Stop polling when app is backgrounded
@@ -1914,9 +1929,11 @@ export default function CircleScreen() {
   // [P0_CIRCLE_MUTE_V1] Mute toggle mutation
   const muteMutation = useMutation({
     mutationFn: async (isMuted: boolean) => {
+      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "mutation_start", { circleId: id, desiredMuted: isMuted });
       return api.post(`/api/circles/${id}/mute`, { isMuted });
     },
     onMutate: async (isMuted) => {
+      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "optimistic_update", { circleId: id, isMuted });
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
@@ -1969,6 +1986,7 @@ export default function CircleScreen() {
       // The detail endpoint returns isMuted as optional; a refetch can overwrite
       // the optimistic update with undefined → false, causing the toggle to revert.
       queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "mutation_success", { circleId: id, persistedMuted: isMuted });
       if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "mute_persist_ok", { circleId: id, isMuted });
     },
     onError: (error, isMuted, context) => {
@@ -1988,6 +2006,7 @@ export default function CircleScreen() {
           success: false,
         });
       }
+      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "mutation_error", { circleId: id, desiredMuted: isMuted, error: String(error) });
       safeToast.error("Oops", "Could not update mute setting");
     },
   });
@@ -4340,6 +4359,7 @@ export default function CircleScreen() {
                   <Switch
                     value={circle?.isMuted ?? false}
                     onValueChange={(value) => {
+                      if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "toggle_press", { circleId: id, userId: session?.user?.id, desiredValue: value, currentValue: circle?.isMuted, sourceField: "circle?.isMuted via circleKeys.single" });
                       if (muteMutation.isPending) {
                         if (__DEV__) devLog('[P1_DOUBLE_SUBMIT_GUARD]', 'circleMute ignored, circleId=' + id);
                         return;
