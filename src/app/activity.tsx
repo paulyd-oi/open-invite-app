@@ -17,6 +17,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { ChevronRight } from "@/ui/icons";
 import { safeToast } from "@/lib/safeToast";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
@@ -64,6 +65,7 @@ function parseNotificationData(notification: Notification): {
   actorAvatarUrl?: string;
   eventTitle?: string;
   eventId?: string;
+  eventEmoji?: string;
   userId?: string;
   commentId?: string;
 } {
@@ -77,6 +79,7 @@ function parseNotificationData(notification: Notification): {
       // Event info
       eventTitle: data.eventTitle || data.title,
       eventId: data.eventId,
+      eventEmoji: data.eventEmoji,
       // User info for deep linking
       userId: data.userId || data.senderId || data.actorId,
       // Comment-specific
@@ -151,14 +154,29 @@ function NotificationCard({
   const config =
     notificationTypeConfig[notification.type] ?? notificationTypeConfig.default;
   const parsed = parseNotificationData(notification);
-  const { actorName, actorAvatarUrl } = parsed;
+  const { actorName, actorAvatarUrl, eventEmoji } = parsed;
   const copy = buildNotificationCopy(notification, parsed);
 
-  // Avatar display priority: avatarUrl > initials from name > icon fallback
-  // Derive display name: actorName > notification title (extract first word/name)
-  const displayName = actorName || (notification.title ? notification.title.split(' ')[0] : undefined);
+  // Avatar priority: actorAvatar > eventEmoji > actorInitials (real name only) > type icon
   const hasAvatar = !!actorAvatarUrl && actorAvatarUrl.startsWith('http');
-  const hasInitials = !!displayName && displayName.length > 0;
+  // Event-related types that should prefer emoji over initials
+  const isEventType = ["event_invite", "event_reminder", "event_join", "event_comment"].includes(notification.type);
+  // Resolve emoji: explicit from data > default per event type > none
+  const resolvedEmoji = eventEmoji || (isEventType ? "📅" : undefined);
+  const hasEventEmoji = !hasAvatar && !!resolvedEmoji;
+  // Only use real actor name for initials (never notification title)
+  const hasActorInitials = !hasAvatar && !hasEventEmoji && !!actorName && actorName.length > 0;
+
+  // [P1_ACTIVITY_AVATAR] DEV proof: avatar source decision
+  if (__DEV__) {
+    const avatarSource = hasAvatar ? "actorAvatar" : hasEventEmoji ? (eventEmoji ? "eventEmoji" : "eventDefault") : hasActorInitials ? "actorInitials" : "typeIcon";
+    devLog("[P1_ACTIVITY_AVATAR]", {
+      notificationType: notification.type,
+      avatarSource,
+      hasEventEmoji: !!eventEmoji,
+      resolvedEmoji: resolvedEmoji ?? null,
+    });
+  }
 
   // Category-based background tint for unread notifications
   const categoryTint = notification.read ? colors.surface : config.color + "08";
@@ -190,7 +208,24 @@ function NotificationCard({
                 backgroundColor: colors.surface,
               }}
             />
-          ) : hasInitials ? (
+          ) : hasEventEmoji ? (
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: config.color + "15",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              <EventPhotoEmoji
+                emoji={resolvedEmoji!}
+                emojiStyle={{ fontSize: 22 }}
+              />
+            </View>
+          ) : hasActorInitials ? (
             <View
               style={{
                 width: 44,
@@ -202,7 +237,7 @@ function NotificationCard({
               }}
             >
               <Text style={{ fontSize: 16, fontWeight: "600", color: config.color }}>
-                {getInitials(displayName)}
+                {getInitials(actorName!)}
               </Text>
             </View>
           ) : (
@@ -220,7 +255,7 @@ function NotificationCard({
             </View>
           )}
           {/* Type badge overlay */}
-          {hasAvatar && (
+          {(hasAvatar || hasEventEmoji) && (
             <View
               style={{
                 position: "absolute",
