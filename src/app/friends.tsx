@@ -458,18 +458,17 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  // Name-first layout: display name primary, @handle secondary, bio optional third line
-  const displayName = friend.name ?? "";
-  const handleStr = friend.Profile?.handle ? `@${friend.Profile.handle}` : "";
+  // 2-line compact layout: @handle primary, bio secondary (no display name in list view)
+  const hasHandle = !!friend.Profile?.handle;
+  const hasBio = !!friend.Profile?.calendarBio;
+  const listHandle = hasHandle
+    ? `@${friend.Profile!.handle}`
+    : friend.name ?? "Unknown";
+  const usedFallbackName = !hasHandle;
   const listBio = friend.Profile?.calendarBio ?? "";
-  // Primary line: display name, fallback to @handle if no name
-  const primaryText = displayName || handleStr;
-  // Secondary line: @handle (only if display name exists and handle differs from primary)
-  const secondaryText = displayName && handleStr ? handleStr : "";
 
   if (__DEV__) {
-    const linesCount = 1 + (secondaryText ? 1 : 0) + (listBio ? 1 : 0);
-    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT]', { hasName: !!displayName, hasUsername: !!handleStr, hasBio: !!listBio, renderedLinesCount: linesCount });
+    devLog('[P0_FRIENDS_LIST_ROW_2LINE]', { hasHandle, hasBio, usedFallbackName });
   }
 
   const toggleExpand = () => {
@@ -548,19 +547,11 @@ const FriendListItem = React.memo(function FriendListItem({
                     style={{ fontSize: 15, fontWeight: "600", color: colors.text, letterSpacing: -0.2 }}
                     numberOfLines={1}
                   >
-                    {primaryText}
+                    {listHandle}
                   </Text>
-                  {secondaryText ? (
-                    <Text
-                      style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
-                      numberOfLines={1}
-                    >
-                      {secondaryText}
-                    </Text>
-                  ) : null}
                   {listBio ? (
                     <Text
-                      style={{ fontSize: 12, color: colors.textTertiary, marginTop: 1, lineHeight: 16 }}
+                      style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
