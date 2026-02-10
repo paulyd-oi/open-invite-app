@@ -1538,8 +1538,8 @@ export default function EventDetailScreen() {
         }
       }
 
-      // Handler for tapping View Profile → canonical profile route
-      const handleViewHostProfile = () => {
+      // SSOT handler: navigate to host profile (used by avatar tap AND button)
+      const goToHostProfile = () => {
         if (!hasHostId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (__DEV__) {
@@ -1555,76 +1555,92 @@ export default function EventDetailScreen() {
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
           <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
           <View className="flex-1 items-center justify-center px-6">
-            {/* Tappable host avatar - only when host info available */}
-            {hasHostId ? (
-              <Pressable onPress={handleViewHostProfile}>
-                {fb.hostImage ? (
-                  <Image
-                    source={{ uri: fb.hostImage }}
-                    className="w-20 h-20 rounded-full mb-3"
-                    style={{ borderWidth: 2, borderColor: colors.separator }}
-                  />
-                ) : (
-                  <View 
-                    className="w-20 h-20 rounded-full items-center justify-center mb-3"
-                    style={{ backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.separator }}
-                  >
-                    <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
-                      {fb.hostFirst.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </Pressable>
-            ) : (
-              <View 
-                className="w-16 h-16 rounded-full items-center justify-center mb-4"
-                style={{ backgroundColor: colors.surface }}
-              >
-                <Lock size={28} color={colors.textSecondary} />
-              </View>
-            )}
-            
-            {/* Line 1: tertiary hosted-by attribution */}
-            <Text 
-              className="text-sm text-center"
-              style={{ color: colors.textSecondary, marginBottom: 6 }}
+            {/* Locked-state card */}
+            <View
+              className="w-full rounded-2xl items-center px-6 py-8"
+              style={{
+                backgroundColor: colors.surface,
+                borderWidth: 1,
+                borderColor: colors.border,
+                ...(Platform.OS === "ios" ? {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isDark ? 0.3 : 0.08,
+                  shadowRadius: 8,
+                } : { elevation: 2 }),
+              }}
             >
-              {`Event hosted by ${fb.hostDisplayName}`}
-            </Text>
-            
-            {/* Line 2: headline */}
-            <Text 
-              className="text-xl font-semibold text-center"
-              style={{ color: colors.text, marginBottom: 8 }}
-            >
-              Event details hidden
-            </Text>
-            
-            {/* Line 3: body */}
-            <Text 
-              className="text-center"
-              style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 24 }}
-            >
-              {`Connect with ${fb.hostFirst} to see this event.`}
-            </Text>
-            
-            {/* CTA: View Profile (primary) or fallback text */}
-            {hasHostId ? (
-              <View className="w-full max-w-xs">
-                <Button
-                  variant="primary"
-                  label="View Profile"
-                  onPress={handleViewHostProfile}
-                />
-              </View>
-            ) : (
+              {/* Tappable host avatar - only when host info available */}
+              {hasHostId ? (
+                <Pressable onPress={goToHostProfile}>
+                  {fb.hostImage ? (
+                    <Image
+                      source={{ uri: fb.hostImage }}
+                      className="w-20 h-20 rounded-full mb-4"
+                      style={{ borderWidth: 2, borderColor: colors.separator }}
+                    />
+                  ) : (
+                    <View
+                      className="w-20 h-20 rounded-full items-center justify-center mb-4"
+                      style={{ backgroundColor: colors.background, borderWidth: 2, borderColor: colors.separator }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
+                        {fb.hostFirst.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              ) : (
+                <View
+                  className="w-16 h-16 rounded-full items-center justify-center mb-4"
+                  style={{ backgroundColor: colors.background }}
+                >
+                  <Lock size={28} color={colors.textSecondary} />
+                </View>
+              )}
+
+              {/* Line 1: tertiary hosted-by attribution */}
               <Text
                 className="text-sm text-center"
-                style={{ color: colors.textTertiary }}
+                style={{ color: colors.textSecondary, marginBottom: 6 }}
               >
-                Profile unavailable right now.
+                {`Event hosted by ${fb.hostDisplayName}`}
               </Text>
-            )}
+
+              {/* Line 2: headline */}
+              <Text
+                className="text-xl font-semibold text-center"
+                style={{ color: colors.text, marginBottom: 8 }}
+              >
+                Event details hidden
+              </Text>
+
+              {/* Line 3: body */}
+              <Text
+                className="text-center"
+                style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 28 }}
+              >
+                {`Connect with ${fb.hostFirst} to see this event.`}
+              </Text>
+
+              {/* CTA: View profile (primary) or fallback text */}
+              {hasHostId ? (
+                <View className="w-full">
+                  <Button
+                    variant="primary"
+                    label="View profile"
+                    onPress={goToHostProfile}
+                  />
+                </View>
+              ) : (
+                <Text
+                  className="text-sm text-center"
+                  style={{ color: colors.textTertiary }}
+                >
+                  Profile unavailable right now.
+                </Text>
+              )}
+            </View>
           </View>
         </SafeAreaView>
       );
