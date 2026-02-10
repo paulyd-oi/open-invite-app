@@ -1989,11 +1989,12 @@ export default function CalendarScreen() {
   }
 
   const goToPrevMonth = useCallback(() => {
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     const ref = monthYearRef.current;
     const newMonth = ref.month === 0 ? 11 : ref.month - 1;
     const newYear = ref.month === 0 ? ref.year - 1 : ref.year;
     if (__DEV__) {
+      devLog("[P0_CAL_HAPTIC]", { dir: "prev" });
       devLog("[CalendarGesture] TRIGGER prev", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
@@ -2002,11 +2003,12 @@ export default function CalendarScreen() {
   }, []);
 
   const goToNextMonth = useCallback(() => {
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     const ref = monthYearRef.current;
     const newMonth = ref.month === 11 ? 0 : ref.month + 1;
     const newYear = ref.month === 11 ? ref.year + 1 : ref.year;
     if (__DEV__) {
+      devLog("[P0_CAL_HAPTIC]", { dir: "next" });
       devLog("[CalendarGesture] TRIGGER next", { from: `${ref.month + 1}/${ref.year}`, to: `${newMonth + 1}/${newYear}` });
     }
     setCurrentMonth(newMonth);
