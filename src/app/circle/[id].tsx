@@ -145,6 +145,11 @@ function MiniCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
+  const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   // Create member color map
   const memberColors = ["#FF6B4A", "#4ECDC4", "#9333EA", "#F59E0B", "#10B981", "#EC4899"];
@@ -275,6 +280,23 @@ function MiniCalendar({
       slotDurationMinutes: 60,
     });
   }, [memberEvents, members]);
+
+  // Per-date availability for the "Best time to meet" sheet
+  const dateScheduleResult = useMemo(() => {
+    const dayStart = new Date(bestTimesDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(bestTimesDate);
+    dayEnd.setHours(23, 59, 59, 999);
+    const busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
+    return computeSchedule({
+      members: members.map((m) => ({ id: m.userId })),
+      busyWindowsByUserId,
+      rangeStart: dayStart.toISOString(),
+      rangeEnd: dayEnd.toISOString(),
+      intervalMinutes: 30,
+      slotDurationMinutes: 60,
+    });
+  }, [memberEvents, members, bestTimesDate]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
@@ -453,15 +475,31 @@ function MiniCalendar({
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { windows: scheduleResult.topSlots.length, topAvailable: scheduleResult.bestSlot.availableCount, total: scheduleResult.bestSlot.totalMembers });
+              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: scheduleResult.topSlots.length, topAvailable: scheduleResult.bestSlot.availableCount, total: scheduleResult.bestSlot.totalMembers });
               setShowBestTimeSheet(true);
             }}
-            style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}
+            accessibilityRole="button"
+            accessibilityLabel={`${scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 4,
+              paddingVertical: 6,
+              paddingHorizontal: 10,
+              borderRadius: 10,
+              backgroundColor: pressed
+                ? (scheduleResult.hasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
+                : (scheduleResult.hasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
+            })}
           >
-            <Text style={{ fontSize: 11, fontWeight: "600", color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
-              {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
-            </Text>
-            <ChevronRight size={12} color={scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary} style={{ marginLeft: 2 }} />
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: "600", color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+                {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
+              </Text>
+              <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>Tap to see best times</Text>
+            </View>
+            <ChevronRight size={14} color={scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textTertiary} />
           </Pressable>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {scheduleResult.topSlots.map((slot, i) => {
@@ -534,124 +572,180 @@ function MiniCalendar({
             onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
             title="Best time to meet"
             heightPct={0}
-            maxHeightPct={0.75}
+            maxHeightPct={0.8}
             backdropOpacity={0.5}
           >
             <ScrollView style={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 12 }}>
                 Based on availability shared in this circle
               </Text>
 
-              {/* Recommended section */}
-              <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
-                Recommended
-              </Text>
-              {scheduleResult.topSlots.map((slot, idx) => {
-                const slotDate = new Date(slot.start);
-                const endDate = new Date(slot.end);
-                const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-                const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                const endTimeLabel = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                const rankLabel = idx === 0 ? "Best" : idx === 1 ? "Good" : "Option";
-                const rankColor = idx === 0 ? "#10B981" : idx === 1 ? themeColor : colors.textSecondary;
-                return (
-                  <View
-                    key={`best-${idx}`}
+              {/* Date selector row */}
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingVertical: 8, paddingHorizontal: 4, borderRadius: 10, backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    const prev = new Date(bestTimesDate);
+                    prev.setDate(prev.getDate() - 1);
+                    prev.setHours(0, 0, 0, 0);
+                    if (__DEV__) devLog("[P1_EVERYONES_FREE_DATE_CHANGE]", { from: bestTimesDate.toISOString(), to: prev.toISOString() });
+                    setBestTimesDate(prev);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 6 }}
+                >
+                  <ChevronLeft size={18} color={colors.text} />
+                </Pressable>
+                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }}>
+                  {bestTimesDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    const next = new Date(bestTimesDate);
+                    next.setDate(next.getDate() + 1);
+                    next.setHours(0, 0, 0, 0);
+                    if (__DEV__) devLog("[P1_EVERYONES_FREE_DATE_CHANGE]", { from: bestTimesDate.toISOString(), to: next.toISOString() });
+                    setBestTimesDate(next);
+                  }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 6 }}
+                >
+                  <ChevronRight size={18} color={colors.text} />
+                </Pressable>
+              </View>
+
+              {/* Recommended section or empty state */}
+              {dateScheduleResult && dateScheduleResult.topSlots.length > 0 ? (
+                <>
+                  <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
+                    Recommended
+                  </Text>
+                  {dateScheduleResult.topSlots.map((slot, idx) => {
+                    const slotDate = new Date(slot.start);
+                    const endDate = new Date(slot.end);
+                    const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                    const endTimeLabel = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                    const rankLabel = idx === 0 ? "Best" : idx === 1 ? "Good" : "Option";
+                    const rankColor = idx === 0 ? "#10B981" : idx === 1 ? themeColor : colors.textSecondary;
+                    return (
+                      <View
+                        key={`best-${idx}`}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          marginBottom: 8,
+                          borderRadius: 12,
+                          backgroundColor: idx === 0
+                            ? (isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)")
+                            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
+                        }}
+                      >
+                        <View style={{ width: 48, marginRight: 10 }}>
+                          <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
+                        </View>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
+                          {slot.availableCount}/{slot.totalMembers}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  {/* View all toggle */}
+                  <Pressable
+                    onPress={() => setShowAllAvailability(!showAllAvailability)}
+                    style={{ paddingVertical: 10, alignItems: "center" }}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
+                      {showAllAvailability ? "Hide details" : "View all availability"}
+                    </Text>
+                  </Pressable>
+
+                  {/* Expanded availability details */}
+                  {showAllAvailability && dateScheduleResult.topSlots.map((slot, idx) => {
+                    const slotDate = new Date(slot.start);
+                    const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                    return (
+                      <View key={`detail-${idx}`} style={{ marginBottom: 12, paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginBottom: 4 }}>
+                          {timeLabel}
+                        </Text>
+                        {slot.availableUserIds.map((uid) => {
+                          const m = members.find((mb) => mb.userId === uid);
+                          return (
+                            <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
+                              <Text style={{ fontSize: 12, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                            </View>
+                          );
+                        })}
+                        {slot.unavailableUserIds.map((uid) => {
+                          const m = members.find((mb) => mb.userId === uid);
+                          return (
+                            <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textTertiary, marginRight: 8 }} />
+                              <Text style={{ fontSize: 12, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
+
+                  {/* Create event at best time */}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                      setShowBestTimeSheet(false);
+                      setShowAllAvailability(false);
+                      const best = dateScheduleResult.bestSlot;
+                      const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
+                      router.push({
+                        pathname: "/create",
+                        params: {
+                          date: best.start,
+                          circleId: circleId,
+                          duration: String(durationMin),
+                        },
+                      } as any);
+                    }}
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      marginBottom: 8,
+                      marginTop: 12,
+                      paddingVertical: 14,
                       borderRadius: 12,
-                      backgroundColor: idx === 0
-                        ? (isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)")
-                        : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
+                      backgroundColor: themeColor,
+                      alignItems: "center",
                     }}
                   >
-                    <View style={{ width: 48, marginRight: 10 }}>
-                      <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{dayLabel}</Text>
-                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
-                    </View>
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
-                      {slot.availableCount}/{slot.totalMembers}
-                    </Text>
-                  </View>
-                );
-              })}
-
-              {/* View all toggle */}
-              <Pressable
-                onPress={() => setShowAllAvailability(!showAllAvailability)}
-                style={{ paddingVertical: 10, alignItems: "center" }}
-              >
-                <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
-                  {showAllAvailability ? "Hide details" : "View all availability"}
-                </Text>
-              </Pressable>
-
-              {/* Expanded availability details */}
-              {showAllAvailability && scheduleResult.topSlots.map((slot, idx) => {
-                const slotDate = new Date(slot.start);
-                const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-                const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                return (
-                  <View key={`detail-${idx}`} style={{ marginBottom: 12, paddingHorizontal: 4 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginBottom: 4 }}>
-                      {dayLabel} {timeLabel}
-                    </Text>
-                    {slot.availableUserIds.map((uid) => {
-                      const m = members.find((mb) => mb.userId === uid);
-                      return (
-                        <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
-                          <Text style={{ fontSize: 12, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
-                        </View>
-                      );
-                    })}
-                    {slot.unavailableUserIds.map((uid) => {
-                      const m = members.find((mb) => mb.userId === uid);
-                      return (
-                        <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textTertiary, marginRight: 8 }} />
-                          <Text style={{ fontSize: 12, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-
-              {/* Create event at best time */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                  setShowBestTimeSheet(false);
-                  setShowAllAvailability(false);
-                  const best = scheduleResult.bestSlot;
-                  const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
-                  router.push({
-                    pathname: "/create",
-                    params: {
-                      date: best.start,
-                      circleId: circleId,
-                      duration: String(durationMin),
-                    },
-                  } as any);
-                }}
-                style={{
-                  marginTop: 12,
-                  paddingVertical: 14,
-                  borderRadius: 12,
-                  backgroundColor: themeColor,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
-              </Pressable>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <View style={{ alignItems: "center", paddingVertical: 24 }}>
+                  <Text style={{ fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 6 }}>No shared free times</Text>
+                  <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 16 }}>Try another day.</Text>
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                      setShowBestTimeSheet(false);
+                      router.push({ pathname: "/create", params: { circleId: circleId } } as any);
+                    }}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 24,
+                      borderRadius: 12,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create an event anyway</Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* Privacy disclaimer */}
               <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
