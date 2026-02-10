@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { ChevronLeft, ChevronRight, Clock, MapPin, Calendar } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -169,17 +170,15 @@ function EventListItem({
           {/* Host info - hidden for non-visible events */}
           {!event.isOwn && displayHostName ? (
             <View className="flex-row items-center mt-1">
-              <View className="w-5 h-5 rounded-full overflow-hidden mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB" }}>
-                {displayHostImage ? (
-                  <Image source={{ uri: displayHostImage }} className="w-full h-full" />
-                ) : (
-                  <View className="w-full h-full items-center justify-center" style={{ backgroundColor: `${themeColor}20` }}>
-                    <Text style={{ color: themeColor, fontSize: 10, fontWeight: "500" }}>
-                      {displayHostName?.[0] ?? "?"}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <EntityAvatar
+                photoUrl={displayHostImage}
+                initials={displayHostName?.[0] ?? "?"}
+                size={20}
+                backgroundColor={isDark ? "#2C2C2E" : `${themeColor}20`}
+                foregroundColor={themeColor}
+                fallbackIcon="person"
+                style={{ marginRight: 8 }}
+              />
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {displayHostName}
               </Text>

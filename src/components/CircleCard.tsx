@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Image, Pressable, AccessibilityInfo } from "react-native";
+import { View, Text, Pressable, AccessibilityInfo } from "react-native";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { useRouter } from "expo-router";
 import Animated, {
   FadeIn,
@@ -398,26 +399,21 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               {displayedMembers.length === 0 ? null : displayedMembers.length === 1 ? (
                 // Single member - centered
                 <View
-                  className="absolute w-10 h-10 rounded-full overflow-hidden border-2"
+                  className="absolute"
                   style={{
                     top: 8,
                     left: 8,
-                    borderColor: colors.surface,
-                    backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
                   }}
                 >
-                  {displayedMembers[0]?.user?.image ? (
-                    <Image source={{ uri: displayedMembers[0].user?.image }} className="w-full h-full" />
-                  ) : (
-                    <View
-                      className="w-full h-full items-center justify-center"
-                      style={{ backgroundColor: themeColor + "30" }}
-                    >
-                      <Text className="text-sm font-bold" style={{ color: themeColor }}>
-                        {displayedMembers[0]?.user?.name?.[0] ?? "?"}
-                      </Text>
-                    </View>
-                  )}
+                  <EntityAvatar
+                    photoUrl={displayedMembers[0]?.user?.image}
+                    initials={displayedMembers[0]?.user?.name?.[0] ?? "?"}
+                    size={40}
+                    backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                    foregroundColor={themeColor}
+                    fallbackIcon="person"
+                    style={{ borderWidth: 2, borderColor: colors.surface }}
+                  />
                 </View>
               ) : (
                 // Multiple members - arranged in a circle
@@ -441,29 +437,22 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                   return (
                     <View
                       key={member.userId}
-                      className="absolute rounded-full overflow-hidden border-2"
+                      className="absolute"
                       style={{
-                        width: avatarSize,
-                        height: avatarSize,
                         top: y,
                         left: x,
-                        borderColor: colors.surface,
-                        backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
                         zIndex: memberCount - i,
                       }}
                     >
-                      {member.user?.image ? (
-                        <Image source={{ uri: member.user?.image }} className="w-full h-full" />
-                      ) : (
-                        <View
-                          className="w-full h-full items-center justify-center"
-                          style={{ backgroundColor: themeColor + "30" }}
-                        >
-                          <Text className="text-[10px] font-bold" style={{ color: themeColor }}>
-                            {member.user.name?.[0] ?? "?"}
-                          </Text>
-                        </View>
-                      )}
+                      <EntityAvatar
+                        photoUrl={member.user?.image}
+                        initials={member.user?.name?.[0] ?? "?"}
+                        size={avatarSize}
+                        backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                        foregroundColor={themeColor}
+                        fallbackIcon="person"
+                        style={{ borderWidth: 2, borderColor: colors.surface }}
+                      />
                     </View>
                   );
                 })

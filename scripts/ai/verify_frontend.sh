@@ -201,33 +201,98 @@ echo "P17 enforcement checks PASS"
 echo ""
 echo "Running P0_MEDIA_IDENTITY_AVATAR_SSOT checks…"
 
-# Part 1 (FAIL): UserListRow files must not contain raw <Image (should use EntityAvatar)
-ULR_RAW=$(grep -rn '<Image' src/components/UserListRow.tsx 2>/dev/null || true)
-if [ -n "$ULR_RAW" ]; then
-  echo "❌ P0_MEDIA_IDENTITY FAIL — UserListRow.tsx contains raw <Image:"
-  echo "$ULR_RAW"
-  exit 1
-else
-  echo "  ✓ P0_MEDIA_IDENTITY Part 1: UserListRow has no raw <Image"
+P0_FAIL=0
+
+# --- 4A) ZERO-TOLERANCE strict files: NO raw <Image allowed at all -----------
+# These files should only render identity avatars via EntityAvatar.
+STRICT_FILES=(
+  src/components/UserListRow.tsx
+  src/components/BottomNavigation.tsx
+  src/components/FriendCard.tsx
+  src/components/MutualFriends.tsx
+  src/components/SocialProof.tsx
+  src/components/CircleCard.tsx
+  src/components/FeedCalendar.tsx
+  src/app/friends.tsx
+  src/app/discover.tsx
+)
+
+for sf in "${STRICT_FILES[@]}"; do
+  if [ ! -f "$sf" ]; then continue; fi
+  HITS=$(grep -n '<Image' "$sf" 2>/dev/null | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' || true)
+  if [ -n "$HITS" ]; then
+    echo "❌ P0_MEDIA_IDENTITY FAIL — $sf contains raw <Image (use EntityAvatar):"
+    echo "$HITS"
+    P0_FAIL=1
+  fi
+done
+
+if [ "$P0_FAIL" -eq 0 ]; then
+  echo "  ✓ P0_MEDIA_IDENTITY Part 1: Zero-tolerance strict files have no raw <Image"
 fi
 
-# Part 2 (FAIL): BottomNavigation must not contain raw <Image for profile avatar
-BN_RAW=$(grep -n '<Image' src/components/BottomNavigation.tsx 2>/dev/null || true)
-if [ -n "$BN_RAW" ]; then
-  echo "❌ P0_MEDIA_IDENTITY FAIL — BottomNavigation.tsx contains raw <Image:"
-  echo "$BN_RAW"
-  exit 1
+# --- 4B-i) social.tsx — allow content (eventPhotoUrl) but fail on identity ----
+SOCIAL_IDENTITY=$(grep -n '<Image' src/app/social.tsx 2>/dev/null \
+  | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' \
+  | grep -iv 'eventPhoto\|coverPhoto\|bannerUri\|eventImage' \
+  | grep -i 'user\.image\|avatar\|attendee\|member\|host\|profile' || true)
+if [ -n "$SOCIAL_IDENTITY" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — social.tsx identity avatar uses raw <Image:"
+  echo "$SOCIAL_IDENTITY"
+  P0_FAIL=1
 else
-  echo "  ✓ P0_MEDIA_IDENTITY Part 2: BottomNavigation has no raw <Image"
+  echo "  ✓ P0_MEDIA_IDENTITY Part 2: social.tsx — no identity-avatar raw <Image"
 fi
 
-# Part 3 (WARN only): other raw <Image in src/app — informational, content images are valid
+# --- 4B-ii) circle/[id].tsx — allow content but fail on identity avatars ------
+CIRCLE_IDENTITY=$(grep -n '<Image' "src/app/circle/[id].tsx" 2>/dev/null \
+  | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' \
+  | grep -i 'user\.image\|avatar\|attendee\|member\|host\|profile' || true)
+if [ -n "$CIRCLE_IDENTITY" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — circle/[id].tsx identity avatar uses raw <Image:"
+  echo "$CIRCLE_IDENTITY"
+  P0_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 3: circle/[id].tsx — no identity-avatar raw <Image"
+fi
+
+# --- 4B-iii) event/[id].tsx — allow content but fail on identity avatars ------
+EVENT_IDENTITY=$(grep -n '<Image' "src/app/event/[id].tsx" 2>/dev/null \
+  | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' \
+  | grep -i 'user\.image\|avatar\|attendee\|member\|host\|profile\.image' || true)
+if [ -n "$EVENT_IDENTITY" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx identity avatar uses raw <Image:"
+  echo "$EVENT_IDENTITY"
+  P0_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 4: event/[id].tsx — no identity-avatar raw <Image"
+fi
+
+# --- 4B-iv) EventPhotoGallery.tsx — allow gallery photos, fail on uploader avatars
+EPG_IDENTITY=$(grep -n '<Image' src/components/EventPhotoGallery.tsx 2>/dev/null \
+  | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' \
+  | grep -i 'uploader\|avatar\|user\.image' || true)
+if [ -n "$EPG_IDENTITY" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — EventPhotoGallery.tsx uploader avatar uses raw <Image:"
+  echo "$EPG_IDENTITY"
+  P0_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 5: EventPhotoGallery.tsx — no uploader-avatar raw <Image"
+fi
+
+# --- Summary -----------------------------------------------------------------
+if [ "$P0_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_MEDIA_IDENTITY avatar SSOT violated"
+  echo "Remediation: Replace raw <Image> avatar with <EntityAvatar …>"
+  exit 1
+fi
+
+# Informational: count remaining raw <Image in src/app (content images are expected)
 OTHER_RAW=$(grep -rn '<Image' src/app/ --include='*.tsx' 2>/dev/null | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' || true)
 if [ -n "$OTHER_RAW" ]; then
   OTHER_COUNT=$(echo "$OTHER_RAW" | wc -l | tr -d ' ')
-  echo "  ⚠ P0_MEDIA_IDENTITY Info: ${OTHER_COUNT} raw <Image occurrences in src/app/ (review if avatar-related)"
-else
-  echo "  ✓ P0_MEDIA_IDENTITY Part 3: No raw <Image in src/app/"
+  echo "  ⚠ P0_MEDIA_IDENTITY Info: ${OTHER_COUNT} raw <Image in src/app/ (content — review if new avatar added)"
 fi
 
 echo ""
