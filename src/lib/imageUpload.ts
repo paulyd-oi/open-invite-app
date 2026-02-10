@@ -6,6 +6,7 @@
  *
  * Canonical rules:
  * - Folder is enforced by the Cloudinary Upload Preset (DO NOT send `folder` from client)
+ *   EXCEPT for domain-specific uploads (circle, event, banner) which pass `folder` explicitly.
  * - Uses UNSIGNED upload preset
  * - 5MB max client-side guard
  * - Defensive parsing + readable errors
@@ -14,6 +15,12 @@
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
 import { devLog, devWarn, devError } from "./devLog";
+
+/**
+ * SSOT upload kind — determines Cloudinary folder + compression profile.
+ * Callers SHOULD pass `kind` where possible so the upload routes to the correct folder.
+ */
+export type UploadKind = "avatar" | "banner" | "event_photo" | "circle_photo";
 
 /**
  * Image compression options
@@ -345,6 +352,80 @@ export async function uploadEventPhoto(uri: string): Promise<UploadResponse> {
   } catch (error: any) {
     if (__DEV__) devError("[imageUpload] Event photo upload error:", error);
     throw new Error(error?.message || "Failed to upload event photo");
+  }
+}
+
+/**
+ * SSOT Cloudinary folder for profile banners
+ */
+const BANNER_PHOTO_FOLDER = "openinvite/banner_photos";
+
+/**
+ * Uploads a profile banner with landscape-optimised compression (1200x400, JPEG q=0.75).
+ * Hard cap: final file must be < 1.5 MB.
+ */
+export async function uploadBannerPhoto(uri: string): Promise<UploadResponse> {
+  try {
+    assertCloudinaryConfigured();
+
+    const origInfo = await FileSystem.getInfoAsync(uri);
+    const originalBytes = (origInfo as any).size ?? 0;
+
+    // Step 1: resize to 1200 wide, 400 tall (3:1 banner ratio) at q=0.75
+    let quality = 0.75;
+    let compressedUri = await compressImage(uri, { maxWidth: 1200, maxHeight: 400, quality });
+    let fileInfo = await FileSystem.getInfoAsync(compressedUri);
+    let finalBytes = (fileInfo as any).size ?? 0;
+
+    // Step 2: If still >= 1.5MB, recompress more aggressively
+    while (typeof finalBytes === "number" && finalBytes >= 1_500_000 && quality > 0.3) {
+      quality -= 0.1;
+      compressedUri = await compressImage(uri, { maxWidth: 1200, maxHeight: 400, quality });
+      fileInfo = await FileSystem.getInfoAsync(compressedUri);
+      finalBytes = (fileInfo as any).size ?? 0;
+    }
+
+    if (__DEV__) {
+      devLog("[P1_PROFILE_BANNER] banner_upload_start", {
+        sizeBefore: originalBytes,
+        sizeAfter: finalBytes,
+        kind: "banner" as UploadKind,
+      });
+    }
+
+    if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
+      throw new Error("Banner photo is too large after compression.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", { uri: compressedUri, type: "image/jpeg", name: "banner_photo.jpg" } as any);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
+    formData.append("folder", BANNER_PHOTO_FOLDER);
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    const res = await fetch(endpoint, { method: "POST", body: formData });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { json = null; }
+
+    if (!res.ok) {
+      const msg = (json && (json.error?.message || json.error)) || text?.substring(0, 200) || "Upload failed";
+      if (__DEV__) devError("[imageUpload] Banner photo upload failed:", res.status, msg);
+      throw new Error(msg);
+    }
+
+    const secureUrl = json?.secure_url as string | undefined;
+    const publicId = json?.public_id as string | undefined;
+    if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
+
+    if (__DEV__) {
+      devLog("[P1_PROFILE_BANNER] banner_upload_success", { hasUrl: !!secureUrl });
+    }
+
+    return { success: true, url: secureUrl, publicId };
+  } catch (error: any) {
+    if (__DEV__) devError("[imageUpload] Banner photo upload error:", error);
+    throw new Error(error?.message || "Failed to upload banner photo");
   }
 }
 

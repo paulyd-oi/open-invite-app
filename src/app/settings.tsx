@@ -51,6 +51,8 @@ import {
   Mail,
   Plus,
   X,
+  ImagePlus,
+  Trash2,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -79,7 +81,7 @@ import { performLogout } from "@/lib/logout";
 import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
 import { safeToast } from "@/lib/safeToast";
 import { toUserMessage, logError } from "@/lib/errors";
-import { uploadImage } from "@/lib/imageUpload";
+import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
 import { Button } from "@/ui/Button";
 import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
@@ -769,6 +771,8 @@ export default function SettingsScreen() {
   // Profile editing states
   const [editName, setEditName] = useState("");
   const [editImage, setEditImage] = useState("");
+  const [editBanner, setEditBanner] = useState<string | null>(null);
+  // null = unchanged, "" = removed, "file://..." or "https://..." = new/existing
   const [editCalendarBio, setEditCalendarBio] = useState("");
   const [editHandle, setEditHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
@@ -1004,7 +1008,7 @@ export default function SettingsScreen() {
   }, [profileData, session]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: (data: { name?: string; avatarUrl?: string; calendarBio?: string; phone?: string | null; handle?: string; adminBypassCooldown?: boolean }) =>
+    mutationFn: (data: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; phone?: string | null; handle?: string; adminBypassCooldown?: boolean }) =>
       api.put<UpdateProfileResponse>("/api/profile", data),
     onSuccess: async (response, variables) => {
       if (__DEV__) devLog("[EditProfile] Save success", response);
@@ -1019,6 +1023,7 @@ export default function SettingsScreen() {
           // Backend stores name on user, not profile - patch it here for consistent reads
           name: variables?.name ?? old?.profile?.name,
           avatarUrl: response.profile?.avatarUrl ?? variables?.avatarUrl ?? old?.profile?.avatarUrl,
+          bannerPhotoUrl: variables?.bannerPhotoUrl !== undefined ? variables.bannerPhotoUrl : old?.profile?.bannerPhotoUrl,
         },
         user: {
           ...old?.user,
@@ -1163,6 +1168,25 @@ export default function SettingsScreen() {
     }
   };
 
+  const handlePickBanner = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [3, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setEditBanner(result.assets[0].uri);
+      }
+    } catch (error) {
+      logError("Pick Banner", error);
+      const { title, message } = toUserMessage(error);
+      safeToast.error(title, message || "Failed to pick image. Please try again.");
+    }
+  };
+
   const handleSaveProfile = async () => {
     // First validate handle if it was changed
     const normalizedEditHandle = normalizeHandle(editHandle);
@@ -1180,7 +1204,7 @@ export default function SettingsScreen() {
     setHandleError(null);
 
     try {
-      const updates: { name?: string; avatarUrl?: string; calendarBio?: string; handle?: string; adminBypassCooldown?: boolean } = {};
+      const updates: { name?: string; avatarUrl?: string; bannerPhotoUrl?: string | null; calendarBio?: string; handle?: string; adminBypassCooldown?: boolean } = {};
       const currentDisplayName = session?.user?.displayName ?? session?.user?.name;
       
       // Handle name change
@@ -1205,6 +1229,27 @@ export default function SettingsScreen() {
         } else {
           // Already a URL - just use it
           updates.avatarUrl = editImage;
+        }
+      }
+
+      // Handle banner change
+      if (editBanner !== null) {
+        if (editBanner === "") {
+          // User wants to remove the banner
+          updates.bannerPhotoUrl = null;
+          if (__DEV__) devLog("[P1_PROFILE_BANNER] banner_remove_success");
+        } else if (editBanner.startsWith("file://")) {
+          try {
+            if (__DEV__) devLog("[EditProfile] Uploading banner photo...");
+            const bannerResponse = await uploadBannerPhoto(editBanner);
+            updates.bannerPhotoUrl = bannerResponse.url;
+          } catch (bannerError) {
+            logError("Banner Photo Upload", bannerError);
+            safeToast.error("Upload Failed", "Failed to upload banner photo. Please try again.");
+            return;
+          }
+        } else {
+          updates.bannerPhotoUrl = editBanner;
         }
       }
       
@@ -1465,6 +1510,7 @@ export default function SettingsScreen() {
                   const { displayName, avatarUri } = getProfileDisplay({ profileData, session });
                   setEditName(displayName);
                   setEditImage(avatarUri || "");
+                  setEditBanner(null); // null = unchanged
                   setEditCalendarBio(profileData?.profile?.calendarBio ?? "");
                   setShowEditProfile(true);
                 }}
@@ -1516,6 +1562,63 @@ export default function SettingsScreen() {
                 </Pressable>
                 <Text style={{ color: colors.textSecondary }} className="text-sm mt-2">Tap to change photo</Text>
               </View>
+
+              {/* Profile Banner */}
+              <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Profile Banner</Text>
+              {(() => {
+                const currentBannerUrl = (profileData?.profile as any)?.bannerPhotoUrl;
+                const showBanner = editBanner !== null ? (editBanner !== "") : !!currentBannerUrl;
+                const bannerSource = editBanner !== null
+                  ? (editBanner !== "" ? editBanner : null)
+                  : (currentBannerUrl || null);
+                return (
+                  <View className="mb-4">
+                    <Pressable
+                      onPress={handlePickBanner}
+                      className="rounded-xl overflow-hidden"
+                      style={{
+                        height: 80,
+                        backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        borderStyle: showBanner ? "solid" : "dashed",
+                      }}
+                    >
+                      {showBanner && bannerSource ? (
+                        <Image
+                          source={{ uri: bannerSource }}
+                          style={{ width: "100%", height: 80 }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="flex-1 items-center justify-center">
+                          <ImagePlus size={20} color={colors.textTertiary} />
+                          <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">Add banner</Text>
+                        </View>
+                      )}
+                    </Pressable>
+                    {showBanner && (
+                      <View className="flex-row mt-2" style={{ gap: 8 }}>
+                        <Pressable
+                          onPress={handlePickBanner}
+                          className="flex-1 py-2 rounded-lg items-center"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Text style={{ color: themeColor }} className="text-sm font-medium">Change Banner</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => { setEditBanner(""); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Trash2 size={14} color="#EF4444" />
+                          <Text style={{ color: "#EF4444" }} className="text-sm font-medium ml-1">Remove</Text>
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
 
               {/* Name Input */}
               <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Display Name</Text>

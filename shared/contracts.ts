@@ -514,6 +514,7 @@ export const getProfileResponseSchema = z.object({
     bio: z.string().nullable(),
     calendarBio: z.string().nullable(),
     avatarUrl: z.string().nullable(),
+    bannerPhotoUrl: z.string().nullable().optional(),
     userId: z.string(),
     birthday: z.string().nullable(),
     showBirthdayToFriends: z.boolean(),
@@ -532,6 +533,7 @@ export const getProfileResponseSchema = z.object({
       bio: z.string().nullable(),
       calendarBio: z.string().nullable(),
       avatarUrl: z.string().nullable(),
+      bannerPhotoUrl: z.string().nullable().optional(),
     }).nullable().optional(),
   }).nullable(),
   badges: z.array(z.object({
@@ -558,6 +560,7 @@ export const updateProfileRequestSchema = z.object({
   bio: z.string().max(200).optional(),
   calendarBio: z.string().max(300).optional(),
   avatarUrl: z.string().url().optional(),
+  bannerPhotoUrl: z.string().url().optional().nullable(),
   name: z.string().min(1).optional(),
   phone: z.string().max(20).optional().nullable(), // Phone number for friend search
   birthday: z.string().optional(), // ISO date string
@@ -574,6 +577,7 @@ export const updateProfileResponseSchema = z.object({
     bio: z.string().nullable(),
     calendarBio: z.string().nullable(),
     avatarUrl: z.string().nullable(),
+    bannerPhotoUrl: z.string().nullable().optional(),
     birthday: z.string().nullable(),
     showBirthdayToFriends: z.boolean(),
     hideBirthdays: z.boolean(),

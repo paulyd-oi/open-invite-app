@@ -233,6 +233,10 @@ export default function ProfileScreen() {
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
 
+  // ── Banner photo URL (with cache-bust via updatedAt if available) ──
+  const rawBannerUrl = (profileData?.profile as any)?.bannerPhotoUrl ?? null;
+  const bannerUri = typeof rawBannerUrl === "string" && rawBannerUrl.length > 0 ? rawBannerUrl : null;
+
   // ── What's Next derivation (SSOT from existing queries) ──
   const allEvents = eventsData?.events ?? [];
   const now = new Date();
@@ -452,13 +456,31 @@ export default function ProfileScreen() {
         {/* ═══ Profile Identity Card ═══ */}
         <Animated.View entering={FadeInDown.duration(240)}>
           <View
-            className="rounded-2xl p-5 border mb-4"
+            className="rounded-2xl border mb-4 overflow-hidden"
             style={{
               backgroundColor: colors.surface,
               borderColor: userIsPremium ? "#FFD700" : colors.border,
               borderWidth: userIsPremium ? 2 : 1,
             }}
           >
+            {/* Banner background (optional) */}
+            {bannerUri && (
+              <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 100 }}>
+                <Image source={{ uri: bannerUri }} style={{ width: "100%", height: 100 }} resizeMode="cover" />
+                {/* Gradient-like overlay for text readability */}
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)",
+                  }}
+                />
+              </View>
+            )}
+            <View style={{ padding: 20 }}>
             <View className="flex-row items-center">
               {/* Avatar with premium crown overlay */}
               <View className="relative">
@@ -552,6 +574,7 @@ export default function ProfileScreen() {
                   style={{ borderRadius: 8 }}
                 />
               </Animated.View>
+            </View>
             </View>
           </View>
         </Animated.View>
