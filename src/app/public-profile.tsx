@@ -69,6 +69,14 @@ function PreviewCalendar({
     const dateKey = selectedDate.toDateString();
     const dayEvents = eventsByDate.get(dateKey);
     if (dayEvents && dayEvents.length > 0) {
+      if (__DEV__) {
+        devLog("[P1_PUBLIC_PREVIEW_TAP]", {
+          dayKey: dateKey,
+          count: dayEvents.length,
+          chosenEventId: dayEvents[0].id?.slice(0, 8),
+          isMultiEvent: dayEvents.length > 1,
+        });
+      }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push(`/event/${dayEvents[0].id}` as any);
     }
@@ -152,8 +160,12 @@ function PreviewCalendar({
         <View className="flex-row flex-wrap">{renderDays()}</View>
       </ScrollView>
 
-      {/* Footer: owner sees event count, non-friend would see lock */}
-      {!hasEvents && (
+      {/* Footer: hint when events exist, empty state when none */}
+      {hasEvents ? (
+        <View className="items-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
+          <Text className="text-xs" style={{ color: colors.textTertiary }}>Tap a highlighted day to open its first event</Text>
+        </View>
+      ) : (
         <View className="flex-row items-center justify-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
           <Lock size={12} color={colors.textTertiary} />
           <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>No upcoming events</Text>
@@ -226,6 +238,12 @@ export default function PublicProfileScreen() {
         eventCount: upcomingEvents.length,
         reason: "owner_self_preview_must_not_mask_own_data",
       });
+      devLog("[P1_PUBLIC_PREVIEW_CLARITY]", {
+        viewerId: viewerId?.slice(0, 8),
+        hasEvents: upcomingEvents.length > 0,
+        upcomingCount: upcomingEvents.length,
+        copyVariant: "pill+helper",
+      });
       devLog("[P1_PUBLIC_PREVIEW_UI]", {
         viewerId: viewerId?.slice(0, 8),
         bannerMounted: true,
@@ -273,26 +291,39 @@ export default function PublicProfileScreen() {
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={themeColor} />
         }
       >
-        {/* Preview banner */}
+        {/* Preview banner + pill */}
         <Animated.View entering={FadeIn.duration(300)} className="mb-4">
           <View
-            className="rounded-2xl px-4 py-3 flex-row items-center"
+            className="rounded-2xl px-4 py-3"
             style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}40`, borderWidth: 1 }}
           >
-            <View
-              className="w-9 h-9 rounded-full items-center justify-center mr-3"
-              style={{ backgroundColor: `${themeColor}20` }}
-            >
-              <Eye size={18} color={themeColor} />
+            <View className="flex-row items-center">
+              <View
+                className="w-9 h-9 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: `${themeColor}20` }}
+              >
+                <Eye size={18} color={themeColor} />
+              </View>
+              <View className="flex-1">
+                <View className="flex-row items-center">
+                  <Text className="text-sm font-semibold" style={{ color: themeColor }}>
+                    Public Preview
+                  </Text>
+                  <View
+                    className="ml-2 px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${themeColor}25` }}
+                  >
+                    <Text className="text-xs font-medium" style={{ color: themeColor }}>Preview Mode</Text>
+                  </View>
+                </View>
+                <Text className="text-xs mt-0.5" style={{ color: `${themeColor}CC` }}>
+                  This is how others see your profile
+                </Text>
+              </View>
             </View>
-            <View className="flex-1">
-              <Text className="text-sm font-semibold" style={{ color: themeColor }}>
-                Public Preview
-              </Text>
-              <Text className="text-xs mt-0.5" style={{ color: `${themeColor}CC` }}>
-                This is how others see your profile
-              </Text>
-            </View>
+            <Text className="text-xs mt-2" style={{ color: colors.textSecondary }}>
+              Only you can see this view. Non-friends see your events as private.
+            </Text>
           </View>
         </Animated.View>
 
