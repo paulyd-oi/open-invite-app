@@ -280,6 +280,17 @@ else
   echo "  ✓ P0_MEDIA_IDENTITY Part 5: EventPhotoGallery.tsx — no uploader-avatar raw <Image"
 fi
 
+# --- 4B-v) event/[id].tsx — hero surface must use EventPhotoEmoji, not raw <Image>
+HERO_RAW=$(grep -n '<Image' "src/app/event/[id].tsx" 2>/dev/null \
+  | grep 'eventPhotoUrl' || true)
+if [ -n "$HERO_RAW" ]; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx raw <Image using eventPhotoUrl detected — use EventPhotoEmoji instead:"
+  echo "$HERO_RAW"
+  P0_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 6: event/[id].tsx — hero uses EventPhotoEmoji (no raw <Image eventPhotoUrl)"
+fi
+
 # --- Summary -----------------------------------------------------------------
 if [ "$P0_FAIL" -ne 0 ]; then
   echo ""
