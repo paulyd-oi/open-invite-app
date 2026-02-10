@@ -63,6 +63,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
+import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
@@ -835,7 +836,7 @@ export default function EventDetailScreen() {
   // P0 FIX: Fetch attendees for "Who's Coming" section
   // ============================================
   // Type for attendees response
-  type AttendeeInfo = { id: string; name: string | null; imageUrl?: string | null; isHost?: boolean };
+  type AttendeeInfo = { id: string; name: string | null; imageUrl?: string | null; isHost?: boolean; handle?: string | null; calendarBio?: string | null };
   type AttendeesResponse = { attendees: AttendeeInfo[]; totalGoing: number };
 
   // [P0_DISCOVER_ROSTER] Fetch ALL attendees (includeAll=true bypasses friend-only filter)
@@ -870,6 +871,8 @@ export default function EventDetailScreen() {
             name: a.name ?? null,
             imageUrl: a.imageUrl ?? a.image ?? null,
             isHost: a.isHost ?? false,
+            handle: a.handle ?? a.Profile?.handle ?? null,
+            calendarBio: a.calendarBio ?? a.Profile?.calendarBio ?? null,
           })),
           totalGoing: raw?.totalGoing ?? raw?.attendeeCount ?? 0,
         };
@@ -3437,6 +3440,11 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
+                {__DEV__ && once('P1_USER_LIST_ROW_SOT_EVENT') && (devLog('[P1_USER_LIST_ROW_SOT]', {
+                  screen: 'event-whos-coming', totalRows: attendeesList.length,
+                  rowsWithHandle: attendeesList.filter(a => !!a.handle).length,
+                  rowsWithBio: attendeesList.filter(a => !!a.calendarBio).length,
+                }), null)}
                 {attendeesList.map((attendee) => (
                   <View
                     key={attendee.id}
@@ -3446,9 +3454,9 @@ export default function EventDetailScreen() {
                     }}
                   >
                     <UserListRow
-                      handle={null}
+                      handle={attendee.handle}
                       displayName={attendee.name ?? "Guest"}
-                      calendarBio={null}
+                      calendarBio={attendee.calendarBio}
                       avatarUrl={attendee.imageUrl}
                       badgeText={(attendee.isHost || attendee.id === event?.user?.id) ? "Host" : null}
                       onPress={() => {

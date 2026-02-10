@@ -1628,6 +1628,10 @@ export const circleMemberSchema = z.object({
     name: z.string().nullable(),
     email: z.string().nullable(),
     image: z.string().nullable(),
+    Profile: z.object({
+      handle: z.string().nullable().optional(),
+      calendarBio: z.string().nullable().optional(),
+    }).nullable().optional(),
   }),
 });
 export type CircleMember = z.infer<typeof circleMemberSchema>;

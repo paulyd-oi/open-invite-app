@@ -461,11 +461,14 @@ const FriendListItem = React.memo(function FriendListItem({
   }
 
   // Text derivation now handled by UserListRow SSOT
-  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_LAYOUT_FIX')) {
-    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT_FIX]', {
-      layout: 'row',
-      hasBio: !!friend.Profile?.calendarBio,
-      hasHandle: !!friend.Profile?.handle,
+  const hasHandle = !!friend.Profile?.handle?.trim();
+  const hasBio = !!friend.Profile?.calendarBio?.trim();
+  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_LAYOUT_PROOF')) {
+    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT_PROOF]', {
+      flexDirectionRowEnforced: true,
+      hasHandle,
+      hasBio,
+      renderedLines: hasBio ? 2 : 1,
     });
   }
 
@@ -1321,6 +1324,15 @@ export default function FriendsScreen() {
   // FlatList callbacks - memoized to prevent unnecessary re-renders
   const friendKeyExtractor = useCallback((item: Friendship) => item.id, []);
   
+  // [P1_USER_LIST_ROW_SOT] Per-screen aggregate proof log (friends list view)
+  if (__DEV__ && viewMode === "list" && filteredFriends.length > 0 && once('P1_USER_LIST_ROW_SOT_FRIENDS')) {
+    devLog('[P1_USER_LIST_ROW_SOT]', {
+      screen: 'friends-list', totalRows: filteredFriends.length,
+      rowsWithHandle: filteredFriends.filter(f => !!f.friend?.Profile?.handle).length,
+      rowsWithBio: filteredFriends.filter(f => !!f.friend?.Profile?.calendarBio).length,
+    });
+  }
+
   const handlePinFriend = useCallback((id: string) => {
     pinFriendshipMutation.mutate(id);
   }, [pinFriendshipMutation]);

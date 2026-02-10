@@ -1,6 +1,5 @@
 import React from "react";
 import { View, Text, Pressable, Image, type ViewStyle } from "react-native";
-import { devLog } from "@/lib/devLog";
 import { useTheme } from "@/lib/ThemeContext";
 
 // ═══════════════════════════════════════════════════════════════
@@ -9,7 +8,7 @@ import { useTheme } from "@/lib/ThemeContext";
 // ═══════════════════════════════════════════════════════════════
 
 // ── Layout tokens ─────────────────────────────────────────────
-export const ROW_MIN_H = 56;
+export const ROW_MIN_H = 48;
 export const AVATAR_SIZE = 40;
 
 export interface UserListRowProps {
@@ -58,10 +57,6 @@ export const UserListRow = React.memo(function UserListRow({
   const bio = calendarBio?.trim() || "";
   const initial = (displayName?.trim()?.[0] ?? handle?.trim()?.[0] ?? "?").toUpperCase();
 
-  if (__DEV__) {
-    devLog("[P1_USER_LIST_ROW_SOT]", { hasHandle: !!handle?.trim(), hasBio: !!bio });
-  }
-
   return (
     <Pressable
       onPress={onPress}
@@ -73,7 +68,7 @@ export const UserListRow = React.memo(function UserListRow({
         alignItems: "center" as const,
         minHeight: ROW_MIN_H,
         paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingVertical: 6,
         borderRadius: 10,
         backgroundColor:
           !disablePressFeedback && pressed
