@@ -44,6 +44,7 @@ export default function RedeemCodeScreen() {
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
       devLog("[PRO_SOT] BEFORE screen=redeem_code isPremium=", isPremium);
+      devLog("[P0_DISCOUNT_APPLY] START screen=redeem_code code=", normalizedCode.slice(0, 4) + "…");
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -62,6 +63,7 @@ export default function RedeemCodeScreen() {
       // [PRO_SOT] Log AFTER state
       if (__DEV__) {
         devLog("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
+        devLog("[P0_DISCOUNT_APPLY] OK screen=redeem_code combinedIsPro=", combinedIsPro);
       }
 
       // Success!
@@ -78,6 +80,7 @@ export default function RedeemCodeScreen() {
       // Invalidate queries for UI refresh
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
 
       // Navigate back after a delay
       setTimeout(() => {
@@ -86,6 +89,7 @@ export default function RedeemCodeScreen() {
     } catch (error: any) {
       if (__DEV__) {
         devLog("[PRO_SOT] ERROR screen=redeem_code", error?.message);
+        devLog("[P0_DISCOUNT_APPLY] ERROR screen=redeem_code", error?.message);
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -24,6 +24,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { type PurchasesPackage } from "react-native-purchases";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
@@ -63,6 +64,7 @@ export default function PaywallScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   const refreshProContract = useRefreshProContract();
+  const queryClient = useQueryClient();
   const { isPremium, refresh: refreshSubscription } = useSubscription();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -87,12 +89,13 @@ export default function PaywallScreen() {
   }, []);
 
   // Redirect premium users back - they shouldn't see paywall
+  // Guard: skip redirect while code-redeemed modal is showing (let user see success first)
   useEffect(() => {
-    if (isPremium && !isLoading) {
+    if (isPremium && !isLoading && !showCodeRedeemedModal) {
       if (__DEV__) devLog("[Paywall] Premium user detected, redirecting back");
       router.back();
     }
-  }, [isPremium, isLoading, router]);
+  }, [isPremium, isLoading, showCodeRedeemedModal, router]);
 
   // Refresh subscription status on mount to ensure fresh premium check
   useEffect(() => {
@@ -216,13 +219,35 @@ export default function PaywallScreen() {
         code: discountCode.trim().toUpperCase(),
       });
 
-      // CANONICAL: Use refreshProContract for SSOT after promo redemption
-      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:paywall" });
-
-      // [PRO_SOT] Log AFTER state
-      if (__DEV__) {
-        devLog("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
+      // [P0_DISCOUNT_APPLY] Guard: backend may return 200 with success=false
+      if (!data.success) {
+        if (__DEV__) {
+          devLog("[P0_DISCOUNT_APPLY] ERROR screen=paywall success=false");
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        safeToast.error("Invalid Code", "This code is not valid.");
+        return;
       }
+
+      // [P0_DISCOUNT_APPLY] Code accepted — refresh pro state
+      // Wrap in its own try/catch so refresh failures don't show "Invalid Code"
+      try {
+        const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:paywall" });
+
+        // [PRO_SOT] Log AFTER state
+        if (__DEV__) {
+          devLog("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
+          devLog("[P0_DISCOUNT_APPLY] OK screen=paywall combinedIsPro=", combinedIsPro);
+        }
+      } catch (refreshErr) {
+        if (__DEV__) {
+          devLog("[P0_DISCOUNT_APPLY] REFRESH_ERROR screen=paywall (code was accepted)", refreshErr);
+        }
+      }
+
+      // Invalidate subscription queries for UI sync across screens
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRedeemedBenefit(data.benefit);
@@ -230,6 +255,7 @@ export default function PaywallScreen() {
     } catch (error: any) {
       if (__DEV__) {
         devLog("[PRO_SOT] ERROR screen=paywall_promo", error?.message);
+        devLog("[P0_DISCOUNT_APPLY] ERROR screen=paywall", error?.message);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       // Parse the error message from the API error format

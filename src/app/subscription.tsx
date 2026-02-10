@@ -217,6 +217,7 @@ export default function SubscriptionScreen() {
     // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
       devLog("[PRO_SOT] BEFORE screen=subscription_promo isPremium=", subscriptionContext.isPremium);
+      devLog("[P0_DISCOUNT_APPLY] START screen=subscription code=", promoCode.trim().toUpperCase().slice(0, 4) + "…");
     }
 
     try {
@@ -235,6 +236,7 @@ export default function SubscriptionScreen() {
         // [PRO_SOT] Log AFTER state
         if (__DEV__) {
           devLog("[PRO_SOT] AFTER screen=subscription_promo combinedIsPro=", combinedIsPro);
+          devLog("[P0_DISCOUNT_APPLY] OK screen=subscription combinedIsPro=", combinedIsPro);
         }
         
         // Invalidate queries for UI refresh
@@ -251,6 +253,7 @@ export default function SubscriptionScreen() {
       } else {
         if (__DEV__) {
           devLog("[PRO_SOT] ERROR screen=subscription_promo invalid_code");
+          devLog("[P0_DISCOUNT_APPLY] ERROR screen=subscription invalid_code");
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         safeToast.error("Invalid Code", response.error || "This code is not valid.");
@@ -258,6 +261,7 @@ export default function SubscriptionScreen() {
     } catch (error: unknown) {
       if (__DEV__) {
         devLog("[PRO_SOT] ERROR screen=subscription_promo", error);
+        devLog("[P0_DISCOUNT_APPLY] ERROR screen=subscription", error);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMessage = error instanceof Error ? error.message : "Could not validate code.";
