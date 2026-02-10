@@ -9,9 +9,9 @@
  *   • success     → solid green bg, white text
  *
  * Uses ThemeContext tokens exclusively. No inline hex values.
- * Pressed state via Pressable style callback.
+ * Pressed state via useState + onPressIn/onPressOut (NativeWind compat).
  */
-import React from "react";
+import React, { useState } from "react";
 import {
   Pressable,
   Text,
@@ -47,9 +47,23 @@ export function Button({
   size = "md",
   testID,
 }: ButtonProps) {
-  const { themeColor, colors } = useTheme();
+  const { themeColor, isDark, colors } = useTheme();
 
   const isDisabled = disabled || loading;
+  const [pressed, setPressed] = useState(false);
+
+  // [P0_BUTTON_PRIMARY_STYLE] DEV-only proof log for primary visibility fix
+  if (__DEV__ && variant === "primary" && once(`btn_primary_style_${label}`)) {
+    const bg = isDisabled ? colors.buttonPrimaryDisabledBg : themeColor;
+    const txt = isDisabled ? colors.buttonPrimaryDisabledText : colors.buttonPrimaryText;
+    console.log("[P0_BUTTON_PRIMARY_STYLE]", {
+      label,
+      isDark,
+      backgroundColor: bg,
+      textColor: txt,
+      themeColor,
+    });
+  }
 
   const paddingH = size === "sm" ? SPACING.xl : SPACING.xxl;
   const paddingV = size === "sm" ? SPACING.sm : SPACING.lg;
@@ -160,9 +174,11 @@ export function Button({
   return (
     <Pressable
       onPress={wrappedOnPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       disabled={isDisabled}
       testID={testID}
-      style={(state) => [getContainerStyle(state.pressed), style]}
+      style={[getContainerStyle(pressed), style]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
