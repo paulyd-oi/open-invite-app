@@ -19,9 +19,17 @@ import {
   type ViewStyle,
   type StyleProp,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from "react-native-reanimated";
 import { useTheme } from "@/lib/ThemeContext";
 import { SPACING, RADIUS } from "./layout";
+import { PRESS_SCALE, SPRING_PRESS } from "./motion";
 import { p15, once } from "@/lib/runtimeInvariants";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface ButtonProps {
   variant?: "primary" | "secondary" | "ghost" | "destructive" | "success";
@@ -51,6 +59,12 @@ export function Button({
 
   const isDisabled = disabled || loading;
   const [pressed, setPressed] = useState(false);
+
+  // P2 press-scale spring animation
+  const scale = useSharedValue(1);
+  const animatedScale = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const paddingH = size === "sm" ? SPACING.xl : SPACING.xxl;
   const paddingV = size === "sm" ? SPACING.sm : SPACING.lg;
@@ -159,13 +173,19 @@ export function Button({
     : undefined;
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={wrappedOnPress}
-      onPressIn={() => setPressed(true)}
-      onPressOut={() => setPressed(false)}
+      onPressIn={() => {
+        setPressed(true);
+        scale.value = withSpring(PRESS_SCALE, SPRING_PRESS);
+      }}
+      onPressOut={() => {
+        setPressed(false);
+        scale.value = withSpring(1, SPRING_PRESS);
+      }}
       disabled={isDisabled}
       testID={testID}
-      style={[getContainerStyle(pressed), style]}
+      style={[getContainerStyle(pressed), animatedScale, style]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -186,7 +206,7 @@ export function Button({
           </Text>
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

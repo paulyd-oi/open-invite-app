@@ -3652,7 +3652,7 @@ export default function CircleScreen() {
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Animated.View
-              entering={FadeInDown.duration(200)}
+              entering={FadeInDown.springify().damping(20).stiffness(300)}
               style={{
                 backgroundColor: colors.background,
                 borderTopLeftRadius: 24,
@@ -4659,7 +4659,7 @@ export default function CircleScreen() {
         >
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Animated.View
-              entering={FadeInDown.duration(200)}
+              entering={FadeInDown.springify().damping(20).stiffness(300)}
               style={{
                 backgroundColor: colors.background,
                 borderTopLeftRadius: 24,
@@ -4671,6 +4671,8 @@ export default function CircleScreen() {
               onLayout={__DEV__ ? (e) => {
                 const { height: sheetH } = e.nativeEvent.layout;
                 devLog('[P0_MEMBERS_SHEET]', 'sheet_open', { sheetHeight: Math.round(sheetH), windowHeight: Math.round(Dimensions.get('window').height), bottomInset: insets.bottom, sheetPct: '92%', maxPct: '95%' });
+                devLog('[P2_ANIMATION]', { component: 'members_sheet', animationMounted: true });
+                devLog('[P2_CIRCLE_UX]', { polishApplied: true });
               } : undefined}
             >
               {/* Modal Handle */}
@@ -4769,9 +4771,9 @@ export default function CircleScreen() {
                   );
                 })}
 
-                {/* Add Members Section */}
-                <View style={{ marginTop: 16, paddingBottom: 16 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginBottom: 12 }}>Add Members</Text>
+                {/* Add Members Section — visual separator from members list */}
+                <View style={{ marginTop: 20, paddingTop: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textSecondary, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 12 }}>Add Members</Text>
 
                   {availableFriends.length > 0 ? (
                     <View
@@ -4780,12 +4782,12 @@ export default function CircleScreen() {
                       } : undefined}
                     >
                       {__DEV__ && availableFriends.length > 0 && once('P0_USERROW_SHEET_SOT_circle_add') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_add_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: availableFriends.length })}
-                      {availableFriends.map((friend) => {
+                      {availableFriends.map((friend, idx) => {
                         const isSelected = selectedFriends.includes(friend.friendId);
                         return (
                           <Animated.View
                             key={friend.friendId}
-                            entering={FadeInDown.springify()}
+                            entering={FadeInDown.delay(idx * 25).springify()}
                           >
                             <Pressable
                               onPress={() => toggleFriendSelection(friend.friendId)}

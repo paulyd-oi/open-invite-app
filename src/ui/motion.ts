@@ -36,6 +36,8 @@ import * as Haptics from "expo-haptics";
 // ─── Press Feedback ────────────────────────────────────
 /** Pressed-state opacity for Chip (tappable pills). */
 export const PRESS_OPACITY = 0.7;
+/** Pressed-state scale-down for buttons / tappable cards. */
+export const PRESS_SCALE = 0.97;
 
 // ─── Transition Durations (ms) ─────────────────────────
 /** Quick element fade (opacity in/out). */

@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import { Calendar, ChevronRight, ChevronLeft, Lock, Shield, Eye } from "@/ui/icons";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { useSession } from "@/lib/useSession";
@@ -158,6 +158,10 @@ export default function PublicProfileScreen() {
         resolvedTitle: "Public Profile",
         backMode: "minimal",
       });
+      devLog("[P2_ANIMATION]", {
+        component: "public-profile",
+        animationMounted: true,
+      });
     }
   }, [viewerId, data, user?.name]);
 
@@ -193,7 +197,7 @@ export default function PublicProfileScreen() {
         }
       >
         {/* Preview banner */}
-        <View className="mb-4">
+        <Animated.View entering={FadeIn.duration(300)} className="mb-4">
           <View
             className="rounded-2xl px-4 py-3 flex-row items-center"
             style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}40`, borderWidth: 1 }}
@@ -213,7 +217,7 @@ export default function PublicProfileScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {isLoading ? (
           <View className="py-8 items-center">
@@ -224,13 +228,13 @@ export default function PublicProfileScreen() {
             {/* User Info Card — matches user/[id] layout, NO friend CTAs */}
             <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
               <View
-                className="rounded-2xl p-5 items-center"
+                className="rounded-2xl p-6 items-center"
                 style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
               >
                 <EntityAvatar
                   photoUrl={user.Profile?.avatarUrl ?? user.image}
                   initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                  size={80}
+                  size={88}
                   backgroundColor={
                     (user.Profile?.avatarUrl ?? user.image)
                       ? (isDark ? "#2C2C2E" : "#E5E7EB")
@@ -238,23 +242,23 @@ export default function PublicProfileScreen() {
                   }
                   foregroundColor={themeColor}
                 />
-                <View className="flex-row items-center mt-3">
-                  <Text className="text-xl font-bold" style={{ color: colors.text }}>
+                <View className="flex-row items-center mt-4">
+                  <Text className="text-xl font-bold" style={{ color: colors.text, letterSpacing: -0.3 }}>
                     {user.name ?? "No name"}
                   </Text>
                 </View>
 
-                {/* @handle */}
+                {/* @handle — secondary tone */}
                 {user.Profile?.handle && (
-                  <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+                  <Text className="text-sm" style={{ color: colors.textSecondary, marginTop: 4 }}>
                     @{user.Profile.handle}
                   </Text>
                 )}
 
                 {/* Calendar Bio */}
-                <View className="flex-row items-center mt-2">
-                  <Calendar size={14} color={colors.textSecondary} />
-                  <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>
+                <View className="flex-row items-center" style={{ marginTop: 8 }}>
+                  <Calendar size={14} color={colors.textTertiary} />
+                  <Text className="ml-1.5 text-sm" style={{ color: colors.textTertiary }}>
                     My calendar looks like...
                   </Text>
                 </View>
