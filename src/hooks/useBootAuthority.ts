@@ -32,6 +32,11 @@ let hasBootstrappedOnce = false;
 let inFlightBootstrap: Promise<Awaited<ReturnType<typeof bootstrapAuthWithWatchdog>>> | null = null;
 let refreshRequestId = 0; // Counter incremented to request forced bootstrap refresh
 
+// [P0_AUTH_JITTER] Once boot reaches a terminal state, never show BootLoading overlay again.
+// Terminal = authed | loggedOut | onboarding | error. Degraded is NOT terminal (retriable).
+let bootResolvedOnce = false;
+const TERMINAL_BOOT_STATES = new Set<BootStatus>(['authed', 'loggedOut', 'onboarding', 'error']);
+
 // Subscribers for state updates
 const subscribers = new Set<(status: BootStatus, error?: string) => void>();
 
@@ -43,6 +48,13 @@ function setGlobalState(status: BootStatus, error?: string) {
   const prevStatus = globalStatus;
   globalStatus = status;
   globalError = error;
+  
+  // [P0_AUTH_JITTER] Mark resolved once boot reaches a terminal state.
+  // After this, BootLoading overlay is suppressed during rebootstrap (login/logout).
+  if (!bootResolvedOnce && TERMINAL_BOOT_STATES.has(status)) {
+    bootResolvedOnce = true;
+    devLog('[P0_AUTH_JITTER]', `bootResolvedOnce=true (${prevStatus} → ${status})`);
+  }
   
   // [BOOT_FLOW] Proof log: state transition
   devLog('[BOOT_FLOW]', `State transition: ${prevStatus} → ${status}`, error ? `error: ${error}` : '');
@@ -202,6 +214,12 @@ function mapBootstrapResultToGlobalStatus(
       devWarn('[BOOT_AUTHORITY]', 'Unknown bootstrap state:', result.state);
       setGlobalState('error', 'Unknown bootstrap state');
   }
+}
+
+// [P0_AUTH_JITTER] Getter: has boot reached a terminal state at least once this session?
+// Used by BootRouter to suppress BootLoading overlay during rebootstrap.
+export function hasBootResolvedOnce(): boolean {
+  return bootResolvedOnce;
 }
 
 // Export for logout flow to reset singleton

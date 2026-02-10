@@ -131,6 +131,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_MEDIA_ROUTE]",
   // P0 media identity SSOT enforcement proof
   "[P0_MEDIA_IDENTITY]",
+  // P0 auth/onboarding jitter stabilization proof
+  "[P0_AUTH_JITTER]",
 ];
 
 /**

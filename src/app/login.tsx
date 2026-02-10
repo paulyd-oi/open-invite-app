@@ -90,6 +90,11 @@ async function routeAfterAuthSuccess(router: any): Promise<void> {
     // This prevents white screen from navigating to "/" which returns null during loading
     if (__DEV__) {
       devLog("[P0_BOOT_CONTRACT] Bootstrap complete, finalStatus:", finalStatus);
+      devLog('[P0_AUTH_JITTER]', 'post-login-route', {
+        surface: 'login/routeAfterAuthSuccess',
+        finalStatus,
+        decision: finalStatus === 'authed' ? 'calendar' : 'welcome',
+      });
     }
     
     if (finalStatus === 'authed') {

@@ -34,7 +34,7 @@ import { setupDeepLinkListener } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
 import { useOfflineSync } from '@/lib/offlineSync';
 import { BACKEND_URL } from '@/lib/config';
-import { useBootAuthority } from '@/hooks/useBootAuthority';
+import { useBootAuthority, hasBootResolvedOnce } from '@/hooks/useBootAuthority';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferralClaim } from '@/hooks/useReferralClaim';
 import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
@@ -443,6 +443,16 @@ function BootRouter() {
 
     hasRoutedRef.current = true;
 
+    // [P0_AUTH_JITTER] Proof log: one-shot routing decision (must fire exactly once per boot)
+    if (__DEV__) {
+      devLog('[P0_AUTH_JITTER]', 'routing-decision', {
+        surface: 'BootRouter',
+        bootStatus,
+        pathname,
+        bootResolvedOnce: hasBootResolvedOnce(),
+      });
+    }
+
     // [P15_NAV_INVAR] DEV-only: detect illegal auth-route for bootStatus
     if (__DEV__) {
       const AUTHED_ROOTS = ['/calendar', '/social', '/discover', '/friends', '/settings'];
@@ -492,16 +502,28 @@ function BootRouter() {
     }
   }, [navigationState?.key, bootStatus, router, pathname]);
 
-  // INVARIANT: Always render something - never null or empty fragment
-  // While loading or degraded, render BootLoading to prevent white screens
-  if (bootStatus === 'loading' || bootStatus === 'degraded') {
-    devLog('[P0_BOOT_CONTRACT]', 'BootRouter rendering BootLoading, status:', bootStatus);
-    return <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />;
+  // [P0_AUTH_JITTER] Show loading overlay only during INITIAL boot (before first terminal resolution).
+  // After boot resolves once (authed/loggedOut/onboarding/error), suppress overlay to prevent
+  // jitter during login rebootstrap and logout flows.
+  // Degraded keeps overlay because it's retriable, not terminal.
+  const showBootOverlay = !hasBootResolvedOnce() && (bootStatus === 'loading' || bootStatus === 'degraded');
+
+  if (__DEV__) {
+    devLog('[P0_AUTH_JITTER]', 'render-gate', {
+      surface: 'BootRouter',
+      bootStatus,
+      showBootOverlay,
+      hasRouted: hasRoutedRef.current,
+      bootResolvedOnce: hasBootResolvedOnce(),
+      decision: showBootOverlay ? 'block (show overlay)' : 'pass (render app)',
+    });
   }
 
-  // Render email verification gate modal (global, authed shell)
   return (
     <>
+      {showBootOverlay && (
+        <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />
+      )}
       <EmailVerificationGateModal
         visible={showEmailGateModal}
         onClose={() => setShowEmailGateModal(false)}
