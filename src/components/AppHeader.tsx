@@ -10,14 +10,17 @@
  */
 import React, { useEffect, useRef } from "react";
 import { View, Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog } from "@/lib/devLog";
 
 /* ── SSOT Header Tokens (single definition) ─────────────────────── */
 const HEADER_PX = 20;       // paddingHorizontal
-const HEADER_PT = 8;        // paddingTop
+const HEADER_PT = 8;        // paddingTop (below safe-area, provided by parent)
 const HEADER_PB = 16;       // paddingBottom
 const HEADER_MIN_H = 44;    // minHeight for title row
+/** Minimum width reserved for the right slot so title doesn't shift across tabs */
+const RIGHT_SLOT_MIN_W = 48;
 
 export interface AppHeaderProps {
   /** Screen title displayed in the header */
@@ -43,15 +46,18 @@ export function AppHeader({
   bottom,
 }: AppHeaderProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
-  // DEV-only render proof log (once per mount)
+  // DEV-only render proof logs (once per mount)
   const logged = useRef(false);
   useEffect(() => {
     if (__DEV__ && !logged.current) {
       logged.current = true;
       devLog(`[P2_HEADER_SSOT] ${title} using AppHeader ${variant}`);
+      devLog(`[P2_HEADER_SAFEAREA] ${title} insetTop=${insets.top} paddingTop=${HEADER_PT}`);
+      devLog(`[P2_HEADER_RIGHTSLOT] ${title} rightSlotMinWidth=${RIGHT_SLOT_MIN_W}`);
     }
-  }, [title, variant]);
+  }, [title, variant, insets.top]);
 
   return (
     <View
@@ -81,12 +87,10 @@ export function AppHeader({
           {left}
         </View>
 
-        {/* Right cluster */}
-        {right ? (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {right}
-          </View>
-        ) : null}
+        {/* Right cluster — stable minWidth prevents title shift across tabs */}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", minWidth: RIGHT_SLOT_MIN_W }}>
+          {right}
+        </View>
       </View>
 
       {/* ── Subtitle ── */}
