@@ -600,6 +600,9 @@ export default function EventDetailScreen() {
   // Extract host info from error payload if available
   const restrictedHostInfo = isPrivacyRestricted ? errorBody?.host : null;
   const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'the host';
+  const restrictedFirstName = restrictedHostName !== 'the host'
+    ? restrictedHostName.split(' ')[0]
+    : 'the host';
 
   // [P0_EVENT_FRIEND_BOUNDARY_FETCH] Log restricted response interception
   if (__DEV__ && !isLoadingEvent && eventError) {
@@ -1488,7 +1491,7 @@ export default function EventDetailScreen() {
         });
       }
 
-      // Handler for tapping host avatar/name → canonical profile route
+      // Handler for tapping View Host Profile → canonical profile route
       const handleViewHostProfile = () => {
         if (!ownerId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1499,12 +1502,6 @@ export default function EventDetailScreen() {
           });
         }
         router.push(`/user/${ownerId}` as any);
-      };
-
-      // Send friend request without navigating away
-      const handleSendRequest = () => {
-        if (!ownerId) return;
-        addHostMutation.mutate();
       };
 
       return (
@@ -1526,7 +1523,7 @@ export default function EventDetailScreen() {
                     style={{ backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.separator }}
                   >
                     <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
-                      {restrictedHostName.charAt(0).toUpperCase()}
+                      {restrictedFirstName.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
@@ -1540,49 +1537,36 @@ export default function EventDetailScreen() {
               </View>
             )}
             
-            {/* Tappable host name - only when host info available */}
-            {ownerId ? (
-              <Pressable onPress={handleViewHostProfile}>
-                <Text 
-                  className="text-lg font-semibold text-center mb-1"
-                  style={{ color: themeColor }}
-                >
-                  {restrictedHostName}
-                </Text>
-              </Pressable>
-            ) : null}
+            {/* Line 1: tertiary hosted-by attribution */}
+            <Text 
+              className="text-sm text-center mb-1"
+              style={{ color: colors.textSecondary }}
+            >
+              {`Event is hosted by \u201C${restrictedHostName}\u201D`}
+            </Text>
             
+            {/* Line 2: headline */}
             <Text 
               className="text-xl font-semibold text-center mb-2"
               style={{ color: colors.text }}
             >
               Event details hidden
             </Text>
+            
+            {/* Line 3: body */}
             <Text 
               className="text-center mb-6"
               style={{ color: colors.textSecondary, lineHeight: 22 }}
             >
-              {ownerId
-                ? `Connect with ${restrictedHostName} to see this event.`
-                : 'Connect with the host to see this event.'
-              }
+              {`Connect with ${restrictedFirstName} to see this event.`}
             </Text>
+            
             <View className="gap-3 w-full max-w-xs">
               {ownerId && (
                 <Button
                   variant="primary"
                   label="View Host Profile"
                   onPress={handleViewHostProfile}
-                />
-              )}
-              {ownerId && (
-                <Button
-                  variant="secondary"
-                  label="Send Friend Request"
-                  onPress={handleSendRequest}
-                  disabled={addHostMutation.isPending}
-                  loading={addHostMutation.isPending}
-                  leftIcon={!addHostMutation.isPending ? <UserPlus size={18} color={themeColor} /> : undefined}
                 />
               )}
               <Button
