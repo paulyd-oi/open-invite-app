@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable, Modal, ScrollView, Image } from "react-native";
-import { ChevronLeft, ChevronRight, X, Clock, MapPin, Calendar } from "@/ui/icons";
-import Animated, { FadeIn, FadeInDown, SlideInDown } from "react-native-reanimated";
+import { View, Text, Pressable, Image } from "react-native";
+import { ChevronLeft, ChevronRight, Clock, MapPin, Calendar } from "@/ui/icons";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
+import DayAgendaSheet from "@/components/DayAgendaSheet";
 
 import { type DARK_COLORS } from "@/lib/ThemeContext";
 import { type Event } from "@/shared/contracts";
@@ -450,103 +451,41 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
         </View>
       </View>
 
-      {/* Day Events Modal - Bottom Sheet Style */}
-      {/* STRUCTURAL FIX: Use colors.background for pageSheet to avoid white overlay on dark mode */}
-      {__DEV__ && (() => { devLog('[CALENDAR_SHEET_RENDER]', { showDayModal, bgColor: colors.background }); return null; })()}
-      <Modal
+      {/* Day Agenda – SSOT shared sheet */}
+      <DayAgendaSheet
         visible={showDayModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowDayModal(false)}
+        onClose={() => setShowDayModal(false)}
+        selectedDate={selectedDate}
+        eventCount={selectedDateEvents.length}
+        themeColor={themeColor}
+        emptyAction={
+          selectedDate && selectedDate >= new Date(new Date().setHours(0, 0, 0, 0)) ? (
+            <Pressable
+              onPress={() => {
+                setShowDayModal(false);
+                router.push(`/create?date=${selectedDate?.toISOString()}`);
+              }}
+              className="flex-row items-center mt-4 px-5 py-3 rounded-full"
+              style={{ backgroundColor: themeColor }}
+            >
+              <Text className="text-white font-semibold">Create Event</Text>
+            </Pressable>
+          ) : undefined
+        }
       >
-        <View className="flex-1" style={{ backgroundColor: colors.background }}>
-          <Animated.View
-            entering={SlideInDown.springify().damping(20)}
-            style={{
-              backgroundColor: colors.background,
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              flex: 1,
-              paddingBottom: 34,
-              overflow: "hidden",
-            }}
-          >
-              {/* Modal Handle */}
-              <View className="items-center pt-3 pb-2">
-                <View
-                  className="w-10 h-1 rounded-full"
-                  style={{ backgroundColor: colors.textTertiary, opacity: 0.5 }}
-                />
-              </View>
-
-              {/* Modal Header */}
-              <View
-                className="flex-row items-center justify-between px-5 pb-4"
-                style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-              >
-                <View>
-                  <Text className="text-xl font-bold" style={{ color: colors.text }}>
-                    {selectedDate?.toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                  <Text className="text-sm mt-0.5" style={{ color: colors.textSecondary }}>
-                    {selectedDateEvents.length} event{selectedDateEvents.length !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => setShowDayModal(false)}
-                  className="w-8 h-8 rounded-full items-center justify-center"
-                  style={{ backgroundColor: colors.surfaceElevated }}
-                >
-                  <X size={18} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Events List */}
-              <ScrollView
-                className="px-5 pt-4"
-                contentContainerStyle={{ paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-              >
-                {selectedDateEvents.length === 0 ? (
-                  <View className="items-center py-8">
-                    <Text className="text-4xl mb-3">📅</Text>
-                    <Text className="text-base" style={{ color: colors.textSecondary }}>No events on this day</Text>
-                    {/* Only show Create Event button for today and future dates */}
-                    {selectedDate && selectedDate >= new Date(new Date().setHours(0, 0, 0, 0)) && (
-                      <Pressable
-                        onPress={() => {
-                          setShowDayModal(false);
-                          router.push(`/create?date=${selectedDate?.toISOString()}`);
-                        }}
-                        className="flex-row items-center mt-4 px-5 py-3 rounded-full"
-                        style={{ backgroundColor: themeColor }}
-                      >
-                        <Text className="text-white font-semibold">Create Event</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                ) : (
-                  selectedDateEvents.map((event, idx) => (
-                    <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
-                      <EventListItem
-                        event={event}
-                        themeColor={themeColor}
-                        colors={colors}
-                        isDark={isDark}
-                        onClose={() => setShowDayModal(false)}
-                        colorOverride={colorOverrides[event.id]}
-                      />
-                    </Animated.View>
-                  ))
-                )}
-              </ScrollView>
-            </Animated.View>
-          </View>
-        </Modal>
+        {selectedDateEvents.map((event, idx) => (
+          <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
+            <EventListItem
+              event={event}
+              themeColor={themeColor}
+              colors={colors}
+              isDark={isDark}
+              onClose={() => setShowDayModal(false)}
+              colorOverride={colorOverrides[event.id]}
+            />
+          </Animated.View>
+        ))}
+      </DayAgendaSheet>
     </View>
   );
 }

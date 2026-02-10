@@ -57,6 +57,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
+import DayAgendaSheet from "@/components/DayAgendaSheet";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
@@ -580,208 +581,125 @@ function MiniCalendar({
         ))}
       </View>
 
-      {/* Day Events Modal */}
-      <Modal
+      {/* Day Agenda – SSOT shared sheet */}
+      <DayAgendaSheet
         visible={showDayModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDayModal(false)}
+        onClose={() => setShowDayModal(false)}
+        selectedDate={selectedDate}
+        eventCount={selectedDateEvents.length}
+        themeColor={themeColor}
       >
-        <Pressable
-          style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)", paddingHorizontal: 20 }}
-          onPress={() => setShowDayModal(false)}
-        >
-          <Pressable onPress={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 400 }}>
-            <Animated.View
-              entering={FadeIn.duration(200)}
-              style={{
-                backgroundColor: colors.background,
-                borderRadius: 20,
-                maxHeight: 450,
-                overflow: "hidden",
-              }}
-            >
-              {/* Modal Handle */}
-              <View style={{ alignItems: "center", paddingTop: 10, paddingBottom: 6 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colors.textTertiary,
-                    opacity: 0.4
-                  }}
-                />
-              </View>
+        {selectedDateEvents.map((event, index) => {
+          const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
 
-              {/* Modal Header */}
-              <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                  <Calendar size={18} color={themeColor} />
-                  <Text style={{ fontSize: 16, fontWeight: "600", marginLeft: 8, color: colors.text }} numberOfLines={1}>
-                    {selectedDate?.toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                    })}
+          return (
+            <Pressable
+              key={event.id}
+              onPress={() => {
+                if (isMaskedBusy) {
+                  if (__DEV__) {
+                    devLog('[P0_VISIBILITY] Circle mini calendar tap blocked:', {
+                      sourceSurface: 'circle-mini',
+                      eventIdPrefix: event.id?.slice(0, 6),
+                      hostIdPrefix: event.userId?.slice(0, 6),
+                      isBusy: true,
+                      viewerFriendOfHost: 'unknown',
+                      decision: 'busy_inert',
+                      reason: 'busy_block_no_tap',
+                    });
+                  }
+                  return;
+                }
+                if (__DEV__) {
+                  devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
+                    sourceSurface: 'circle-mini',
+                    eventIdPrefix: event.id?.slice(0, 6),
+                    hostIdPrefix: event.userId?.slice(0, 6),
+                    isBusy: false,
+                    viewerFriendOfHost: 'unknown',
+                    decision: 'navigating_to_event_details',
+                    reason: 'tap_allowed_event_will_gate',
+                  });
+                }
+                const eventId = event.id;
+                if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+                  if (__DEV__) {
+                    devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
+                      eventId: eventId ?? 'missing',
+                      eventTitle: event.title,
+                      circleId,
+                    });
+                  }
+                  return;
+                }
+                if (__DEV__) {
+                  devLog('[P0_CIRCLES_EVENT_TRACE]', {
+                    circleId,
+                    eventId,
+                    requestUrl: `/api/events/${eventId}`,
+                    eventTitle: event.title,
+                    isPrivate: event.isPrivate,
+                  });
+                }
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowDayModal(false);
+                router.push(`/event/${eventId}` as any);
+              }}
+              style={{ opacity: isMaskedBusy ? 0.7 : 1 }}
+            >
+              <Animated.View
+                entering={FadeInDown.delay(index * 50).springify()}
+                style={{
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 8,
+                  backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      marginRight: 8,
+                      backgroundColor: event.color
+                    }}
+                  />
+                  <Text style={{ fontWeight: "500", flex: 1, color: isMaskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
+                    {event.title}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.textTertiary }}>
+                    {event.endTime
+                      ? `${new Date(event.startTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${new Date(event.endTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                      : new Date(event.startTime).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => setShowDayModal(false)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6"
-                  }}
-                >
-                  <X size={16} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Events List */}
-              <ScrollView
-                style={{ maxHeight: 340 }}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-                showsVerticalScrollIndicator={true}
-              >
-                {selectedDateEvents.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                    <Calendar size={36} color={colors.textTertiary} />
-                    <Text style={{ fontSize: 14, fontWeight: "500", marginTop: 12, color: colors.textSecondary }}>
-                      No events scheduled
+                {!isMaskedBusy && (
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                      {event.attendingMemberIds.length > 1
+                        ? `${event.attendingMemberIds.length} attending`
+                        : event.userName}
                     </Text>
-                    <Text style={{ fontSize: 12, fontWeight: "500", marginTop: 4, color: colors.textSecondary }}>
-                      Best times on this day
-                    </Text>
-                    <Text style={{ fontSize: 11, marginTop: 2, color: colors.textTertiary }}>
-                      Based on events in Open Invite.
-                    </Text>
+                    {event.location && (
+                      <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
+                        <MapPin size={10} color={colors.textTertiary} />
+                        <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
+                          {event.location}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                ) : (
-                  selectedDateEvents.map((event, index) => {
-                    // Check if this is a masked busy block (private event not owned by viewer)
-                    const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
-                    
-                    return (
-                    <Pressable
-                      key={event.id}
-                      onPress={() => {
-                        // Don't navigate to busy blocks - they are inert privacy placeholders
-                        if (isMaskedBusy) {
-                          if (__DEV__) {
-                            devLog('[P0_VISIBILITY] Circle mini calendar tap blocked:', {
-                              sourceSurface: 'circle-mini',
-                              eventIdPrefix: event.id?.slice(0, 6),
-                              hostIdPrefix: event.userId?.slice(0, 6),
-                              isBusy: true,
-                              viewerFriendOfHost: 'unknown',
-                              decision: 'busy_inert',
-                              reason: 'busy_block_no_tap',
-                            });
-                          }
-                          return;
-                        }
-                        // [P0_VISIBILITY] Proof log: event tap navigation (will be evaluated by event/[id])
-                        if (__DEV__) {
-                          devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
-                            sourceSurface: 'circle-mini',
-                            eventIdPrefix: event.id?.slice(0, 6),
-                            hostIdPrefix: event.userId?.slice(0, 6),
-                            isBusy: false,
-                            viewerFriendOfHost: 'unknown',
-                            decision: 'navigating_to_event_details',
-                            reason: 'tap_allowed_event_will_gate',
-                          });
-                        }
-                        // [P0_CIRCLES_EVENT_GUARD] Validate event ID before navigation
-                        const eventId = event.id;
-                        if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
-                          if (__DEV__) {
-                            devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
-                              eventId: eventId ?? 'missing',
-                              eventTitle: event.title,
-                              circleId,
-                            });
-                          }
-                          return;
-                        }
-                        if (__DEV__) {
-                          devLog('[P0_CIRCLES_EVENT_TRACE]', {
-                            circleId,
-                            eventId,
-                            requestUrl: `/api/events/${eventId}`,
-                            eventTitle: event.title,
-                            isPrivate: event.isPrivate,
-                          });
-                        }
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setShowDayModal(false);
-                        router.push(`/event/${eventId}` as any);
-                      }}
-                      style={{ opacity: isMaskedBusy ? 0.7 : 1 }}
-                    >
-                      <Animated.View
-                        entering={FadeInDown.delay(index * 50).springify()}
-                        style={{
-                          borderRadius: 12,
-                          padding: 12,
-                          marginBottom: 8,
-                          backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
-                        }}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View
-                            style={{
-                              width: 10,
-                              height: 10,
-                              borderRadius: 5,
-                              marginRight: 8,
-                              backgroundColor: event.color
-                            }}
-                          />
-                          <Text style={{ fontWeight: "500", flex: 1, color: isMaskedBusy ? colors.textSecondary : colors.text }} numberOfLines={1}>
-                            {event.title}
-                          </Text>
-                          <Text style={{ fontSize: 11, color: colors.textTertiary }}>
-                            {event.endTime
-                              ? `${new Date(event.startTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${new Date(event.endTime).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                              : new Date(event.startTime).toLocaleTimeString("en-US", {
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                })}
-                          </Text>
-                        </View>
-                        {/* Only show attendee/location row if not masked */}
-                        {!isMaskedBusy && (
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
-                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                            {event.attendingMemberIds.length > 1
-                              ? `${event.attendingMemberIds.length} attending`
-                              : event.userName}
-                          </Text>
-                          {event.location && (
-                            <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
-                              <MapPin size={10} color={colors.textTertiary} />
-                              <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
-                                {event.location}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        )}
-                      </Animated.View>
-                    </Pressable>
-                    );
-                  })
                 )}
-              </ScrollView>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+              </Animated.View>
+            </Pressable>
+          );
+        })}
+      </DayAgendaSheet>
     </View>
   );
 }
