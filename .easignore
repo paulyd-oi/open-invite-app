@@ -1,3 +1,42 @@
+# EAS upload ignores (keep archive small + deterministic)
 
-# local tooling
-.claude/
+# Node / package managers
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Expo / Metro / caches
+.expo
+.expo-shared
+.metro-health-check*
+.cache
+tmp
+temp
+
+# iOS build artifacts / caches
+ios/build
+ios/DerivedData*
+**/DerivedData*
+*.xcuserstate
+
+# Android build artifacts
+android/.gradle
+android/build
+android/app/build
+
+# Test / e2e artifacts
+e2e/artifacts
+artifacts
+coverage
+
+# Detox artifacts (if present)
+**/DerivedDataDetox*
+**/*Detox*/**
+
+# Accidental repo snapshots / exports
+json/ios
+json/android
+exports
+export
