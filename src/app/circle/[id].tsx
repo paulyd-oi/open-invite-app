@@ -312,6 +312,7 @@ function MiniCalendar({
       rangeEnd: dayEnd.toISOString(),
       intervalMinutes: 30,
       slotDurationMinutes: 60,
+      maxTopSlots: 1000, // Parity with 14-day pool — prevents false-empty after suggested-hours filter
     });
   }, [memberEvents, members, bestTimesDate]);
 
@@ -332,6 +333,20 @@ function MiniCalendar({
   }, [dateScheduleResult, bestTimesDate, quietPreset]);
   const quietBestSlot = quietSlots[0] ?? null;
   const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
+
+  // DEV proof: log slot counts once per sheet-open or date change
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!showBestTimeSheet) return;
+    devLog('[P1_SUGGESTED_HOURS_COUNTS]', {
+      date: bestTimesDate.toISOString(),
+      suggestedWindow: { startHour: quietWindow.startHour, endHour: quietWindow.endHour },
+      rawSlotsCount: dateScheduleResult?.topSlots?.length ?? 0,
+      suggestedSlotsCount: quietSlots.length,
+      membersTotal: members.length,
+      note: 'maxTopSlots=1000 per-day',
+    });
+  }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, members]);
 
   // Per-day dot indicators: days that have ≥1 slot within suggested hours
   const daysWithSuggestedSlots = useMemo(() => {
