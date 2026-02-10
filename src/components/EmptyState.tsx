@@ -77,17 +77,16 @@ function FloatingElement({
   return (
     <Animated.View
       entering={FadeIn.delay(delay).duration(600)}
-      style={[
-        {
-          position: "absolute",
-          left: x,
-          top: y,
-          opacity: 0.6,
-        },
-        animatedStyle,
-      ]}
+      style={{
+        position: "absolute",
+        left: x,
+        top: y,
+        opacity: 0.6,
+      }}
     >
-      <Icon size={size} color={color} />
+      <Animated.View style={animatedStyle}>
+        <Icon size={size} color={color} />
+      </Animated.View>
     </Animated.View>
   );
 }

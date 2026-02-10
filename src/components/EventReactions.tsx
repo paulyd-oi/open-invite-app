@@ -268,18 +268,19 @@ function ReactionItem({
   return (
     <Animated.View
       entering={FadeIn.delay(index * 50).springify()}
-      style={animatedStyle}
     >
-      <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        className="w-12 h-12 items-center justify-center rounded-full mx-1"
-        style={{
-          backgroundColor: isSelected ? `${reaction.color}30` : "transparent",
-        }}
-      >
-        <Text className="text-2xl">{reaction.emoji}</Text>
-      </Pressable>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          className="w-12 h-12 items-center justify-center rounded-full mx-1"
+          style={{
+            backgroundColor: isSelected ? `${reaction.color}30` : "transparent",
+          }}
+        >
+          <Text className="text-2xl">{reaction.emoji}</Text>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

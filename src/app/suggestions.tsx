@@ -104,8 +104,8 @@ function SuggestionCard({
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 80).springify()}
-      style={animatedStyle}
     >
+      <Animated.View style={animatedStyle}>
       <Pressable
         onPress={handlePress}
         className="mx-4 mb-3 p-4 rounded-2xl"
@@ -193,6 +193,7 @@ function SuggestionCard({
           </View>
         </View>
       </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }
