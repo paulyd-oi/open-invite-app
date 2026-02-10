@@ -933,10 +933,11 @@ export default function EventDetailScreen() {
         devLog('[P0_WHO_COMING_SHEET_LAYOUT]', {
           sheetHeightPx: sheetH,
           sheetHeightPct: '65%',
-          backdropOpacity: 0,
+          backdropOpacity: 0.5,
         });
       }
       if (__DEV__) devLog('[P0_ROSTER_FETCH] sheet opened \u2192 refetch');
+      if (__DEV__) devLog('[P1_WHO_COMING_SHEET]', 'open', { eventId: id });
       attendeesQuery.refetch();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3363,9 +3364,12 @@ export default function EventDetailScreen() {
       {/* Attendees Modal - P0: View all attendees (uses shared BottomSheet) */}
       <BottomSheet
         visible={showAttendeesModal}
-        onClose={() => setShowAttendeesModal(false)}
+        onClose={() => {
+          setShowAttendeesModal(false);
+          if (__DEV__) devLog('[P1_WHO_COMING_SHEET]', 'close', { eventId: id });
+        }}
         heightPct={0.65}
-        backdropOpacity={0}
+        backdropOpacity={0.5}
       >
         {/* Custom title row — uses effectiveGoingCount (SSOT) */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>

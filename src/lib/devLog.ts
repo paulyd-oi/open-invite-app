@@ -119,6 +119,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_NOTIFY_LEVEL_UI]",
   // P1 polls E2E UX proof pass
   "[P1_POLLS_E2E_UI]",
+  // P1 Who's Coming sheet lifecycle
+  "[P1_WHO_COMING_SHEET]",
 ];
 
 /**
