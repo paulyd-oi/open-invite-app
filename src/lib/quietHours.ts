@@ -10,6 +10,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { devLog } from "@/lib/devLog";
 import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,14 @@ const PRESET_MAP: Record<SuggestedHoursPreset, SuggestedHoursWindow> = {
   night_owl:  { startHour: 12, endHour: 24 },  // 12 PM – 12 AM
   late_late:  { startHour: 15, endHour: 26 },  // 3 PM – 2 AM (overnight)
 };
+
+// DEV-only: validate preset definitions at module load
+if (typeof __DEV__ !== 'undefined' && __DEV__) {
+  for (const [key, w] of Object.entries(PRESET_MAP)) {
+    const ok = w.startHour >= 0 && w.startHour <= 23 && w.endHour >= 1 && w.endHour <= 26;
+    if (!ok) devLog('[SUGGESTED_HOURS_INVAR_V1]', 'FAIL preset_window', { preset: key, startHour: w.startHour, endHour: w.endHour });
+  }
+}
 
 /** True when the window crosses midnight (startHour's minutes > endHour's minutes in mod-1440 terms). */
 export function isOvernightWindow(w: SuggestedHoursWindow): boolean {
@@ -109,7 +118,7 @@ export function filterSlotsToSuggestedHours(
   // For overnight windows: the morning overflow cap (e.g. 2 AM = 120 min)
   const overflowMin = overnight ? (window.endHour - 24) * 60 : 0;
 
-  return slots.filter((slot) => {
+  const result = slots.filter((slot) => {
     const s = new Date(slot.start);
     const e = new Date(slot.end);
     const sMin = s.getHours() * 60 + s.getMinutes();
@@ -128,6 +137,29 @@ export function filterSlotsToSuggestedHours(
     if (sMin >= 0 && sMin < overflowMin && eMin <= overflowMin) return true;
     return false;
   });
+
+  // [SUGGESTED_HOURS_INVAR_V1] Aggregate proof: once per filter call
+  if (__DEV__) {
+    const inputCount = slots.length;
+    const outputCount = result.length;
+    if (inputCount > 0 && outputCount === 0) {
+      devLog('[SUGGESTED_HOURS_INVAR_V1]', 'wiped_all_slots', {
+        inputCount,
+        startHour: window.startHour,
+        endHour: window.endHour,
+        isOvernightWindow: overnight,
+      });
+    }
+    devLog('[SUGGESTED_HOURS_INVAR_V1]', 'filter_ok', {
+      inputCount,
+      outputCount,
+      startHour: window.startHour,
+      endHour: window.endHour,
+      isOvernightWindow: overnight,
+    });
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------

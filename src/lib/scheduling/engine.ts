@@ -7,7 +7,7 @@
  * INV-S3: Always returns at least 1 slot when valid range.
  * INV-S4: Transparent participation fields on every slot.
  *
- * DEV proof tag: [SCHED_ENGINE_V1]
+ * DEV proof tag: [SCHED_INVAR_V1]
  */
 import { devLog } from "@/lib/devLog";
 import type {
@@ -104,13 +104,29 @@ export function computeSchedule(
 
   // Guard: NaN dates or empty members
   if (isNaN(rangeStartMs) || isNaN(rangeEndMs) || totalMembers === 0) {
+    if (__DEV__) devLog('[SCHED_INVAR_V1]', 'FAIL input_guard', { rangeStartNaN: isNaN(rangeStartMs), rangeEndNaN: isNaN(rangeEndMs), totalMembers });
     return null;
   }
 
   // Guard: invalid range
   if (rangeEndMs <= rangeStartMs) {
+    if (__DEV__) devLog('[SCHED_INVAR_V1]', 'FAIL range_inverted', { rangeStart, rangeEnd });
     return null;
   }
+
+  // DEV: validate remaining inputs
+  if (__DEV__) {
+    if (intervalMinutes <= 0) devLog('[SCHED_INVAR_V1]', 'FAIL intervalMinutes<=0', { intervalMinutes });
+    if (slotDurationMinutes <= 0) devLog('[SCHED_INVAR_V1]', 'FAIL slotDurationMinutes<=0', { slotDurationMinutes });
+    if (slotDurationMinutes < intervalMinutes) devLog('[SCHED_INVAR_V1]', 'WARN slotDuration<interval', { slotDurationMinutes, intervalMinutes });
+    const rawMax = input.maxTopSlots;
+    if (rawMax != null && (!Number.isInteger(rawMax) || rawMax < 1)) devLog('[SCHED_INVAR_V1]', 'WARN maxTopSlots_invalid', { rawMax });
+  }
+
+  // Sanitize maxTopSlots (NaN, 0, negative => default)
+  const maxTopSlotsUsed = (input.maxTopSlots != null && Number.isInteger(input.maxTopSlots) && input.maxTopSlots >= 1)
+    ? input.maxTopSlots
+    : MAX_TOP_SLOTS;
 
   // Safety clamp: cap range to MAX_RANGE_MS
   if (rangeEndMs - rangeStartMs > MAX_RANGE_MS) {
@@ -168,7 +184,28 @@ export function computeSchedule(
     return new Date(a.start).getTime() - new Date(b.start).getTime();
   });
 
-  const topSlots = slots.slice(0, input.maxTopSlots ?? MAX_TOP_SLOTS);
+  // DEV: aggregate slot validation (no per-slot logging)
+  if (__DEV__) {
+    let countOutsideRange = 0;
+    let countInvalidOrder = 0;
+    for (const s of slots) {
+      const sMs = new Date(s.start).getTime();
+      const eMs = new Date(s.end).getTime();
+      if (sMs < rangeStartMs || sMs > rangeEndMs) countOutsideRange++;
+      if (eMs <= sMs) countInvalidOrder++;
+    }
+    if (countOutsideRange > 0 || countInvalidOrder > 0) {
+      devLog('[SCHED_INVAR_V1]', 'FAIL slot_sanity', {
+        totalSlots: slots.length,
+        countOutsideRange,
+        countInvalidOrder,
+        rangeStart,
+        rangeEnd,
+      });
+    }
+  }
+
+  const topSlots = slots.slice(0, maxTopSlotsUsed);
   const bestSlot = topSlots[0];
   const hasPerfectOverlap = bestSlot.score === 1;
 
@@ -178,26 +215,17 @@ export function computeSchedule(
     hasPerfectOverlap,
   };
 
-  // [SCHED_ENGINE_V1] Proof log: once per compute
+  // [SCHED_INVAR_V1] Aggregate proof log: once per computeSchedule call
   if (__DEV__) {
-    devLog("[SCHED_ENGINE_V1]", "compute", {
-      memberCount: totalMembers,
+    devLog('[SCHED_INVAR_V1]', 'compute_ok', {
       rangeStart,
       rangeEnd,
       intervalMinutes,
       slotDurationMinutes,
+      memberCount: totalMembers,
+      maxTopSlotsUsed,
       totalSlotsGenerated: slots.length,
-      bestSlot: {
-        start: bestSlot.start,
-        available: bestSlot.availableCount,
-        total: bestSlot.totalMembers,
-        pct: bestSlot.availabilityPercent,
-      },
-      top3: topSlots.map((s) => ({
-        start: s.start,
-        available: s.availableCount,
-        pct: s.availabilityPercent,
-      })),
+      topSlotsReturned: topSlots.length,
       hasPerfectOverlap,
     });
   }
