@@ -297,6 +297,34 @@ function MiniCalendar({
     });
   }, [memberEvents, members, bestTimesDate]);
 
+  // Quiet hours filter — only recommend slots fully within 06:00–22:00 local
+  const QUIET_START_HOUR = 6;
+  const QUIET_END_HOUR = 22;
+  function isSlotWithinQuietHours(start: string | Date, end: string | Date): boolean {
+    const s = new Date(start);
+    const e = new Date(end);
+    const sMinutes = s.getHours() * 60 + s.getMinutes();
+    const eMinutes = e.getHours() * 60 + e.getMinutes();
+    return sMinutes >= QUIET_START_HOUR * 60 && eMinutes <= QUIET_END_HOUR * 60;
+  }
+
+  const quietSlots = useMemo(() => {
+    const raw = dateScheduleResult?.topSlots ?? [];
+    const filtered = raw.filter((s) => isSlotWithinQuietHours(s.start, s.end));
+    if (__DEV__) {
+      devLog("[P1_EVERYONES_FREE_QUIET_HOURS]", {
+        date: bestTimesDate.toISOString(),
+        before: raw.length,
+        after: filtered.length,
+        startHour: QUIET_START_HOUR,
+        endHour: QUIET_END_HOUR,
+      });
+    }
+    return filtered;
+  }, [dateScheduleResult, bestTimesDate]);
+  const quietBestSlot = quietSlots[0] ?? null;
+  const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
+
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
 
@@ -474,11 +502,11 @@ function MiniCalendar({
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: dateScheduleResult?.topSlots?.length ?? 0, topAvailable: dateScheduleResult?.bestSlot?.availableCount ?? 0, total: dateScheduleResult?.bestSlot?.totalMembers ?? members.length });
+              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: quietSlots.length, topAvailable: quietBestSlot?.availableCount ?? 0, total: quietBestSlot?.totalMembers ?? members.length });
               setShowBestTimeSheet(true);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${dateScheduleResult?.hasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
+            accessibilityLabel={`${quietHasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
@@ -488,17 +516,17 @@ function MiniCalendar({
               paddingHorizontal: 10,
               borderRadius: 10,
               backgroundColor: pressed
-                ? (dateScheduleResult?.hasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
-                : (dateScheduleResult?.hasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
+                ? (quietHasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
+                : (quietHasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
             })}
           >
             <View>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: dateScheduleResult?.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
-                {dateScheduleResult?.hasPerfectOverlap ? "Everyone's free" : "Best times"}
+              <Text style={{ fontSize: 12, fontWeight: "600", color: quietHasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+                {quietHasPerfectOverlap ? "Everyone's free" : "Best times"}
               </Text>
               <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>Tap to see best times</Text>
             </View>
-            <ChevronRight size={14} color={dateScheduleResult?.hasPerfectOverlap ? "#10B981" : colors.textTertiary} />
+            <ChevronRight size={14} color={quietHasPerfectOverlap ? "#10B981" : colors.textTertiary} />
           </Pressable>
 
           {/* Day selector chips — SSOT: sets bestTimesDate */}
@@ -538,10 +566,10 @@ function MiniCalendar({
             })}
           </ScrollView>
 
-          {/* Inline summary for selected day — from dateScheduleResult SSOT */}
-          {dateScheduleResult && dateScheduleResult.topSlots.length > 0 ? (
+          {/* Inline summary for selected day — from quietSlots (filtered dateScheduleResult) */}
+          {quietSlots.length > 0 && quietBestSlot ? (
             <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
-              {dateScheduleResult.bestSlot.availableCount} of {dateScheduleResult.bestSlot.totalMembers} available · {dateScheduleResult.topSlots.length} time{dateScheduleResult.topSlots.length !== 1 ? "s" : ""}
+              {quietBestSlot.availableCount} of {quietBestSlot.totalMembers} available · {quietSlots.length} time{quietSlots.length !== 1 ? "s" : ""}
             </Text>
           ) : (
             <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
@@ -598,13 +626,13 @@ function MiniCalendar({
                 </Pressable>
               </View>
 
-              {/* Recommended section or empty state */}
-              {dateScheduleResult && dateScheduleResult.topSlots.length > 0 ? (
+              {/* Recommended section or empty state — filtered to quiet hours */}
+              {quietSlots.length > 0 ? (
                 <>
                   <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
                     Recommended
                   </Text>
-                  {dateScheduleResult.topSlots.map((slot, idx) => {
+                  {quietSlots.map((slot, idx) => {
                     const slotDate = new Date(slot.start);
                     const endDate = new Date(slot.end);
                     const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -654,7 +682,7 @@ function MiniCalendar({
                   </Pressable>
 
                   {/* Expanded availability details */}
-                  {showAllAvailability && dateScheduleResult.topSlots.map((slot, idx) => {
+                  {showAllAvailability && quietSlots.map((slot, idx) => {
                     const slotDate = new Date(slot.start);
                     const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
                     return (
@@ -684,13 +712,13 @@ function MiniCalendar({
                     );
                   })}
 
-                  {/* Create event at best time */}
-                  <Pressable
+                  {/* Create event at best time — uses quietBestSlot (filtered) */}
+                  {quietBestSlot && <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                       setShowBestTimeSheet(false);
                       setShowAllAvailability(false);
-                      const best = dateScheduleResult.bestSlot;
+                      const best = quietBestSlot;
                       const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
                       router.push({
                         pathname: "/create",
@@ -710,7 +738,7 @@ function MiniCalendar({
                     }}
                   >
                     <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
-                  </Pressable>
+                  </Pressable>}
                 </>
               ) : (
                 <View style={{ alignItems: "center", paddingVertical: 24 }}>
