@@ -303,7 +303,7 @@ export default function CreateEventScreen() {
       devLog('[P1_CREATE_FLOW]', 'create screen mounted', { bootStatus });
     }
   }, []);
-  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam } = useLocalSearchParams<{
+  const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam } = useLocalSearchParams<{
     date?: string;
     template?: string;
     emoji?: string;
@@ -311,6 +311,7 @@ export default function CreateEventScreen() {
     duration?: string;
     circleId?: string;
     visibility?: string;
+    endDate?: string;
   }>();
   const { themeColor, isDark, colors } = useTheme();
 
@@ -406,6 +407,21 @@ export default function CreateEventScreen() {
   const [startDate, setStartDate] = useState(getInitialDate);
   const [endDate, setEndDate] = useState(() => {
     const initial = getInitialDate();
+    // Prefill: endDate param → duration param → default +1 hour
+    if (endDateParam) {
+      const parsed = new Date(endDateParam);
+      if (!isNaN(parsed.getTime())) {
+        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'endDate from param', { endDateParam });
+        return parsed;
+      }
+    }
+    if (duration) {
+      const mins = parseInt(duration, 10);
+      if (!isNaN(mins) && mins > 0) {
+        if (__DEV__) devLog('[P1_PREFILL_EVENT]', 'endDate from duration', { duration });
+        return new Date(initial.getTime() + mins * 60 * 1000);
+      }
+    }
     return new Date(initial.getTime() + 60 * 60 * 1000); // Default: start + 1 hour
   });
   const [userModifiedEndTime, setUserModifiedEndTime] = useState(false); // Track if user manually changed end time

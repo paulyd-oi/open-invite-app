@@ -123,6 +123,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_WHO_COMING_SHEET]",
   // P1 back label resolution proof
   "[P1_BACK_LABEL]",
+  // P1 prefill event from scheduling slot
+  "[P1_PREFILL_EVENT]",
 ];
 
 /**
