@@ -1491,7 +1491,7 @@ export default function EventDetailScreen() {
         });
       }
 
-      // Handler for tapping View Host Profile → canonical profile route
+      // Handler for tapping View Profile → canonical profile route
       const handleViewHostProfile = () => {
         if (!ownerId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1539,42 +1539,37 @@ export default function EventDetailScreen() {
             
             {/* Line 1: tertiary hosted-by attribution */}
             <Text 
-              className="text-sm text-center mb-1"
-              style={{ color: colors.textSecondary }}
+              className="text-sm text-center"
+              style={{ color: colors.textSecondary, marginBottom: 6 }}
             >
-              {`Event is hosted by \u201C${restrictedHostName}\u201D`}
+              {`Event hosted by ${restrictedHostName}`}
             </Text>
             
             {/* Line 2: headline */}
             <Text 
-              className="text-xl font-semibold text-center mb-2"
-              style={{ color: colors.text }}
+              className="text-xl font-semibold text-center"
+              style={{ color: colors.text, marginBottom: 8 }}
             >
               Event details hidden
             </Text>
             
             {/* Line 3: body */}
             <Text 
-              className="text-center mb-6"
-              style={{ color: colors.textSecondary, lineHeight: 22 }}
+              className="text-center"
+              style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 24 }}
             >
               {`Connect with ${restrictedFirstName} to see this event.`}
             </Text>
             
-            <View className="gap-3 w-full max-w-xs">
-              {ownerId && (
+            {ownerId && (
+              <View className="w-full max-w-xs">
                 <Button
                   variant="primary"
-                  label="View Host Profile"
+                  label="View Profile"
                   onPress={handleViewHostProfile}
                 />
-              )}
-              <Button
-                variant="ghost"
-                label="Go Back"
-                onPress={() => router.canGoBack() ? router.back() : router.replace('/friends')}
-              />
-            </View>
+              </View>
+            )}
           </View>
         </SafeAreaView>
       );
