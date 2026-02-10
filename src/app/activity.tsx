@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { View, Text, Pressable, RefreshControl, FlatList, Image } from "react-native";
+import { View, Text, Pressable, RefreshControl, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -17,7 +17,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
-import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { ChevronRight } from "@/ui/icons";
 import { safeToast } from "@/lib/safeToast";
 import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
@@ -196,64 +196,24 @@ function NotificationCard({
           borderColor: categoryBorder,
         }}
       >
-        {/* Avatar or Icon - always shows something (never blank) */}
+        {/* Avatar or Icon — SSOT via EntityAvatar */}
         <View style={{ position: "relative" }}>
-          {hasAvatar ? (
-            <Image
-              source={{ uri: actorAvatarUrl }}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: colors.surface,
-              }}
-            />
-          ) : hasEventEmoji ? (
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: config.color + "15",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-              }}
-            >
-              <EventPhotoEmoji
-                emoji={resolvedEmoji!}
-                emojiStyle={{ fontSize: 22 }}
-              />
-            </View>
-          ) : hasActorInitials ? (
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: config.color + "20",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontSize: 16, fontWeight: "600", color: config.color }}>
-                {getInitials(actorName!)}
-              </Text>
-            </View>
-          ) : (
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: config.color + "20",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name={config.iconName} size={22} color={config.color} />
-            </View>
-          )}
+          <EntityAvatar
+            photoUrl={hasAvatar ? actorAvatarUrl : undefined}
+            emoji={hasEventEmoji ? resolvedEmoji : undefined}
+            initials={hasActorInitials ? getInitials(actorName!) : undefined}
+            fallbackIcon={config.iconName}
+            size={44}
+            backgroundColor={
+              hasAvatar
+                ? colors.surface
+                : hasEventEmoji
+                  ? config.color + "15"
+                  : config.color + "20"
+            }
+            foregroundColor={config.color}
+            emojiStyle={{ fontSize: 22 }}
+          />
           {/* Type badge overlay */}
           {(hasAvatar || hasEventEmoji) && (
             <View

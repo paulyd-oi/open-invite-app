@@ -16,7 +16,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
@@ -206,13 +206,15 @@ function EventCard({ event, index }: { event: Event; index: number }) {
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
             <View className="flex-row items-center mb-2">
-              <View style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8, backgroundColor: `${themeColor}15` }}>
-                <EventPhotoEmoji
-                  photoUrl={event.eventPhotoUrl}
-                  emoji={event.emoji ?? "📅"}
-                  emojiStyle={{ fontSize: 20 }}
-                />
-              </View>
+              <EntityAvatar
+                photoUrl={event.eventPhotoUrl}
+                emoji={event.emoji ?? "📅"}
+                size={36}
+                borderRadius={10}
+                backgroundColor={`${themeColor}15`}
+                emojiStyle={{ fontSize: 20 }}
+              />
+              <View style={{ width: 8 }} />
               <View className="flex-1">
                 <Text className="text-lg font-semibold" style={{ color: colors.text }}>
                   {event.title}

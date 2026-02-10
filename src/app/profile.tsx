@@ -24,7 +24,7 @@ import * as Haptics from "expo-haptics";
 import { AppHeader } from "@/components/AppHeader";
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
-import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EntityAvatar } from "@/components/EntityAvatar";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -577,16 +577,15 @@ export default function ProfileScreen() {
                 }}
                 className="flex-row items-center"
               >
-                <View
-                  className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-                  style={{ backgroundColor: `${themeColor}15`, overflow: 'hidden' }}
-                >
-                  <EventPhotoEmoji
-                    photoUrl={upcomingEvent.eventPhotoUrl}
-                    emoji={upcomingEvent.emoji || "📅"}
-                    emojiClassName="text-lg"
-                  />
-                </View>
+                <EntityAvatar
+                  photoUrl={upcomingEvent.eventPhotoUrl}
+                  emoji={upcomingEvent.emoji || "📅"}
+                  size={40}
+                  borderRadius={12}
+                  backgroundColor={`${themeColor}15`}
+                  emojiClassName="text-lg"
+                />
+                <View style={{ width: 12 }} />
                 <View className="flex-1">
                   <Text className="text-base font-semibold" style={{ color: colors.text }} numberOfLines={1}>
                     {StringSafe(upcomingEvent.title)}
@@ -685,13 +684,14 @@ export default function ProfileScreen() {
                         idx < upcomingWeekEvents.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined,
                       ]}
                     >
-                      <View style={{ width: 24, height: 24, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                        <EventPhotoEmoji
-                          photoUrl={evt.eventPhotoUrl}
-                          emoji={evt.emoji || "📅"}
-                          emojiStyle={{ fontSize: 16 }}
-                        />
-                      </View>
+                      <EntityAvatar
+                        photoUrl={evt.eventPhotoUrl}
+                        emoji={evt.emoji || "📅"}
+                        size={24}
+                        borderRadius={6}
+                        emojiStyle={{ fontSize: 16 }}
+                      />
+                      <View style={{ width: 8 }} />
                       <Text className="flex-1 text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
                         {StringSafe(evt.title)}
                       </Text>
@@ -913,13 +913,15 @@ export default function ProfileScreen() {
                   className="flex-row items-center px-4 py-3"
                   style={index < recentActivity.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
                 >
-                  <View style={{ width: 28, height: 28, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: `${themeColor}15` }}>
-                    <EventPhotoEmoji
-                      photoUrl={item.eventPhotoUrl}
-                      emoji={item.emoji}
-                      emojiStyle={{ fontSize: 16 }}
-                    />
-                  </View>
+                  <EntityAvatar
+                    photoUrl={item.eventPhotoUrl}
+                    emoji={item.emoji}
+                    size={28}
+                    borderRadius={8}
+                    backgroundColor={`${themeColor}15`}
+                    emojiStyle={{ fontSize: 16 }}
+                  />
+                  <View style={{ width: 12 }} />
                   <View className="flex-1">
                     <Text className="text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
                       {item.type === "hosted" ? "Hosted" : "Joined"} {StringSafe(item.title)}
