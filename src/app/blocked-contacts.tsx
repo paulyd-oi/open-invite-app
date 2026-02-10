@@ -8,6 +8,7 @@ import {
   Image,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +33,7 @@ import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { devLog } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { Button } from "@/ui/Button";
@@ -118,18 +120,47 @@ export default function BlockedContactsScreen() {
   };
 
   const handleBlock = () => {
-    if (blockMode === "user" && selectedUser) {
-      blockMutation.mutate({ userId: selectedUser.id });
-    } else if (blockMode === "email" && emailInput.trim()) {
-      blockMutation.mutate({ email: emailInput.trim().toLowerCase() });
-    } else if (blockMode === "phone" && phoneInput.trim()) {
-      blockMutation.mutate({ phone: phoneInput.trim() });
-    }
+    const displayName = blockMode === "user" ? (selectedUser?.name ?? "this user") : blockMode === "email" ? emailInput.trim() : phoneInput.trim();
+    Alert.alert(
+      "Block this user?",
+      "They won\u2019t be able to see your events, message you, or send requests. You can unblock later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: () => {
+            if (__DEV__) devLog("[P0_BLOCK_CONFIRM]", { action: "block_confirmed", userId: selectedUser?.id, displayName });
+            if (blockMode === "user" && selectedUser) {
+              blockMutation.mutate({ userId: selectedUser.id });
+            } else if (blockMode === "email" && emailInput.trim()) {
+              blockMutation.mutate({ email: emailInput.trim().toLowerCase() });
+            } else if (blockMode === "phone" && phoneInput.trim()) {
+              blockMutation.mutate({ phone: phoneInput.trim() });
+            }
+          },
+        },
+      ],
+    );
   };
 
-  const handleUnblock = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    unblockMutation.mutate(id);
+  const handleUnblock = (id: string, displayName?: string) => {
+    Alert.alert(
+      "Unblock this user?",
+      "They\u2019ll be able to see your events and send requests again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unblock",
+          style: "default",
+          onPress: () => {
+            if (__DEV__) devLog("[P0_BLOCK_CONFIRM]", { action: "unblock_confirmed", userId: id, displayName });
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            unblockMutation.mutate(id);
+          },
+        },
+      ],
+    );
   };
 
   const blockedContacts = blockedData?.blockedContacts ?? [];
@@ -435,7 +466,7 @@ export default function BlockedContactsScreen() {
                   <BlockedContactItem
                     key={contact.id}
                     contact={contact}
-                    onUnblock={() => handleUnblock(contact.id)}
+                    onUnblock={() => handleUnblock(contact.id, contact.blockedUser?.name ?? contact.blockedEmail ?? contact.blockedPhone ?? "Unknown")}
                     isUnblocking={unblockMutation.isPending}
                     isDark={isDark}
                     colors={colors}
