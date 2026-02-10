@@ -143,6 +143,8 @@ function MiniCalendar({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
+  const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
+  const [showAllAvailability, setShowAllAvailability] = useState(false);
 
   // Create member color map
   const memberColors = ["#FF6B4A", "#4ECDC4", "#9333EA", "#F59E0B", "#10B981", "#EC4899"];
@@ -448,9 +450,19 @@ function MiniCalendar({
       {/* Smart Scheduling v1 — SSOT via SchedulingEngine */}
       {scheduleResult && scheduleResult.topSlots.length > 0 && (
         <View style={{ marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
-          <Text style={{ fontSize: 11, fontWeight: "600", marginBottom: 2, color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
-            {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
-          </Text>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { windows: scheduleResult.topSlots.length, topAvailable: scheduleResult.bestSlot.availableCount, total: scheduleResult.bestSlot.totalMembers });
+              setShowBestTimeSheet(true);
+            }}
+            style={{ flexDirection: "row", alignItems: "center", marginBottom: 2 }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: "600", color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+              {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
+            </Text>
+            <ChevronRight size={12} color={scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary} style={{ marginLeft: 2 }} />
+          </Pressable>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {scheduleResult.topSlots.map((slot, i) => {
               const slotDate = new Date(slot.start);
@@ -515,6 +527,138 @@ function MiniCalendar({
           <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
             {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} available
           </Text>
+
+          {/* Best Time to Meet Sheet */}
+          <BottomSheet
+            visible={showBestTimeSheet}
+            onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
+            title="Best time to meet"
+            heightPct={0}
+            maxHeightPct={0.75}
+            backdropOpacity={0.5}
+          >
+            <ScrollView style={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 16 }}>
+                Based on availability shared in this circle
+              </Text>
+
+              {/* Recommended section */}
+              <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
+                Recommended
+              </Text>
+              {scheduleResult.topSlots.map((slot, idx) => {
+                const slotDate = new Date(slot.start);
+                const endDate = new Date(slot.end);
+                const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                const endTimeLabel = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                const rankLabel = idx === 0 ? "Best" : idx === 1 ? "Good" : "Option";
+                const rankColor = idx === 0 ? "#10B981" : idx === 1 ? themeColor : colors.textSecondary;
+                return (
+                  <View
+                    key={`best-${idx}`}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      marginBottom: 8,
+                      borderRadius: 12,
+                      backgroundColor: idx === 0
+                        ? (isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)")
+                        : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
+                    }}
+                  >
+                    <View style={{ width: 48, marginRight: 10 }}>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{dayLabel}</Text>
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
+                      {slot.availableCount}/{slot.totalMembers}
+                    </Text>
+                  </View>
+                );
+              })}
+
+              {/* View all toggle */}
+              <Pressable
+                onPress={() => setShowAllAvailability(!showAllAvailability)}
+                style={{ paddingVertical: 10, alignItems: "center" }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
+                  {showAllAvailability ? "Hide details" : "View all availability"}
+                </Text>
+              </Pressable>
+
+              {/* Expanded availability details */}
+              {showAllAvailability && scheduleResult.topSlots.map((slot, idx) => {
+                const slotDate = new Date(slot.start);
+                const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                return (
+                  <View key={`detail-${idx}`} style={{ marginBottom: 12, paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginBottom: 4 }}>
+                      {dayLabel} {timeLabel}
+                    </Text>
+                    {slot.availableUserIds.map((uid) => {
+                      const m = members.find((mb) => mb.userId === uid);
+                      return (
+                        <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
+                          <Text style={{ fontSize: 12, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                        </View>
+                      );
+                    })}
+                    {slot.unavailableUserIds.map((uid) => {
+                      const m = members.find((mb) => mb.userId === uid);
+                      return (
+                        <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textTertiary, marginRight: 8 }} />
+                          <Text style={{ fontSize: 12, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+
+              {/* Create event at best time */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                  setShowBestTimeSheet(false);
+                  setShowAllAvailability(false);
+                  const best = scheduleResult.bestSlot;
+                  const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
+                  router.push({
+                    pathname: "/create",
+                    params: {
+                      date: best.start,
+                      circleId: circleId,
+                      duration: String(durationMin),
+                    },
+                  } as any);
+                }}
+                style={{
+                  marginTop: 12,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  backgroundColor: themeColor,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
+              </Pressable>
+
+              {/* Privacy disclaimer */}
+              <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
+                {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact."}
+              </Text>
+            </ScrollView>
+          </BottomSheet>
 
           {/* Slot Availability Bottom Sheet */}
           <BottomSheet
