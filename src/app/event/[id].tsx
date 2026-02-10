@@ -606,22 +606,35 @@ export default function EventDetailScreen() {
     eventErrorCode === 'FORBIDDEN'
   ));
 
-  // Extract host info from error payload if available
-  const restrictedHostInfo = isPrivacyRestricted ? errorBody?.host : null;
-  const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'the host';
-  const restrictedFirstName = restrictedHostName !== 'the host'
-    ? restrictedHostName.split(' ')[0]
-    : 'the host';
+  // ============================================
+  // Canonical friend-boundary object (SSOT for ALL render + CTA gating)
+  // Created at FETCH interception; no other hostId derivation should exist.
+  // Only populated when status === 403 AND errorBody?.restricted === true.
+  // ============================================
+  const _is403Restricted = eventErrorStatus === 403 && errorBody?.restricted === true;
+  const _fbHostId: string | undefined = _is403Restricted ? errorBody?.host?.id : undefined;
+  const _fbHostName: string | null = _is403Restricted
+    ? (errorBody?.host?.name ?? errorBody?.host?.displayName ?? null)
+    : null;
+  const _fbHostImage: string | null = _is403Restricted
+    ? (errorBody?.host?.image ?? null)
+    : null;
+  const _fbHostFirst: string = _fbHostName ? _fbHostName.split(' ')[0] : 'the host';
 
-  // Canonical friend-boundary object (single source of truth for render branch)
   const fb = {
-    restricted: !!errorBody?.restricted,
-    hostId: errorBody?.host?.id ?? null,
-    hostName: restrictedHostName,
-    hostImage: errorBody?.host?.image ?? null,
+    restricted: !!_is403Restricted,
+    hostId: _fbHostId,                       // string | undefined
+    hostName: _fbHostName,                   // string | null
+    hostImage: _fbHostImage,                 // string | null
+    hostFirst: _fbHostFirst,                 // first token or "the host"
+    hostDisplayName: _fbHostName ?? 'the host',
   };
 
-  // [P0_EVENT_FRIEND_BOUNDARY_FETCH] Log restricted response interception
+  // Legacy aliases — kept for copy that still references them
+  const restrictedHostName = fb.hostDisplayName;
+  const restrictedFirstName = fb.hostFirst;
+
+  // [P0_EVENT_FRIEND_BOUNDARY_FETCH] DEV LOG at interception
   if (__DEV__ && !isLoadingEvent && eventError) {
     if (isPrivacyRestricted) {
       devLog('[P0_EVENT_FRIEND_BOUNDARY_FETCH]', {
@@ -743,7 +756,7 @@ export default function EventDetailScreen() {
     devLog('[P0_VISIBILITY] Event details visibility decision:', {
       sourceSurface: 'event-details',
       eventIdPrefix: id?.slice(0, 6),
-      hostIdPrefix: event?.userId?.slice(0, 6) ?? restrictedHostInfo?.id?.slice(0, 6) ?? 'unknown',
+      hostIdPrefix: event?.userId?.slice(0, 6) ?? fb.hostId?.slice(0, 6) ?? 'unknown',
       isBusy: !!event?.isBusy,
       viewerFriendOfHost: blockedState.reason === 'authorized' ? true : blockedState.reason === 'private_event' ? false : 'unknown',
       decision: blockedState.reason === 'busy_block' ? 'busy_inert' : blockedState.reason === 'authorized' ? 'full_details' : 'private_gate',
@@ -1264,11 +1277,11 @@ export default function EventDetailScreen() {
     mutationFn: () => {
       if (__DEV__) {
         devLog("[P0_EVENT_FRIEND_BOUNDARY] add_host_press", {
-          hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+          hostIdPrefix: fb.hostId?.slice(0, 6),
         });
       }
       return api.post<SendFriendRequestResponse>("/api/friends/request", {
-        userId: restrictedHostInfo?.id,
+        userId: fb.hostId,
       });
     },
     onSuccess: () => {
@@ -1277,7 +1290,7 @@ export default function EventDetailScreen() {
 
       if (__DEV__) {
         devLog("[P0_EVENT_FRIEND_BOUNDARY] add_host_success", {
-          hostIdPrefix: restrictedHostInfo?.id?.slice(0, 6),
+          hostIdPrefix: fb.hostId?.slice(0, 6),
           invalidated: [
             "friendRequests",
             "event.single",
@@ -1505,30 +1518,36 @@ export default function EventDetailScreen() {
     
     // [P0_EVENT_FRIEND_BOUNDARY] Friend-boundary gate: viewer is not connected to host
     if (isPrivacyRestricted) {
-      const ownerId = fb.hostId;
+      // Derive hasHostId from canonical fb (strict string check — not just truthiness)
+      const hasHostId = typeof fb.hostId === "string" && fb.hostId.length > 0;
 
       if (__DEV__) {
         devLog('[P0_EVENT_FRIEND_BOUNDARY_RENDER]', {
-          hasOwnerId: !!ownerId,
           hostId: fb.hostId,
           hostName: fb.hostName,
+          hasHostId,
         });
-        if (!ownerId && fb.hostName !== 'the host') {
-          devLog('[P0_EVENT_FRIEND_BOUNDARY_RENDER] missing_host_id', { hostName: fb.hostName });
+        if (!hasHostId) {
+          devLog('[P0_EVENT_FRIEND_BOUNDARY_HOSTID_MISSING]', {
+            eventId: id,
+            status: eventErrorStatus,
+            restricted: fb.restricted,
+            rawHostId: fb.hostId,
+          });
         }
       }
 
       // Handler for tapping View Profile → canonical profile route
       const handleViewHostProfile = () => {
-        if (!ownerId) return;
+        if (!hasHostId) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         if (__DEV__) {
           devLog('[P0_EVENT_FRIEND_BOUNDARY] nav_to_host_profile', {
             eventIdPrefix: id?.slice(0, 6),
-            hostIdPrefix: ownerId.slice(0, 6),
+            hostIdPrefix: fb.hostId!.slice(0, 6),
           });
         }
-        router.push(`/user/${ownerId}` as any);
+        router.push(`/user/${fb.hostId}` as any);
       };
 
       return (
@@ -1536,11 +1555,11 @@ export default function EventDetailScreen() {
           <Stack.Screen options={{ title: "Event", headerBackTitle: "Back" }} />
           <View className="flex-1 items-center justify-center px-6">
             {/* Tappable host avatar - only when host info available */}
-            {ownerId ? (
+            {hasHostId ? (
               <Pressable onPress={handleViewHostProfile}>
-                {restrictedHostInfo?.image ? (
+                {fb.hostImage ? (
                   <Image
-                    source={{ uri: restrictedHostInfo.image }}
+                    source={{ uri: fb.hostImage }}
                     className="w-20 h-20 rounded-full mb-3"
                     style={{ borderWidth: 2, borderColor: colors.separator }}
                   />
@@ -1550,7 +1569,7 @@ export default function EventDetailScreen() {
                     style={{ backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.separator }}
                   >
                     <Text style={{ color: colors.textSecondary, fontSize: 28, fontWeight: '600' }}>
-                      {restrictedFirstName.charAt(0).toUpperCase()}
+                      {fb.hostFirst.charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
@@ -1569,7 +1588,7 @@ export default function EventDetailScreen() {
               className="text-sm text-center"
               style={{ color: colors.textSecondary, marginBottom: 6 }}
             >
-              {`Event hosted by ${restrictedHostName}`}
+              {`Event hosted by ${fb.hostDisplayName}`}
             </Text>
             
             {/* Line 2: headline */}
@@ -1585,10 +1604,11 @@ export default function EventDetailScreen() {
               className="text-center"
               style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 24 }}
             >
-              {`Connect with ${restrictedFirstName} to see this event.`}
+              {`Connect with ${fb.hostFirst} to see this event.`}
             </Text>
             
-            {ownerId ? (
+            {/* CTA: View Profile (primary) or fallback text */}
+            {hasHostId ? (
               <View className="w-full max-w-xs">
                 <Button
                   variant="primary"
