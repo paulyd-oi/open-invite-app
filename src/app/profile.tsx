@@ -65,7 +65,6 @@ import {
   Layers,
   Flame,
   Clock,
-  Eye,
 } from "@/ui/icons";
 
 /**
@@ -311,8 +310,6 @@ export default function ProfileScreen() {
     if (!didMount.current) {
       didMount.current = true;
       if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
-      if (__DEV__) devLog("[P2_ANIMATION]", { component: "profile", animationMounted: true });
-      if (__DEV__) devLog("[P2_PROFILE_IDENTITY]", { layoutRefined: true });
       if (__DEV__) devLog("[P3_PROFILE_ACTION_ROW_REMOVED]", true);
       if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
       if (__DEV__) devLog("[P3_PROFILE_RHYTHM]", { applied: true });
@@ -389,15 +386,6 @@ export default function ProfileScreen() {
     devLog("[P0_PROFILE_ACTIVITY]", {
       count: recentActivity.length,
       source: "eventsData",
-    });
-  }
-
-  // [P1_HEADER_SOT] Header consistency proof
-  if (__DEV__) {
-    devLog("[P1_HEADER_SOT]", {
-      route: "profile",
-      resolvedTitle: "Profile",
-      backMode: "n/a (tab root)",
     });
   }
 
@@ -494,12 +482,12 @@ export default function ProfileScreen() {
             )}
             <View style={{ padding: 20 }}>
             <View className="flex-row items-center">
-              {/* Avatar — visual anchor */}
-              <View className="relative" style={{ marginRight: 16 }}>
+              {/* Avatar with premium crown overlay */}
+              <View className="relative">
                 <EntityAvatar
                   imageSource={avatarSource}
                   initials={StringSafe(getProfileInitial({ profileData, session }))}
-                  size={72}
+                  size={64}
                   backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
                   foregroundColor={themeColor}
                   fallbackIcon="person"
@@ -515,12 +503,12 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              {/* Name + Handle — clear hierarchy */}
-              <View className="flex-1">
+              {/* Name + Handle */}
+              <View className="flex-1 ml-4">
                 <View className="flex-row items-center">
                   <Text
                     className="text-xl font-sora-bold"
-                    style={{ color: colors.text, letterSpacing: -0.3 }}
+                    style={{ color: colors.text }}
                   >
                     {displayName}
                   </Text>
@@ -537,18 +525,17 @@ export default function ProfileScreen() {
                 </View>
 
                 {userHandle && (
-                  <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                  <Text style={{ color: colors.textSecondary }}>
                     {`@${StringSafe(userHandle)}`}
                   </Text>
                 )}
 
                 {/* Bio */}
-                <View className="flex-row items-center" style={{ marginTop: 6 }}>
-                  <Calendar size={14} color={colors.textTertiary} />
+                <View className="flex-row items-center mt-2">
+                  <Calendar size={14} color={colors.textSecondary} />
                   <Text
                     className="ml-2 text-sm"
-                    style={{ color: colors.textTertiary }}
-                    numberOfLines={1}
+                    style={{ color: colors.textSecondary }}
                   >
                     {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
                   </Text>
@@ -556,8 +543,8 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Edit / Share / Preview — visually grouped action row */}
-            <View className="flex-row mt-5 pt-3 border-t" style={{ borderColor: colors.border, gap: 8 }}>
+            {/* Edit / Share CTAs */}
+            <View className="flex-row mt-4 pt-3 border-t" style={{ borderColor: colors.border }}>
               <Button
                 variant="secondary"
                 label="Edit"
@@ -567,34 +554,19 @@ export default function ProfileScreen() {
                   router.push("/settings");
                 }}
                 size="sm"
-                style={{ flex: 1, borderRadius: 10 }}
+                style={{ flex: 1, marginRight: 8, borderRadius: 8 }}
               />
-              <Animated.View style={[{ flex: 1 }, shareAnimatedStyle]}>
+              <Animated.View style={[{ flex: 1, marginLeft: 8 }, shareAnimatedStyle]}>
                 <Button
                   variant="secondary"
                   label="Share"
                   leftIcon={<Share2 size={14} color={colors.textSecondary} />}
                   onPress={handleShareProfile}
                   size="sm"
-                  style={{ borderRadius: 10 }}
+                  style={{ borderRadius: 8 }}
                 />
               </Animated.View>
             </View>
-
-            {/* View Public Profile */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/public-profile" as any);
-              }}
-              className="flex-row items-center justify-center mt-3 py-2 rounded-lg"
-              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}
-            >
-              <Eye size={14} color={colors.textTertiary} />
-              <Text className="text-sm ml-1.5" style={{ color: colors.textTertiary }}>
-                View Public Profile
-              </Text>
-            </Pressable>
             </View>
           </View>
         </Animated.View>
