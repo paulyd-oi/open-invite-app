@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -565,9 +566,13 @@ export default function ProfileScreen() {
               >
                 <View
                   className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-                  style={{ backgroundColor: `${themeColor}15` }}
+                  style={{ backgroundColor: `${themeColor}15`, overflow: 'hidden' }}
                 >
-                  <Text className="text-lg">{upcomingEvent.emoji || "📅"}</Text>
+                  <EventPhotoEmoji
+                    photoUrl={upcomingEvent.eventPhotoUrl}
+                    emoji={upcomingEvent.emoji || "📅"}
+                    emojiClassName="text-lg"
+                  />
                 </View>
                 <View className="flex-1">
                   <Text className="text-base font-semibold" style={{ color: colors.text }} numberOfLines={1}>
@@ -667,7 +672,13 @@ export default function ProfileScreen() {
                         idx < upcomingWeekEvents.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined,
                       ]}
                     >
-                      <Text className="text-base mr-2">{evt.emoji || "📅"}</Text>
+                      <View style={{ width: 24, height: 24, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                        <EventPhotoEmoji
+                          photoUrl={evt.eventPhotoUrl}
+                          emoji={evt.emoji || "📅"}
+                          emojiStyle={{ fontSize: 16 }}
+                        />
+                      </View>
                       <Text className="flex-1 text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
                         {StringSafe(evt.title)}
                       </Text>

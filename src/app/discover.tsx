@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog } from "@/lib/devLog";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
@@ -51,6 +52,7 @@ interface PopularEvent {
   isFull?: boolean;
   viewerRsvpStatus?: "going" | "not_going" | "interested" | null;
   createdAt?: string;
+  eventPhotoUrl?: string | null;
   joinRequests?: Array<{
     id: string;
     userId: string;
@@ -223,9 +225,13 @@ export default function DiscoverScreen() {
         <View className="flex-row items-center">
           <View
             className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-            style={{ backgroundColor: themeColor + "20" }}
+            style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}
           >
-            <Text className="text-xl">{event.emoji || "📅"}</Text>
+            <EventPhotoEmoji
+              photoUrl={event.visibility !== "private" ? event.eventPhotoUrl : undefined}
+              emoji={event.emoji || "📅"}
+              emojiClassName="text-xl"
+            />
           </View>
 
           <View className="flex-1">
@@ -402,8 +408,12 @@ export default function DiscoverScreen() {
                   style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
                 >
                   <View className="flex-row items-center">
-                    <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20" }}>
-                      <Text className="text-2xl">{featured.emoji || "\uD83D\uDCC5"}</Text>
+                    <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}>
+                      <EventPhotoEmoji
+                        photoUrl={featured.visibility !== "private" ? featured.eventPhotoUrl : undefined}
+                        emoji={featured.emoji || "\uD83D\uDCC5"}
+                        emojiClassName="text-2xl"
+                      />
                     </View>
                     <View className="flex-1">
                       <Text className="font-bold text-lg" style={{ color: colors.text }} numberOfLines={1}>{featured.title}</Text>

@@ -58,6 +58,7 @@ import { checkCalendarPermission } from "@/lib/calendarSync";
 import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, type FriendBirthday, type GetEventRequestsResponse, type EventRequest, type GetCalendarEventsResponse, type GetFriendsResponse } from "@/shared/contracts";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
 import { Button } from "@/ui/Button";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -769,7 +770,13 @@ function EventListItem({
       >
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="text-lg mr-2">{displayEmoji}</Text>
+            <View style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+              <EventPhotoEmoji
+                photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
+                emoji={displayEmoji}
+                emojiStyle={{ fontSize: 18 }}
+              />
+            </View>
             <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
               {displayTitle}
             </Text>
@@ -828,7 +835,13 @@ function EventListItem({
     >
       <View className="flex-1">
         <View className="flex-row items-center">
-          <Text className="text-lg mr-2">{displayEmoji}</Text>
+          <View style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+            <EventPhotoEmoji
+              photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
+              emoji={displayEmoji}
+              emojiStyle={{ fontSize: 18 }}
+            />
+          </View>
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
             {displayTitle}
           </Text>

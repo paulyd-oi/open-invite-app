@@ -18,6 +18,7 @@ import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { safeToast } from "@/lib/safeToast";
 import { EmptyState } from "@/components/EmptyState";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { QuickEventButton } from "@/components/QuickEventButton";
 import { SocialProof } from "@/components/SocialProof";
 import { FeedCalendar } from "@/components/FeedCalendar";
@@ -283,9 +284,13 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         <View className="flex-row items-start">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-            style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? colors.surfaceElevated : "#FFF7ED" }}
+            style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? colors.surfaceElevated : "#FFF7ED", overflow: 'hidden' }}
           >
-            <Text className="text-2xl">{displayEvent.emoji}</Text>
+            <EventPhotoEmoji
+              photoUrl={displayEvent.visibility !== "private" && !displayEvent.isBusy ? displayEvent.eventPhotoUrl : undefined}
+              emoji={displayEvent.emoji}
+              emojiClassName="text-2xl"
+            />
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">

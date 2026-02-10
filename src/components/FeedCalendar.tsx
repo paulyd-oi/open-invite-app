@@ -12,6 +12,7 @@ import { devLog } from "@/lib/devLog";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { getEventDisplayFields } from "@/lib/eventVisibility";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -51,6 +52,8 @@ interface CalendarEvent {
   isBirthday?: boolean;
   color?: string | null;
   groupVisibility?: Array<{ groupId: string; group: { id: string; name: string; color: string } }> | null;
+  eventPhotoUrl?: string | null;
+  visibility?: string | null;
 }
 
 interface FeedCalendarProps {
@@ -132,9 +135,13 @@ function EventListItem({
       <View className="flex-row items-start">
         <View
           className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-          style={{ backgroundColor: isNonVisible ? (isDark ? "#3C3C3E" : "#E5E7EB") : event.isOwn ? `${themeColor}20` : (isDark ? "#2C2C2E" : "#FFF7ED") }}
+          style={{ backgroundColor: isNonVisible ? (isDark ? "#3C3C3E" : "#E5E7EB") : event.isOwn ? `${themeColor}20` : (isDark ? "#2C2C2E" : "#FFF7ED"), overflow: 'hidden' }}
         >
-          <Text className="text-2xl">{displayEmoji}</Text>
+          <EventPhotoEmoji
+            photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
+            emoji={displayEmoji}
+            emojiClassName="text-2xl"
+          />
         </View>
         <View className="flex-1">
           <View className="flex-row items-center">
