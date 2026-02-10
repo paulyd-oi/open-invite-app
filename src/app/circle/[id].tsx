@@ -720,6 +720,20 @@ function MiniCalendar({
                     return (
                       <Pressable
                         key={`best-${idx}`}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                          if (__DEV__) devLog('[P1_PREFILL_EVENT]', { slotStart: slot.start, slotEnd: slot.end, circleId });
+                          setShowBestTimeSheet(false);
+                          setShowAllAvailability(false);
+                          router.push({
+                            pathname: "/create",
+                            params: {
+                              date: slot.start,
+                              endDate: slot.end,
+                              circleId: circleId,
+                            },
+                          } as any);
+                        }}
                         onLongPress={() => {
                           Haptics.selectionAsync().catch(() => {});
                           setSelectedSlot(slot);
@@ -4614,10 +4628,14 @@ export default function CircleScreen() {
                 backgroundColor: colors.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
-                maxHeight: "90%",
-                minHeight: Dimensions.get('window').height * 0.85,
+                height: Dimensions.get('window').height * 0.85,
+                maxHeight: Dimensions.get('window').height * 0.92,
                 overflow: "hidden",
               }}
+              onLayout={__DEV__ ? (e) => {
+                const { height: sheetH } = e.nativeEvent.layout;
+                devLog('[P1_MEMBERS_LAYOUT] sheet onLayout', { sheetHeight: Math.round(sheetH), windowHeight: Math.round(Dimensions.get('window').height), bottomInset: insets.bottom });
+              } : undefined}
             >
               {/* Modal Handle */}
               <View style={{ alignItems: "center", paddingTop: 12, paddingBottom: 8 }}>
@@ -4639,7 +4657,13 @@ export default function CircleScreen() {
                 </Text>
               </View>
 
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(40, insets.bottom + 16) }}
+                onContentSizeChange={__DEV__ ? (_w, h) => {
+                  devLog('[P1_MEMBERS_LAYOUT] scroll contentSize', { contentHeight: Math.round(h) });
+                } : undefined}
+              >
                 {/* Members List — SSOT via UserRow */}
                 {__DEV__ && members.length > 0 && once('P0_USERROW_SHEET_SOT_circle') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: members.length })}
                 {members.map((member, idx) => {
@@ -4770,7 +4794,7 @@ export default function CircleScreen() {
 
               {/* Add Button */}
               {selectedFriends.length > 0 && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <View style={{ paddingHorizontal: 20, paddingBottom: Math.max(24, insets.bottom + 8), paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
                   <Button
                     variant="primary"
                     label={
