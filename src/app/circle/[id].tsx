@@ -36,7 +36,6 @@ import {
   ArrowLeft,
   MessageCircle,
   Calendar,
-  Clock,
   MapPin,
   Users,
   Plus,
@@ -469,17 +468,17 @@ function MiniCalendar({
         ))}
       </View>
 
-      {/* Smart Scheduling v1 — SSOT via SchedulingEngine */}
+      {/* Smart Scheduling v1 — SSOT via bestTimesDate + dateScheduleResult */}
       {scheduleResult && scheduleResult.topSlots.length > 0 && (
         <View style={{ marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: scheduleResult.topSlots.length, topAvailable: scheduleResult.bestSlot.availableCount, total: scheduleResult.bestSlot.totalMembers });
+              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { date: bestTimesDate.toISOString(), windows: dateScheduleResult?.topSlots?.length ?? 0, topAvailable: dateScheduleResult?.bestSlot?.availableCount ?? 0, total: dateScheduleResult?.bestSlot?.totalMembers ?? members.length });
               setShowBestTimeSheet(true);
             }}
             accessibilityRole="button"
-            accessibilityLabel={`${scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
+            accessibilityLabel={`${dateScheduleResult?.hasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
             style={({ pressed }) => ({
               flexDirection: "row",
               alignItems: "center",
@@ -489,82 +488,66 @@ function MiniCalendar({
               paddingHorizontal: 10,
               borderRadius: 10,
               backgroundColor: pressed
-                ? (scheduleResult.hasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
-                : (scheduleResult.hasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
+                ? (dateScheduleResult?.hasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
+                : (dateScheduleResult?.hasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
             })}
           >
             <View>
-              <Text style={{ fontSize: 12, fontWeight: "600", color: scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
-                {scheduleResult.hasPerfectOverlap ? "Everyone's free" : "Best times"}
+              <Text style={{ fontSize: 12, fontWeight: "600", color: dateScheduleResult?.hasPerfectOverlap ? "#10B981" : colors.textSecondary }}>
+                {dateScheduleResult?.hasPerfectOverlap ? "Everyone's free" : "Best times"}
               </Text>
               <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>Tap to see best times</Text>
             </View>
-            <ChevronRight size={14} color={scheduleResult.hasPerfectOverlap ? "#10B981" : colors.textTertiary} />
+            <ChevronRight size={14} color={dateScheduleResult?.hasPerfectOverlap ? "#10B981" : colors.textTertiary} />
           </Pressable>
-          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {scheduleResult.topSlots.map((slot, i) => {
-              const slotDate = new Date(slot.start);
-              const endDate = new Date(slot.end);
-              const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short" });
-              const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-              const pillText = `${dayLabel} ${timeLabel} · ${slot.availableCount}/${slot.totalMembers}`;
-              const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
 
-              const shareLabel = `Best time: ${dayLabel} ${timeLabel}`;
-
-              // [P0_CIRCLE_FREE_TIME_PILLS] DEV proof — once per pill set render
-              if (__DEV__ && i === 0 && once(`circle_free_pills_${circleId}`)) {
-                devLog("[P0_CIRCLE_FREE_TIME_PILLS]", {
-                  count: scheduleResult.topSlots.length,
-                  firstLabel: pillText,
-                  onPressWired: true,
-                });
-              }
-
+          {/* Day selector chips — SSOT: sets bestTimesDate */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }} contentContainerStyle={{ paddingRight: 8 }}>
+            {Array.from({ length: 14 }, (_, i) => {
+              const d = new Date();
+              d.setHours(0, 0, 0, 0);
+              d.setDate(d.getDate() + i);
+              const isSelected = d.toDateString() === bestTimesDate.toDateString();
+              const dayAbbr = d.toLocaleDateString("en-US", { weekday: "short" });
+              const dayNum = d.getDate();
               return (
                 <Pressable
                   key={i}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    if (__DEV__) devLog("[P0_CIRCLE_FREE_TIME_PILL_TAP]", { start: slot.start, end: slot.end });
-                    router.push({
-                      pathname: "/create",
-                      params: {
-                        date: slot.start,
-                        circleId: circleId,
-                        duration: String(durationMin),
-                      },
-                    } as any);
-                  }}
-                  onLongPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    Clipboard.setStringAsync(shareLabel).catch(() => {});
-                    safeToast.success("Copied", shareLabel);
-                    setSelectedSlot(slot);
+                    setBestTimesDate(d);
+                    setShowBestTimeSheet(true);
                   }}
                   style={{
-                    flexDirection: "row",
                     alignItems: "center",
-                    borderRadius: 12,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
                     marginRight: 6,
-                    marginBottom: 4,
-                    backgroundColor: slot.score === 1 ? "#10B98120" : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                    borderRadius: 10,
+                    backgroundColor: isSelected
+                      ? (isDark ? themeColor + "30" : themeColor + "18")
+                      : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
+                    borderWidth: isSelected ? 1 : 0,
+                    borderColor: isSelected ? themeColor : "transparent",
                   }}
                 >
-                  <Clock size={10} color={slot.score === 1 ? "#10B981" : themeColor} />
-                  <Text style={{ fontSize: 10, fontWeight: "500", marginLeft: 4, color: slot.score === 1 ? "#10B981" : themeColor }}>
-                    {pillText}
-                  </Text>
+                  <Text style={{ fontSize: 10, fontWeight: "500", color: isSelected ? themeColor : colors.textTertiary }}>{dayAbbr}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: isSelected ? "700" : "500", color: isSelected ? themeColor : colors.text }}>{dayNum}</Text>
                 </Pressable>
               );
             })}
-          </View>
-          {/* Availability summary — projection of bestSlot */}
-          <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
-            {scheduleResult.bestSlot.availableCount} of {scheduleResult.bestSlot.totalMembers} available
-          </Text>
+          </ScrollView>
+
+          {/* Inline summary for selected day — from dateScheduleResult SSOT */}
+          {dateScheduleResult && dateScheduleResult.topSlots.length > 0 ? (
+            <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
+              {dateScheduleResult.bestSlot.availableCount} of {dateScheduleResult.bestSlot.totalMembers} available · {dateScheduleResult.topSlots.length} time{dateScheduleResult.topSlots.length !== 1 ? "s" : ""}
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
+              No shared free times — try another day
+            </Text>
+          )}
 
           {/* Best Time to Meet Sheet */}
           <BottomSheet
@@ -629,8 +612,12 @@ function MiniCalendar({
                     const rankLabel = idx === 0 ? "Best" : idx === 1 ? "Good" : "Option";
                     const rankColor = idx === 0 ? "#10B981" : idx === 1 ? themeColor : colors.textSecondary;
                     return (
-                      <View
+                      <Pressable
                         key={`best-${idx}`}
+                        onLongPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          setSelectedSlot(slot);
+                        }}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -652,7 +639,7 @@ function MiniCalendar({
                         <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
                           {slot.availableCount}/{slot.totalMembers}
                         </Text>
-                      </View>
+                      </Pressable>
                     );
                   })}
 
