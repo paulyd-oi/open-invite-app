@@ -274,7 +274,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         }}
       >
         {/* Event Photo Thumbnail */}
-        {displayEvent.eventPhotoUrl && (
+        {displayEvent.eventPhotoUrl && displayEvent.visibility !== "private" && (
           <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
             <Image source={{ uri: displayEvent.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
           </View>

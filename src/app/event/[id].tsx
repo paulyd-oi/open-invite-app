@@ -1715,7 +1715,7 @@ export default function EventDetailScreen() {
         {/* Event Header */}
         <Animated.View entering={FadeInDown.springify()}>
           {/* Event Photo Hero */}
-          {event.eventPhotoUrl && !event.isBusy && (
+          {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && (
             <View className="rounded-2xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
               <Image source={{ uri: event.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
               {isMyEvent && (
@@ -1731,7 +1731,7 @@ export default function EventDetailScreen() {
           )}
 
           {/* Host-only photo nudge */}
-          {isMyEvent && !event.eventPhotoUrl && !event.isBusy && !photoNudgeDismissed && (
+          {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
             <View className="rounded-2xl p-4 mb-3 items-center" style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}>
               <Camera size={28} color={isDark ? "#9CA3AF" : "#6B7280"} />
               <Text className="text-sm font-medium mt-2" style={{ color: colors.textSecondary }}>Add a photo (optional)</Text>
