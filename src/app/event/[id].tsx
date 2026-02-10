@@ -63,6 +63,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
+import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
@@ -3437,6 +3438,7 @@ export default function EventDetailScreen() {
                   </View>
                 ) : (
                   <>
+                {__DEV__ && attendeesList.length > 0 && once('P0_USERROW_SOT_event') && void devLog('[P0_USERROW_SOT]', { screen: 'event_attendees_sheet', count: attendeesList.length })}
                 {attendeesList.map((attendee) => (
                   <View
                     key={attendee.id}
@@ -3448,8 +3450,8 @@ export default function EventDetailScreen() {
                     <UserListRow
                       handle={null}
                       displayName={attendee.name ?? "Guest"}
-                      calendarBio={null}
-                      avatarUrl={attendee.imageUrl}
+                      bio={null}
+                      avatarUri={attendee.imageUrl}
                       badgeText={(attendee.isHost || attendee.id === event?.user?.id) ? "Host" : null}
                       onPress={() => {
                         Haptics.selectionAsync();

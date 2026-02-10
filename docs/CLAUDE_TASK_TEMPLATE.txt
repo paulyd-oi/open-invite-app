@@ -24,6 +24,10 @@ Minimal diff. No new dependencies. Preserve navigation architecture. No refactor
 
 No breaking UI changes outside the task scope.
 
+UI / Pressable / NativeWind:
+Never use Pressable style function callback (style={({pressed})=>...}) in SSOT components;
+NativeWind wrapper may not run it. Use pressed state (useState + onPressIn/onPressOut) + static style arrays.
+
 If backend routes/mounts are touched, prove parity in BOTH src/index.ts and src/server.ts.
 
 REPO + RELEASE GUARDRAILS (MANDATORY):

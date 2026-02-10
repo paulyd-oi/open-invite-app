@@ -3361,8 +3361,8 @@ export default function CircleScreen() {
                           <UserListRow
                             handle={friendship.friend.Profile?.handle}
                             displayName={friendship.friend.name}
-                            calendarBio={friendship.friend.Profile?.calendarBio}
-                            avatarUrl={friendship.friend.image}
+                            bio={friendship.friend.Profile?.calendarBio}
+                            avatarUri={friendship.friend.image}
                             disablePressFeedback
                             rightAccessory={
                               <View
@@ -4316,7 +4316,8 @@ export default function CircleScreen() {
               </View>
 
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
-                {/* Members List — SSOT via UserListRow */}
+                {/* Members List — SSOT via UserRow */}
+                {__DEV__ && members.length > 0 && once('P0_USERROW_SOT_circle') && void devLog('[P0_USERROW_SOT]', { screen: 'circle_members_sheet', count: members.length })}
                 {members.map((member, idx) => {
                   const isHostOfCircle = circle?.createdById === member.userId;
                   return (
@@ -4330,8 +4331,8 @@ export default function CircleScreen() {
                       <UserListRow
                         handle={null}
                         displayName={member.user.name}
-                        calendarBio={null}
-                        avatarUrl={member.user.image}
+                        bio={null}
+                        avatarUri={member.user.image}
                         badgeText={isHostOfCircle ? "Host" : null}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -4416,8 +4417,8 @@ export default function CircleScreen() {
                               <UserListRow
                                 handle={friend.friend.Profile?.handle}
                                 displayName={friend.friend.name}
-                                calendarBio={friend.friend.Profile?.calendarBio}
-                                avatarUrl={friend.friend.image}
+                                bio={friend.friend.Profile?.calendarBio}
+                                avatarUri={friend.friend.image}
                                 disablePressFeedback
                                 rightAccessory={
                                   <View

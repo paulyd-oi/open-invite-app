@@ -69,6 +69,7 @@ import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
 import { CircleCard } from "@/components/CircleCard";
+import { UserRow } from "@/components/UserListRow";
 import { CreateCircleModal } from "@/components/CreateCircleModal";
 import { SecondOrderSocialNudge, canShowSecondOrderSocialNudge, markSecondOrderSocialNudgeCompleted } from "@/components/SecondOrderSocialNudge";
 import { useSession } from "@/lib/useSession";
@@ -399,7 +400,6 @@ const FriendListItem = React.memo(function FriendListItem({
   const { themeColor, isDark, colors } = useTheme();
   const friend = friendship.friend;
   const [isExpanded, setIsExpanded] = useState(false);
-  const [pressed, setPressed] = useState(false);
   const rotation = useSharedValue(0);
   const height = useSharedValue(0);
   
@@ -460,18 +460,8 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  // ── Compact 2-line text derivation (list view only) ────────
-  const hasHandle = !!friend.Profile?.handle?.trim();
-  const hasBio = !!friend.Profile?.calendarBio?.trim();
-  const line1 = hasHandle ? `@${friend.Profile!.handle!.trim()}` : (friend.name ?? "Unknown");
-  const line2 = hasBio ? friend.Profile!.calendarBio!.trim() : "";
-  const showsTwoLines = !!line2;
-
-  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_NATIVEWIND_PROOF')) {
-    devLog('[P0_FRIENDS_LIST_ROW_NATIVEWIND_PROOF]', {
-      usedFunctionStyle: false,
-      flexDirection: 'row',
-    });
+  if (__DEV__ && once('P0_USERROW_SOT_friends')) {
+    devLog('[P0_USERROW_SOT]', { screen: 'friends', variant: 'UserRow' });
   }
 
   const toggleExpand = () => {
@@ -506,75 +496,33 @@ const FriendListItem = React.memo(function FriendListItem({
             className="rounded-xl overflow-hidden"
             style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
           >
-            {/* Main row — compact inline (friends list only) */}
-            <Pressable
+            {/* Main row — SSOT UserRow (friends list) */}
+            <UserRow
+              avatarUri={friend.image}
+              handle={friend.Profile?.handle}
+              displayName={friend.name}
+              bio={friend.Profile?.calendarBio}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/friend/${friendship.id}` as any);
               }}
-              onPressIn={() => setPressed(true)}
-              onPressOut={() => setPressed(false)}
-              style={[
-                {
-                  flexDirection: "row" as const,
-                  alignItems: "center" as const,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  backgroundColor: "transparent",
-                },
-                pressed && { backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
-              ]}
-            >
-              {/* Pin indicator */}
-              {isPinned && (
+              leftAccessory={isPinned ? (
                 <View style={{ marginRight: 6 }}>
                   <Pin size={14} color={themeColor} />
                 </View>
-              )}
-
-              {/* Avatar */}
-              <View style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden", backgroundColor: colors.avatarBg }}>
-                {friend.image ? (
-                  <Image source={{ uri: friend.image }} style={{ width: 40, height: 40 }} />
-                ) : (
-                  <View style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center", backgroundColor: themeColor + "20" }}>
-                    <Text style={{ fontWeight: "600", color: themeColor }}>
-                      {(friend.name?.[0] ?? "?").toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Text column */}
-              <View style={{ flex: 1, marginLeft: 12, justifyContent: "center" }}>
-                <Text
-                  style={{ fontSize: 15, fontWeight: "600", color: colors.text, letterSpacing: -0.2 }}
-                  numberOfLines={1}
+              ) : undefined}
+              rightAccessory={
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
                 >
-                  {line1}
-                </Text>
-                {line2 ? (
-                  <Text
-                    style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {line2}
-                  </Text>
-                ) : null}
-              </View>
-
-              {/* Expand/collapse chevron */}
-              <Pressable
-                onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginLeft: 8, backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
-              >
-                <Animated.View style={arrowStyle}>
-                  <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
-                </Animated.View>
-              </Pressable>
-            </Pressable>
+                  <Animated.View style={arrowStyle}>
+                    <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
+                  </Animated.View>
+                </Pressable>
+              }
+            />
 
             {/* Expandable calendar section */}
             <Animated.View style={calendarStyle}>
