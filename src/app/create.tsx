@@ -10,7 +10,7 @@ import {
   Switch,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -295,6 +295,7 @@ export default function CreateEventScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const onboardingGuide = useOnboardingGuide();
+  const insets = useSafeAreaInsets();
   
   // [P1_CREATE_FLOW] Proof log: create screen mounted
   useEffect(() => {
@@ -748,6 +749,15 @@ export default function CreateEventScreen() {
     );
   }
 
+  // [CREATE_CTA_RENDER] DEV-only: confirm CTA is reachable
+  if (__DEV__) {
+    devLog('[CREATE_CTA_RENDER]', {
+      disabled: createMutation.isPending,
+      hasOnPress: true,
+      bottomInset: insets.bottom,
+    });
+  }
+
   return (
     <SafeAreaView testID="create-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
       <KeyboardAvoidingView
@@ -770,7 +780,7 @@ export default function CreateEventScreen() {
 
         <ScrollView
           className="flex-1 px-5"
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -1368,6 +1378,7 @@ export default function CreateEventScreen() {
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Button
+              testID="create-submit-button"
               variant="primary"
               label={createMutation.isPending ? "Creating..." : "Create Invite"}
               onPress={handleCreate}

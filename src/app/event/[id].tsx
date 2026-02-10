@@ -12,6 +12,7 @@ import {
   Share,
   Switch,
   Dimensions,
+  Animated as RNAnimated,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -383,6 +384,12 @@ export default function EventDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
 
+  // Hero micro-animation refs (title reveal + edit tap)
+  const heroTitleOpacity = useRef(new RNAnimated.Value(0)).current;
+  const heroTitleTranslateY = useRef(new RNAnimated.Value(6)).current;
+  const editScale = useRef(new RNAnimated.Value(1)).current;
+  const heroLoadedUrl = useRef<string | null>(null);
+
   // Check photo nudge dismiss state
   useEffect(() => {
     if (!id) return;
@@ -686,6 +693,13 @@ export default function EventDetailScreen() {
     feedData?.events.find((e) => e.id === id);
 
   const isBusyBlock = !!event?.isBusy;
+
+  // Reset hero title animation when photo URL changes
+  useEffect(() => {
+    heroTitleOpacity.setValue(0);
+    heroTitleTranslateY.setValue(6);
+    heroLoadedUrl.current = null;
+  }, [event?.eventPhotoUrl]);
 
   // ============================================
   // INVARIANT [P1_EVENT_META]: Capacity + counts are SSOT-owned by eventKeys.single(id).
@@ -1744,6 +1758,15 @@ export default function EventDetailScreen() {
                 source={{ uri: event.eventPhotoUrl }}
                 style={{ width: "100%", height: "100%" }}
                 resizeMode="cover"
+                onLoad={() => {
+                  if (__DEV__) devLog("[EVENT_HERO_PHOTO_LOADED]", `url=${event.eventPhotoUrl}`);
+                  if (heroLoadedUrl.current === event.eventPhotoUrl) return;
+                  heroLoadedUrl.current = event.eventPhotoUrl ?? null;
+                  RNAnimated.parallel([
+                    RNAnimated.timing(heroTitleOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+                    RNAnimated.timing(heroTitleTranslateY, { toValue: 0, duration: 220, useNativeDriver: true }),
+                  ]).start();
+                }}
               />
               {/* Gradient-style overlay for title readability */}
               <View
@@ -1757,12 +1780,12 @@ export default function EventDetailScreen() {
                 }}
               >
                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.0)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.15)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.35)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.08)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.22)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
               </View>
               {/* Title overlay */}
-              <View style={{ position: "absolute", bottom: 16, left: 16, right: 16 }}>
+              <RNAnimated.View style={{ position: "absolute", bottom: 16, left: 16, right: 16, opacity: heroTitleOpacity, transform: [{ translateY: heroTitleTranslateY }] }}>
                 <Text
                   style={{
                     color: "#fff",
@@ -1776,22 +1799,28 @@ export default function EventDetailScreen() {
                 >
                   {event.emoji} {event.title}
                 </Text>
-              </View>
+              </RNAnimated.View>
               {/* Floating edit button (host only) */}
               {isMyEvent && (
-                <Pressable
-                  onPress={() => setShowPhotoSheet(true)}
-                  style={{
-                    position: "absolute",
-                    top: editTop,
-                    right: 12,
-                    borderRadius: 20,
-                    padding: 8,
-                    backgroundColor: "rgba(0,0,0,0.5)",
-                  }}
-                >
-                  <Pencil size={16} color="#fff" />
-                </Pressable>
+                <RNAnimated.View style={{ position: "absolute", top: editTop, right: 12, transform: [{ scale: editScale }] }}>
+                  <Pressable
+                    onPress={() => {
+                      if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
+                      RNAnimated.sequence([
+                        RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
+                        RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+                      ]).start();
+                      setShowPhotoSheet(true);
+                    }}
+                    style={{
+                      borderRadius: 20,
+                      padding: 8,
+                      backgroundColor: "rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    <Pencil size={16} color="#fff" />
+                  </Pressable>
+                </RNAnimated.View>
               )}
             </View>
           ) : (
@@ -3515,15 +3544,29 @@ export default function EventDetailScreen() {
         <View className="px-5 pb-6">
           <Pressable
             onPress={async () => {
+              if (uploadingPhoto) return; // re-entry guard
+              setShowPhotoSheet(false);
+              // Wait for sheet dismiss animation before opening picker
+              // Prevents iOS gesture/touch blocker overlay freeze
+              await new Promise(r => setTimeout(r, 300));
               try {
+                if (__DEV__) devLog('[EVENT_PHOTO_PICK_START]');
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== "granted") {
+                  safeToast.warning("Permission Required", "Please allow access to your photos.");
+                  return;
+                }
                 const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  mediaTypes: ["images"],
                   allowsEditing: true,
                   aspect: [4, 3],
                   quality: 1,
                 });
-                if (result.canceled || !result.assets?.[0]) return;
-                setShowPhotoSheet(false);
+                if (result.canceled || !result.assets?.[0]) {
+                  if (__DEV__) devLog('[EVENT_PHOTO_PICK_CANCEL]');
+                  return;
+                }
+                if (__DEV__) devLog('[EVENT_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
                 setUploadingPhoto(true);
                 const upload = await uploadEventPhoto(result.assets[0].uri);
                 await api.put(`/api/events/${id}/photo`, {
