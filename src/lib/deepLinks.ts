@@ -6,7 +6,7 @@
  * - open-invite://user/{userId} - Open user profile (canonical)
  * - open-invite://friend/{userId} - Open user profile (legacy, normalized to /user/)
  * - open-invite://invite/{code} - Handle referral invites
- * - https://open-invite-api.onrender.com/share/event/{id} - Universal link for events
+ * - https://api.openinvite.cloud/share/event/{id} - Universal link for events
  * - .ics file imports - Calendar event sharing
  * 
  * [P0_PROFILE_ROUTE] Profile deep links ALWAYS use userId, never friendshipId.
@@ -21,8 +21,8 @@ import { parseICS, isValidICSContent } from './icsParser';
 import { handleReferralUrl } from './referral';
 import { devLog, devWarn, devError } from './devLog';
 
-// Backend URL for generating shareable links (Render production)
-export const BACKEND_URL = 'https://open-invite-api.onrender.com';
+// Backend URL for generating shareable links (production)
+export const BACKEND_URL = 'https://api.openinvite.cloud';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';

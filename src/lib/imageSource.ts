@@ -32,7 +32,7 @@ function requiresAuth(url: string | null | undefined): boolean {
   }
 
   // Check if URL contains our backend domain
-  if (trimmed.includes("open-invite-api.onrender.com")) {
+  if (trimmed.includes("api.openinvite.cloud") || trimmed.includes("open-invite-api.onrender.com")) {
     // Even on backend domain, /uploads/ is public
     if (trimmed.includes("/uploads/")) {
       return false;
@@ -66,7 +66,7 @@ function requiresAuth(url: string | null | undefined): boolean {
  * @example
  * // Protected API URL - adds Authorization header
  * const source = await getImageSource("/api/profile/avatar/abc123");
- * // → { uri: "https://open-invite-api.onrender.com/api/profile/avatar/abc123", headers: { Authorization: "Bearer ..." } }
+ * // → { uri: "https://api.openinvite.cloud/api/profile/avatar/abc123", headers: { Authorization: "Bearer ..." } }
  *
  * // Public URL - no headers
  * const source = await getImageSource("https://example.com/image.jpg");

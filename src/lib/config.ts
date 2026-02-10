@@ -7,8 +7,8 @@
 
 import { devLog } from "./devLog";
 
-// Production backend URL (Render deployment)
-const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
+// Production backend URL (custom domain)
+const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
 
 // Use API URL override during development, Render for production
 // Check for truthy value (not just undefined) to handle empty string case

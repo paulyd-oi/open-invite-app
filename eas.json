@@ -13,7 +13,7 @@
         "EXPO_USE_NPM": "1",
         "EXPO_NO_BUN": "1",
         "NPM_CONFIG_INCLUDE": "dev",
-        "EXPO_PUBLIC_API_URL": "https://open-invite-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud"
       },
       "ios": {
         "resourceClass": "m-medium",
@@ -29,7 +29,7 @@
         "EXPO_USE_NPM": "1",
         "EXPO_NO_BUN": "1",
         "NPM_CONFIG_INCLUDE": "dev",
-        "EXPO_PUBLIC_API_URL": "https://open-invite-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud"
       },
       "ios": {
         "simulator": true
@@ -44,7 +44,7 @@
         "EXPO_USE_NPM": "1",
         "EXPO_NO_BUN": "1",
         "NPM_CONFIG_INCLUDE": "dev",
-        "EXPO_PUBLIC_API_URL": "https://open-invite-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud"
       },
       "ios": {
         "resourceClass": "m-medium"

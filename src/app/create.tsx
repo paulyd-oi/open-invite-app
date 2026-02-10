@@ -117,7 +117,7 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
 
   try {
     // Check for truthy value (not just undefined) to handle empty string case
-    const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
+    const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
     const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
     const rawBackendUrl = apiUrlOverride && apiUrlOverride.length > 0
       ? apiUrlOverride

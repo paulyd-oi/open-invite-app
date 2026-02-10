@@ -57,7 +57,7 @@ import { RADIUS } from "@/ui/layout";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Backend URL
-const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
+const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
 const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
 const backendUrl =
   apiUrlOverride && apiUrlOverride.length > 0

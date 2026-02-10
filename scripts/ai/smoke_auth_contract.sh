@@ -15,7 +15,7 @@
 
 set -e
 
-API_BASE_URL="${API_BASE_URL:-https://api.open-invite.com}"
+API_BASE_URL="${API_BASE_URL:-https://api.openinvite.cloud}"
 
 # Normalize SESSION_COOKIE_VALUE to extract raw token
 if [[ -z "$SESSION_COOKIE_VALUE" ]]; then

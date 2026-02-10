@@ -16,7 +16,7 @@ import { Button } from "@/ui/Button";
 type AuthView = "login" | "forgotPassword" | "verifyEmail";
 
 // Get backend URL
-const RENDER_BACKEND_URL = "https://open-invite-api.onrender.com";
+const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
 const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
 const backendUrl = apiUrlOverride && apiUrlOverride.length > 0
   ? apiUrlOverride

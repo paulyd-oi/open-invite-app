@@ -25,7 +25,7 @@ import { devWarn } from "./devLog";
  *
  * @example
  * resolveImageUrl("/uploads/abc123.jpg")
- * // → "https://open-invite-api.onrender.com/uploads/abc123.jpg"
+ * // → "https://api.openinvite.cloud/uploads/abc123.jpg"
  *
  * resolveImageUrl("https://example.com/image.jpg")
  * // → "https://example.com/image.jpg"
