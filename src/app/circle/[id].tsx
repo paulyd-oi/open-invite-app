@@ -593,7 +593,7 @@ function MiniCalendar({
           const isMaskedBusy = event.isPrivate && event.userId !== currentUserId;
 
           if (__DEV__ && isMaskedBusy) {
-            devLog('[P0_BUSY_ROW]', { eventId: event.id, viewerIsOwner: false, masked: true });
+            devLog('[P0_BUSY_ROW]', { eventId: event.id, viewerIsOwner: event.userId === currentUserId, masked: true });
           }
 
           return (

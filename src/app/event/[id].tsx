@@ -67,6 +67,7 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { guardEmailVerification } from "@/lib/emailVerification";
+import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   type GetEventsResponse,
@@ -1609,9 +1610,11 @@ export default function EventDetailScreen() {
   }
 
   // [P0_BUSY_DETAIL_GUARD] Busy block: non-owner sees safe screen, no title leak, no "Add this person" CTA
-  if (isBusyBlock && !isMyEvent) {
+  // INV_BUSY_1 + INV_BUSY_3: shouldMaskEvent is the SSOT privacy predicate
+  const busyMasked = event ? shouldMaskEvent({ isBusy: event.isBusy, isWork: (event as any).isWork, isOwn: isMyEvent }, isMyEvent) : false;
+  if (isBusyBlock && busyMasked && !isMyEvent) {
     if (__DEV__) {
-      devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, viewerIsOwner: false, isBusy: true });
+      devLog('[P0_BUSY_DETAIL_GUARD]', { eventId: id, viewerIsOwner: isMyEvent, isBusy: true, masked: true });
     }
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
