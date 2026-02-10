@@ -203,37 +203,10 @@ export default function ProfileScreen() {
     queryClient,
   ]);
 
-  // Loading gate
-  if (
-    bootStatus === "loading" ||
-    bootStatus === "loggedOut" ||
-    bootStatus === "error" ||
-    bootStatus === "onboarding"
-  ) {
-    if (isTimedOut || bootStatus === "error") {
-      return (
-        <LoadingTimeoutUI
-          context="profile"
-          onRetry={handleRetry}
-          isRetrying={isRetrying}
-          showBottomNav={true}
-        />
-      );
-    }
+  // ═══ ALL HOOKS AND DERIVED VALUES MUST BE ABOVE THE LOADING GATE ═══
+  // React hook-count invariant: hooks cannot be skipped by early returns.
 
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View className="flex-1 items-center justify-center">
-          <Text style={{ color: colors.textSecondary }}>
-            Loading profile...
-          </Text>
-        </View>
-        <BottomNavigation />
-      </SafeAreaView>
-    );
-  }
-
-  // Safe derived values
+  // Safe derived values (harmless when queries return undefined during loading/logout)
   const friends = (friendsData?.friends ?? []).filter((f) => f.friend != null);
   const friendsCount = friends.length;
   const circlesCount = circlesData?.circles?.length ?? 0;
@@ -281,23 +254,6 @@ export default function ProfileScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEvents, session?.user?.id]);
 
-  // PROFILE_NEXT_MODE_INVARIANT: exactly one mode renders
-  const nextMode: "upcoming" | "pending" | "empty" = upcomingEvent
-    ? "upcoming"
-    : pendingInvites.length > 0
-    ? "pending"
-    : "empty";
-
-  // [P0_PROFILE_NEXT] DEV proof log
-  if (__DEV__) {
-    devLog("[P0_PROFILE_NEXT]", {
-      mode: nextMode,
-      hasUpcoming: !!upcomingEvent,
-      pendingCount: pendingInvites.length,
-      totalEvents: allEvents.length,
-    });
-  }
-
   // ── Recent Activity derivation (SSOT from existing events query) ──
   const recentActivity = useMemo(() => {
     const userId = session?.user?.id;
@@ -316,14 +272,6 @@ export default function ProfileScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEvents, session?.user?.id]);
 
-  // [P0_PROFILE_ACTIVITY] DEV proof log
-  if (__DEV__) {
-    devLog("[P0_PROFILE_ACTIVITY]", {
-      count: recentActivity.length,
-      source: "eventsData",
-    });
-  }
-
   // ── Share handler ──
   const handleShareProfile = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -338,6 +286,103 @@ export default function ProfileScreen() {
       // user cancelled
     }
   }, [userHandle, displayName]);
+
+  // ── YOUR WEEK derivation (SSOT from existing events query) ──
+  const weekEventsAll = useMemo(() => {
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return allEvents
+      .filter((e) => {
+        const start = new Date(e.startTime);
+        return start > now && start <= weekFromNow && e.userId === session?.user?.id;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEvents, session?.user?.id]);
+
+  // MOTION_STABILITY: mount-once guard — animations only fire on initial mount
+  const didMount = useRef(false);
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
+      if (__DEV__) devLog("[P3_PROFILE_ACTION_ROW_REMOVED]", true);
+      if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
+      if (__DEV__) devLog("[P3_PROFILE_RHYTHM]", { applied: true });
+    }
+  }, []);
+
+  // Share button press scale (P2 polish)
+  const shareScale = useSharedValue(1);
+  const shareAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shareScale.value }],
+  }));
+
+  // ═══ ALL HOOKS ABOVE — LOADING GATE BELOW ═══
+
+  // [P0_PROFILE_HOOK_GUARD] DEV proof log
+  if (__DEV__) {
+    const isAuthed = bootStatus === "authed";
+    devLog("[P0_PROFILE_HOOK_GUARD]", {
+      state: isAuthed ? "authed" : "loggedOut",
+      bootStatus,
+      hasSession: !!session?.user?.id,
+    });
+  }
+
+  // Loading gate
+  if (
+    bootStatus === "loading" ||
+    bootStatus === "loggedOut" ||
+    bootStatus === "error" ||
+    bootStatus === "onboarding"
+  ) {
+    if (isTimedOut || bootStatus === "error") {
+      return (
+        <LoadingTimeoutUI
+          context="profile"
+          onRetry={handleRetry}
+          isRetrying={isRetrying}
+          showBottomNav={true}
+        />
+      );
+    }
+
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center">
+          <Text style={{ color: colors.textSecondary }}>
+            Loading profile...
+          </Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
+    );
+  }
+
+  // PROFILE_NEXT_MODE_INVARIANT: exactly one mode renders
+  const nextMode: "upcoming" | "pending" | "empty" = upcomingEvent
+    ? "upcoming"
+    : pendingInvites.length > 0
+    ? "pending"
+    : "empty";
+
+  // [P0_PROFILE_NEXT] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_PROFILE_NEXT]", {
+      mode: nextMode,
+      hasUpcoming: !!upcomingEvent,
+      pendingCount: pendingInvites.length,
+      totalEvents: allEvents.length,
+    });
+  }
+
+  // [P0_PROFILE_ACTIVITY] DEV proof log
+  if (__DEV__) {
+    devLog("[P0_PROFILE_ACTIVITY]", {
+      count: recentActivity.length,
+      source: "eventsData",
+    });
+  }
 
   // ── Time formatting helper ──
   const formatRelativeTime = (date: Date) => {
@@ -359,18 +404,6 @@ export default function ProfileScreen() {
     return `${Math.floor(days / 7)}w ago`;
   };
 
-  // ── YOUR WEEK derivation (SSOT from existing events query) ──
-  const weekEventsAll = useMemo(() => {
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return allEvents
-      .filter((e) => {
-        const start = new Date(e.startTime);
-        return start > now && start <= weekFromNow && e.userId === session?.user?.id;
-      })
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allEvents, session?.user?.id]);
-
   const weekEventCount = weekEventsAll.length;
   const upcomingWeekEvents = weekEventsAll.slice(0, 3);
 
@@ -388,24 +421,6 @@ export default function ProfileScreen() {
   if (__DEV__) {
     devLog("[P2_PROFILE_EMPTY]", { rendered: emptyStates });
   }
-
-  // MOTION_STABILITY: mount-once guard — animations only fire on initial mount
-  const didMount = useRef(false);
-  useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
-      if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
-      if (__DEV__) devLog("[P3_PROFILE_ACTION_ROW_REMOVED]", true);
-      if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
-      if (__DEV__) devLog("[P3_PROFILE_RHYTHM]", { applied: true });
-    }
-  }, []);
-
-  // Share button press scale (P2 polish)
-  const shareScale = useSharedValue(1);
-  const shareAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: shareScale.value }],
-  }));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
