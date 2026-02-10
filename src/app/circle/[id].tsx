@@ -670,7 +670,7 @@ function MiniCalendar({
             const displayed = ranges.slice(0, MAX_DISPLAY).map(fmtRange);
             const extra = ranges.length - MAX_DISPLAY;
             return extra > 0
-              ? `${displayed.join(", ")} +${extra} more blocks`
+              ? `${displayed.join(", ")} +${extra} more ${extra === 1 ? "block" : "blocks"}`
               : displayed.join(", ");
           };
 
