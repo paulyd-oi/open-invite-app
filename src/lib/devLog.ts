@@ -33,6 +33,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_PRIVACY_BUSY]",
   "[P0_BLOCKED_EVENT]",
   "[P0_EVENT_QK]",
+  // P0 event color gate (host-only invariant)
+  "[P0_EVENT_COLOR_GATE]",
   // Session shape (but this one stays raw in authClient.ts)
   "[SESSION_SHAPE]",
   // Hard reset logging (critical for debugging auth issues)

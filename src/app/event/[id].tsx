@@ -3210,7 +3210,8 @@ export default function EventDetailScreen() {
                   </Pressable>
                 )}
 
-                {/* Block Color - available to everyone */}
+                {/* Block Color - host-only invariant [P0_EVENT_COLOR_GATE] */}
+                {isMyEvent && !isBusyBlock && (
                 <Pressable
                   className="flex-row items-center py-4"
                   style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
@@ -3236,6 +3237,7 @@ export default function EventDetailScreen() {
                     )}
                   </View>
                 </Pressable>
+                )}
 
                 {/* Cancel */}
                 <Pressable
@@ -3490,6 +3492,12 @@ export default function EventDetailScreen() {
                         key={color}
                         onPress={async () => {
                           if (!id) return;
+                          // Defense-in-depth: block non-host + busy [P0_EVENT_COLOR_GATE]
+                          if (!isMyEvent || isBusyBlock) {
+                            if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'blocked', { eventId: id, isMyEvent, isBusyBlock });
+                            return;
+                          }
+                          if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'allowed', { eventId: id, isMyEvent });
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           try {
                             await setOverrideColor(id, color);
@@ -3528,6 +3536,11 @@ export default function EventDetailScreen() {
                     label="Reset to Default"
                     onPress={async () => {
                       if (!id) return;
+                      // Defense-in-depth: block non-host + busy [P0_EVENT_COLOR_GATE]
+                      if (!isMyEvent || isBusyBlock) {
+                        if (__DEV__) devLog('[P0_EVENT_COLOR_GATE]', 'blocked_reset', { eventId: id, isMyEvent, isBusyBlock });
+                        return;
+                      }
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       try {
                         await resetColor(id);
