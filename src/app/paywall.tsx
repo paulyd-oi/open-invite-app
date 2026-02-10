@@ -140,7 +140,7 @@ export default function PaywallScreen() {
 
   const handlePurchase = async () => {
     if (!yearlyPackage) {
-      safeToast.error("Error", "Unable to load subscription. Please try again.");
+      safeToast.error("Load Failed", "Unable to load subscription. Please try again.");
       return;
     }
 
@@ -193,7 +193,7 @@ export default function PaywallScreen() {
         );
       }
     } else {
-      safeToast.error("Error", "Failed to restore purchases. Please try again.");
+      safeToast.error("Restore Failed", "Failed to restore purchases. Please try again.");
     }
 
     setIsPurchasing(false);

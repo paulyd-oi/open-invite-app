@@ -195,7 +195,7 @@ function ReferralCounterSection({
       queryClient.invalidateQueries({ queryKey: ["referralStats"] });
     } catch (error: any) {
       const message = error?.message || "Failed to apply referral code";
-      safeToast.error("Error", message);
+      safeToast.error("Referral Failed", message);
     } finally {
       setIsApplyingCode(false);
     }
@@ -931,7 +931,7 @@ export default function SettingsScreen() {
       if (__DEV__) {
         devError("[PRO_SOT] ERROR screen=settings", error);
       }
-      safeToast.error("Error", "Failed to refresh status. Please try again.");
+      safeToast.error("Refresh Failed", "Failed to refresh status. Please try again.");
     } finally {
       setIsRefreshingEntitlements(false);
     }
@@ -967,7 +967,7 @@ export default function SettingsScreen() {
       }
     } else {
       setIsRestoringPurchases(false);
-      safeToast.error("Error", result.error || "Failed to restore purchases. Please try again.");
+      safeToast.error("Restore Failed", result.error || "Failed to restore purchases. Please try again.");
     }
   };
 
@@ -1079,7 +1079,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["birthdays"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to update birthday settings");
+      safeToast.error("Save Failed", "Failed to update birthday settings");
     },
   });
 
@@ -1106,7 +1106,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to update work schedule");
+      safeToast.error("Save Failed", "Failed to update work schedule");
     },
   });
 
@@ -1118,7 +1118,7 @@ export default function SettingsScreen() {
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to update work settings");
+      safeToast.error("Save Failed", "Failed to update work settings");
     },
   });
 

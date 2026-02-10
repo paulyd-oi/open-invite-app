@@ -82,7 +82,7 @@ export default function LoginWithEmailPassword() {
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      safeToast.error("Error", "Please enter email and password");
+      safeToast.error("Missing Fields", "Please enter email and password");
       return;
     }
 
@@ -132,7 +132,7 @@ export default function LoginWithEmailPassword() {
 
   const handleSignUp = async () => {
     if (!email || !password || !name) {
-      safeToast.error("Error", "Please fill in all fields");
+      safeToast.error("Missing Fields", "Please fill in all fields");
       return;
     }
 
@@ -242,7 +242,7 @@ export default function LoginWithEmailPassword() {
 
   const handleResendCode = async () => {
     if (!email) {
-      safeToast.error("Error", "Please enter your email address");
+      safeToast.error("Missing Email", "Please enter your email address");
       return;
     }
 
@@ -275,7 +275,7 @@ export default function LoginWithEmailPassword() {
       codeInputRefs.current[0]?.focus();
     } catch (error: any) {
       const message = error?.message || "Unable to resend code.";
-      safeToast.error("Error", message);
+      safeToast.error("Resend Failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -283,7 +283,7 @@ export default function LoginWithEmailPassword() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      safeToast.error("Error", "Please enter your email address");
+      safeToast.error("Missing Email", "Please enter your email address");
       return;
     }
 
@@ -330,7 +330,7 @@ export default function LoginWithEmailPassword() {
       setResetEmailSent(true);
     } catch (error: any) {
       const message = error?.message || "Unable to connect to server. Please check your internet connection.";
-      safeToast.error("Error", message);
+      safeToast.error("Reset Failed", message);
     } finally {
       setIsLoading(false);
     }

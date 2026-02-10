@@ -102,7 +102,7 @@ export function EventPhotoGallery({
       setShowUploadModal(false);
     },
     onError: (error: any) => {
-      safeToast.error("Error", error?.message ?? "Failed to upload photo");
+      safeToast.error("Upload Failed", error?.message ?? "Failed to upload photo");
     },
   });
 
@@ -115,7 +115,7 @@ export function EventPhotoGallery({
       queryClient.invalidateQueries({ queryKey: eventKeys.photos(eventId) });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to delete photo");
+      safeToast.error("Delete Failed", "Failed to delete photo");
     },
   });
 
@@ -164,7 +164,7 @@ export function EventPhotoGallery({
       safeToast.success("Saved!", "Photo has been saved to your photo library.");
     } catch (error) {
       devError("Download error:", error);
-      safeToast.error("Error", "Failed to save photo. Please try again.");
+      safeToast.error("Save Failed", "Failed to save photo. Please try again.");
     } finally {
       setDownloading(false);
     }

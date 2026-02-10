@@ -142,7 +142,7 @@ export default function SubscriptionScreen() {
     const packageToPurchase = selectedPlan === "yearly" ? yearlyPackage : lifetimePackage;
 
     if (!packageToPurchase) {
-      safeToast.error("Error", "Unable to load subscription options. Please try again.");
+      safeToast.error("Load Failed", "Unable to load subscription options. Please try again.");
       return;
     }
 
@@ -203,7 +203,7 @@ export default function SubscriptionScreen() {
       }
     } else {
       setIsRestoring(false);
-      safeToast.error("Error", "Failed to restore purchases. Please try again.");
+      safeToast.error("Restore Failed", "Failed to restore purchases. Please try again.");
     }
   };
 
@@ -265,7 +265,7 @@ export default function SubscriptionScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMessage = error instanceof Error ? error.message : "Could not validate code.";
-      safeToast.error("Error", errorMessage);
+      safeToast.error("Redeem Failed", errorMessage);
     } finally {
       setIsPromoLoading(false);
     }

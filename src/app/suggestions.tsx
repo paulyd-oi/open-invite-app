@@ -355,7 +355,7 @@ export default function SuggestionsScreen() {
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to send friend request");
+      safeToast.error("Request Failed", "Failed to send friend request");
     },
   });
 
@@ -408,7 +408,7 @@ export default function SuggestionsScreen() {
       setShowContactsModal(true);
     } catch (error) {
       devError("Error loading contacts:", error);
-      safeToast.error("Error", "Failed to load contacts");
+      safeToast.error("Contacts Failed", "Failed to load contacts");
     } finally {
       setContactsLoading(false);
     }

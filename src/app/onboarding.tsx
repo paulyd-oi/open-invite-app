@@ -726,7 +726,7 @@ export default function OnboardingScreen() {
       setContactsSynced(true);
     } catch (error) {
       devError("Error loading contacts:", error);
-      safeToast.error("Error", "Failed to load contacts");
+      safeToast.error("Contacts Failed", "Failed to load contacts");
     }
     setContactsLoading(false);
   };

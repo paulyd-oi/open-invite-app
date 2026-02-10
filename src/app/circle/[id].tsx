@@ -1843,7 +1843,7 @@ export default function CircleScreen() {
           devLog("[P1_MSG_DELIVERY]", `failed ${context.optimisticId}`);
         }
       }
-      safeToast.error("Error", "Message failed to send. Tap to retry.");
+      safeToast.error("Message Failed", "Message failed to send. Tap to retry.");
     },
   });
 
@@ -1868,7 +1868,7 @@ export default function CircleScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to add members. Please try again.");
+      safeToast.error("Add Members Failed", "Failed to add members. Please try again.");
     },
   });
 
@@ -1912,7 +1912,7 @@ export default function CircleScreen() {
       } else if (error?.status === 400) {
         safeToast.error("Cannot Remove", "The host cannot be removed from the circle.");
       } else {
-        safeToast.error("Error", "Failed to remove member. Please try again.");
+        safeToast.error("Remove Failed", "Failed to remove member. Please try again.");
       }
       setSelectedMemberToRemove(null);
     },
@@ -1936,7 +1936,7 @@ export default function CircleScreen() {
       if (error?.status === 403) {
         safeToast.error("Not Allowed", "Only the host can edit this.");
       } else {
-        safeToast.error("Error", "Failed to update. Please try again.");
+        safeToast.error("Update Failed", "Failed to update. Please try again.");
       }
     },
   });
@@ -2435,7 +2435,7 @@ export default function CircleScreen() {
       if (context?.prev) {
         queryClient.setQueryData(circleKeys.notificationLevel(id!), context.prev);
       }
-      safeToast.error("Error", "Failed to update notifications");
+      safeToast.error("Update Failed", "Failed to update notifications");
       if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "save_error", { level: _level });
     },
     onSuccess: (_data, level) => {
@@ -2482,7 +2482,7 @@ export default function CircleScreen() {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(circleKeys.planLock(id!), context.prev);
       }
-      safeToast.error("Error", "Could not update plan lock");
+      safeToast.error("Update Failed", "Could not update plan lock");
     },
   });
 
@@ -2566,7 +2566,7 @@ export default function CircleScreen() {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(circleKeys.polls(id!), context.prev);
       }
-      safeToast.error("Error", "Could not submit vote");
+      safeToast.error("Vote Failed", "Could not submit vote");
       if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_error", { error: String(_err) });
     },
   });
@@ -3233,7 +3233,7 @@ export default function CircleScreen() {
                 await Clipboard.setStringAsync(item.content);
                 safeToast.success("Copied", "Message text copied");
                 if (__DEV__) devLog("[P1_MSG_ACTIONS]", "copy", { id: item.id });
-              } catch { safeToast.error("Error", "Could not copy text"); }
+              } catch { safeToast.error("Copy Failed", "Could not copy text"); }
             };
 
             const handleRetry = () => {
@@ -3509,7 +3509,7 @@ export default function CircleScreen() {
               onPress={() => {
                 const cmi = latestFailed.clientMessageId;
                 if (!cmi) {
-                  safeToast.error("Error", "Cannot retry this message");
+                  safeToast.error("Retry Failed", "Cannot retry this message");
                   return;
                 }
                 if (__DEV__) devLog("[P1_CHAT_SEND_UI]", "retry_from_banner", { failedId: latestFailed.id, clientMessageId: cmi });
@@ -4017,7 +4017,7 @@ export default function CircleScreen() {
                   setShowPlanLockSheet(false);
                 } catch (e: any) {
                   if (__DEV__) devLog("[P1_LOCK_POLISH]", "unlock_error", { status: e?.status ?? "unknown" });
-                  safeToast.error("Error", "Failed to unlock plan");
+                  safeToast.error("Unlock Failed", "Failed to unlock plan");
                 }
               }}
               style={{
@@ -4143,7 +4143,7 @@ export default function CircleScreen() {
                   } catch (e: any) {
                     if (__DEV__) devLog("[P1_POLL_LOCK_BRIDGE]", "bridge_error", { status: e?.status ?? "unknown" });
                     if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "bridge_lock_error", { status: e?.status ?? "unknown" });
-                    safeToast.error("Error", "Failed to lock plan");
+                    safeToast.error("Lock Failed", "Failed to lock plan");
                   }
                 }}
                 style={{ borderRadius: RADIUS.md }}
@@ -4542,7 +4542,7 @@ export default function CircleScreen() {
                           queryClient.invalidateQueries({ queryKey: circleKeys.all() });
                         } catch (error: any) {
                           if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
-                          safeToast.error("Error", "Failed to remove photo.");
+                          safeToast.error("Remove Failed", "Failed to remove photo.");
                         }
                         setSettingsSheetView("settings");
                       }}
@@ -4742,7 +4742,7 @@ export default function CircleScreen() {
                                   const targetUserId = member.userId;
                                   if (!targetUserId) {
                                     devError('[CircleRemoveMember] ERROR: No userId found for member');
-                                    safeToast.error("Error", "Unable to identify member. Please try again.");
+                                    safeToast.error("Member Not Found", "Unable to identify member. Please try again.");
                                     return;
                                   }
                                   setShowMembersSheet(false);
@@ -5072,7 +5072,7 @@ export default function CircleScreen() {
                 onPress={() => {
                   const trimmed = editDraftContent.trim();
                   if (!trimmed) {
-                    safeToast.error("Error", "Message cannot be empty");
+                    safeToast.error("Message Empty", "Message cannot be empty");
                     return;
                   }
                   setEditedContentByStableId((prev) => ({ ...prev, [editTargetId]: { content: trimmed, editedAt: Date.now() } }));

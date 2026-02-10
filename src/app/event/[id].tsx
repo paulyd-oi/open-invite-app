@@ -1451,7 +1451,7 @@ export default function EventDetailScreen() {
         safeToast.warning("Slow down", "You're reporting too quickly. Try again later.");
       } else {
         if (__DEV__) devError("[P0_REPORT_EVENT_ERR]", { eventId: event.id, message: error?.message ?? "unknown" });
-        safeToast.error("Error", "Could not submit report. Please try again.");
+        safeToast.error("Report Failed", "Could not submit report. Please try again.");
       }
     } finally {
       setIsSubmittingReport(false);
@@ -3503,7 +3503,7 @@ export default function EventDetailScreen() {
                               devLog("[EventColorPicker] Color set:", { eventId: id, color });
                             }
                           } catch (error) {
-                            safeToast.error("Error", "Failed to save color");
+                            safeToast.error("Save Failed", "Failed to save color");
                           }
                         }}
                         style={{
@@ -3546,7 +3546,7 @@ export default function EventDetailScreen() {
                           devLog("[EventColorPicker] Color reset to default:", { eventId: id });
                         }
                       } catch (error) {
-                        safeToast.error("Error", "Failed to reset color");
+                        safeToast.error("Save Failed", "Failed to reset color");
                       }
                     }}
                     style={{ borderRadius: RADIUS.md }}

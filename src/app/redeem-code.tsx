@@ -129,7 +129,7 @@ export default function RedeemCodeScreen() {
       } else if (error?.status === 400) {
         safeToast.error("Invalid Code", errorMessage);
       } else {
-        safeToast.error("Error", errorMessage);
+        safeToast.error("Redeem Failed", errorMessage);
       }
     } finally {
       setIsSubmitting(false);

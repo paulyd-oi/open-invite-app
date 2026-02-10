@@ -117,7 +117,7 @@ export function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
       triggerVerificationCooldown();
       safeToast.success("Email Sent", "Check your inbox for the verification email.");
     } catch (error) {
-      safeToast.error("Error", "Failed to send verification email. Please try again.");
+      safeToast.error("Verification Failed", "Failed to send verification email. Please try again.");
     } finally {
       setIsLoading(false);
     }

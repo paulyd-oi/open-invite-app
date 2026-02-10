@@ -72,7 +72,7 @@ export async function resendVerificationEmail(
         safeToast.warning("Please Wait", "Try again in a few minutes.");
       } else {
         devWarn("[resendVerification] error", errorMessage);
-        safeToast.error("Error", errorMessage);
+        safeToast.error("Verification Failed", errorMessage);
       }
 
       onError?.(errorMessage);

@@ -1384,7 +1384,7 @@ export default function CalendarScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Failed to create busy block");
+      safeToast.error("Create Failed", "Failed to create busy block");
     },
   });
 

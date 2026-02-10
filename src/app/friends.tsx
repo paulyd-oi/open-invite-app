@@ -981,7 +981,7 @@ export default function FriendsScreen() {
       }
     },
     onError: () => {
-      safeToast.error("Error", "Failed to send friend request");
+      safeToast.error("Request Failed", "Failed to send friend request");
     },
   });
 
@@ -1069,7 +1069,7 @@ export default function FriendsScreen() {
       setShowContactsModal(true);
     } catch (error) {
       devError("Error loading contacts:", error);
-      safeToast.error("Error", "Failed to load contacts");
+      safeToast.error("Contacts Failed", "Failed to load contacts");
     }
     setContactsLoading(false);
   };
@@ -1188,7 +1188,7 @@ export default function FriendsScreen() {
       setShowCreateCircle(false);
     },
     onError: () => {
-      safeToast.error("Error", "Failed to create circle");
+      safeToast.error("Create Failed", "Failed to create circle");
     },
   });
 

@@ -567,7 +567,7 @@ export default function UserProfileScreen() {
       refetchNotes();
     },
     onError: (error: any) => {
-      safeToast.error("Error", error?.message || "Failed to add note");
+      safeToast.error("Save Failed", error?.message || "Failed to add note");
     },
   });
 
@@ -580,7 +580,7 @@ export default function UserProfileScreen() {
       refetchNotes();
     },
     onError: (error: any) => {
-      safeToast.error("Error", error?.message || "Failed to delete note");
+      safeToast.error("Delete Failed", error?.message || "Failed to delete note");
     },
   });
 
@@ -597,7 +597,7 @@ export default function UserProfileScreen() {
       router.replace("/friends" as any);
     },
     onError: () => {
-      safeToast.error("Error", "Failed to unfriend");
+      safeToast.error("Unfriend Failed", "Failed to unfriend");
     },
   });
 

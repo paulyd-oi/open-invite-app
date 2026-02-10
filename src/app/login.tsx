@@ -145,7 +145,7 @@ export default function LoginScreen() {
   const handleSignIn = async () => {
     if (!email || !password) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error("Error", "Please enter email and password");
+      safeToast.error("Missing Fields", "Please enter email and password");
       return;
     }
 
@@ -186,7 +186,7 @@ export default function LoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      safeToast.error("Error", "Please enter your email address");
+      safeToast.error("Missing Email", "Please enter your email address");
       return;
     }
 
@@ -231,7 +231,7 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setResetEmailSent(true);
     } catch (error: any) {
-      safeToast.error("Error", error?.message || "Unable to send reset email.");
+      safeToast.error("Reset Failed", error?.message || "Unable to send reset email.");
     } finally {
       setIsLoading(false);
     }

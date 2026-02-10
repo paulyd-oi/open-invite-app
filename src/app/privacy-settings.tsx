@@ -84,7 +84,7 @@ export default function PrivacySettingsScreen() {
       safeToast.success("Settings Updated", "Your privacy settings have been saved.");
     },
     onError: () => {
-      safeToast.error("Error", "Failed to update settings. Please try again.");
+      safeToast.error("Save Failed", "Failed to update settings. Please try again.");
     },
   });
 
@@ -135,7 +135,7 @@ export default function PrivacySettingsScreen() {
       await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
     },
     onError: () => {
-      safeToast.error("Error", "Failed to delete account. Please try again.");
+      safeToast.error("Delete Failed", "Failed to delete account. Please try again.");
     },
   });
 
