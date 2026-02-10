@@ -87,7 +87,6 @@ import {
   type SuggestedHoursPreset,
   getSuggestedHoursForPreset,
   isOvernightWindow,
-  filterSlotsToSuggestedHours,
   rankSlotsForPreset,
   loadSuggestedHoursPreset,
   saveSuggestedHoursPreset,
@@ -341,18 +340,6 @@ function MiniCalendar({
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
-  // Per-day dot indicators: days that have ≥1 slot within suggested hours
-  const daysWithSuggestedSlots = useMemo(() => {
-    const set = new Set<string>();
-    if (!scheduleResult) return set;
-    const window = getSuggestedHoursForPreset(quietPreset);
-    const filtered = filterSlotsToSuggestedHours(scheduleResult.topSlots, window);
-    for (const slot of filtered) {
-      set.add(new Date(slot.start).toDateString());
-    }
-    return set;
-  }, [scheduleResult, quietPreset]);
-
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
 
@@ -565,7 +552,6 @@ function MiniCalendar({
               const isSelected = d.toDateString() === bestTimesDate.toDateString();
               const dayAbbr = d.toLocaleDateString("en-US", { weekday: "short" });
               const dayNum = d.getDate();
-              const hasSuggestedSlot = daysWithSuggestedSlots.has(d.toDateString());
               return (
                 <Pressable
                   key={i}
@@ -589,9 +575,6 @@ function MiniCalendar({
                 >
                   <Text style={{ fontSize: 10, fontWeight: "500", color: isSelected ? themeColor : colors.textTertiary }}>{dayAbbr}</Text>
                   <Text style={{ fontSize: 12, fontWeight: isSelected ? "700" : "500", color: isSelected ? themeColor : colors.text }}>{dayNum}</Text>
-                  {hasSuggestedSlot && (
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: isSelected ? themeColor : "#10B981", marginTop: 2 }} />
-                  )}
                 </Pressable>
               );
             })}
