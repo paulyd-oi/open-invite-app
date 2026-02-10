@@ -1241,7 +1241,7 @@ export default function CircleScreen() {
   }, [selectedMemberToRemove]);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionText, setDescriptionText] = useState("");
-  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [settingsSheetView, setSettingsSheetView] = useState<"settings" | "photo">("settings");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<Array<{
     newMemberName: string;
@@ -1773,8 +1773,16 @@ export default function CircleScreen() {
     if (__DEV__ && showGroupSettings) {
       const capPx = Math.round(Dimensions.get("window").height * 0.85);
       devLog("[P0_SHEET_PRIMITIVE_GROUP_SETTINGS] open", { maxHeightPct: 0.85, capPx });
+      devLog("[CIRCLE_SETTINGS_SHEET] view=settings");
     }
   }, [showGroupSettings]);
+
+  // [CIRCLE_SETTINGS_SHEET] proof log – view mode switching
+  useEffect(() => {
+    if (__DEV__ && showGroupSettings && settingsSheetView === "photo") {
+      devLog("[CIRCLE_SETTINGS_SHEET] view=photo");
+    }
+  }, [settingsSheetView, showGroupSettings]);
 
   const isHost = circle?.createdById === session?.user?.id;
 
@@ -3827,7 +3835,7 @@ export default function CircleScreen() {
       {/* Circle Settings (uses shared BottomSheet) */}
       <BottomSheet
         visible={showGroupSettings}
-        onClose={() => setShowGroupSettings(false)}
+        onClose={() => { setShowGroupSettings(false); setSettingsSheetView("settings"); }}
         heightPct={0}
         maxHeightPct={0.85}
         backdropOpacity={0.5}
@@ -3845,6 +3853,7 @@ export default function CircleScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
+              {settingsSheetView === "settings" && (<>
               {/* Circle Info */}
               <View style={{ paddingHorizontal: 20, paddingVertical: 16, flexDirection: "row", alignItems: "center" }}>
                 <View
@@ -3947,7 +3956,7 @@ export default function CircleScreen() {
                 {/* Circle Photo (host only) */}
                 {isHost && (
                   <Pressable
-                    onPress={() => setShowPhotoSheet(true)}
+                    onPress={() => setSettingsSheetView("photo")}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -4099,119 +4108,118 @@ export default function CircleScreen() {
                   </View>
                 </Pressable>
               </View>
+              </>)}
+
+              {/* Photo actions view (inside same sheet) */}
+              {settingsSheetView === "photo" && (
+                <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                  <View style={{ paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: 4 }}>
+                    <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text, textAlign: "center" }}>Circle Photo</Text>
+                  </View>
+                  <Pressable
+                    onPress={async () => {
+                      if (uploadingPhoto) return;
+                      setShowGroupSettings(false);
+                      setSettingsSheetView("settings");
+                      // Wait for sheet dismiss animation to complete before opening picker
+                      // Prevents iOS gesture/touch blocker overlay freeze
+                      await new Promise(r => setTimeout(r, 300));
+                      try {
+                        if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_START]');
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== "granted") {
+                          safeToast.warning("Permission Required", "Please allow access to your photos.");
+                          return;
+                        }
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ["images"],
+                          allowsEditing: true,
+                          aspect: [1, 1],
+                          quality: 0.8,
+                        });
+                        if (result.canceled || !result.assets?.[0]) {
+                          if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_CANCEL]');
+                          return;
+                        }
+                        if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
+
+                        setUploadingPhoto(true);
+                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
+                        if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
+                        await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        safeToast.success("Saved", "Circle photo updated");
+                        queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+                        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+                      } catch (error: any) {
+                        if (__DEV__) devError("[CIRCLE_PHOTO]", "upload failed", error);
+                        safeToast.error("Upload Failed", error?.message || "Please try again.");
+                      } finally {
+                        setUploadingPhoto(false);
+                      }
+                    }}
+                    disabled={uploadingPhoto}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                      opacity: uploadingPhoto ? 0.5 : 1,
+                    }}
+                  >
+                    <Camera size={22} color={themeColor} />
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text, marginLeft: 16, flex: 1 }}>
+                      {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                    </Text>
+                  </Pressable>
+
+                  {circle?.photoUrl && (
+                    <Pressable
+                      onPress={async () => {
+                        try {
+                          await api.put(`/api/circles/${id}`, { photoUrl: null, photoPublicId: null });
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                          safeToast.success("Removed", "Circle photo removed");
+                          queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+                          queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+                        } catch (error: any) {
+                          if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
+                          safeToast.error("Error", "Failed to remove photo.");
+                        }
+                        setSettingsSheetView("settings");
+                      }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 16,
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <X size={22} color="#FF3B30" />
+                      <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30", marginLeft: 16, flex: 1 }}>
+                        Remove Photo
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    onPress={() => setSettingsSheetView("settings")}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 16,
+                    }}
+                  >
+                    <ChevronLeft size={20} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary, marginLeft: 8 }}>
+                      Back
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
               </ScrollView>
-      </BottomSheet>
-
-      {/* Circle Photo Picker Sheet */}
-      <BottomSheet
-        visible={showPhotoSheet}
-        onClose={() => setShowPhotoSheet(false)}
-        heightPct={0}
-        maxHeightPct={0.35}
-        backdropOpacity={0.5}
-        title="Circle Photo"
-      >
-        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
-          <Pressable
-            onPress={async () => {
-              if (uploadingPhoto) return;
-              setShowPhotoSheet(false);
-              // Wait for sheet dismiss animation to complete before opening picker
-              // Prevents iOS gesture/touch blocker overlay freeze
-              await new Promise(r => setTimeout(r, 300));
-              try {
-                if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_START]');
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== "granted") {
-                  safeToast.warning("Permission Required", "Please allow access to your photos.");
-                  return;
-                }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ["images"],
-                  allowsEditing: true,
-                  aspect: [1, 1],
-                  quality: 0.8,
-                });
-                if (result.canceled || !result.assets?.[0]) {
-                  if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_CANCEL]');
-                  return;
-                }
-                if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
-
-                setUploadingPhoto(true);
-                const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
-                if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
-                await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                safeToast.success("Saved", "Circle photo updated");
-                queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
-                queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-              } catch (error: any) {
-                if (__DEV__) devError("[CIRCLE_PHOTO]", "upload failed", error);
-                safeToast.error("Upload Failed", error?.message || "Please try again.");
-              } finally {
-                setUploadingPhoto(false);
-              }
-            }}
-            disabled={uploadingPhoto}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 16,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border,
-              opacity: uploadingPhoto ? 0.5 : 1,
-            }}
-          >
-            <Camera size={22} color={themeColor} />
-            <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text, marginLeft: 16, flex: 1 }}>
-              {uploadingPhoto ? "Uploading..." : "Upload Photo"}
-            </Text>
-          </Pressable>
-
-          {circle?.photoUrl && (
-            <Pressable
-              onPress={async () => {
-                setShowPhotoSheet(false);
-                try {
-                  await api.put(`/api/circles/${id}`, { photoUrl: null, photoPublicId: null });
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  safeToast.success("Removed", "Circle photo removed");
-                  queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
-                  queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-                } catch (error: any) {
-                  if (__DEV__) devError("[CIRCLE_PHOTO]", "remove failed", error);
-                  safeToast.error("Error", "Failed to remove photo.");
-                }
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-              }}
-            >
-              <X size={22} color="#FF3B30" />
-              <Text style={{ fontSize: 16, fontWeight: "500", color: "#FF3B30", marginLeft: 16, flex: 1 }}>
-                Remove Photo
-              </Text>
-            </Pressable>
-          )}
-
-          <Pressable
-            onPress={() => setShowPhotoSheet(false)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 16,
-            }}
-          >
-            <Text style={{ fontSize: 16, fontWeight: "500", color: colors.textSecondary, marginLeft: 38 }}>
-              Cancel
-            </Text>
-          </Pressable>
-        </View>
       </BottomSheet>
 
       {/* [P1_NOTIFY_LEVEL_UI] Notification Level Sheet */}
