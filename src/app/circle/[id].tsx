@@ -1152,7 +1152,7 @@ function MiniCalendar({
                           height: 10,
                           borderRadius: 5,
                           marginRight: 8,
-                          backgroundColor: event.color
+                          backgroundColor: event.color || themeColor
                         }}
                       />
                       <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
@@ -4625,13 +4625,13 @@ export default function CircleScreen() {
                 backgroundColor: colors.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
-                height: Dimensions.get('window').height * 0.85,
-                maxHeight: Dimensions.get('window').height * 0.92,
+                height: Dimensions.get('window').height * 0.92,
+                maxHeight: Dimensions.get('window').height * 0.95,
                 overflow: "hidden",
               }}
               onLayout={__DEV__ ? (e) => {
                 const { height: sheetH } = e.nativeEvent.layout;
-                devLog('[P1_MEMBERS_LAYOUT] sheet onLayout', { sheetHeight: Math.round(sheetH), windowHeight: Math.round(Dimensions.get('window').height), bottomInset: insets.bottom });
+                devLog('[P0_MEMBERS_SHEET]', 'sheet_open', { sheetHeight: Math.round(sheetH), windowHeight: Math.round(Dimensions.get('window').height), bottomInset: insets.bottom, sheetPct: '92%', maxPct: '95%' });
               } : undefined}
             >
               {/* Modal Handle */}
@@ -4658,7 +4658,7 @@ export default function CircleScreen() {
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(40, insets.bottom + 16) }}
                 onContentSizeChange={__DEV__ ? (_w, h) => {
-                  devLog('[P1_MEMBERS_LAYOUT] scroll contentSize', { contentHeight: Math.round(h) });
+                  devLog('[P0_MEMBERS_SHEET]', 'scroll_content_size', { contentHeight: Math.round(h), membersCount: members.length, availableFriendsCount: availableFriends.length });
                 } : undefined}
               >
                 {/* Members List — SSOT via UserRow */}
@@ -4735,10 +4735,10 @@ export default function CircleScreen() {
                   <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginBottom: 12 }}>Add Members</Text>
 
                   {availableFriends.length > 0 ? (
-                    <ScrollView
-                      style={{ maxHeight: 300 }}
-                      contentContainerStyle={{ paddingBottom: 8 }}
-                      showsVerticalScrollIndicator={false}
+                    <View
+                      onLayout={__DEV__ ? (e) => {
+                        devLog('[P0_MEMBERS_SHEET]', 'add_members_list_layout', { listHeight: Math.round(e.nativeEvent.layout.height), friendCount: availableFriends.length });
+                      } : undefined}
                     >
                       {__DEV__ && availableFriends.length > 0 && once('P0_USERROW_SHEET_SOT_circle_add') && void devLog('[P0_USERROW_SHEET_SOT]', { screen: 'circle_add_members_sheet', showChevron: false, usesPressedState: true, rowsSampled: availableFriends.length })}
                       {availableFriends.map((friend) => {
@@ -4782,7 +4782,7 @@ export default function CircleScreen() {
                           </Animated.View>
                         );
                       })}
-                    </ScrollView>
+                    </View>
                   ) : (
                     <Text style={{ fontSize: 13, color: colors.textSecondary }}>No more friends to add</Text>
                   )}
