@@ -135,6 +135,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_MEDIA_IDENTITY]",
   // P0 auth/onboarding jitter stabilization proof
   "[P0_AUTH_JITTER]",
+  // P0 modal transition guard proof
+  "[P0_MODAL_GUARD]",
 ];
 
 /**

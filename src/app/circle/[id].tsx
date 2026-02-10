@@ -3093,10 +3093,16 @@ export default function CircleScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setActivePollIdx(pIdx);
+                // [P0_MODAL_GUARD] Close other sheets FIRST, then open poll
+                // after a short delay. Two simultaneous Modals freeze iOS touch handling.
+                if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "poll_strip", to: "poll", ms: 350 });
                 setShowNotifySheet(false);
                 setShowPlanLockSheet(false);
-                setShowPollSheet(true);
-                if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
+                setTimeout(() => {
+                  setShowPollSheet(true);
+                  if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "poll_strip", to: "poll", ms: 350 });
+                  if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "poll", pollIdx: pIdx });
+                }, 350);
               }}
               style={{
                 paddingVertical: 10,
@@ -4318,8 +4324,14 @@ export default function CircleScreen() {
                 {/* Members List */}
                 <Pressable
                   onPress={() => {
+                    // [P0_MODAL_GUARD] Close settings FIRST, then open members
+                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
+                    if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "settings", to: "members", ms: 350 });
                     setShowGroupSettings(false);
-                    setShowMembersSheet(true);
+                    setTimeout(() => {
+                      setShowMembersSheet(true);
+                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "settings", to: "members", ms: 350 });
+                    }, 350);
                   }}
                   style={{
                     flexDirection: "row",

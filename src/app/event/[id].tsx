@@ -3205,9 +3205,15 @@ export default function EventDetailScreen() {
                   className="flex-row items-center py-4"
                   style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
                   onPress={() => {
+                    // [P0_MODAL_GUARD] Close actions sheet FIRST, then open color picker
+                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
+                    if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_start", { from: "event_actions", to: "color", ms: 350 });
                     setShowEventActionsSheet(false);
                     Haptics.selectionAsync();
-                    setShowColorPicker(true);
+                    setTimeout(() => {
+                      setShowColorPicker(true);
+                      if (__DEV__) devLog("[P0_MODAL_GUARD]", "transition_open_child", { from: "event_actions", to: "color", ms: 350 });
+                    }, 350);
                   }}
                 >
                   <View
