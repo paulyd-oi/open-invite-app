@@ -1,7 +1,9 @@
 /**
- * Quiet Hours SSOT — src/lib/quietHours.ts
+ * Suggested Hours SSOT — src/lib/quietHours.ts
  *
- * Canonical module for quiet-hours filtering and social slot scoring.
+ * Canonical module for suggested-hours filtering and social slot scoring.
+ * "Suggested hours" = the allowed scheduling window shown to users.
+ * "Quiet hours" = the inverse (outside the window) — hidden from suggestions.
  * All scheduling UI reads presets, filters, and scores through this file.
  *
  * INV: computeSchedule engine is NEVER modified here — we only post-filter.
@@ -14,14 +16,16 @@ import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 // A) Presets
 // ---------------------------------------------------------------------------
 
-export type QuietHoursPreset = "early_bird" | "default" | "night_owl" | "late_late";
+export type SuggestedHoursPreset = "early_bird" | "default" | "night_owl" | "late_late";
+/** @deprecated Use SuggestedHoursPreset — kept for call-site compat during migration */
+export type QuietHoursPreset = SuggestedHoursPreset;
 
-export interface QuietHoursWindow {
+export interface SuggestedHoursWindow {
   startHour: number; // 0-23  (local)
   endHour: number;   // 5-26  (>24 = crosses midnight into next day)
 }
 
-const PRESET_MAP: Record<QuietHoursPreset, QuietHoursWindow> = {
+const PRESET_MAP: Record<SuggestedHoursPreset, SuggestedHoursWindow> = {
   early_bird: { startHour: 5, endHour: 21 },
   default:    { startHour: 5, endHour: 22 },
   night_owl:  { startHour: 7, endHour: 24 },
@@ -30,60 +34,67 @@ const PRESET_MAP: Record<QuietHoursPreset, QuietHoursWindow> = {
   late_late:  { startHour: 9, endHour: 24 },
 };
 
-export const PRESET_LABELS: Record<QuietHoursPreset, { label: string; range: string }> = {
+export const PRESET_LABELS: Record<SuggestedHoursPreset, { label: string; range: string }> = {
   early_bird: { label: "Early bird",  range: "5:00 AM \u2013 9:00 PM" },
   default:    { label: "Default",     range: "5:00 AM \u2013 10:00 PM" },
   night_owl:  { label: "Night owl",   range: "7:00 AM \u2013 12:00 AM" },
   late_late:  { label: "Late late",   range: "9:00 AM \u2013 12:00 AM" },
 };
 
-export const ALL_PRESETS: QuietHoursPreset[] = ["early_bird", "default", "night_owl", "late_late"];
+export const ALL_PRESETS: SuggestedHoursPreset[] = ["early_bird", "default", "night_owl", "late_late"];
 
-export function getQuietHoursForPreset(preset: QuietHoursPreset): QuietHoursWindow {
+export function getSuggestedHoursForPreset(preset: SuggestedHoursPreset): SuggestedHoursWindow {
   return PRESET_MAP[preset] ?? PRESET_MAP.default;
 }
+/** @deprecated Use getSuggestedHoursForPreset */
+export const getQuietHoursForPreset = getSuggestedHoursForPreset;
 
 // ---------------------------------------------------------------------------
 // B) Persistence
 // ---------------------------------------------------------------------------
 
+// Legacy-named key — kept stable for V1 so existing users retain their preference.
 const STORAGE_KEY = "oi_quiet_hours_preset_v1";
 
-export async function loadQuietHoursPreset(): Promise<QuietHoursPreset> {
+export async function loadSuggestedHoursPreset(): Promise<SuggestedHoursPreset> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw && ALL_PRESETS.includes(raw as QuietHoursPreset)) {
-      return raw as QuietHoursPreset;
+    if (raw && ALL_PRESETS.includes(raw as SuggestedHoursPreset)) {
+      return raw as SuggestedHoursPreset;
     }
   } catch {
     // Silently fall back to default — storage read failure is non-fatal
   }
   return "default";
 }
+/** @deprecated Use loadSuggestedHoursPreset */
+export const loadQuietHoursPreset = loadSuggestedHoursPreset;
 
-export async function saveQuietHoursPreset(preset: QuietHoursPreset): Promise<void> {
+export async function saveSuggestedHoursPreset(preset: SuggestedHoursPreset): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, preset);
   } catch {
     // Silently ignore — persistence failure is non-fatal
   }
 }
+/** @deprecated Use saveSuggestedHoursPreset */
+export const saveQuietHoursPreset = saveSuggestedHoursPreset;
 
 // ---------------------------------------------------------------------------
 // C) Slot filtering (clamp)
 // ---------------------------------------------------------------------------
 
 /**
- * Filter slots to those fully within the quiet-hours window.
+ * Filter slots to those fully within the suggested-hours window.
  * A slot passes if its LOCAL start hour:minute >= startHour:00
  * AND its LOCAL end hour:minute <= endHour:00.
  *
  * For endHour == 24, we treat it as 00:00 next day (1440 minutes).
  * For endHour > 24 (V2 cross-midnight), currently clamped to 24 in PRESET_MAP.
  */
-export function filterSlotsToQuietHours(
+export function filterSlotsToSuggestedHours(
   slots: SchedulingSlotResult[],
-  window: QuietHoursWindow,
+  window: SuggestedHoursWindow,
 ): SchedulingSlotResult[] {
   const startMin = window.startHour * 60;
   // endHour 24 → 1440 minutes, which matches a slot ending at exactly midnight (00:00 next day = 24*60)
@@ -116,7 +127,7 @@ export function filterSlotsToQuietHours(
  */
 export function scoreSlotSocial(
   slot: SchedulingSlotResult,
-  preset: QuietHoursPreset,
+  preset: SuggestedHoursPreset,
 ): number {
   const slotDate = new Date(slot.start);
   const hour = slotDate.getHours();
@@ -156,14 +167,14 @@ export function scoreSlotSocial(
 }
 
 /**
- * Filter + sort slots by quiet hours + social score.
+ * Filter + sort slots by suggested hours + social score.
  * Returns a new array (does not mutate).
  */
 export function rankSlotsForPreset(
   slots: SchedulingSlotResult[],
-  preset: QuietHoursPreset,
+  preset: SuggestedHoursPreset,
 ): SchedulingSlotResult[] {
-  const window = getQuietHoursForPreset(preset);
-  const filtered = filterSlotsToQuietHours(slots, window);
+  const window = getSuggestedHoursForPreset(preset);
+  const filtered = filterSlotsToSuggestedHours(slots, window);
   return [...filtered].sort((a, b) => scoreSlotSocial(b, preset) - scoreSlotSocial(a, preset));
 }

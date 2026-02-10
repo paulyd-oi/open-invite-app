@@ -84,11 +84,11 @@ import { computeSchedule } from "@/lib/scheduling/engine";
 import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
 import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import {
-  type QuietHoursPreset,
-  getQuietHoursForPreset,
+  type SuggestedHoursPreset,
+  getSuggestedHoursForPreset,
   rankSlotsForPreset,
-  loadQuietHoursPreset,
-  saveQuietHoursPreset,
+  loadSuggestedHoursPreset,
+  saveSuggestedHoursPreset,
   PRESET_LABELS,
   ALL_PRESETS,
 } from "@/lib/quietHours";
@@ -158,12 +158,12 @@ function MiniCalendar({
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const [quietPreset, setQuietPreset] = useState<QuietHoursPreset>("default");
+  const [quietPreset, setQuietPreset] = useState<SuggestedHoursPreset>("default");
   const [showPresetPicker, setShowPresetPicker] = useState(false);
 
-  // Load persisted quiet-hours preset on mount
+  // Load persisted suggested-hours preset on mount
   useEffect(() => {
-    loadQuietHoursPreset().then((p) => setQuietPreset(p));
+    loadSuggestedHoursPreset().then((p) => setQuietPreset(p));
   }, []);
 
   // Create member color map
@@ -313,13 +313,13 @@ function MiniCalendar({
     });
   }, [memberEvents, members, bestTimesDate]);
 
-  // Quiet hours filter + social ranking via SSOT (src/lib/quietHours.ts)
-  const quietWindow = getQuietHoursForPreset(quietPreset);
+  // Suggested hours filter + social ranking via SSOT (src/lib/quietHours.ts)
+  const quietWindow = getSuggestedHoursForPreset(quietPreset);
   const quietSlots = useMemo(() => {
     const raw = dateScheduleResult?.topSlots ?? [];
     const ranked = rankSlotsForPreset(raw, quietPreset);
     if (__DEV__) {
-      devLog("[P1_QUIET_HOURS_APPLIED]", {
+      devLog("[P1_SUGGESTED_HOURS_APPLIED]", {
         dateISO: bestTimesDate.toISOString(),
         totalSlotsBefore: raw.length,
         totalSlotsAfter: ranked.length,
@@ -508,7 +508,7 @@ function MiniCalendar({
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              if (__DEV__) devLog("[P1_EVERYONES_FREE_SHEET_OPEN]", { dateISO: bestTimesDate.toISOString(), preset: quietPreset, startHour: quietWindow.startHour, endHour: quietWindow.endHour });
+              if (__DEV__) devLog("[P1_SUGGESTED_HOURS_SHEET_OPEN]", { dateISO: bestTimesDate.toISOString(), preset: quietPreset, startHour: quietWindow.startHour, endHour: quietWindow.endHour });
               setShowBestTimeSheet(true);
             }}
             accessibilityRole="button"
@@ -597,7 +597,7 @@ function MiniCalendar({
                 Based on availability shared in this circle
               </Text>
 
-              {/* Quiet hours row */}
+              {/* Suggested hours row */}
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync().catch(() => {});
@@ -615,7 +615,7 @@ function MiniCalendar({
                 }}
               >
                 <View>
-                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Quiet hours</Text>
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text }}>Suggested hours</Text>
                   <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 1 }}>
                     {PRESET_LABELS[quietPreset].range}
                   </Text>
@@ -634,10 +634,10 @@ function MiniCalendar({
                         onPress={() => {
                           Haptics.selectionAsync().catch(() => {});
                           setQuietPreset(p);
-                          saveQuietHoursPreset(p);
+                          saveSuggestedHoursPreset(p);
                           if (__DEV__) {
-                            const w = getQuietHoursForPreset(p);
-                            devLog("[P1_QUIET_HOURS_PRESET_SET]", { preset: p, startHour: w.startHour, endHour: w.endHour });
+                            const w = getSuggestedHoursForPreset(p);
+                            devLog("[P1_SUGGESTED_HOURS_PRESET_SET]", { preset: p, startHour: w.startHour, endHour: w.endHour });
                           }
                           setShowPresetPicker(false);
                         }}
@@ -837,7 +837,7 @@ function MiniCalendar({
 
               {/* Privacy disclaimer */}
               <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
-                {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact."}
+                {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact. Times outside your suggested hours are hidden."}
               </Text>
             </ScrollView>
           </BottomSheet>
