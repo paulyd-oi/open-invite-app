@@ -99,11 +99,11 @@ interface CompressionProfile {
 }
 
 const COMPRESSION_PROFILES: Record<UploadKind, CompressionProfile> = {
-  avatar: { maxWidth: 1200, maxHeight: 1200, quality: 0.7, filename: "upload.jpg" },
-  banner: { maxWidth: 1200, maxHeight: 400, quality: 0.75, maxBytes: 1_500_000, filename: "banner_photo.jpg" },
-  event_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_500_000, filename: "event_photo.jpg" },
+  avatar: { maxWidth: 1200, maxHeight: 1200, quality: 0.7, maxBytes: 1_000_000, filename: "upload.jpg" },
+  banner: { maxWidth: 1200, maxHeight: 400, quality: 0.75, maxBytes: 1_000_000, filename: "banner_photo.jpg" },
+  event_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_000_000, filename: "event_photo.jpg" },
   circle_photo: { maxWidth: 512, maxHeight: 512, quality: 0.75, maxBytes: 1_000_000, filename: "circle_photo.jpg" },
-  event_memory_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_500_000, filename: "memory_photo.jpg" },
+  event_memory_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_000_000, filename: "memory_photo.jpg" },
 };
 
 // ---------------------------------------------------------------------------
@@ -186,6 +186,15 @@ export async function uploadByKind(
     const finalInfo = await FileSystem.getInfoAsync(compressedUri);
     if (!finalInfo.exists) throw new Error("Image file does not exist");
     const finalBytes = (finalInfo as any).size ?? 0;
+
+    if (__DEV__) {
+      devLog("[P0_MEDIA_ROUTE]", {
+        action: "compression_result",
+        kind,
+        originalBytes,
+        finalBytes,
+      });
+    }
 
     if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
       throw new Error(`${kind} photo is too large after compression (max 5 MB).`);
