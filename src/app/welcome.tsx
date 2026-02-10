@@ -979,7 +979,9 @@ export default function WelcomeOnboardingScreen() {
     </OnboardingLayout>
   );
 
-  const renderSlide2 = () => (
+  const renderSlide2 = () => {
+    if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/createAccount', input: 'SSOT', button: 'SSOT', card: 'n/a' });
+    return (
     <OnboardingLayout background={colors.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1104,8 +1106,11 @@ export default function WelcomeOnboardingScreen() {
       </KeyboardAvoidingView>
     </OnboardingLayout>
   );
+  };
 
-  const renderSlide3 = () => (
+  const renderSlide3 = () => {
+    if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/profileSetup', input: 'SSOT', button: 'SSOT', card: 'n/a' });
+    return (
     <OnboardingLayout background={colors.background}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1206,8 +1211,11 @@ export default function WelcomeOnboardingScreen() {
       </KeyboardAvoidingView>
     </OnboardingLayout>
   );
+  };
 
-  const renderSlide4 = () => (
+  const renderSlide4 = () => {
+    if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/quote', input: 'n/a', button: 'SSOT', card: 'SSOT' });
+    return (
     <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
         <Animated.View entering={smoothFadeIn()} style={styles.centeredContent}>
@@ -1237,6 +1245,7 @@ export default function WelcomeOnboardingScreen() {
       </View>
     </OnboardingLayout>
   );
+  };
 
   // ============ MAIN RENDER ============
 
@@ -1333,7 +1342,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   inputContainer: {
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
@@ -1361,7 +1370,7 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     backgroundColor: "rgba(232,93,76,0.15)",
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     padding: 12,
     marginBottom: 16,
   },
@@ -1435,7 +1444,7 @@ const styles = StyleSheet.create({
   },
   handleInput: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     paddingHorizontal: 20,
     paddingVertical: 18,
@@ -1443,7 +1452,7 @@ const styles = StyleSheet.create({
     fontFamily: "Sora_400Regular",
   },
   quoteCard: {
-    borderRadius: 20,
+    borderRadius: RADIUS.xl,
     padding: 28,
     borderWidth: 1,
     marginTop: 24,
