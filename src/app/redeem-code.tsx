@@ -33,7 +33,7 @@ export default function RedeemCodeScreen() {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<{
-    expiresAt: string;
+    benefit: string;
   } | null>(null);
 
   const handleRedeem = async () => {
@@ -53,29 +53,42 @@ export default function RedeemCodeScreen() {
     try {
       const response = await api.post<{
         success: boolean;
-        entitlement: string;
-        expiresAt: string;
-      }>("/api/promo/redeem", { code: normalizedCode });
+        benefit?: string;
+        error?: string;
+      }>("/api/discount/redeem", { code: normalizedCode });
 
-      // CANONICAL: Use refreshProContract for SSOT after promo redemption
-      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:redeem_code" });
+      // [P0_DISCOUNT_APPLY] Guard: backend may return 200 with success=false
+      if (!response.success) {
+        if (__DEV__) {
+          devLog("[P0_DISCOUNT_APPLY] ERROR screen=redeem_code success=false");
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        safeToast.error("Invalid Code", response.error || "This code is not valid.");
+        return;
+      }
 
-      // [PRO_SOT] Log AFTER state
-      if (__DEV__) {
-        devLog("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
-        devLog("[P0_DISCOUNT_APPLY] OK screen=redeem_code combinedIsPro=", combinedIsPro);
+      // [P0_DISCOUNT_APPLY] Code accepted — refresh pro state
+      // Wrap in its own try/catch so refresh failures don't show "Invalid Code"
+      try {
+        const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:redeem_code" });
+
+        // [PRO_SOT] Log AFTER state
+        if (__DEV__) {
+          devLog("[PRO_SOT] AFTER screen=redeem_code combinedIsPro=", combinedIsPro);
+          devLog("[P0_DISCOUNT_APPLY] OK screen=redeem_code combinedIsPro=", combinedIsPro);
+        }
+      } catch (refreshErr) {
+        if (__DEV__) {
+          devLog("[P0_DISCOUNT_APPLY] REFRESH_ERROR screen=redeem_code (code was accepted)", refreshErr);
+        }
       }
 
       // Success!
-      setSuccessData({ expiresAt: response.expiresAt });
+      setSuccessData({ benefit: response.benefit || "Premium access" });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      // Show appropriate toast based on combined result
-      if (combinedIsPro) {
-        safeToast.success("Pro Active!", "You now have full access to all features");
-      } else {
-        safeToast.success("Code Applied!", "You now have full access to all features");
-      }
+
+      // Show appropriate toast
+      safeToast.success("Pro Active!", response.benefit || "You now have full access to all features");
 
       // Invalidate queries for UI refresh
       queryClient.invalidateQueries({ queryKey: ["entitlements"] });
@@ -94,36 +107,32 @@ export default function RedeemCodeScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-      // Map errors to mom-safe messages
+      // Parse error from API response
+      let errorMessage = "Something went wrong. Please try again.";
+      if (error?.message) {
+        try {
+          const match = error.message.match(/\{.*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            errorMessage = parsed.error || errorMessage;
+          }
+        } catch {
+          // Use default error message
+        }
+      }
+
+      // Map status codes to mom-safe messages
       if (error?.status === 401) {
         safeToast.error("Authentication required", "Please log in again and try");
       } else if (error?.status === 404) {
         safeToast.error("Invalid code", "That code isn't valid");
       } else if (error?.status === 400) {
-        const message = error?.message?.toLowerCase() || "";
-        if (message.includes("already") || message.includes("used") || message.includes("redeemed")) {
-          safeToast.error("Already used", "You've already used this code");
-        } else {
-          safeToast.error("Invalid input", "Please check your code and try again");
-        }
+        safeToast.error("Invalid Code", errorMessage);
       } else {
-        safeToast.error("Error", "Something went wrong. Please try again");
+        safeToast.error("Error", errorMessage);
       }
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const formatExpiryDate = (isoDate: string) => {
-    try {
-      const date = new Date(isoDate);
-      return date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch {
-      return isoDate;
     }
   };
 
@@ -216,7 +225,7 @@ export default function RedeemCodeScreen() {
                 ✓ Premium Activated
               </Text>
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                Active until {formatExpiryDate(successData.expiresAt)}
+                {successData.benefit}
               </Text>
             </View>
           )}
