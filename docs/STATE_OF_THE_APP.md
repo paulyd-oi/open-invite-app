@@ -346,5 +346,6 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
+- 2026-02-09: Event Photo Lite — hero photo on Event Details (host-only nudge + upload + remove), social feed photo thumbnail
 - 2026-01-27: Phase 1 Ruthless Simplicity complete
 

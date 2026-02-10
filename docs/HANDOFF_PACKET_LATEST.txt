@@ -1,81 +1,58 @@
-HANDOFF PACKET -- Circle Photo Avatar Caching + No-Flicker Placeholder
+HANDOFF PACKET -- Event Photo Lite
 Date: 2026-02-09
 
 SUMMARY
-- Created shared CirclePhotoEmoji component that always renders emoji as the base layer and overlays the photo with a 200ms opacity fade-in on load.
-- Replaced all 5 circle avatar render sites (4 files) with the new component.
-- On load failure: emoji stays visible, DEV-only log with [CIRCLE_PHOTO_LOAD_FAIL] tag.
-- No new dependencies. Uses react-native Animated (already available) for the fade.
-- Removed unused Image imports from create.tsx and event/edit/[id].tsx.
-- Zero layout shift: container dimensions unchanged, overflow:hidden preserved at every site.
+- Added Event Photo Lite: hero photo display on Event Details, host-only nudge to add photo, client-side compression + Cloudinary upload, photo thumbnail in social feed.
+- Backend already has PUT /api/events/:id/photo endpoint with privacy enforcement (busy/private events get null photo fields).
+- Frontend: added eventPhotoUrl + eventPhotoPublicId to eventSchema, uploadEventPhoto utility (4:3, 1280px wide, JPEG 0.75, hard cap <1.5MB), hero + nudge + upload sheet on Event Details, photo thumbnail on social feed EventCard.
+- No changes to Create or Edit event screens (strict non-goal).
+- No new dependencies.
+- Nudge dismiss persisted via AsyncStorage per event ID.
 
 ROOT CAUSE
-Circle photo avatars used a simple ternary (photo ? Image : emoji). On slow networks or first load, the Image takes time to fetch, showing a blank container (no emoji, no photo) until loaded. No error handling existed for broken URLs.
+Events had no cover photo capability. The backend already supported eventPhotoUrl/eventPhotoPublicId fields with privacy enforcement, but the frontend schema and UI had no support for displaying or uploading event photos.
 
 FIX
-New CirclePhotoEmoji component (src/components/CirclePhotoEmoji.tsx):
-- Always renders emoji Text as the base layer (visible immediately).
-- If photoUrl is present and not errored, overlays an Animated.Image with StyleSheet.absoluteFill.
-- Opacity starts at 0, transitions to 1 with Animated.timing (200ms) on onLoad callback.
-- On onError: sets errored state (hides Image), logs [CIRCLE_PHOTO_LOAD_FAIL] in DEV.
-- Parent containers already have overflow:hidden + fixed dimensions, so transition is seamless.
+1. shared/contracts.ts: Added eventPhotoUrl and eventPhotoPublicId to eventSchema (nullable, optional).
+2. src/lib/imageUpload.ts: Added uploadEventPhoto() -- resize to 1280x960 (4:3), JPEG quality 0.75, progressive quality reduction loop if >= 1.5MB, upload to Cloudinary folder openinvite/event_photos, DEV log [EVENT_PHOTO_COMPRESS].
+3. src/app/event/[id].tsx:
+   - Hero photo: 4:3 aspect ratio Image rendered above the header card when eventPhotoUrl exists and event is not busy. Host gets an edit (pencil) overlay button.
+   - Host nudge: dashed border placeholder with Camera icon, "Add a photo (optional)" text, "Add photo" button (themeColor bg), "Not now" dismiss. Shown only when: viewer is host AND no photo AND not busy AND not dismissed.
+   - Dismiss persistence: AsyncStorage key dismissedEventPhotoNudge_{eventId}.
+   - Upload bottom sheet: Upload/Replace photo (ImagePicker 4:3 crop -> uploadEventPhoto -> PUT /api/events/:id/photo), Remove photo (PUT with remove:true), Cancel.
+   - Privacy guard: Hero and nudge both gated on !event.isBusy.
+4. src/app/social.tsx: EventCard renders photo thumbnail (4:3 aspect, rounded-xl, overflow-hidden) above the emoji+title row when displayEvent.eventPhotoUrl exists.
 
 FILES CHANGED
-src/components/CirclePhotoEmoji.tsx (NEW) -- shared component
-src/components/CircleCard.tsx -- import + use CirclePhotoEmoji at avatar site
-src/app/circle/[id].tsx -- import + use CirclePhotoEmoji at header + settings block (2 sites)
-src/app/create.tsx -- import + use CirclePhotoEmoji at circle picker, remove unused Image import
-src/app/event/edit/[id].tsx -- import + use CirclePhotoEmoji at circle picker, remove unused Image import
-
-AVATAR SITES COVERED (5 total)
-1. src/components/CircleCard.tsx line 320 -- circles list card (56x56)
-2. src/app/circle/[id].tsx line 2316 -- circle detail header (40x40)
-3. src/app/circle/[id].tsx line 3704 -- circle settings info block (56x56)
-4. src/app/create.tsx line 1244 -- event creation circle picker (32x32)
-5. src/app/event/edit/[id].tsx line 480 -- event edit circle picker (32x32)
+shared/contracts.ts -- +3 lines (eventPhotoUrl, eventPhotoPublicId on eventSchema)
+src/lib/imageUpload.ts -- +67 lines (EVENT_PHOTO_FOLDER constant + uploadEventPhoto function)
+src/app/event/[id].tsx -- +125 lines (imports, state, hero photo, nudge, upload sheet)
+src/app/social.tsx -- +7 lines (photo thumbnail in EventCard)
+docs/STATE_OF_THE_APP.md -- +1 line
 
 VERIFICATION
 npm run typecheck -- PASS (0 errors)
 bash scripts/ai/verify_frontend.sh -- PASS
 
 SWEEP PROOFS
-All circle avatar sites using CirclePhotoEmoji (loaded-state logic):
-  src/components/CircleCard.tsx:320
-  src/app/circle/[id].tsx:2316
-  src/app/circle/[id].tsx:3704
-  src/app/create.tsx:1244
-  src/app/event/edit/[id].tsx:480
-  Count: 5 sites across 4 files
 
-No remaining bare photoUrl Image rendering:
-  rg circle.photoUrl.*Image src/ -- (none found)
+Create/Edit screens contain NO new photo logic:
+  rg eventPhotoUrl|uploadEventPhoto|showPhotoSheet|EVENT_PHOTO src/app/create.tsx src/app/event/edit/[id].tsx -- (none found)
+
+Cloudinary event_photos folder string appears once:
+  src/lib/imageUpload.ts:286 -- EVENT_PHOTO_FOLDER = "openinvite/event_photos"
 
 package.json unchanged:
   git diff HEAD -- package.json -- (empty)
 
 git show --stat HEAD
-commit 45730608337e94d88bc82013b15d5cf3d54e984e (HEAD -> main, origin/main, origin/HEAD)
-Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Mon Feb 9 21:39:46 2026 -0800
+commit ab2bd00787f85b5a74beb0a515ba51ec07e64f6c (HEAD -> main, origin/main, origin/HEAD)
 
-    polish(circles): no-flicker photo avatar with emoji placeholder + fade-in
+    feat(events): Event Photo Lite -- hero photo, host nudge, compression, social feed render
 
- src/app/circle/[id].tsx             | 13 +++---------
- src/app/create.tsx                  |  8 ++------
- src/app/event/edit/[id].tsx         |  8 ++------
- src/components/CircleCard.tsx       |  7 ++-----
- src/components/CirclePhotoEmoji.tsx | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 69 insertions(+), 27 deletions(-)
-
-git show --name-only HEAD
-commit 45730608337e94d88bc82013b15d5cf3d54e984e (HEAD -> main, origin/main, origin/HEAD)
-Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Mon Feb 9 21:39:46 2026 -0800
-
-    polish(circles): no-flicker photo avatar with emoji placeholder + fade-in
-
-src/app/circle/[id].tsx
-src/app/create.tsx
-src/app/event/edit/[id].tsx
-src/components/CircleCard.tsx
-src/components/CirclePhotoEmoji.tsx
+ docs/STATE_OF_THE_APP.md |   1 +
+ shared/contracts.ts      |   3 ++
+ src/app/event/[id].tsx   | 125 +++++++++++++++++++++++++++++++++++++++++++++
+ src/app/social.tsx       |   7 ++++
+ src/lib/imageUpload.ts   |  67 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 202 insertions(+), 1 deletion(-)

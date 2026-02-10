@@ -281,6 +281,73 @@ export async function uploadCirclePhoto(uri: string): Promise<UploadResponse> {
 }
 
 /**
+ * SSOT Cloudinary folder for event photos
+ */
+const EVENT_PHOTO_FOLDER = "openinvite/event_photos";
+
+/**
+ * Uploads an event photo with 4:3 crop, 1280px wide, JPEG quality 0.75.
+ * Hard cap: final file must be < 1.5 MB.
+ */
+export async function uploadEventPhoto(uri: string): Promise<UploadResponse> {
+  try {
+    assertCloudinaryConfigured();
+
+    const origInfo = await FileSystem.getInfoAsync(uri);
+    const originalBytes = (origInfo as any).size ?? 0;
+
+    // Step 1: resize to 1280 wide (4:3 → height ~960) at q=0.75
+    let quality = 0.75;
+    let compressedUri = await compressImage(uri, { maxWidth: 1280, maxHeight: 960, quality });
+    let fileInfo = await FileSystem.getInfoAsync(compressedUri);
+    let finalBytes = (fileInfo as any).size ?? 0;
+
+    // Step 2: If still >= 1.5MB, recompress more aggressively
+    while (typeof finalBytes === "number" && finalBytes >= 1_500_000 && quality > 0.3) {
+      quality -= 0.1;
+      compressedUri = await compressImage(uri, { maxWidth: 1280, maxHeight: 960, quality });
+      fileInfo = await FileSystem.getInfoAsync(compressedUri);
+      finalBytes = (fileInfo as any).size ?? 0;
+    }
+
+    if (__DEV__) {
+      devLog("[EVENT_PHOTO_COMPRESS]", { originalBytes, finalBytes, width: 1280, height: 960, quality });
+    }
+
+    if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
+      throw new Error("Event photo is too large after compression.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", { uri: compressedUri, type: "image/jpeg", name: "event_photo.jpg" } as any);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET as string);
+    formData.append("folder", EVENT_PHOTO_FOLDER);
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+    const res = await fetch(endpoint, { method: "POST", body: formData });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { json = null; }
+
+    if (!res.ok) {
+      const msg = (json && (json.error?.message || json.error)) || text?.substring(0, 200) || "Upload failed";
+      if (__DEV__) devError("[imageUpload] Event photo upload failed:", res.status, msg);
+      throw new Error(msg);
+    }
+
+    const secureUrl = json?.secure_url as string | undefined;
+    const publicId = json?.public_id as string | undefined;
+    if (!secureUrl) throw new Error("Upload succeeded but no URL was returned.");
+    if (__DEV__) devLog("[imageUpload] Event photo uploaded:", secureUrl);
+
+    return { success: true, url: secureUrl, filename: publicId };
+  } catch (error: any) {
+    if (__DEV__) devError("[imageUpload] Event photo upload error:", error);
+    throw new Error(error?.message || "Failed to upload event photo");
+  }
+}
+
+/**
  * Picks and uploads an image with compression
  */
 export async function uploadImageFromPicker(

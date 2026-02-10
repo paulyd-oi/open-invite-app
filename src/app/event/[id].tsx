@@ -48,12 +48,14 @@ import {
   Lock,
   MoreHorizontal,
   Palette,
+  Camera,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as ExpoCalendar from "expo-calendar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -61,7 +63,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { uploadImage } from "@/lib/imageUpload";
+import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
 import { getEventShareLink } from "@/lib/deepLinks";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
@@ -373,6 +375,19 @@ export default function EventDetailScreen() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const { colorOverrides, getOverrideColor, setOverrideColor, resetColor } = useEventColorOverrides();
   const currentColorOverride = id ? getOverrideColor(id) : undefined;
+
+  // Event Photo Lite state
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
+
+  // Check photo nudge dismiss state
+  useEffect(() => {
+    if (!id) return;
+    AsyncStorage.getItem(`dismissedEventPhotoNudge_${id}`).then((v) => {
+      if (v === "true") setPhotoNudgeDismissed(true);
+    });
+  }, [id]);
 
   // Check sync status when event loads
   useEffect(() => {
@@ -1699,6 +1714,46 @@ export default function EventDetailScreen() {
       >
         {/* Event Header */}
         <Animated.View entering={FadeInDown.springify()}>
+          {/* Event Photo Hero */}
+          {event.eventPhotoUrl && !event.isBusy && (
+            <View className="rounded-2xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
+              <Image source={{ uri: event.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
+              {isMyEvent && (
+                <Pressable
+                  onPress={() => setShowPhotoSheet(true)}
+                  className="absolute top-3 right-3 rounded-full p-2"
+                  style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                >
+                  <Pencil size={16} color="#fff" />
+                </Pressable>
+              )}
+            </View>
+          )}
+
+          {/* Host-only photo nudge */}
+          {isMyEvent && !event.eventPhotoUrl && !event.isBusy && !photoNudgeDismissed && (
+            <View className="rounded-2xl p-4 mb-3 items-center" style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}>
+              <Camera size={28} color={isDark ? "#9CA3AF" : "#6B7280"} />
+              <Text className="text-sm font-medium mt-2" style={{ color: colors.textSecondary }}>Add a photo (optional)</Text>
+              <Pressable
+                onPress={() => setShowPhotoSheet(true)}
+                className="mt-3 rounded-lg px-5 py-2"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-sm font-semibold text-white">Add photo</Text>
+              </Pressable>
+              <Pressable
+                onPress={async () => {
+                  setPhotoNudgeDismissed(true);
+                  await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
+                }}
+                className="mt-2 p-1"
+              >
+                <Text className="text-xs" style={{ color: colors.textTertiary }}>Not now</Text>
+              </Pressable>
+            </View>
+          )}
+
           <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
             <View className="items-center mb-4">
               <View className="w-20 h-20 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
@@ -3382,6 +3437,74 @@ export default function EventDetailScreen() {
                   style={{ borderRadius: RADIUS.md, paddingVertical: 14 }}
                 />
               </View>
+      </BottomSheet>
+
+      {/* Event Photo Upload Sheet */}
+      <BottomSheet visible={showPhotoSheet} onClose={() => setShowPhotoSheet(false)} title="Event Photo">
+        <View className="px-5 pb-6">
+          <Pressable
+            onPress={async () => {
+              try {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                  allowsEditing: true,
+                  aspect: [4, 3],
+                  quality: 1,
+                });
+                if (result.canceled || !result.assets?.[0]) return;
+                setShowPhotoSheet(false);
+                setUploadingPhoto(true);
+                const upload = await uploadEventPhoto(result.assets[0].uri);
+                await api.put(`/api/events/${id}/photo`, {
+                  eventPhotoUrl: upload.url,
+                  eventPhotoPublicId: upload.filename,
+                });
+                queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+                queryClient.invalidateQueries({ queryKey: eventKeys.all() });
+                safeToast.success("Photo added");
+              } catch (e: any) {
+                if (__DEV__) devError("[EVENT_PHOTO_UPLOAD]", e);
+                safeToast.error("Upload failed", e?.message ?? "Please try again.");
+              } finally {
+                setUploadingPhoto(false);
+              }
+            }}
+            className="flex-row items-center py-3"
+          >
+            <Camera size={20} color={themeColor} />
+            <Text className="ml-3 text-base font-medium" style={{ color: colors.text }}>
+              {event?.eventPhotoUrl ? "Replace photo" : "Upload photo"}
+            </Text>
+            {uploadingPhoto && <ActivityIndicator size="small" className="ml-auto" color={themeColor} />}
+          </Pressable>
+          {event?.eventPhotoUrl && (
+            <Pressable
+              onPress={async () => {
+                try {
+                  setShowPhotoSheet(false);
+                  await api.put(`/api/events/${id}/photo`, { remove: true });
+                  queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+                  queryClient.invalidateQueries({ queryKey: eventKeys.all() });
+                  safeToast.success("Photo removed");
+                } catch (e: any) {
+                  if (__DEV__) devError("[EVENT_PHOTO_REMOVE]", e);
+                  safeToast.error("Failed to remove photo");
+                }
+              }}
+              className="flex-row items-center py-3"
+            >
+              <Trash2 size={20} color="#EF4444" />
+              <Text className="ml-3 text-base font-medium" style={{ color: "#EF4444" }}>Remove photo</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => setShowPhotoSheet(false)}
+            className="flex-row items-center py-3"
+          >
+            <X size={20} color={colors.textSecondary} />
+            <Text className="ml-3 text-base" style={{ color: colors.textSecondary }}>Cancel</Text>
+          </Pressable>
+        </View>
       </BottomSheet>
     </SafeAreaView>
   );

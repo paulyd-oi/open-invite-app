@@ -273,6 +273,13 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           ...(isDark ? {} : TILE_SHADOW),
         }}
       >
+        {/* Event Photo Thumbnail */}
+        {displayEvent.eventPhotoUrl && (
+          <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
+            <Image source={{ uri: displayEvent.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
+          </View>
+        )}
+
         <View className="flex-row items-start">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"

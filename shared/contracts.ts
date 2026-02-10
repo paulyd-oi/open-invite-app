@@ -98,6 +98,9 @@ export const eventSchema = z.object({
       image: z.string().nullable(),
     }),
   })).optional(),
+  // Event Photo Lite (single cover photo, privacy-enforced server-side)
+  eventPhotoUrl: z.string().nullable().optional(),
+  eventPhotoPublicId: z.string().nullable().optional(),
   // Capacity fields (server-computed)
   capacity: z.number().nullable().optional(), // Max guests (null = unlimited)
   goingCount: z.number().optional(), // Number of confirmed attendees
