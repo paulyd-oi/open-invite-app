@@ -603,8 +603,15 @@ function MiniCalendar({
             viewerIsOwner
           ) || (event.isPrivate && !viewerIsOwner);
 
+          const busyOwnerName = maskedBusy
+            ? (event.userName || "Someone")
+            : null;
+
           if (__DEV__) {
             devLog('[P0_BUSY_ROW]', { eventId: event.id, maskedBusy, viewerIsOwner, hasIsBusy: typeof event.isBusy === 'boolean' });
+            if (maskedBusy) {
+              devLog('[P0_BUSY_WHO]', { eventId: event.id, busyOwnerName: busyOwnerName ?? null });
+            }
           }
 
           return (
@@ -694,23 +701,29 @@ function MiniCalendar({
                         })}
                   </Text>
                 </View>
-                {!maskedBusy && (
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                      {event.attendingMemberIds.length > 1
-                        ? `${event.attendingMemberIds.length} attending`
-                        : event.userName}
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
+                  {maskedBusy ? (
+                    <Text style={{ fontSize: 11, color: colors.textTertiary }}>
+                      {`${busyOwnerName} is busy`}
                     </Text>
-                    {event.location && (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
-                        <MapPin size={10} color={colors.textTertiary} />
-                        <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
-                          {event.location}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                  ) : (
+                    <>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                        {event.attendingMemberIds.length > 1
+                          ? `${event.attendingMemberIds.length} attending`
+                          : event.userName}
+                      </Text>
+                      {event.location && (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
+                          <MapPin size={10} color={colors.textTertiary} />
+                          <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
+                            {event.location}
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </View>
               </Animated.View>
             </Pressable>
           );
