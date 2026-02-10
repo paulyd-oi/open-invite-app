@@ -51,6 +51,7 @@ import { Button } from "@/ui/Button";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { wrapRace } from "@/lib/devStress";
 
 // Types for calendar import
 interface ImportedCalendarEvent {
@@ -157,7 +158,7 @@ export default function ImportCalendarScreen() {
   // Import events mutation
   const importMutation = useMutation({
     mutationFn: (data: ImportCalendarEventsRequest) =>
-      api.post<ImportCalendarEventsResponse>("/api/events/import", data),
+      wrapRace("calendar_import", () => api.post<ImportCalendarEventsResponse>("/api/events/import", data)),
     onSuccess: (data) => {
       setSyncResult({
         imported: data.imported,

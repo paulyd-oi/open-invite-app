@@ -93,6 +93,7 @@ import {
 } from "@/lib/calendarSync";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { COLOR_PALETTE } from "@/lib/eventColorOverrides";
+import { wrapRace } from "@/lib/devStress";
 import {
   eventKeys,
   invalidateEventKeys,
@@ -977,7 +978,7 @@ export default function EventDetailScreen() {
       if (isBusyBlock) {
         throw new Error("BUSY_BLOCK");
       }
-      return api.post(`/api/events/${id}/rsvp`, { status });
+      return wrapRace("RSVP_submit", () => api.post(`/api/events/${id}/rsvp`, { status }));
     },
     onMutate: async (nextStatus: RsvpStatus) => {
       // [P0_RSVP] Optimistic update: snapshot cache, update RSVP status and totalGoing immediately

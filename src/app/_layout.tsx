@@ -47,6 +47,7 @@ import { subscribeToAuthExpiry, resetAuthExpiryGuard } from '@/lib/authExpiry';
 import { performLogout } from '@/lib/logout';
 import { useQueryClient } from '@tanstack/react-query';
 import { p15, once } from '@/lib/runtimeInvariants';
+import { maybeTriggerInvariantsOnce } from '@/lib/devStress';
 
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
@@ -285,6 +286,11 @@ function BootRouter() {
       p15('[P15_AUTH_INVAR]', { mismatch: 'authed_but_noSession', bootStatus, hasSession: false });
     }
   }
+
+  // [P19_STRESS] DEV-only: fire synthetic invariant signals once per app run
+  useEffect(() => {
+    if (__DEV__) maybeTriggerInvariantsOnce();
+  }, []);
 
   // AUTH EXPIRY LISTENER: Handle 401 ONLY from $fetch by triggering SSOT logout
   // One-shot per session (emitter guards against spam)

@@ -98,6 +98,7 @@ import {
   type SearchUserResult,
 } from "@/shared/contracts";
 import { useNetworkStatus } from "@/lib/networkStatus";
+import { wrapRace } from "@/lib/devStress";
 
 // Mini calendar component for friend cards
 const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus, session }: { friendshipId: string; bootStatus: string; session: any }) {
@@ -933,7 +934,7 @@ export default function FriendsScreen() {
 
   const sendRequestMutation = useMutation({
     mutationFn: (data: { email?: string; phone?: string }) =>
-      api.post<SendFriendRequestResponse>("/api/friends/request", data),
+      wrapRace("friend_request_send", () => api.post<SendFriendRequestResponse>("/api/friends/request", data)),
     onSuccess: (data) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (data.message) {

@@ -42,6 +42,18 @@ function getApiContractValidator() {
   return _validateApiContract;
 }
 
+// [P19_STRESS] Lazy import to avoid circular deps at module init
+let _devStressMod: typeof import('@/lib/devStress') | null = null;
+function getDevStress() {
+  if (!__DEV__) return null;
+  if (!_devStressMod) {
+    try {
+      _devStressMod = require('@/lib/devStress');
+    } catch { /* ignore if module not available */ }
+  }
+  return _devStressMod;
+}
+
 // OI Session Token - header fallback for unreliable iOS cookie jar
 // Single source of truth for mobile session token
 export const OI_SESSION_TOKEN_KEY = "oi_session_token_v1";
@@ -314,6 +326,25 @@ async function $fetch<T = any>(
       }
     }
     
+    // [P19_STRESS] DEV-only: chaos intercept before fetch
+    if (__DEV__) {
+      const stress = getDevStress();
+      if (stress?.isDevStressEnabled()) {
+        await stress.maybeDelay();
+        const fail = stress.maybeFailRequest(path, init?.method || 'GET');
+        if (fail.block) {
+          if (fail.syntheticStatus) {
+            const err = new Error('DEV_STRESS_HTTP_500') as any;
+            err.status = 500;
+            err.response = { status: 500, _data: null };
+            err.data = null;
+            throw err;
+          }
+          throw new Error(fail.reason === 'offline' ? 'DEV_STRESS_OFFLINE' : 'DEV_STRESS_TIMEOUT');
+        }
+      }
+    }
+
     const response = await fetch(url, {
       method: init?.method || "GET",
       body: finalBody,
