@@ -7,7 +7,6 @@ import {
   TextInput,
   Platform,
   Switch,
-  Image,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -34,6 +33,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import {
   type GetEventsResponse,
   type UpdateEventRequest,
@@ -477,11 +477,7 @@ export default function EditEventScreen() {
                         className="w-8 h-8 rounded-lg items-center justify-center mr-3 overflow-hidden"
                         style={{ backgroundColor: `${themeColor}20` }}
                       >
-                        {circle.photoUrl ? (
-                          <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
-                        ) : (
-                          <Text className="text-base">{circle.emoji}</Text>
-                        )}
+                        <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-base" />
                       </View>
                       <Text className="flex-1 font-medium" style={{ color: colors.text }}>{circle.name}</Text>
                       {selectedGroupIds.includes(circle.id) && (

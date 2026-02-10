@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { type Circle } from "@/shared/contracts";
+import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { devLog, devError } from "@/lib/devLog";
@@ -316,11 +317,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                 className="w-14 h-14 rounded-2xl items-center justify-center overflow-hidden"
                 style={{ backgroundColor: themeColor + "20" }}
               >
-                {circle.photoUrl ? (
-                  <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
-                ) : (
-                  <Text className="text-2xl">{circle.emoji}</Text>
-                )}
+                <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-2xl" />
               </View>
               {circle.isPinned && (
                 <View

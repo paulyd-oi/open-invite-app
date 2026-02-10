@@ -59,6 +59,7 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import DayAgendaSheet from "@/components/DayAgendaSheet";
+import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
@@ -2312,11 +2313,7 @@ export default function CircleScreen() {
             className="w-10 h-10 rounded-xl items-center justify-center mr-3 overflow-hidden"
             style={{ backgroundColor: themeColor + "20" }}
           >
-            {circle.photoUrl ? (
-              <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
-            ) : (
-              <Text className="text-xl">{circle.emoji}</Text>
-            )}
+            <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
           </View>
           <View className="flex-1">
             <Text className="font-semibold" style={{ color: colors.text }}>
@@ -3704,11 +3701,7 @@ export default function CircleScreen() {
                     overflow: "hidden",
                   }}
                 >
-                  {circle?.photoUrl ? (
-                    <Image source={{ uri: circle.photoUrl }} style={{ width: 56, height: 56 }} />
-                  ) : (
-                    <Text style={{ fontSize: 28 }}>{circle?.emoji}</Text>
-                  )}
+                  <CirclePhotoEmoji photoUrl={circle?.photoUrl} emoji={circle?.emoji ?? "👥"} emojiStyle={{ fontSize: 28 }} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text }}>

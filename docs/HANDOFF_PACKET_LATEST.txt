@@ -1,178 +1,81 @@
-═══════════════════════════════════════════════════════════════════════════
-HANDOFF PACKET — P1 Button + Chip SSOT System
+HANDOFF PACKET -- Circle Photo Avatar Caching + No-Flicker Placeholder
 Date: 2026-02-09
 
 SUMMARY
-Created SSOT semantic tokens + primitives for Buttons and Chips, then migrated 5 target screens to remove ad-hoc styling drift.
+- Created shared CirclePhotoEmoji component that always renders emoji as the base layer and overlays the photo with a 200ms opacity fade-in on load.
+- Replaced all 5 circle avatar render sites (4 files) with the new component.
+- On load failure: emoji stays visible, DEV-only log with [CIRCLE_PHOTO_LOAD_FAIL] tag.
+- No new dependencies. Uses react-native Animated (already available) for the fade.
+- Removed unused Image imports from create.tsx and event/edit/[id].tsx.
+- Zero layout shift: container dimensions unchanged, overflow:hidden preserved at every site.
 
 ROOT CAUSE
-Button/chip styling was ad-hoc across screens. Each Create button, Busy/Free chip, status pill used inline hex and per-instance Pressable/View styling, causing inconsistent padding/radius/font and hex color drift with no single update point.
+Circle photo avatars used a simple ternary (photo ? Image : emoji). On slow networks or first load, the Image takes time to fetch, showing a blank container (no emoji, no photo) until loaded. No error handling existed for broken URLs.
 
-TOKENS ADDED (24 total)
-buttonPrimaryBg, buttonPrimaryText, buttonPrimaryPressedBg, buttonPrimaryDisabledBg, buttonPrimaryDisabledText
-buttonSecondaryBg, buttonSecondaryText, buttonSecondaryPressedBg, buttonSecondaryDisabledBg, buttonSecondaryDisabledText, buttonSecondaryBorder
-buttonGhostText, buttonGhostPressedBg, buttonGhostDisabledText
-chipNeutralBg, chipNeutralText, chipMutedBg, chipMutedText, chipAccentBg, chipAccentText, chipStatusBg, chipStatusText, chipBorder
-
-PRIMITIVES CREATED
-src/ui/Button.tsx — primary/secondary/ghost, label+leftIcon+loading+size props
-src/ui/Chip.tsx — neutral/muted/accent/status, label+leftIcon+rightAdornment+color+onPress props
-
-SCREENS MIGRATED
-discover.tsx — Create button, attendee pills (2), lens count badge
-social.tsx — Create button, You chip, Invite a friend button, Create an Invite ghost, Load more secondary
-calendar.tsx — Retry button, Busy chip, Free chip, Invite a friend button, Create an Invite ghost, Whos Free ghost
-friends.tsx — Sign In button, Add button, No info chip
-profile.tsx — PRO badge, Edit button, Share button, View/Respond/Create pills, event type chips, week CTA
+FIX
+New CirclePhotoEmoji component (src/components/CirclePhotoEmoji.tsx):
+- Always renders emoji Text as the base layer (visible immediately).
+- If photoUrl is present and not errored, overlays an Animated.Image with StyleSheet.absoluteFill.
+- Opacity starts at 0, transitions to 1 with Animated.timing (200ms) on onLoad callback.
+- On onError: sets errored state (hides Image), logs [CIRCLE_PHOTO_LOAD_FAIL] in DEV.
+- Parent containers already have overflow:hidden + fixed dimensions, so transition is seamless.
 
 FILES CHANGED
-src/lib/ThemeContext.tsx — 24 button+chip tokens added to DARK_COLORS + LIGHT_COLORS
-src/ui/Button.tsx — NEW, SSOT button primitive
-src/ui/Chip.tsx — NEW, SSOT chip primitive
-src/app/discover.tsx — 5 migrations (Button+Chip)
-src/app/social.tsx — 5 migrations (Button+Chip)
-src/app/calendar.tsx — 7 migrations (Button+Chip)
-src/app/friends.tsx — 4 migrations (Button+Chip)
-src/app/profile.tsx — 9 migrations (Button+Chip)
-docs/STATE_OF_THE_APP.md — Added UI primitives doctrine
-docs/FINDINGS_LOG.md — Added P1 Button+Chip entry
+src/components/CirclePhotoEmoji.tsx (NEW) -- shared component
+src/components/CircleCard.tsx -- import + use CirclePhotoEmoji at avatar site
+src/app/circle/[id].tsx -- import + use CirclePhotoEmoji at header + settings block (2 sites)
+src/app/create.tsx -- import + use CirclePhotoEmoji at circle picker, remove unused Image import
+src/app/event/edit/[id].tsx -- import + use CirclePhotoEmoji at circle picker, remove unused Image import
+
+AVATAR SITES COVERED (5 total)
+1. src/components/CircleCard.tsx line 320 -- circles list card (56x56)
+2. src/app/circle/[id].tsx line 2316 -- circle detail header (40x40)
+3. src/app/circle/[id].tsx line 3704 -- circle settings info block (56x56)
+4. src/app/create.tsx line 1244 -- event creation circle picker (32x32)
+5. src/app/event/edit/[id].tsx line 480 -- event edit circle picker (32x32)
 
 VERIFICATION
-npm run typecheck — PASS (zero errors)
-bash scripts/ai/verify_frontend.sh — PASS
-═══════════════════════════════════════════════════════════════════════════
+npm run typecheck -- PASS (0 errors)
+bash scripts/ai/verify_frontend.sh -- PASS
 
-SUMMARY (what changed, why)
-────────────────────────────────────────────────────────────────────────────
-Push notification taps now ALWAYS deep-link to the intended target, whether
-the app was completely closed (cold start) or running in background. 
+SWEEP PROOFS
+All circle avatar sites using CirclePhotoEmoji (loaded-state logic):
+  src/components/CircleCard.tsx:320
+  src/app/circle/[id].tsx:2316
+  src/app/circle/[id].tsx:3704
+  src/app/create.tsx:1244
+  src/app/event/edit/[id].tsx:480
+  Count: 5 sites across 4 files
 
-Previously, tapping a notification while the app was closed would just open
-the app without navigating anywhere. This is now fixed.
+No remaining bare photoUrl Image rendering:
+  rg circle.photoUrl.*Image src/ -- (none found)
 
-ROOT CAUSE (why some notifications only opened app)
-────────────────────────────────────────────────────────────────────────────
-The existing code ONLY used `addNotificationResponseReceivedListener` which
-catches taps when the app is already running (foreground/background). When
-the app is completely closed and opened via notification tap, the listener
-isn't registered in time to catch the response.
+package.json unchanged:
+  git diff HEAD -- package.json -- (empty)
 
-Solution: Added `Notifications.getLastNotificationResponseAsync()` call on
-component mount to check for cold start notifications that opened the app.
-
-FIX (SSOT path + routing table summary)
-────────────────────────────────────────────────────────────────────────────
-SSOT: src/hooks/useNotifications.ts
-
-New function: resolveNotificationRoute(data) → { route, fallbackUsed, reason }
-
-ROUTING TABLE:
-┌──────────────────────────────────────────┬────────────────────────┬───────────┐
-│ Notification Type                        │ Route                  │ Fallback  │
-├──────────────────────────────────────────┼────────────────────────┼───────────┤
-│ new_event, event_update, event_reminder  │ /event/:eventId        │ No        │
-│ reminder, event_join, new_attendee       │ /event/:eventId        │ No        │
-│ event_comment, comment, join_request     │ /event/:eventId        │ No        │
-│ join_accepted, event_interest            │ /event/:eventId        │ No        │
-│ someones_interested                      │ /event/:eventId        │ No        │
-├──────────────────────────────────────────┼────────────────────────┼───────────┤
-│ friend_request                           │ /user/:userId          │ /friends  │
-│ friend_accepted                          │ /user/:friendId|userId │ /friends  │
-├──────────────────────────────────────────┼────────────────────────┼───────────┤
-│ circle_message                           │ /circle/:circleId      │ No        │
-├──────────────────────────────────────────┼────────────────────────┼───────────┤
-│ (any type if eventId present)            │ /event/:eventId        │ Yes       │
-│ (any type if userId present)             │ /user/:userId          │ Yes       │
-│ (any type if circleId present)           │ /circle/:circleId      │ Yes       │
-└──────────────────────────────────────────┴────────────────────────┴───────────┘
-
-KEY FORMAT COMPATIBILITY (handles both):
-  - eventId / event_id
-  - userId / user_id / actorId / actor_id / senderId / sender_id
-  - friendId / friend_id
-  - circleId / circle_id
-
-COLD START vs BACKGROUND:
-  - Cold start: router.replace() (avoid stacking on initial route)
-  - Background: router.push() (normal navigation stack)
-
-FILES CHANGED (exact)
-────────────────────────────────────────────────────────────────────────────
-src/hooks/useNotifications.ts   (+170/-76 lines)
-docs/STATE_OF_THE_APP.md        (+4 lines)
-docs/FINDINGS_LOG.md            (+48 lines)
-
-PROOF LOGS (paste 3+ [P0_PUSH_TAP] examples)
-────────────────────────────────────────────────────────────────────────────
-Example 1 - New Comment (cold start):
-[P0_PUSH_TAP] {"source":"cold_start","type":"event_comment","eventId":"evt_abc123","userId":"usr_def456","circleId":null,"routeAttempted":"/event/evt_abc123","fallbackUsed":false,"reason":"type_event_comment"}
-
-Example 2 - New Attendee (background tap):
-[P0_PUSH_TAP] {"source":"listener","type":"new_attendee","eventId":"evt_xyz789","userId":"usr_ghi012","circleId":null,"routeAttempted":"/event/evt_xyz789","fallbackUsed":false,"reason":"type_new_attendee"}
-
-Example 3 - Event Reminder (background tap):
-[P0_PUSH_TAP] {"source":"listener","type":"event_reminder","eventId":"evt_reminder1","userId":null,"circleId":null,"routeAttempted":"/event/evt_reminder1","fallbackUsed":false,"reason":"type_event_reminder"}
-
-Example 4 - Unknown type with eventId fallback:
-[P0_PUSH_TAP] {"source":"listener","type":"unknown_notification","eventId":"evt_fallback1","userId":null,"circleId":null,"routeAttempted":"/event/evt_fallback1","fallbackUsed":true,"reason":"fallback_eventId"}
-
-Example 5 - No valid target:
-[P0_PUSH_TAP] {"source":"listener","type":"marketing","eventId":null,"userId":null,"circleId":null,"routeAttempted":null,"fallbackUsed":true,"reason":"no_valid_target"}
-[P0_PUSH_TAP] No valid navigation target, payload: {...}
-
-VERIFICATION
-────────────────────────────────────────────────────────────────────────────
-npm run typecheck: PASS
-bash scripts/ai/verify_frontend.sh: PASS
-
-GIT PROOF (MANDATORY — paste literal outputs)
-────────────────────────────────────────────────────────────────────────────
-git show --stat HEAD:
-
-commit 8f498347cc80b5a573d4d4ae4f5ec677b36574a4 (HEAD -> main, origin/main, origin/HEAD)
+git show --stat HEAD
+commit 45730608337e94d88bc82013b15d5cf3d54e984e (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 11:48:01 2026 -0800
+Date:   Mon Feb 9 21:39:46 2026 -0800
 
-    fix(p0): push tap deep-link parity - cold start + background taps route deterministically
-    
-    - Add getLastNotificationResponseAsync() for cold start notification handling
-    - Create resolveNotificationRoute() SSOT for all notification tap routing
-    - Support both camelCase and snake_case payload keys (eventId/event_id etc)
-    - Use router.replace() for cold start, router.push() for background
-    - Add [P0_PUSH_TAP] DEV proof logs with full routing context
-    - Update docs/STATE_OF_THE_APP.md and docs/FINDINGS_LOG.md
+    polish(circles): no-flicker photo avatar with emoji placeholder + fade-in
 
- docs/FINDINGS_LOG.md              |  48 ++++++++++++++
- docs/STATE_OF_THE_APP.md          |   4 ++
- src/hooks/useNotifications.ts     | 246 +++++++++++++++++++++++++++++++++++++++--------------
- 3 files changed, 222 insertions(+), 76 deletions(-)
+ src/app/circle/[id].tsx             | 13 +++---------
+ src/app/create.tsx                  |  8 ++------
+ src/app/event/edit/[id].tsx         |  8 ++------
+ src/components/CircleCard.tsx       |  7 ++-----
+ src/components/CirclePhotoEmoji.tsx | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 69 insertions(+), 27 deletions(-)
 
-git show --name-only HEAD:
-
-commit 8f498347cc80b5a573d4d4ae4f5ec677b36574a4 (HEAD -> main, origin/main, origin/HEAD)
+git show --name-only HEAD
+commit 45730608337e94d88bc82013b15d5cf3d54e984e (HEAD -> main, origin/main, origin/HEAD)
 Author: paulyd-oi <pauljdal@gmail.com>
-Date:   Tue Feb 3 11:48:01 2026 -0800
+Date:   Mon Feb 9 21:39:46 2026 -0800
 
-    fix(p0): push tap deep-link parity - cold start + background taps route deterministically
-    
-    - Add getLastNotificationResponseAsync() for cold start notification handling
-    - Create resolveNotificationRoute() SSOT for all notification tap routing
-    - Support both camelCase and snake_case payload keys (eventId/event_id etc)
-    - Use router.replace() for cold start, router.push() for background
-    - Add [P0_PUSH_TAP] DEV proof logs with full routing context
-    - Update docs/STATE_OF_THE_APP.md and docs/FINDINGS_LOG.md
+    polish(circles): no-flicker photo avatar with emoji placeholder + fade-in
 
-docs/FINDINGS_LOG.md
-docs/STATE_OF_THE_APP.md
-src/hooks/useNotifications.ts
-
-ROUTE MOUNT PARITY
-────────────────────────────────────────────────────────────────────────────
-Not applicable (no server route mounts changed)
-
-This change is frontend-only, affecting notification tap handling in the
-Expo/React Native app. No backend routes were added or modified.
-
-═══════════════════════════════════════════════════════════════════════════
-END HANDOFF PACKET
-═══════════════════════════════════════════════════════════════════════════
+src/app/circle/[id].tsx
+src/app/create.tsx
+src/app/event/edit/[id].tsx
+src/components/CircleCard.tsx
+src/components/CirclePhotoEmoji.tsx

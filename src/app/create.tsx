@@ -8,7 +8,6 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
-  Image,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -41,6 +40,7 @@ import * as Location from "expo-location";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import BottomNavigation from "@/components/BottomNavigation";
+import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -1241,11 +1241,7 @@ export default function CreateEventScreen() {
                             className="w-8 h-8 rounded-lg items-center justify-center mr-3 overflow-hidden"
                             style={{ backgroundColor: `${themeColor}20` }}
                           >
-                            {circle.photoUrl ? (
-                              <Image source={{ uri: circle.photoUrl }} className="w-full h-full" />
-                            ) : (
-                              <Text className="text-base">{circle.emoji}</Text>
-                            )}
+                            <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-base" />
                           </View>
                           <Text style={{ color: colors.text }} className="flex-1 font-medium">{circle.name}</Text>
                           {selectedGroupIds.includes(circle.id) && (
