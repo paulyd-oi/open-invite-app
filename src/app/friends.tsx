@@ -458,11 +458,19 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  // Username-first layout: @handle as primary, bio as secondary
-  const listHandle = friend.Profile?.handle
-    ? `@${friend.Profile.handle}`
-    : friend.name ?? "";
+  // Name-first layout: display name primary, @handle secondary, bio optional third line
+  const displayName = friend.name ?? "";
+  const handleStr = friend.Profile?.handle ? `@${friend.Profile.handle}` : "";
   const listBio = friend.Profile?.calendarBio ?? "";
+  // Primary line: display name, fallback to @handle if no name
+  const primaryText = displayName || handleStr;
+  // Secondary line: @handle (only if display name exists and handle differs from primary)
+  const secondaryText = displayName && handleStr ? handleStr : "";
+
+  if (__DEV__) {
+    const linesCount = 1 + (secondaryText ? 1 : 0) + (listBio ? 1 : 0);
+    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT]', { hasName: !!displayName, hasUsername: !!handleStr, hasBio: !!listBio, renderedLinesCount: linesCount });
+  }
 
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -535,16 +543,24 @@ const FriendListItem = React.memo(function FriendListItem({
                     </View>
                   )}
                 </View>
-                <View className="flex-1" style={{ justifyContent: listBio ? "flex-start" : "center" }}>
+                <View className="flex-1" style={{ justifyContent: "center" }}>
                   <Text
                     style={{ fontSize: 15, fontWeight: "600", color: colors.text, letterSpacing: -0.2 }}
                     numberOfLines={1}
                   >
-                    {listHandle}
+                    {primaryText}
                   </Text>
-                  {listBio ? (
+                  {secondaryText ? (
                     <Text
                       style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
+                      numberOfLines={1}
+                    >
+                      {secondaryText}
+                    </Text>
+                  ) : null}
+                  {listBio ? (
+                    <Text
+                      style={{ fontSize: 12, color: colors.textTertiary, marginTop: 1, lineHeight: 16 }}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
