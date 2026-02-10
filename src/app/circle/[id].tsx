@@ -641,27 +641,55 @@ function MiniCalendar({
           const fmtTime = (iso: string) =>
             new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
+          // All-day detection: treat as all-day if span covers essentially the whole selected day
+          const isAllDay = (start: string, end: string | null): boolean => {
+            if (!end) return false;
+            const s = new Date(start);
+            const e = new Date(end);
+            // Heuristic 1: duration >= 23h 30m
+            if (e.getTime() - s.getTime() >= 23.5 * 60 * 60 * 1000) return true;
+            // Heuristic 2: start <= startOfDay + 30min AND end >= endOfDay - 30min
+            if (selectedDate) {
+              const dayStart = new Date(selectedDate);
+              dayStart.setHours(0, 0, 0, 0);
+              const dayEnd = new Date(selectedDate);
+              dayEnd.setHours(23, 59, 59, 999);
+              const EPSILON = 30 * 60 * 1000; // 30 minutes
+              if (s.getTime() <= dayStart.getTime() + EPSILON && e.getTime() >= dayEnd.getTime() - EPSILON) return true;
+            }
+            return false;
+          };
+
+          const fmtRange = (r: { start: string; end: string | null }) => {
+            if (isAllDay(r.start, r.end)) return "All day";
+            return r.end ? `${fmtTime(r.start)}\u2013${fmtTime(r.end)}` : fmtTime(r.start);
+          };
+
           const buildRangeString = (ranges: { start: string; end: string | null }[]) => {
             const MAX_DISPLAY = 2;
-            const displayed = ranges.slice(0, MAX_DISPLAY).map(r =>
-              r.end ? `${fmtTime(r.start)}\u2013${fmtTime(r.end)}` : fmtTime(r.start)
-            );
+            const displayed = ranges.slice(0, MAX_DISPLAY).map(fmtRange);
             const extra = ranges.length - MAX_DISPLAY;
             return extra > 0
-              ? `${displayed.join(", ")} +${extra} more`
+              ? `${displayed.join(", ")} +${extra} more blocks`
               : displayed.join(", ");
           };
 
-          // PART E — DEV proof logs
+          // DEV proof logs
+          let allDayCount = 0;
+          let overflowCount = 0;
+          for (const g of busyGroups) {
+            allDayCount += g.ranges.filter(r => isAllDay(r.start, r.end)).length;
+            if (g.ranges.length > 2) overflowCount++;
+          }
           if (__DEV__) {
-            devLog('[P0_BUSY_SUMMARY]', {
-              selectedDate: selectedDate?.toDateString() ?? null,
-              busyCount: maskedBusyEvents.length,
+            devLog('[P0_BUSY_SUMMARY_POLISH]', {
               groups: busyGroups.length,
-              names: busyGroups.map(g => g.ownerName).join(", "),
+              allDayCount,
+              overflowCount,
             });
-            for (const g of busyGroups) {
-              devLog('[P0_BUSY_SUMMARY_GROUP]', { ownerName: g.ownerName, count: g.ranges.length });
+            if (busyGroups.length > 0) {
+              const first = busyGroups[0];
+              devLog('[P0_BUSY_SUMMARY_FMT]', { ownerName: first.ownerName, ranges: buildRangeString(first.ranges) });
             }
           }
 
@@ -681,19 +709,17 @@ function MiniCalendar({
                     BUSY BLOCKS
                   </Text>
                   {busyGroups.map((group, gIdx) => (
-                    <Animated.View
+                    <View
                       key={`busy-group-${gIdx}`}
-                      entering={FadeInDown.delay(gIdx * 50).springify()}
                       style={{
                         borderRadius: 12,
                         padding: 12,
                         marginBottom: 8,
-                        backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
-                        opacity: 0.85,
+                        backgroundColor: isDark ? "rgba(44,44,46,0.7)" : "rgba(249,250,251,0.8)",
                       }}
                     >
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: colors.textTertiary }} />
+                        <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: isDark ? "rgba(156,163,175,0.5)" : "rgba(156,163,175,0.6)" }} />
                         <Text style={{ fontWeight: "500", flex: 1, color: colors.textSecondary }} numberOfLines={1}>
                           {`${group.ownerName} is busy`}
                         </Text>
@@ -702,7 +728,7 @@ function MiniCalendar({
                       <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4, marginLeft: 18 }} numberOfLines={1}>
                         {buildRangeString(group.ranges)}
                       </Text>
-                    </Animated.View>
+                    </View>
                   ))}
                 </>
               )}
