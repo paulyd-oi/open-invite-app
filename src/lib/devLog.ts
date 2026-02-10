@@ -127,6 +127,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_PREFILL_EVENT]",
   // P1 profile banner upload/render proof
   "[P1_PROFILE_BANNER]",
+  // P0 media route (upload kind + folder routing)
+  "[P0_MEDIA_ROUTE]",
 ];
 
 /**

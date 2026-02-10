@@ -25,7 +25,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
-import { uploadImage } from "@/lib/imageUpload";
+import { uploadByKind } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
 import { devError, devLog } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
@@ -195,8 +195,8 @@ export function EventPhotoGallery({
       }
       
       try {
-        // Compress and upload the image to the server
-        const uploadResponse = await uploadImage(result.assets[0].uri, true);
+        // Compress and upload via kind-aware uploader
+        const uploadResponse = await uploadByKind(result.assets[0].uri, "event_memory_photo", { eventId });
         
         // [P1_MEDIA_UPLOAD] Proof log: upload success
         if (__DEV__) {
@@ -257,8 +257,8 @@ export function EventPhotoGallery({
       }
       
       try {
-        // Compress and upload the image to the server
-        const uploadResponse = await uploadImage(result.assets[0].uri, true);
+        // Compress and upload via kind-aware uploader
+        const uploadResponse = await uploadByKind(result.assets[0].uri, "event_memory_photo", { eventId });
         
         // [P1_MEDIA_UPLOAD] Proof log: upload success
         if (__DEV__) {
