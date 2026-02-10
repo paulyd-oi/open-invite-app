@@ -48,9 +48,9 @@ echo ""
 
 # Proof A: Unauthed endpoint returns 200 without cookie
 echo "🧪 Proof A: Unauthed endpoint (no cookie)"
-RESPONSE_A=$(curl -s -w "\n%{http_code}" "$API_BASE_URL/api/health" || echo "000")
-HTTP_CODE_A=$(echo "$RESPONSE_A" | tail -n1)
-BODY_A=$(echo "$RESPONSE_A" | head -n-1)
+RESPONSE_A=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" "$API_BASE_URL/api/health" || echo "__HTTP_CODE__:000")
+HTTP_CODE_A=$(printf '%s' "$RESPONSE_A" | awk -F: '/^__HTTP_CODE__:/ {print $2}')
+BODY_A=$(printf '%s' "$RESPONSE_A" | sed '/^__HTTP_CODE__:/d')
 
 if [[ "$HTTP_CODE_A" == "200" ]]; then
   echo "✅ PASS: /api/health returned 200"
@@ -63,11 +63,11 @@ echo ""
 
 # Proof B: Authed endpoint returns 200 with cookie
 echo "🧪 Proof B: Authed endpoint (with cookie)"
-RESPONSE_B=$(curl -s -w "\n%{http_code}" \
+RESPONSE_B=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
   -H "cookie: $COOKIE_HEADER" \
-  "$API_BASE_URL/api/badges/catalog" || echo "000")
-HTTP_CODE_B=$(echo "$RESPONSE_B" | tail -n1)
-BODY_B=$(echo "$RESPONSE_B" | head -n-1)
+  "$API_BASE_URL/api/badges/catalog" || echo "__HTTP_CODE__:000")
+HTTP_CODE_B=$(printf '%s' "$RESPONSE_B" | awk -F: '/^__HTTP_CODE__:/ {print $2}')
+BODY_B=$(printf '%s' "$RESPONSE_B" | sed '/^__HTTP_CODE__:/d')
 
 if [[ "$HTTP_CODE_B" == "200" ]]; then
   # Extract count from JSON (expects {"badges": [...], "count": 9})
@@ -82,7 +82,7 @@ else
   echo "Response: $BODY_B"
   echo ""
   echo "Debug info:"
-  echo "  Cookie header: cookie: $COOKIE_HEADER"
+  echo "  Cookie header: cookie: ; __Secure-better-auth.session_token=${RAW_TOKEN:0:8}...[REDACTED]"
   echo "  Token length: ${#RAW_TOKEN}"
   exit 1
 fi
@@ -90,10 +90,10 @@ echo ""
 
 # Proof C: Authed endpoint returns 401 without cookie
 echo "🧪 Proof C: Authed endpoint (no cookie)"
-RESPONSE_C=$(curl -s -w "\n%{http_code}" \
-  "$API_BASE_URL/api/badges/catalog" || echo "000")
-HTTP_CODE_C=$(echo "$RESPONSE_C" | tail -n1)
-BODY_C=$(echo "$RESPONSE_C" | head -n-1)
+RESPONSE_C=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" \
+  "$API_BASE_URL/api/badges/catalog" || echo "__HTTP_CODE__:000")
+HTTP_CODE_C=$(printf '%s' "$RESPONSE_C" | awk -F: '/^__HTTP_CODE__:/ {print $2}')
+BODY_C=$(printf '%s' "$RESPONSE_C" | sed '/^__HTTP_CODE__:/d')
 
 if [[ "$HTTP_CODE_C" == "401" ]]; then
   echo "✅ PASS: /api/badges/catalog returned 401 without cookie"
