@@ -606,6 +606,7 @@ function RootLayoutNav() {
             presentation: 'card',
             headerShown: true,
             headerTitle: 'Profile',
+            headerBackButtonDisplayMode: 'minimal',
             headerStyle: { backgroundColor: headerBg },
             headerTintColor: headerTint,
           }}

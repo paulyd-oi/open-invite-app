@@ -482,10 +482,13 @@ export default function UserProfileScreen() {
           unfriendMenu: isFriend,
         },
       });
-      devLog("[P1_BACK_LABEL]", {
+      devLog("[P0_BACK_NAV]", {
         screen: "user/[id]",
+        routePathname: `/user/${id}`,
         previousRoute: source ?? "unknown",
-        resolvedBackTitle: "Back",
+        headerMode: "native",
+        headerBackButtonDisplayMode: "minimal",
+        title: user?.name ?? "Profile",
       });
     }
   }, [data, id, source, isFriend, friendshipId]);
@@ -689,6 +692,7 @@ export default function UserProfileScreen() {
       <Stack.Screen
         options={{
           title: user?.name ?? "Profile",
+          headerBackButtonDisplayMode: 'minimal',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerTitleStyle: { color: colors.text },
