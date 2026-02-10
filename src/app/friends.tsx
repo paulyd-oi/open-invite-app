@@ -282,7 +282,13 @@ const FriendCard = React.memo(function FriendCard({
     return null;
   }
 
-  const bio = friend.Profile?.calendarBio || friend.Profile?.bio;
+  // Build secondary metadata: "@handle • calendarBio/bio"
+  const _handle = friend.Profile?.handle;
+  const _bio = friend.Profile?.calendarBio || friend.Profile?.bio;
+  const _cardSecondaryParts: string[] = [];
+  if (_handle) _cardSecondaryParts.push(`@${_handle}`);
+  if (_bio) _cardSecondaryParts.push(_bio);
+  const cardSecondaryLine = _cardSecondaryParts.join(" • ");
 
   // Only animate first 5 items to reduce initial render cost
   const shouldAnimate = index < 5;
@@ -337,15 +343,16 @@ const FriendCard = React.memo(function FriendCard({
                 {friend.name ?? friend.email ?? "Unknown"}
               </Text>
             </View>
-            {bio && (
+            {cardSecondaryLine ? (
               <Text
                 className="mt-0.5"
                 style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}
                 numberOfLines={2}
+                ellipsizeMode="tail"
               >
-                {bio}
+                {cardSecondaryLine}
               </Text>
-            )}
+            ) : null}
             {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
           </View>
         </View>
@@ -450,6 +457,14 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
+  // Build secondary metadata line: "@handle • calendarBio"
+  const handle = friend.Profile?.handle;
+  const calendarBio = friend.Profile?.calendarBio;
+  const secondaryParts: string[] = [];
+  if (handle) secondaryParts.push(`@${handle}`);
+  if (calendarBio) secondaryParts.push(calendarBio);
+  const secondaryLine = secondaryParts.join(" • ");
+
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsExpanded(!isExpanded);
@@ -516,7 +531,15 @@ const FriendListItem = React.memo(function FriendListItem({
                       {friend.name ?? friend.email ?? "Unknown"}
                     </Text>
                   </View>
-                  {/* [LEGACY_GROUPS_PURGED] Group badges removed */}
+                  {secondaryLine ? (
+                    <Text
+                      style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {secondaryLine}
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
 
@@ -921,6 +944,14 @@ export default function FriendsScreen() {
     if (__DEV__ && friendsData) {
       console.timeEnd("[PERF] Friends query");
       devLog("[PERF] Friends count:", friendsData.friends?.length ?? 0);
+      // [P1_FRIEND_ROW_META] Proof log — check if handle/bio present in payload
+      const sample = (friendsData.friends ?? []).slice(0, 5);
+      sample.forEach((f) => {
+        devLog("[P1_FRIEND_ROW_META]", {
+          hasUsername: !!f.friend?.Profile?.handle,
+          hasBio: !!(f.friend?.Profile?.calendarBio || f.friend?.Profile?.bio),
+        });
+      });
     }
   }, [friendsData]);
 
