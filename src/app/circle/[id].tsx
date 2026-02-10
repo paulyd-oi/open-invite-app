@@ -61,6 +61,7 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import DayAgendaSheet from "@/components/DayAgendaSheet";
+import { UserListRow } from "@/components/UserListRow";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import * as Haptics from "expo-haptics";
@@ -3349,68 +3350,37 @@ export default function CircleScreen() {
                         <Pressable
                           onPress={() => toggleFriendSelection(friendship.friendId)}
                           style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            paddingVertical: 12,
-                            paddingHorizontal: 12,
                             marginBottom: 8,
                             borderRadius: 12,
                             backgroundColor: isSelected ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F9FAFB",
                             borderWidth: isSelected ? 2 : 1,
                             borderColor: isSelected ? themeColor : colors.border,
+                            overflow: "hidden",
                           }}
                         >
-                          <View
-                            style={{
-                              width: 44,
-                              height: 44,
-                              borderRadius: 22,
-                              overflow: "hidden",
-                              backgroundColor: isDark ? "#3C3C3E" : "#E5E7EB",
-                            }}
-                          >
-                            {friendship.friend.image ? (
-                              <Image source={{ uri: friendship.friend.image }} style={{ width: "100%", height: "100%" }} />
-                            ) : (
+                          <UserListRow
+                            handle={friendship.friend.Profile?.handle}
+                            displayName={friendship.friend.name}
+                            calendarBio={friendship.friend.Profile?.calendarBio}
+                            avatarUrl={friendship.friend.image}
+                            disablePressFeedback
+                            rightAccessory={
                               <View
                                 style={{
-                                  width: "100%",
-                                  height: "100%",
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: 14,
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  backgroundColor: `${themeColor}30`,
+                                  backgroundColor: isSelected ? themeColor : "transparent",
+                                  borderWidth: isSelected ? 0 : 2,
+                                  borderColor: colors.border,
                                 }}
                               >
-                                <Text style={{ fontSize: 18, fontWeight: "600", color: themeColor }}>
-                                  {friendship.friend.name?.[0] ?? "?"}
-                                </Text>
+                                {isSelected && <Check size={16} color="#fff" />}
                               </View>
-                            )}
-                          </View>
-                          <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>
-                              {friendship.friend.name ?? "Unknown"}
-                            </Text>
-                            {friendship.friend.Profile?.handle && (
-                              <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                                @{friendship.friend.Profile.handle}
-                              </Text>
-                            )}
-                          </View>
-                          <View
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 14,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backgroundColor: isSelected ? themeColor : "transparent",
-                              borderWidth: isSelected ? 0 : 2,
-                              borderColor: colors.border,
-                            }}
-                          >
-                            {isSelected && <Check size={16} color="#fff" />}
-                          </View>
+                            }
+                          />
                         </Pressable>
                       </Animated.View>
                     );
@@ -4346,108 +4316,76 @@ export default function CircleScreen() {
               </View>
 
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }}>
-                {/* Members List */}
+                {/* Members List — SSOT via UserListRow */}
                 {members.map((member, idx) => {
                   const isHostOfCircle = circle?.createdById === member.userId;
                   return (
-                    <Pressable
+                    <View
                       key={member.userId}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setShowMembersSheet(false);
-                        setSelectedFriends([]);
-                        router.push(`/user/${member.userId}`);
-                      }}
                       style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        paddingVertical: 12,
                         borderBottomWidth: idx < members.length - 1 ? 1 : 0,
                         borderBottomColor: colors.border,
                       }}
                     >
-                      {/* Avatar */}
-                      <View
-                        className="w-10 h-10 rounded-full overflow-hidden mr-3"
-                        style={{
-                          backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                      <UserListRow
+                        handle={null}
+                        displayName={member.user.name}
+                        calendarBio={null}
+                        avatarUrl={member.user.image}
+                        badgeText={isHostOfCircle ? "Host" : null}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowMembersSheet(false);
+                          setSelectedFriends([]);
+                          router.push(`/user/${member.userId}`);
                         }}
-                      >
-                        {member.user.image ? (
-                          <Image source={{ uri: member.user.image }} className="w-full h-full" />
-                        ) : (
-                          <View
-                            className="w-full h-full items-center justify-center"
-                            style={{ backgroundColor: themeColor + "30" }}
-                          >
-                            <Text className="text-xs font-bold" style={{ color: themeColor }}>
-                              {member.user.name?.[0] ?? "?"}
-                            </Text>
+                        rightAccessory={
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            {/* Remove button (host only, cannot remove self) */}
+                            {isHost && !isHostOfCircle && (
+                              <Pressable
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                  if (__DEV__) {
+                                    devLog('[CircleRemoveMember] Trash pressed, member snapshot:', {
+                                      memberId: member.id,
+                                      memberUserId: member.userId,
+                                      memberUserIdFromUser: member.user?.id,
+                                      memberName: member.user?.name,
+                                      circleId: id,
+                                    });
+                                  }
+                                  const targetUserId = member.userId;
+                                  if (!targetUserId) {
+                                    devError('[CircleRemoveMember] ERROR: No userId found for member');
+                                    safeToast.error("Error", "Unable to identify member. Please try again.");
+                                    return;
+                                  }
+                                  setShowMembersSheet(false);
+                                  setTimeout(() => {
+                                    setSelectedMemberToRemove(targetUserId);
+                                  }, 100);
+                                }}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  backgroundColor: "#FF3B3015",
+                                  marginRight: 8,
+                                }}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              >
+                                <TrashIcon size={16} color="#FF3B30" />
+                              </Pressable>
+                            )}
+                            <ChevronRight size={18} color={colors.textTertiary} />
                           </View>
-                        )}
-                      </View>
-
-                      {/* Name and Host Badge */}
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>
-                            {member.user.name}
-                          </Text>
-                          {isHostOfCircle && (
-                            <View style={{ marginLeft: 8, backgroundColor: themeColor + "20", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                              <Text style={{ fontSize: 11, fontWeight: "600", color: themeColor }}>Host</Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                      
-                      {/* Remove button (host only, cannot remove self) */}
-                      {isHost && !isHostOfCircle && (
-                        <Pressable
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            if (__DEV__) {
-                              devLog('[CircleRemoveMember] Trash pressed, member snapshot:', {
-                                memberId: member.id,
-                                memberUserId: member.userId,
-                                memberUserIdFromUser: member.user?.id,
-                                memberName: member.user?.name,
-                                circleId: id,
-                              });
-                            }
-                            // Use member.userId (from schema) for the mutation
-                            const targetUserId = member.userId;
-                            if (!targetUserId) {
-                              devError('[CircleRemoveMember] ERROR: No userId found for member');
-                              safeToast.error("Error", "Unable to identify member. Please try again.");
-                              return;
-                            }
-                            // Close the members sheet FIRST, then show confirmation
-                            setShowMembersSheet(false);
-                            // Small delay to allow sheet animation to start
-                            setTimeout(() => {
-                              setSelectedMemberToRemove(targetUserId);
-                            }, 100);
-                          }}
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: "#FF3B3015",
-                            marginRight: 8,
-                          }}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <TrashIcon size={16} color="#FF3B30" />
-                        </Pressable>
-                      )}
-
-                      {/* Chevron indicator */}
-                      <ChevronRight size={18} color={colors.textTertiary} />
-                    </Pressable>
+                        }
+                      />
+                    </View>
                   );
                 })}
 
@@ -4471,45 +4409,33 @@ export default function CircleScreen() {
                             <Pressable
                               onPress={() => toggleFriendSelection(friend.friendId)}
                               style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                paddingVertical: 10,
                                 borderBottomWidth: 1,
                                 borderBottomColor: colors.border,
                               }}
                             >
-                              <View
-                                style={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: 5,
-                                  marginRight: 12,
-                                  borderWidth: 2,
-                                  borderColor: isSelected ? themeColor : colors.border,
-                                  backgroundColor: isSelected ? themeColor : "transparent",
-                                }}
-                              >
-                                {isSelected && <Check size={8} color="#fff" style={{ marginTop: -1 }} />}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>
-                                  {friend.friend.name}
-                                </Text>
-                              </View>
-                              <View
-                                style={{
-                                  width: 20,
-                                  height: 20,
-                                  borderRadius: 10,
-                                  borderWidth: 2,
-                                  borderColor: colors.border,
-                                  backgroundColor: isSelected ? themeColor : "transparent",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                {isSelected && <Check size={16} color="#fff" />}
-                              </View>
+                              <UserListRow
+                                handle={friend.friend.Profile?.handle}
+                                displayName={friend.friend.name}
+                                calendarBio={friend.friend.Profile?.calendarBio}
+                                avatarUrl={friend.friend.image}
+                                disablePressFeedback
+                                rightAccessory={
+                                  <View
+                                    style={{
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 10,
+                                      borderWidth: 2,
+                                      borderColor: colors.border,
+                                      backgroundColor: isSelected ? themeColor : "transparent",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    {isSelected && <Check size={16} color="#fff" />}
+                                  </View>
+                                }
+                              />
                             </Pressable>
                           </Animated.View>
                         );

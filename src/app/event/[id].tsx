@@ -53,6 +53,7 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
+import { UserListRow } from "@/components/UserListRow";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as ExpoCalendar from "expo-calendar";
@@ -3437,54 +3438,27 @@ export default function EventDetailScreen() {
                 ) : (
                   <>
                 {attendeesList.map((attendee) => (
-                  <Pressable
+                  <View
                     key={attendee.id}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setShowAttendeesModal(false);
-                      router.push(`/user/${attendee.id}` as any);
-                    }}
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      paddingVertical: 12,
                       borderBottomWidth: 1,
                       borderBottomColor: colors.border,
                     }}
                   >
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: "#DCFCE7",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderWidth: 2,
-                        borderColor: "#BBF7D0",
+                    <UserListRow
+                      handle={null}
+                      displayName={attendee.name ?? "Guest"}
+                      calendarBio={null}
+                      avatarUrl={attendee.imageUrl}
+                      badgeText={(attendee.isHost || attendee.id === event?.user?.id) ? "Host" : null}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setShowAttendeesModal(false);
+                        router.push(`/user/${attendee.id}` as any);
                       }}
-                    >
-                      {attendee.imageUrl ? (
-                        <Image
-                          source={{ uri: attendee.imageUrl }}
-                          style={{ width: 44, height: 44, borderRadius: 22 }}
-                        />
-                      ) : (
-                        <Text style={{ fontSize: 16, fontWeight: "600", color: "#166534" }}>
-                          {attendee.name?.[0] ?? "?"}
-                        </Text>
-                      )}
-                    </View>
-                    <View style={{ marginLeft: 12, flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontWeight: "500", color: colors.text }}>
-                        {attendee.name ?? "Guest"}
-                      </Text>
-                      {(attendee.isHost || attendee.id === event?.user?.id) && (
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706', marginTop: 1 }}>Host</Text>
-                      )}
-                    </View>
-                    <ChevronRight size={18} color={colors.textTertiary} />
-                  </Pressable>
+                      rightAccessory={<ChevronRight size={18} color={colors.textTertiary} />}
+                    />
+                  </View>
                 ))}
                   </>
                 )}
