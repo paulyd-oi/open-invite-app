@@ -421,6 +421,25 @@ export default function UserProfileScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
 
+  // ===== [P0_SELF_PROFILE] INVARIANT: viewer must never land on /user/self =====
+  const viewerId = session?.user?.id;
+  const isSelf = !!viewerId && !!id && viewerId === id;
+
+  useEffect(() => {
+    if (isSelf) {
+      if (__DEV__) {
+        devLog('[P0_SELF_PROFILE]', 'redirect_to_canonical', {
+          viewerId: viewerId?.slice(0, 8),
+          profileUserId: id?.slice(0, 8),
+          isSelf: true,
+          target: '/profile',
+          source: source ?? 'unknown',
+        });
+      }
+      router.replace('/profile');
+    }
+  }, [isSelf, viewerId, id, router, source]);
+
   // ===== FRIEND-ONLY STATE (unlocked when isFriend=true) =====
   const [showNotesSection, setShowNotesSection] = useState(true);
   const [newNoteText, setNewNoteText] = useState("");
@@ -453,6 +472,8 @@ export default function UserProfileScreen() {
       devLog("[P0_PROFILE_SOT]", {
         routeSource: source ?? "user/[id]",
         targetUserId: id,
+        viewerId: viewerId?.slice(0, 8),
+        isSelf,
         relationshipState: isFriend ? "friend" : "non-friend",
         friendshipId: friendshipId,
         gatedSections: {
@@ -650,6 +671,15 @@ export default function UserProfileScreen() {
         <View className="flex-1 items-center justify-center">
           <Text style={{ color: colors.textSecondary }}>Please sign in to view profiles</Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // [P0_SELF_PROFILE] While redirect effect fires, render nothing to prevent flash
+  if (isSelf) {
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: "Profile" }} />
       </SafeAreaView>
     );
   }

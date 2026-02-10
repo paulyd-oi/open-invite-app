@@ -93,7 +93,18 @@ export function goToFriend(router: Router, friendshipId: string): void {
   router.push(`/friend/${friendshipId}`);
 }
 
-export function goToUser(router: Router, userId: string): void {
+/**
+ * Navigate to a user profile.
+ * [P0_SELF_PROFILE] If userId === viewerId, redirect to canonical /profile.
+ */
+export function goToUser(router: Router, userId: string, viewerId?: string): void {
+  if (viewerId && userId === viewerId) {
+    if (__DEV__) {
+      devLog('[P0_SELF_PROFILE]', 'goToUser_redirect', { viewerId: viewerId.slice(0, 8), userId: userId.slice(0, 8), target: '/profile' });
+    }
+    router.push(ROUTES.PROFILE);
+    return;
+  }
   router.push(`/user/${userId}`);
 }
 
