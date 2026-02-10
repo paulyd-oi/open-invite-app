@@ -358,21 +358,23 @@ export default function ProfileScreen() {
   };
 
   // ── YOUR WEEK derivation (SSOT from existing events query) ──
-  const upcomingWeekEvents = useMemo(() => {
+  const weekEventsAll = useMemo(() => {
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return allEvents
       .filter((e) => {
         const start = new Date(e.startTime);
         return start > now && start <= weekFromNow && e.userId === session?.user?.id;
       })
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-      .slice(0, 3);
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allEvents, session?.user?.id]);
 
-  // [P0_PROFILE_WEEK] DEV proof log
+  const weekEventCount = weekEventsAll.length;
+  const upcomingWeekEvents = weekEventsAll.slice(0, 3);
+
+  // [P3_PROFILE_WEEK] DEV proof log
   if (__DEV__) {
-    devLog("[P0_PROFILE_WEEK]", { weekCount: upcomingWeekEvents.length });
+    devLog("[P3_PROFILE_WEEK]", { weekCount: weekEventCount, previewCount: upcomingWeekEvents.length });
   }
 
   // ── P2 empty-state tracking ──
@@ -393,6 +395,7 @@ export default function ProfileScreen() {
       if (__DEV__) devLog("[P2_PROFILE_MOTION]", { mounted: true });
       if (__DEV__) devLog("[P3_PROFILE_ACTION_ROW_REMOVED]", true);
       if (__DEV__) devLog("[P3_PROFILE_MOTION]", { duration: 240, stagger: 40, springify: false });
+      if (__DEV__) devLog("[P3_PROFILE_RHYTHM]", { applied: true });
     }
   }, []);
 
@@ -639,12 +642,12 @@ export default function ProfileScreen() {
           </Text>
           <View
             className="rounded-xl p-4 border"
-            style={{ backgroundColor: colors.surface, borderColor: colors.border }}
+            style={{ backgroundColor: colors.surface, borderColor: colors.border, minHeight: 130 }}
           >
             <Text className="text-sm mb-3" style={{ color: colors.textSecondary }}>
-              {upcomingWeekEvents.length > 0
-                ? `${upcomingWeekEvents.length} plan${upcomingWeekEvents.length === 1 ? "" : "s"} in the next 7 days`
-                : "No plans this week"}
+              {weekEventCount > 0
+                ? `${weekEventCount} plan${weekEventCount === 1 ? "" : "s"} in the next 7 days`
+                : "Nothing planned this week"}
             </Text>
 
             {upcomingWeekEvents.length > 0 && (
@@ -659,7 +662,10 @@ export default function ProfileScreen() {
                         router.push(`/event/${evt.id}`);
                       }}
                       className="flex-row items-center py-1.5"
-                      style={idx < upcomingWeekEvents.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
+                      style={({ pressed }) => [
+                        { opacity: pressed ? 0.6 : 1 },
+                        idx < upcomingWeekEvents.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined,
+                      ]}
                     >
                       <Text className="text-base mr-2">{evt.emoji || "📅"}</Text>
                       <Text className="flex-1 text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
@@ -674,10 +680,10 @@ export default function ProfileScreen() {
 
             <Button
               variant="ghost"
-              label={upcomingWeekEvents.length === 0 ? "Start something" : "View calendar"}
+              label={weekEventCount === 0 ? "Start something" : "View calendar"}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(upcomingWeekEvents.length === 0 ? "/create" : "/calendar");
+                router.push(weekEventCount === 0 ? "/create" : "/calendar");
               }}
               style={{ backgroundColor: `${themeColor}15`, borderRadius: 8, paddingVertical: 10 }}
             />
@@ -792,7 +798,7 @@ export default function ProfileScreen() {
             .map(([key, count]) => {
               const catInfo = EVENT_CATEGORIES.find((c) => c.value.toLowerCase() === key) ?? {
                 emoji: "📅",
-                label: key.charAt(0).toUpperCase() + key.slice(1),
+                label: key.length > 0 ? key.charAt(0).toUpperCase() + key.slice(1) : "Other",
                 color: "#78909C",
               };
               return { key, count, emoji: catInfo.emoji, label: catInfo.label, color: catInfo.color };
@@ -843,7 +849,7 @@ export default function ProfileScreen() {
                     ))}
                   </View>
                 ) : (
-                  <View className="items-center py-2">
+                  <View className="items-center py-4" style={{ minHeight: 48 }}>
                     <Text className="text-sm" style={{ color: colors.textTertiary }}>
                       Event types will appear as you plan
                     </Text>
