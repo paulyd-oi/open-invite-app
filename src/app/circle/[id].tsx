@@ -61,6 +61,7 @@ import {
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import DayAgendaSheet from "@/components/DayAgendaSheet";
+import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
@@ -68,6 +69,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
+import { once } from "@/lib/runtimeInvariants";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
@@ -452,26 +454,29 @@ function MiniCalendar({
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {scheduleResult.topSlots.map((slot, i) => {
               const slotDate = new Date(slot.start);
+              const endDate = new Date(slot.end);
               const dayLabel = slotDate.toLocaleDateString("en-US", { weekday: "short" });
               const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
               const pillText = `${dayLabel} ${timeLabel} · ${slot.availableCount}/${slot.totalMembers}`;
+              const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
 
               const shareLabel = `Best time: ${dayLabel} ${timeLabel}`;
+
+              // [P0_CIRCLE_FREE_TIME_PILLS] DEV proof — once per pill set render
+              if (__DEV__ && i === 0 && once(`circle_free_pills_${circleId}`)) {
+                devLog("[P0_CIRCLE_FREE_TIME_PILLS]", {
+                  count: scheduleResult.topSlots.length,
+                  firstLabel: pillText,
+                  onPressWired: true,
+                });
+              }
 
               return (
                 <Pressable
                   key={i}
                   onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    Clipboard.setStringAsync(shareLabel).catch(() => {});
-                    safeToast.success("Copied", shareLabel);
-                    if (__DEV__) devLog("[P1_FREE_CHIP_PRESS]", { label: pillText, value: shareLabel });
-                    setSelectedSlot(slot);
-                  }}
-                  onLongPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                    const endDate = new Date(slot.end);
-                    const durationMin = Math.round((endDate.getTime() - slotDate.getTime()) / 60000);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    if (__DEV__) devLog("[P0_CIRCLE_FREE_TIME_PILL_TAP]", { start: slot.start, end: slot.end });
                     router.push({
                       pathname: "/create",
                       params: {
@@ -481,17 +486,22 @@ function MiniCalendar({
                       },
                     } as any);
                   }}
-                  style={({ pressed }) => ({
-                    flexDirection: "row" as const,
-                    alignItems: "center" as const,
+                  onLongPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    Clipboard.setStringAsync(shareLabel).catch(() => {});
+                    safeToast.success("Copied", shareLabel);
+                    setSelectedSlot(slot);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
                     borderRadius: 12,
                     paddingHorizontal: 8,
                     paddingVertical: 4,
                     marginRight: 6,
                     marginBottom: 4,
-                    opacity: pressed ? 0.6 : 1,
                     backgroundColor: slot.score === 1 ? "#10B98120" : isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-                  })}
+                  }}
                 >
                   <Clock size={10} color={slot.score === 1 ? "#10B981" : themeColor} />
                   <Text style={{ fontSize: 10, fontWeight: "500", marginLeft: 4, color: slot.score === 1 ? "#10B981" : themeColor }}>
@@ -2437,9 +2447,12 @@ export default function CircleScreen() {
             <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
           </View>
           <View className="flex-1">
-            <Text className="font-semibold" style={{ color: colors.text }}>
-              {circle.name}
-            </Text>
+            <View className="flex-row items-center">
+              <Text className="font-semibold" style={{ color: colors.text }}>
+                {circle.name}
+              </Text>
+              <HelpSheet screenKey="circles" config={HELP_SHEETS.circles} />
+            </View>
             <Text className="text-xs" style={{ color: colors.textTertiary }}>
               {members.length} members
             </Text>
