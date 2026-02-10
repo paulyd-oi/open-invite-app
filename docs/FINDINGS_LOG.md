@@ -410,13 +410,16 @@ Both use per-user keys and won't re-show after dismissal.
 - `FriendCard`: React.memo + useCallback ✓
 - Query staleTime tuning across all main tabs ✓
 
-### DEV / DEBUG SCREENS (P2 - Acceptable)
-| Route | Accessibility | Risk |
-|-------|--------------|------|
-| `/debug/health` | Long-press "Settings" title | Low - hidden |
-| `/design-showcase` | No route links in app | Low - unreachable |
+### DEV / DEBUG SCREENS — P17 LOCKED DOWN
+| Route | Action Taken | Commit |
+|-------|-------------|--------|
+| `/debug/health` | Deleted `src/app/debug/` directory | P17 |
+| `/design-showcase` | Deleted file + removed `_layout.tsx` Stack.Screen | P17 |
+| `/dev-smoke-tests` | Deleted (prior task) | 45486e9 |
 
-**Recommendation**: No action needed. Routes exist in `_layout.tsx` Stack but have no in-app navigation paths.
+**P17 enforcement added** to `verify_frontend.sh`: static scan blocks re-introduction of banned dev/demo/showcase/debug route files or directories under `src/app/`.
+
+**Recommendation**: Resolved — no dev artifact routes ship in production.
 
 ### Verification
 ```

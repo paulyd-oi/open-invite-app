@@ -156,4 +156,45 @@ fi
 echo ""
 echo "P14 enforcement checks PASS"
 
+# ── P17 enforcement: dev route lockdown ──────────────────────────────
+echo ""
+echo "Running P17 enforcement checks…"
+
+# Part 1: Banned dev/debug/demo filenames in src/app
+P17_BANNED_FILES=$(find src/app -maxdepth 2 -type f \( \
+  -name "design-showcase*" -o \
+  -name "showcase*" -o \
+  -name "dev-*" -o \
+  -name "demo*" -o \
+  -name "smoke*" -o \
+  -name "test-harness*" \
+\) 2>/dev/null || true)
+
+if [ -n "$P17_BANNED_FILES" ]; then
+  echo "❌ P17 FAIL — banned dev/demo route files found in src/app:"
+  echo "$P17_BANNED_FILES"
+  exit 1
+else
+  echo "  ✓ P17 Part 1: No banned dev/demo route files"
+fi
+
+# Part 2: Banned dev/debug/demo directories in src/app
+P17_BANNED_DIRS=$(find src/app -maxdepth 2 -type d \( \
+  -name "debug" -o \
+  -name "demo" -o \
+  -name "showcase" -o \
+  -name "dev" \
+\) 2>/dev/null || true)
+
+if [ -n "$P17_BANNED_DIRS" ]; then
+  echo "❌ P17 FAIL — banned dev/demo route directories found in src/app:"
+  echo "$P17_BANNED_DIRS"
+  exit 1
+else
+  echo "  ✓ P17 Part 2: No banned dev/demo route directories"
+fi
+
+echo ""
+echo "P17 enforcement checks PASS"
+
 echo "PASS: verify_frontend"

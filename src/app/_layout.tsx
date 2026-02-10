@@ -666,15 +666,6 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
-        {/* DEV-ONLY: Design showcase screen only available in development */}
-        {__DEV__ && (
-          <Stack.Screen
-            name="design-showcase"
-            options={{
-              headerShown: false,
-            }}
-          />
-        )}
         <Stack.Screen
           name="help-faq"
           options={{
