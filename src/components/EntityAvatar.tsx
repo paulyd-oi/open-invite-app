@@ -24,6 +24,9 @@ export interface EntityAvatarProps {
   emojiClassName?: string;
   /** Inline style for emoji Text (pass-through to EventPhotoEmoji) */
   emojiStyle?: TextStyle;
+  /** Pre-built RN Image source with optional headers (e.g. Authorization).
+   *  Takes priority over photoUrl for plain-image rendering (Tier 2). */
+  imageSource?: { uri: string; headers?: Record<string, string> } | null;
   /** Badge overlay — rendered at absolute position inside the container */
   badge?: React.ReactNode;
   /** Extra styles applied to the outer container (e.g. margin for layout spacing) */
@@ -54,11 +57,18 @@ export function EntityAvatar({
   fallbackIcon,
   emojiClassName,
   emojiStyle,
+  imageSource,
   badge,
   style,
 }: EntityAvatarProps) {
   const radius = borderRadius ?? size / 2;
-  const hasPhoto = !!photoUrl;
+  // Resolve effective photo source: imageSource (pre-built with headers) wins over photoUrl string
+  const effectiveSource = imageSource?.uri
+    ? imageSource
+    : photoUrl
+      ? { uri: photoUrl }
+      : null;
+  const hasPhoto = !!effectiveSource;
   const hasEmoji = !!emoji;
   const hasInitials = !!initials && initials.length > 0;
 
@@ -68,16 +78,16 @@ export function EntityAvatar({
     // Tier 1 — event thumbnail: photo fades in over emoji base layer
     content = (
       <EventPhotoEmoji
-        photoUrl={photoUrl}
+        photoUrl={photoUrl ?? imageSource?.uri}
         emoji={emoji}
         emojiClassName={emojiClassName}
         emojiStyle={emojiStyle ?? { fontSize: Math.round(size * 0.5) }}
       />
     );
   } else if (hasPhoto) {
-    // Tier 2 — actor avatar: standalone image, no emoji underneath
+    // Tier 2 — actor avatar: standalone image (supports auth headers via imageSource)
     content = (
-      <Image source={{ uri: photoUrl! }} style={StyleSheet.absoluteFill} />
+      <Image source={effectiveSource!} style={StyleSheet.absoluteFill} />
     );
   } else if (hasEmoji) {
     // Tier 3 — emoji only (no photo available)

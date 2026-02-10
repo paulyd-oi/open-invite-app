@@ -484,22 +484,14 @@ export default function ProfileScreen() {
             <View className="flex-row items-center">
               {/* Avatar with premium crown overlay */}
               <View className="relative">
-                <View className="w-16 h-16 rounded-full overflow-hidden">
-                  {avatarSource ? (
-                    <Image source={avatarSource} className="w-full h-full" />
-                  ) : (
-                    <View
-                      className="w-full h-full items-center justify-center"
-                      style={{
-                        backgroundColor: isDark ? colors.surfaceElevated : `${themeColor}15`,
-                      }}
-                    >
-                      <Text style={{ color: themeColor, fontSize: 22 }}>
-                        {StringSafe(getProfileInitial({ profileData, session }))}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                <EntityAvatar
+                  imageSource={avatarSource}
+                  initials={StringSafe(getProfileInitial({ profileData, session }))}
+                  size={64}
+                  backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
+                  foregroundColor={themeColor}
+                  fallbackIcon="person"
+                />
                 {/* Premium crown on avatar */}
                 {userIsPremium && (
                   <View
