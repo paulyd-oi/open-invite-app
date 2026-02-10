@@ -59,8 +59,12 @@ export interface UploadByKindOptions {
 /** Shape returned by POST /api/uploads/sign. */
 interface SignedUploadParams {
   cloudName: string;
-  /** Cloudinary-ready key/value pairs — append verbatim to FormData. */
-  signedParams: Record<string, string>;
+  /**
+   * Cloudinary-ready key/value pairs — append verbatim to FormData.
+   * Values may arrive as string | number | boolean from JSON.parse;
+   * the upload loop coerces every value via String() before appending.
+   */
+  signedParams: Record<string, string | number | boolean>;
 }
 
 /** Shape sent to POST /api/uploads/complete. */
@@ -254,8 +258,13 @@ export async function uploadByKind(
 
     // --- C. Upload to Cloudinary (signed) ----------------------------------
     const formData = new FormData();
+    // CRITICAL: String() every value — JSON.parse may return numbers/booleans
+    // which React Native FormData does not reliably coerce on iOS.
+    const formFields: Record<string, string> = {};
     for (const [key, value] of Object.entries(signed.signedParams)) {
-      formData.append(key, value);
+      const strVal = String(value);
+      formData.append(key, strVal);
+      formFields[key] = strVal;
     }
     formData.append("file", {
       uri: compressedUri,
@@ -264,12 +273,29 @@ export async function uploadByKind(
     } as any);
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'cloudinary_request', {
-        kind,
-        signedParamKeys: Object.keys(signed.signedParams),
+      // Proof: raw signedParams from backend (may include non-string types)
+      const sp = signed.signedParams;
+      devLog('[P0_BANNER_UPLOAD]', 'signedParams_raw', {
+        timestamp: sp.timestamp,
+        timestampType: typeof sp.timestamp,
+        folder: sp.folder,
+        public_id: sp.public_id,
+        overwrite: sp.overwrite,
+        overwriteType: typeof sp.overwrite,
+        invalidate: sp.invalidate,
+        invalidateType: typeof sp.invalidate,
+        signaturePrefix: String(sp.signature).slice(0, 8),
+      });
+      // Proof: exact string values appended to FormData
+      devLog('[P0_BANNER_UPLOAD]', 'formData_appended', {
+        timestamp: formFields.timestamp,
+        folder: formFields.folder,
+        public_id: formFields.public_id,
+        overwrite: formFields.overwrite,
+        invalidate: formFields.invalidate,
+        api_key: formFields.api_key ? 'present' : 'MISSING',
+        signaturePrefix: formFields.signature?.slice(0, 8),
         fileName: profile.filename,
-        mimeType: 'image/jpeg',
-        compressedUriPrefix: compressedUri?.slice(0, 60),
       });
     }
 
@@ -300,10 +326,15 @@ export async function uploadByKind(
         text?.substring(0, 200) ||
         "Upload failed";
       if (__DEV__) {
-        devError('[P0_BANNER_UPLOAD]', 'cloudinary_upload_FAILED', { status: res.status, msg });
+        devError('[P0_BANNER_UPLOAD]', 'cloudinary_upload_FAILED', {
+          status: res.status,
+          msg,
+          // Include full response body so "String to sign" is visible
+          responseBody: text?.slice(0, 500),
+        });
         if (json) devLog('[P0_BANNER_UPLOAD]', 'cloudinary_error_payload', json);
       }
-      throw new Error(`Cloudinary upload failed (${res.status}): ${msg}`);
+      throw new Error(`Cloudinary upload failed (${res.status}): ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
     }
 
     const secureUrl = json?.secure_url as string | undefined;
@@ -321,7 +352,7 @@ export async function uploadByKind(
     const completeBody: UploadCompleteBody = {
       kind,
       secureUrl,
-      publicId: publicId ?? signed.signedParams.public_id ?? '',
+      publicId: publicId ?? String(signed.signedParams.public_id ?? ''),
     };
     if (opts?.eventId) completeBody.eventId = opts.eventId;
     if (opts?.circleId) completeBody.circleId = opts.circleId;
