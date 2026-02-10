@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, Image, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EventPhotoEmoji } from "./EventPhotoEmoji";
@@ -62,13 +62,15 @@ export function EntityAvatar({
   style,
 }: EntityAvatarProps) {
   const radius = borderRadius ?? size / 2;
+  // [P0_ENTITY_AVATAR_ERROR_FALLBACK] Track broken image loads
+  const [imageFailed, setImageFailed] = useState(false);
   // Resolve effective photo source: imageSource (pre-built with headers) wins over photoUrl string
   const effectiveSource = imageSource?.uri
     ? imageSource
     : photoUrl
       ? { uri: photoUrl }
       : null;
-  const hasPhoto = !!effectiveSource;
+  const hasPhoto = !!effectiveSource && !imageFailed;
   const hasEmoji = !!emoji;
   const hasInitials = !!initials && initials.length > 0;
 
@@ -76,6 +78,7 @@ export function EntityAvatar({
 
   if (hasPhoto && hasEmoji) {
     // Tier 1 — event thumbnail: photo fades in over emoji base layer
+    // EventPhotoEmoji handles its own image error internally (falls back to emoji)
     content = (
       <EventPhotoEmoji
         photoUrl={photoUrl ?? imageSource?.uri}
@@ -87,7 +90,11 @@ export function EntityAvatar({
   } else if (hasPhoto) {
     // Tier 2 — actor avatar: standalone image (supports auth headers via imageSource)
     content = (
-      <Image source={effectiveSource!} style={StyleSheet.absoluteFill} />
+      <Image
+        source={effectiveSource!}
+        style={StyleSheet.absoluteFill}
+        onError={() => setImageFailed(true)}
+      />
     );
   } else if (hasEmoji) {
     // Tier 3 — emoji only (no photo available)
