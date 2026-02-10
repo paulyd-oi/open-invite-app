@@ -1955,8 +1955,11 @@ export default function CircleScreen() {
         nextMuted: isMuted,
         entryPoint: "details",
       });
+      // [P0_CIRCLE_SETTINGS] Only invalidate list — do NOT invalidate single() here.
+      // The detail endpoint returns isMuted as optional; a refetch can overwrite
+      // the optimistic update with undefined → false, causing the toggle to revert.
       queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-      queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
+      if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "mute_persist_ok", { circleId: id, isMuted });
     },
     onError: (error, isMuted, context) => {
       // Revert optimistic updates
@@ -4362,10 +4365,15 @@ export default function CircleScreen() {
                 {/* [P1_NOTIFY_LEVEL_UI] Notification Level Row */}
                 <Pressable
                   onPress={() => {
-                    if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "open_sheet");
+                    if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_level_tap");
+                    // [P0_CIRCLE_SETTINGS] Close settings sheet FIRST, then open notify sheet
+                    // after a short delay. Two simultaneous Modals freeze iOS touch handling.
                     setShowPollSheet(false);
-                    setShowNotifySheet(true);
-                    if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "sheet_open", { sheet: "notification_level" });
+                    setShowGroupSettings(false);
+                    setTimeout(() => {
+                      setShowNotifySheet(true);
+                      if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "notify_sheet_opened");
+                    }, 350);
                   }}
                   style={{
                     flexDirection: "row",
