@@ -16,6 +16,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMinuteTick } from "@/lib/useMinuteTick";
 
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
@@ -150,6 +151,16 @@ function PrivateCalendar({ themeColor }: { themeColor: string }) {
 function EventCard({ event, index }: { event: Event; index: number }) {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+
+  // [P1_PROFILE_EVENT_THUMB] DEV proof: EventCard now renders cover image
+  if (__DEV__) {
+    devLog('[P1_PROFILE_EVENT_THUMB] EventCard render', {
+      eventId: event.id?.slice(0, 6),
+      hasPhoto: !!event.eventPhotoUrl,
+      emoji: event.emoji,
+    });
+  }
+
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
   const isToday = new Date().toDateString() === startDate.toDateString();
@@ -195,7 +206,13 @@ function EventCard({ event, index }: { event: Event; index: number }) {
         <View className="flex-row items-start justify-between">
           <View className="flex-1">
             <View className="flex-row items-center mb-2">
-              <Text className="text-3xl mr-2">{event.emoji ?? "📅"}</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8, backgroundColor: `${themeColor}15` }}>
+                <EventPhotoEmoji
+                  photoUrl={event.eventPhotoUrl}
+                  emoji={event.emoji ?? "📅"}
+                  emojiStyle={{ fontSize: 20 }}
+                />
+              </View>
               <View className="flex-1">
                 <Text className="text-lg font-semibold" style={{ color: colors.text }}>
                   {event.title}

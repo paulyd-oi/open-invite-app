@@ -266,6 +266,7 @@ export default function ProfileScreen() {
         id: e.id,
         title: e.title,
         emoji: e.emoji || "📅",
+        eventPhotoUrl: e.eventPhotoUrl ?? null,
         type: e.userId === userId ? "hosted" : "joined",
         date: new Date(e.startTime),
       }));
@@ -893,7 +894,16 @@ export default function ProfileScreen() {
             style={{ backgroundColor: colors.surface, borderColor: colors.border }}
           >
             {recentActivity.length > 0 ? (
-              recentActivity.map((item, index) => (
+              recentActivity.map((item, index) => {
+                // [P1_PROFILE_EVENT_THUMB] DEV proof: recent activity now renders cover image
+                if (__DEV__) {
+                  devLog('[P1_PROFILE_EVENT_THUMB] RecentActivity row', {
+                    eventId: item.id?.slice(0, 6),
+                    hasPhoto: !!item.eventPhotoUrl,
+                    emoji: item.emoji,
+                  });
+                }
+                return (
                 <Pressable
                   key={item.id}
                   onPress={() => {
@@ -903,7 +913,13 @@ export default function ProfileScreen() {
                   className="flex-row items-center px-4 py-3"
                   style={index < recentActivity.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.border } : undefined}
                 >
-                  <Text className="text-lg mr-3">{item.emoji}</Text>
+                  <View style={{ width: 28, height: 28, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: `${themeColor}15` }}>
+                    <EventPhotoEmoji
+                      photoUrl={item.eventPhotoUrl}
+                      emoji={item.emoji}
+                      emojiStyle={{ fontSize: 16 }}
+                    />
+                  </View>
                   <View className="flex-1">
                     <Text className="text-sm font-medium" style={{ color: colors.text }} numberOfLines={1}>
                       {item.type === "hosted" ? "Hosted" : "Joined"} {StringSafe(item.title)}
@@ -914,7 +930,8 @@ export default function ProfileScreen() {
                   </View>
                   <ChevronRight size={16} color={colors.textTertiary} />
                 </Pressable>
-              ))
+                );
+              })
             ) : (
               /* EMPTY_STATE_CLARITY: preserves section height, intentional copy */
               <View className="px-4 py-5 items-center">
