@@ -586,9 +586,11 @@ export default function EventDetailScreen() {
     }
   }
   
-  // Check if event is privacy-restricted (403/404 with specific codes)
+  // Check if event is privacy-restricted
+  // INV_FRIEND_2: 403 + body.restricted === true + host.id → friend-boundary UI
+  const errorBody = (eventError as any)?.data;
   const isPrivacyRestricted = !!(eventError && (
-    eventErrorStatus === 403 ||
+    (eventErrorStatus === 403 && errorBody?.restricted === true) ||
     eventErrorStatus === 404 ||
     eventErrorCode === 'EVENT_NOT_VISIBLE' ||
     eventErrorCode === 'NOT_FRIEND' ||
@@ -596,19 +598,25 @@ export default function EventDetailScreen() {
   ));
 
   // Extract host info from error payload if available
-  const restrictedHostInfo = isPrivacyRestricted ? (eventError as any)?.data?.host : null;
-  const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'this person';
+  const restrictedHostInfo = isPrivacyRestricted ? errorBody?.host : null;
+  const restrictedHostName = restrictedHostInfo?.name || restrictedHostInfo?.displayName || 'the host';
 
-  // DEV logging for blocked event debugging (now with P0 tag)
+  // [P0_EVENT_FRIEND_BOUNDARY_FETCH] Log restricted response interception
   if (__DEV__ && !isLoadingEvent && eventError) {
-    devLog('[P0_CIRCLE_EVENT_TAP] Event fetch error (no logout):', {
-      eventId: id,
-      status: eventErrorStatus,
-      code: eventErrorCode,
-      hasHostInfo: !!restrictedHostInfo,
-      hostName: restrictedHostName,
-      isPrivacyRestricted,
-    });
+    if (isPrivacyRestricted) {
+      devLog('[P0_EVENT_FRIEND_BOUNDARY_FETCH]', {
+        status: eventErrorStatus,
+        restricted: !!errorBody?.restricted,
+        hostId: restrictedHostInfo?.id ?? null,
+        hostName: restrictedHostName,
+      });
+    } else {
+      devLog('[P0_EVENT_FETCH_ERROR]', {
+        eventId: id,
+        status: eventErrorStatus,
+        code: eventErrorCode,
+      });
+    }
   }
 
   // Fallback: Also fetch from lists in case the single endpoint fails
@@ -1473,10 +1481,10 @@ export default function EventDetailScreen() {
       const ownerId = restrictedHostInfo?.id ?? null;
 
       if (__DEV__) {
-        devLog('[P0_EVENT_FRIEND_BOUNDARY]', {
-          eventId: id,
+        devLog('[P0_EVENT_FRIEND_BOUNDARY_RENDER]', {
+          hostId: ownerId,
+          hostName: restrictedHostName,
           hasOwnerId: !!ownerId,
-          ownerId,
         });
       }
 
