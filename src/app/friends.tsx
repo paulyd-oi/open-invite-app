@@ -65,7 +65,6 @@ import * as Contacts from "expo-contacts";
 
 import BottomNavigation from "@/components/BottomNavigation";
 import { AppHeader } from "@/components/AppHeader";
-import { UserListRow } from "@/components/UserListRow";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState } from "@/components/EmptyState";
@@ -460,12 +459,19 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  // Text derivation now handled by UserListRow SSOT
-  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_LAYOUT_FIX')) {
-    devLog('[P0_FRIENDS_LIST_ROW_LAYOUT_FIX]', {
-      layout: 'row',
-      hasBio: !!friend.Profile?.calendarBio,
-      hasHandle: !!friend.Profile?.handle,
+  // ── Compact 2-line text derivation (list view only) ────────
+  const hasHandle = !!friend.Profile?.handle?.trim();
+  const hasBio = !!friend.Profile?.calendarBio?.trim();
+  const line1 = hasHandle ? `@${friend.Profile!.handle!.trim()}` : (friend.name ?? "Unknown");
+  const line2 = hasBio ? friend.Profile!.calendarBio!.trim() : "";
+  const showsTwoLines = !!line2;
+
+  if (__DEV__ && once('P0_FRIENDS_LIST_ROW_SHAPE')) {
+    devLog('[P0_FRIENDS_LIST_ROW_SHAPE]', {
+      hasHandle,
+      hasBio,
+      rowFlexDirection: 'row',
+      showsTwoLines,
     });
   }
 
@@ -501,38 +507,72 @@ const FriendListItem = React.memo(function FriendListItem({
             className="rounded-xl overflow-hidden"
             style={[{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }, cardAnimatedStyle]}
           >
-            {/* Main row — SSOT via UserListRow */}
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* Main row — compact inline (friends list only) */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/friend/${friendship.id}` as any);
+              }}
+              style={({ pressed }) => ({
+                flexDirection: "row" as const,
+                alignItems: "center" as const,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                backgroundColor: pressed
+                  ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)")
+                  : "transparent",
+              })}
+            >
               {/* Pin indicator */}
               {isPinned && (
-                <View style={{ marginLeft: 12, marginRight: -4 }}>
+                <View style={{ marginRight: 6 }}>
                   <Pin size={14} color={themeColor} />
                 </View>
               )}
-              
-              <UserListRow
-                handle={friend.Profile?.handle}
-                displayName={friend.name}
-                calendarBio={friend.Profile?.calendarBio}
-                avatarUrl={friend.image}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/friend/${friendship.id}` as any);
-                }}
-                style={{ flex: 1 }}
-                rightAccessory={
-                  <Pressable
-                    onPress={toggleExpand}
-                    className="w-9 h-9 rounded-full items-center justify-center"
-                    style={{ backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
+
+              {/* Avatar */}
+              <View style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden", backgroundColor: colors.avatarBg }}>
+                {friend.image ? (
+                  <Image source={{ uri: friend.image }} style={{ width: 40, height: 40 }} />
+                ) : (
+                  <View style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center", backgroundColor: themeColor + "20" }}>
+                    <Text style={{ fontWeight: "600", color: themeColor }}>
+                      {(friend.name?.[0] ?? "?").toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Text column */}
+              <View style={{ flex: 1, marginLeft: 12, justifyContent: "center" }}>
+                <Text
+                  style={{ fontSize: 15, fontWeight: "600", color: colors.text, letterSpacing: -0.2 }}
+                  numberOfLines={1}
+                >
+                  {line1}
+                </Text>
+                {line2 ? (
+                  <Text
+                    style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1, lineHeight: 17 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                   >
-                    <Animated.View style={arrowStyle}>
-                      <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
-                    </Animated.View>
-                  </Pressable>
-                }
-              />
-            </View>
+                    {line2}
+                  </Text>
+                ) : null}
+              </View>
+
+              {/* Expand/collapse chevron */}
+              <Pressable
+                onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginLeft: 8, backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
+              >
+                <Animated.View style={arrowStyle}>
+                  <ChevronDown size={18} color={isExpanded ? themeColor : colors.textSecondary} />
+                </Animated.View>
+              </Pressable>
+            </Pressable>
 
             {/* Expandable calendar section */}
             <Animated.View style={calendarStyle}>
