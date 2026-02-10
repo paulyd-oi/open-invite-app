@@ -1788,7 +1788,7 @@ export default function EventDetailScreen() {
                 height: 240,
                 borderRadius: 20,
                 overflow: "hidden",
-                marginBottom: 12,
+                marginBottom: 16,
               }}
             >
               <Image
@@ -1805,32 +1805,33 @@ export default function EventDetailScreen() {
                   ]).start();
                 }}
               />
-              {/* Gradient-style overlay for title readability */}
+              {/* Gradient-style overlay for title readability (5-layer feather) */}
               <View
                 style={{
                   position: "absolute",
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  height: 100,
+                  height: 110,
                   backgroundColor: "transparent",
                 }}
               >
                 <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.0)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.08)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.22)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.05)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.14)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.28)" }} />
+                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.48)" }} />
               </View>
               {/* Title overlay */}
-              <RNAnimated.View style={{ position: "absolute", bottom: 16, left: 16, right: 16, opacity: heroTitleOpacity, transform: [{ translateY: heroTitleTranslateY }] }}>
+              <RNAnimated.View style={{ position: "absolute", bottom: 22, left: 16, right: 16, opacity: heroTitleOpacity, transform: [{ translateY: heroTitleTranslateY }] }}>
                 <Text
                   style={{
                     color: "#fff",
                     fontSize: 22,
                     fontWeight: "700",
-                    textShadowColor: "rgba(0,0,0,0.35)",
+                    textShadowColor: "rgba(0,0,0,0.45)",
                     textShadowOffset: { width: 0, height: 2 },
-                    textShadowRadius: 8,
+                    textShadowRadius: 10,
                   }}
                   numberOfLines={2}
                 >
@@ -1852,7 +1853,9 @@ export default function EventDetailScreen() {
                     style={{
                       borderRadius: 20,
                       padding: 8,
-                      backgroundColor: "rgba(0,0,0,0.5)",
+                      backgroundColor: "rgba(0,0,0,0.65)",
+                      borderWidth: 1,
+                      borderColor: "rgba(255,255,255,0.18)",
                     }}
                   >
                     <Pencil size={16} color="#fff" />
