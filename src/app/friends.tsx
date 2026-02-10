@@ -457,13 +457,11 @@ const FriendListItem = React.memo(function FriendListItem({
     return null;
   }
 
-  // Build secondary metadata line: "@handle • calendarBio"
-  const handle = friend.Profile?.handle;
-  const calendarBio = friend.Profile?.calendarBio;
-  const secondaryParts: string[] = [];
-  if (handle) secondaryParts.push(`@${handle}`);
-  if (calendarBio) secondaryParts.push(calendarBio);
-  const secondaryLine = secondaryParts.join(" • ");
+  // Username-first layout: @handle as primary, bio as secondary
+  const listHandle = friend.Profile?.handle
+    ? `@${friend.Profile.handle}`
+    : friend.name ?? "";
+  const listBio = friend.Profile?.calendarBio ?? "";
 
   const toggleExpand = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -526,18 +524,19 @@ const FriendListItem = React.memo(function FriendListItem({
                   )}
                 </View>
                 <View className="flex-1">
-                  <View className="flex-row items-center flex-nowrap gap-1.5">
-                    <Text className="text-base font-sora-medium" style={{ color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
-                      {friend.name ?? friend.email ?? "Unknown"}
-                    </Text>
-                  </View>
-                  {secondaryLine ? (
+                  <Text
+                    style={{ fontSize: 16, fontWeight: "600", color: colors.text }}
+                    numberOfLines={1}
+                  >
+                    {listHandle}
+                  </Text>
+                  {listBio ? (
                     <Text
-                      style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}
+                      style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {secondaryLine}
+                      {listBio}
                     </Text>
                   ) : null}
                 </View>
