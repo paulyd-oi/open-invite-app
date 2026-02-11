@@ -683,7 +683,7 @@ function DeckSwipeCard({
   );
 }
 
-function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeople?: () => void; peopleCount?: number }) {
+function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0, onProgressChange }: { onSwitchToPeople?: () => void; peopleCount?: number; onProgressChange?: (info: { deckReady: boolean; deckLength: number; currentIndex: number; isComplete: boolean }) => void }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, colors, isDark } = useTheme();
@@ -761,6 +761,11 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
   }, [isComplete]);
+
+  // Report progress to parent for tab indicator
+  useEffect(() => {
+    onProgressChange?.({ deckReady, deckLength: deck.length, currentIndex, isComplete });
+  }, [deckReady, deck.length, currentIndex, isComplete, onProgressChange]);
 
   const acceptStatsRef = useRef<AcceptStats>({});
   const statsResetMonthRef = useRef<string | null>(null);
@@ -1353,6 +1358,32 @@ export default function SuggestionsScreen() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"ideas" | "people">("ideas");
 
+  // Ideas deck progress (threaded up from DailyIdeasDeck)
+  const [deckProgress, setDeckProgress] = useState<{ deckReady: boolean; deckLength: number; currentIndex: number; isComplete: boolean }>(
+    { deckReady: false, deckLength: 0, currentIndex: 0, isComplete: false },
+  );
+  const progressLoggedRef = useRef(false);
+  const showProgressBar = activeTab === "ideas" && deckProgress.deckReady && deckProgress.deckLength > 0 && !deckProgress.isComplete;
+  const progressFraction = deckProgress.deckReady && deckProgress.deckLength > 0
+    ? Math.min(Math.max(deckProgress.currentIndex / deckProgress.deckLength, 0), 1)
+    : 0;
+
+  // DEV log once when progress bar first becomes visible
+  useEffect(() => {
+    if (showProgressBar && !progressLoggedRef.current) {
+      progressLoggedRef.current = true;
+      if (__DEV__) {
+        devLog("[P1_IDEAS_TAB_PROGRESS]", {
+          deckReady: deckProgress.deckReady,
+          len: deckProgress.deckLength,
+          currentIndex: deckProgress.currentIndex,
+          progress: progressFraction,
+          isComplete: deckProgress.isComplete,
+        });
+      }
+    }
+  }, [showProgressBar, deckProgress, progressFraction]);
+
   // Add Friend module state (same as Friends page)
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [searchEmail, setSearchEmail] = useState("");
@@ -1827,7 +1858,7 @@ export default function SuggestionsScreen() {
             setActiveTab("ideas");
           }}
           className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
-          style={{ backgroundColor: activeTab === "ideas" ? themeColor : "transparent" }}
+          style={{ backgroundColor: activeTab === "ideas" ? themeColor : "transparent", overflow: "hidden" }}
         >
           <Zap size={16} color={activeTab === "ideas" ? "#fff" : colors.textSecondary} />
           <Text
@@ -1836,6 +1867,30 @@ export default function SuggestionsScreen() {
           >
             Ideas
           </Text>
+          {/* Progress underline — only when deck active + not complete */}
+          {showProgressBar && (
+            <View
+              style={{
+                position: "absolute",
+                left: 4,
+                right: 4,
+                bottom: 2,
+                height: 2,
+                borderRadius: 999,
+                backgroundColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)",
+              }}
+            >
+              <Animated.View
+                style={{
+                  width: `${Math.round(progressFraction * 100)}%`,
+                  height: 2,
+                  borderRadius: 999,
+                  backgroundColor: activeTab === "ideas" ? "rgba(255,255,255,0.9)" : themeColor,
+                  opacity: 0.9,
+                }}
+              />
+            </View>
+          )}
         </Pressable>
         <Pressable
           onPress={() => {
@@ -1858,7 +1913,7 @@ export default function SuggestionsScreen() {
       {/* Content based on active tab */}
       {activeTab === "ideas" ? (
         /* Daily Ideas Deck */
-        <DailyIdeasDeck onSwitchToPeople={() => setActiveTab("people")} peopleCount={suggestions.length} />
+        <DailyIdeasDeck onSwitchToPeople={() => setActiveTab("people")} peopleCount={suggestions.length} onProgressChange={setDeckProgress} />
       ) : (
         /* People You May Know */
         <FlatList
