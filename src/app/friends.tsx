@@ -91,6 +91,9 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
+import { FriendsActivityPane } from "@/components/friends/FriendsActivityPane";
+import { FriendsChatsPane } from "@/components/friends/FriendsChatsPane";
+import { FriendsPeoplePane } from "@/components/friends/FriendsPeoplePane";
 import {
   type GetFriendsResponse,
   type GetFriendRequestsResponse,
@@ -564,140 +567,6 @@ const FriendListItem = React.memo(function FriendListItem({
     </Animated.View>
   );
 });
-
-function FriendRequestCard({
-  request,
-  type,
-  onAccept,
-  onReject,
-  actionPending = false,
-  themeColor,
-  isDark,
-  colors,
-  onViewProfile,
-}: {
-  request: FriendRequest;
-  type: "received" | "sent";
-  onAccept?: () => void;
-  onReject?: () => void;
-  actionPending?: boolean;
-  themeColor: string;
-  isDark: boolean;
-  colors: any;
-  onViewProfile?: () => void;
-}) {
-  const user = type === "received" ? request.sender : request.receiver;
-  const mutualCount = request.mutualCount ?? 0;
-  
-  // Extract profile info from sender/receiver
-  const username = user?.Profile?.handle;
-  const calendarBio = user?.Profile?.calendarBio;
-  
-  // Build metadata line segments (Line 2)
-  // Format: "X mutual friends • @username • calendarBio" or "New to Open Invite • @username • calendarBio"
-  const metadataSegments: string[] = [];
-  
-  if (type === "received") {
-    if (mutualCount > 0) {
-      metadataSegments.push(`👥 ${mutualCount} mutual friend${mutualCount === 1 ? "" : "s"}`);
-    } else {
-      metadataSegments.push("New to Open Invite");
-    }
-  } else {
-    metadataSegments.push("Pending");
-  }
-  
-  if (username) {
-    metadataSegments.push(`@${username}`);
-  }
-  
-  if (calendarBio) {
-    metadataSegments.push(calendarBio);
-  }
-  
-  const metadataLine = metadataSegments.join(" • ");
-
-  return (
-    <Pressable
-      /* INVARIANT_ALLOW_INLINE_HANDLER */
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onViewProfile?.();
-      }}
-      className="flex-row items-center rounded-xl p-3 mb-2"
-      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-    >
-      <EntityAvatar
-        photoUrl={user?.image}
-        initials={user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "?"}
-        size={40}
-        backgroundColor={user?.image ? colors.avatarBg : themeColor + "20"}
-        foregroundColor={themeColor}
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        style={{ marginRight: 12 }}
-      />
-      <View className="flex-1 mr-2">
-        {/* Line 1: Name + Badge Pill */}
-        <View className="flex-row items-center flex-nowrap gap-1.5">
-          <Text 
-            className="font-medium" 
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ color: colors.text }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {user?.name ?? user?.email ?? "Unknown"}
-          </Text>
-        </View>
-        {/* Line 2: Metadata (mutual friends • @username • calendarBio) */}
-        <Text 
-          className="text-xs mt-0.5" 
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          style={{ color: colors.textSecondary }}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {metadataLine}
-        </Text>
-      </View>
-      {type === "received" && (
-        <View className="flex-row">
-          <Pressable
-            testID="friend-request-reject"
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={(e) => {
-              e.stopPropagation();
-              onReject?.();
-            }}
-            disabled={actionPending}
-            className="w-8 h-8 rounded-full items-center justify-center mr-2"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: colors.inputBg, opacity: actionPending ? 0.4 : 1 }}
-          >
-            <X size={16} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            testID="friend-request-accept"
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={(e) => {
-              e.stopPropagation();
-              onAccept?.();
-            }}
-            disabled={actionPending}
-            className="w-8 h-8 rounded-full items-center justify-center"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: themeColor, opacity: actionPending ? 0.4 : 1 }}
-          >
-            <Check size={16} color="#fff" />
-          </Pressable>
-        </View>
-      )}
-      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-      <ChevronRight size={16} color={colors.textTertiary} style={{ marginLeft: 8 }} />
-    </Pressable>
-  );
-}
 
 // ── Module-scope cache: eliminates detail→list jump on remount ──
 let _friendsViewModeCache: "list" | "detailed" | null = null;
@@ -1544,473 +1413,52 @@ export default function FriendsScreen() {
           />
         }
       >
-        {/* Add Friend Section */}
-        {showAddFriend && (
-          <Animated.View entering={FadeInDown.springify()} className="mb-4">
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <View className="rounded-xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="font-semibold mb-3" style={{ color: colors.text }}>Add Friend</Text>
+        <FriendsActivityPane
+          showAddFriend={showAddFriend}
+          searchEmail={searchEmail}
+          onSearchEmailChange={setSearchEmail}
+          onDirectFriendRequest={handleDirectFriendRequest}
+          isRequestSending={sendRequestMutation.isPending}
+          onLoadContacts={loadContacts}
+          contactsLoading={contactsLoading}
+          searchResults={searchResults}
+          isSearching={isSearching}
+          isOnline={networkStatus.isOnline}
+          debouncedQuery={debouncedQuery}
+          receivedRequests={receivedRequests}
+          requestsExpanded={requestsExpanded}
+          onToggleRequestsExpanded={() => setRequestsExpanded(!requestsExpanded)}
+          isAcceptPending={acceptRequestMutation.isPending}
+          isRejectPending={rejectRequestMutation.isPending}
+          onAcceptRequest={(id) => acceptRequestMutation.mutate(id)}
+          onRejectRequest={(id) => rejectRequestMutation.mutate(id)}
+        />
 
-              {/* Import from Contacts Button */}
-              <Pressable
-                onPress={loadContacts}
-                disabled={contactsLoading}
-                className="flex-row items-center rounded-lg p-3 mb-3"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: isDark ? "#0F766E20" : "#CCFBF1" }}
-              >
-                <View className="w-10 h-10 rounded-full bg-teal-500 items-center justify-center mr-3">
-                  <Contact size={20} color="#fff" />
-                </View>
-                <View className="flex-1">
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="font-medium" style={{ color: colors.text }}>
-                    {contactsLoading ? "Loading..." : "Import from Contacts"}
-                  </Text>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                    Add friends from your phone
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={colors.textSecondary} />
-              </Pressable>
+        <FriendsChatsPane
+          circles={circles}
+          planningExpanded={planningExpanded}
+          onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
+          onCreateCirclePress={handleCreateCirclePress}
+          byCircle={byCircle}
+          onPinCircle={(id) => pinCircleMutation.mutate(id)}
+          onLeaveCircle={(id, name) => {
+            setCircleToLeave({ id, name });
+            setShowLeaveCircleConfirm(true);
+          }}
+        />
 
-              {/* Divider */}
-              <View className="flex-row items-center mb-3">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-sm mx-3" style={{ color: colors.textTertiary }}>or search by</Text>
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
-              </View>
-
-              {/* Search Input - supports name, email, or phone */}
-              <View className="flex-row items-center">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View className="flex-1 flex-row items-center rounded-lg px-3 mr-2" style={{ backgroundColor: colors.inputBg }}>
-                  <Search size={18} color={colors.textSecondary} />
-                  <TextInput
-                    value={searchEmail}
-                    onChangeText={setSearchEmail}
-                    placeholder="Name, email, or phone"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="none"
-                    className="flex-1 py-3 px-2"
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    style={{ color: colors.text }}
-                  />
-                </View>
-                <Button
-                  variant="primary"
-                  label={sendRequestMutation.isPending ? "..." : "Add"}
-                  onPress={handleDirectFriendRequest}
-                  disabled={sendRequestMutation.isPending}
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ borderRadius: 8 }}
-                />
-              </View>
-
-              {/* Helper text */}
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
-                Search by name, email address, or phone number to find friends
-              </Text>
-
-              {/* Live Search Results */}
-              {searchEmail.trim().length >= 2 && (
-                <View className="mt-3">
-                  {/* Offline state */}
-                  {!networkStatus.isOnline && (
-                    <View className="py-4 items-center">
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                        Offline — search unavailable
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Loading state */}
-                  {networkStatus.isOnline && isSearching && (
-                    <View className="py-4 items-center">
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                        Searching...
-                      </Text>
-                    </View>
-                  )}
-
-                  {/* Results */}
-                  {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length > 0 && (
-                    <View>
-                      {/* INVARIANT_ALLOW_SMALL_MAP */}
-                      {searchResults.users.map((user: SearchUserResult) => (
-                        <Pressable
-                          key={user.id}
-                          /* INVARIANT_ALLOW_INLINE_HANDLER */
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.push(`/user/${user.id}` as any);
-                          }}
-                          className="flex-row items-center py-3 border-t"
-                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                          style={{ borderTopColor: colors.separator }}
-                        >
-                          {/* Avatar */}
-                          <EntityAvatar
-                            photoUrl={user.avatarUrl}
-                            initials={user.name?.[0]?.toUpperCase() ?? user.handle?.[0]?.toUpperCase() ?? "?"}
-                            size={40}
-                            backgroundColor={user.avatarUrl ? "transparent" : themeColor + "20"}
-                            foregroundColor={themeColor}
-                          />
-
-                          {/* User info */}
-                          <View className="flex-1 ml-3">
-                            <View className="flex-row items-center">
-                              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                              <Text className="font-medium" style={{ color: colors.text }}>
-                                {user.name ?? (user.handle ? `@${user.handle}` : "Unknown")}
-                              </Text>
-                              {user.isFriend && (
-                                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                <View className="ml-2 px-1.5 py-0.5 rounded" style={{ backgroundColor: themeColor + "20" }}>
-                                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                                  <Text className="text-[10px] font-medium" style={{ color: themeColor }}>
-                                    Friend
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            <View className="flex-row items-center">
-                              {user.handle && (
-                                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                                  @{user.handle}
-                                </Text>
-                              )}
-                              {user.handle && (user.mutualCount ?? 0) > 0 && (
-                                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                <Text className="text-sm mx-1" style={{ color: colors.textTertiary }}>•</Text>
-                              )}
-                              {(user.mutualCount ?? 0) > 0 && (
-                                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                                  {user.mutualCount} mutual{user.mutualCount === 1 ? "" : "s"}
-                                </Text>
-                              )}
-                            </View>
-                          </View>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* No results */}
-                  {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length === 0 && debouncedQuery.length >= 2 && (
-                    <View className="py-4 items-center">
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                        No users found for "{debouncedQuery}"
-                      </Text>
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-                        Try a different search or add by email/phone
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Friend Requests */}
-        {receivedRequests.length > 0 && (
-          <View testID="friends-requests" className="mb-4">
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setRequestsExpanded(!requestsExpanded);
-              }}
-              className="flex-row items-center justify-between mb-2"
-            >
-              <View className="flex-row items-center">
-                <Bell size={16} color={themeColor} />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-                  Friend Requests ({receivedRequests.length})
-                </Text>
-              </View>
-              {requestsExpanded ? (
-                <ChevronUp size={18} color={colors.textTertiary} />
-              ) : (
-                <ChevronDown size={18} color={colors.textTertiary} />
-              )}
-            </Pressable>
-            {requestsExpanded && (
-              <Animated.View entering={FadeInDown.duration(200)}>
-                {/* INVARIANT_ALLOW_SMALL_MAP */}
-                {receivedRequests.map((request: FriendRequest) => {
-                  const senderId = request.sender?.id;
-                  return (
-                    <FriendRequestCard
-                      key={request.id}
-                      request={request}
-                      type="received"
-                      themeColor={themeColor}
-                      isDark={isDark}
-                      colors={colors}
-                      actionPending={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
-                      onAccept={() => {
-                        if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) {
-                          if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'accept tap ignored, requestId=' + request.id);
-                          return;
-                        }
-                        acceptRequestMutation.mutate(request.id);
-                      }}
-                      onReject={() => {
-                        if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) {
-                          if (__DEV__) devLog('[P0_FRIEND_REQUEST_RACE_GUARD]', 'reject tap ignored, requestId=' + request.id);
-                          return;
-                        }
-                        rejectRequestMutation.mutate(request.id);
-                      }}
-                      onViewProfile={() => {
-                        if (senderId) {
-                          router.push(`/user/${senderId}` as any);
-                        }
-                      }}
-                    />
-                  );
-                })}
-              </Animated.View>
-            )}
-          </View>
-        )}
-
-        {/* Planning Section (Circles) */}
-        <View className="mb-4">
-          <Pressable
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setPlanningExpanded(!planningExpanded);
-            }}
-            className="flex-row items-center justify-between mb-2"
-          >
-            <View className="flex-row items-center">
-              <Calendar size={16} color="#9333EA" />
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-                Planning ({circles.length})
-              </Text>
-            </View>
-            <View className="flex-row items-center">
-              {circles.length > 0 && (
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/circles" as any);
-                  }}
-                  className="mr-2"
-                >
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-xs font-medium" style={{ color: "#9333EA" }}>
-                    View All
-                  </Text>
-                </Pressable>
-              )}
-              <Pressable
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={(e) => {
-                  e.stopPropagation();
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  handleCreateCirclePress();
-                }}
-                className="w-7 h-7 rounded-full items-center justify-center mr-2"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: "#9333EA" }}
-              >
-                <Plus size={14} color="#fff" />
-              </Pressable>
-              {planningExpanded ? (
-                <ChevronUp size={18} color={colors.textTertiary} />
-              ) : (
-                <ChevronDown size={18} color={colors.textTertiary} />
-              )}
-            </View>
-          </Pressable>
-
-          {planningExpanded && (
-            <Animated.View entering={FadeInDown.duration(200)}>
-              {circles.length === 0 ? (
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleCreateCirclePress();
-                  }}
-                  className="rounded-xl p-4 mb-2 border border-dashed items-center"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ borderColor: "#9333EA50" }}
-                >
-                  <View
-                    className="w-12 h-12 rounded-full items-center justify-center mb-2"
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    style={{ backgroundColor: "#9333EA20" }}
-                  >
-                    <Plus size={24} color="#9333EA" />
-                  </View>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="font-medium text-center" style={{ color: colors.text }}>
-                    Create a Group
-                  </Text>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-xs text-center mt-1" style={{ color: colors.textSecondary }}>
-                    Plan events with friends in a group chat
-                  </Text>
-                </Pressable>
-              ) : (
-                /* INVARIANT_ALLOW_SMALL_MAP */
-                circles.map((circle, index) => (
-                  <CircleCard
-                    key={circle.id}
-                    circle={circle}
-                    index={index}
-                    unreadCount={byCircle[circle.id] ?? 0}
-                    onPin={(id) => pinCircleMutation.mutate(id)}
-                    onDelete={(id) => {
-                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                      setCircleToLeave({ id, name: circle.name });
-                      setShowLeaveCircleConfirm(true);
-                    }}
-                  />
-                ))
-              )}
-            </Animated.View>
-          )}
-        </View>
-
-        {/* Friends List - Collapsible */}
-        <View className="mb-2">
-          {/* Section Header Row */}
-          <Pressable
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setFriendsExpanded(!friendsExpanded);
-            }}
-            className="flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center">
-              <Users size={16} color="#4ECDC4" />
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
-                Friends ({filteredFriends.length})
-              </Text>
-            </View>
-            {friendsExpanded ? (
-              <ChevronUp size={18} color={colors.textTertiary} />
-            ) : (
-              <ChevronDown size={18} color={colors.textTertiary} />
-            )}
-          </Pressable>
-
-          {/* View Mode Toggle & Filter - Only show when expanded */}
-          {friendsExpanded && (
-            <View className="flex-row items-center justify-between mt-2">
-              {/* View Mode Toggle */}
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleViewModeChange("list");
-                  }}
-                  className="flex-row items-center px-2.5 py-1 rounded-md"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: viewMode === "list" ? colors.surface : "transparent" }}
-                >
-                  <List size={14} color={viewMode === "list" ? themeColor : colors.textSecondary} />
-                  <Text
-                    className="text-xs font-medium ml-1"
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    style={{ color: viewMode === "list" ? themeColor : colors.textSecondary }}
-                  >
-                    List
-                  </Text>
-                </Pressable>
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleViewModeChange("detailed");
-                  }}
-                  className="flex-row items-center px-2.5 py-1 rounded-md"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: viewMode === "detailed" ? colors.surface : "transparent" }}
-                >
-                  <LayoutGrid size={14} color={viewMode === "detailed" ? themeColor : colors.textSecondary} />
-                  <Text
-                    className="text-xs font-medium ml-1"
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    style={{ color: viewMode === "detailed" ? themeColor : colors.textSecondary }}
-                  >
-                    Detailed
-                  </Text>
-                </Pressable>
-              </View>
-              {/* [LEGACY_GROUPS_PURGED] Group Filter Button removed */}
-            </View>
-          )}
-        </View>
-
-        {friendsExpanded && (
-          <Animated.View entering={FadeInDown.duration(200)}>
-            {isLoading ? (
-              <FriendsListSkeleton />
-            ) : filteredFriends.length === 0 ? (
-              <View className="py-12 items-center px-8">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
-                  <Users size={36} color={themeColor} />
-                </View>
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-                  No friends yet
-                </Text>
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
-                  Invite friends to see their plans and share yours
-                </Text>
-                <ShareAppButton variant="full" />
-              </View>
-            ) : (
-              <FlatList
-                data={filteredFriends}
-                keyExtractor={friendKeyExtractor}
-                renderItem={viewMode === "list" ? renderFriendListItem : renderFriendCard}
-                // Virtualization tuning for smooth scroll with 50+ friends
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                windowSize={9}
-                updateCellsBatchingPeriod={50}
-                removeClippedSubviews={Platform.OS === 'android'} // Safe on Android, can cause issues on iOS
-                // Allow nested scrolling inside parent ScrollView
-                nestedScrollEnabled
-                scrollEnabled={false} // Let parent ScrollView handle scrolling
-                // Stable list - avoid re-renders
-                extraData={pinnedFriendshipIds}
-              />
-            )}
-          </Animated.View>
-        )}
+        <FriendsPeoplePane
+          filteredFriends={filteredFriends}
+          friendsExpanded={friendsExpanded}
+          onToggleFriendsExpanded={() => setFriendsExpanded(!friendsExpanded)}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          isLoading={isLoading}
+          pinnedFriendshipIds={pinnedFriendshipIds}
+          friendKeyExtractor={friendKeyExtractor}
+          renderFriendListItem={renderFriendListItem}
+          renderFriendCard={renderFriendCard}
+        />
       </ScrollView>
 
       {/* Create Circle Modal */}
