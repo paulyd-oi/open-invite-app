@@ -26,6 +26,7 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { getAvailabilityLabel } from "@/lib/smartCopy";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage, safePrependMessages } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -748,7 +749,7 @@ function MiniCalendar({
                           <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
                         </View>
                         <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
-                          {slot.availableCount}/{slot.totalMembers}
+                          {getAvailabilityLabel({ availableCount: slot.availableCount, totalMembers: slot.totalMembers }) ?? `${slot.availableCount}/${slot.totalMembers}`}
                         </Text>
                       </Pressable>
                     );
@@ -871,7 +872,7 @@ function MiniCalendar({
               <ScrollView style={{ paddingHorizontal: 20 }}>
                 {/* Subheader */}
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12 }}>
-                  {selectedSlot.availableCount} of {selectedSlot.totalMembers} available
+                  {getAvailabilityLabel({ availableCount: selectedSlot.availableCount, totalMembers: selectedSlot.totalMembers }) ?? `${selectedSlot.availableCount} of ${selectedSlot.totalMembers} available`}
                 </Text>
 
                 {/* Available section */}
