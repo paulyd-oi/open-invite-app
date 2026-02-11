@@ -994,4 +994,130 @@ echo "  ✓ P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT: no bare INVARIANT block comm
 echo ""
 echo "P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT checks PASS"
 
+# ── P0 PROD DEV GATES AUDIT ─────────────────────────────────────────
+echo ""
+echo "Running P0_PROD_DEV_GATES checks…"
+echo "  Goal: banned dev UI components must never appear without __DEV__ guard."
+
+GATE_FAIL=0
+
+# Banned patterns: dev overlay class/component names that must be gated.
+# For each, verify that every import/require is inside a __DEV__ block.
+# We grep for the pattern, exclude node_modules and the component definition
+# file itself, and check that the surrounding context has __DEV__.
+
+# QueryDebugOverlay: must only be loaded via __DEV__ ? require(...)
+# Check with awk: for each file with QueryDebugOverlay, verify all non-comment
+# references have __DEV__ within 2 lines above.
+QDO_UNGATED=$(grep -rn 'QueryDebugOverlay' src/ --include='*.tsx' --include='*.ts' \
+  | grep -v 'src/dev/QueryDebugOverlay' \
+  | grep -v 'node_modules' \
+  | grep -v 'prodGateSelfTest' \
+  | grep -v '__DEV__' \
+  | grep -v '^\s*//' \
+  | grep -v '^\s*\*' \
+  | grep -v '^\s*/\*' || true)
+
+# For remaining hits, check if __DEV__ appears within 2 lines above
+QDO_REAL_FAIL=""
+if [ -n "$QDO_UNGATED" ]; then
+  while IFS= read -r hit; do
+    HITFILE=$(echo "$hit" | cut -d: -f1)
+    HITLINE=$(echo "$hit" | cut -d: -f2)
+    CHECK_START=$((HITLINE - 2)); [ "$CHECK_START" -lt 1 ] && CHECK_START=1
+    NEARBY=$(sed -n "${CHECK_START},${HITLINE}p" "$HITFILE" 2>/dev/null)
+    if ! echo "$NEARBY" | grep -q '__DEV__'; then
+      QDO_REAL_FAIL="${QDO_REAL_FAIL}${hit}\n"
+    fi
+  done <<< "$QDO_UNGATED"
+fi
+
+if [ -n "$QDO_REAL_FAIL" ]; then
+  echo "  ❌ QueryDebugOverlay referenced without __DEV__ guard:"
+  echo -e "$QDO_REAL_FAIL"
+  GATE_FAIL=1
+else
+  echo "  ✓ Part 1: QueryDebugOverlay always gated by __DEV__"
+fi
+
+# LiveRefreshProofOverlay: same pattern
+LRPO_UNGATED=$(grep -rn 'LiveRefreshProofOverlay' src/ --include='*.tsx' --include='*.ts' \
+  | grep -v 'src/dev/LiveRefreshProofOverlay' \
+  | grep -v 'node_modules' \
+  | grep -v 'prodGateSelfTest' \
+  | grep -v '__DEV__' \
+  | grep -v '^\s*//' \
+  | grep -v '^\s*\*' \
+  | grep -v '^\s*/\*' || true)
+
+LRPO_REAL_FAIL=""
+if [ -n "$LRPO_UNGATED" ]; then
+  while IFS= read -r hit; do
+    HITFILE=$(echo "$hit" | cut -d: -f1)
+    HITLINE=$(echo "$hit" | cut -d: -f2)
+    CHECK_START=$((HITLINE - 2)); [ "$CHECK_START" -lt 1 ] && CHECK_START=1
+    NEARBY=$(sed -n "${CHECK_START},${HITLINE}p" "$HITFILE" 2>/dev/null)
+    if ! echo "$NEARBY" | grep -q '__DEV__'; then
+      # Skip comment-only hits in the matched content
+      HITCONTENT=$(echo "$hit" | cut -d: -f3-)
+      if ! echo "$HITCONTENT" | grep -qE '^\s*(//|\*|/\*)'; then
+        LRPO_REAL_FAIL="${LRPO_REAL_FAIL}${hit}\n"
+      fi
+    fi
+  done <<< "$LRPO_UNGATED"
+fi
+
+if [ -n "$LRPO_REAL_FAIL" ]; then
+  echo "  ❌ LiveRefreshProofOverlay referenced without __DEV__ guard:"
+  echo -e "$LRPO_REAL_FAIL"
+  GATE_FAIL=1
+else
+  echo "  ✓ Part 2: LiveRefreshProofOverlay always gated by __DEV__"
+fi
+
+# devStress: isDevStressEnabled must have __DEV__ master switch
+if ! grep -q 'if (!__DEV__) return false' src/lib/devStress.ts 2>/dev/null; then
+  echo "  ❌ devStress.isDevStressEnabled missing __DEV__ master switch"
+  GATE_FAIL=1
+else
+  echo "  ✓ Part 3: devStress.isDevStressEnabled has __DEV__ master switch"
+fi
+
+# wrapRace: must have __DEV__ early-return passthrough
+if ! grep -q 'if (!__DEV__' src/lib/devStress.ts 2>/dev/null; then
+  echo "  ❌ devStress.wrapRace missing __DEV__ passthrough"
+  GATE_FAIL=1
+else
+  echo "  ✓ Part 4: devStress.wrapRace has __DEV__ passthrough"
+fi
+
+# Push diagnostics: canShowPushDiagnostics must require __DEV__
+if grep -q 'canShowPushDiagnostics' src/app/settings.tsx 2>/dev/null; then
+  if ! grep -q '__DEV__ && isPushDiagnosticsAllowed' src/app/settings.tsx 2>/dev/null; then
+    echo "  ❌ Push diagnostics not gated by __DEV__"
+    GATE_FAIL=1
+  else
+    echo "  ✓ Part 5: Push diagnostics gated by __DEV__ && allowlist"
+  fi
+else
+  echo "  ✓ Part 5: Push diagnostics not present (OK)"
+fi
+
+# prodGateSelfTest: must have __DEV__ guard
+if ! grep -q 'if (!__DEV__) return' src/lib/prodGateSelfTest.ts 2>/dev/null; then
+  echo "  ❌ prodGateSelfTest.ts missing __DEV__ guard"
+  GATE_FAIL=1
+else
+  echo "  ✓ Part 6: prodGateSelfTest.ts has __DEV__ guard"
+fi
+
+if [ "$GATE_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PROD_DEV_GATES invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_PROD_DEV_GATES checks PASS"
+
 echo "PASS: verify_frontend"

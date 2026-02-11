@@ -48,6 +48,7 @@ import { performLogout } from '@/lib/logout';
 import { useQueryClient } from '@tanstack/react-query';
 import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
+import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
 
 // [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
 const QueryDebugOverlay = __DEV__
@@ -302,6 +303,7 @@ function BootRouter() {
     if (__DEV__) {
       maybeTriggerInvariantsOnce();
       maybeRunScenarioOnce();
+      runProdGateSelfTest();
     }
   }, []);
 
