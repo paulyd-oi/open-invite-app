@@ -302,6 +302,16 @@ function getSessionSignalsKey(dayKey?: string): string {
   return `ideasSessionSignals_${(dayKey ?? getTodayKey()).replace(/-/g, "_")}`;
 }
 
+/** YYYY_MM_DD for today (local). */
+function getDayKeyLocal(d: Date = new Date()): string {
+  return `${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, "0")}_${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** AsyncStorage key for persisted completion timestamp. */
+function getCompleteKey(dayKey: string): string {
+  return `ideasComplete_${dayKey}`;
+}
+
 /** Ms until next local midnight (start of tomorrow). */
 function msUntilNextMidnight(): number {
   const now = new Date();
@@ -711,12 +721,41 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
     transform: [{ scale: completionScale.value }],
   }));
 
+  // ── Completion persistence ──
+  const [completedAt, setCompletedAt] = useState<number | null>(null);
+  const prevCompleteRef = useRef(false);
+
+  // Canonical completion flag: either swiped through OR restored from storage
+  const isComplete = deckReady && (
+    (deck.length > 0 && currentIndex >= deck.length) || completedAt != null
+  );
+
+  // Detect completion transition exactly once → persist + DEV log
+  useEffect(() => {
+    if (isComplete && !prevCompleteRef.current) {
+      prevCompleteRef.current = true;
+      if (completedAt == null) {
+        const now = Date.now();
+        setCompletedAt(now);
+        const dayKey = getDayKeyLocal();
+        AsyncStorage.setItem(getCompleteKey(dayKey), JSON.stringify({ completedAt: now })).catch(() => {});
+        if (__DEV__) {
+          const ms = msUntilNextMidnight();
+          devLog("[P1_DECK_COUNTDOWN]", {
+            dayKey,
+            completedAt: now,
+            msRemaining: ms,
+            label: formatCountdownLabel(ms),
+          });
+        }
+      }
+    }
+  }, [isComplete, completedAt]);
+
   // Completion countdown ("New ideas in Xh Ym")
   const [countdownLabel, setCountdownLabel] = useState<string | null>(null);
-  const isComplete = currentIndex > 0 && currentIndex >= deck.length;
   useEffect(() => {
     if (!isComplete) return;
-    // Compute immediately, then refresh every 60 s
     const tick = () => setCountdownLabel(formatCountdownLabel(msUntilNextMidnight()));
     tick();
     const id = setInterval(tick, 60_000);
@@ -852,6 +891,18 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
               );
             }
           }
+        }
+
+        // Load persisted completion timestamp for today
+        const todayComplete = await AsyncStorage.getItem(getCompleteKey(getDayKeyLocal()));
+        if (todayComplete) {
+          try {
+            const parsed = JSON.parse(todayComplete);
+            if (parsed.completedAt) {
+              setCompletedAt(parsed.completedAt);
+              prevCompleteRef.current = true;
+            }
+          } catch { /* ignore */ }
         }
       } catch {
         /* ignore corrupt storage */
@@ -1113,7 +1164,7 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
     );
   }
 
-  if (currentIndex >= deck.length) {
+  if (isComplete) {
     // Trigger entrance animation once
     if (completionOpacity.value === 0) {
       completionOpacity.value = withTiming(1, { duration: MotionDurations.hero });
@@ -1128,14 +1179,6 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
       dismissedCount: sessionDismissedRef.current,
       totalCount: deck.length,
     });
-
-    if (__DEV__) {
-      devLog("[P1_DECK_COMPLETE]", {
-        acceptedCount: sessionAcceptedRef.current,
-        dismissedCount: sessionDismissedRef.current,
-        total: deck.length,
-      });
-    }
 
     return (
       <View className="flex-1 pt-8 items-center px-4">
