@@ -78,7 +78,7 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { Button } from "@/ui/Button";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, usePremiumStatusContract, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import { FriendsActivityPane } from "@/components/friends/FriendsActivityPane";

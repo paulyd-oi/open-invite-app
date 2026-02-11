@@ -24,7 +24,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, useIsPro, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, usePremiumStatusContract, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { Button } from "@/ui/Button";

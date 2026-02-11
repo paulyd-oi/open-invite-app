@@ -213,8 +213,16 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_HOSTING_QUOTA]",
   // P1 hosting quota UI indicator (create screen)
   "[P1_HOSTING_QUOTA_UI]",
-  // P1 hosting quota soft nudge (2-of-3 banner)
+  // P1 hosting nudge: soft banner (2/3 threshold)
+  "[P1_HOSTING_NUDGE]",
+  // P1 hosting nudge: soft banner (compat alias)
   "[P1_HOSTING_QUOTA_NUDGE]",
+  // P1 hosting gate: hard paywall gate on submit
+  "[P1_HOSTING_GATE]",
+  // P1 hosting invariant (isUnlimited + nudgeMeta conflict)
+  "[P1_HOSTING_INVARIANT]",
+  // P0 premium status contract (SSOT proof)
+  "[P0_PREMIUM_CONTRACT]",
 ];
 
 /**

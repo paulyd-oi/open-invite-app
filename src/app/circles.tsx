@@ -26,7 +26,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { isEmailGateActive } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, usePremiumStatusContract, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 import { circleKeys } from "@/lib/circleQueryKeys";

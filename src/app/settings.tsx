@@ -90,7 +90,7 @@ import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
 import { Button } from "@/ui/Button";
 import { checkAdminStatus } from "@/lib/adminApi";
-import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
+import { useEntitlements, useRefreshProContract, usePremiumStatusContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
@@ -210,7 +210,7 @@ function ReferralCounterSection({
 
   const successfulCount = referralStats?.successfulReferrals ?? 0;
   const hasReferrer = referralStats?.hasReferrer ?? false;
-  const { isPro } = useIsPro();
+  const { isPro } = usePremiumStatusContract();
 
   // [P0_REFERRAL_PRO_GATE] DEV proof log
   if (__DEV__) {
@@ -901,7 +901,7 @@ export default function SettingsScreen() {
   }, [session?.user?.id, adminStatus, adminStatusLoading, bootStatus, canShowAdminSection]);
 
   // Entitlements for premium status display
-  const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = useIsPro();
+  const { isPro: userIsPremium, isLoading: entitlementsLoading, entitlements } = usePremiumStatusContract();
   const refreshProContract = useRefreshProContract();
   const subscription = useSubscription();
   const [isRefreshingEntitlements, setIsRefreshingEntitlements] = useState(false);

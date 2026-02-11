@@ -866,7 +866,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <AppThemeProvider>
-            {/* [P0_PRO_TRIO_UNLOCK] SubscriptionProvider MUST wrap app for useIsPro() to work */}
+            {/* [P0_PREMIUM_CONTRACT] SubscriptionProvider MUST wrap app for usePremiumStatusContract() to work */}
             <SubscriptionProvider>
               <OfflineSyncProvider>
                 <AutoSyncProvider>

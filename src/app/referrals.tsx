@@ -25,7 +25,7 @@ import { safeToast } from "@/lib/safeToast";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError, devLog } from "@/lib/devLog";
-import { useIsPro } from "@/lib/entitlements";
+import { usePremiumStatusContract } from "@/lib/entitlements";
 
 /** Normalize backend reward type strings to canonical _pro format for display */
 function normalizeRewardType(type: string): string {
@@ -212,7 +212,7 @@ export default function ReferralsScreen() {
   const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
-  const { isPro } = useIsPro();
+  const { isPro } = usePremiumStatusContract();
 
   // [P0_REFERRAL_PRO_GATE] DEV proof log
   if (__DEV__) {

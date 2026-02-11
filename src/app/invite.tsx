@@ -34,7 +34,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devLog } from "@/lib/devLog";
-import { useIsPro } from "@/lib/entitlements";
+import { usePremiumStatusContract } from "@/lib/entitlements";
 
 /** Normalize backend reward type strings to canonical _pro format for display */
 function normalizeRewardType(type: string): string {
@@ -75,7 +75,7 @@ export default function InviteScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
 
-  const { isPro } = useIsPro();
+  const { isPro } = usePremiumStatusContract();
 
   const { data: stats, isLoading } = useQuery<ReferralStats>({
     queryKey: ["referralStats"],

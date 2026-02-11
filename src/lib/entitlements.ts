@@ -5,7 +5,7 @@
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef, useContext } from "react";
+import { useCallback, useRef, useContext, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
@@ -473,6 +473,101 @@ export function useIsPro(): {
 }
 
 // ============================================
+// P0_PREMIUM_CONTRACT — Single SSOT hook for premium status
+// ============================================
+
+/**
+ * Canonical source for "is this user premium?" across the entire app.
+ *
+ * NAMING LOCK:
+ *   - `isPro` is the ONLY boolean UI/business logic should branch on.
+ *   - `isUnlimited` is a quota behaviour flag (hosting); never decides premium.
+ *
+ * proSource tells callers WHY the user is pro:
+ *   "backend"     — /api/entitlements says PRO or LIFETIME_PRO
+ *   "revenuecat"  — RevenueCat active entitlement
+ *   "both"        — both agree
+ *   "none"        — user is free
+ */
+export type ProSource = "backend" | "revenuecat" | "both" | "none";
+
+export interface PremiumStatusContract {
+  /** Single premium boolean — the ONLY one UI should branch on */
+  isPro: boolean;
+  /** Where the premium signal comes from */
+  proSource: ProSource;
+  /** Subscription expiry (ISO string) or null if lifetime / free */
+  premiumExpiresAt: string | null;
+  /** True while entitlements or RevenueCat are still loading */
+  isLoading: boolean;
+  /** True during a background refetch */
+  isFetching: boolean;
+  /** Error from entitlements fetch, if any */
+  error: Error | null;
+  /** Raw entitlements for advanced capability checks */
+  entitlements: EntitlementsResponse | undefined;
+}
+
+// Module-level flag so the proof log fires only once per JS session
+let _premiumContractProofLogged = false;
+
+/**
+ * usePremiumStatusContract — single SSOT for all premium gating.
+ *
+ * Prefer this over useIsPro() in new code. useIsPro() still works but
+ * delegates to the same underlying signals.
+ */
+export function usePremiumStatusContract(): PremiumStatusContract {
+  const {
+    data: entitlements,
+    isLoading: entitlementsLoading,
+    isFetching: entitlementsFetching,
+    error: entitlementsError,
+  } = useEntitlements();
+
+  const subscriptionContext = useContext(SubscriptionContext);
+  const rcIsPremium = subscriptionContext?.isPremium ?? false;
+  const rcLoading = subscriptionContext?.isLoading ?? true;
+
+  const backendIsPro = isPro(entitlements);
+  const combinedIsPro = backendIsPro || rcIsPremium;
+  const isLoading = entitlementsLoading || rcLoading;
+  const isFetching = entitlementsFetching;
+
+  const proSource: ProSource = useMemo(() => {
+    if (backendIsPro && rcIsPremium) return "both";
+    if (backendIsPro) return "backend";
+    if (rcIsPremium) return "revenuecat";
+    return "none";
+  }, [backendIsPro, rcIsPremium]);
+
+  const premiumExpiresAt: string | null =
+    subscriptionContext?.subscription?.expiresAt ?? null;
+
+  // [P0_PREMIUM_CONTRACT] DEV-only proof log, once per session
+  if (__DEV__ && !isLoading && !_premiumContractProofLogged) {
+    _premiumContractProofLogged = true;
+    devLog("[P0_PREMIUM_CONTRACT]", {
+      isPro: combinedIsPro,
+      proSource,
+      premiumExpiresAt,
+      backendPlan: entitlements?.plan ?? "unknown",
+      rcEntitled: rcIsPremium,
+    });
+  }
+
+  return {
+    isPro: combinedIsPro,
+    proSource,
+    premiumExpiresAt,
+    isLoading,
+    isFetching,
+    error: (entitlementsError as Error | null) ?? null,
+    entitlements,
+  };
+}
+
+// ============================================
 // Hosting Quota (real backend query)
 // ============================================
 
@@ -541,6 +636,16 @@ export function useHostingQuota() {
   });
 
   const quota = data ?? HOSTING_QUOTA_DEFAULTS;
+
+  // [P1_HOSTING_INVARIANT] If isUnlimited then nudgeMeta must be null
+  if (__DEV__ && !isLoading && quota.isUnlimited && quota.nudgeMeta != null) {
+    devWarn("[P1_HOSTING_INVARIANT] VIOLATION: isUnlimited=true but nudgeMeta is non-null", {
+      isUnlimited: quota.isUnlimited,
+      nudgeMeta: quota.nudgeMeta,
+      eventsUsed: quota.eventsUsed,
+      monthlyLimit: quota.monthlyLimit,
+    });
+  }
 
   return {
     /** Full quota data object */

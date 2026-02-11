@@ -66,7 +66,7 @@ import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
-import { useIsPro } from "@/lib/entitlements";
+import { usePremiumStatusContract } from "@/lib/entitlements";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -671,7 +671,7 @@ export default function OnboardingScreen() {
   const [showFriendsAvailable, setShowFriendsAvailable] = useState(false);
   const [demoReferralCode] = useState("bdia_t8js");
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
-  const { isPro } = useIsPro();
+  const { isPro } = usePremiumStatusContract();
 
   // [P0_REFERRAL_PRO_GATE] DEV proof log
   if (__DEV__) {

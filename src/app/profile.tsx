@@ -39,7 +39,7 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
-import { useIsPro } from "@/lib/entitlements";
+import { usePremiumStatusContract } from "@/lib/entitlements";
 import { devLog } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
@@ -99,7 +99,7 @@ export default function ProfileScreen() {
 
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
 
-  const { isPro: userIsPremium } = useIsPro();
+  const { isPro: userIsPremium } = usePremiumStatusContract();
 
   // Timeout safety
   const isBootLoading = bootStatus === "loading";

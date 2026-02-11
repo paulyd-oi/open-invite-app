@@ -55,7 +55,7 @@ import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
-import { useEntitlements, canCreateEvent, useIsPro, useHostingQuota, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -496,9 +496,9 @@ export default function CreateEventScreen() {
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
-  // useIsPro is single source of truth - CRITICAL: don't show gates while isLoading
+  // usePremiumStatusContract is single source of truth - CRITICAL: don't show gates while isLoading
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
-  const { isPro: userIsPro, isLoading: entitlementsLoading } = useIsPro();
+  const { isPro: userIsPro, isLoading: entitlementsLoading } = usePremiumStatusContract();
   const { isPremium, openPaywall } = useSubscription();
   const hostingQuota = useHostingQuota();
 
@@ -553,7 +553,7 @@ export default function CreateEventScreen() {
   const handleNudgeDismiss = useCallback(async () => {
     setNudgeDismissed(true);
     if (__DEV__) {
-      devLog("[P1_HOSTING_QUOTA_NUDGE]", { action: "dismiss", monthKey: nudgeMonthKey });
+      devLog("[P1_HOSTING_NUDGE]", { action: "dismiss", monthKey: nudgeMonthKey });
     }
     if (nudgeStorageKey) {
       try {
@@ -566,50 +566,59 @@ export default function CreateEventScreen() {
 
   const handleNudgeUpgrade = useCallback(() => {
     if (__DEV__) {
-      devLog("[P1_HOSTING_QUOTA_NUDGE]", { action: "upgrade_tap", monthKey: nudgeMonthKey });
+      devLog("[P1_HOSTING_NUDGE]", { action: "upgrade_tap", monthKey: nudgeMonthKey });
     }
     setPaywallContext("ACTIVE_EVENTS_LIMIT");
     setShowPaywallModal(true);
   }, [nudgeMonthKey]);
 
-  // Compute nudge visibility — SSOT: backend nudgeMeta drives threshold logic
-  const nudgeMeta = hostingQuota.nudgeMeta;
-
+  // ── [P1_HOSTING_NUDGE] Soft nudge: local threshold (2/3) ──
+  // Pro/promo: never nudge. Loading/error: fail open (no nudge). Exactly 2 of 3 used → nudge.
   const showNudgeBanner = useMemo(() => {
-    // Premium suppression
-    if (hostingQuota.isUnlimited) {
-      if (__DEV__ && !hostingQuota.isLoading && session?.user?.id) {
-        devLog("[P1_HOSTING_QUOTA_NUDGE]", {
-          suppressed: true,
-          suppressedReason: "isUnlimited",
-          userId: session.user.id,
-        });
-      }
-      return false;
-    }
-    // Must have loaded
-    if (hostingQuota.isLoading) return false;
-    // Fail closed: if nudgeMeta missing/null, no banner (never blocks hosting)
-    if (!nudgeMeta || nudgeMeta.shouldNudgeNow !== true) return false;
+    // Pro / promo suppression — usePremiumStatusContract is SSOT
+    if (userIsPro) return false;
+    // Still loading premium or quota → fail open (no nudge)
+    if (entitlementsLoading || hostingQuota.isLoading) return false;
+    if (hostingQuota.error) return false;
+    // Unlimited plans (promo codes etc) → no nudge
+    if (hostingQuota.isUnlimited) return false;
+    // Exact threshold: monthlyLimit===3 and eventsUsed===2
+    if (hostingQuota.monthlyLimit !== 3 || hostingQuota.eventsUsed !== 2) return false;
     // User dismissed for this month
     if (nudgeDismissed) return false;
     return true;
-  }, [hostingQuota.isUnlimited, hostingQuota.isLoading, nudgeMeta, nudgeDismissed, session?.user?.id]);
+  }, [
+    userIsPro,
+    entitlementsLoading,
+    hostingQuota.isLoading,
+    hostingQuota.error,
+    hostingQuota.isUnlimited,
+    hostingQuota.monthlyLimit,
+    hostingQuota.eventsUsed,
+    nudgeDismissed,
+  ]);
 
-  // DEV proof log when banner becomes visible or suppressed
+  // [P1_HOSTING_NUDGE] DEV proof log
   useEffect(() => {
-    if (!__DEV__ || !session?.user?.id || hostingQuota.isLoading) return;
-    devLog("[P1_HOSTING_QUOTA_NUDGE]", {
-      shouldNudgeNow: nudgeMeta?.shouldNudgeNow ?? null,
-      nextNudgeAt: nudgeMeta?.nextNudgeAt ?? null,
-      thresholds: nudgeMeta?.thresholds ?? null,
-      dismissed: nudgeDismissed,
-      suppressedReason: hostingQuota.isUnlimited ? "isUnlimited" : null,
+    if (!__DEV__ || hostingQuota.isLoading || entitlementsLoading) return;
+    devLog("[P1_HOSTING_NUDGE]", {
+      action: showNudgeBanner ? "shown" : "suppressed",
       eventsUsed: hostingQuota.eventsUsed,
       monthlyLimit: hostingQuota.monthlyLimit,
-      showBanner: showNudgeBanner,
+      proSuppressed: userIsPro,
+      unlimitedSuppressed: hostingQuota.isUnlimited,
+      dismissed: nudgeDismissed,
     });
-  }, [showNudgeBanner, nudgeMeta, nudgeDismissed, hostingQuota.isUnlimited, hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, session?.user?.id]);
+  }, [
+    showNudgeBanner,
+    hostingQuota.isLoading,
+    entitlementsLoading,
+    hostingQuota.eventsUsed,
+    hostingQuota.monthlyLimit,
+    userIsPro,
+    hostingQuota.isUnlimited,
+    nudgeDismissed,
+  ]);
 
   // Check for pending ICS import on mount
   useEffect(() => {
@@ -844,7 +853,7 @@ export default function CreateEventScreen() {
       // This prevents the race condition where Pro users see gates momentarily
     } else {
       // Soft-limit check: Show upgrade prompt for free users hitting active events limit
-      // Use unified isPro check from useIsPro() hook (single source of truth)
+      // Premium check uses usePremiumStatusContract (single source of truth)
       if (!userIsPro && activeEventCount >= MAX_ACTIVE_EVENTS_FREE && !hasShownActiveEventsPrompt()) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         markActiveEventsPromptShown();
@@ -852,17 +861,32 @@ export default function CreateEventScreen() {
         return;
       }
 
-      // [P1_HOSTING_QUOTA_GATE] Check hosting quota before creating
-      // Skip gate while loading to avoid false blocks for Pro users
-      if (!hostingQuota.isLoading && !hostingQuota.isUnlimited && !hostingQuota.canHost) {
-        if (__DEV__) {
-          devLog('[P1_HOSTING_QUOTA_GATE]', {
-            action: 'paywall_opened',
-            eventsUsed: hostingQuota.eventsUsed,
-            monthlyLimit: hostingQuota.monthlyLimit,
-            remaining: hostingQuota.remaining,
-          });
-        }
+      // ── [P1_HOSTING_GATE] Hard gate: 3/3 used → paywall, abort submit ──
+      // Safety: Pro/promo never gated. Loading/error → fail open (allow, backend validates).
+      const quotaLoading = hostingQuota.isLoading || hostingQuota.isFetching || !!hostingQuota.error;
+      // Never gate premium users (checked via usePremiumStatusContract)
+      const premiumSafe = userIsPro;
+      // Never gate unlimited-quota users (promo codes etc)
+      const quotaUnlimited = hostingQuota.isUnlimited;
+      const hostingGateAction: string =
+        quotaLoading ? "skipped_loading" :
+        (premiumSafe || quotaUnlimited) ? "allowed" :
+        !hostingQuota.canHost ? "paywall_opened" :
+        "allowed";
+
+      if (__DEV__) {
+        devLog("[P1_HOSTING_GATE]", {
+          action: hostingGateAction,
+          // quota fields (separate from premium)
+          canHost: hostingQuota.canHost,
+          eventsUsed: hostingQuota.eventsUsed,
+          monthlyLimit: hostingQuota.monthlyLimit,
+          remaining: hostingQuota.remaining,
+          quotaLoading,
+        });
+      }
+
+      if (hostingGateAction === "paywall_opened") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         setPaywallContext('ACTIVE_EVENTS_LIMIT');
         setShowPaywallModal(true);
@@ -1570,7 +1594,7 @@ export default function CreateEventScreen() {
             )}
           </Animated.View>
 
-          {/* [P1_HOSTING_QUOTA_NUDGE] Soft nudge banner — 1 event away from limit */}
+          {/* [P1_HOSTING_NUDGE] Soft nudge banner — 2/3 events used */}
           {showNudgeBanner && (
             <Animated.View
               entering={FadeInDown.delay(200).springify()}
@@ -1587,7 +1611,7 @@ export default function CreateEventScreen() {
                 Almost at your monthly limit
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
-                You've hosted {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events this month. Upgrade to Pro for unlimited hosting.
+                You've hosted 2 of 3 events this month. Upgrade for unlimited hosting.
               </Text>
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <Pressable

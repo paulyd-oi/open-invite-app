@@ -1120,4 +1120,70 @@ fi
 echo ""
 echo "P0_PROD_DEV_GATES checks PASS"
 
+# ── P0 PREMIUM CONTRACT NAMING LOCK ─────────────────────────────────
+echo ""
+echo "Running P0_PREMIUM_CONTRACT_NAMING_LOCK checks…"
+echo "  Goal: all premium gating must use usePremiumStatusContract(). useIsPro() calls are legacy."
+
+PREM_FAIL=0
+
+# Part 1: No new useIsPro() call sites outside entitlements.ts definition
+# Exclude comments (lines starting with // or * or containing only comment text)
+ISPRO_CALLS=$(grep -rn 'useIsPro()' src/ --include='*.ts' --include='*.tsx' \
+  | grep -v 'src/lib/entitlements.ts' \
+  | grep -v node_modules \
+  | grep -v '^\s*//' \
+  | grep -v '//.*useIsPro' \
+  | grep -v '{/\*.*useIsPro' \
+  | grep -v '\*.*useIsPro' || true)
+
+if [ -n "$ISPRO_CALLS" ]; then
+  echo "  ❌ useIsPro() called outside entitlements.ts — use usePremiumStatusContract() instead:"
+  echo "$ISPRO_CALLS"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 1: No useIsPro() call sites outside entitlements.ts"
+fi
+
+# Part 2: usePremiumStatusContract must be exported from entitlements.ts
+if ! grep -q 'export function usePremiumStatusContract' src/lib/entitlements.ts 2>/dev/null; then
+  echo "  ❌ usePremiumStatusContract not exported from entitlements.ts"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 2: usePremiumStatusContract exported from entitlements.ts"
+fi
+
+# Part 3: ProSource type must be exported
+if ! grep -q 'export type ProSource' src/lib/entitlements.ts 2>/dev/null; then
+  echo "  ❌ ProSource type not exported from entitlements.ts"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 3: ProSource type exported from entitlements.ts"
+fi
+
+# Part 4: isUnlimited must NOT be used as the sole premium decision
+# Only flag patterns like: isPro = isUnlimited, isPremium = isUnlimited,
+# or if (isUnlimited) { ...premium... } — NOT quota-gating like "!isUnlimited && !canHost"
+UNLIMITED_PREMIUM=$(grep -rn 'isUnlimited' src/ --include='*.ts' --include='*.tsx' \
+  | grep -v node_modules \
+  | grep -v 'src/lib/entitlements.ts' \
+  | grep -E 'isPro\s*=\s*.*isUnlimited|isPremium\s*=\s*.*isUnlimited|premium\s*=\s*isUnlimited' || true)
+
+if [ -n "$UNLIMITED_PREMIUM" ]; then
+  echo "  ❌ isUnlimited used to decide premium status (use isPro from contract):"
+  echo "$UNLIMITED_PREMIUM"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 4: isUnlimited not used as premium decision (quota-only)"
+fi
+
+if [ "$PREM_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PREMIUM_CONTRACT_NAMING_LOCK invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_PREMIUM_CONTRACT_NAMING_LOCK checks PASS"
+
 echo "PASS: verify_frontend"
