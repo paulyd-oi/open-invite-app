@@ -94,6 +94,7 @@ import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlem
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
+import { buildDiagnosticsBundle } from "@/lib/devDiagnosticsBundle";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -2009,6 +2010,29 @@ export default function SettingsScreen() {
                     return `${i + 1}. [${t}] ${r.kind} ${qk} reason=${rsn}${cid}`;
                   });
                   Alert.alert(`Query Receipts (${queryEntries.length})`, lines.join("\n"));
+                }}
+              />
+            )}
+            {/* P0_DIAG_BUNDLE: Copy full diagnostics bundle to clipboard (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<Copy size={20} color="#14B8A6" />}
+                title="Copy Diagnostics Bundle"
+                subtitle="Push + query receipts + device + session → clipboard"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  try {
+                    const bundle = await buildDiagnosticsBundle(
+                      session?.user?.id ?? null,
+                      session?.user?.email ?? null,
+                    );
+                    await Clipboard.setStringAsync(JSON.stringify(bundle, null, 2));
+                    safeToast.success("Copied", "Diagnostics bundle copied to clipboard.");
+                  } catch (e) {
+                    devError("[P0_DIAG_BUNDLE] export failed", e);
+                    safeToast.error("Export Failed", "Could not build diagnostics bundle.");
+                  }
                 }}
               />
             )}

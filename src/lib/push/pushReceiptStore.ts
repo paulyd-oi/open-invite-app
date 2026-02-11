@@ -97,6 +97,16 @@ export async function getRecentReceipts(): Promise<PushReceipt[]> {
 }
 
 /**
+ * Get ALL stored receipts (newest first, up to MAX_RECEIPTS).
+ * Used by the diagnostics bundle export.
+ */
+export async function getAllReceipts(): Promise<PushReceipt[]> {
+  if (!__DEV__) return [];
+  await ensureLoaded();
+  return [...receipts].reverse();
+}
+
+/**
  * Clear all stored receipts.
  */
 export async function clearPushReceipts(): Promise<void> {
