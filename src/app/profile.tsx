@@ -617,7 +617,7 @@ export default function ProfileScreen() {
                     <View className="flex-row items-center">
                       <Text
                         className="text-xl font-sora-bold"
-                        style={{ color: bannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text, letterSpacing: -0.3 }}
+                        style={{ color: colors.text, letterSpacing: -0.3 }}
                       >
                         {displayName}
                       </Text>
@@ -626,13 +626,13 @@ export default function ProfileScreen() {
                       )}
                     </View>
                     {userHandle && (
-                      <Text style={{ color: bannerUri ? (isDark ? "rgba(255,255,255,0.7)" : colors.textSecondary) : colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
                         {`@${StringSafe(userHandle)}`}
                       </Text>
                     )}
                     <View className="flex-row items-center" style={{ marginTop: 6 }}>
-                      <Calendar size={14} color={bannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary} />
-                      <Text className="ml-2 text-sm" style={{ color: bannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }} numberOfLines={1}>
+                      <Calendar size={14} color={colors.textTertiary} />
+                      <Text className="ml-2 text-sm" style={{ color: colors.textTertiary }} numberOfLines={1}>
                         {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
                       </Text>
                     </View>
@@ -641,7 +641,7 @@ export default function ProfileScreen() {
               </View>
 
             {/* Edit / Share / Preview — visually grouped action row */}
-            <View className="flex-row mt-5 pt-3 border-t" style={{ borderColor: bannerUri ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)") : colors.border, gap: 8 }}>
+            <View className="flex-row mt-5 pt-3 border-t" style={{ borderColor: colors.border, gap: 8 }}>
               <Button
                 variant="secondary"
                 label="Edit"
@@ -674,8 +674,8 @@ export default function ProfileScreen() {
               className="flex-row items-center justify-center mt-3 py-2 rounded-lg"
               style={{ backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}
             >
-              <Eye size={14} color={colors.textTertiary} />
-              <Text className="text-sm ml-1.5" style={{ color: colors.textTertiary }}>
+              <Eye size={14} color={themeColor} />
+              <Text className="text-sm ml-1.5" style={{ color: themeColor }}>
                 View Public Profile
               </Text>
             </Pressable>

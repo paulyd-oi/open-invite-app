@@ -419,31 +419,31 @@ export default function PublicProfileScreen() {
                           />
                         )}
                         <View className="flex-row items-center">
-                          <Text className="text-xl font-bold" style={{ color: pubBannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text, letterSpacing: -0.3 }}>
+                          <Text className="text-xl font-bold" style={{ color: colors.text, letterSpacing: -0.3 }}>
                             {user.name ?? "No name"}
                           </Text>
                         </View>
 
                         {/* @handle — secondary tone */}
                         {user.Profile?.handle && (
-                          <Text className="text-sm" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.7)" : colors.textSecondary) : colors.textSecondary, marginTop: 4 }}>
+                          <Text className="text-sm" style={{ color: colors.textSecondary, marginTop: 4 }}>
                             @{user.Profile.handle}
                           </Text>
                         )}
 
                         {/* Calendar Bio */}
                         <View className="flex-row items-center" style={{ marginTop: 8 }}>
-                          <Calendar size={14} color={pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary} />
-                          <Text className="ml-1.5 text-sm" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }}>
+                          <Calendar size={14} color={colors.textTertiary} />
+                          <Text className="ml-1.5 text-sm" style={{ color: colors.textTertiary }}>
                             My calendar looks like...
                           </Text>
                         </View>
                         {user.Profile?.calendarBio ? (
-                          <Text className="text-sm mt-1 text-center px-4" style={{ color: pubBannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text }}>
+                          <Text className="text-sm mt-1 text-center px-4" style={{ color: colors.text }}>
                             {user.Profile.calendarBio}
                           </Text>
                         ) : (
-                          <Text className="text-sm mt-1 italic" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }}>
+                          <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
                             Not set yet
                           </Text>
                         )}
