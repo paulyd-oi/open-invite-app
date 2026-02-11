@@ -79,12 +79,15 @@ export type PushEventType =
   | "circle_member_left"
   | "event_rsvp_changed"
   | "event_updated"
+  | "event_update"
   | "event_created"
+  | "new_event"
   | "event_comment"
   | "friend_request"
   | "friend_accepted"
   | "join_request"
-  | "join_accepted";
+  | "join_accepted"
+  | "new_attendee";
 
 export interface BasePushPayload {
   type: PushEventType;
