@@ -540,14 +540,31 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              {/* Text legibility panel (frosted when banner present) */}
+              {/* Text legibility panel (fake glass when banner present) */}
               <View
                 style={bannerUri ? {
-                  backgroundColor: isDark ? "rgba(0,0,0,0.50)" : "rgba(255,255,255,0.82)",
-                  borderRadius: 14,
-                  padding: 12,
+                  backgroundColor: isDark ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.72)",
+                  borderColor: isDark ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.55)",
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  overflow: "hidden",
                 } : undefined}
               >
+                {/* Legibility boost — subtle bottom deepening */}
+                {bannerUri && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "50%",
+                      backgroundColor: isDark ? "rgba(0,0,0,0.22)" : "rgba(255,255,255,0.18)",
+                    }}
+                  />
+                )}
                 {/* No-banner layout: horizontal avatar + text */}
                 {!bannerUri ? (
                   <View className="flex-row items-center">
