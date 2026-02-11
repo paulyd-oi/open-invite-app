@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, Image, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { EventPhotoEmoji } from "./EventPhotoEmoji";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 
 export interface EntityAvatarProps {
   /** Remote image URL (actor avatar or event cover photo) */
@@ -65,11 +66,14 @@ export function EntityAvatar({
   // [P0_ENTITY_AVATAR_ERROR_FALLBACK] Track broken image loads
   const [imageFailed, setImageFailed] = useState(false);
   // Resolve effective photo source: imageSource (pre-built with headers) wins over photoUrl string
-  const effectiveSource = imageSource?.uri
-    ? imageSource
-    : photoUrl
-      ? { uri: photoUrl }
-      : null;
+  // [P0_PERF_THUMB_AVATAR_HYGIENE] Transform Cloudinary URIs through THUMBNAIL_SQUARE
+  const rawUri = imageSource?.uri ?? photoUrl ?? null;
+  const thumbUri = rawUri ? toCloudinaryTransformedUrl(rawUri, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) : null;
+  const effectiveSource = rawUri
+    ? (imageSource?.uri
+        ? { ...imageSource, uri: thumbUri! }
+        : { uri: thumbUri! })
+    : null;
   const hasPhoto = !!effectiveSource && !imageFailed;
   const hasEmoji = !!emoji;
   const hasInitials = !!initials && initials.length > 0;

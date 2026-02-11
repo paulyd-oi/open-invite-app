@@ -622,4 +622,59 @@ fi
 echo ""
 echo "P0_PERF_PRELOAD_BOUNDED_HEROES checks PASS"
 
+# ── P0 PERF THUMB AVATAR HYGIENE ───────────────────────────────────
+echo ""
+echo "Running P0_PERF_THUMB_AVATAR_HYGIENE checks…"
+echo "  Goal: EntityAvatar SSOT transforms Cloudinary avatar URIs via THUMBNAIL_SQUARE."
+
+AVATAR_FAIL=0
+
+# Part 1: THUMBNAIL_SQUARE preset must exist in mediaTransformSSOT.ts
+if ! grep -q 'THUMBNAIL_SQUARE' src/lib/mediaTransformSSOT.ts 2>/dev/null; then
+  echo "  ❌ mediaTransformSSOT.ts missing THUMBNAIL_SQUARE preset"
+  AVATAR_FAIL=1
+else
+  echo "  ✓ Part 1: THUMBNAIL_SQUARE preset exists in mediaTransformSSOT.ts"
+fi
+
+# Part 2: EntityAvatar must import toCloudinaryTransformedUrl
+if ! grep -q 'toCloudinaryTransformedUrl' src/components/EntityAvatar.tsx 2>/dev/null; then
+  echo "  ❌ EntityAvatar.tsx does not use toCloudinaryTransformedUrl"
+  AVATAR_FAIL=1
+else
+  echo "  ✓ Part 2: EntityAvatar uses toCloudinaryTransformedUrl"
+fi
+
+# Part 3: EntityAvatar must reference THUMBNAIL_SQUARE
+if ! grep -q 'THUMBNAIL_SQUARE' src/components/EntityAvatar.tsx 2>/dev/null; then
+  echo "  ❌ EntityAvatar.tsx does not reference THUMBNAIL_SQUARE"
+  AVATAR_FAIL=1
+else
+  echo "  ✓ Part 3: EntityAvatar uses THUMBNAIL_SQUARE preset"
+fi
+
+# Part 4: Scoped high-scroll screens must use EntityAvatar (not raw <Image for identity)
+AVATAR_SCOPE="src/app/friends.tsx src/app/social.tsx src/app/event/[id].tsx src/app/circle/[id].tsx"
+for AFILE in $AVATAR_SCOPE; do
+  if [ ! -f "$AFILE" ]; then
+    continue
+  fi
+  if ! grep -q 'EntityAvatar' "$AFILE" 2>/dev/null; then
+    echo "  ❌ $AFILE does not use EntityAvatar for identity images"
+    AVATAR_FAIL=1
+  fi
+done
+if [ "$AVATAR_FAIL" -eq 0 ]; then
+  echo "  ✓ Part 4: All scoped screens use EntityAvatar for identity images"
+fi
+
+if [ "$AVATAR_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_THUMB_AVATAR_HYGIENE invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_PERF_THUMB_AVATAR_HYGIENE checks PASS"
+
 echo "PASS: verify_frontend"
