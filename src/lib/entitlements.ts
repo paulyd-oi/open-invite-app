@@ -10,6 +10,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
 import { devLog, devWarn, devError } from "./devLog";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSession } from "@/lib/useSession";
+import { isAuthedForNetwork } from "@/lib/authedGate";
+import { hostingKeys } from "@/lib/hostingQueryKeys";
 
 // Plan types
 export type Plan = "FREE" | "PRO" | "LIFETIME_PRO";
@@ -468,30 +472,82 @@ export function useIsPro(): {
   };
 }
 
-/**
- * Hosting quota progress hook.
- * Returns current usage vs limit for active events.
- * isUnlimited = true hides the indicator entirely (Pro / promo).
- */
-export function useHostingQuota(): {
+// ============================================
+// Hosting Quota (real backend query)
+// ============================================
+
+/** Shape returned by GET /api/hosting/quota */
+export interface HostingQuotaResponse {
   eventsUsed: number;
-  eventsMax: number | null;
+  monthlyLimit: number | null; // null = unlimited
   remaining: number | null;
   canHost: boolean;
   isUnlimited: boolean;
-  isLoading: boolean;
-} {
-  const { isPro, isLoading, entitlements } = useIsPro();
-  const usage = entitlements?.usage ?? { activeEventsCount: 0, circlesCount: 0, friendNotesCount: 0 };
-  const limits = getLimits(entitlements);
+  resetAt: string | null; // ISO date when the quota resets
+}
 
-  const eventsUsed = usage.activeEventsCount;
-  const eventsMax = limits.activeEventsMax;
-  const isUnlimited = isPro || eventsMax === null;
-  const remaining = isUnlimited ? null : Math.max(eventsMax! - eventsUsed, 0);
-  const canHost = isUnlimited || (eventsMax !== null && eventsUsed < eventsMax);
+const HOSTING_QUOTA_DEFAULTS: HostingQuotaResponse = {
+  eventsUsed: 0,
+  monthlyLimit: null,
+  remaining: null,
+  canHost: true,
+  isUnlimited: true,
+  resetAt: null,
+};
 
-  return { eventsUsed, eventsMax, remaining, canHost, isUnlimited, isLoading };
+/**
+ * Hosting quota hook — fetches GET /api/hosting/quota.
+ *
+ * Auth-gated: only fires when the user is fully authed for network.
+ * Returns the raw backend shape plus React Query lifecycle fields.
+ */
+export function useHostingQuota() {
+  const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
+
+  const { data, isLoading, isFetching, refetch, error } = useQuery({
+    queryKey: hostingKeys.quota(),
+    queryFn: async () => {
+      const res = await api.get<HostingQuotaResponse>("/api/hosting/quota");
+
+      // [P1_HOSTING_QUOTA] DEV proof log on successful fetch
+      if (__DEV__) {
+        devLog("[P1_HOSTING_QUOTA]", {
+          eventsUsed: res.eventsUsed,
+          monthlyLimit: res.monthlyLimit,
+          remaining: res.remaining,
+          canHost: res.canHost,
+          isUnlimited: res.isUnlimited,
+          resetAt: res.resetAt,
+        });
+      }
+
+      return res;
+    },
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 1000 * 60 * 5, // 5 min
+    gcTime: 1000 * 60 * 30,   // 30 min
+    placeholderData: HOSTING_QUOTA_DEFAULTS,
+  });
+
+  const quota = data ?? HOSTING_QUOTA_DEFAULTS;
+
+  return {
+    /** Full quota data object */
+    quota,
+    /** Convenience accessors (flat) */
+    eventsUsed: quota.eventsUsed,
+    monthlyLimit: quota.monthlyLimit,
+    remaining: quota.remaining,
+    canHost: quota.canHost,
+    isUnlimited: quota.isUnlimited,
+    resetAt: quota.resetAt,
+    /** React Query lifecycle */
+    isLoading,
+    isFetching,
+    refetch,
+    error,
+  };
 }
 
 /**

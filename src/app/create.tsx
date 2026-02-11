@@ -509,13 +509,14 @@ export default function CreateEventScreen() {
       if (__DEV__) {
         devLog("[P1_HOSTING_QUOTA_UI]", {
           eventsUsed: hostingQuota.eventsUsed,
+          monthlyLimit: hostingQuota.monthlyLimit,
           remaining: hostingQuota.remaining,
           canHost: hostingQuota.canHost,
           isUnlimited: hostingQuota.isUnlimited,
         });
       }
     }
-  }, [hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.remaining, hostingQuota.canHost, hostingQuota.isUnlimited]);
+  }, [hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, hostingQuota.remaining, hostingQuota.canHost, hostingQuota.isUnlimited]);
 
   // Check for pending ICS import on mount
   useEffect(() => {
@@ -759,15 +760,16 @@ export default function CreateEventScreen() {
       }
 
       // [P1_HOSTING_QUOTA_GATE] Check hosting quota before creating
-      if (__DEV__) {
-        devLog('[P1_HOSTING_QUOTA_GATE]', {
-          canHost: hostingQuota.canHost,
-          remaining: hostingQuota.remaining,
-          isUnlimited: hostingQuota.isUnlimited,
-          action: hostingQuota.canHost ? 'submit_allowed' : 'paywall_opened',
-        });
-      }
-      if (!hostingQuota.isUnlimited && !hostingQuota.canHost) {
+      // Skip gate while loading to avoid false blocks for Pro users
+      if (!hostingQuota.isLoading && !hostingQuota.isUnlimited && !hostingQuota.canHost) {
+        if (__DEV__) {
+          devLog('[P1_HOSTING_QUOTA_GATE]', {
+            action: 'paywall_opened',
+            eventsUsed: hostingQuota.eventsUsed,
+            monthlyLimit: hostingQuota.monthlyLimit,
+            remaining: hostingQuota.remaining,
+          });
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         setPaywallContext('ACTIVE_EVENTS_LIMIT');
         setShowPaywallModal(true);
@@ -1476,12 +1478,12 @@ export default function CreateEventScreen() {
           </Animated.View>
 
           {/* Hosting quota indicator — hidden for Pro/unlimited */}
-          {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.eventsMax != null && (
+          {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.monthlyLimit != null && (
             <Text
               className="text-xs text-center mt-3"
               style={{ color: hostingQuota.canHost ? colors.textTertiary : "#EF4444" }}
             >
-              {hostingQuota.eventsUsed} of {hostingQuota.eventsMax} events hosted this month
+              {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events hosted this month
             </Text>
           )}
 
