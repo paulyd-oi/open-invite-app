@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   TextInput,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -27,6 +28,7 @@ import {
   Search,
   Contact,
   ChevronRight,
+  Zap,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -34,9 +36,20 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  runOnJS,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  buildDailyDeck,
+  getTodayKey,
+  type SuggestionCard,
+  type DeckInput,
+} from "@/lib/suggestionsDeck";
+import { eventKeys } from "@/lib/eventQueryKeys";
 
 import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -58,6 +71,8 @@ import {
   type SendFriendRequestResponse,
   type SearchUsersRankedResponse,
   type SearchUserResult,
+  type GetEventsResponse,
+  type GetFriendBirthdaysResponse,
 } from "@/shared/contracts";
 
 // Suggestion Card Component
@@ -247,6 +262,431 @@ function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => 
   );
 }
 
+// ─── Daily Ideas Deck (SSOT: src/lib/suggestionsDeck.ts) ─────────
+const DECK_STORAGE_KEY = "suggestions_deck_v1";
+const DECK_SWIPE_THRESHOLD = 100;
+const DECK_SCREEN_W = Dimensions.get("window").width;
+
+interface DeckReconnectSuggestion {
+  friend: { id: string; name: string | null; image: string | null };
+  friendshipId: string;
+  groups: Array<{ id: string; name: string; color: string }>;
+  hangoutCount: number;
+  lastHangout: string | null;
+  daysSinceHangout: number;
+}
+
+function DeckCardFace({ card }: { card: SuggestionCard }) {
+  const { themeColor, colors } = useTheme();
+  const accent =
+    card.kind === "open_event"
+      ? "#3B82F6"
+      : card.kind === "open_profile"
+        ? "#EC4899"
+        : themeColor;
+  return (
+    <View
+      className="rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        height: 88,
+      }}
+    >
+      <View className="flex-row flex-1">
+        <View style={{ width: 4, backgroundColor: accent }} />
+        <View className="flex-1 px-4 justify-center">
+          <Text
+            className="text-[15px] font-semibold mb-0.5"
+            style={{ color: colors.text }}
+            numberOfLines={2}
+          >
+            {card.title}
+          </Text>
+          <Text
+            className="text-[13px]"
+            style={{ color: colors.textSecondary }}
+            numberOfLines={2}
+          >
+            {card.body}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function DeckSwipeCard({
+  card,
+  nextCard,
+  index,
+  total,
+  onAccept,
+  onDismiss,
+}: {
+  card: SuggestionCard;
+  nextCard?: SuggestionCard;
+  index: number;
+  total: number;
+  onAccept: () => void;
+  onDismiss: () => void;
+}) {
+  const { themeColor, colors, isDark } = useTheme();
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
+  const delayedAccept = useCallback(() => {
+    setTimeout(onAccept, 120);
+  }, [onAccept]);
+
+  const delayedDismiss = useCallback(() => {
+    setTimeout(onDismiss, 120);
+  }, [onDismiss]);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-15, 15])
+    .onUpdate((e) => {
+      translateX.value = e.translationX;
+      translateY.value = e.translationY * 0.15;
+    })
+    .onEnd((e) => {
+      if (e.translationX > DECK_SWIPE_THRESHOLD) {
+        translateX.value = withTiming(DECK_SCREEN_W, { duration: 200 });
+        runOnJS(delayedAccept)();
+      } else if (e.translationX < -DECK_SWIPE_THRESHOLD) {
+        translateX.value = withTiming(-DECK_SCREEN_W, { duration: 200 });
+        runOnJS(delayedDismiss)();
+      } else {
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+      }
+    });
+
+  const topStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { rotate: `${translateX.value / 25}deg` },
+    ],
+  }));
+
+  const peekStyle = useAnimatedStyle(() => {
+    const abs = Math.abs(translateX.value);
+    const t = Math.min(abs / DECK_SWIPE_THRESHOLD, 1);
+    return {
+      transform: [{ scale: 0.95 + 0.05 * t }],
+      opacity: 0.6 + 0.4 * t,
+    };
+  });
+
+  const cardW = DECK_SCREEN_W - 48;
+
+  return (
+    <View className="items-center">
+      {/* Card stack */}
+      <View style={{ width: cardW, height: 88 }}>
+        {nextCard && (
+          <Animated.View
+            style={[
+              { position: "absolute", top: 0, left: 0, right: 0 },
+              peekStyle,
+            ]}
+          >
+            <DeckCardFace card={nextCard} />
+          </Animated.View>
+        )}
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              { position: "absolute", top: 0, left: 0, right: 0 },
+              topStyle,
+            ]}
+          >
+            <DeckCardFace card={card} />
+          </Animated.View>
+        </GestureDetector>
+      </View>
+
+      {/* Progress */}
+      <Text
+        className="text-xs mt-4"
+        style={{ color: colors.textTertiary }}
+      >
+        {index + 1} of {total}
+      </Text>
+
+      {/* Action buttons */}
+      <View className="flex-row mt-3" style={{ gap: 12 }}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            translateX.value = withTiming(-DECK_SCREEN_W, { duration: 200 });
+            setTimeout(onDismiss, 150);
+          }}
+          className="flex-row items-center px-5 py-2 rounded-full"
+          style={{ backgroundColor: isDark ? "#3F3F46" : "#F4F4F5" }}
+        >
+          <X size={14} color={colors.textSecondary} />
+          <Text
+            className="text-sm font-medium ml-1.5"
+            style={{ color: colors.textSecondary }}
+          >
+            No
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            translateX.value = withTiming(DECK_SCREEN_W, { duration: 200 });
+            setTimeout(onAccept, 150);
+          }}
+          className="flex-row items-center px-5 py-2 rounded-full"
+          style={{ backgroundColor: themeColor }}
+        >
+          <Check size={14} color="#fff" />
+          <Text className="text-sm font-medium ml-1.5 text-white">Yes</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function DailyIdeasDeck() {
+  const router = useRouter();
+  const { themeColor, colors } = useTheme();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+
+  const [deck, setDeck] = useState<SuggestionCard[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [deckReady, setDeckReady] = useState(false);
+  const restoredRef = useRef(false);
+
+  const enabled = isAuthedForNetwork(bootStatus, session);
+
+  // ── Data queries (re-use existing query keys) ──
+  const { data: reconnectData } = useQuery({
+    queryKey: ["suggestions"],
+    queryFn: () =>
+      api.get<{ suggestions: DeckReconnectSuggestion[] }>(
+        "/api/events/suggestions",
+      ),
+    enabled,
+    staleTime: 60000,
+  });
+
+  const { data: birthdayData } = useQuery({
+    queryKey: ["birthdays"],
+    queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
+    enabled,
+    staleTime: 60000,
+  });
+
+  const { data: feedEventsData } = useQuery({
+    queryKey: eventKeys.feed(),
+    queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
+    enabled,
+    staleTime: 30000,
+  });
+
+  const { data: myEventsData } = useQuery({
+    queryKey: eventKeys.mine(),
+    queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
+    enabled,
+    staleTime: 60000,
+  });
+
+  // ── Persistence: load on mount ──
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DECK_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (
+          parsed.todayKey === getTodayKey() &&
+          Array.isArray(parsed.deck) &&
+          parsed.deck.length > 0
+        ) {
+          setDeck(parsed.deck);
+          setCurrentIndex(parsed.currentIndex ?? 0);
+          restoredRef.current = true;
+          setDeckReady(true);
+          if (__DEV__) {
+            devLog(
+              `[P1_SUGGESTIONS_DECK] restored: ${parsed.deck.length} cards, idx=${parsed.currentIndex ?? 0}`,
+            );
+          }
+        }
+      } catch {
+        /* ignore corrupt storage */
+      }
+    })();
+  }, []);
+
+  // ── Build deck from query data (skip if restored from storage) ──
+  useEffect(() => {
+    if (restoredRef.current) return;
+    const hasData =
+      reconnectData || birthdayData || feedEventsData || myEventsData;
+    if (!hasData) return;
+
+    const todayKey = getTodayKey();
+    const myId = (session as any)?.user?.id as string | undefined;
+
+    const input: DeckInput = {
+      reconnects: (reconnectData?.suggestions ?? []).map((s) => ({
+        friendId: s.friend.id,
+        friendName: s.friend.name,
+        daysSinceHangout: s.daysSinceHangout,
+      })),
+      birthdays: (birthdayData?.birthdays ?? []).map((b) => ({
+        friendId: b.id,
+        friendName: b.name,
+        birthday: b.birthday,
+      })),
+      upcomingFriendEvents: (feedEventsData?.events ?? [])
+        .filter((ev) => !myId || ev.userId !== myId)
+        .map((ev) => ({
+          id: ev.id,
+          title: ev.title,
+          hostName: ev.user?.name ?? null,
+          hostId: ev.userId,
+          startTime: ev.startTime,
+          goingCount: (ev as any).goingCount as number | undefined,
+          capacity: (ev as any).capacity as number | null | undefined,
+        })),
+      myRecentEvents: (myEventsData?.events ?? []).map((ev) => ({
+        title: ev.title,
+        startTime: ev.startTime,
+      })),
+    };
+
+    const newDeck = buildDailyDeck(input, todayKey);
+    setDeck(newDeck);
+    setCurrentIndex(0);
+    setDeckReady(true);
+    restoredRef.current = true;
+
+    AsyncStorage.setItem(
+      DECK_STORAGE_KEY,
+      JSON.stringify({ todayKey, deck: newDeck, currentIndex: 0 }),
+    ).catch(() => {});
+  }, [reconnectData, birthdayData, feedEventsData, myEventsData, session]);
+
+  // ── Accept handler: navigate then advance ──
+  const handleAccept = useCallback(() => {
+    const card = deck[currentIndex];
+    if (!card) return;
+
+    switch (card.kind) {
+      case "open_profile":
+        if (card.target.profileUserId) {
+          router.push(`/user/${card.target.profileUserId}` as any);
+        }
+        break;
+      case "open_event":
+        if (card.target.eventId) {
+          router.push(`/event/${card.target.eventId}` as any);
+        }
+        break;
+      case "create_event": {
+        const p = card.target.createParams;
+        const qs = p?.title
+          ? `?title=${encodeURIComponent(p.title)}`
+          : "";
+        router.push(`/create${qs}` as any);
+        break;
+      }
+    }
+
+    const next = currentIndex + 1;
+    setCurrentIndex(next);
+    AsyncStorage.setItem(
+      DECK_STORAGE_KEY,
+      JSON.stringify({ todayKey: getTodayKey(), deck, currentIndex: next }),
+    ).catch(() => {});
+  }, [currentIndex, deck, router]);
+
+  // ── Dismiss handler: advance only ──
+  const handleDismiss = useCallback(() => {
+    const next = currentIndex + 1;
+    setCurrentIndex(next);
+    AsyncStorage.setItem(
+      DECK_STORAGE_KEY,
+      JSON.stringify({ todayKey: getTodayKey(), deck, currentIndex: next }),
+    ).catch(() => {});
+  }, [currentIndex, deck]);
+
+  // ── Render ──
+  if (!deckReady) {
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <ActivityIndicator size="small" color={themeColor} />
+        <Text
+          className="text-sm mt-3"
+          style={{ color: colors.textSecondary }}
+        >
+          Building your ideas…
+        </Text>
+      </View>
+    );
+  }
+
+  if (deck.length === 0) {
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <Sparkles size={28} color={colors.textTertiary} />
+        <Text
+          className="text-sm mt-3 text-center"
+          style={{ color: colors.textSecondary }}
+        >
+          No suggestions right now. Check back later!
+        </Text>
+      </View>
+    );
+  }
+
+  if (currentIndex >= deck.length) {
+    return (
+      <View className="flex-1 items-center justify-center px-6">
+        <Sparkles size={32} color={themeColor} />
+        <Text
+          className="text-lg font-semibold mt-4"
+          style={{ color: colors.text }}
+        >
+          You're caught up.
+        </Text>
+        <Text
+          className="text-sm mt-1"
+          style={{ color: colors.textSecondary }}
+        >
+          Come back tomorrow.
+        </Text>
+      </View>
+    );
+  }
+
+  const currentCard = deck[currentIndex]!;
+  const nextCard = deck[currentIndex + 1];
+
+  return (
+    <View className="flex-1 pt-8">
+      <DeckSwipeCard
+        key={currentCard.id}
+        card={currentCard}
+        nextCard={nextCard}
+        index={currentIndex}
+        total={deck.length}
+        onAccept={handleAccept}
+        onDismiss={handleDismiss}
+      />
+    </View>
+  );
+}
+
 export default function SuggestionsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -257,7 +697,7 @@ export default function SuggestionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"for-you" | "people">("for-you");
+  const [activeTab, setActiveTab] = useState<"for-you" | "people" | "ideas">("for-you");
 
   // Add Friend module state (same as Friends page)
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -773,6 +1213,22 @@ export default function SuggestionsScreen() {
             People
           </Text>
         </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setActiveTab("ideas");
+          }}
+          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
+          style={{ backgroundColor: activeTab === "ideas" ? themeColor : "transparent" }}
+        >
+          <Zap size={16} color={activeTab === "ideas" ? "#fff" : colors.textSecondary} />
+          <Text
+            className="font-medium ml-1.5"
+            style={{ color: activeTab === "ideas" ? "#fff" : colors.textSecondary }}
+          >
+            Ideas
+          </Text>
+        </Pressable>
       </View>
 
       {/* Content based on active tab */}
@@ -806,6 +1262,9 @@ export default function SuggestionsScreen() {
           }
           showsVerticalScrollIndicator={false}
         />
+      ) : activeTab === "ideas" ? (
+        /* Daily Ideas Deck */
+        <DailyIdeasDeck />
       ) : (
         /* People You May Know */
         <FlatList

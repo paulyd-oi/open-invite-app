@@ -137,6 +137,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_AUTH_JITTER]",
   // P0 modal transition guard proof
   "[P0_MODAL_GUARD]",
+  // P1 suggestions deck (daily ideas card generation)
+  "[P1_SUGGESTIONS_DECK]",
 ];
 
 /**
