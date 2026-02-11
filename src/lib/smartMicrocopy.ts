@@ -250,8 +250,14 @@ export function getDraftMessageVariants(input: DraftVariantsInput): [string, str
 // ── Reconnect recency ────────────────────────────────────
 
 /**
+ * Beyond this threshold we assume the app lacks real hangout history
+ * and the recency signal is untrusted (e.g. 999d default from backend).
+ */
+const MAX_TRUSTED_RECONNECT_DAYS = 180;
+
+/**
  * Human-friendly label for how long since last hangout.
- * Returns null when no chip should be shown.
+ * Returns null when no chip should be shown (unknown / untrusted / zero).
  *
  * INV: never returns a string containing digits.
  */
@@ -259,9 +265,10 @@ export function formatReconnectRecencyLabel(
   daysSince: number | null | undefined,
 ): string | null {
   if (daysSince == null || daysSince <= 0) return null;
-  if (daysSince <= 6) return "This week";
-  if (daysSince <= 13) return "Last week";
-  if (daysSince <= 34) return "A few weeks ago";
-  if (daysSince <= 89) return "A couple months ago";
+  if (daysSince > MAX_TRUSTED_RECONNECT_DAYS) return null;
+  if (daysSince <= 7) return "This week";
+  if (daysSince <= 14) return "Last week";
+  if (daysSince <= 30) return "A few weeks ago";
+  if (daysSince <= 90) return "A couple months ago";
   return "A while ago";
 }

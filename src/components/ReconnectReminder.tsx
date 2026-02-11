@@ -135,12 +135,14 @@ export function ReconnectReminder({
               >
                 {item.friend.name ?? "Friend"}
               </Text>
-              <Text
-                className="text-xs text-center mt-0.5"
-                style={{ color: "#FF6B6B" }}
-              >
-                {formatReconnectRecencyLabel(item.daysSinceHangout) ?? "A while ago"}
-              </Text>
+              {formatReconnectRecencyLabel(item.daysSinceHangout) != null && (
+                <Text
+                  className="text-xs text-center mt-0.5"
+                  style={{ color: "#FF6B6B" }}
+                >
+                  {formatReconnectRecencyLabel(item.daysSinceHangout)}
+                </Text>
+              )}
             </View>
 
             <Pressable
