@@ -83,18 +83,29 @@ async function verifyPushMe(): Promise<{
 } | null> {
   try {
     const response = await api.get<{
-      tokens?: Array<{ isActive?: boolean; lastSeenAt?: string }>;
+      activeCount?: number;
+      totalCount?: number;
+      tokens?: Array<{ isActive?: boolean; tokenSuffix?: string; lastSeenAt?: string }>;
+      _meta?: Record<string, unknown>;
     }>("/api/push/me");
     const tokens = response?.tokens ?? [];
-    const activeTokens = tokens.filter((t) => t.isActive === true);
-    const latestActive = activeTokens
+    // [P0_PUSH_ME_ACTIVECOUNT_SSOT] Use backend activeCount when provided,
+    // fall back to client-side derivation for older backends
+    const activeCount = typeof response?.activeCount === "number"
+      ? response.activeCount
+      : tokens.filter((t) => t.isActive === true).length;
+    const totalCount = typeof response?.totalCount === "number"
+      ? response.totalCount
+      : tokens.length;
+    const latestActive = tokens
+      .filter((t) => t.isActive === true)
       .map((t) => t.lastSeenAt)
       .filter(Boolean)
       .sort()
       .pop() ?? null;
     return {
-      activeCount: activeTokens.length,
-      totalCount: tokens.length,
+      activeCount,
+      totalCount,
       lastSeenAt: latestActive,
     };
   } catch {
@@ -224,7 +235,7 @@ async function runPushRegistrationProof(): Promise<void> {
     // Step 7: GET /api/push/me (verify backend state)
     devLog(`${LOG_PREFIX} 7. GET /api/push/me ...`);
     try {
-      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; tokenSuffix?: string; isActive?: boolean }> }>("/api/push/me");
       devLog(`${LOG_PREFIX}    GET status: 200`);
       devLog(`${LOG_PREFIX}    GET body: ${JSON.stringify(meResponse)}`);
 
@@ -533,11 +544,27 @@ export function useNotifications() {
             throttleBypassReason = "BACKEND_EMPTY";
             if (__DEV__) {
               devLog(`[P0_PUSH_REG] THROTTLE_BYPASS reason=BACKEND_EMPTY userId=${userIdPrefix}... activeCount=0 totalCount=${backendState.totalCount}`);
+              devLog("[P0_PUSH_ME_TRUTH]", {
+                decision: "ATTEMPT",
+                activeCount: backendState.activeCount,
+                totalCount: backendState.totalCount,
+                reason: "BACKEND_EMPTY",
+                force: forceRegister,
+                isFreshLogin: false,
+              });
             }
           } else if (backendState) {
             // Backend has active tokens, respect throttle
             if (__DEV__) {
               devLog(`[P0_PUSH_REG] SKIP reason=THROTTLED userId=${userIdPrefix}... backendActiveCount=${backendState.activeCount}`);
+              devLog("[P0_PUSH_ME_TRUTH]", {
+                decision: "THROTTLE_SKIP",
+                activeCount: backendState.activeCount,
+                totalCount: backendState.totalCount,
+                reason: "THROTTLED_ACTIVE_EXISTS",
+                force: forceRegister,
+                isFreshLogin: false,
+              });
             }
             lastPermissionStatus.current = status;
             return;
@@ -545,6 +572,14 @@ export function useNotifications() {
             // Backend verification failed, respect throttle to be safe
             if (__DEV__) {
               devLog(`[P0_PUSH_REG] SKIP reason=THROTTLED_VERIFY_FAILED userId=${userIdPrefix}...`);
+              devLog("[P0_PUSH_ME_TRUTH]", {
+                decision: "THROTTLE_SKIP",
+                activeCount: -1,
+                totalCount: -1,
+                reason: "VERIFY_FAILED",
+                force: forceRegister,
+                isFreshLogin: false,
+              });
             }
             lastPermissionStatus.current = status;
             return;
@@ -563,6 +598,18 @@ export function useNotifications() {
       if (__DEV__) {
         devLog(`[P0_PUSH_REG] ATTEMPT userId=${userIdPrefix}... force=${forceRegister} permChange=${permissionChanged} accountSwitch=${isAccountSwitch} throttleBypass=${throttleBypassReason ?? "none"}`);
         recordPushReceipt("register_attempt", userIdPrefix, { reason: forceRegister ? "force" : isAccountSwitch ? "account_switch" : throttleBypassReason ?? "normal", force: forceRegister });
+        // [P0_PUSH_ME_TRUTH] Emit proof log at registration decision point
+        // (only when not already emitted from throttle bypass path above)
+        if (!throttleBypassReason) {
+          devLog("[P0_PUSH_ME_TRUTH]", {
+            decision: "ATTEMPT",
+            activeCount: -1,
+            totalCount: -1,
+            reason: forceRegister ? "force" : permissionChanged ? "perm_changed" : isAccountSwitch ? "account_switch" : "not_throttled",
+            force: forceRegister,
+            isFreshLogin: lastRegisteredUserId === null,
+          });
+        }
       }
 
       const token = await registerForPushNotificationsAsync();
@@ -1173,9 +1220,9 @@ export function useNotifications() {
       let getStatus: number | string = 200;
       let getBody: unknown = null;
       let backendActiveCount = 0;
-      let backendTokens: Array<{ tokenPrefix?: string; isActive?: boolean }> = [];
+      let backendTokens: Array<{ tokenPrefix?: string; tokenSuffix?: string; isActive?: boolean }> = [];
       try {
-        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; tokenSuffix?: string; isActive?: boolean }> }>("/api/push/me");
         getBody = meResponse;
         backendTokens = meResponse?.tokens ?? [];
         backendActiveCount = backendTokens.filter(t => t.isActive).length;
@@ -1247,7 +1294,7 @@ export function useNotifications() {
       devLog("[PUSH_DIAG] clear-mine POST success");
 
       // GET updated token list
-      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+      const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; tokenSuffix?: string; isActive?: boolean }> }>("/api/push/me");
       const tokens = meResponse?.tokens ?? [];
       devLog("[PUSH_DIAG] after clear, tokens=" + tokens.length);
 

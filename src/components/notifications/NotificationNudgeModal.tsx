@@ -110,7 +110,7 @@ async function registerPushTokenWithBackend(): Promise<boolean> {
     if (__DEV__) {
       devLog(`${LOG_PREFIX} GET /api/push/me ...`);
       try {
-        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; isActive?: boolean }> }>("/api/push/me");
+        const meResponse = await api.get<{ tokens?: Array<{ tokenPrefix?: string; tokenSuffix?: string; isActive?: boolean }> }>("/api/push/me");
         devLog(`${LOG_PREFIX} GET body: ${JSON.stringify(meResponse)}`);
         const tokens = meResponse?.tokens ?? [];
         const hasActiveToken = tokens.some((t) => t.isActive === true);
