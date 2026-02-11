@@ -448,23 +448,27 @@ function DeckCardFace({ card, index, total, onWhyPress }: { card: IdeaCard; inde
           {card.subtitle}
         </Text>
 
-        {/* Context chips */}
-        {card.contextChips && card.contextChips.length > 0 && (
-          <View className="flex-row mt-2.5" style={{ gap: 6 }}>
-            {/* INVARIANT_ALLOW_SMALL_MAP */}
-            {card.contextChips.slice(0, 2).map((chip, i) => (
-              <View
-                key={i}
-                className="px-2.5 py-1 rounded-full"
-                style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
-              >
-                <Text className="text-[11px]" style={{ color: colors.textSecondary }}>
-                  {chip}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Context chips — fully collapsed (incl. margin) when empty */}
+        {(() => {
+          const chips = card.contextChips?.filter(Boolean) ?? [];
+          if (chips.length === 0) return null;
+          return (
+            <View className="flex-row mt-2.5" style={{ gap: 6 }}>
+              {/* INVARIANT_ALLOW_SMALL_MAP */}
+              {chips.slice(0, 2).map((chip, i) => (
+                <View
+                  key={i}
+                  className="px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
+                >
+                  <Text className="text-[11px]" style={{ color: colors.textSecondary }}>
+                    {chip}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
       </View>
     </View>
   );
