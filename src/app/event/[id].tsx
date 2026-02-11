@@ -115,6 +115,7 @@ import {
 import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
+import { getRsvpPhrase } from "@/lib/smartCopy";
 
 // Helper to open event location using the shared utility
 const openEventLocation = (event: any) => {
@@ -2402,7 +2403,7 @@ export default function EventDetailScreen() {
                       </Text>
                       <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
                         <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
-                          {effectiveGoingCount}
+                          {getRsvpPhrase({ attending: effectiveGoingCount, total: eventMeta.capacity ?? undefined }).headline}
                         </Text>
                       </View>
                     </View>
@@ -2519,7 +2520,7 @@ export default function EventDetailScreen() {
                 <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <Users size={24} color="#9CA3AF" />
                   <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No one has joined yet.{"\n"}Be the first!
+                    No one's in yet.{"\n"}Be the first!
                   </Text>
                 </View>
               </View>
