@@ -59,6 +59,8 @@ export interface UploadByKindOptions {
 /** Shape returned by POST /api/uploads/sign. */
 interface SignedUploadParams {
   cloudName: string;
+  /** Full Cloudinary upload URL — use verbatim, never construct from cloudName. */
+  uploadUrl: string;
   /**
    * Cloudinary-ready key/value pairs — append verbatim to FormData.
    * Values may arrive as string | number | boolean from JSON.parse;
@@ -155,11 +157,10 @@ export async function uploadByKind(
     const entityId = opts?.eventId ?? opts?.circleId ?? null;
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'uploadByKind_entry', {
+      devLog('[P0_UPLOAD_KIND]', 'uploadByKind_entry', {
         kind,
-        uriPrefix: uri?.slice(0, 60),
-        entityId,
-        compressionProfile: { maxW: profile.maxWidth, maxH: profile.maxHeight, q: profile.quality, maxBytes: profile.maxBytes },
+        surface: kind,
+        hasEntityId: !!entityId,
       });
     }
 
@@ -169,7 +170,7 @@ export async function uploadByKind(
     const origExists = (origInfo as any).exists ?? false;
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'original_file', { exists: origExists, bytes: originalBytes, uriPrefix: uri?.slice(0, 60) });
+      devLog('[P0_UPLOAD_KIND]', 'original_file', { kind, exists: origExists, bytes: originalBytes });
     }
 
     if (!origExists) {
@@ -205,14 +206,7 @@ export async function uploadByKind(
     const finalBytes = (finalInfo as any).size ?? 0;
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'compression_result', {
-        kind,
-        originalBytes,
-        finalBytes,
-        finalExists: finalInfo.exists,
-        compressedUriPrefix: compressedUri?.slice(0, 60),
-        qualityUsed: quality,
-      });
+      devLog('[P0_UPLOAD_KIND]', 'compression_result', { kind, originalBytes, finalBytes, qualityUsed: quality });
     }
 
     if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
@@ -221,7 +215,7 @@ export async function uploadByKind(
 
     // --- B. Request signed params from backend -----------------------------
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'sign_request', { kind, entityId, endpoint: API_ROUTES.uploads.sign });
+      devLog('[P0_UPLOAD_KIND]', 'sign_request', { kind, hasEntityId: !!entityId, endpoint: API_ROUTES.uploads.sign });
     }
 
     const signBody: Record<string, unknown> = { kind };
@@ -236,7 +230,8 @@ export async function uploadByKind(
       );
     } catch (signErr: any) {
       if (__DEV__) {
-        devError('[P0_BANNER_UPLOAD]', 'sign_FAILED', {
+        devError('[P0_UPLOAD_KIND]', 'sign_FAILED', {
+          kind,
           status: signErr?.status,
           message: signErr?.message,
           data: signErr?.data ? JSON.stringify(signErr.data).slice(0, 200) : 'none',
@@ -246,14 +241,16 @@ export async function uploadByKind(
     }
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'sign_response', {
-        hasCloudName: !!signed?.cloudName,
-        signedParamKeys: signed?.signedParams ? Object.keys(signed.signedParams) : [],
+      devLog('[P0_UPLOAD_SIGN_TARGET]', {
+        kind,
+        uploadUrl: signed?.uploadUrl?.slice(0, 60),
+        cloudName: signed?.cloudName,
+        signedKeys: signed?.signedParams ? Object.keys(signed.signedParams) : [],
       });
     }
 
-    if (!signed?.cloudName || !signed?.signedParams) {
-      throw new Error(`Backend sign response missing required fields (cloudName=${!!signed?.cloudName}, signedParams=${!!signed?.signedParams}).`);
+    if (!signed?.uploadUrl || !signed?.signedParams) {
+      throw new Error(`Backend sign response missing required fields (uploadUrl=${!!signed?.uploadUrl}, signedParams=${!!signed?.signedParams}).`);
     }
 
     // --- C. Upload to Cloudinary (signed) ----------------------------------
@@ -273,38 +270,24 @@ export async function uploadByKind(
     } as any);
 
     if (__DEV__) {
-      // Proof: raw signedParams from backend (may include non-string types)
-      const sp = signed.signedParams;
-      devLog('[P0_BANNER_UPLOAD]', 'signedParams_raw', {
-        timestamp: sp.timestamp,
-        timestampType: typeof sp.timestamp,
-        folder: sp.folder,
-        public_id: sp.public_id,
-        overwrite: sp.overwrite,
-        overwriteType: typeof sp.overwrite,
-        invalidate: sp.invalidate,
-        invalidateType: typeof sp.invalidate,
-        signaturePrefix: String(sp.signature).slice(0, 8),
-      });
-      // Proof: exact string values appended to FormData
-      devLog('[P0_BANNER_UPLOAD]', 'formData_appended', {
-        timestamp: formFields.timestamp,
-        folder: formFields.folder,
-        public_id: formFields.public_id,
-        overwrite: formFields.overwrite,
-        invalidate: formFields.invalidate,
-        api_key: formFields.api_key ? 'present' : 'MISSING',
-        signaturePrefix: formFields.signature?.slice(0, 8),
-        fileName: profile.filename,
+      devLog('[P0_UPLOAD_KIND]', 'formData_keys', {
+        kind,
+        keys: Object.keys(formFields),
+        hasSignature: !!formFields.signature,
+        hasApiKey: !!formFields.api_key,
       });
     }
 
-    const endpoint = `https://api.cloudinary.com/v1_1/${signed.cloudName}/image/upload`;
+    // SSOT: use backend-provided uploadUrl verbatim
+    const endpoint = signed.uploadUrl;
+    if (__DEV__) {
+      devLog('[P0_UPLOAD_CLOUDINARY_POST]', { kind, url: endpoint, hasFile: true, fileName: profile.filename, mimeType: 'image/jpeg' });
+    }
     let res: Response;
     try {
       res = await fetch(endpoint, { method: "POST", body: formData });
     } catch (fetchErr: any) {
-      if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'cloudinary_network_FAILED', { error: fetchErr?.message });
+      if (__DEV__) devError('[P0_UPLOAD_CLOUDINARY_RES]', 'network_FAILED', { kind, error: fetchErr?.message });
       throw new Error(`Cloudinary network error: ${fetchErr?.message || 'fetch failed'}`);
     }
     const text = await res.text();
@@ -312,7 +295,8 @@ export async function uploadByKind(
     try { json = JSON.parse(text); } catch { json = null; }
 
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'cloudinary_response', {
+      devLog('[P0_UPLOAD_CLOUDINARY_RES]', {
+        kind,
         status: res.status,
         ok: res.ok,
         hasSecureUrl: !!json?.secure_url,
@@ -326,13 +310,10 @@ export async function uploadByKind(
         text?.substring(0, 200) ||
         "Upload failed";
       if (__DEV__) {
-        devError('[P0_BANNER_UPLOAD]', 'cloudinary_upload_FAILED', {
-          status: res.status,
-          msg,
-          // Include full response body so "String to sign" is visible
+        devError('[P0_UPLOAD_CLOUDINARY_RES]', 'upload_FAILED', {
+          kind, status: res.status, msg,
           responseBody: text?.slice(0, 500),
         });
-        if (json) devLog('[P0_BANNER_UPLOAD]', 'cloudinary_error_payload', json);
       }
       throw new Error(`Cloudinary upload failed (${res.status}): ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
     }
@@ -340,13 +321,13 @@ export async function uploadByKind(
     const secureUrl = json?.secure_url as string | undefined;
     const publicId = json?.public_id as string | undefined;
     if (!secureUrl || secureUrl.length === 0) {
-      if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'missing_secure_url', json);
+      if (__DEV__) devError('[P0_UPLOAD_CLOUDINARY_RES]', 'missing_secure_url', { kind }, json);
       throw new Error("Upload succeeded but no URL was returned.");
     }
 
     // --- D. Notify backend complete ----------------------------------------
     if (__DEV__) {
-      devLog('[P0_BANNER_UPLOAD]', 'complete_request', { kind, secureUrlPrefix: secureUrl?.slice(0, 50) });
+      devLog('[P0_UPLOAD_KIND]', 'complete_request', { kind, secureUrlPrefix: secureUrl?.slice(0, 50) });
     }
 
     const completeBody: UploadCompleteBody = {
@@ -361,18 +342,17 @@ export async function uploadByKind(
       await api.post(API_ROUTES.uploads.complete, completeBody);
     } catch (completeErr: any) {
       if (__DEV__) {
-        devError('[P0_BANNER_UPLOAD]', 'complete_FAILED', {
-          status: completeErr?.status,
-          message: completeErr?.message,
+        devError('[P0_UPLOAD_KIND]', 'complete_FAILED', {
+          kind, status: completeErr?.status, message: completeErr?.message,
         });
       }
       throw new Error(`Upload complete failed (${completeErr?.status || 'network'}): ${completeErr?.message || 'unknown'}`);
     }
 
-    if (__DEV__) devLog('[P0_BANNER_UPLOAD]', 'upload_pipeline_SUCCESS', { kind, url: secureUrl?.slice(0, 60) });
+    if (__DEV__) devLog('[P0_UPLOAD_KIND]', 'pipeline_success', { kind, secureUrlPrefix: secureUrl?.slice(0, 60) });
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
-    if (__DEV__) devError('[P0_BANNER_UPLOAD]', 'upload_pipeline_ERROR', { kind, message: error?.message, status: error?.status });
+    if (__DEV__) devError('[P0_UPLOAD_KIND]', 'pipeline_error', { kind, message: error?.message, status: error?.status });
     throw new Error(error?.message || "Failed to upload image");
   }
 }
@@ -391,13 +371,13 @@ export async function uploadImage(
 }
 
 /** Circle photo wrapper. Delegates to uploadByKind("circle_photo"). */
-export async function uploadCirclePhoto(uri: string): Promise<UploadResponse> {
-  return uploadByKind(uri, "circle_photo");
+export async function uploadCirclePhoto(uri: string, circleId?: string): Promise<UploadResponse> {
+  return uploadByKind(uri, "circle_photo", circleId ? { circleId } : undefined);
 }
 
 /** Event cover photo wrapper. Delegates to uploadByKind("event_photo"). */
-export async function uploadEventPhoto(uri: string): Promise<UploadResponse> {
-  return uploadByKind(uri, "event_photo");
+export async function uploadEventPhoto(uri: string, eventId?: string): Promise<UploadResponse> {
+  return uploadByKind(uri, "event_photo", eventId ? { eventId } : undefined);
 }
 
 /** Banner photo wrapper. Delegates to uploadByKind("banner"). */

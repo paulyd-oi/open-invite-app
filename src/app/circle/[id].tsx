@@ -4501,7 +4501,7 @@ export default function CircleScreen() {
                         if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
 
                         setUploadingPhoto(true);
-                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
+                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri, id);
                         if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
                         await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
