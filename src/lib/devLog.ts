@@ -145,6 +145,14 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_IDEAS_BOOT]",
   // P1 ideas card (media variant rendered)
   "[P1_IDEAS_CARD]",
+  // P2 ideas recency decay (exposure-based score penalty)
+  "[P2_RECENCY_DECAY]",
+  // P2 ideas learning model (accept/dismiss bias)
+  "[P2_LEARNING_MODEL]",
+  // P2 ideas context boosts (time/social scoring)
+  "[P2_CONTEXT_BOOSTS]",
+  // P2 ideas habit engine (pattern reinforcement)
+  "[P2_HABIT_ENGINE]",
 ];
 
 /**

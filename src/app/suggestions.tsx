@@ -47,11 +47,20 @@ import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MotionDurations } from "@/lib/motionSSOT";
 import {
   generateIdeas,
   getTodayKey,
   type IdeaCard,
   type IdeasContext,
+  type ExposureMap,
+  type AcceptStats,
+  type PatternMemory,
+  updateExposureMap,
+  recordSwipeAction,
+  maybeResetStats,
+  recordPattern,
+  prunePatternMemory,
 } from "@/lib/ideasEngine";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
@@ -271,6 +280,10 @@ function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => 
 function getDeckStorageKey(): string {
   return `ideasDeck_${getTodayKey().replace(/-/g, "_")}`;
 }
+const EXPOSURE_MAP_KEY = "ideasExposureMap";
+const ACCEPT_STATS_KEY = "ideasAcceptStats";
+const STATS_RESET_MONTH_KEY = "ideasStatsResetMonth";
+const PATTERN_MEMORY_KEY = "ideasPatternMemory";
 const DECK_SWIPE_THRESHOLD = 100;
 const DECK_SCREEN_W = Dimensions.get("window").width;
 
@@ -467,18 +480,19 @@ function DeckSwipeCard({
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
       translateX.value = e.translationX;
-      translateY.value = e.translationY * 0.15;
+      translateY.value = e.translationY * 0.12; // slightly reduced Y coupling
     })
     .onEnd((e) => {
       if (e.translationX > DECK_SWIPE_THRESHOLD) {
-        translateX.value = withTiming(DECK_SCREEN_W, { duration: 200 });
+        translateX.value = withTiming(DECK_SCREEN_W, { duration: MotionDurations.normal });
         runOnJS(delayedAccept)();
       } else if (e.translationX < -DECK_SWIPE_THRESHOLD) {
-        translateX.value = withTiming(-DECK_SCREEN_W, { duration: 200 });
+        translateX.value = withTiming(-DECK_SCREEN_W, { duration: MotionDurations.normal });
         runOnJS(delayedDismiss)();
       } else {
-        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+        // Snap back: slightly bouncier spring
+        translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
+        translateY.value = withSpring(0, { damping: 18, stiffness: 180 });
       }
     });
 
@@ -486,7 +500,7 @@ function DeckSwipeCard({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
-      { rotate: `${translateX.value / 25}deg` },
+      { rotate: `${translateX.value / 28}deg` }, // slightly gentler rotation
     ],
   }));
 
@@ -494,8 +508,8 @@ function DeckSwipeCard({
     const abs = Math.abs(translateX.value);
     const t = Math.min(abs / DECK_SWIPE_THRESHOLD, 1);
     return {
-      transform: [{ scale: 0.95 + 0.05 * t }],
-      opacity: 0.6 + 0.4 * t,
+      transform: [{ scale: 0.96 + 0.04 * t }], // peek starts at 0.96, lands at 1.0
+      opacity: 0.65 + 0.35 * t,
     };
   });
 
@@ -532,7 +546,7 @@ function DeckSwipeCard({
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            translateX.value = withTiming(-DECK_SCREEN_W, { duration: 200 });
+            translateX.value = withTiming(-DECK_SCREEN_W, { duration: MotionDurations.normal });
             setTimeout(onDismiss, 150);
           }}
           className="flex-row items-center px-6 py-2.5 rounded-full"
@@ -549,7 +563,7 @@ function DeckSwipeCard({
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            translateX.value = withTiming(DECK_SCREEN_W, { duration: 200 });
+            translateX.value = withTiming(DECK_SCREEN_W, { duration: MotionDurations.normal });
             setTimeout(onAccept, 150);
           }}
           className="flex-row items-center px-6 py-2.5 rounded-full"
@@ -582,6 +596,10 @@ function DailyIdeasDeck() {
   const [deckReady, setDeckReady] = useState(false);
   const [storageChecked, setStorageChecked] = useState(false);
   const generatedTodayRef = useRef(false);
+  const exposureMapRef = useRef<ExposureMap>({});
+  const acceptStatsRef = useRef<AcceptStats>({});
+  const statsResetMonthRef = useRef<string | null>(null);
+  const patternMemoryRef = useRef<PatternMemory>({});
 
   const enabled = isAuthedForNetwork(bootStatus, session);
 
@@ -637,10 +655,42 @@ function DailyIdeasDeck() {
   // ── ideasReady: all key queries have resolved ──
   const ideasReady = enabled && reconnectFetched && birthdayFetched && feedFetched && myEventsFetched;
 
-  // ── Persistence: check storage for today's deck ──
+  // ── Persistence: check storage for today's deck + exposure map ──
   useEffect(() => {
     (async () => {
       try {
+        // Load exposure map
+        const rawExposure = await AsyncStorage.getItem(EXPOSURE_MAP_KEY);
+        if (rawExposure) {
+          try { exposureMapRef.current = JSON.parse(rawExposure); } catch { /* ignore */ }
+        }
+
+        // Load accept stats + monthly reset check
+        const rawStats = await AsyncStorage.getItem(ACCEPT_STATS_KEY);
+        const rawMonth = await AsyncStorage.getItem(STATS_RESET_MONTH_KEY);
+        if (rawStats) {
+          try {
+            const parsed = JSON.parse(rawStats);
+            const { stats, resetMonth } = maybeResetStats(parsed, rawMonth);
+            acceptStatsRef.current = stats;
+            statsResetMonthRef.current = resetMonth;
+            // Persist if reset happened
+            if (rawMonth !== resetMonth) {
+              AsyncStorage.setItem(ACCEPT_STATS_KEY, JSON.stringify(stats)).catch(() => {});
+              AsyncStorage.setItem(STATS_RESET_MONTH_KEY, resetMonth).catch(() => {});
+            }
+          } catch { /* ignore */ }
+        }
+
+        // Load pattern memory + prune old entries
+        const rawPatterns = await AsyncStorage.getItem(PATTERN_MEMORY_KEY);
+        if (rawPatterns) {
+          try {
+            const parsed = JSON.parse(rawPatterns);
+            patternMemoryRef.current = prunePatternMemory(parsed, getTodayKey());
+          } catch { /* ignore */ }
+        }
+
         const storageKey = getDeckStorageKey();
         const raw = await AsyncStorage.getItem(storageKey);
         if (raw) {
@@ -707,7 +757,22 @@ function DailyIdeasDeck() {
       })),
     };
 
-    const newDeck = generateIdeas(context);
+    // Build birthday proximity map for context boosts
+    const birthdayMap: Record<string, number> = {};
+    const todayMs = new Date(getTodayKey()).getTime();
+    const thisYear = new Date().getFullYear();
+    for (const b of context.birthdays) {
+      if (!b.birthday) continue;
+      const bDate = new Date(b.birthday);
+      if (isNaN(bDate.getTime())) continue;
+      const thisYearBday = new Date(thisYear, bDate.getMonth(), bDate.getDate());
+      const diffDays = (thisYearBday.getTime() - todayMs) / (1000 * 60 * 60 * 24);
+      if (diffDays >= 0 && diffDays <= 21) {
+        birthdayMap[b.friendId] = Math.ceil(diffDays);
+      }
+    }
+
+    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current);
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);
@@ -718,6 +783,15 @@ function DailyIdeasDeck() {
         `[P0_IDEAS_BOOT] generated: ${newDeck.length} cards (ideasReady=true)`,
       );
     }
+
+    // Update exposure map with new deck ids
+    const updatedExposures = updateExposureMap(
+      exposureMapRef.current,
+      newDeck.map((c) => c.id),
+      getTodayKey(),
+    );
+    exposureMapRef.current = updatedExposures;
+    AsyncStorage.setItem(EXPOSURE_MAP_KEY, JSON.stringify(updatedExposures)).catch(() => {});
 
     AsyncStorage.setItem(
       getDeckStorageKey(),
@@ -731,6 +805,14 @@ function DailyIdeasDeck() {
     if (!card) return;
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Record accept for learning model
+    acceptStatsRef.current = recordSwipeAction(acceptStatsRef.current, card.category, "accepted");
+    AsyncStorage.setItem(ACCEPT_STATS_KEY, JSON.stringify(acceptStatsRef.current)).catch(() => {});
+
+    // Record pattern for habit engine
+    patternMemoryRef.current = recordPattern(patternMemoryRef.current, card, getTodayKey());
+    AsyncStorage.setItem(PATTERN_MEMORY_KEY, JSON.stringify(patternMemoryRef.current)).catch(() => {});
 
     // low_rsvp → navigate to the event detail screen (so user can RSVP)
     if (card.category === "low_rsvp" && card.eventId) {
@@ -781,8 +863,14 @@ function DailyIdeasDeck() {
     ).catch(() => {});
   }, [currentIndex, deck, router, circlesData, session, createCircleMutation]);
 
-  // ── Dismiss handler: advance only ──
+  // ── Dismiss handler: advance + record dismiss ──
   const handleDismiss = useCallback(() => {
+    const card = deck[currentIndex];
+    if (card) {
+      // Record dismiss for learning model
+      acceptStatsRef.current = recordSwipeAction(acceptStatsRef.current, card.category, "dismissed");
+      AsyncStorage.setItem(ACCEPT_STATS_KEY, JSON.stringify(acceptStatsRef.current)).catch(() => {});
+    }
     const next = currentIndex + 1;
     setCurrentIndex(next);
     AsyncStorage.setItem(
