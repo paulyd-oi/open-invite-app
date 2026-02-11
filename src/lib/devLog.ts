@@ -153,6 +153,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_CONTEXT_BOOSTS]",
   // P2 ideas habit engine (pattern reinforcement)
   "[P2_HABIT_ENGINE]",
+  // P1 score breakdown (archetype scoring pipeline)
+  "[P1_SCORE]",
 ];
 
 /**

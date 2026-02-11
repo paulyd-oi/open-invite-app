@@ -8,6 +8,7 @@
  */
 
 import { devLog } from "@/lib/devLog";
+import { type IdeaArchetype, type ScoreBreakdown, scoreIdea } from "@/lib/ideaScoring";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -41,6 +42,10 @@ export interface IdeaCard {
   eventTitle?: string;
   /** Short context chips, max 2. Shown only when data exists. */
   contextChips?: string[];
+  /** Archetype classification for scoring pipeline. */
+  archetype?: IdeaArchetype;
+  /** Structured score breakdown (debug metadata). */
+  scoreBreakdown?: ScoreBreakdown;
 }
 
 // ─── Context (caller collects from existing queries) ─────
@@ -296,6 +301,7 @@ function ruleReconnect(
     cards.push({
       id: `reconnect_${r.friendId}_${todayKey}`,
       category: "reconnect",
+      archetype: "reconnect",
       friendId: r.friendId,
       title: `Catch up with ${name}?`,
       subtitle: "It's been a while — plan something easy.",
@@ -336,6 +342,7 @@ function ruleLowRsvp(
     cards.push({
       id: `low_rsvp_${ev.id}_${todayKey}`,
       category: "low_rsvp",
+      archetype: "join_event",
       eventId: ev.id,
       friendId: ev.hostId,
       title: `Join ${host}'s ${ev.title}?`,
@@ -380,6 +387,7 @@ function ruleBirthday(
     cards.push({
       id: `birthday_${b.friendId}_${todayKey}`,
       category: "birthday",
+      archetype: "birthday",
       friendId: b.friendId,
       title: `${name}'s birthday is coming up`,
       subtitle: "Plan something fun?",
@@ -422,6 +430,7 @@ function ruleActivityRepeat(
     cards.push({
       id: `repeat_${title.toLowerCase().replace(/\s+/g, "_")}_${todayKey}`,
       category: "activity_repeat",
+      archetype: "repeat_activity",
       title: `Do ${title} again this week?`,
       subtitle: "You've done this before.",
       draftMessage: `Want to do ${title} again this week?`,
@@ -690,6 +699,9 @@ export function generateIdeas(
 
   let allCards = [...ruleACards, ...ruleBCards, ...ruleCCards, ...ruleDCards];
 
+  // P1_SCORE: snapshot baseline scores for breakdown
+  const _baseScores = new Map(allCards.map(c => [c.id, c.score]));
+
   // Apply recency decay if exposure data available
   if (exposures && Object.keys(exposures).length > 0) {
     allCards = applyRecencyDecay(allCards, exposures, todayKey);
@@ -697,6 +709,7 @@ export function generateIdeas(
       devLog(`[P2_RECENCY_DECAY] applied decay from ${Object.keys(exposures).length} exposures`);
     }
   }
+  const _postDecayScores = new Map(allCards.map(c => [c.id, c.score]));
 
   // Apply learning bias if accept stats available
   if (acceptStats && Object.keys(acceptStats).length > 0) {
@@ -705,18 +718,42 @@ export function generateIdeas(
       devLog(`[P2_LEARNING_MODEL] applied bias from ${Object.keys(acceptStats).length} categories`);
     }
   }
+  const _postLearnScores = new Map(allCards.map(c => [c.id, c.score]));
 
   // Apply context boosts (time-of-day, day-of-week, birthday proximity)
   allCards = applyContextBoosts(allCards, birthdayMap);
   if (__DEV__) {
     devLog(`[P2_CONTEXT_BOOSTS] applied time/social context boosts`);
   }
+  const _postCtxScores = new Map(allCards.map(c => [c.id, c.score]));
 
   // Apply habit reinforcement boosts from pattern memory
   if (patternMemory && Object.keys(patternMemory).length > 0) {
     allCards = applyHabitBoosts(allCards, patternMemory, todayKey);
     if (__DEV__) {
       devLog(`[P2_HABIT_ENGINE] applied habit boosts from ${Object.keys(patternMemory).length} patterns`);
+    }
+  }
+
+  // P1_SCORE: compute and attach structured score breakdowns
+  for (const card of allCards) {
+    if (!card.archetype) continue;
+    const base = _baseScores.get(card.id) ?? card.score;
+    const postDecay = _postDecayScores.get(card.id) ?? base;
+    const postLearn = _postLearnScores.get(card.id) ?? postDecay;
+    const postCtx = _postCtxScores.get(card.id) ?? postLearn;
+    const final = card.score;
+
+    card.scoreBreakdown = scoreIdea({
+      archetype: card.archetype,
+      baseOverride: base,
+      recencyPenalty: Math.max(0, base - postDecay),
+      contextBoost: postCtx - postLearn,
+      habitBoost: (postLearn - postDecay) + (final - postCtx),
+    });
+
+    if (__DEV__) {
+      devLog(`[P1_SCORE] ${card.id}`, card.scoreBreakdown);
     }
   }
 
