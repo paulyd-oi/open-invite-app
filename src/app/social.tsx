@@ -272,7 +272,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
       <Pressable
         onPress={handlePress}
         className="rounded-2xl p-4 mb-3"
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
           backgroundColor: colors.surface,
           ...getBorderStyle(),
@@ -281,10 +281,10 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
       >
         {/* Event Photo Thumbnail */}
         {displayEvent.eventPhotoUrl && displayEvent.visibility !== "private" && (
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
             {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — event photo thumbnail, Cloudinary-transformed */}
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             <Image source={{ uri: toCloudinaryTransformedUrl(displayEvent.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }} className="w-full h-full" resizeMode="cover" />
           </View>
         )}
@@ -292,7 +292,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         <View className="flex-row items-start">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: isOwn ? `${themeColor}20` : isDark ? colors.surfaceElevated : "#FFF7ED", overflow: 'hidden' }}
           >
             <EventPhotoEmoji
@@ -303,18 +303,18 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           </View>
           <View className="flex-1">
             <View className="flex-row items-center">
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1" numberOfLines={1}>
                 {displayEvent.title}
               </Text>
               {isOwn && (
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 <Chip variant="accent" label="You" size="sm" style={{ marginLeft: 8 }} />
               )}
             </View>
             {displayEvent.description && !isSeries && (
               <Text
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ color: colors.textSecondary }}
                 className="text-sm mt-0.5"
                 numberOfLines={2}
@@ -324,7 +324,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             )}
             {isSeries && (
               <Text
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ color: colors.textSecondary }}
                 className="text-sm mt-0.5"
               >
@@ -333,7 +333,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
             )}
             {isSeries && (event as EventSeries).occurrenceCount > 1 && (
               <Text
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ color: themeColor }}
                 className="text-sm mt-0.5 font-medium"
               >
@@ -348,7 +348,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                   size={24}
                   backgroundColor={displayImage ? colors.avatarBg : `${themeColor}20`}
                   foregroundColor={themeColor}
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{ marginRight: 8 }}
                 />
                 {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -361,7 +361,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         </View>
 
         {!isSeries && (
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
             <View className="flex-row items-center mr-4">
               <Calendar size={14} color="#9CA3AF" />
@@ -401,7 +401,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
 
         {/* Social Proof - Friends Going */}
         {!isSeries && attendeesList.length > 0 && (
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
             <SocialProof
               attendees={attendeesList}
@@ -430,7 +430,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         {/* Background lane for revealed actions */}
         <View 
           className="absolute right-0 top-0 bottom-0 rounded-2xl overflow-hidden"
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           style={{ 
             width: ACTION_WIDTH + 20,
             backgroundColor: colors.surface2,
@@ -444,13 +444,13 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         {/* Action buttons revealed on swipe */}
         <Animated.View 
           className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-4"
-          // INVARIANT_ALLOW_INLINE_ARRAY_PROP
+          /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
           style={[{ width: ACTION_WIDTH }, actionsAnimatedStyle]}
         >
           <Pressable
             onPress={handleInterested}
             className="w-12 h-12 rounded-full items-center justify-center mr-2"
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: themeColor }}
           >
             <Heart size={22} color="#FFFFFF" />
@@ -458,7 +458,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           <Pressable
             onPress={handleGoing}
             className="w-12 h-12 rounded-full items-center justify-center"
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: isEventFull ? "#9CA3AF" : "#22C55E" }}
           >
             <Check size={22} color="#FFFFFF" />
@@ -562,12 +562,12 @@ function EventSection({
         className="flex-row items-center mb-4"
         disabled={!onToggle}
       >
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text style={{ color: colors.text }} className="text-lg font-sora-semibold flex-1">
           {title} ({events.length})
         </Text>
         {onToggle && (
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <Text style={{ color: colors.textTertiary }} className="text-sm">
             {isCollapsed ? "▶" : "▼"}
           </Text>
@@ -1134,11 +1134,11 @@ export default function SocialScreen() {
   // Keep BottomNavigation visible for escape route
   if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
     return (
-      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
-      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
+      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+      /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center">
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <Text style={{ color: colors.textTertiary }}>Syncing your feed…</Text>
         </View>
         <BottomNavigation />
@@ -1149,11 +1149,11 @@ export default function SocialScreen() {
   if (sessionLoading) {
     return (
       <AuthProvider state="checking">
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
-        // INVARIANT_ALLOW_INLINE_ARRAY_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+        {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
           <View className="flex-1 items-center justify-center">
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text style={{ color: colors.textTertiary }}>Syncing your feed…</Text>
           </View>
           <BottomNavigation />
@@ -1180,11 +1180,11 @@ export default function SocialScreen() {
   if (authBootstrapState === "checking") {
     return (
       <AuthProvider state="checking">
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
-        // INVARIANT_ALLOW_INLINE_ARRAY_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+        {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
           <View className="flex-1 items-center justify-center">
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text style={{ color: colors.textTertiary }}>Loading...</Text>
           </View>
         </SafeAreaView>
@@ -1212,8 +1212,8 @@ export default function SocialScreen() {
 
   return (
     <AuthProvider state="authed">
-      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
-      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+      {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title="Open Invites"
@@ -1226,13 +1226,13 @@ export default function SocialScreen() {
                 variant="primary"
                 size="sm"
                 label="Create"
-                // INVARIANT_ALLOW_INLINE_HANDLER
+                /* INVARIANT_ALLOW_INLINE_HANDLER */
                 onPress={() => {
                   if (!guardEmailVerification(session)) return;
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push("/create");
                 }}
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ marginLeft: 8 }}
               />
             </View>
@@ -1243,7 +1243,7 @@ export default function SocialScreen() {
       {!isLoading && plansIn14Days > 0 && (
         <View className="px-5 pb-3">
           <Text
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ color: colors.textSecondary }}
             className="text-sm"
             accessibilityLabel={`${plansIn14Days} ${plansIn14Days === 1 ? 'plan' : 'plans'} in the next 14 days`}
@@ -1262,7 +1262,7 @@ export default function SocialScreen() {
       ) : !hasEvents ? (
         <ScrollView
           className="flex-1 px-5"
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
@@ -1290,7 +1290,7 @@ export default function SocialScreen() {
               Nothing new yet
             </Text>
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
                 Bring your people in — invites make the feed come alive.
               </Text>
@@ -1300,7 +1300,7 @@ export default function SocialScreen() {
                 variant="primary"
                 label="Invite a friend"
                 leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
-                // INVARIANT_ALLOW_INLINE_HANDLER
+                /* INVARIANT_ALLOW_INLINE_HANDLER */
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
@@ -1312,14 +1312,14 @@ export default function SocialScreen() {
                     devError("Error sharing:", error);
                   }
                 }}
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ marginBottom: 12 }}
               />
             )}
             <Button
               variant="ghost"
               label="Create an Invite"
-              // INVARIANT_ALLOW_INLINE_HANDLER
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
               onPress={() => {
                 if (!guardEmailVerification(session)) return;
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1332,7 +1332,7 @@ export default function SocialScreen() {
         <ScrollView
           testID="social-feed"
           className="flex-1 px-5"
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -1433,10 +1433,10 @@ export default function SocialScreen() {
             <Button
               variant="secondary"
               label="Load more invites"
-              // INVARIANT_ALLOW_INLINE_HANDLER
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
               onPress={() => fetchNextPage()}
               loading={isFetchingNextPage}
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               style={{ marginHorizontal: 16, marginVertical: 24, borderRadius: 12 }}
             />
           )}

@@ -250,12 +250,12 @@ export default function DiscoverScreen() {
 
   if (!session) {
     return (
-      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <Text style={{ color: colors.textSecondary }}>Please sign in to discover events</Text>
         </View>
         <BottomNavigation />
@@ -295,16 +295,16 @@ export default function DiscoverScreen() {
       className="mb-3"
     >
       <Pressable
-        // INVARIANT_ALLOW_INLINE_HANDLER
+        /* INVARIANT_ALLOW_INLINE_HANDLER */
         onPress={() => handleEventPress(event.id)}
         className="rounded-xl p-4"
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
       >
         <View className="flex-row items-center">
           <View
             className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}
           >
             <EventPhotoEmoji
@@ -315,7 +315,7 @@ export default function DiscoverScreen() {
           </View>
 
           <View className="flex-1">
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="font-semibold text-base" style={{ color: colors.text }} numberOfLines={1}>
               {event.title}
             </Text>
@@ -359,7 +359,7 @@ export default function DiscoverScreen() {
 
         {/* Attendee Avatars */}
         {event.joinRequests && event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length > 0 && (
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <View className="flex-row items-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
             <View className="flex-row">
               {event.joinRequests
@@ -369,7 +369,7 @@ export default function DiscoverScreen() {
                   <View
                     key={request.id}
                     className="rounded-full border-2"
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                     style={{
                       marginLeft: i > 0 ? -8 : 0,
                       borderColor: colors.surface,
@@ -397,9 +397,9 @@ export default function DiscoverScreen() {
   );
 
   return (
-    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
@@ -411,7 +411,7 @@ export default function DiscoverScreen() {
             variant="primary"
             size="sm"
             label="Create"
-            // INVARIANT_ALLOW_INLINE_HANDLER
+            /* INVARIANT_ALLOW_INLINE_HANDLER */
             onPress={() => {
               if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -423,7 +423,7 @@ export default function DiscoverScreen() {
 
       <View className="px-5">
         {/* ═══ Lens Switcher ═══ */}
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: colors.segmentBg }}>
           {/* INVARIANT_ALLOW_SMALL_MAP */}
           {LENS_OPTIONS.map((opt) => {
@@ -431,7 +431,7 @@ export default function DiscoverScreen() {
             return (
               <Pressable
                 key={opt.key}
-                // INVARIANT_ALLOW_INLINE_HANDLER
+                /* INVARIANT_ALLOW_INLINE_HANDLER */
                 onPress={() => {
                   if (lens !== opt.key) {
                     setLens(opt.key);
@@ -444,7 +444,7 @@ export default function DiscoverScreen() {
               >
                 <Text
                   className={`text-sm ${active ? "font-semibold" : "font-normal"}`}
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{ color: active ? themeColor : colors.textTertiary }}
                 >
                   {opt.label}
@@ -457,7 +457,7 @@ export default function DiscoverScreen() {
 
       <ScrollView
         className="flex-1"
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -476,7 +476,7 @@ export default function DiscoverScreen() {
           <>
             {/* ═══ Pulse Row ═══ */}
             <Animated.View entering={FadeInDown.duration(FADE_MS)} className="mb-4">
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {totalActive > 0
                   ? `Your week is taking shape \u2014 ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
@@ -493,14 +493,14 @@ export default function DiscoverScreen() {
                   <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>
                 </View>
                 <Pressable
-                  // INVARIANT_ALLOW_INLINE_HANDLER
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
                   onPress={() => handleEventPress(featured.id)}
                   className="rounded-2xl p-5"
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
                 >
                   <View className="flex-row items-center">
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                     <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}>
                       <EventPhotoEmoji
                         photoUrl={featured.visibility !== "private" ? featured.eventPhotoUrl : undefined}
@@ -509,7 +509,7 @@ export default function DiscoverScreen() {
                       />
                     </View>
                     <View className="flex-1">
-                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                       <Text className="font-bold text-lg" style={{ color: colors.text }} numberOfLines={1}>{featured.title}</Text>
                       <View className="flex-row items-center mt-1">
                         <Clock size={12} color={colors.textTertiary} />
@@ -541,16 +541,16 @@ export default function DiscoverScreen() {
             {/* ═══ Lens Context Label + Count ═══ */}
             <Animated.View entering={FadeInDown.delay(60).duration(240)} className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 <Text className="font-semibold text-sm" style={{ color: colors.text }}>{lensLabel}</Text>
                 {lensTotal > 0 && (
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   <Chip variant="accent" label={String(lensTotal)} size="sm" style={{ marginLeft: 8 }} />
                 )}
               </View>
               {lensTotal > PREVIEW_LIMIT && (
                 <Pressable onPress={handleViewAll} hitSlop={8}>
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
                 </Pressable>
               )}
@@ -558,19 +558,19 @@ export default function DiscoverScreen() {
 
             {/* ═══ Lens Feed ═══ */}
             {lensPreview.length > 0 ? (
-              // INVARIANT_ALLOW_SMALL_MAP
+              /* INVARIANT_ALLOW_SMALL_MAP */
               lensPreview.map((e, i) => renderEventCard(e, i, 80))
             ) : (
               <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-3">
                 <Pressable
-                  // INVARIANT_ALLOW_INLINE_HANDLER
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
                   onPress={() => {
                     if (!guardEmailVerification(session)) return;
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push("/create");
                   }}
                   className="flex-row items-center rounded-lg px-4 py-3"
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
                 >
                   <Plus size={14} color={colors.textTertiary} />

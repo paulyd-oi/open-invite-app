@@ -740,7 +740,7 @@ for FEED in "${FEED_SCREENS[@]}"; do
       if (match($0, /on(Press|LongPress|PressIn|PressOut)[[:space:]]*=[[:space:]]*\{/) && match($0, /=>/)) {
         gsub(/^[[:space:]]+/, "", prev_nonempty)
         gsub(/[[:space:]]+$/, "", prev_nonempty)
-        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_HANDLER" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_HANDLER */}") {
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_HANDLER" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_HANDLER */}" && prev_nonempty != "/* INVARIANT_ALLOW_INLINE_HANDLER */") {
           printf "%s:%d: %s\n", FILENAME, NR, $0
           count++
         }
@@ -749,7 +749,7 @@ for FEED in "${FEED_SCREENS[@]}"; do
       trimmed = $0
       gsub(/^[[:space:]]+/, "", trimmed)
       gsub(/[[:space:]]+$/, "", trimmed)
-      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP) \*\/\}$/) {
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP) \*\/\}$/ && trimmed !~ /^\/\* INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP) \*\/$/) {
         prev_nonempty = $0
       }
     }
@@ -801,7 +801,7 @@ for OBJ_FEED in "${OBJ_FEED_SCREENS[@]}"; do
       if (match($0, /=\{\{/)) {
         gsub(/^[[:space:]]+/, "", prev_nonempty)
         gsub(/[[:space:]]+$/, "", prev_nonempty)
-        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_OBJECT_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}") {
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_OBJECT_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}" && prev_nonempty != "/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */") {
           printf "%s:%d: %s\n", FILENAME, NR, $0
           count++
         }
@@ -810,7 +810,7 @@ for OBJ_FEED in "${OBJ_FEED_SCREENS[@]}"; do
       trimmed = $0
       gsub(/^[[:space:]]+/, "", trimmed)
       gsub(/[[:space:]]+$/, "", trimmed)
-      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP) \*\/\}$/) {
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP) \*\/\}$/ && trimmed !~ /^\/\* INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP) \*\/$/) {
         prev_nonempty = $0
       }
     }
@@ -865,7 +865,7 @@ for ARR_FEED in "${ARR_FEED_SCREENS[@]}"; do
       if (match($0, /=\{\[/)) {
         gsub(/^[[:space:]]+/, "", prev_nonempty)
         gsub(/[[:space:]]+$/, "", prev_nonempty)
-        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_ARRAY_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}") {
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_ARRAY_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}" && prev_nonempty != "/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */") {
           printf "%s:%d: %s\n", FILENAME, NR, $0
           count++
         }
@@ -874,7 +874,7 @@ for ARR_FEED in "${ARR_FEED_SCREENS[@]}"; do
       trimmed = $0
       gsub(/^[[:space:]]+/, "", trimmed)
       gsub(/[[:space:]]+$/, "", trimmed)
-      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP) \*\/\}$/) {
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP) \*\/\}$/ && trimmed !~ /^\/\* INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP) \*\/$/) {
         prev_nonempty = $0
       }
     }
@@ -902,5 +902,45 @@ echo "  ✓ P0_PERF_INLINE_ARRAY_PROPS_FEEDS: all inline array props in primary 
 
 echo ""
 echo "P0_PERF_INLINE_ARRAY_PROPS_FEEDS checks PASS"
+
+# ── P0 INVARIANT JSX COMMENT HYGIENE ───────────────────────────────
+echo ""
+echo "Running P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS checks…"
+echo "  Goal: all INVARIANT annotations in primary feed screens must use JSX-safe {/* */} form."
+
+HYGIENE_FAIL=0
+
+HYGIENE_FEED_SCREENS=(
+  src/app/discover.tsx
+  src/app/social.tsx
+  src/app/friends.tsx
+  src/app/calendar.tsx
+)
+
+for HYG_FEED in "${HYGIENE_FEED_SCREENS[@]}"; do
+  if [ ! -f "$HYG_FEED" ]; then continue; fi
+  HYG_MATCHES=$(grep -n '^[[:space:]]*//[[:space:]]*INVARIANT_' "$HYG_FEED" 2>/dev/null || true)
+  if [ -n "$HYG_MATCHES" ]; then
+    HYG_COUNT=$(echo "$HYG_MATCHES" | wc -l | tr -d ' ')
+    echo "  ❌ $HYG_FEED has $HYG_COUNT unsafe // INVARIANT_ comment(s):"
+    echo "$HYG_MATCHES" | head -10
+    if [ "$HYG_COUNT" -gt 10 ]; then
+      echo "  … and $((HYG_COUNT - 10)) more"
+    fi
+    HYGIENE_FAIL=1
+  fi
+done
+
+if [ "$HYGIENE_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS — unsafe // INVARIANT_ comments found"
+  echo "Remediation: Convert all '// INVARIANT_...' to '{/* INVARIANT_... */}' in feed screens."
+  exit 1
+fi
+
+echo "  ✓ P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS: all INVARIANT annotations use JSX-safe form"
+
+echo ""
+echo "P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS checks PASS"
 
 echo "PASS: verify_frontend"
