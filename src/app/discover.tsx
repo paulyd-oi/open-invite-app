@@ -252,10 +252,10 @@ export default function DiscoverScreen() {
     return (
       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Stack.Screen options={{ headerShown: false }} />
         <View className="flex-1 items-center justify-center">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text style={{ color: colors.textSecondary }}>Please sign in to discover events</Text>
         </View>
         <BottomNavigation />
@@ -399,7 +399,7 @@ export default function DiscoverScreen() {
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
-      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
@@ -500,7 +500,7 @@ export default function DiscoverScreen() {
                   style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
                 >
                   <View className="flex-row items-center">
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}>
                       <EventPhotoEmoji
                         photoUrl={featured.visibility !== "private" ? featured.eventPhotoUrl : undefined}
@@ -541,7 +541,7 @@ export default function DiscoverScreen() {
             {/* ═══ Lens Context Label + Count ═══ */}
             <Animated.View entering={FadeInDown.delay(60).duration(240)} className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="font-semibold text-sm" style={{ color: colors.text }}>{lensLabel}</Text>
                 {lensTotal > 0 && (
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -550,7 +550,7 @@ export default function DiscoverScreen() {
               </View>
               {lensTotal > PREVIEW_LIMIT && (
                 <Pressable onPress={handleViewAll} hitSlop={8}>
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
                 </Pressable>
               )}

@@ -161,7 +161,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
         {/* INVARIANT_ALLOW_SMALL_MAP */}
         {dayNames.map((day, i) => (
           <View key={i} className="flex-1 items-center">
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-[8px]" style={{ color: colors.textTertiary }}>{day}</Text>
           </View>
         ))}
@@ -212,7 +212,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
       {/* Event count indicator - only count future/present events */}
       {futureEvents.length > 0 && (
         <View className="flex-row items-center justify-center mt-1">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: themeColor }} />
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-[9px]" style={{ color: colors.textSecondary }}>
@@ -357,7 +357,7 @@ const FriendCard = React.memo(function FriendCard({
           />
           <View className="flex-1">
             <View className="flex-row items-center flex-nowrap gap-1.5">
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                 {friend.name ?? friend.email ?? "Unknown"}
               </Text>
@@ -1404,7 +1404,7 @@ export default function FriendsScreen() {
         /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
           <View className="flex-1 items-center justify-center px-8">
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
               Sign in to see your friends
             </Text>
@@ -1494,7 +1494,7 @@ export default function FriendsScreen() {
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
             style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
           >
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <View style={{ position: "relative" }}>
               <Activity size={16} color="#2196F3" />
               {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicator removed pre-launch */}
@@ -1668,7 +1668,7 @@ export default function FriendsScreen() {
                               {user.isFriend && (
                                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                                 <View className="ml-2 px-1.5 py-0.5 rounded" style={{ backgroundColor: themeColor + "20" }}>
-                                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                                   <Text className="text-[10px] font-medium" style={{ color: themeColor }}>
                                     Friend
                                   </Text>
@@ -1702,7 +1702,7 @@ export default function FriendsScreen() {
                   {/* No results */}
                   {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length === 0 && debouncedQuery.length >= 2 && (
                     <View className="py-4 items-center">
-                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         No users found for "{debouncedQuery}"
                       </Text>
@@ -2028,10 +2028,10 @@ export default function FriendsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowContactsModal(false)}
       >
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+        {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="flex-row items-center justify-between px-5 py-4" style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Pressable
               /* INVARIANT_ALLOW_INLINE_HANDLER */
@@ -2119,7 +2119,7 @@ export default function FriendsScreen() {
                     )}
                   </View>
                   <View className="flex-1">
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="font-medium" style={{ color: colors.text }}>
                       {contact.name ?? "Unknown"}
                     </Text>

@@ -776,7 +776,7 @@ function EventListItem({
             style={{ backgroundColor: eventColor, minHeight: 36 }}
           />
           <View className="flex-1">
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
               {isWork ? `💼 ${displayTitle}` : displayTitle}
             </Text>
@@ -802,7 +802,7 @@ function EventListItem({
       >
         <View className="flex-1">
           <View className="flex-row items-center">
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <View style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
               <EventPhotoEmoji
                 photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
@@ -821,7 +821,7 @@ function EventListItem({
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 style={{ backgroundColor: eventColor + "30" }}
               >
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="text-xs font-medium" style={{ color: eventColor }}>
                   Busy
                 </Text>
@@ -855,7 +855,7 @@ function EventListItem({
         style={{ backgroundColor: eventColor, minHeight: 36 }}
       />
       <View className="flex-1">
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
           {displayTitle}
         </Text>
@@ -878,7 +878,7 @@ function EventListItem({
     >
       <View className="flex-1">
         <View className="flex-row items-center">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View style={{ width: 28, height: 28, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
             <EventPhotoEmoji
               photoUrl={!isNonVisible && !event.isBusy && event.visibility !== "private" ? event.eventPhotoUrl : undefined}
@@ -1262,7 +1262,7 @@ function ListView({
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               style={{ backgroundColor: `${themeColor}15` }}
             >
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-xs font-bold" style={{ color: themeColor }}>
                 {date.getDate()}
               </Text>
@@ -2228,7 +2228,7 @@ export default function CalendarScreen() {
       /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-base" style={{ color: colors.textTertiary }}>
             Syncing your calendar…
           </Text>
@@ -2250,7 +2250,7 @@ export default function CalendarScreen() {
       /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
             Couldn't load your calendar
           </Text>
@@ -2276,8 +2276,8 @@ export default function CalendarScreen() {
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     <GestureHandlerRootView style={{ flex: 1 }}>
-      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-      /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+      {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title={`${MONTHS[currentMonth]} ${currentYear}`}
@@ -2401,7 +2401,7 @@ export default function CalendarScreen() {
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           style={{ backgroundColor: themeColor + "15", borderWidth: 1, borderColor: themeColor + "30" }}
         >
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
             <CalendarDays size={20} color={themeColor} />
           </View>
@@ -2514,7 +2514,7 @@ export default function CalendarScreen() {
 
                 {/* Pinch hint */}
                 <View className="items-center mt-2 mb-1">
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-xs" style={{ color: colors.textTertiary }}>
                     Pinch to expand
                   </Text>
@@ -2525,7 +2525,7 @@ export default function CalendarScreen() {
             {/* Selected Date Events */}
             <View className="px-5 mt-6">
               <View className="flex-row items-center justify-between mb-4">
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="text-lg font-semibold" style={{ color: colors.text }}>
                   {selectedDate.toLocaleDateString("en-US", {
                     weekday: "long",
@@ -2566,7 +2566,7 @@ export default function CalendarScreen() {
                     ...(isDark ? {} : TILE_SHADOW),
                   }}
                 >
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
                   {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
                     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -2803,7 +2803,7 @@ export default function CalendarScreen() {
         animationType="fade"
         onRequestClose={handleDismissGuide}
       >
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <View className="flex-1 items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
           <Animated.View
             entering={FadeIn.duration(300)}
@@ -2898,7 +2898,7 @@ export default function CalendarScreen() {
           /* INVARIANT_ALLOW_INLINE_HANDLER */
           onPress={() => setShowBusyModal(false)}
         >
-          /* INVARIANT_ALLOW_INLINE_HANDLER */
+          {/* INVARIANT_ALLOW_INLINE_HANDLER */}
           <Pressable onPress={(e) => e.stopPropagation()}>
             <Animated.View
               entering={FadeIn.duration(200)}
@@ -3043,7 +3043,7 @@ export default function CalendarScreen() {
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                   style={{ backgroundColor: colors.surface2 }}
                 >
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="font-semibold" style={{ color: colors.text }}>
                     Cancel
                   </Text>

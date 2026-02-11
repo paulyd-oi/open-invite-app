@@ -1138,7 +1138,7 @@ export default function SocialScreen() {
       /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center">
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text style={{ color: colors.textTertiary }}>Syncing your feed…</Text>
         </View>
         <BottomNavigation />
