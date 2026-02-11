@@ -64,9 +64,11 @@ export function getRsvpPhrase(input: {
 
   // Headline
   let headline: string;
-  if (typeof total === "number" && total > 0 && attending === total) {
+  if (typeof total === "number" && total > 0 && attending >= total) {
     headline = "Everyone\u2019s confirmed";
-  } else if (attending > 0) {
+  } else if (attending === 1) {
+    headline = "1 is in";
+  } else if (attending > 1) {
     headline = `${attending} are in`;
   } else {
     headline = "No one\u2019s in yet";
