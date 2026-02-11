@@ -526,4 +526,68 @@ echo "  ✓ Part 3: All enforced files pass Cloudinary decode hygiene"
 echo ""
 echo "P0_PERF_IMAGE_DECODE_HYGIENE checks PASS"
 
+# ── P0 PERF PRELOAD BOUNDED HEROES ─────────────────────────────────
+echo ""
+echo "Running P0_PERF_PRELOAD_BOUNDED_HEROES checks…"
+echo "  Goal: bounded hero banner prefetch SSOT exists, enforces hard cap, and Image.prefetch is SSOT-only."
+
+PRELOAD_FAIL=0
+
+# Part 1: usePreloadHeroBanners.ts must exist and export the hook
+if [ ! -f "src/lib/usePreloadHeroBanners.ts" ]; then
+  echo "  ❌ src/lib/usePreloadHeroBanners.ts does not exist"
+  PRELOAD_FAIL=1
+elif ! grep -q 'export function usePreloadHeroBanners' src/lib/usePreloadHeroBanners.ts 2>/dev/null; then
+  echo "  ❌ src/lib/usePreloadHeroBanners.ts missing usePreloadHeroBanners export"
+  PRELOAD_FAIL=1
+else
+  echo "  ✓ Part 1: usePreloadHeroBanners.ts exists and exports hook"
+fi
+
+# Part 2: Hook must enforce hard cap (slice or break on max)
+if [ -f "src/lib/usePreloadHeroBanners.ts" ]; then
+  HAS_CAP=$(grep -cE '(\.slice\(0,\s*max\)|transformed\.length\s*>=\s*max)' src/lib/usePreloadHeroBanners.ts 2>/dev/null || true)
+  if [ "$HAS_CAP" -eq 0 ]; then
+    echo "  ❌ usePreloadHeroBanners.ts does not enforce hard cap (no slice(0,max) or length >= max guard)"
+    PRELOAD_FAIL=1
+  else
+    echo "  ✓ Part 2: Hook enforces hard cap on prefetch count"
+  fi
+fi
+
+# Part 3: Hook must use toCloudinaryTransformedUrl
+if [ -f "src/lib/usePreloadHeroBanners.ts" ]; then
+  if ! grep -q 'toCloudinaryTransformedUrl' src/lib/usePreloadHeroBanners.ts 2>/dev/null; then
+    echo "  ❌ usePreloadHeroBanners.ts does not use toCloudinaryTransformedUrl"
+    PRELOAD_FAIL=1
+  else
+    echo "  ✓ Part 3: Hook uses toCloudinaryTransformedUrl for render-path parity"
+  fi
+fi
+
+# Part 4: Image.prefetch must only appear in SSOT files (usePreloadImage.ts + usePreloadHeroBanners.ts)
+PREFETCH_LEAKS=$(grep -rn 'Image\.prefetch' src/ --include='*.ts' --include='*.tsx' \
+  | grep -v 'usePreloadImage\.ts' \
+  | grep -v 'usePreloadHeroBanners\.ts' \
+  | grep -v '\.test\.' \
+  | grep -v '__tests__' || true)
+
+if [ -n "$PREFETCH_LEAKS" ]; then
+  echo "  ❌ Image.prefetch used outside SSOT files:"
+  echo "$PREFETCH_LEAKS" | head -5
+  echo "     Remediation: Move all Image.prefetch calls into usePreloadImage.ts or usePreloadHeroBanners.ts"
+  PRELOAD_FAIL=1
+else
+  echo "  ✓ Part 4: Image.prefetch confined to SSOT files only"
+fi
+
+if [ "$PRELOAD_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_PRELOAD_BOUNDED_HEROES invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_PERF_PRELOAD_BOUNDED_HEROES checks PASS"
+
 echo "PASS: verify_frontend"

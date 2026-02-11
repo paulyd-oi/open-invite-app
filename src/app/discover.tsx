@@ -38,6 +38,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 
@@ -186,6 +187,15 @@ export default function DiscoverScreen() {
   const lensPreview = useMemo(() => {
     return lensAll.slice(featured ? 1 : 0, (featured ? 1 : 0) + PREVIEW_LIMIT);
   }, [lensAll, featured]);
+
+  // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded discover feed
+  const discoverBannerUris = useMemo(() => {
+    const uris: (string | null | undefined)[] = [];
+    if (featured) uris.push(featured.eventPhotoUrl);
+    for (const e of lensPreview) uris.push(e.eventPhotoUrl);
+    return uris;
+  }, [featured, lensPreview]);
+  usePreloadHeroBanners({ uris: discoverBannerUris, enabled: discoverBannerUris.length <= 12, max: 6 });
 
   const lensTotal = lensAll.length;
 
