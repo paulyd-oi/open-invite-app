@@ -18,7 +18,7 @@ import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
  * 3. Fire-and-forget: uses `Promise.allSettled`, never throws, never blocks.
  * 4. Transform: every URI passes through `toCloudinaryTransformedUrl` so cached
  *    bytes match the render-path (avoids double-download).
- * 5. DEV-only proof log under `[P0_PERF_PRELOAD]` tag (always-on).
+ * 5. DEV-only proof log under `[P0_PERF_PRELOAD]` tag (gated by devLog).
  * 6. Signature-stable: re-fires only when the joined key of transformed URIs changes.
  *
  * Proof tag: [P0_PERF_PRELOAD_BOUNDED_HEROES]

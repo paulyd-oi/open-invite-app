@@ -141,8 +141,6 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_SUGGESTIONS_DECK]",
   // P1 ideas engine (deterministic idea-card generator)
   "[P1_IDEAS_ENGINE]",
-  // P0 bounded hero/banner prefetch SSOT
-  "[P0_PERF_PRELOAD]",
 ];
 
 /**

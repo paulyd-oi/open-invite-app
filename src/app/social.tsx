@@ -43,6 +43,7 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dism
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 
@@ -1056,6 +1057,22 @@ export default function SocialScreen() {
     () => groupEventsByTime(discoveryEvents, session?.user?.id),
     [discoveryEvents, session?.user?.id]
   );
+
+  // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded social feed sections
+  const socialHeroUris = useMemo(() => {
+    const uris: (string | null | undefined)[] = [];
+    const sections = [groupedEvents.today, groupedEvents.tomorrow, groupedEvents.thisWeek];
+    for (const section of sections) {
+      for (const item of section) {
+        const ev = 'nextEvent' in item ? item.nextEvent : item;
+        uris.push(ev.eventPhotoUrl);
+        if (uris.length >= 6) break;
+      }
+      if (uris.length >= 6) break;
+    }
+    return uris;
+  }, [groupedEvents]);
+  usePreloadHeroBanners({ uris: socialHeroUris, enabled: true, max: 6 });
 
   // Count discovery events in the next 14 days for social proof line
   const plansIn14Days = useMemo(() => {
