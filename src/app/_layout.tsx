@@ -201,8 +201,8 @@ const QUERY_DEFAULTS = {
     },
     // Exponential backoff: 1s, 2s, 4s... capped at 30s
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    // Default stale time (15s) - individual queries can override
-    staleTime: 15000,
+    // Default stale time (30s) - individual queries can override
+    staleTime: 30000,
     // Garbage collection time - keep cache for 5 minutes
     gcTime: 300000,
     // Prevent aggressive refetching that can cause loops (mobile has no window focus)

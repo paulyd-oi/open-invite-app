@@ -112,6 +112,7 @@ import {
   deriveAttendeeCount,
   logRsvpMismatch,
 } from "@/lib/eventQueryKeys";
+import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 
 // Helper to open event location using the shared utility
 const openEventLocation = (event: any) => {
@@ -3595,13 +3596,12 @@ export default function EventDetailScreen() {
                 }
                 if (__DEV__) devLog('[EVENT_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
                 setUploadingPhoto(true);
-                const upload = await uploadEventPhoto(result.assets[0].uri, id);
+                const upload = await uploadEventPhoto(result.assets[0].uri);
                 await api.put(`/api/events/${id}/photo`, {
                   eventPhotoUrl: upload.url,
                   eventPhotoPublicId: upload.publicId,
                 });
-                queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
-                queryClient.invalidateQueries({ queryKey: eventKeys.all() });
+                invalidateEventMedia(queryClient, id ?? undefined);
                 safeToast.success("Photo added");
               } catch (e: any) {
                 if (__DEV__) devError("[EVENT_PHOTO_UPLOAD]", e);
@@ -3625,8 +3625,7 @@ export default function EventDetailScreen() {
                 try {
                   setShowPhotoSheet(false);
                   await api.put(`/api/events/${id}/photo`, { remove: true });
-                  queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
-                  queryClient.invalidateQueries({ queryKey: eventKeys.all() });
+                  invalidateEventMedia(queryClient, id ?? undefined);
                   safeToast.success("Photo removed");
                 } catch (e: any) {
                   if (__DEV__) devError("[EVENT_PHOTO_REMOVE]", e);

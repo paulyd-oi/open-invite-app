@@ -69,6 +69,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
 import { updateProfileAndSync } from "@/lib/profileSync";
+import { invalidateProfileMedia } from "@/lib/mediaInvalidation";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -1038,11 +1039,8 @@ export default function SettingsScreen() {
       
       // Use centralized sync helper to refresh both Better Auth session and React Query cache
       await updateProfileAndSync(queryClient);
-      // Also refetch userProfile for any profile views
-      queryClient.invalidateQueries({ queryKey: ["userProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      if (__DEV__) devLog("[P0_BANNER_RENDER]", "invalidate_queries", { keys: ["profile", "userProfile", "profiles", "friends"] });
+      // SSOT media invalidation — covers userProfile, profiles, friends
+      invalidateProfileMedia(queryClient);
       setShowEditProfile(false);
       setHandleError(null);
       safeToast.success("Success", "Profile updated successfully");
