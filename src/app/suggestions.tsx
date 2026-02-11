@@ -774,7 +774,7 @@ function DailyIdeasDeck() {
       }
     }
 
-    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current);
+    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current, myId);
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);

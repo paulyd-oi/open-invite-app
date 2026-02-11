@@ -157,6 +157,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_SCORE]",
   // P2 diversity merge (archetype interleave + entropy)
   "[P2_DIVERSITY]",
+  // P2B seeded entropy (deterministic per-user per-day shuffle)
+  "[P2B_SEEDED_ENTROPY]",
 ];
 
 /**

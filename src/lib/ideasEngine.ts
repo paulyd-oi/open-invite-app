@@ -14,6 +14,7 @@ import {
   scoreIdea,
   diversityMerge as archetypeDiversityMerge,
   localEntropySort,
+  buildDailySeed,
 } from "@/lib/ideaScoring";
 
 // ─── Types ───────────────────────────────────────────────
@@ -686,6 +687,7 @@ export function generateIdeas(
   acceptStats?: AcceptStats,
   birthdayMap?: Record<string, number>,
   patternMemory?: PatternMemory,
+  viewerUserId?: string,
 ): IdeaCard[] {
   const todayKey = getTodayKey();
 
@@ -763,8 +765,17 @@ export function generateIdeas(
     }
   }
 
-  // P2_DIVERSITY: soft-randomize near-equal scores then interleave archetypes
-  allCards = localEntropySort(allCards);
+  // P2B_SEEDED_ENTROPY: deterministic per-user per-day shuffle within score buckets
+  const _entropyUserId = viewerUserId || "anonymous";
+  allCards = localEntropySort(allCards, _entropyUserId);
+  if (__DEV__) {
+    devLog("[P2B_SEEDED_ENTROPY]", {
+      seed: buildDailySeed(_entropyUserId),
+      cardCount: allCards.length,
+    });
+  }
+
+  // P2_DIVERSITY: interleave archetypes
   allCards = archetypeDiversityMerge(allCards);
   if (__DEV__) {
     devLog(
