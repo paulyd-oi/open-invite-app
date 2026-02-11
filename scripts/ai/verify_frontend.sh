@@ -280,15 +280,40 @@ else
   echo "  ✓ P0_MEDIA_IDENTITY Part 5: EventPhotoGallery.tsx — no uploader-avatar raw <Image"
 fi
 
-# --- 4B-v) event/[id].tsx — hero surface must use EventPhotoEmoji, not raw <Image>
-HERO_RAW=$(grep -n '<Image' "src/app/event/[id].tsx" 2>/dev/null \
+# --- 4B-v) Event Hero SSOT: when event has photo, HeroBannerSurface + resolveBannerUri required
+#     EventPhotoEmoji is allowed ONLY in the no-photo fallback path.
+EVENT_FILE="src/app/event/[id].tsx"
+P6_FAIL=0
+
+# 6a) HeroBannerSurface must be imported/used
+if ! grep -q 'HeroBannerSurface' "$EVENT_FILE" 2>/dev/null; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx missing HeroBannerSurface (required for event hero when photo exists)"
+  P6_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 6a: event/[id].tsx imports/uses HeroBannerSurface"
+fi
+
+# 6b) resolveBannerUri called with bannerPhotoUrl mapping from event.eventPhotoUrl
+if ! grep -q 'resolveBannerUri' "$EVENT_FILE" 2>/dev/null; then
+  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx missing resolveBannerUri (required for event hero SSOT)"
+  P6_FAIL=1
+else
+  echo "  ✓ P0_MEDIA_IDENTITY Part 6b: event/[id].tsx uses resolveBannerUri for banner URI"
+fi
+
+# 6c) No raw <Image eventPhotoUrl (must go through HeroBannerSurface, not inline)
+HERO_RAW=$(grep -n '<Image' "$EVENT_FILE" 2>/dev/null \
   | grep 'eventPhotoUrl' || true)
 if [ -n "$HERO_RAW" ]; then
-  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx raw <Image using eventPhotoUrl detected — use EventPhotoEmoji instead:"
+  echo "❌ P0_MEDIA_IDENTITY FAIL — event/[id].tsx raw <Image using eventPhotoUrl detected — must use HeroBannerSurface:"
   echo "$HERO_RAW"
-  P0_FAIL=1
+  P6_FAIL=1
 else
-  echo "  ✓ P0_MEDIA_IDENTITY Part 6: event/[id].tsx — hero uses EventPhotoEmoji (no raw <Image eventPhotoUrl)"
+  echo "  ✓ P0_MEDIA_IDENTITY Part 6c: event/[id].tsx — no raw <Image eventPhotoUrl (hero goes through HeroBannerSurface)"
+fi
+
+if [ "$P6_FAIL" -ne 0 ]; then
+  P0_FAIL=1
 fi
 
 # --- Summary -----------------------------------------------------------------
