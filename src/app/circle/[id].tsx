@@ -392,9 +392,9 @@ function MiniCalendar({
     : [];
 
   return (
-    <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+    <View className="rounded-xl mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 10 }}>
       {/* Header */}
-      <View className="flex-row items-center justify-between mb-2">
+      <View className="flex-row items-center justify-between mb-1">
         <View className="flex-row items-center">
           <Calendar size={16} color={themeColor} />
           <Text className="font-semibold ml-2 text-sm" style={{ color: colors.text }}>
@@ -420,7 +420,7 @@ function MiniCalendar({
       </View>
 
       {/* Day Labels */}
-      <View className="flex-row mb-1">
+      <View className="flex-row">
         {DAYS.map((day, idx) => (
           <View key={idx} style={{ flex: 1, alignItems: "center" }}>
             <Text
@@ -450,11 +450,11 @@ function MiniCalendar({
               return (
                 <View key={index} style={{ flex: 1, alignItems: "center" }}>
                   {day === null ? (
-                    <View style={{ height: 36 }} />
+                    <View style={{ height: 32 }} />
                   ) : (
                     <Pressable
                       onPress={() => handleDayPress(day)}
-                      style={{ height: 36, width: "100%", alignItems: "center", justifyContent: "center" }}
+                      style={{ height: 32, width: "100%", alignItems: "center", justifyContent: "center" }}
                     >
                       <View
                         style={{
@@ -516,7 +516,7 @@ function MiniCalendar({
 
       {/* Smart Scheduling v1 — SSOT via bestTimesDate + dateScheduleResult */}
       {scheduleResult && scheduleResult.topSlots.length > 0 && (
-        <View style={{ marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border }}>
+        <View style={{ marginTop: 2, paddingTop: 2, borderTopWidth: 1, borderTopColor: colors.border }}>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -528,10 +528,10 @@ function MiniCalendar({
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 4,
-              paddingVertical: 6,
-              paddingHorizontal: 10,
-              borderRadius: 10,
+              marginBottom: 2,
+              paddingVertical: 4,
+              paddingHorizontal: 8,
+              borderRadius: 8,
               backgroundColor: pressed
                 ? (quietHasPerfectOverlap ? "#10B98118" : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"))
                 : (quietHasPerfectOverlap ? "#10B98110" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")),
@@ -546,7 +546,7 @@ function MiniCalendar({
           </Pressable>
 
           {/* Day selector chips — SSOT: sets bestTimesDate */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }} contentContainerStyle={{ paddingRight: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }} contentContainerStyle={{ paddingRight: 4 }}>
             {Array.from({ length: 14 }, (_, i) => {
               const d = new Date();
               d.setHours(0, 0, 0, 0);
@@ -564,10 +564,10 @@ function MiniCalendar({
                   }}
                   style={{
                     alignItems: "center",
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    marginRight: 6,
-                    borderRadius: 10,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    marginRight: 5,
+                    borderRadius: 8,
                     backgroundColor: isSelected
                       ? (isDark ? themeColor + "30" : themeColor + "18")
                       : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
@@ -588,11 +588,11 @@ function MiniCalendar({
             onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
             title="Best time to meet"
             heightPct={0}
-            maxHeightPct={0.8}
-            backdropOpacity={0.5}
+            maxHeightPct={0.75}
+            backdropOpacity={0.45}
           >
-            <ScrollView style={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 12 }}>
+            <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 8 }}>
                 Based on availability shared in this circle
               </Text>
 
