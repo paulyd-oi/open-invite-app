@@ -1383,7 +1383,7 @@ function MessageBubble({
 }
 
 export default function CircleScreen() {
-  const { id, draftMessage } = useLocalSearchParams<{ id: string; draftMessage?: string }>();
+  const { id, draftMessage, draftVariants: draftVariantsRaw } = useLocalSearchParams<{ id: string; draftMessage?: string; draftVariants?: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
@@ -1560,6 +1560,15 @@ export default function CircleScreen() {
   }, []);
 
   const [message, setMessage] = useState(draftMessage ?? "");
+
+  // Draft variant cycling (from Ideas deck)
+  const draftVariants = React.useMemo<string[] | null>(() => {
+    if (!draftVariantsRaw) return null;
+    try { const arr = JSON.parse(decodeURIComponent(draftVariantsRaw)); return Array.isArray(arr) ? arr : null; } catch { return null; }
+  }, [draftVariantsRaw]);
+  const variantIndexRef = useRef(0);
+  const [showTryAnother, setShowTryAnother] = useState(!!draftVariants);
+
   // [P2_TYPING_UI] Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; name: string }>>([]);
   const lastTypingPingRef = useRef<number>(0);
@@ -3577,6 +3586,22 @@ export default function CircleScreen() {
         )}
 
         {/* Message Input */}
+        {showTryAnother && draftVariants && draftVariants.length > 1 && (
+          <View className="px-4 py-1.5 border-t flex-row items-center" style={{ borderColor: colors.border, backgroundColor: colors.surface }}>
+            <RefreshCw size={12} color={colors.textTertiary} />
+            <Pressable
+              onPress={() => {
+                variantIndexRef.current = (variantIndexRef.current + 1) % draftVariants.length;
+                setMessage(draftVariants[variantIndexRef.current]!);
+                Haptics.selectionAsync();
+                if (__DEV__) devLog("[P1_DRAFT_VARIANTS]", { idx: variantIndexRef.current, total: draftVariants.length });
+              }}
+              hitSlop={8}
+            >
+              <Text className="text-[12px] font-medium ml-1.5" style={{ color: themeColor }}>Try another message</Text>
+            </Pressable>
+          </View>
+        )}
         <View
           className="px-4 py-3 border-t flex-row items-end"
           style={{ borderColor: colors.border, backgroundColor: colors.surface }}

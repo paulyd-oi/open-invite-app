@@ -49,7 +49,8 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MotionDurations, MotionEasings } from "@/lib/motionSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
-import { buildDailySeed } from "@/lib/ideaScoring";
+import { buildDailySeed, confidenceToLabel } from "@/lib/ideaScoring";
+import { type ScoreBreakdown } from "@/lib/ideaScoring";
 import {
   getCompletionCopy,
   getAcceptFeedback,
@@ -86,6 +87,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
+import BottomSheet from "@/components/BottomSheet";
 
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
@@ -328,7 +330,7 @@ const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
 
 const HERO_H = 100;
 
-function DeckCardFace({ card, index, total }: { card: IdeaCard; index?: number; total?: number }) {
+function DeckCardFace({ card, index, total, onWhyPress }: { card: IdeaCard; index?: number; total?: number; onWhyPress?: () => void }) {
   const { themeColor, colors, isDark } = useTheme();
   const accent = CATEGORY_ACCENT[card.category] ?? themeColor;
   const pill = CATEGORY_PILL[card.category] ?? CATEGORY_PILL.timing;
@@ -362,9 +364,16 @@ function DeckCardFace({ card, index, total }: { card: IdeaCard; index?: number; 
           </Text>
         </View>
         {index != null && total != null && (
-          <Text className="text-[11px]" style={{ color: colors.textTertiary }}>
-            {index + 1} of {total}
-          </Text>
+          <View className="flex-row items-center" style={{ gap: 8 }}>
+            {__DEV__ && onWhyPress && (
+              <Pressable onPress={onWhyPress} hitSlop={8}>
+                <Text className="text-[10px]" style={{ color: colors.textTertiary }}>Why?</Text>
+              </Pressable>
+            )}
+            <Text className="text-[11px]" style={{ color: colors.textTertiary }}>
+              {index + 1} of {total}
+            </Text>
+          </View>
         )}
       </View>
 
@@ -471,6 +480,7 @@ function DeckSwipeCard({
   total,
   onAccept,
   onDismiss,
+  onWhyPress,
 }: {
   card: IdeaCard;
   nextCard?: IdeaCard;
@@ -479,10 +489,12 @@ function DeckSwipeCard({
   total: number;
   onAccept: () => void;
   onDismiss: () => void;
+  onWhyPress?: () => void;
 }) {
   const { themeColor, colors, isDark } = useTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const isActive = useSharedValue(0);
   const lastHapticAtRef = useRef(0);
 
   const delayedAccept = useCallback(() => {
@@ -505,6 +517,12 @@ function DeckSwipeCard({
   const panGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .failOffsetY([-15, 15])
+    .onBegin(() => {
+      isActive.value = withTiming(1, { duration: MotionDurations.fast });
+    })
+    .onFinalize(() => {
+      isActive.value = withTiming(0, { duration: MotionDurations.fast });
+    })
     .onUpdate((e) => {
       translateX.value = e.translationX;
       translateY.value = e.translationY * 0.12;
@@ -531,7 +549,8 @@ function DeckSwipeCard({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
-      { rotate: `${translateX.value / 32}deg` }, // slightly gentler rotation
+      { rotate: `${translateX.value / 32}deg` },
+      { scale: 1 + isActive.value * 0.02 },
     ],
   }));
 
@@ -566,7 +585,7 @@ function DeckSwipeCard({
   return (
     <Animated.View entering={FadeInDown.springify().damping(18)} className="items-center px-4">
       {/* Card stack — 3 layers for depth */}
-      <View style={{ width: cardW, minHeight: CARD_H }}>
+      <View style={{ width: cardW, minHeight: CARD_H + 12 }}>
         {thirdCard && (
           <Animated.View
             style={[
@@ -594,7 +613,7 @@ function DeckSwipeCard({
               topStyle,
             ]}
           >
-            <DeckCardFace card={card} index={index} total={total} />
+            <DeckCardFace card={card} index={index} total={total} onWhyPress={onWhyPress} />
           </Animated.View>
         </GestureDetector>
       </View>
@@ -659,6 +678,9 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
   // Session-level swipe counters (for completion copy)
   const sessionAcceptedRef = useRef(0);
   const sessionDismissedRef = useRef(0);
+
+  // DEV-only debugger state for "Why?" overlay
+  const [debugCard, setDebugCard] = useState<IdeaCard | null>(null);
 
   // Transient microcopy feedback
   const [feedbackText, setFeedbackText] = useState<string | null>(null);
@@ -953,7 +975,8 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
       }
 
       if (bestCircle) {
-        router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
+        const draftVParam = card.draftVariants ? `&draftVariants=${encodeURIComponent(JSON.stringify(card.draftVariants))}` : "";
+        router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam}` as any);
       } else {
         try {
           const friendName = card.title.replace(/^(Catch up with |Join |Do )/, "").replace(/[?'].*/, "").trim() || "friend";
@@ -962,7 +985,8 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
             emoji: "💬",
             memberIds: [card.friendId],
           });
-          router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
+          const draftVParam2 = card.draftVariants ? `&draftVariants=${encodeURIComponent(JSON.stringify(card.draftVariants))}` : "";
+          router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}${draftVParam2}` as any);
         } catch {
           router.push(`/user/${card.friendId}` as any);
         }
@@ -1177,6 +1201,10 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
         total={deck.length}
         onAccept={handleAccept}
         onDismiss={handleDismiss}
+        onWhyPress={__DEV__ ? () => {
+          setDebugCard(currentCard);
+          devLog("[P1_IDEA_DEBUGGER]", { id: currentCard.id, archetype: currentCard.archetype });
+        } : undefined}
       />
       {/* Transient microcopy feedback */}
       {feedbackText && (
@@ -1187,6 +1215,53 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
         >
           {feedbackText}
         </Animated.Text>
+      )}
+
+      {/* DEV-only score debugger overlay */}
+      {__DEV__ && (
+        <BottomSheet
+          visible={!!debugCard}
+          onClose={() => setDebugCard(null)}
+          heightPct={0}
+        >
+          {debugCard && (() => {
+            const b = debugCard.scoreBreakdown as ScoreBreakdown | undefined;
+            const rows: [string, string][] = b ? [
+              ["Base", b.base.toFixed(2)],
+              ["Context", b.context.toFixed(2)],
+              ["Habit", b.habit.toFixed(2)],
+              ["Decay", b.decay.toFixed(2)],
+              ["Final", b.final.toFixed(2)],
+              ["Confidence", `${(b.confidence * 100).toFixed(0)}%`],
+            ] : [];
+            return (
+              <View className="px-5 pb-6 pt-3">
+                <Text className="text-base font-semibold mb-1" style={{ color: colors.text }}>
+                  Why this idea
+                </Text>
+                <Text className="text-sm mb-3" style={{ color: colors.textSecondary }}>
+                  {debugCard.title}
+                </Text>
+                {b && (
+                  <View className="rounded-lg p-3 mb-3" style={{ backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}>
+                    <Text className="text-xs font-medium mb-2" style={{ color: themeColor }}>
+                      {confidenceToLabel(b.confidence)} — {(b.confidence * 100).toFixed(0)}%
+                    </Text>
+                    {rows.map(([label, val]) => (
+                      <View key={label} className="flex-row justify-between py-0.5">
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>{label}</Text>
+                        <Text className="text-xs font-mono" style={{ color: colors.text }}>{val}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <Text className="text-[11px]" style={{ color: colors.textTertiary }}>
+                  Archetype: {debugCard.archetype ?? "none"} • #{currentIndex + 1}/{deck.length}
+                </Text>
+              </View>
+            );
+          })()}
+        </BottomSheet>
       )}
     </View>
   );

@@ -175,6 +175,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_MICROCOPY]",
   // P1 ideas completion polish (reward + throttle + people hint)
   "[P1_IDEAS_POLISH]",
+  // P1 idea debugger (DEV-only score overlay)
+  "[P1_IDEA_DEBUGGER]",
+  // P1 draft message variants (cycling composer prefills)
+  "[P1_DRAFT_VARIANTS]",
 ];
 
 /**

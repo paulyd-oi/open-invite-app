@@ -19,6 +19,7 @@ import {
   computeConfidence,
   applyFriendCooldown,
 } from "@/lib/ideaScoring";
+import { getDraftMessageVariants } from "@/lib/smartMicrocopy";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -56,6 +57,8 @@ export interface IdeaCard {
   archetype?: IdeaArchetype;
   /** Structured score breakdown (debug metadata). */
   scoreBreakdown?: ScoreBreakdown;
+  /** Deterministic draft message variants for the chat composer. */
+  draftVariants?: [string, string, string];
 }
 
 // ─── Context (caller collects from existing queries) ─────
@@ -1020,6 +1023,18 @@ export function generateIdeas(
 
   if (__DEV__) {
     devLog(`[P1_IDEAS_ENGINE] final deck size: ${deck.length}`);
+  }
+
+  // Populate draft variants for each card (deterministic, seeded)
+  const dailySeed = viewerUserId ? buildDailySeed(viewerUserId) : 0;
+  for (const card of deck) {
+    const friendName = card.title.replace(/^(Catch up with |Join |Do )/, "").replace(/[?'].*/, "").trim() || undefined;
+    card.draftVariants = getDraftMessageVariants({
+      seed: dailySeed,
+      archetype: card.archetype,
+      friendFirstName: friendName,
+      eventTitle: card.eventTitle,
+    });
   }
 
   return deck;

@@ -176,3 +176,73 @@ const DECK_HINTS = [
 export function getDeckHint(input: DeckHintInput): string {
   return pickFromPool(input.seed, "deckHint", DECK_HINTS);
 }
+
+// ─── Draft message variants ──────────────────────────────
+
+export interface DraftVariantsInput {
+  seed: number;
+  archetype?: string;
+  friendFirstName?: string;
+  eventTitle?: string;
+}
+
+const DRAFT_POOLS: Record<string, string[]> = {
+  reconnect: [
+    "Hey! Want to catch up soon?",
+    "Been a while — want to plan something?",
+    "Miss hanging out. Free this week?",
+  ],
+  join_event: [
+    "I\u2019m thinking about joining — save me a spot?",
+    "This looks fun! Mind if I come?",
+    "Count me in — when should I show up?",
+  ],
+  birthday: [
+    "Your birthday is coming up! Want to plan something?",
+    "Birthday plans? I\u2019m in if you need ideas.",
+    "Happy almost-birthday! Let\u2019s celebrate.",
+  ],
+  repeat_activity: [
+    "Want to do this again this week?",
+    "Round two? I\u2019m down if you are.",
+    "We should make this a regular thing.",
+  ],
+};
+
+const DRAFT_FALLBACK = [
+  "Hey! Want to plan something?",
+  "Free this week? Let\u2019s do something.",
+  "I\u2019ve got an idea \u2014 what do you think?",
+];
+
+/**
+ * Generate 3 deterministic draft-message variants.
+ * Variant[0] is the default (matches current draftMessage behavior).
+ * Pure, seeded, no AI.
+ */
+export function getDraftMessageVariants(input: DraftVariantsInput): [string, string, string] {
+  const { seed, archetype, friendFirstName, eventTitle } = input;
+  const pool = DRAFT_POOLS[archetype ?? ""] ?? DRAFT_FALLBACK;
+
+  const variants: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    let msg = pickFromPool(seed, `draft_${archetype ?? "x"}_${i}`, pool);
+    // Personalize if possible
+    if (friendFirstName && msg.startsWith("Hey!")) {
+      msg = msg.replace("Hey!", `Hey ${friendFirstName}!`);
+    }
+    if (eventTitle && msg.includes("joining")) {
+      msg = msg.replace("joining", `joining ${eventTitle}`);
+    }
+    variants.push(msg);
+  }
+  // Deduplicate: if any collide (small pools), replace with fallback variants
+  const seen = new Set<string>();
+  for (let i = 0; i < variants.length; i++) {
+    if (seen.has(variants[i]!)) {
+      variants[i] = pickFromPool(seed, `draft_dedup_${i}`, DRAFT_FALLBACK);
+    }
+    seen.add(variants[i]!);
+  }
+  return variants as [string, string, string];
+}
