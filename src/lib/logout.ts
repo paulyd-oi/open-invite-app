@@ -57,6 +57,7 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
   if (__DEV__) {
     devLog(`[LOGOUT_SSOT] start screen=${screen} reason=${reason}`);
     devLog(`[P12_NAV_INVAR] action="to_login" reason="${reason}" from="${screen}"`);
+    devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 1, label: "start_logout", screen, reason });
   }
 
   // Idempotent guard - safe to call multiple times
@@ -71,10 +72,18 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
 
   try {
     // Step 1: Deactivate push token (best-effort, never blocks)
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 2, label: "deactivate_attempt" });
+    }
+    let deactivateOk = false;
     try {
       await deactivatePushTokenOnLogout();
+      deactivateOk = true;
     } catch (e) {
       // Push token deactivation failure does not block logout
+    }
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 3, label: "deactivate_done", success: deactivateOk });
     }
 
     // Step 1b: Reset push registration state so next login re-registers deterministically
@@ -86,10 +95,16 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     }
 
     // Step 2: Set logout intent flag (required for resetSession to clear tokens)
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 4, label: "auth_clear_begin" });
+    }
     setLogoutIntent();
 
     // Step 3: Reset session (clear tokens, sign out from backend)
     await resetSession({ reason, endpoint: screen });
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 5, label: "auth_cleared" });
+    }
 
     // Step 4: Cancel queries + clear cache
     await queryClient.cancelQueries();
@@ -109,6 +124,9 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     }
 
     // Step 7: Navigate to login
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 6, label: "routed_to_login" });
+    }
     router.replace("/login");
   } catch (error) {
     if (__DEV__) {

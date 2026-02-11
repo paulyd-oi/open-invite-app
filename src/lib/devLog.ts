@@ -197,6 +197,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_PUSH_ME_TRUTH]",
   // P0 convergence timeline (push → invalidate → refetch → UI)
   "[P0_TIMELINE]",
+  // P0 logout deactivate order proof (numbered step audit)
+  "[P0_LOGOUT_DEACTIVATE_ORDER]",
+  // P0 login re-register proof (push reg decision on authed)
+  "[P0_LOGIN_RE_REGISTER]",
 ];
 
 /**

@@ -743,6 +743,15 @@ export function useNotifications() {
         decision: shouldForce ? "ATTEMPT" : "THROTTLE_CHECK",
         reason: isFreshLogin ? "fresh_login" : isAccountSwitch ? "account_switch" : "returning",
       });
+      devLog("[P0_LOGIN_RE_REGISTER]", {
+        effectiveUserId: userIdPrefix,
+        force: shouldForce,
+        isFreshLogin,
+        isAccountSwitch,
+        lastRegisteredUserId: lastRegisteredUserId?.substring(0, 8) ?? "null",
+        decision: shouldForce ? "ATTEMPT" : "THROTTLE_CHECK",
+        reason: isFreshLogin ? "fresh_login" : isAccountSwitch ? "account_switch" : "returning",
+      });
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
