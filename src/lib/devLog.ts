@@ -155,6 +155,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_HABIT_ENGINE]",
   // P1 score breakdown (archetype scoring pipeline)
   "[P1_SCORE]",
+  // P2 diversity merge (archetype interleave + entropy)
+  "[P2_DIVERSITY]",
 ];
 
 /**

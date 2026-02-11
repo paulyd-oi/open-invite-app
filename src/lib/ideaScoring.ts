@@ -63,6 +63,67 @@ export function scoreIdea({
   };
 }
 
+// ─── Diversity helpers ────────────────────────────────────
+
+/**
+ * Round-robin interleave by archetype.
+ * Prevents archetype streaks in the final deck.
+ * Pure function — does not mutate input array.
+ */
+export function diversityMerge<
+  T extends { archetype?: string; scoreBreakdown?: { final: number } },
+>(ideas: T[]): T[] {
+  const buckets = new Map<string, T[]>();
+
+  for (const i of ideas) {
+    const key = i.archetype || "unknown";
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(i);
+  }
+
+  // Sort inside each bucket by descending final score
+  for (const list of buckets.values()) {
+    list.sort(
+      (a, b) => (b.scoreBreakdown?.final ?? 0) - (a.scoreBreakdown?.final ?? 0),
+    );
+  }
+
+  const result: T[] = [];
+  let remaining = true;
+  while (remaining) {
+    remaining = false;
+    for (const bucket of buckets.values()) {
+      if (bucket.length > 0) {
+        result.push(bucket.shift()!);
+        remaining = true;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Soft-randomize ideas whose scores are within `threshold` of each other.
+ * Adds controlled entropy so near-equal ideas don't always appear in the
+ * same order, without disrupting clearly dominant cards.
+ * Pure function — returns a new sorted array.
+ */
+export function localEntropySort<
+  T extends { scoreBreakdown?: { final: number } },
+>(ideas: T[], threshold = 5): T[] {
+  return [...ideas].sort((a, b) => {
+    const diff =
+      (b.scoreBreakdown?.final ?? 0) - (a.scoreBreakdown?.final ?? 0);
+    if (Math.abs(diff) < threshold) {
+      return Math.random() - 0.5;
+    }
+    return diff;
+  });
+}
+
+// ─── Category mapping ────────────────────────────────────
+
 /** Map category string → IdeaArchetype. */
 export function categoryToArchetype(category: string): IdeaArchetype {
   switch (category) {

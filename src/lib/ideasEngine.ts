@@ -8,7 +8,13 @@
  */
 
 import { devLog } from "@/lib/devLog";
-import { type IdeaArchetype, type ScoreBreakdown, scoreIdea } from "@/lib/ideaScoring";
+import {
+  type IdeaArchetype,
+  type ScoreBreakdown,
+  scoreIdea,
+  diversityMerge as archetypeDiversityMerge,
+  localEntropySort,
+} from "@/lib/ideaScoring";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -755,6 +761,16 @@ export function generateIdeas(
     if (__DEV__) {
       devLog(`[P1_SCORE] ${card.id}`, card.scoreBreakdown);
     }
+  }
+
+  // P2_DIVERSITY: soft-randomize near-equal scores then interleave archetypes
+  allCards = localEntropySort(allCards);
+  allCards = archetypeDiversityMerge(allCards);
+  if (__DEV__) {
+    devLog(
+      "[P2_DIVERSITY]",
+      allCards.map((i) => ({ archetype: i.archetype, score: i.scoreBreakdown?.final })),
+    );
   }
 
   // Adaptive deck size based on engagement
