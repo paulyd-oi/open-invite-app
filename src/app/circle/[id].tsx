@@ -26,7 +26,6 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
-import { getAvailabilityLabel } from "@/lib/smartCopy";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage, safePrependMessages } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -87,6 +86,7 @@ import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContex
 import { computeSchedule } from "@/lib/scheduling/engine";
 import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
 import type { SchedulingSlotResult } from "@/lib/scheduling/types";
+import { formatSlotAvailability, formatSlotAvailabilityCompact, hasPerfectAvailability } from "@/lib/scheduling/format";
 import {
   type SuggestedHoursPreset,
   getSuggestedHoursForPreset,
@@ -327,7 +327,7 @@ function MiniCalendar({
     return rankSlotsForPreset(raw, quietPreset);
   }, [dateScheduleResult, bestTimesDate, quietPreset]);
   const quietBestSlot = quietSlots[0] ?? null;
-  const quietHasPerfectOverlap = quietBestSlot ? quietBestSlot.availableCount === quietBestSlot.totalMembers : false;
+  const quietHasPerfectOverlap = quietBestSlot ? hasPerfectAvailability(quietBestSlot.availableCount, quietBestSlot.totalMembers) : false;
 
   // DEV proof: single canonical log on sheet-open or date/preset change
   useEffect(() => {
@@ -749,7 +749,7 @@ function MiniCalendar({
                           <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
                         </View>
                         <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
-                          {getAvailabilityLabel({ availableCount: slot.availableCount, totalMembers: slot.totalMembers }) ?? `${slot.availableCount}/${slot.totalMembers}`}
+                          {formatSlotAvailabilityCompact(slot.availableCount, slot.totalMembers)}
                         </Text>
                       </Pressable>
                     );
@@ -872,7 +872,7 @@ function MiniCalendar({
               <ScrollView style={{ paddingHorizontal: 20 }}>
                 {/* Subheader */}
                 <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 12 }}>
-                  {getAvailabilityLabel({ availableCount: selectedSlot.availableCount, totalMembers: selectedSlot.totalMembers }) ?? `${selectedSlot.availableCount} of ${selectedSlot.totalMembers} available`}
+                  {formatSlotAvailability(selectedSlot.availableCount, selectedSlot.totalMembers)}
                 </Text>
 
                 {/* Available section */}
