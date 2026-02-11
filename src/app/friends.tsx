@@ -4,10 +4,8 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   Image,
   RefreshControl,
-  Modal,
   FlatList,
   Platform,
 } from "react-native";
@@ -17,23 +15,17 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  Search,
-
   ChevronRight,
   ChevronDown,
   Users,
   Check,
   X,
   Bell,
-  Contact,
-  Phone,
-  Mail,
   FlaskConical,
   Calendar,
   Clock,
@@ -61,8 +53,6 @@ import Animated, {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { SLIDE_MS } from "@/ui/motion";
-import * as Contacts from "expo-contacts";
-
 import BottomNavigation from "@/components/BottomNavigation";
 import { AppHeader } from "@/components/AppHeader";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -86,7 +76,6 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { Button } from "@/ui/Button";
-import { Chip } from "@/ui/Chip";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, useIsPro, canCreateCircle, type PaywallContext } from "@/lib/entitlements";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
@@ -97,18 +86,13 @@ import { FriendsPeoplePane } from "@/components/friends/FriendsPeoplePane";
 import {
   type GetFriendsResponse,
   type GetFriendRequestsResponse,
-  type SendFriendRequestResponse,
   type Friendship,
   type FriendRequest,
   type GetFriendEventsResponse,
   type Event,
   type Circle,
   type GetCirclesResponse,
-  type SearchUsersRankedResponse,
-  type SearchUserResult,
 } from "@/shared/contracts";
-import { useNetworkStatus } from "@/lib/networkStatus";
-import { wrapRace } from "@/lib/devStress";
 import { once } from "@/lib/runtimeInvariants";
 
 // Mini calendar component for friend cards
@@ -603,16 +587,10 @@ export default function FriendsScreen() {
     return 1; // default: Chats
   });
 
-  const [searchEmail, setSearchEmail] = useState("");
-  const [showContactsModal, setShowContactsModal] = useState(false);
-  const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
-  const [contactsLoading, setContactsLoading] = useState(false);
-  const [contactSearch, setContactSearch] = useState("");
-
   // Auto-open search modal if navigated with ?search=true
   useEffect(() => {
     if (params.search === "true") {
-      setFriendsTab(2); // switch to People pane for search (Add Friend visible by default)
+      setFriendsTab(2); // switch to People pane
     }
   }, [params.search]);
 
@@ -622,12 +600,6 @@ export default function FriendsScreen() {
     else if (params.tab === "people") setFriendsTab(2);
     else if (params.tab === "chats") setFriendsTab(1);
   }, [params.tab]);
-
-  // Live search state
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestQueryRef = React.useRef("");
-  const networkStatus = useNetworkStatus();
 
   // View mode and filter states — sync from in-memory cache to prevent jump
   const [viewMode, setViewMode] = useState<"list" | "detailed">(
@@ -779,56 +751,6 @@ export default function FriendsScreen() {
   // Pinned friendships
   const [pinnedFriendshipIds, setPinnedFriendshipIds] = useState<Set<string>>(new Set());
 
-  // Debounce search input for live search
-  useEffect(() => {
-    // Clear previous timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    const trimmed = searchEmail.trim();
-    latestQueryRef.current = trimmed;
-
-    // Clear results if query is too short
-    if (trimmed.length < 2) {
-      setDebouncedQuery("");
-      return;
-    }
-
-    // Set debounced query after 300ms
-    debounceTimerRef.current = setTimeout(() => {
-      // Only update if this is still the latest query
-      if (latestQueryRef.current === trimmed) {
-        setDebouncedQuery(trimmed);
-      }
-    }, 300);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [searchEmail]);
-
-  // Live search query
-  const {
-    data: searchResults,
-    isLoading: isSearching,
-    error: searchError
-  } = useQuery({
-    queryKey: ["userSearch", debouncedQuery],
-    queryFn: async () => {
-      if (!debouncedQuery || debouncedQuery.length < 2) return { users: [] };
-      const response = await api.get<SearchUsersRankedResponse>(
-        `/api/profile/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`
-      );
-      return response;
-    },
-    enabled: isAuthedForNetwork(bootStatus, session) && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
-    staleTime: 30000, // Cache for 30 seconds
-    gcTime: 60000, // Keep in cache for 1 minute
-  });
-
   // DEV: Measure friends query performance
   if (__DEV__) {
     console.time("[PERF] Friends query");
@@ -883,30 +805,6 @@ export default function FriendsScreen() {
     setTimeout(() => setIsRetrying(false), 1500);
   }, [resetBootTimeout, retryBootstrap, refetch, refetchRequests]);
 
-  const sendRequestMutation = useMutation({
-    mutationFn: (data: { email?: string; phone?: string }) =>
-      wrapRace("friend_request_send", () => api.post<SendFriendRequestResponse>("/api/friends/request", data)),
-    onSuccess: (data) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (data.message) {
-        safeToast.info("Info", data.message);
-      } else {
-        safeToast.success("Success", "Friend request sent!");
-      }
-      setSearchEmail("");
-      setShowContactsModal(false);
-      refetchRequests();
-      
-      // Complete "add_friend" onboarding step when user sends a friend request
-      if (onboardingGuide.shouldShowStep("add_friend")) {
-        onboardingGuide.completeStep("add_friend");
-      }
-    },
-    onError: () => {
-      safeToast.error("Request Failed", "Failed to send friend request");
-    },
-  });
-
   const acceptRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put<{ success: boolean; friendshipId?: string; friend?: { id: string; name: string | null; image: string | null } }>(`/api/friends/request/${requestId}`, { status: "accepted" }),
@@ -960,86 +858,6 @@ export default function FriendsScreen() {
     await markSecondOrderSocialNudgeCompleted();
     setShowSecondOrderSocialNudge(false);
   };
-
-  const loadContacts = async () => {
-    setContactsLoading(true);
-    try {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status !== "granted") {
-        safeToast.warning("Permission Required", "Please allow access to contacts to add friends.");
-        setContactsLoading(false);
-        return;
-      }
-
-      const { data } = await Contacts.getContactsAsync({
-        fields: [
-          Contacts.Fields.Name,
-          Contacts.Fields.FirstName,
-          Contacts.Fields.LastName,
-          Contacts.Fields.PhoneNumbers,
-          Contacts.Fields.Emails,
-          Contacts.Fields.Image,
-        ],
-        sort: Contacts.SortTypes.FirstName,
-      });
-
-      // Filter contacts that have either email or phone
-      const validContacts = data.filter(
-        (c) => (c.emails && c.emails.length > 0) || (c.phoneNumbers && c.phoneNumbers.length > 0)
-      );
-      setPhoneContacts(validContacts);
-      setShowContactsModal(true);
-    } catch (error) {
-      devError("Error loading contacts:", error);
-      safeToast.error("Contacts Failed", "Failed to load contacts");
-    }
-    setContactsLoading(false);
-  };
-
-  const handleInviteContact = (contact: Contacts.Contact) => {
-    // Guard: require email verification
-    if (!guardEmailVerification(session)) {
-      return;
-    }
-
-    const email = contact.emails?.[0]?.email;
-    const phone = contact.phoneNumbers?.[0]?.number;
-
-    if (email) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendRequestMutation.mutate({ email });
-    } else if (phone) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendRequestMutation.mutate({ phone });
-    } else {
-      safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
-    }
-  };
-
-  const handleDirectFriendRequest = () => {
-    // Guard: require email verification
-    if (!guardEmailVerification(session)) {
-      return;
-    }
-
-    if (searchEmail.trim()) {
-      // Check if it looks like a phone number (mostly digits)
-      const cleaned = searchEmail.trim().replace(/[^\d]/g, '');
-      if (cleaned.length >= 7 && cleaned.length === searchEmail.trim().replace(/[\s\-\(\)]/g, '').length) {
-        sendRequestMutation.mutate({ phone: searchEmail.trim() });
-      } else {
-        sendRequestMutation.mutate({ email: searchEmail.trim() });
-      }
-    }
-  };
-
-  const filteredContacts = phoneContacts.filter((contact) => {
-    if (!contactSearch.trim()) return true;
-    const search = contactSearch.toLowerCase();
-    const name = contact.name?.toLowerCase() ?? "";
-    const email = contact.emails?.[0]?.email?.toLowerCase() ?? "";
-    return name.includes(search) || email.includes(search);
-  });
 
   const friends = friendsData?.friends ?? [];
   const receivedRequests = requestsData?.received ?? [];
@@ -1350,15 +1168,30 @@ export default function FriendsScreen() {
         title="Friends"
         left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
         right={
-          receivedRequests.length > 0 ? (
-            <View
-              className="w-6 h-6 rounded-full items-center justify-center"
+          <View className="flex-row items-center">
+            {receivedRequests.length > 0 && (
+              <View
+                className="w-6 h-6 rounded-full items-center justify-center mr-2"
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
+              </View>
+            )}
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push("/add-friends" as any);
+              }}
+              className="flex-row items-center px-3 py-1.5 rounded-full"
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               style={{ backgroundColor: themeColor }}
             >
-              <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
-            </View>
-          ) : undefined
+              <Plus size={14} color="#fff" />
+              <Text className="text-xs font-semibold text-white ml-1">Add</Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -1441,16 +1274,6 @@ export default function FriendsScreen() {
 
         {friendsTab === 2 && (
           <FriendsPeoplePane
-            searchEmail={searchEmail}
-            onSearchEmailChange={setSearchEmail}
-            onDirectFriendRequest={handleDirectFriendRequest}
-            isRequestSending={sendRequestMutation.isPending}
-            onLoadContacts={loadContacts}
-            contactsLoading={contactsLoading}
-            searchResults={searchResults}
-            isSearching={isSearching}
-            isOnline={networkStatus.isOnline}
-            debouncedQuery={debouncedQuery}
             receivedRequests={receivedRequests}
             requestsExpanded={requestsExpanded}
             onToggleRequestsExpanded={() => setRequestsExpanded(!requestsExpanded)}
@@ -1487,154 +1310,6 @@ export default function FriendsScreen() {
         }))}
         isLoading={createCircleMutation.isPending}
       />
-
-      {/* Contacts Modal */}
-      <Modal
-        visible={showContactsModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowContactsModal(false)}
-      >
-        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-        {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
-        <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="flex-row items-center justify-between px-5 py-4" style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                setShowContactsModal(false);
-                setContactSearch("");
-              }}
-              className="w-10"
-            >
-              <X size={24} color={colors.text} />
-            </Pressable>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-lg font-semibold" style={{ color: colors.text }}>
-              Phone Contacts
-            </Text>
-            <View className="w-10" />
-          </View>
-
-          {/* Search */}
-          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="px-4 py-3" style={{ backgroundColor: colors.surface }}>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <View className="flex-row items-center rounded-lg px-3" style={{ backgroundColor: colors.inputBg }}>
-              <Search size={18} color={colors.textSecondary} />
-              <TextInput
-                value={contactSearch}
-                onChangeText={setContactSearch}
-                placeholder="Search contacts..."
-                placeholderTextColor={colors.textTertiary}
-                className="flex-1 py-3 px-2"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ color: colors.text }}
-              />
-              {contactSearch.length > 0 && (
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                <Pressable onPress={() => setContactSearch("")}>
-                  <X size={18} color={colors.textSecondary} />
-                </Pressable>
-              )}
-            </View>
-          </View>
-
-          <FlatList
-            data={filteredContacts}
-            keyExtractor={(item, index) => item.id ?? item.name ?? `contact-${index}`}
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            contentContainerStyle={{ paddingVertical: 8 }}
-            // Virtualization tuning for contacts (can have hundreds)
-            initialNumToRender={12}
-            maxToRenderPerBatch={10}
-            windowSize={9}
-            updateCellsBatchingPeriod={50}
-            removeClippedSubviews={Platform.OS === 'android'}
-            renderItem={({ item: contact }) => {
-              const hasEmail = contact.emails && contact.emails.length > 0;
-              const hasPhone = contact.phoneNumbers && contact.phoneNumbers.length > 0;
-              const canInvite = hasEmail || hasPhone;
-              const email = contact.emails?.[0]?.email;
-              const phone = contact.phoneNumbers?.[0]?.number;
-
-              return (
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => handleInviteContact(contact)}
-                  className="flex-row items-center mx-4 mb-2 p-4 rounded-xl"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{
-                    backgroundColor: colors.surface,
-                    ...(isDark ? {} : TILE_SHADOW),
-                  }}
-                >
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: colors.avatarBg }}>
-                    {contact.imageAvailable && contact.image?.uri ? (
-                      <EntityAvatar
-                        photoUrl={contact.image.uri}
-                        size={48}
-                        backgroundColor={colors.avatarBg}
-                      />
-                    ) : (
-                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      <Text className="text-lg font-semibold" style={{ color: colors.textSecondary }}>
-                        {contact.name?.[0]?.toUpperCase() ?? "?"}
-                      </Text>
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                    <Text className="font-medium" style={{ color: colors.text }}>
-                      {contact.name ?? "Unknown"}
-                    </Text>
-                    {email ? (
-                      <View className="flex-row items-center mt-0.5">
-                        <Mail size={12} color={colors.textSecondary} />
-                        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                        <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>{email}</Text>
-                      </View>
-                    ) : phone ? (
-                      <View className="flex-row items-center mt-0.5">
-                        <Phone size={12} color={colors.textSecondary} />
-                        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                        <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>{phone}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {canInvite ? (
-                    <View
-                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 9999,
-                        backgroundColor: themeColor,
-                      }}
-                    >
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text style={{ color: colors.buttonPrimaryText, fontSize: 13, fontWeight: "500" }}>Invite</Text>
-                    </View>
-                  ) : (
-                    <Chip variant="neutral" label="No info" />
-                  )}
-                </Pressable>
-              );
-            }}
-            ListEmptyComponent={
-              <View className="py-12 items-center">
-                <Contact size={48} color={colors.border} />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="mt-3" style={{ color: colors.textSecondary }}>
-                  {contactSearch ? "No contacts found" : "No contacts available"}
-                </Text>
-              </View>
-            }
-          />
-        </SafeAreaView>
-      </Modal>
 
       {/* [LEGACY_GROUPS_PURGED] Group Filter Modal, Edit Group Modal, and Add to Groups Modal fully removed */}
 
