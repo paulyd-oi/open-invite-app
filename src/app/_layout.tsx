@@ -54,6 +54,11 @@ const QueryDebugOverlay = __DEV__
   ? require('@/dev/QueryDebugOverlay').default
   : () => null;
 
+// [P0_LIVE_FEEL_PROOF_HARNESS] DEV-only live refresh diagnostics
+const LiveRefreshProofOverlay = __DEV__
+  ? require('@/dev/LiveRefreshProofOverlay').default
+  : () => null;
+
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
   // This ensures fresh installs ALWAYS start at /welcome.
@@ -872,6 +877,7 @@ export default function RootLayout() {
                       <BootRouter />
                       <RootLayoutNav />
                       {__DEV__ && <QueryDebugOverlay />}
+                      {__DEV__ && <LiveRefreshProofOverlay />}
                     {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
                   </View>
                 </ErrorBoundary>

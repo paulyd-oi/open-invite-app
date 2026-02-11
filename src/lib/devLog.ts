@@ -205,6 +205,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[IDEAS_ANTI_REPEAT]",
   // P0 action feedback proof (optimistic/success/error + durationMs)
   "[ACTION_FEEDBACK]",
+  // P0 live refresh proof harness (trigger + anti-storm)
+  "[LIVE_REFRESH]",
+  "[LIVE_REFRESH_GUARD]",
+  "[LIVE_REFRESH_STORM]",
 ];
 
 /**

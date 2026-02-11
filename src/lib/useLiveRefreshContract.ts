@@ -24,7 +24,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { devLog } from "@/lib/devLog";
+import { devLog, devWarn } from "@/lib/devLog";
+import {
+  reportRefresh,
+  registerScreenRefetchFns,
+  resetFocusCounter,
+} from "@/lib/liveRefreshProofStore";
 
 // ── Constants ────────────────────────────────────────────────────
 /** Max time (ms) the inFlight latch can stay locked before auto-release. */
@@ -129,6 +134,11 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
         `outcome=run`,
         `keys=${fns.length}`,
       );
+      // Report into proof store + check anti-storm
+      const { stormWarning } = reportRefresh(screenRef.current, trigger);
+      if (stormWarning) {
+        devWarn("[LIVE_REFRESH]", stormWarning);
+      }
     }
     fns.forEach((fn) => {
       try {
@@ -138,6 +148,13 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
       }
     });
   }, []);
+
+  // ── DEV proof harness: register refetch fns for "Force refresh all" button ──
+  useEffect(() => {
+    if (__DEV__) {
+      registerScreenRefetchFns(screenRef.current, fnsRef.current);
+    }
+  });
 
   // ── 1. Manual pull-to-refresh (always wins) ──
   const onManualRefresh = useCallback(() => {
@@ -217,6 +234,11 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
       fireAll("focus", "tab_focused");
       // Release latch after a short window
       setTimeout(() => clearInFlight(), 3000);
+
+      // Cleanup: reset focus counter when screen blurs
+      return () => {
+        if (__DEV__) resetFocusCounter(screenRef.current);
+      };
     }, [disableFocus, fireAll, setInFlight, clearInFlight]),
   );
 
