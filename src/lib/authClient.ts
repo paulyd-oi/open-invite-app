@@ -6,7 +6,7 @@ import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import { BACKEND_URL } from "./config";
 import { AUTH_TOKEN_KEY } from "./authKeys";
-import { devLog, devWarn, devError } from "./devLog";
+import { devLog, devWarn, devError, devLogOnce } from "./devLog";
 import {
   getSessionCookie,
   setSessionCookie,
@@ -398,7 +398,7 @@ async function $fetch<T = any>(
       const userId = sessionData?.user?.id || null;
       const sessionUserId = sessionData?.session?.userId || null;
       const effectiveUserId = userId ?? sessionUserId ?? null;
-      devLog(`[SESSION_SHAPE] { hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
+      devLogOnce("[SESSION_SHAPE]", `uid:${effectiveUserId ?? "null"}`, `{ hasSession: ${hasSession}, hasUser: ${hasUser}, userId: ${userId ? `"${userId}"` : null}, sessionUserId: ${sessionUserId ? `"${sessionUserId}"` : null}, effectiveUserId: ${effectiveUserId ? `"${effectiveUserId}"` : null} }`);
     }
     
     if (AUTH_DEBUG) {

@@ -278,3 +278,39 @@ export function devError(tag: string, ...args: unknown[]): void {
   if (!isAlwaysOnTag(tag) && !isDevLoggingEnabled()) return;
   console.error(tag, ...args);
 }
+
+// ═══ Noise-reduction helpers (DEV-only, no-op in PROD) ═══
+
+/** Keys that have already been logged this session (tag + key). */
+const _onceKeys = new Set<string>();
+
+/**
+ * DEV-only: log once per app session for a given (tag, key) pair.
+ * Subsequent calls with the same pair are silently dropped.
+ * No-op in PROD.
+ */
+export function devLogOnce(tag: string, key: string, ...args: unknown[]): void {
+  if (!__DEV__) return;
+  const compound = `${tag}::${key}`;
+  if (_onceKeys.has(compound)) return;
+  _onceKeys.add(compound);
+  devLog(tag, key, ...args);
+}
+
+/** Last-emit timestamps keyed by (tag + key). */
+const _throttleTs = new Map<string, number>();
+
+/**
+ * DEV-only: log at most once per `windowMs` for a given (tag, key) pair.
+ * Calls within the window are silently dropped.
+ * No-op in PROD.
+ */
+export function devLogThrottle(tag: string, key: string, windowMs: number, ...args: unknown[]): void {
+  if (!__DEV__) return;
+  const compound = `${tag}::${key}`;
+  const now = Date.now();
+  const last = _throttleTs.get(compound) ?? 0;
+  if (now - last < windowMs) return;
+  _throttleTs.set(compound, now);
+  devLog(tag, key, ...args);
+}

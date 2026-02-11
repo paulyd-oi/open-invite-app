@@ -22,7 +22,7 @@ import {
   type NativeScrollEvent,
   type ViewToken,
 } from "react-native";
-import { devLog, devWarn, devError } from "@/lib/devLog";
+import { devLog, devWarn, devError, devLogThrottle } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
@@ -2553,13 +2553,7 @@ export default function CircleScreen() {
   // Derive strip data; hide if query failed / not yet loaded
   const availTonight = availData?.tonight ?? null;
   const availMembers = availData?.members ?? null;
-  const availLogFiredRef = useRef(false);
-  useEffect(() => {
-    if (!availLogFiredRef.current && __DEV__) {
-      devLog("[P1_AVAIL_SUMMARY_UI]", "mounted");
-      availLogFiredRef.current = true;
-    }
-  }, []);
+  // [P1_AVAIL_SUMMARY_UI] mounted log removed (noise reduction)
   useEffect(() => {
     if (__DEV__ && availTonight) {
       devLog("[P1_AVAIL_SUMMARY_UI]", "shown", {
@@ -2595,13 +2589,7 @@ export default function CircleScreen() {
     staleTime: 60_000,
   });
   const planLock = planLockData ?? null;
-  const planLockLogFiredRef = useRef(false);
-  useEffect(() => {
-    if (!planLockLogFiredRef.current && __DEV__) {
-      devLog("[P1_PLAN_LOCK_UI]", "mounted");
-      planLockLogFiredRef.current = true;
-    }
-  }, []);
+  // [P1_PLAN_LOCK_UI] mounted log removed (noise reduction)
   // [P1_LIFECYCLE_UI] Lifecycle query — graceful 404 fallback
   const { data: lifecycleData } = useQuery({
     queryKey: circleKeys.lifecycle(id!),
@@ -2702,13 +2690,7 @@ export default function CircleScreen() {
     },
   });
 
-  const notifyLevelLogRef = useRef(false);
-  useEffect(() => {
-    if (!notifyLevelLogRef.current && __DEV__) {
-      devLog("[P1_NOTIFY_LEVEL_UI]", "mounted");
-      notifyLevelLogRef.current = true;
-    }
-  }, []);
+  // [P1_NOTIFY_LEVEL_UI] mounted log removed (noise reduction)
 
   // [P1_COORDINATION_FLOW] Log lock highlight on transition
   const prevLockedRef = useRef<boolean | null>(null);
@@ -2794,17 +2776,16 @@ export default function CircleScreen() {
   const pollLogFiredRef = useRef(false);
   useEffect(() => {
     if (!pollLogFiredRef.current && __DEV__) {
-      devLog("[P1_POLL_UI]", "mount");
+      // [P1_POLL_UI] mount, [P1_POLLS_E2E_UI] mounted, [P2_TYPING_UI] mounted removed (noise reduction)
       devLog("[P1_COORDINATION_FLOW]", "mounted");
-      devLog("[P1_POLLS_E2E_UI]", "mounted", { circleId: id });
       devLog("[P1_CIRCLE_POLLS_DISABLED]", { applied: true });
       pollLogFiredRef.current = true;
     }
   }, []);
   useEffect(() => {
     if (__DEV__ && polls && polls.length > 0) {
-      devLog("[P1_POLL_UI]", "refresh", { count: polls.length });
-      devLog("[P1_POLLS_E2E_UI]", "polls_refetched", { count: polls.length });
+      devLogThrottle("[P1_POLL_UI]", "refresh", 30_000, { count: polls.length });
+      devLogThrottle("[P1_POLLS_E2E_UI]", "polls_refetched", 30_000, { count: polls.length });
     }
   }, [polls]);
 
@@ -2920,23 +2901,11 @@ export default function CircleScreen() {
   const [reactionsByStableId, setReactionsByStableId] = useState<Record<string, string[]>>({});
   const [reactionTargetId, setReactionTargetId] = useState<string | null>(null);
   const REACTION_EMOJI = ["\uD83D\uDC4D", "\u2764\uFE0F", "\uD83D\uDE02", "\uD83D\uDE2E", "\uD83D\uDE22", "\uD83D\uDE4F"];
-  const reactionsLogFiredRef = useRef(false);
-  useEffect(() => {
-    if (!reactionsLogFiredRef.current && __DEV__) {
-      devLog("[P2_CHAT_REACTIONS]", "mounted");
-      reactionsLogFiredRef.current = true;
-    }
-  }, []);
+  // [P2_CHAT_REACTIONS] mounted log removed (noise reduction)
 
   // [P2_CHAT_REPLY] Reply state (wired to API)
   const [replyTarget, setReplyTarget] = useState<{ messageId: string; userId: string; name: string; snippet: string } | null>(null);
-  const replyLogFiredRef = useRef(false);
-  useEffect(() => {
-    if (!replyLogFiredRef.current && __DEV__) {
-      devLog("[P2_CHAT_REPLY_UI2]", "mounted");
-      replyLogFiredRef.current = true;
-    }
-  }, []);
+  // [P2_CHAT_REPLY_UI2] mounted log removed (noise reduction)
   const clearReplyTarget = useCallback((reason: "x" | "sent" | "blur" | "system_guard") => {
     setReplyTarget(null);
     if (__DEV__) devLog("[P2_CHAT_REPLY_UI2]", "clear", { reason });
@@ -2947,13 +2916,7 @@ export default function CircleScreen() {
   const [deletedStableIds, setDeletedStableIds] = useState<Record<string, true>>({});
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
   const [editDraftContent, setEditDraftContent] = useState("");
-  const editDelLogFiredRef = useRef(false);
-  useEffect(() => {
-    if (!editDelLogFiredRef.current && __DEV__) {
-      devLog("[P2_CHAT_EDITDEL]", "mounted");
-      editDelLogFiredRef.current = true;
-    }
-  }, []);
+  // [P2_CHAT_EDITDEL] mounted log removed (noise reduction)
 
   // [P1_CHAT_GROUP] One-time mount log
   const groupLogFired = useRef(false);
@@ -2961,7 +2924,7 @@ export default function CircleScreen() {
     if (!groupLogFired.current && __DEV__) {
       devLog("[P1_CHAT_GROUP]", "enabled windowMs=120000");
       devLog("[P2_CHAT_DATESEP]", "enabled");
-      devLog("[P2_TYPING_UI]", "mounted");
+      // [P2_TYPING_UI] mounted removed (noise reduction)
       groupLogFired.current = true;
     }
   }, []);
