@@ -772,4 +772,62 @@ echo "  ✓ P0_PERF_QUERY_RENDER_STABILITY: all inline press handlers in primary
 echo ""
 echo "P0_PERF_QUERY_RENDER_STABILITY checks PASS"
 
+# ── P0 PERF INLINE OBJECT PROPS IN FEEDS ───────────────────────────
+echo ""
+echo "Running P0_PERF_INLINE_OBJECT_PROPS_FEEDS checks…"
+echo "  Goal: prevent unannotated inline object literal props (={{) in primary feed screens."
+
+OBJ_FAIL=0
+OBJ_TOTAL=0
+
+OBJ_FEED_SCREENS=(
+  src/app/discover.tsx
+  src/app/social.tsx
+  src/app/friends.tsx
+  src/app/calendar.tsx
+)
+
+for OBJ_FEED in "${OBJ_FEED_SCREENS[@]}"; do
+  if [ ! -f "$OBJ_FEED" ]; then continue; fi
+  OBJ_VIOLATIONS=$(awk '
+  {
+    if (NF > 0) {
+      if (match($0, /=\{\{/)) {
+        gsub(/^[[:space:]]+/, "", prev_nonempty)
+        gsub(/[[:space:]]+$/, "", prev_nonempty)
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_OBJECT_PROP") {
+          printf "%s:%d: %s\n", FILENAME, NR, $0
+          count++
+        }
+      }
+      prev_nonempty = $0
+    }
+  }
+  END { exit (count > 0 ? 1 : 0) }
+  ' "$OBJ_FEED" 2>&1)
+  OBJ_VSTAT=$?
+  if [ "$OBJ_VSTAT" -ne 0 ]; then
+    OBJ_VCOUNT=$(echo "$OBJ_VIOLATIONS" | wc -l | tr -d ' ')
+    echo "  ❌ $OBJ_FEED has $OBJ_VCOUNT unannotated inline object prop(s):"
+    echo "$OBJ_VIOLATIONS" | head -20
+    if [ "$OBJ_VCOUNT" -gt 20 ]; then
+      echo "  … and $((OBJ_VCOUNT - 20)) more"
+    fi
+    OBJ_FAIL=1
+    OBJ_TOTAL=$((OBJ_TOTAL + OBJ_VCOUNT))
+  fi
+done
+
+if [ "$OBJ_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_INLINE_OBJECT_PROPS_FEEDS — $OBJ_TOTAL unannotated inline object prop(s)"
+  echo "Remediation: Add '// INVARIANT_ALLOW_INLINE_OBJECT_PROP' on the line immediately above each inline object prop."
+  exit 1
+fi
+
+echo "  ✓ P0_PERF_INLINE_OBJECT_PROPS_FEEDS: all inline object props in primary feeds are annotated"
+
+echo ""
+echo "P0_PERF_INLINE_OBJECT_PROPS_FEEDS checks PASS"
+
 echo "PASS: verify_frontend"

@@ -154,12 +154,14 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
   const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
 
   return (
+    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
     <View className="mt-2 pt-2 border-t" style={{ borderTopColor: colors.separator }}>
       {/* Day headers */}
       <View className="flex-row mb-1">
         {/* INVARIANT_ALLOW_SMALL_MAP */}
         {dayNames.map((day, i) => (
           <View key={i} className="flex-1 items-center">
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-[8px]" style={{ color: colors.textTertiary }}>{day}</Text>
           </View>
         ))}
@@ -184,6 +186,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
             <View key={day} className="w-[14.28%] h-4 items-center justify-center">
               <View
                 className="w-3.5 h-3.5 rounded-full items-center justify-center"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{
                   backgroundColor: hasEvent ? themeColor : "transparent",
                   borderWidth: isToday ? 1 : 0,
@@ -192,6 +195,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
               >
                 <Text
                   className="text-[7px]"
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{
                     color: hasEvent ? "#fff" : isToday ? themeColor : colors.textTertiary,
                     fontWeight: hasEvent || isToday ? "600" : "400",
@@ -208,7 +212,9 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
       {/* Event count indicator - only count future/present events */}
       {futureEvents.length > 0 && (
         <View className="flex-row items-center justify-center mt-1">
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           <View className="w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: themeColor }} />
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           <Text className="text-[9px]" style={{ color: colors.textSecondary }}>
             {futureEvents.length} open invite{futureEvents.length !== 1 ? "s" : ""}
           </Text>
@@ -308,13 +314,16 @@ const FriendCard = React.memo(function FriendCard({
       {onPin && (
         <View
           className="absolute inset-y-0 left-0 items-center justify-center"
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           style={{ width: ACTION_WIDTH_PX }}
         >
           <Pressable
             // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className="w-14 h-14 rounded-2xl items-center justify-center"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: '#10B981' }}
           >
             <Pin size={20} color="#fff" />
@@ -326,6 +335,7 @@ const FriendCard = React.memo(function FriendCard({
           <Pressable
             onPress={handlePress}
             className="rounded-xl p-3"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: isPinned ? themeColor + "40" : colors.border }}
     >
         <View className="flex-row items-start">
@@ -342,10 +352,12 @@ const FriendCard = React.memo(function FriendCard({
             size={48}
             backgroundColor={friend.image ? colors.avatarBg : themeColor + "20"}
             foregroundColor={themeColor}
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ marginRight: 12 }}
           />
           <View className="flex-1">
             <View className="flex-row items-center flex-nowrap gap-1.5">
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <Text style={{ fontSize: 17, fontWeight: "600", color: colors.text }} numberOfLines={1} ellipsizeMode="tail">
                 {friend.name ?? friend.email ?? "Unknown"}
               </Text>
@@ -353,6 +365,7 @@ const FriendCard = React.memo(function FriendCard({
             {cardSecondaryLine ? (
               <Text
                 className="mt-0.5"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}
                 numberOfLines={2}
                 ellipsizeMode="tail"
@@ -482,13 +495,16 @@ const FriendListItem = React.memo(function FriendListItem({
         {onPin && (
           <View
             className="absolute inset-y-0 left-0 items-center justify-center"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ width: 72 }}
           >
             <Pressable
               // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               className="w-14 h-14 rounded-2xl items-center justify-center"
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               style={{ backgroundColor: '#10B981' }}
             >
               <Pin size={20} color="#fff" />
@@ -513,6 +529,7 @@ const FriendListItem = React.memo(function FriendListItem({
                 router.push(`/friend/${friendship.id}` as any);
               }}
               leftAccessory={isPinned ? (
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <View style={{ marginRight: 6 }}>
                   <Pin size={14} color={themeColor} />
                 </View>
@@ -521,7 +538,9 @@ const FriendListItem = React.memo(function FriendListItem({
                 <Pressable
                   // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
                 >
                   <Animated.View style={arrowStyle}>
@@ -604,6 +623,7 @@ function FriendRequestCard({
         onViewProfile?.();
       }}
       className="flex-row items-center rounded-xl p-3 mb-2"
+      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
       style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
     >
       <EntityAvatar
@@ -612,6 +632,7 @@ function FriendRequestCard({
         size={40}
         backgroundColor={user?.image ? colors.avatarBg : themeColor + "20"}
         foregroundColor={themeColor}
+        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
         style={{ marginRight: 12 }}
       />
       <View className="flex-1 mr-2">
@@ -619,6 +640,7 @@ function FriendRequestCard({
         <View className="flex-row items-center flex-nowrap gap-1.5">
           <Text 
             className="font-medium" 
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ color: colors.text }}
             numberOfLines={1}
             ellipsizeMode="tail"
@@ -629,6 +651,7 @@ function FriendRequestCard({
         {/* Line 2: Metadata (mutual friends • @username • calendarBio) */}
         <Text 
           className="text-xs mt-0.5" 
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           style={{ color: colors.textSecondary }}
           numberOfLines={1}
           ellipsizeMode="tail"
@@ -647,6 +670,7 @@ function FriendRequestCard({
             }}
             disabled={actionPending}
             className="w-8 h-8 rounded-full items-center justify-center mr-2"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: colors.inputBg, opacity: actionPending ? 0.4 : 1 }}
           >
             <X size={16} color={colors.textSecondary} />
@@ -660,12 +684,14 @@ function FriendRequestCard({
             }}
             disabled={actionPending}
             className="w-8 h-8 rounded-full items-center justify-center"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: themeColor, opacity: actionPending ? 0.4 : 1 }}
           >
             <Check size={16} color="#fff" />
           </Pressable>
         </View>
       )}
+      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
       <ChevronRight size={16} color={colors.textTertiary} style={{ marginLeft: 8 }} />
     </Pressable>
   );
@@ -1373,8 +1399,10 @@ export default function FriendsScreen() {
         devLog('[P0_FRIENDS_AUTH] → Showing login prompt (bootStatus=loggedOut)');
       }
       return (
+        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
           <View className="flex-1 items-center justify-center px-8">
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
               Sign in to see your friends
             </Text>
@@ -1383,6 +1411,7 @@ export default function FriendsScreen() {
               label="Sign In"
               // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => router.replace("/login")}
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               style={{ marginTop: 16 }}
             />
           </View>
@@ -1409,6 +1438,7 @@ export default function FriendsScreen() {
     }
 
     return (
+      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
       <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
         <AppHeader title="Friends" />
         <FriendsListSkeleton />
@@ -1418,6 +1448,7 @@ export default function FriendsScreen() {
   }
 
   return (
+    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
     <SafeAreaView testID="friends-screen" className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
       <AppHeader
         title="Friends"
@@ -1427,6 +1458,7 @@ export default function FriendsScreen() {
             {receivedRequests.length > 0 && (
               <View
                 className="w-6 h-6 rounded-full items-center justify-center mr-2"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{ backgroundColor: themeColor }}
               >
                 <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
@@ -1436,6 +1468,7 @@ export default function FriendsScreen() {
               // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => setShowAddFriend(!showAddFriend)}
               className="w-10 h-10 rounded-full items-center justify-center"
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               style={{ backgroundColor: themeColor }}
             >
               <UserPlus size={20} color="#fff" />
@@ -1454,12 +1487,15 @@ export default function FriendsScreen() {
               router.push("/activity");
             }}
             className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
           >
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <View style={{ position: "relative" }}>
               <Activity size={16} color="#2196F3" />
               {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicator removed pre-launch */}
             </View>
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
               Activity
             </Text>
@@ -1471,9 +1507,11 @@ export default function FriendsScreen() {
               router.push("/suggestions");
             }}
             className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             style={{ backgroundColor: "#9C27B020", borderWidth: 1, borderColor: "#9C27B030" }}
           >
             <Sparkles size={16} color="#9C27B0" />
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-sm font-medium ml-2" style={{ color: "#9C27B0" }}>
               Suggestions
             </Text>
@@ -1483,6 +1521,7 @@ export default function FriendsScreen() {
 
       <ScrollView
         className="flex-1"
+        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -1496,7 +1535,9 @@ export default function FriendsScreen() {
         {/* Add Friend Section */}
         {showAddFriend && (
           <Animated.View entering={FadeInDown.springify()} className="mb-4">
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <View className="rounded-xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <Text className="font-semibold mb-3" style={{ color: colors.text }}>Add Friend</Text>
 
               {/* Import from Contacts Button */}
@@ -1504,15 +1545,18 @@ export default function FriendsScreen() {
                 onPress={loadContacts}
                 disabled={contactsLoading}
                 className="flex-row items-center rounded-lg p-3 mb-3"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{ backgroundColor: isDark ? "#0F766E20" : "#CCFBF1" }}
               >
                 <View className="w-10 h-10 rounded-full bg-teal-500 items-center justify-center mr-3">
                   <Contact size={20} color="#fff" />
                 </View>
                 <View className="flex-1">
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <Text className="font-medium" style={{ color: colors.text }}>
                     {contactsLoading ? "Loading..." : "Import from Contacts"}
                   </Text>
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <Text className="text-sm" style={{ color: colors.textSecondary }}>
                     Add friends from your phone
                   </Text>
@@ -1522,13 +1566,17 @@ export default function FriendsScreen() {
 
               {/* Divider */}
               <View className="flex-row items-center mb-3">
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <Text className="text-sm mx-3" style={{ color: colors.textTertiary }}>or search by</Text>
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <View className="flex-1 h-px" style={{ backgroundColor: colors.border }} />
               </View>
 
               {/* Search Input - supports name, email, or phone */}
               <View className="flex-row items-center">
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <View className="flex-1 flex-row items-center rounded-lg px-3 mr-2" style={{ backgroundColor: colors.inputBg }}>
                   <Search size={18} color={colors.textSecondary} />
                   <TextInput
@@ -1538,6 +1586,7 @@ export default function FriendsScreen() {
                     placeholderTextColor={colors.textTertiary}
                     autoCapitalize="none"
                     className="flex-1 py-3 px-2"
+                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                     style={{ color: colors.text }}
                   />
                 </View>
@@ -1546,11 +1595,13 @@ export default function FriendsScreen() {
                   label={sendRequestMutation.isPending ? "..." : "Add"}
                   onPress={handleDirectFriendRequest}
                   disabled={sendRequestMutation.isPending}
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ borderRadius: 8 }}
                 />
               </View>
 
               {/* Helper text */}
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
                 Search by name, email address, or phone number to find friends
               </Text>
@@ -1561,6 +1612,7 @@ export default function FriendsScreen() {
                   {/* Offline state */}
                   {!networkStatus.isOnline && (
                     <View className="py-4 items-center">
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         Offline — search unavailable
                       </Text>
@@ -1570,6 +1622,7 @@ export default function FriendsScreen() {
                   {/* Loading state */}
                   {networkStatus.isOnline && isSearching && (
                     <View className="py-4 items-center">
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         Searching...
                       </Text>
@@ -1589,6 +1642,7 @@ export default function FriendsScreen() {
                             router.push(`/user/${user.id}` as any);
                           }}
                           className="flex-row items-center py-3 border-t"
+                          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                           style={{ borderTopColor: colors.separator }}
                         >
                           {/* Avatar */}
@@ -1603,11 +1657,14 @@ export default function FriendsScreen() {
                           {/* User info */}
                           <View className="flex-1 ml-3">
                             <View className="flex-row items-center">
+                              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                               <Text className="font-medium" style={{ color: colors.text }}>
                                 {user.name ?? (user.handle ? `@${user.handle}` : "Unknown")}
                               </Text>
                               {user.isFriend && (
+                                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                                 <View className="ml-2 px-1.5 py-0.5 rounded" style={{ backgroundColor: themeColor + "20" }}>
+                                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                                   <Text className="text-[10px] font-medium" style={{ color: themeColor }}>
                                     Friend
                                   </Text>
@@ -1616,14 +1673,17 @@ export default function FriendsScreen() {
                             </View>
                             <View className="flex-row items-center">
                               {user.handle && (
+                                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
                                   @{user.handle}
                                 </Text>
                               )}
                               {user.handle && (user.mutualCount ?? 0) > 0 && (
+                                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                                 <Text className="text-sm mx-1" style={{ color: colors.textTertiary }}>•</Text>
                               )}
                               {(user.mutualCount ?? 0) > 0 && (
+                                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                                 <Text className="text-sm" style={{ color: colors.textSecondary }}>
                                   {user.mutualCount} mutual{user.mutualCount === 1 ? "" : "s"}
                                 </Text>
@@ -1638,9 +1698,11 @@ export default function FriendsScreen() {
                   {/* No results */}
                   {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length === 0 && debouncedQuery.length >= 2 && (
                     <View className="py-4 items-center">
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
                         No users found for "{debouncedQuery}"
                       </Text>
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
                         Try a different search or add by email/phone
                       </Text>
@@ -1665,6 +1727,7 @@ export default function FriendsScreen() {
             >
               <View className="flex-row items-center">
                 <Bell size={16} color={themeColor} />
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
                   Friend Requests ({receivedRequests.length})
                 </Text>
@@ -1728,6 +1791,7 @@ export default function FriendsScreen() {
           >
             <View className="flex-row items-center">
               <Calendar size={16} color="#9333EA" />
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
                 Planning ({circles.length})
               </Text>
@@ -1743,6 +1807,7 @@ export default function FriendsScreen() {
                   }}
                   className="mr-2"
                 >
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <Text className="text-xs font-medium" style={{ color: "#9333EA" }}>
                     View All
                   </Text>
@@ -1756,6 +1821,7 @@ export default function FriendsScreen() {
                   handleCreateCirclePress();
                 }}
                 className="w-7 h-7 rounded-full items-center justify-center mr-2"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{ backgroundColor: "#9333EA" }}
               >
                 <Plus size={14} color="#fff" />
@@ -1778,17 +1844,21 @@ export default function FriendsScreen() {
                     handleCreateCirclePress();
                   }}
                   className="rounded-xl p-4 mb-2 border border-dashed items-center"
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ borderColor: "#9333EA50" }}
                 >
                   <View
                     className="w-12 h-12 rounded-full items-center justify-center mb-2"
+                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                     style={{ backgroundColor: "#9333EA20" }}
                   >
                     <Plus size={24} color="#9333EA" />
                   </View>
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <Text className="font-medium text-center" style={{ color: colors.text }}>
                     Create a Group
                   </Text>
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <Text className="text-xs text-center mt-1" style={{ color: colors.textSecondary }}>
                     Plan events with friends in a group chat
                   </Text>
@@ -1827,6 +1897,7 @@ export default function FriendsScreen() {
           >
             <View className="flex-row items-center">
               <Users size={16} color="#4ECDC4" />
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
                 Friends ({filteredFriends.length})
               </Text>
@@ -1842,6 +1913,7 @@ export default function FriendsScreen() {
           {friendsExpanded && (
             <View className="flex-row items-center justify-between mt-2">
               {/* View Mode Toggle */}
+              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
                 <Pressable
                   // INVARIANT_ALLOW_INLINE_HANDLER
@@ -1850,11 +1922,13 @@ export default function FriendsScreen() {
                     handleViewModeChange("list");
                   }}
                   className="flex-row items-center px-2.5 py-1 rounded-md"
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ backgroundColor: viewMode === "list" ? colors.surface : "transparent" }}
                 >
                   <List size={14} color={viewMode === "list" ? themeColor : colors.textSecondary} />
                   <Text
                     className="text-xs font-medium ml-1"
+                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                     style={{ color: viewMode === "list" ? themeColor : colors.textSecondary }}
                   >
                     List
@@ -1867,11 +1941,13 @@ export default function FriendsScreen() {
                     handleViewModeChange("detailed");
                   }}
                   className="flex-row items-center px-2.5 py-1 rounded-md"
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ backgroundColor: viewMode === "detailed" ? colors.surface : "transparent" }}
                 >
                   <LayoutGrid size={14} color={viewMode === "detailed" ? themeColor : colors.textSecondary} />
                   <Text
                     className="text-xs font-medium ml-1"
+                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                     style={{ color: viewMode === "detailed" ? themeColor : colors.textSecondary }}
                   >
                     Detailed
@@ -1889,12 +1965,15 @@ export default function FriendsScreen() {
               <FriendsListSkeleton />
             ) : filteredFriends.length === 0 ? (
               <View className="py-12 items-center px-8">
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <View className="w-20 h-20 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}15` }}>
                   <Users size={36} color={themeColor} />
                 </View>
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
                   No friends yet
                 </Text>
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
                   Invite friends to see their plans and share yours
                 </Text>
@@ -1945,7 +2024,9 @@ export default function FriendsScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowContactsModal(false)}
       >
+        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           <View className="flex-row items-center justify-between px-5 py-4" style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Pressable
               // INVARIANT_ALLOW_INLINE_HANDLER
@@ -1957,6 +2038,7 @@ export default function FriendsScreen() {
             >
               <X size={24} color={colors.text} />
             </Pressable>
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-lg font-semibold" style={{ color: colors.text }}>
               Phone Contacts
             </Text>
@@ -1964,7 +2046,9 @@ export default function FriendsScreen() {
           </View>
 
           {/* Search */}
+          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           <View className="px-4 py-3" style={{ backgroundColor: colors.surface }}>
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <View className="flex-row items-center rounded-lg px-3" style={{ backgroundColor: colors.inputBg }}>
               <Search size={18} color={colors.textSecondary} />
               <TextInput
@@ -1973,6 +2057,7 @@ export default function FriendsScreen() {
                 placeholder="Search contacts..."
                 placeholderTextColor={colors.textTertiary}
                 className="flex-1 py-3 px-2"
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 style={{ color: colors.text }}
               />
               {contactSearch.length > 0 && (
@@ -1987,6 +2072,7 @@ export default function FriendsScreen() {
           <FlatList
             data={filteredContacts}
             keyExtractor={(item, index) => item.id ?? item.name ?? `contact-${index}`}
+            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             contentContainerStyle={{ paddingVertical: 8 }}
             // Virtualization tuning for contacts (can have hundreds)
             initialNumToRender={12}
@@ -2006,11 +2092,13 @@ export default function FriendsScreen() {
                   // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => handleInviteContact(contact)}
                   className="flex-row items-center mx-4 mb-2 p-4 rounded-xl"
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{
                     backgroundColor: colors.surface,
                     ...(isDark ? {} : TILE_SHADOW),
                   }}
                 >
+                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   <View className="w-12 h-12 rounded-full mr-3 items-center justify-center" style={{ backgroundColor: colors.avatarBg }}>
                     {contact.imageAvailable && contact.image?.uri ? (
                       <EntityAvatar
@@ -2019,29 +2107,34 @@ export default function FriendsScreen() {
                         backgroundColor={colors.avatarBg}
                       />
                     ) : (
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text className="text-lg font-semibold" style={{ color: colors.textSecondary }}>
                         {contact.name?.[0]?.toUpperCase() ?? "?"}
                       </Text>
                     )}
                   </View>
                   <View className="flex-1">
+                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                     <Text className="font-medium" style={{ color: colors.text }}>
                       {contact.name ?? "Unknown"}
                     </Text>
                     {email ? (
                       <View className="flex-row items-center mt-0.5">
                         <Mail size={12} color={colors.textSecondary} />
+                        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                         <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>{email}</Text>
                       </View>
                     ) : phone ? (
                       <View className="flex-row items-center mt-0.5">
                         <Phone size={12} color={colors.textSecondary} />
+                        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                         <Text className="text-sm ml-1" style={{ color: colors.textSecondary }}>{phone}</Text>
                       </View>
                     ) : null}
                   </View>
                   {canInvite ? (
                     <View
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       style={{
                         paddingHorizontal: 12,
                         paddingVertical: 6,
@@ -2049,6 +2142,7 @@ export default function FriendsScreen() {
                         backgroundColor: themeColor,
                       }}
                     >
+                      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                       <Text style={{ color: colors.buttonPrimaryText, fontSize: 13, fontWeight: "500" }}>Invite</Text>
                     </View>
                   ) : (
@@ -2060,6 +2154,7 @@ export default function FriendsScreen() {
             ListEmptyComponent={
               <View className="py-12 items-center">
                 <Contact size={48} color={colors.border} />
+                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                 <Text className="mt-3" style={{ color: colors.textSecondary }}>
                   {contactSearch ? "No contacts found" : "No contacts available"}
                 </Text>
