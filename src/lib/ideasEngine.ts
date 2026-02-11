@@ -15,6 +15,8 @@ import {
   diversityMerge as archetypeDiversityMerge,
   localEntropySort,
   buildDailySeed,
+  applyArchetypeSpacing,
+  computeConfidence,
 } from "@/lib/ideaScoring";
 
 // ─── Types ───────────────────────────────────────────────
@@ -955,9 +957,21 @@ export function generateIdeas(
       habitBoost: (postLearn - postDecay) + (final - postCtx),
     });
 
+    // P3B_CONFIDENCE: attach confidence from breakdown
+    card.scoreBreakdown.confidence = computeConfidence(
+      card.archetype,
+      card.scoreBreakdown,
+    );
+
     if (__DEV__) {
       devLog(`[P1_SCORE] ${card.id}`, card.scoreBreakdown);
     }
+  }
+
+  // ── DEDUP: remove duplicate friend cards (order-independent) ──
+  allCards = dedup(allCards);
+  if (__DEV__) {
+    devLog(`[P1_IDEAS_ENGINE] post-dedup: ${allCards.length} cards`);
   }
 
   // P2B_SEEDED_ENTROPY: deterministic per-user per-day shuffle within score buckets
@@ -970,7 +984,7 @@ export function generateIdeas(
     });
   }
 
-  // P2_DIVERSITY: interleave archetypes
+  // P2_DIVERSITY: interleave archetypes (round-robin)
   allCards = archetypeDiversityMerge(allCards);
   if (__DEV__) {
     devLog(
@@ -979,9 +993,20 @@ export function generateIdeas(
     );
   }
 
-  // Adaptive deck size based on engagement
+  // P3_ARCHETYPE_SPACING: greedy spaced selector (no consecutive same archetype)
+  const { cards: spacedCards, violationsCount } = applyArchetypeSpacing(allCards);
+  allCards = spacedCards;
+  if (__DEV__) {
+    devLog(
+      "[P3_ARCHETYPE_SPACING]",
+      allCards.map((c) => ({ archetype: c.archetype, scoreFinal: c.scoreBreakdown?.final })),
+      { violationsCount },
+    );
+  }
+
+  // ── FINAL CAP: adaptive deck size, no further reordering ──
   const deckSize = adaptiveDeckSize(acceptStats);
-  const deck = rankAndDedupe(allCards, deckSize);
+  const deck = allCards.slice(0, deckSize);
 
   if (__DEV__) {
     devLog(`[P1_IDEAS_ENGINE] final deck size: ${deck.length}`);
