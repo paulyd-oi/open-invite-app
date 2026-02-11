@@ -54,6 +54,7 @@ import {
   getCompletionCopy,
   getAcceptFeedback,
   getDismissFeedback,
+  shouldShowAcceptFeedback,
 } from "@/lib/smartMicrocopy";
 import {
   generateIdeas,
@@ -641,7 +642,7 @@ function DeckSwipeCard({
   );
 }
 
-function DailyIdeasDeck({ onSwitchToPeople }: { onSwitchToPeople?: () => void }) {
+function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeople?: () => void; peopleCount?: number }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, colors, isDark } = useTheme();
@@ -915,14 +916,20 @@ function DailyIdeasDeck({ onSwitchToPeople }: { onSwitchToPeople?: () => void })
       AsyncStorage.setItem(getSessionSignalsKey(), JSON.stringify(sessionSignalsRef.current)).catch(() => {});
     }
 
-    // Session counter + microcopy feedback
+    // Session counter + throttled microcopy feedback
     sessionAcceptedRef.current++;
     const myId = (session as any)?.user?.id as string | undefined;
     const dailySeed = myId ? buildDailySeed(myId) : 0;
-    const acceptMsg = getAcceptFeedback({ seed: dailySeed, archetype: card.archetype, category: card.category });
-    if (acceptMsg) {
-      showFeedback(acceptMsg);
-      if (__DEV__) devLog("[P1_MICROCOPY]", { kind: "accept", message: acceptMsg, archetype: card.archetype });
+    const showIt = shouldShowAcceptFeedback(dailySeed, sessionAcceptedRef.current);
+    if (showIt) {
+      const acceptMsg = getAcceptFeedback({ seed: dailySeed, archetype: card.archetype, category: card.category });
+      if (acceptMsg) {
+        showFeedback(acceptMsg);
+        if (__DEV__) devLog("[P1_MICROCOPY]", { kind: "accept", message: acceptMsg, archetype: card.archetype });
+      }
+    }
+    if (__DEV__ && sessionAcceptedRef.current === 1) {
+      devLog("[P1_IDEAS_POLISH]", { acceptedCount: 1, showFeedbackDecision: showIt, peopleCount });
     }
 
     // low_rsvp → navigate to the event detail screen (so user can RSVP)
@@ -1099,8 +1106,15 @@ function DailyIdeasDeck({ onSwitchToPeople }: { onSwitchToPeople?: () => void })
           ]}
         >
           <Sparkles size={28} color={themeColor} />
+          {/* Reward line */}
           <Text
-            className="text-lg font-semibold mt-4 text-center"
+            className="text-[12px] mt-3"
+            style={{ color: colors.textTertiary, opacity: 0.6 }}
+          >
+            Done for today
+          </Text>
+          <Text
+            className="text-lg font-semibold mt-1 text-center"
             style={{ color: colors.text }}
           >
             {copy.title}
@@ -1126,9 +1140,19 @@ function DailyIdeasDeck({ onSwitchToPeople }: { onSwitchToPeople?: () => void })
             </Text>
           </Pressable>
 
+          {/* People-empty hint */}
+          {peopleCount === 0 && (
+            <Text
+              className="text-[11px] mt-2 text-center"
+              style={{ color: colors.textTertiary }}
+            >
+              Add a friend to unlock better ideas.
+            </Text>
+          )}
+
           {/* Secondary hint (non-interactive) */}
           <Text
-            className="text-[11px] mt-3"
+            className="text-[11px] mt-2"
             style={{ color: colors.textTertiary }}
           >
             New ideas tomorrow
@@ -1685,7 +1709,7 @@ export default function SuggestionsScreen() {
       {/* Content based on active tab */}
       {activeTab === "ideas" ? (
         /* Daily Ideas Deck */
-        <DailyIdeasDeck onSwitchToPeople={() => setActiveTab("people")} />
+        <DailyIdeasDeck onSwitchToPeople={() => setActiveTab("people")} peopleCount={suggestions.length} />
       ) : (
         /* People You May Know */
         <FlatList

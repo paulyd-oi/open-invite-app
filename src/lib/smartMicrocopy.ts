@@ -120,6 +120,22 @@ export function getAcceptFeedback(input: AcceptFeedbackInput): string | null {
   return pickFromPool(seed, `accept_${key}`, pool);
 }
 
+/**
+ * Deterministic accept-feedback throttle.
+ * First accept in a session (n === 1) always returns true.
+ * Subsequent accepts return true ~50% of the time, seeded.
+ */
+export function shouldShowAcceptFeedback(
+  seed: number,
+  n: number,
+): boolean {
+  if (n <= 1) return true;
+  const salt = `accept_throttle_${n}`;
+  const combined = hashStringToSeed(`${seed}_${salt}`);
+  const rng = mulberry32(combined);
+  return rng() < 0.5;
+}
+
 // ─── Dismiss feedback (rare: 1-in-6) ────────────────────
 
 export interface DismissFeedbackInput {

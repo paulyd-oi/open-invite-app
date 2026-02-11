@@ -173,6 +173,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_DECK_COMPLETE]",
   // P1 microcopy intelligence (accept/dismiss feedback)
   "[P1_MICROCOPY]",
+  // P1 ideas completion polish (reward + throttle + people hint)
+  "[P1_IDEAS_POLISH]",
 ];
 
 /**
