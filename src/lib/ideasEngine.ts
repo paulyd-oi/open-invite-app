@@ -239,6 +239,86 @@ export function maybeResetStats(
 
 // ─── Context boosts (time/social scoring) ────────────────
 
+// ─── Session learning layer ─────────────────────────────
+
+/** Per-archetype accept/dismiss tally for a single day's session. */
+export type SessionSignals = {
+  acceptByArchetype: Record<string, number>;
+  dismissByArchetype: Record<string, number>;
+};
+
+const EMPTY_SESSION_SIGNALS: SessionSignals = {
+  acceptByArchetype: {},
+  dismissByArchetype: {},
+};
+
+/**
+ * Record a swipe into the session signals aggregate.
+ * Returns a new SessionSignals (immutable).
+ */
+export function recordSessionSignal(
+  signals: SessionSignals,
+  archetype: string,
+  action: "accepted" | "dismissed",
+): SessionSignals {
+  const bucket =
+    action === "accepted" ? "acceptByArchetype" : "dismissByArchetype";
+  const prev = signals[bucket][archetype] ?? 0;
+  return {
+    ...signals,
+    [bucket]: { ...signals[bucket], [archetype]: prev + 1 },
+  };
+}
+
+/** Return a fresh (empty) SessionSignals object. */
+export function emptySessionSignals(): SessionSignals {
+  return { acceptByArchetype: {}, dismissByArchetype: {} };
+}
+
+/**
+ * Apply yesterday's session signals as a lightweight scoring bias.
+ *
+ *  - archetype with more accepts → ×1.05–1.12 multiplier
+ *  - archetype with notably more dismisses → ×0.92–0.98
+ *  - Requires ≥ 3 total swipes on an archetype before applying.
+ *
+ * Pure function — does not mutate input cards.
+ */
+export function applySessionLearning(
+  cards: IdeaCard[],
+  signals: SessionSignals,
+): IdeaCard[] {
+  const { acceptByArchetype, dismissByArchetype } = signals;
+  const allKeys = new Set([
+    ...Object.keys(acceptByArchetype),
+    ...Object.keys(dismissByArchetype),
+  ]);
+
+  if (allKeys.size === 0) return cards;
+
+  const multiplierMap = new Map<string, number>();
+  for (const arch of allKeys) {
+    const a = acceptByArchetype[arch] ?? 0;
+    const d = dismissByArchetype[arch] ?? 0;
+    const total = a + d;
+    if (total < 3) continue; // not enough data
+    const rate = a / total; // 0..1
+    // rate 1.0 → 1.12, rate 0.5 → 1.0, rate 0.0 → 0.92
+    const mult = 1.0 + (rate - 0.5) * 0.24;
+    multiplierMap.set(arch, Math.max(0.92, Math.min(1.12, mult)));
+  }
+
+  if (multiplierMap.size === 0) return cards;
+
+  return cards.map((card) => {
+    const m = multiplierMap.get(card.archetype ?? "");
+    if (m == null) return card;
+    return { ...card, score: card.score * m };
+  });
+}
+
+// ─── Context boosts (time/social scoring) ────────────────
+
 /**
  * Apply lightweight time & social context scoring boosts.
  * - Friday evening → +0.2 to activity_repeat cards ("weekend plan" energy)
@@ -290,6 +370,101 @@ export function applyContextBoosts(
     if (boost === 0) return card;
 
     return { ...card, score: card.score * (1 + boost) };
+  });
+}
+
+// ─── Rhythm shaping (day/hour-based archetype boosts) ────
+
+export type RhythmBucket = "morning" | "midday" | "afternoon" | "evening" | "night";
+
+export interface RhythmContext {
+  dayOfWeek: number; // 0=Sun
+  hour: number;
+  bucket: RhythmBucket;
+  isWeekend: boolean;
+}
+
+/** Derive rhythm context from a Date (pure). */
+export function getRhythmContext(now: Date = new Date()): RhythmContext {
+  const hour = now.getHours();
+  let bucket: RhythmBucket;
+  if (hour < 9) bucket = "morning";
+  else if (hour < 12) bucket = "midday";
+  else if (hour < 16) bucket = "afternoon";
+  else if (hour < 20) bucket = "evening";
+  else bucket = "night";
+
+  return {
+    dayOfWeek: now.getDay(),
+    hour,
+    bucket,
+    isWeekend: now.getDay() === 0 || now.getDay() === 6,
+  };
+}
+
+/**
+ * Per-archetype rhythm boost based on day-of-week + time bucket.
+ *
+ *  - Friday evening → +0.10 repeat_activity & join_event
+ *  - Saturday → +0.08 join_event & explore
+ *  - Sunday midday → +0.10 reconnect
+ *  - Weeknight late (after 20h) → -0.05 join_event
+ *
+ * Capped at ±0.12 per card. Pure function.
+ */
+export function rhythmBoost(
+  archetype: string,
+  ctx: RhythmContext,
+): number {
+  let boost = 0;
+
+  const isFriday = ctx.dayOfWeek === 5;
+  const isSaturday = ctx.dayOfWeek === 6;
+  const isSunday = ctx.dayOfWeek === 0;
+  const isWeeknight = !ctx.isWeekend && ctx.bucket === "night";
+
+  // Friday evening energy → social & repeat plans
+  if (isFriday && ctx.bucket === "evening") {
+    if (archetype === "repeat_activity" || archetype === "join_event") {
+      boost += 0.1;
+    }
+  }
+
+  // Saturday → explore & events
+  if (isSaturday) {
+    if (archetype === "join_event" || archetype === "explore") {
+      boost += 0.08;
+    }
+  }
+
+  // Sunday midday → reconnect (reflective)
+  if (isSunday && (ctx.bucket === "midday" || ctx.bucket === "morning")) {
+    if (archetype === "reconnect") {
+      boost += 0.1;
+    }
+  }
+
+  // Weeknight late → dampen events (user is winding down)
+  if (isWeeknight && archetype === "join_event") {
+    boost -= 0.05;
+  }
+
+  return Math.max(-0.12, Math.min(0.12, boost));
+}
+
+/**
+ * Apply rhythm boosts to a deck of cards.
+ * Composes with the ×(1 + boost) model; respects 0.3 total cap
+ * from context + rhythm combined.
+ * Pure function — does not mutate input cards.
+ */
+export function applyRhythmBoosts(cards: IdeaCard[]): IdeaCard[] {
+  const ctx = getRhythmContext();
+
+  return cards.map((card) => {
+    const rb = rhythmBoost(card.archetype ?? "", ctx);
+    if (rb === 0) return card;
+    return { ...card, score: card.score * (1 + rb) };
   });
 }
 
@@ -688,6 +863,7 @@ export function generateIdeas(
   birthdayMap?: Record<string, number>,
   patternMemory?: PatternMemory,
   viewerUserId?: string,
+  yesterdaySignals?: SessionSignals,
 ): IdeaCard[] {
   const todayKey = getTodayKey();
 
@@ -733,6 +909,14 @@ export function generateIdeas(
   if (__DEV__) {
     devLog(`[P2_CONTEXT_BOOSTS] applied time/social context boosts`);
   }
+
+  // P4B_RHYTHM: day/hour-based archetype boosts
+  allCards = applyRhythmBoosts(allCards);
+  if (__DEV__) {
+    const ctx = getRhythmContext();
+    devLog("[P4B_RHYTHM]", { day: ctx.dayOfWeek, hour: ctx.hour, bucket: ctx.bucket });
+  }
+
   const _postCtxScores = new Map(allCards.map(c => [c.id, c.score]));
 
   // Apply habit reinforcement boosts from pattern memory
@@ -740,6 +924,17 @@ export function generateIdeas(
     allCards = applyHabitBoosts(allCards, patternMemory, todayKey);
     if (__DEV__) {
       devLog(`[P2_HABIT_ENGINE] applied habit boosts from ${Object.keys(patternMemory).length} patterns`);
+    }
+  }
+
+  // P4_SESSION_LEARN: apply yesterday's session signals (next-day only)
+  if (yesterdaySignals) {
+    allCards = applySessionLearning(allCards, yesterdaySignals);
+    if (__DEV__) {
+      devLog("[P4_SESSION_LEARN]", {
+        accepts: yesterdaySignals.acceptByArchetype,
+        dismisses: yesterdaySignals.dismissByArchetype,
+      });
     }
   }
 

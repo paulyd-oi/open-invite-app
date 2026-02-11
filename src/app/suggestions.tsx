@@ -57,11 +57,14 @@ import {
   type ExposureMap,
   type AcceptStats,
   type PatternMemory,
+  type SessionSignals,
   updateExposureMap,
   recordSwipeAction,
   maybeResetStats,
   recordPattern,
   prunePatternMemory,
+  recordSessionSignal,
+  emptySessionSignals,
 } from "@/lib/ideasEngine";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
@@ -285,8 +288,11 @@ const EXPOSURE_MAP_KEY = "ideasExposureMap";
 const ACCEPT_STATS_KEY = "ideasAcceptStats";
 const STATS_RESET_MONTH_KEY = "ideasStatsResetMonth";
 const PATTERN_MEMORY_KEY = "ideasPatternMemory";
-const DECK_SWIPE_THRESHOLD = 100;
+function getSessionSignalsKey(dayKey?: string): string {
+  return `ideasSessionSignals_${(dayKey ?? getTodayKey()).replace(/-/g, "_")}`;
+}
 const DECK_SCREEN_W = Dimensions.get("window").width;
+const DECK_SWIPE_THRESHOLD = Math.round(DECK_SCREEN_W * 0.33);
 
 interface DeckReconnectSuggestion {
   friend: { id: string; name: string | null; image: string | null };
@@ -453,6 +459,7 @@ const CARD_H = HERO_H + 150; // hero + content area
 function DeckSwipeCard({
   card,
   nextCard,
+  thirdCard,
   index,
   total,
   onAccept,
@@ -460,6 +467,7 @@ function DeckSwipeCard({
 }: {
   card: IdeaCard;
   nextCard?: IdeaCard;
+  thirdCard?: IdeaCard;
   index: number;
   total: number;
   onAccept: () => void;
@@ -468,6 +476,7 @@ function DeckSwipeCard({
   const { themeColor, colors, isDark } = useTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+  const hapticFiredRef = useRef(false);
 
   const delayedAccept = useCallback(() => {
     setTimeout(onAccept, 120);
@@ -477,12 +486,29 @@ function DeckSwipeCard({
     setTimeout(onDismiss, 120);
   }, [onDismiss]);
 
+  const fireThresholdHaptic = useCallback(() => {
+    if (!hapticFiredRef.current) {
+      hapticFiredRef.current = true;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, []);
+
+  const resetHapticFlag = useCallback(() => {
+    hapticFiredRef.current = false;
+  }, []);
+
   const panGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .failOffsetY([-15, 15])
     .onUpdate((e) => {
       translateX.value = e.translationX;
-      translateY.value = e.translationY * 0.12; // slightly reduced Y coupling
+      translateY.value = e.translationY * 0.12;
+      // Haptic on threshold crossing (guarded against spam)
+      if (Math.abs(e.translationX) >= DECK_SWIPE_THRESHOLD) {
+        runOnJS(fireThresholdHaptic)();
+      } else {
+        runOnJS(resetHapticFlag)();
+      }
     })
     .onEnd((e) => {
       if (e.translationX > DECK_SWIPE_THRESHOLD) {
@@ -492,9 +518,9 @@ function DeckSwipeCard({
         translateX.value = withTiming(-DECK_SCREEN_W, { duration: MotionDurations.normal });
         runOnJS(delayedDismiss)();
       } else {
-        // Snap back: slightly bouncier spring
-        translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
-        translateY.value = withSpring(0, { damping: 18, stiffness: 180 });
+        // Snap back: bouncier spring
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+        translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
     });
 
@@ -502,16 +528,33 @@ function DeckSwipeCard({
     transform: [
       { translateX: translateX.value },
       { translateY: translateY.value },
-      { rotate: `${translateX.value / 28}deg` }, // slightly gentler rotation
+      { rotate: `${translateX.value / 32}deg` }, // slightly gentler rotation
     ],
   }));
 
+  // Next card (peek #1): scale 0.96→1.0, translateY 6→0
   const peekStyle = useAnimatedStyle(() => {
     const abs = Math.abs(translateX.value);
     const t = Math.min(abs / DECK_SWIPE_THRESHOLD, 1);
     return {
-      transform: [{ scale: 0.96 + 0.04 * t }], // peek starts at 0.96, lands at 1.0
+      transform: [
+        { scale: 0.96 + 0.04 * t },
+        { translateY: 6 * (1 - t) },
+      ],
       opacity: 0.65 + 0.35 * t,
+    };
+  });
+
+  // Third card (peek #2): scale 0.92→0.96, translateY 12→6
+  const thirdStyle = useAnimatedStyle(() => {
+    const abs = Math.abs(translateX.value);
+    const t = Math.min(abs / DECK_SWIPE_THRESHOLD, 1);
+    return {
+      transform: [
+        { scale: 0.92 + 0.04 * t },
+        { translateY: 12 - 6 * t },
+      ],
+      opacity: 0.4 + 0.25 * t,
     };
   });
 
@@ -519,8 +562,18 @@ function DeckSwipeCard({
 
   return (
     <Animated.View entering={FadeInDown.springify().damping(18)} className="items-center px-4">
-      {/* Card stack */}
+      {/* Card stack — 3 layers for depth */}
       <View style={{ width: cardW, minHeight: CARD_H }}>
+        {thirdCard && (
+          <Animated.View
+            style={[
+              { position: "absolute", top: 0, left: 0, right: 0 },
+              thirdStyle,
+            ]}
+          >
+            <DeckCardFace card={thirdCard} />
+          </Animated.View>
+        )}
         {nextCard && (
           <Animated.View
             style={[
@@ -602,6 +655,8 @@ function DailyIdeasDeck() {
   const acceptStatsRef = useRef<AcceptStats>({});
   const statsResetMonthRef = useRef<string | null>(null);
   const patternMemoryRef = useRef<PatternMemory>({});
+  const sessionSignalsRef = useRef<SessionSignals>(emptySessionSignals());
+  const yesterdaySignalsRef = useRef<SessionSignals | undefined>(undefined);
 
   const enabled = isAuthedForNetwork(bootStatus, session);
 
@@ -693,6 +748,21 @@ function DailyIdeasDeck() {
           } catch { /* ignore */ }
         }
 
+        // Load today's session signals (for mid-session resumption)
+        const rawTodaySignals = await AsyncStorage.getItem(getSessionSignalsKey());
+        if (rawTodaySignals) {
+          try { sessionSignalsRef.current = JSON.parse(rawTodaySignals); } catch { /* ignore */ }
+        }
+
+        // Load yesterday's signals (for next-day generation bias)
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+        const rawYesterdaySignals = await AsyncStorage.getItem(getSessionSignalsKey(yKey));
+        if (rawYesterdaySignals) {
+          try { yesterdaySignalsRef.current = JSON.parse(rawYesterdaySignals); } catch { /* ignore */ }
+        }
+
         const storageKey = getDeckStorageKey();
         const raw = await AsyncStorage.getItem(storageKey);
         if (raw) {
@@ -774,7 +844,7 @@ function DailyIdeasDeck() {
       }
     }
 
-    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current, myId);
+    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current, myId, yesterdaySignalsRef.current);
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);
@@ -815,6 +885,12 @@ function DailyIdeasDeck() {
     // Record pattern for habit engine
     patternMemoryRef.current = recordPattern(patternMemoryRef.current, card, getTodayKey());
     AsyncStorage.setItem(PATTERN_MEMORY_KEY, JSON.stringify(patternMemoryRef.current)).catch(() => {});
+
+    // Record session signal for next-day learning
+    if (card.archetype) {
+      sessionSignalsRef.current = recordSessionSignal(sessionSignalsRef.current, card.archetype, "accepted");
+      AsyncStorage.setItem(getSessionSignalsKey(), JSON.stringify(sessionSignalsRef.current)).catch(() => {});
+    }
 
     // low_rsvp → navigate to the event detail screen (so user can RSVP)
     if (card.category === "low_rsvp" && card.eventId) {
@@ -872,6 +948,12 @@ function DailyIdeasDeck() {
       // Record dismiss for learning model
       acceptStatsRef.current = recordSwipeAction(acceptStatsRef.current, card.category, "dismissed");
       AsyncStorage.setItem(ACCEPT_STATS_KEY, JSON.stringify(acceptStatsRef.current)).catch(() => {});
+
+      // Record session signal for next-day learning
+      if (card.archetype) {
+        sessionSignalsRef.current = recordSessionSignal(sessionSignalsRef.current, card.archetype, "dismissed");
+        AsyncStorage.setItem(getSessionSignalsKey(), JSON.stringify(sessionSignalsRef.current)).catch(() => {});
+      }
     }
     const next = currentIndex + 1;
     setCurrentIndex(next);
@@ -954,6 +1036,7 @@ function DailyIdeasDeck() {
 
   const currentCard = deck[currentIndex]!;
   const nextCard = deck[currentIndex + 1];
+  const thirdCard = deck[currentIndex + 2];
 
   return (
     <View className="flex-1 pt-8">
@@ -961,6 +1044,7 @@ function DailyIdeasDeck() {
         key={currentCard.id}
         card={currentCard}
         nextCard={nextCard}
+        thirdCard={thirdCard}
         index={currentIndex}
         total={deck.length}
         onAccept={handleAccept}

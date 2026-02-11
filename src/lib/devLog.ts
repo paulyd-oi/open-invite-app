@@ -159,6 +159,14 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P2_DIVERSITY]",
   // P2B seeded entropy (deterministic per-user per-day shuffle)
   "[P2B_SEEDED_ENTROPY]",
+  // P3 archetype spacing (anti-streak greedy selector)
+  "[P3_ARCHETYPE_SPACING]",
+  // P3B confidence scoring (per-card confidence signal)
+  "[P3B_CONFIDENCE]",
+  // P4 session learning (next-day signals bias)
+  "[P4_SESSION_LEARN]",
+  // P4B rhythm shaping (day/hour-based archetype boosts)
+  "[P4B_RHYTHM]",
 ];
 
 /**

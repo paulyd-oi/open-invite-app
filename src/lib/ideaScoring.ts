@@ -51,6 +51,8 @@ export type ScoreBreakdown = {
   habit: number;
   decay: number;
   final: number;
+  /** Confidence 0.0–1.0 (populated by computeConfidence after pipeline). */
+  confidence: number;
 };
 
 const ARCHETYPE_CONFIG: Record<IdeaArchetype, { base: number }> = {
@@ -90,6 +92,7 @@ export function scoreIdea({
     habit: habitBoost,
     decay: recencyPenalty,
     final,
+    confidence: 0, // populated by computeConfidence() after pipeline stages
   };
 }
 
@@ -172,6 +175,134 @@ export function localEntropySort<
   }
 
   return result;
+}
+
+// ─── Archetype spacing engine ─────────────────────────────
+
+export interface ArchetypeSpacingOpts {
+  /** Max consecutive cards of the same archetype (default 1). */
+  maxConsecutive?: number;
+  /** Candidate window size for greedy pick (default 5). */
+  topK?: number;
+}
+
+export interface ArchetypeSpacingResult<T> {
+  cards: T[];
+  violationsCount: number;
+}
+
+/**
+ * Greedy archetype-spaced selector.
+ *
+ * At each step, considers the top-K candidates by score and picks
+ * the highest-scoring one whose archetype doesn't violate the
+ * consecutive-cap. If all K violate, picks the best anyway (never
+ * drops cards). Runs AFTER scoring & entropy, BEFORE final cap.
+ *
+ * Pure function — does not mutate input array.
+ */
+export function applyArchetypeSpacing<
+  T extends { archetype?: string; scoreBreakdown?: { final: number } },
+>(
+  cards: T[],
+  opts: ArchetypeSpacingOpts = {},
+): ArchetypeSpacingResult<T> {
+  const maxConsec = opts.maxConsecutive ?? 1;
+  const topK = opts.topK ?? 5;
+
+  if (cards.length <= 1) return { cards: [...cards], violationsCount: 0 };
+
+  // Sort pool by score descending (stable copy)
+  const pool = [...cards].sort(
+    (a, b) => (b.scoreBreakdown?.final ?? 0) - (a.scoreBreakdown?.final ?? 0),
+  );
+
+  const result: T[] = [];
+  const recentArchetypes: string[] = [];
+  let violations = 0;
+
+  while (pool.length > 0) {
+    const window = pool.slice(0, Math.min(topK, pool.length));
+
+    // Count consecutive tail of same archetype in result
+    let tailArchetype: string | null = null;
+    let tailCount = 0;
+    for (let i = recentArchetypes.length - 1; i >= 0; i--) {
+      if (tailArchetype === null) {
+        tailArchetype = recentArchetypes[i]!;
+        tailCount = 1;
+      } else if (recentArchetypes[i] === tailArchetype) {
+        tailCount++;
+      } else {
+        break;
+      }
+    }
+
+    // Find best candidate that doesn't violate spacing
+    let pickedIdx = -1;
+    for (let i = 0; i < window.length; i++) {
+      const arch = window[i]!.archetype || "unknown";
+      if (arch !== tailArchetype || tailCount < maxConsec) {
+        pickedIdx = i;
+        break;
+      }
+    }
+
+    // All K candidates violate — allow the violation, pick best
+    if (pickedIdx === -1) {
+      pickedIdx = 0;
+      violations++;
+    }
+
+    const picked = pool.splice(pickedIdx, 1)[0]!;
+    result.push(picked);
+    recentArchetypes.push(picked.archetype || "unknown");
+  }
+
+  return { cards: result, violationsCount: violations };
+}
+
+// ─── Confidence scoring ─────────────────────────────────
+
+const ARCHETYPE_BASE_CONFIDENCE: Record<IdeaArchetype, number> = {
+  birthday: 0.85,
+  join_event: 0.8,
+  support_friend: 0.7,
+  repeat_activity: 0.7,
+  reconnect: 0.65,
+  explore: 0.6,
+};
+
+/**
+ * Pure confidence score 0.0–1.0 computed from breakdown + archetype.
+ *
+ * Factors:
+ *  - Base confidence by archetype (reflects inherent relevance)
+ *  - +0.05 if habit boost present (repeated engagement signal)
+ *  - +0.05 if context boost present (time/day signal alignment)
+ *  - -0.10 if significant decay (stale card)
+ *  - Clamped to [0.35, 0.95]
+ */
+export function computeConfidence(
+  archetype: IdeaArchetype,
+  breakdown: Omit<ScoreBreakdown, "confidence">,
+): number {
+  let conf = ARCHETYPE_BASE_CONFIDENCE[archetype] ?? 0.6;
+
+  if (breakdown.habit > 0) conf += 0.05;
+  if (breakdown.context > 0) conf += 0.05;
+  if (breakdown.decay > 5) conf -= 0.1;
+
+  return Math.max(0.35, Math.min(0.95, conf));
+}
+
+export type ConfidenceLabel = "High match" | "Good match" | "Worth a try";
+
+/** Map a numeric confidence to a human-friendly label. */
+export function confidenceToLabel(confidence: number): ConfidenceLabel {
+  if (confidence >= 0.85) return "High match";
+  if (confidence >= 0.7) return "Good match";
+  return "Worth a try";
 }
 
 // ─── Category mapping ────────────────────────────────────
