@@ -253,6 +253,10 @@ export async function uploadByKind(
       throw new Error(`Backend sign response missing required fields (uploadUrl=${!!signed?.uploadUrl}, signedParams=${!!signed?.signedParams}).`);
     }
 
+    if (__DEV__) {
+      devLog("[P0_UPLOAD_PROOF]", "sign_response", { kind, hasUploadUrl: !!signed.uploadUrl, uploadUrlPrefix: signed.uploadUrl?.slice(0, 45), signedKeys: Object.keys(signed.signedParams || {}).sort() });
+    }
+
     // --- C. Upload to Cloudinary (signed) ----------------------------------
     const formData = new FormData();
     // CRITICAL: String() every value — JSON.parse may return numbers/booleans
@@ -281,6 +285,7 @@ export async function uploadByKind(
     // SSOT: use backend-provided uploadUrl verbatim
     const endpoint = signed.uploadUrl;
     if (__DEV__) {
+      devLog("[P0_UPLOAD_PROOF]", "cloudinary_fetch", { kind, endpointPrefix: endpoint?.slice(0, 45), hasEventId: !!entityId && kind==="event_photo", hasCircleId: !!entityId && kind==="circle_photo" });
       devLog('[P0_UPLOAD_CLOUDINARY_POST]', { kind, url: endpoint, hasFile: true, fileName: profile.filename, mimeType: 'image/jpeg' });
     }
     let res: Response;
