@@ -17,6 +17,7 @@ import {
   buildDailySeed,
   applyArchetypeSpacing,
   computeConfidence,
+  applyFriendCooldown,
 } from "@/lib/ideaScoring";
 
 // ─── Types ───────────────────────────────────────────────
@@ -1002,6 +1003,15 @@ export function generateIdeas(
       allCards.map((c) => ({ archetype: c.archetype, scoreFinal: c.scoreBreakdown?.final })),
       { violationsCount },
     );
+  }
+
+  // P3C_FRIEND_COOLDOWN: avoid same friend within last 3 positions
+  const { cards: cooledCards, forcedCount } = applyFriendCooldown(allCards, 3);
+  allCards = cooledCards;
+  if (__DEV__) {
+    const beforeIds = spacedCards.map((c) => c.friendId ?? "_").slice(0, 12);
+    const afterIds = allCards.map((c) => c.friendId ?? "_").slice(0, 12);
+    devLog("[P3C_FRIEND_COOLDOWN]", { windowSize: 3, forcedCount, beforeIds, afterIds });
   }
 
   // ── FINAL CAP: adaptive deck size, no further reordering ──

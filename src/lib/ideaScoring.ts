@@ -305,6 +305,72 @@ export function confidenceToLabel(confidence: number): ConfidenceLabel {
   return "Worth a try";
 }
 
+// ─── Friend cooldown ─────────────────────────────────────
+
+export interface FriendCooldownResult<T> {
+  cards: T[];
+  forcedCount: number;
+}
+
+/**
+ * Best-effort reorder: avoid repeating the same friendId within
+ * the last `windowSize` positions.  Cards with no friendId
+ * (e.g. activity_repeat) are treated as always-unique and never
+ * enter the cooldown window — this is the safer option because
+ * event cards have no friend to collide with.
+ *
+ * Deterministic.  Never drops cards.  If no non-colliding
+ * candidate exists in the remaining pool, the next card is
+ * placed as-is and `forcedCount` increments.
+ *
+ * Runs AFTER archetype spacing, BEFORE final slice cap.
+ * Pure function — does not mutate input array.
+ */
+export function applyFriendCooldown<T extends { friendId?: string }>(
+  cards: T[],
+  windowSize: number = 3,
+): FriendCooldownResult<T> {
+  if (cards.length <= 1) return { cards: [...cards], forcedCount: 0 };
+
+  const pool = [...cards];
+  const result: T[] = [];
+  let forcedCount = 0;
+
+  while (pool.length > 0) {
+    // Collect friendIds in the recent window (only non-null entries)
+    const recentFriends = new Set<string>();
+    for (
+      let i = Math.max(0, result.length - windowSize);
+      i < result.length;
+      i++
+    ) {
+      const fid = result[i]!.friendId;
+      if (fid) recentFriends.add(fid);
+    }
+
+    // Find first pool card that doesn't collide
+    let pickedIdx = -1;
+    for (let i = 0; i < pool.length; i++) {
+      const fid = pool[i]!.friendId;
+      // No friendId → always OK (exempt from cooldown)
+      if (!fid || !recentFriends.has(fid)) {
+        pickedIdx = i;
+        break;
+      }
+    }
+
+    // No non-colliding candidate → forced pick (index 0)
+    if (pickedIdx === -1) {
+      pickedIdx = 0;
+      forcedCount++;
+    }
+
+    result.push(pool.splice(pickedIdx, 1)[0]!);
+  }
+
+  return { cards: result, forcedCount };
+}
+
 // ─── Category mapping ────────────────────────────────────
 
 /** Map category string → IdeaArchetype. */

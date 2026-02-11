@@ -167,6 +167,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P4_SESSION_LEARN]",
   // P4B rhythm shaping (day/hour-based archetype boosts)
   "[P4B_RHYTHM]",
+  // P3C friend cooldown (same-friend spacing within window)
+  "[P3C_FRIEND_COOLDOWN]",
 ];
 
 /**

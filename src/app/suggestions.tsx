@@ -476,7 +476,7 @@ function DeckSwipeCard({
   const { themeColor, colors, isDark } = useTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const hapticFiredRef = useRef(false);
+  const lastHapticAtRef = useRef(0);
 
   const delayedAccept = useCallback(() => {
     setTimeout(onAccept, 120);
@@ -486,15 +486,13 @@ function DeckSwipeCard({
     setTimeout(onDismiss, 120);
   }, [onDismiss]);
 
+  /** Haptic on threshold crossing — 250 ms debounce prevents buzzing. */
   const fireThresholdHaptic = useCallback(() => {
-    if (!hapticFiredRef.current) {
-      hapticFiredRef.current = true;
+    const now = Date.now();
+    if (now - lastHapticAtRef.current > 250) {
+      lastHapticAtRef.current = now;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, []);
-
-  const resetHapticFlag = useCallback(() => {
-    hapticFiredRef.current = false;
   }, []);
 
   const panGesture = Gesture.Pan()
@@ -503,11 +501,9 @@ function DeckSwipeCard({
     .onUpdate((e) => {
       translateX.value = e.translationX;
       translateY.value = e.translationY * 0.12;
-      // Haptic on threshold crossing (guarded against spam)
+      // Haptic on threshold crossing (250 ms debounce)
       if (Math.abs(e.translationX) >= DECK_SWIPE_THRESHOLD) {
         runOnJS(fireThresholdHaptic)();
-      } else {
-        runOnJS(resetHapticFlag)();
       }
     })
     .onEnd((e) => {
