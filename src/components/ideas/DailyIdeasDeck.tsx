@@ -747,13 +747,34 @@ export function DailyIdeasDeck({
             Array.isArray(parsed.deck) &&
             parsed.deck.length > 0
           ) {
-            setDeck(parsed.deck);
+            // Anti-repeat: apply same category-spacing post-pass on restore
+            const restoredDeck = antiRepeatByCategory(parsed.deck, (c: IdeaCard) => c.category);
+
+            if (__DEV__) {
+              const beforeCats = parsed.deck.slice(0, 12).map((c: IdeaCard) => c.category);
+              const afterCats = restoredDeck.slice(0, 12).map((c: IdeaCard) => c.category);
+              const countViolations = (cats: string[]) => {
+                let v = 0;
+                for (let i = 1; i < cats.length; i++) { if (cats[i] === cats[i - 1]) v++; }
+                return v;
+              };
+              devLog("[IDEAS_ANTI_REPEAT]", {
+                action: "restore",
+                deckSize: restoredDeck.length,
+                violationsBefore: countViolations(beforeCats),
+                violationsAfter: countViolations(afterCats),
+                beforeFirst12: beforeCats,
+                afterFirst12: afterCats,
+              });
+            }
+
+            setDeck(restoredDeck);
             setCurrentIndex(parsed.index ?? 0);
             generatedTodayRef.current = true;
             setDeckReady(true);
             if (__DEV__) {
               devLog(
-                `[P0_IDEAS_BOOT] restored from storage: ${parsed.deck.length} cards, idx=${parsed.index ?? 0}`,
+                `[P0_IDEAS_BOOT] restored from storage: ${restoredDeck.length} cards, idx=${parsed.index ?? 0}`,
               );
             }
           }
