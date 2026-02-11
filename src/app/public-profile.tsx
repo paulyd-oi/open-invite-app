@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
+import { resolveBannerUri } from "@/lib/heroSSOT";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
@@ -244,11 +245,9 @@ export default function PublicProfileScreen() {
         upcomingCount: upcomingEvents.length,
         copyVariant: "pill+helper",
       });
-      const pubBannerUri = user?.Profile?.bannerPhotoUrl ?? user?.Profile?.bannerUrl ?? null;
+      const pubBannerUri = resolveBannerUri(user?.Profile as Record<string, unknown> | null);
       devLog("[P0_BANNER_RENDER_PUBLIC]", {
-        bannerPhotoUrl: user?.Profile?.bannerPhotoUrl?.slice?.(0, 60) ?? null,
-        bannerUrl: user?.Profile?.bannerUrl?.slice?.(0, 60) ?? null,
-        computedBannerUri: typeof pubBannerUri === "string" ? pubBannerUri.slice(0, 60) : null,
+        computedBannerUri: pubBannerUri?.slice(0, 60) ?? null,
         source: user?.Profile?.bannerPhotoUrl ? "bannerPhotoUrl" : user?.Profile?.bannerUrl ? "bannerUrl" : "none",
       });
       devLog("[P1_PUBLIC_PREVIEW_UI]", {
@@ -343,8 +342,7 @@ export default function PublicProfileScreen() {
             {/* User Info Card — matches user/[id] layout, NO friend CTAs */}
             <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
               {(() => {
-                const pubBanner = user.Profile?.bannerPhotoUrl ?? user.Profile?.bannerUrl ?? null;
-                const pubBannerUri = typeof pubBanner === "string" && pubBanner.length > 0 ? pubBanner : null;
+                const pubBannerUri = resolveBannerUri(user.Profile as Record<string, unknown> | null);
                 return (
                   <View
                     className="rounded-2xl overflow-hidden"

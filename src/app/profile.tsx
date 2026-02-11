@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
+import { resolveBannerUri } from "@/lib/heroSSOT";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -234,18 +235,13 @@ export default function ProfileScreen() {
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
 
-  // ── Banner photo URL — SSOT: prefer bannerPhotoUrl, fallback bannerUrl ──
-  const rawBannerUrl =
-    (profileData?.profile as any)?.bannerPhotoUrl ??
-    (profileData?.profile as any)?.bannerUrl ??
-    null;
-  const bannerUri = typeof rawBannerUrl === "string" && rawBannerUrl.length > 0 ? rawBannerUrl : null;
+  // ── Banner photo URL — SSOT via heroSSOT.resolveBannerUri ──
+  const bannerUri = resolveBannerUri(profileData?.profile as Record<string, unknown> | null);
 
   // [P0_BANNER_RENDER] DEV proof: what the UI is trying to render
   useEffect(() => {
     if (__DEV__) {
       devLog("[P0_BANNER_RENDER]", {
-        rawBannerUrl: rawBannerUrl?.slice?.(0, 60) ?? null,
         bannerUri: bannerUri?.slice(0, 60) ?? null,
         source: (profileData?.profile as any)?.bannerPhotoUrl
           ? "bannerPhotoUrl"
@@ -255,7 +251,7 @@ export default function ProfileScreen() {
         profileKeys: profileData?.profile ? Object.keys(profileData.profile) : [],
       });
     }
-  }, [rawBannerUrl, bannerUri, profileData?.profile]);
+  }, [bannerUri, profileData?.profile]);
 
   // ── What's Next derivation (SSOT from existing queries) ──
   const allEvents = eventsData?.events ?? [];
