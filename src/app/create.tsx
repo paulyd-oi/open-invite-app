@@ -54,7 +54,7 @@ import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
-import { useEntitlements, canCreateEvent, useIsPro, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, canCreateEvent, useIsPro, useHostingQuota, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -499,6 +499,23 @@ export default function CreateEventScreen() {
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
   const { isPro: userIsPro, isLoading: entitlementsLoading } = useIsPro();
   const { isPremium, openPaywall } = useSubscription();
+  const hostingQuota = useHostingQuota();
+
+  // [P1_HOSTING_QUOTA_UI] DEV proof log (once per render when quota present)
+  const quotaLoggedRef = React.useRef(false);
+  useEffect(() => {
+    if (!hostingQuota.isLoading && !quotaLoggedRef.current) {
+      quotaLoggedRef.current = true;
+      if (__DEV__) {
+        devLog("[P1_HOSTING_QUOTA_UI]", {
+          eventsUsed: hostingQuota.eventsUsed,
+          remaining: hostingQuota.remaining,
+          canHost: hostingQuota.canHost,
+          isUnlimited: hostingQuota.isUnlimited,
+        });
+      }
+    }
+  }, [hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.remaining, hostingQuota.canHost, hostingQuota.isUnlimited]);
 
   // Check for pending ICS import on mount
   useEffect(() => {
@@ -741,7 +758,23 @@ export default function CreateEventScreen() {
         return;
       }
 
-      // Check entitlements before creating
+      // [P1_HOSTING_QUOTA_GATE] Check hosting quota before creating
+      if (__DEV__) {
+        devLog('[P1_HOSTING_QUOTA_GATE]', {
+          canHost: hostingQuota.canHost,
+          remaining: hostingQuota.remaining,
+          isUnlimited: hostingQuota.isUnlimited,
+          action: hostingQuota.canHost ? 'submit_allowed' : 'paywall_opened',
+        });
+      }
+      if (!hostingQuota.isUnlimited && !hostingQuota.canHost) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setPaywallContext('ACTIVE_EVENTS_LIMIT');
+        setShowPaywallModal(true);
+        return;
+      }
+
+      // Check entitlements before creating (recurring gate + fallback)
       const check = canCreateEvent(entitlements, isRecurring);
 
       if (!check.allowed && check.context) {
@@ -1441,6 +1474,16 @@ export default function CreateEventScreen() {
               </View>
             )}
           </Animated.View>
+
+          {/* Hosting quota indicator — hidden for Pro/unlimited */}
+          {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.eventsMax != null && (
+            <Text
+              className="text-xs text-center mt-3"
+              style={{ color: hostingQuota.canHost ? colors.textTertiary : "#EF4444" }}
+            >
+              {hostingQuota.eventsUsed} of {hostingQuota.eventsMax} events hosted this month
+            </Text>
+          )}
 
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>

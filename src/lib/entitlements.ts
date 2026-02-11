@@ -469,6 +469,32 @@ export function useIsPro(): {
 }
 
 /**
+ * Hosting quota progress hook.
+ * Returns current usage vs limit for active events.
+ * isUnlimited = true hides the indicator entirely (Pro / promo).
+ */
+export function useHostingQuota(): {
+  eventsUsed: number;
+  eventsMax: number | null;
+  remaining: number | null;
+  canHost: boolean;
+  isUnlimited: boolean;
+  isLoading: boolean;
+} {
+  const { isPro, isLoading, entitlements } = useIsPro();
+  const usage = entitlements?.usage ?? { activeEventsCount: 0, circlesCount: 0, friendNotesCount: 0 };
+  const limits = getLimits(entitlements);
+
+  const eventsUsed = usage.activeEventsCount;
+  const eventsMax = limits.activeEventsMax;
+  const isUnlimited = isPro || eventsMax === null;
+  const remaining = isUnlimited ? null : Math.max(eventsMax! - eventsUsed, 0);
+  const canHost = isUnlimited || (eventsMax !== null && eventsUsed < eventsMax);
+
+  return { eventsUsed, eventsMax, remaining, canHost, isUnlimited, isLoading };
+}
+
+/**
  * CANONICAL premium check function.
  * Use this ONE function for all premium/paywall gating decisions.
  * 

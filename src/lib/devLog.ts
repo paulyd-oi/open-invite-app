@@ -209,6 +209,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[LIVE_REFRESH]",
   "[LIVE_REFRESH_GUARD]",
   "[LIVE_REFRESH_STORM]",
+  // P1 hosting quota UI indicator (create screen)
+  "[P1_HOSTING_QUOTA_UI]",
 ];
 
 /**
