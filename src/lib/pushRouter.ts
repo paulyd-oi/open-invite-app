@@ -20,6 +20,7 @@ import { getActiveCircle } from "@/lib/activeCircle";
 import { devLog } from "@/lib/devLog";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
 import { recordQueryInvalidateReceipt } from "@/lib/devQueryReceipt";
+import { emitReconcileProof } from "@/lib/reconcileContract";
 
 // ============================================================================
 // DEDUPE MECHANISM
@@ -484,6 +485,14 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     recordQueryInvalidateReceipt({ queryKeyName: "circleKeys.messages", reason: "push_router:circle_message", circleId });
   }
 
+  // [P0_RECONCILE] Prove message cache will reconcile with server truth
+  emitReconcileProof({
+    route: "circle_message",
+    entityId: circleId,
+    queryClient,
+    reconciledKeys: [circleKeys.single(circleId), circleKeys.messages(circleId)],
+  });
+
   // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on push message
   refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });
 
@@ -541,6 +550,14 @@ function handleCircleMemberLeft(payload: Record<string, any>, queryClient: Query
 
   // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on member left
   refreshCircleListContract({ reason: "push_member_left", circleId, queryClient });
+
+  // [P0_RECONCILE] Prove member list will reconcile with server truth
+  emitReconcileProof({
+    route: "circle_member_left",
+    entityId: circleId,
+    queryClient,
+    reconciledKeys: [circleKeys.single(circleId)],
+  });
 
   return `invalidated_circle_${circleId.slice(0, 8)}`;
 }
@@ -628,6 +645,36 @@ function handleEventRsvpChanged(payload: Record<string, any>, queryClient: Query
     refetchType: "inactive",
   });
 
+  // [P0_RECONCILE] Guard against stale optimistic RSVP + attendee mismatch:
+  // Attendees and viewer RSVP must also be marked stale so the next mount
+  // pulls server truth instead of relying solely on the optimistic patch.
+  queryClient.invalidateQueries({
+    queryKey: eventKeys.attendees(eventId),
+    refetchType: "inactive",
+  });
+  queryClient.invalidateQueries({
+    queryKey: eventKeys.rsvp(eventId),
+    refetchType: "inactive",
+  });
+
+  if (__DEV__) {
+    recordQueryInvalidateReceipt({ queryKeyName: "eventKeys.single", reason: "push_router:event_rsvp_changed", eventId });
+    recordQueryInvalidateReceipt({ queryKeyName: "eventKeys.attendees", reason: "push_router:event_rsvp_changed", eventId });
+    recordQueryInvalidateReceipt({ queryKeyName: "eventKeys.rsvp", reason: "push_router:event_rsvp_changed", eventId });
+  }
+
+  // [P0_RECONCILE] Prove RSVP cache will reconcile with server truth
+  emitReconcileProof({
+    route: "event_rsvp_changed",
+    entityId: eventId,
+    queryClient,
+    reconciledKeys: [
+      eventKeys.single(eventId),
+      eventKeys.attendees(eventId),
+      eventKeys.rsvp(eventId),
+    ],
+  });
+
   // ── STEP 4: DEV proof log ──
   if (__DEV__) {
     devLog("[P1_RSVP_PATCH]", {
@@ -674,6 +721,19 @@ function handleEventUpdated(payload: Record<string, any>, queryClient: QueryClie
   if (__DEV__) {
     devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.single(${eventId}), eventKeys.feed(), eventKeys.calendar(), eventKeys.myEvents()]`);
   }
+
+  // [P0_RECONCILE] Prove event detail + feeds will reconcile
+  emitReconcileProof({
+    route: "event_updated",
+    entityId: eventId,
+    queryClient,
+    reconciledKeys: [
+      eventKeys.single(eventId),
+      eventKeys.feed(),
+      eventKeys.calendar(),
+      eventKeys.myEvents(),
+    ],
+  });
   
   return "invalidate_event+feeds";
 }
@@ -692,6 +752,19 @@ function handleEventCreated(payload: Record<string, any>, queryClient: QueryClie
   if (__DEV__) {
     devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.feed(), eventKeys.feedPaginated(), eventKeys.calendar(), eventKeys.myEvents()]`);
   }
+
+  // [P0_RECONCILE] Prove feeds will reconcile with new event
+  emitReconcileProof({
+    route: "event_created",
+    entityId: payload.eventId ?? payload.event_id ?? "unknown",
+    queryClient,
+    reconciledKeys: [
+      eventKeys.feed(),
+      eventKeys.feedPaginated(),
+      eventKeys.calendar(),
+      eventKeys.myEvents(),
+    ],
+  });
   
   return "invalidate_feeds";
 }
@@ -716,6 +789,17 @@ function handleEventComment(payload: Record<string, any>, queryClient: QueryClie
   if (__DEV__) {
     devLog(`[P1_PUSH_ROUTER] invalidate keys=[eventKeys.comments(${eventId}), eventKeys.single(${eventId})]`);
   }
+
+  // [P0_RECONCILE] Prove comments + event will reconcile
+  emitReconcileProof({
+    route: "event_comment",
+    entityId: eventId,
+    queryClient,
+    reconciledKeys: [
+      eventKeys.comments(eventId),
+      eventKeys.single(eventId),
+    ],
+  });
   
   return "invalidate_comments+event";
 }
@@ -732,6 +816,17 @@ function handleFriendEvent(payload: Record<string, any>, queryClient: QueryClien
   if (__DEV__) {
     devLog(`[P1_PUSH_ROUTER] invalidate keys=[["friends"], ["friendRequests"]]`);
   }
+
+  // [P0_RECONCILE] Prove friends list will reconcile
+  emitReconcileProof({
+    route: "friend_event",
+    entityId: payload.userId ?? payload.user_id ?? "unknown",
+    queryClient,
+    reconciledKeys: [
+      ["friends"],
+      ["friendRequests"],
+    ],
+  });
   
   return "invalidate_friends+requests";
 }

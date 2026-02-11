@@ -187,6 +187,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_CIRCLE_STALENESS]",
   // P0 circle list refresh contract (SSOT freshness)
   "[P0_CIRCLE_LIST_REFRESH]",
+  // P0 realtime reconcile contract (push → server truth)
+  "[P0_RECONCILE]",
 ];
 
 /**
