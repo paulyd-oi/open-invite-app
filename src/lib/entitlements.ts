@@ -476,6 +476,13 @@ export function useIsPro(): {
 // Hosting Quota (real backend query)
 // ============================================
 
+/** Backend nudge metadata — drives soft-nudge banner on Create screen */
+export interface HostingNudgeMeta {
+  shouldNudgeNow: boolean;
+  nextNudgeAt: number | null; // eventsUsed threshold for next nudge
+  thresholds: number[];       // all configured nudge thresholds
+}
+
 /** Shape returned by GET /api/hosting/quota */
 export interface HostingQuotaResponse {
   eventsUsed: number;
@@ -484,6 +491,7 @@ export interface HostingQuotaResponse {
   canHost: boolean;
   isUnlimited: boolean;
   resetAt: string | null; // ISO date when the quota resets
+  nudgeMeta?: HostingNudgeMeta | null; // optional — older backends may omit
 }
 
 const HOSTING_QUOTA_DEFAULTS: HostingQuotaResponse = {
@@ -493,6 +501,7 @@ const HOSTING_QUOTA_DEFAULTS: HostingQuotaResponse = {
   canHost: true,
   isUnlimited: true,
   resetAt: null,
+  nudgeMeta: null,
 };
 
 /**
@@ -519,6 +528,7 @@ export function useHostingQuota() {
           canHost: res.canHost,
           isUnlimited: res.isUnlimited,
           resetAt: res.resetAt,
+          nudgeMeta: res.nudgeMeta ?? null,
         });
       }
 
@@ -542,6 +552,7 @@ export function useHostingQuota() {
     canHost: quota.canHost,
     isUnlimited: quota.isUnlimited,
     resetAt: quota.resetAt,
+    nudgeMeta: quota.nudgeMeta ?? null,
     /** React Query lifecycle */
     isLoading,
     isFetching,

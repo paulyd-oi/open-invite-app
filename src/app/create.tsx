@@ -572,37 +572,44 @@ export default function CreateEventScreen() {
     setShowPaywallModal(true);
   }, [nudgeMonthKey]);
 
-  // Compute nudge visibility
+  // Compute nudge visibility — SSOT: backend nudgeMeta drives threshold logic
+  const nudgeMeta = hostingQuota.nudgeMeta;
+
   const showNudgeBanner = useMemo(() => {
     // Premium suppression
     if (hostingQuota.isUnlimited) {
       if (__DEV__ && !hostingQuota.isLoading && session?.user?.id) {
-        devLog("[P1_HOSTING_QUOTA_NUDGE]", { suppressed: true, reason: "isUnlimited", userId: session.user.id });
+        devLog("[P1_HOSTING_QUOTA_NUDGE]", {
+          suppressed: true,
+          suppressedReason: "isUnlimited",
+          userId: session.user.id,
+        });
       }
       return false;
     }
-    // Must have loaded + have a numeric limit
+    // Must have loaded
     if (hostingQuota.isLoading) return false;
-    if (hostingQuota.monthlyLimit == null) return false;
-    // Only show at threshold: eventsUsed === monthlyLimit - 1
-    if (hostingQuota.eventsUsed !== hostingQuota.monthlyLimit - 1) return false;
+    // Fail closed: if nudgeMeta missing/null, no banner (never blocks hosting)
+    if (!nudgeMeta || nudgeMeta.shouldNudgeNow !== true) return false;
     // User dismissed for this month
     if (nudgeDismissed) return false;
     return true;
-  }, [hostingQuota.isUnlimited, hostingQuota.isLoading, hostingQuota.monthlyLimit, hostingQuota.eventsUsed, nudgeDismissed, session?.user?.id]);
+  }, [hostingQuota.isUnlimited, hostingQuota.isLoading, nudgeMeta, nudgeDismissed, session?.user?.id]);
 
-  // DEV proof log when banner becomes visible
+  // DEV proof log when banner becomes visible or suppressed
   useEffect(() => {
-    if (showNudgeBanner && __DEV__ && session?.user?.id) {
-      devLog("[P1_HOSTING_QUOTA_NUDGE]", {
-        eventsUsed: hostingQuota.eventsUsed,
-        monthlyLimit: hostingQuota.monthlyLimit,
-        userId: session.user.id,
-        monthKey: nudgeMonthKey,
-        reason: "threshold_reached",
-      });
-    }
-  }, [showNudgeBanner, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, session?.user?.id, nudgeMonthKey]);
+    if (!__DEV__ || !session?.user?.id || hostingQuota.isLoading) return;
+    devLog("[P1_HOSTING_QUOTA_NUDGE]", {
+      shouldNudgeNow: nudgeMeta?.shouldNudgeNow ?? null,
+      nextNudgeAt: nudgeMeta?.nextNudgeAt ?? null,
+      thresholds: nudgeMeta?.thresholds ?? null,
+      dismissed: nudgeDismissed,
+      suppressedReason: hostingQuota.isUnlimited ? "isUnlimited" : null,
+      eventsUsed: hostingQuota.eventsUsed,
+      monthlyLimit: hostingQuota.monthlyLimit,
+      showBanner: showNudgeBanner,
+    });
+  }, [showNudgeBanner, nudgeMeta, nudgeDismissed, hostingQuota.isUnlimited, hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, session?.user?.id]);
 
   // Check for pending ICS import on mount
   useEffect(() => {
