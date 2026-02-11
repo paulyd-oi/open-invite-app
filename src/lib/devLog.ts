@@ -179,6 +179,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_IDEA_DEBUGGER]",
   // P1 draft message variants (cycling composer prefills)
   "[P1_DRAFT_VARIANTS]",
+  // P0 push two-ended proof (logout/login re-registration + stale refresh)
+  "[P0_PUSH_TWO_ENDED]",
 ];
 
 /**

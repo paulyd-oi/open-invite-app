@@ -1173,6 +1173,13 @@ export default function FriendsScreen() {
 
   const circles = circlesData?.circles ?? [];
 
+  // [P0_PUSH_TWO_ENDED] Refetch circles on tab focus to clear stale membership
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchCircles();
+    }, [refetchCircles])
+  );
+
   // [P1_CIRCLE_BADGE] Per-circle unread overlay from unread v2 SSOT
   const { data: unreadData } = useQuery({
     queryKey: circleKeys.unreadCount(),

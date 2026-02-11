@@ -683,18 +683,28 @@ export function useNotifications() {
     // Initial check
     if (__DEV__) {
       devLog(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} isFreshLogin=${isFreshLogin} force=${shouldForce} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
+      // [P0_PUSH_TWO_ENDED] DEV proof: decision path after logout/login
+      devLog(`[P0_PUSH_TWO_ENDED]`, {
+        effectiveUserId: userIdPrefix,
+        lastRegisteredUserId: lastRegisteredUserId?.substring(0, 8) ?? "null",
+        decision: shouldForce ? "ATTEMPT" : "THROTTLE_CHECK",
+        reason: isFreshLogin ? "fresh_login" : isAccountSwitch ? "account_switch" : "returning",
+      });
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
     checkAndRegisterToken(shouldForce);
 
     // Re-check permission when app comes to foreground (throttled)
+    // [P0_PUSH_TWO_ENDED] Also invalidate circle unread counts on foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === "active" && bootStatus === 'authed') {
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
         checkAndRegisterToken(); // Will be throttled unless backend empty
+        // Refresh circle unread counts on app resume
+        queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
       }
     };
 

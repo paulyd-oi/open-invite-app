@@ -22,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resetSession } from "./authBootstrap";
 import { setLogoutIntent } from "./logoutIntent";
 import { deactivatePushTokenOnLogout } from "./pushTokenManager";
+import { resetPushRegistrationState } from "@/hooks/useNotifications";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
 
@@ -74,6 +75,14 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       await deactivatePushTokenOnLogout();
     } catch (e) {
       // Push token deactivation failure does not block logout
+    }
+
+    // Step 1b: Reset push registration state so next login re-registers deterministically
+    // [P0_PUSH_TWO_ENDED] Clears lastRegisteredUserId + throttle stamp
+    try {
+      await resetPushRegistrationState();
+    } catch (e) {
+      // Non-fatal, continue logout
     }
 
     // Step 2: Set logout intent flag (required for resetSession to clear tokens)

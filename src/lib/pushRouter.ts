@@ -463,6 +463,13 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     refetchType: "inactive",
   });
 
+  // [P0_PUSH_TWO_ENDED] Invalidate circle list so Friends screen picks up
+  // latest message preview / membership changes on next mount
+  queryClient.invalidateQueries({
+    queryKey: circleKeys.all(),
+    refetchType: "inactive",
+  });
+
   // ── STEP 4: Unread count update ──
   const activeCircle = getActiveCircle();
   if (activeCircle === circleId) {
