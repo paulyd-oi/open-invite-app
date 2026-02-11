@@ -1040,7 +1040,9 @@ export default function SettingsScreen() {
       await updateProfileAndSync(queryClient);
       // Also refetch userProfile for any profile views
       queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["profiles"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
+      if (__DEV__) devLog("[P0_BANNER_RENDER]", "invalidate_queries", { keys: ["profile", "userProfile", "profiles", "friends"] });
       setShowEditProfile(false);
       setHandleError(null);
       safeToast.success("Success", "Profile updated successfully");

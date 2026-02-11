@@ -289,6 +289,8 @@ export const friendUserSchema = z.object({
     bio: z.string().nullable(),
     calendarBio: z.string().nullable(),
     avatarUrl: z.string().nullable(),
+    bannerUrl: z.string().nullable().optional(),
+    bannerPhotoUrl: z.string().nullable().optional(),
   }).nullable().optional(),
   featuredBadge: z.object({
     badgeKey: z.string(),

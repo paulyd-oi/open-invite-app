@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
@@ -244,9 +244,16 @@ export default function PublicProfileScreen() {
         upcomingCount: upcomingEvents.length,
         copyVariant: "pill+helper",
       });
+      const pubBannerUri = user?.Profile?.bannerPhotoUrl ?? user?.Profile?.bannerUrl ?? null;
+      devLog("[P0_BANNER_RENDER_PUBLIC]", {
+        bannerPhotoUrl: user?.Profile?.bannerPhotoUrl?.slice?.(0, 60) ?? null,
+        bannerUrl: user?.Profile?.bannerUrl?.slice?.(0, 60) ?? null,
+        computedBannerUri: typeof pubBannerUri === "string" ? pubBannerUri.slice(0, 60) : null,
+        source: user?.Profile?.bannerPhotoUrl ? "bannerPhotoUrl" : user?.Profile?.bannerUrl ? "bannerUrl" : "none",
+      });
       devLog("[P1_PUBLIC_PREVIEW_UI]", {
         viewerId: viewerId?.slice(0, 8),
-        bannerMounted: true,
+        bannerMounted: !!pubBannerUri,
       });
       devLog("[P1_HEADER_SOT]", {
         route: "public-profile",
@@ -336,9 +343,31 @@ export default function PublicProfileScreen() {
             {/* User Info Card — matches user/[id] layout, NO friend CTAs */}
             <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
               <View
-                className="rounded-2xl p-6 items-center"
+                className="rounded-2xl items-center overflow-hidden"
                 style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
               >
+                {/* Banner image (SSOT: bannerPhotoUrl ?? bannerUrl) */}
+                {(() => {
+                  const pubBanner = user.Profile?.bannerPhotoUrl ?? user.Profile?.bannerUrl ?? null;
+                  const pubBannerUri = typeof pubBanner === "string" && pubBanner.length > 0 ? pubBanner : null;
+                  return pubBannerUri ? (
+                    <View style={{ width: "100%", height: 100 }}>
+                      <Image source={{ uri: pubBannerUri }} style={{ width: "100%", height: 100 }} resizeMode="cover" />
+                      {/* Scrim for readability */}
+                      <View
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 50,
+                          backgroundColor: isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
+                        }}
+                      />
+                    </View>
+                  ) : null;
+                })()}
+              <View style={{ padding: 24, alignItems: "center", width: "100%" }}>
                 <EntityAvatar
                   photoUrl={user.Profile?.avatarUrl ?? user.image}
                   initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
@@ -381,6 +410,7 @@ export default function PublicProfileScreen() {
                 )}
 
                 {/* NO friend request / Add Friend CTA — this is self preview */}
+              </View>
               </View>
             </Animated.View>
 

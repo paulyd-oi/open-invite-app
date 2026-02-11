@@ -234,9 +234,28 @@ export default function ProfileScreen() {
   const calendarBio =
     typeof rawBio === "string" && rawBio.length > 0 ? rawBio : undefined;
 
-  // ── Banner photo URL (with cache-bust via updatedAt if available) ──
-  const rawBannerUrl = (profileData?.profile as any)?.bannerPhotoUrl ?? null;
+  // ── Banner photo URL — SSOT: prefer bannerPhotoUrl, fallback bannerUrl ──
+  const rawBannerUrl =
+    (profileData?.profile as any)?.bannerPhotoUrl ??
+    (profileData?.profile as any)?.bannerUrl ??
+    null;
   const bannerUri = typeof rawBannerUrl === "string" && rawBannerUrl.length > 0 ? rawBannerUrl : null;
+
+  // [P0_BANNER_RENDER] DEV proof: what the UI is trying to render
+  useEffect(() => {
+    if (__DEV__) {
+      devLog("[P0_BANNER_RENDER]", {
+        rawBannerUrl: rawBannerUrl?.slice?.(0, 60) ?? null,
+        bannerUri: bannerUri?.slice(0, 60) ?? null,
+        source: (profileData?.profile as any)?.bannerPhotoUrl
+          ? "bannerPhotoUrl"
+          : (profileData?.profile as any)?.bannerUrl
+            ? "bannerUrl"
+            : "none",
+        profileKeys: profileData?.profile ? Object.keys(profileData.profile) : [],
+      });
+    }
+  }, [rawBannerUrl, bannerUri, profileData?.profile]);
 
   // ── What's Next derivation (SSOT from existing queries) ──
   const allEvents = eventsData?.events ?? [];
@@ -477,17 +496,28 @@ export default function ProfileScreen() {
           >
             {/* Banner background (optional) */}
             {bannerUri && (
-              <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 100 }}>
-                <Image source={{ uri: bannerUri }} style={{ width: "100%", height: 100 }} resizeMode="cover" />
-                {/* Gradient-like overlay for text readability */}
+              <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 120 }}>
+                <Image source={{ uri: bannerUri }} style={{ width: "100%", height: 120 }} resizeMode="cover" />
+                {/* Top: light tint so banner is still visible */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 50,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.30)",
+                  }}
+                />
+                {/* Bottom: heavier scrim behind name/bio for readability */}
                 <View
                   style={{
                     position: "absolute",
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: 100,
-                    backgroundColor: isDark ? "rgba(0,0,0,0.55)" : "rgba(255,255,255,0.65)",
+                    height: 80,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.75)",
                   }}
                 />
               </View>
