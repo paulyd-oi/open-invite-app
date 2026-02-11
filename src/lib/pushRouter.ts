@@ -15,9 +15,11 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { getActiveCircle } from "@/lib/activeCircle";
 import { devLog } from "@/lib/devLog";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
+import { recordQueryInvalidateReceipt } from "@/lib/devQueryReceipt";
 
 // ============================================================================
 // DEDUPE MECHANISM
@@ -72,6 +74,7 @@ function shouldDedupe(type: string, entityId: string, version?: string | number)
 
 export type PushEventType =
   | "circle_message"
+  | "circle_member_left"
   | "event_rsvp_changed"
   | "event_updated"
   | "event_created"
@@ -213,6 +216,10 @@ export function handlePushEvent(
       case "friend_request":
       case "friend_accepted":
         actionSummary = handleFriendEvent(payload, queryClient);
+        break;
+
+      case "circle_member_left":
+        actionSummary = handleCircleMemberLeft(payload, queryClient);
         break;
         
       default:
@@ -471,20 +478,14 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     refetchType: "inactive",
   });
 
-  // [P1_CIRCLE_STALENESS] Invalidate circle list so Friends screen picks up
-  // latest message preview / membership changes on next mount
-  queryClient.invalidateQueries({
-    queryKey: circleKeys.all(),
-    refetchType: "inactive",
-  });
-
+  // DEV receipts for per-circle invalidations
   if (__DEV__) {
-    devLog('[P1_CIRCLE_STALENESS]', {
-      reason: 'push_circle_message',
-      circleId,
-      invalidations: ['circleKeys.single', 'circleKeys.messages', 'circleKeys.all'],
-    });
+    recordQueryInvalidateReceipt({ queryKeyName: "circleKeys.single", reason: "push_router:circle_message", circleId });
+    recordQueryInvalidateReceipt({ queryKeyName: "circleKeys.messages", reason: "push_router:circle_message", circleId });
   }
+
+  // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on push message
+  refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });
 
   // ── STEP 4: Unread count update ──
   const activeCircle = getActiveCircle();
@@ -520,6 +521,28 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
   }
 
   return message?.id ? "patch_message+reconcile" : "no_message+reconcile";
+}
+
+/**
+ * Handle circle_member_left push events
+ * Strategy: Invalidate circle detail + list via SSOT contract
+ */
+function handleCircleMemberLeft(payload: Record<string, any>, queryClient: QueryClient): string {
+  const circleId = payload.circleId ?? payload.circle_id;
+  if (!circleId) {
+    return "missing_circleId";
+  }
+
+  // Invalidate the specific circle detail so roster updates on next view
+  queryClient.invalidateQueries({
+    queryKey: circleKeys.single(circleId),
+    refetchType: "inactive",
+  });
+
+  // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on member left
+  refreshCircleListContract({ reason: "push_member_left", circleId, queryClient });
+
+  return `invalidated_circle_${circleId.slice(0, 8)}`;
 }
 
 /**

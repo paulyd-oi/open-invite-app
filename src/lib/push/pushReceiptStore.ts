@@ -19,7 +19,9 @@ export type PushReceiptKind =
   | "register_success"
   | "register_skip"
   | "push_received"
-  | "push_router_handled";
+  | "push_router_handled"
+  | "query_invalidate"
+  | "query_refetch";
 
 export interface PushReceipt {
   ts: string;

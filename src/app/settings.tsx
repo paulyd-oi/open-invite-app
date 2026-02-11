@@ -1986,6 +1986,32 @@ export default function SettingsScreen() {
                 }}
               />
             )}
+            {/* P0_PUSH_UI_INVALIDATION: View query invalidation/refetch receipts (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<FileText size={20} color="#06B6D4" />}
+                title="View Query Receipts"
+                subtitle="Last 20 invalidation + refetch events"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const all = await getRecentReceipts();
+                  const queryEntries = all.filter((r) => r.kind === "query_invalidate" || r.kind === "query_refetch");
+                  if (queryEntries.length === 0) {
+                    Alert.alert("Query Receipts", "No query receipts recorded yet.");
+                    return;
+                  }
+                  const lines = queryEntries.slice(0, 20).map((r, i) => {
+                    const t = r.ts.split("T")[1]?.split(".")[0] ?? r.ts;
+                    const qk = String(r.details.queryKeyName ?? "?");
+                    const rsn = String(r.details.reason ?? "?");
+                    const cid = r.details.circleId ? ` cid=${String(r.details.circleId).slice(0, 6)}` : "";
+                    return `${i + 1}. [${t}] ${r.kind} ${qk} reason=${rsn}${cid}`;
+                  });
+                  Alert.alert(`Query Receipts (${queryEntries.length})`, lines.join("\n"));
+                }}
+              />
+            )}
           </View>
         </Animated.View>
 
