@@ -223,6 +223,11 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_HOSTING_INVARIANT]",
   // P0 premium status contract (SSOT proof)
   "[P0_PREMIUM_CONTRACT]",
+  // P0 premium drift guard (cross-contract consistency)
+  "[P0_PREMIUM_DRIFT_GUARD]",
+  "[P0_PREMIUM_DRIFT_VIOLATION]",
+  // P0 premium paywall decision (submit-time gate proof)
+  "[P0_PREMIUM_PAYWALL_DECISION]",
 ];
 
 /**

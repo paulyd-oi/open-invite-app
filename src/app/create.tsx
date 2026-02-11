@@ -55,7 +55,7 @@ import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
-import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, type PaywallContext } from "@/lib/entitlements";
+import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, usePremiumDriftGuard, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { markGuidanceComplete } from "@/lib/firstSessionGuidance";
@@ -498,9 +498,13 @@ export default function CreateEventScreen() {
   // Fetch entitlements for gating
   // usePremiumStatusContract is single source of truth - CRITICAL: don't show gates while isLoading
   const { data: entitlements, refetch: refetchEntitlements } = useEntitlements();
-  const { isPro: userIsPro, isLoading: entitlementsLoading } = usePremiumStatusContract();
+  const premiumStatus = usePremiumStatusContract();
+  const { isPro: userIsPro, isLoading: entitlementsLoading } = premiumStatus;
   const { isPremium, openPaywall } = useSubscription();
   const hostingQuota = useHostingQuota();
+
+  // [P0_PREMIUM_DRIFT_GUARD] Cross-contract consistency check (DEV-only)
+  usePremiumDriftGuard(premiumStatus, hostingQuota);
 
   // [P1_HOSTING_QUOTA_UI] DEV proof log (once per render when quota present)
   const quotaLoggedRef = React.useRef(false);
@@ -572,29 +576,32 @@ export default function CreateEventScreen() {
     setShowPaywallModal(true);
   }, [nudgeMonthKey]);
 
-  // ── [P1_HOSTING_NUDGE] Soft nudge: local threshold (2/3) ──
-  // Pro/promo: never nudge. Loading/error: fail open (no nudge). Exactly 2 of 3 used → nudge.
+  // ── [P1_HOSTING_NUDGE] Soft nudge: driven by backend nudgeMeta ──
+  // Premium/unlimited: NEVER nudge. Loading/fetching/error: fail-open (no nudge).
+  // nudgeMeta.shouldNudgeNow is the SSOT for threshold logic.
   const showNudgeBanner = useMemo(() => {
-    // Pro / promo suppression — usePremiumStatusContract is SSOT
+    // Premium suppression — usePremiumStatusContract is SSOT
     if (userIsPro) return false;
-    // Still loading premium or quota → fail open (no nudge)
-    if (entitlementsLoading || hostingQuota.isLoading) return false;
+    // Fail-open: any loading/fetching/error → no nudge
+    if (entitlementsLoading || premiumStatus.isFetching) return false;
+    if (hostingQuota.isLoading || hostingQuota.isFetching) return false;
     if (hostingQuota.error) return false;
     // Unlimited plans (promo codes etc) → no nudge
     if (hostingQuota.isUnlimited) return false;
-    // Exact threshold: monthlyLimit===3 and eventsUsed===2
-    if (hostingQuota.monthlyLimit !== 3 || hostingQuota.eventsUsed !== 2) return false;
+    // Backend SSOT: nudgeMeta drives threshold logic
+    if (!hostingQuota.nudgeMeta || !hostingQuota.nudgeMeta.shouldNudgeNow) return false;
     // User dismissed for this month
     if (nudgeDismissed) return false;
     return true;
   }, [
     userIsPro,
     entitlementsLoading,
+    premiumStatus.isFetching,
     hostingQuota.isLoading,
+    hostingQuota.isFetching,
     hostingQuota.error,
     hostingQuota.isUnlimited,
-    hostingQuota.monthlyLimit,
-    hostingQuota.eventsUsed,
+    hostingQuota.nudgeMeta,
     nudgeDismissed,
   ]);
 
@@ -847,10 +854,25 @@ export default function CreateEventScreen() {
     // Compute recurring flag
     const isRecurring = frequency !== "once";
 
-    // CRITICAL: Don't gate while entitlements are loading - prevents false gates for Pro users
-    if (entitlementsLoading) {
-      // Still loading - let the request proceed and let backend validate
-      // This prevents the race condition where Pro users see gates momentarily
+    // ── Fail-open master check ──
+    // If ANY loading/fetching flag is active, skip ALL gates (backend validates).
+    const anyLoading =
+      entitlementsLoading || premiumStatus.isFetching ||
+      hostingQuota.isLoading || hostingQuota.isFetching ||
+      !!hostingQuota.error;
+
+    if (anyLoading) {
+      // fail-open: let backend be the final arbiter
+      if (__DEV__) {
+        devLog("[P0_PREMIUM_PAYWALL_DECISION]", {
+          premiumIsPro: userIsPro,
+          quotaIsUnlimited: hostingQuota.isUnlimited,
+          shouldNudgeNow: hostingQuota.nudgeMeta?.shouldNudgeNow ?? null,
+          canHost: hostingQuota.canHost,
+          loadingFlags: { entitlementsLoading, premiumFetching: premiumStatus.isFetching, quotaLoading: hostingQuota.isLoading, quotaFetching: hostingQuota.isFetching, quotaError: !!hostingQuota.error },
+          action: "fail_open_loading",
+        });
+      }
     } else {
       // Soft-limit check: Show upgrade prompt for free users hitting active events limit
       // Premium check uses usePremiumStatusContract (single source of truth)
@@ -861,28 +883,22 @@ export default function CreateEventScreen() {
         return;
       }
 
-      // ── [P1_HOSTING_GATE] Hard gate: 3/3 used → paywall, abort submit ──
-      // Safety: Pro/promo never gated. Loading/error → fail open (allow, backend validates).
-      const quotaLoading = hostingQuota.isLoading || hostingQuota.isFetching || !!hostingQuota.error;
-      // Never gate premium users (checked via usePremiumStatusContract)
-      const premiumSafe = userIsPro;
-      // Never gate unlimited-quota users (promo codes etc)
-      const quotaUnlimited = hostingQuota.isUnlimited;
+      // ── [P1_HOSTING_GATE] Hard gate: hosting paywall ──
+      // Premium/unlimited: NEVER gate. canHost=false: paywall.
       const hostingGateAction: string =
-        quotaLoading ? "skipped_loading" :
-        (premiumSafe || quotaUnlimited) ? "allowed" :
+        (userIsPro || hostingQuota.isUnlimited) ? "premium_suppressed" :
         !hostingQuota.canHost ? "paywall_opened" :
-        "allowed";
+        "submit_allowed";
 
+      // [P0_PREMIUM_PAYWALL_DECISION] proof log on every submit
       if (__DEV__) {
-        devLog("[P1_HOSTING_GATE]", {
-          action: hostingGateAction,
-          // quota fields (separate from premium)
+        devLog("[P0_PREMIUM_PAYWALL_DECISION]", {
+          premiumIsPro: userIsPro,
+          quotaIsUnlimited: hostingQuota.isUnlimited,
+          shouldNudgeNow: hostingQuota.nudgeMeta?.shouldNudgeNow ?? null,
           canHost: hostingQuota.canHost,
-          eventsUsed: hostingQuota.eventsUsed,
-          monthlyLimit: hostingQuota.monthlyLimit,
-          remaining: hostingQuota.remaining,
-          quotaLoading,
+          loadingFlags: { entitlementsLoading, premiumFetching: premiumStatus.isFetching, quotaLoading: hostingQuota.isLoading, quotaFetching: hostingQuota.isFetching, quotaError: !!hostingQuota.error },
+          action: hostingGateAction,
         });
       }
 

@@ -1177,6 +1177,22 @@ else
   echo "  ✓ Part 4: isUnlimited not used as premium decision (quota-only)"
 fi
 
+# Part 5: P0_PREMIUM_DRIFT_VIOLATION string must exist in entitlements.ts
+if ! grep -q 'P0_PREMIUM_DRIFT_VIOLATION' src/lib/entitlements.ts 2>/dev/null; then
+  echo "  ❌ P0_PREMIUM_DRIFT_VIOLATION guard not found in entitlements.ts"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 5: P0_PREMIUM_DRIFT_VIOLATION guard present in entitlements.ts"
+fi
+
+# Part 6: P0_PREMIUM_PAYWALL_DECISION proof log must exist in create.tsx
+if ! grep -q 'P0_PREMIUM_PAYWALL_DECISION' src/app/create.tsx 2>/dev/null; then
+  echo "  ❌ P0_PREMIUM_PAYWALL_DECISION proof log not found in create.tsx"
+  PREM_FAIL=1
+else
+  echo "  ✓ Part 6: P0_PREMIUM_PAYWALL_DECISION proof log present in create.tsx"
+fi
+
 if [ "$PREM_FAIL" -ne 0 ]; then
   echo ""
   echo "FAIL: P0_PREMIUM_CONTRACT_NAMING_LOCK invariant violated"

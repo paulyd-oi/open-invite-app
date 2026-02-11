@@ -666,6 +666,48 @@ export function useHostingQuota() {
   };
 }
 
+// ============================================
+// P0_PREMIUM_DRIFT_GUARD — cross-contract consistency check
+// ============================================
+
+// Module-level flag: drift warning fires once per JS session
+let _driftGuardLogged = false;
+
+/**
+ * DEV-only drift guard: asserts premium.isPro === quota.isUnlimited
+ * when both have finished loading.
+ *
+ * Call this inside any screen that uses both contracts (e.g. create.tsx).
+ * In PROD this is a no-op.
+ */
+export function usePremiumDriftGuard(
+  premium: Pick<PremiumStatusContract, "isPro" | "isLoading" | "isFetching">,
+  quota: Pick<ReturnType<typeof useHostingQuota>, "isUnlimited" | "isLoading" | "isFetching">,
+): void {
+  if (!__DEV__) return;
+
+  const bothLoaded =
+    !premium.isLoading && !premium.isFetching &&
+    !quota.isLoading && !quota.isFetching;
+
+  if (bothLoaded && !_driftGuardLogged) {
+    _driftGuardLogged = true;
+    if (premium.isPro !== quota.isUnlimited) {
+      devWarn("[P0_PREMIUM_DRIFT_VIOLATION]", {
+        premiumIsPro: premium.isPro,
+        quotaIsUnlimited: quota.isUnlimited,
+        hint: "premium.isPro and quota.isUnlimited should agree when both loaded",
+      });
+    } else {
+      devLog("[P0_PREMIUM_DRIFT_GUARD]", {
+        premiumIsPro: premium.isPro,
+        quotaIsUnlimited: quota.isUnlimited,
+        status: "consistent",
+      });
+    }
+  }
+}
+
 /**
  * CANONICAL premium check function.
  * Use this ONE function for all premium/paywall gating decisions.
