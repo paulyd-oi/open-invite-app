@@ -26,6 +26,7 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshAfterCircleMemberRemove } from "@/lib/refreshAfterMutation";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
@@ -2065,8 +2066,7 @@ export default function CircleScreen() {
       safeToast.success("Removed", "Member has been removed from the circle.");
       setSelectedMemberToRemove(null);
       // Invalidate and refetch circle data
-      await queryClient.invalidateQueries({ queryKey: circleKeys.single(id) });
-      await queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      refreshAfterCircleMemberRemove(queryClient, id);
       await refetch();
     },
     onError: (error: any, memberUserId) => {

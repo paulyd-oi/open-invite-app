@@ -69,6 +69,7 @@ import {
 } from "@/lib/ideasEngine";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshAfterCircleCreate } from "@/lib/refreshAfterMutation";
 import type { GetCirclesResponse, GetEventsResponse, GetFriendBirthdaysResponse } from "@/shared/contracts";
 
 import { useSession } from "@/lib/useSession";
@@ -681,7 +682,7 @@ export function DailyIdeasDeck({
     mutationFn: (data: { name: string; emoji?: string; memberIds: string[] }) =>
       api.post<{ circle: { id: string } }>("/api/circles", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      refreshAfterCircleCreate(queryClient);
     },
   });
 

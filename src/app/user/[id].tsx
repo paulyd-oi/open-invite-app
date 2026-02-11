@@ -21,6 +21,12 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
+import {
+  refreshAfterFriendAccept,
+  refreshAfterFriendReject,
+  refreshAfterFriendRequestSent,
+  refreshAfterUnfriend,
+} from "@/lib/refreshAfterMutation";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 
@@ -542,8 +548,7 @@ export default function UserProfileScreen() {
     mutationFn: () => api.post("/api/friends/request", { userId: id }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendRequestSent(queryClient, id);
     },
   });
 
@@ -562,9 +567,7 @@ export default function UserProfileScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Friend added!", `You're now friends`);
       // Stay on this screen - refetch will update state to show friend features
-      queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      refreshAfterFriendAccept(queryClient, id);
       // Refetch to get the updated isFriend state
       refetch();
       if (__DEV__) {
@@ -594,8 +597,7 @@ export default function UserProfileScreen() {
     },
     onSuccess: (_data, _requestId, context) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendReject(queryClient, id);
       if (__DEV__) {
         const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
         devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_reject', state: 'success', durationMs }));
@@ -644,9 +646,7 @@ export default function UserProfileScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Unfriended", `You and ${user?.name ?? "this user"} are no longer friends`);
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
+      refreshAfterUnfriend(queryClient, id);
       // Navigate back to friends list
       router.replace("/friends" as any);
     },

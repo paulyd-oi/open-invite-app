@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1394,7 +1395,7 @@ export default function EventDetailScreen() {
       }
 
       // Invalidate queries so page refreshes after becoming friends
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendRequestSent(queryClient, fb.hostId ?? undefined);
 
       // Core event hydration SSOT
       queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });

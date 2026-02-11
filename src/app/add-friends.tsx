@@ -52,6 +52,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { safeToast } from "@/lib/safeToast";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { trackFriendAdded } from "@/lib/rateApp";
 import type {
   GetFriendSuggestionsResponse,
@@ -135,7 +136,7 @@ export default function AddFriendsScreen() {
         safeToast.success("Success", "Friend request sent!");
       }
       setSearchEmail("");
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendRequestSent(queryClient);
       trackFriendAdded();
     },
     onError: () => {
@@ -149,8 +150,7 @@ export default function AddFriendsScreen() {
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
     onSuccess: (_, userId) => {
       setSentRequests((prev) => new Set(prev).add(userId));
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["friendSuggestions"] });
+      refreshAfterFriendRequestSent(queryClient, userId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Sent", "Friend request sent!");
     },

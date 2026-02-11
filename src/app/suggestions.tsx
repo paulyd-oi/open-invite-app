@@ -46,6 +46,7 @@ import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 
 import { safeToast } from "@/lib/safeToast";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { Button } from "@/ui/Button";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import {
@@ -360,7 +361,7 @@ export default function SuggestionsScreen() {
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
     onSuccess: (_, userId) => {
       setSentRequests((prev) => new Set(prev).add(userId));
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendRequestSent(queryClient, userId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: () => {
@@ -381,7 +382,7 @@ export default function SuggestionsScreen() {
       }
       setSearchEmail("");
       setShowAddFriend(false);
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendRequestSent(queryClient);
     },
     onError: () => {
       safeToast.error("Request Failed", "Failed to send friend request");

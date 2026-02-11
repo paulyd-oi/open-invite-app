@@ -15,6 +15,7 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { refreshAfterFriendAccept, refreshAfterFriendReject, refreshAfterCircleCreate, refreshAfterCircleLeave } from "@/lib/refreshAfterMutation";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -860,8 +861,7 @@ export default function FriendsScreen() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      refreshAfterFriendAccept(queryClient);
     },
   });
 
@@ -901,7 +901,7 @@ export default function FriendsScreen() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      refreshAfterFriendReject(queryClient);
     },
   });
 
@@ -1001,6 +1001,7 @@ export default function FriendsScreen() {
       api.post("/api/circles", data),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      refreshAfterCircleCreate(queryClient);
       refetchCircles();
       setShowCreateCircle(false);
     },
@@ -1080,6 +1081,7 @@ export default function FriendsScreen() {
     onSuccess: (_, circleId) => {
       devLog("[P1_CIRCLES_CARD]", "action=success", "type=delete", `circleId=${circleId}`, "screen=friends");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      refreshAfterCircleLeave(queryClient, circleId);
       refetchCircles();
     },
     onError: (error, circleId, context) => {

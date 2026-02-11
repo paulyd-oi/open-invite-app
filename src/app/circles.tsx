@@ -31,6 +31,7 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync, markGuidanceComplete, s
 import { type GetCirclesResponse, type Circle, type GetFriendsResponse, type Friendship } from "@/shared/contracts";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { devLog, devError } from "@/lib/devLog";
+import { refreshAfterCircleLeave, refreshAfterCircleCreate } from "@/lib/refreshAfterMutation";
 import { safeToast } from "@/lib/safeToast";
 
 export default function CirclesScreen() {
@@ -162,7 +163,7 @@ export default function CirclesScreen() {
       }
       renderVersion.current += 1;
       if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'leave complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
-      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      refreshAfterCircleLeave(queryClient, circleId);
       setShowLeaveCircleConfirm(false);
       setCircleToLeave(null);
     },
@@ -197,7 +198,7 @@ export default function CirclesScreen() {
     mutationFn: ({ name, emoji, memberIds }: { name: string; emoji: string; memberIds: string[] }) =>
       api.post<{ circle: Circle }>("/api/circles", { name, emoji, memberIds }),
     onSuccess: (response: { circle: Circle }) => {
-      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+      refreshAfterCircleCreate(queryClient);
       setShowCreateCircle(false);
       // Mark guidance complete - user has created their first circle
       markGuidanceComplete("join_circle");

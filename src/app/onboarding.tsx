@@ -58,6 +58,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
@@ -772,7 +773,7 @@ export default function OnboardingScreen() {
     }
 
     setSendingInvites(false);
-    queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+    refreshAfterFriendRequestSent(queryClient);
 
     if (sentCount > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
