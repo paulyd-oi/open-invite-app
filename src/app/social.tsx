@@ -1192,6 +1192,7 @@ export default function SocialScreen() {
                 variant="primary"
                 size="sm"
                 label="Create"
+                // INVARIANT_ALLOW_INLINE_HANDLER
                 onPress={() => {
                   if (!guardEmailVerification(session)) return;
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1260,6 +1261,7 @@ export default function SocialScreen() {
                 variant="primary"
                 label="Invite a friend"
                 leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
+                // INVARIANT_ALLOW_INLINE_HANDLER
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
@@ -1277,6 +1279,7 @@ export default function SocialScreen() {
             <Button
               variant="ghost"
               label="Create an Invite"
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => {
                 if (!guardEmailVerification(session)) return;
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1389,6 +1392,7 @@ export default function SocialScreen() {
             <Button
               variant="secondary"
               label="Load more invites"
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => fetchNextPage()}
               loading={isFetchingNextPage}
               style={{ marginHorizontal: 16, marginVertical: 24, borderRadius: 12 }}

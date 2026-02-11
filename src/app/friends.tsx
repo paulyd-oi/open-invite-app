@@ -311,6 +311,7 @@ const FriendCard = React.memo(function FriendCard({
           style={{ width: ACTION_WIDTH_PX }}
         >
           <Pressable
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             className="w-14 h-14 rounded-2xl items-center justify-center"
@@ -484,6 +485,7 @@ const FriendListItem = React.memo(function FriendListItem({
             style={{ width: 72 }}
           >
             <Pressable
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               className="w-14 h-14 rounded-2xl items-center justify-center"
@@ -505,6 +507,7 @@ const FriendListItem = React.memo(function FriendListItem({
               handle={friend.Profile?.handle}
               displayName={friend.name}
               bio={friend.Profile?.calendarBio}
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/friend/${friendship.id}` as any);
@@ -516,6 +519,7 @@ const FriendListItem = React.memo(function FriendListItem({
               ) : undefined}
               rightAccessory={
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: isExpanded ? themeColor + "15" : colors.surface2 }}
@@ -594,6 +598,7 @@ function FriendRequestCard({
 
   return (
     <Pressable
+      // INVARIANT_ALLOW_INLINE_HANDLER
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onViewProfile?.();
@@ -635,6 +640,7 @@ function FriendRequestCard({
         <View className="flex-row">
           <Pressable
             testID="friend-request-reject"
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={(e) => {
               e.stopPropagation();
               onReject?.();
@@ -647,6 +653,7 @@ function FriendRequestCard({
           </Pressable>
           <Pressable
             testID="friend-request-accept"
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={(e) => {
               e.stopPropagation();
               onAccept?.();
@@ -1374,6 +1381,7 @@ export default function FriendsScreen() {
             <Button
               variant="primary"
               label="Sign In"
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => router.replace("/login")}
               style={{ marginTop: 16 }}
             />
@@ -1425,6 +1433,7 @@ export default function FriendsScreen() {
               </View>
             )}
             <Pressable
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => setShowAddFriend(!showAddFriend)}
               className="w-10 h-10 rounded-full items-center justify-center"
               style={{ backgroundColor: themeColor }}
@@ -1439,6 +1448,7 @@ export default function FriendsScreen() {
       <View className="px-5 pb-3">
         <View className="flex-row gap-2">
           <Pressable
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/activity");
@@ -1455,6 +1465,7 @@ export default function FriendsScreen() {
             </Text>
           </Pressable>
           <Pressable
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push("/suggestions");
@@ -1572,6 +1583,7 @@ export default function FriendsScreen() {
                       {searchResults.users.map((user: SearchUserResult) => (
                         <Pressable
                           key={user.id}
+                          // INVARIANT_ALLOW_INLINE_HANDLER
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             router.push(`/user/${user.id}` as any);
@@ -1644,6 +1656,7 @@ export default function FriendsScreen() {
         {receivedRequests.length > 0 && (
           <View testID="friends-requests" className="mb-4">
             <Pressable
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setRequestsExpanded(!requestsExpanded);
@@ -1706,6 +1719,7 @@ export default function FriendsScreen() {
         {/* Planning Section (Circles) */}
         <View className="mb-4">
           <Pressable
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setPlanningExpanded(!planningExpanded);
@@ -1721,6 +1735,7 @@ export default function FriendsScreen() {
             <View className="flex-row items-center">
               {circles.length > 0 && (
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={(e) => {
                     e.stopPropagation();
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1734,6 +1749,7 @@ export default function FriendsScreen() {
                 </Pressable>
               )}
               <Pressable
+                // INVARIANT_ALLOW_INLINE_HANDLER
                 onPress={(e) => {
                   e.stopPropagation();
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1756,6 +1772,7 @@ export default function FriendsScreen() {
             <Animated.View entering={FadeInDown.duration(200)}>
               {circles.length === 0 ? (
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     handleCreateCirclePress();
@@ -1801,6 +1818,7 @@ export default function FriendsScreen() {
         <View className="mb-2">
           {/* Section Header Row */}
           <Pressable
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setFriendsExpanded(!friendsExpanded);
@@ -1826,6 +1844,7 @@ export default function FriendsScreen() {
               {/* View Mode Toggle */}
               <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     handleViewModeChange("list");
@@ -1842,6 +1861,7 @@ export default function FriendsScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     handleViewModeChange("detailed");
@@ -1928,6 +1948,7 @@ export default function FriendsScreen() {
         <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
           <View className="flex-row items-center justify-between px-5 py-4" style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Pressable
+              // INVARIANT_ALLOW_INLINE_HANDLER
               onPress={() => {
                 setShowContactsModal(false);
                 setContactSearch("");
@@ -1955,6 +1976,7 @@ export default function FriendsScreen() {
                 style={{ color: colors.text }}
               />
               {contactSearch.length > 0 && (
+                // INVARIANT_ALLOW_INLINE_HANDLER
                 <Pressable onPress={() => setContactSearch("")}>
                   <X size={18} color={colors.textSecondary} />
                 </Pressable>
@@ -1981,6 +2003,7 @@ export default function FriendsScreen() {
 
               return (
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => handleInviteContact(contact)}
                   className="flex-row items-center mx-4 mb-2 p-4 rounded-xl"
                   style={{

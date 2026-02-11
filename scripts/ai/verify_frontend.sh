@@ -717,4 +717,59 @@ fi
 echo ""
 echo "P0_PERF_THUMB_AVATAR_HYGIENE checks PASS"
 
+# ── P0 PERF QUERY RENDER STABILITY ─────────────────────────────────
+echo ""
+echo "Running P0_PERF_QUERY_RENDER_STABILITY checks…"
+echo "  Goal: prevent unannotated inline JSX press handlers in primary feed screens."
+
+HANDLER_FAIL=0
+HANDLER_TOTAL=0
+
+FEED_SCREENS=(
+  src/app/discover.tsx
+  src/app/social.tsx
+  src/app/friends.tsx
+  src/app/calendar.tsx
+)
+
+for FEED in "${FEED_SCREENS[@]}"; do
+  if [ ! -f "$FEED" ]; then continue; fi
+  VIOLATIONS=$(awk '
+  {
+    if (NF > 0) {
+      if (match($0, /on(Press|LongPress|PressIn|PressOut)[[:space:]]*=[[:space:]]*\{/) && match($0, /=>/)) {
+        gsub(/^[[:space:]]+/, "", prev_nonempty)
+        gsub(/[[:space:]]+$/, "", prev_nonempty)
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_HANDLER") {
+          printf "%s:%d: %s\n", FILENAME, NR, $0
+          count++
+        }
+      }
+      prev_nonempty = $0
+    }
+  }
+  END { exit (count > 0 ? 1 : 0) }
+  ' "$FEED" 2>&1)
+  VSTAT=$?
+  if [ "$VSTAT" -ne 0 ]; then
+    VCOUNT=$(echo "$VIOLATIONS" | wc -l | tr -d ' ')
+    echo "  ❌ $FEED has $VCOUNT unannotated inline handler(s):"
+    echo "$VIOLATIONS"
+    HANDLER_FAIL=1
+    HANDLER_TOTAL=$((HANDLER_TOTAL + VCOUNT))
+  fi
+done
+
+if [ "$HANDLER_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_QUERY_RENDER_STABILITY — $HANDLER_TOTAL unannotated inline handler(s)"
+  echo "Remediation: Add '// INVARIANT_ALLOW_INLINE_HANDLER' on the line immediately above each inline handler."
+  exit 1
+fi
+
+echo "  ✓ P0_PERF_QUERY_RENDER_STABILITY: all inline press handlers in primary feeds are annotated"
+
+echo ""
+echo "P0_PERF_QUERY_RENDER_STABILITY checks PASS"
+
 echo "PASS: verify_frontend"

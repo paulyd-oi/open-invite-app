@@ -292,6 +292,7 @@ export default function DiscoverScreen() {
       className="mb-3"
     >
       <Pressable
+        // INVARIANT_ALLOW_INLINE_HANDLER
         onPress={() => handleEventPress(event.id)}
         className="rounded-xl p-4"
         style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
@@ -396,6 +397,7 @@ export default function DiscoverScreen() {
             variant="primary"
             size="sm"
             label="Create"
+            // INVARIANT_ALLOW_INLINE_HANDLER
             onPress={() => {
               if (!guardEmailVerification(session)) return;
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -414,6 +416,7 @@ export default function DiscoverScreen() {
             return (
               <Pressable
                 key={opt.key}
+                // INVARIANT_ALLOW_INLINE_HANDLER
                 onPress={() => {
                   if (lens !== opt.key) {
                     setLens(opt.key);
@@ -471,6 +474,7 @@ export default function DiscoverScreen() {
                   <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>
                 </View>
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => handleEventPress(featured.id)}
                   className="rounded-2xl p-5"
                   style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
@@ -532,6 +536,7 @@ export default function DiscoverScreen() {
             ) : (
               <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-3">
                 <Pressable
+                  // INVARIANT_ALLOW_INLINE_HANDLER
                   onPress={() => {
                     if (!guardEmailVerification(session)) return;
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
