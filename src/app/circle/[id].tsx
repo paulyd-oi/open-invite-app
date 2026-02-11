@@ -1210,6 +1210,19 @@ function parseSystemEventPayload(content: string): { eventId: string; title: str
   return null;
 }
 
+// -- Parse __system:member_left:{JSON} payload from message content --
+function parseSystemMemberLeftPayload(content: string): { type: "member_left" | "member_removed"; circleId: string; userId: string; name: string } | null {
+  const PREFIX = "__system:member_left:";
+  if (!content.startsWith(PREFIX)) return null;
+  try {
+    const raw = JSON.parse(content.slice(PREFIX.length));
+    if (raw && (raw.type === "member_left" || raw.type === "member_removed") && typeof raw.userId === "string" && typeof raw.name === "string") {
+      return { type: raw.type, circleId: raw.circleId ?? "", userId: raw.userId, name: raw.name };
+    }
+  } catch { /* malformed JSON — fall through */ }
+  return null;
+}
+
 // Message Bubble Component
 function MessageBubble({
   message,
@@ -1244,6 +1257,7 @@ function MessageBubble({
 }) {
   const isLegacySystemMessage = message.content.startsWith("📅");
   const systemEventPayload = parseSystemEventPayload(message.content);
+  const memberLeftPayload = parseSystemMemberLeftPayload(message.content);
   const isSending = (message as any).status === "sending";
   const isFailed = (message as any).status === "failed";
   const isSent = (message as any).status === "sent" || (!isSending && !isFailed);
@@ -1293,6 +1307,30 @@ function MessageBubble({
             </View>
           </View>
         </Pressable>
+      </View>
+    );
+  }
+
+  // [P1_MEMBER_LEFT_RENDER] Member left/removed system pill
+  if (memberLeftPayload) {
+    if (__DEV__) {
+      devLog("[P1_MEMBER_LEFT_RENDER]", {
+        circleId: memberLeftPayload.circleId,
+        type: memberLeftPayload.type,
+        userId: memberLeftPayload.userId,
+        name: memberLeftPayload.name,
+      });
+    }
+    const pillText = memberLeftPayload.type === "member_removed"
+      ? `${memberLeftPayload.name} was removed`
+      : `${memberLeftPayload.name} left the circle`;
+    return (
+      <View className="items-center my-2">
+        <View className="rounded-full px-3 py-1" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
+            {pillText}
+          </Text>
+        </View>
       </View>
     );
   }
