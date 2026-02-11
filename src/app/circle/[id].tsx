@@ -157,7 +157,6 @@ function MiniCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
-  const [didSelectBestTimeChip, setDidSelectBestTimeChip] = useState(false);
   const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -522,8 +521,6 @@ function MiniCalendar({
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
               setShowBestTimeSheet(true);
-              setDidSelectBestTimeChip(true);
-              if (__DEV__) devLog("[P0_SCHED_SUMMARY]", { action: "open_sheet", didSelectBestTimeChip: true, date: bestTimesDate.toISOString() });
             }}
             accessibilityRole="button"
             accessibilityLabel={`${quietHasPerfectOverlap ? "Everyone's free" : "Best times to meet"}. Tap to view.`}
@@ -564,8 +561,6 @@ function MiniCalendar({
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                     setBestTimesDate(d);
                     setShowBestTimeSheet(true);
-                    setDidSelectBestTimeChip(true);
-                    if (__DEV__) devLog("[P0_SCHED_SUMMARY]", { action: "chip_select", didSelectBestTimeChip: true, date: d.toISOString() });
                   }}
                   style={{
                     alignItems: "center",
@@ -586,17 +581,6 @@ function MiniCalendar({
               );
             })}
           </ScrollView>
-
-          {/* Inline summary — visible only in overview state (before tapping a date) */}
-          {!showBestTimeSheet && !didSelectBestTimeChip && (quietSlots.length > 0 && quietBestSlot ? (
-            <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
-              {quietBestSlot.availableCount} of {quietBestSlot.totalMembers} available · {quietSlots.length} time{quietSlots.length !== 1 ? "s" : ""}
-            </Text>
-          ) : (
-            <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
-              No shared free times — try another day
-            </Text>
-          ))}
 
           {/* Best Time to Meet Sheet */}
           <BottomSheet
