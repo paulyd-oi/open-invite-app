@@ -272,3 +272,20 @@ export function formatReconnectRecencyLabel(
   if (daysSince <= 90) return "A couple months ago";
   return "A while ago";
 }
+
+// ── Completion countdown ─────────────────────────────────────────
+/**
+ * Human-friendly label for time remaining until next midnight (local).
+ * Minutes are rounded to the nearest 5 for a calm, non-anxious feel.
+ * Returns null when msRemaining <= 0 (fallback to static copy).
+ */
+export function formatCountdownLabel(msRemaining: number): string | null {
+  if (msRemaining <= 0) return null;
+  const totalMinutes = Math.round(msRemaining / 60_000 / 5) * 5;
+  if (totalMinutes <= 0) return null;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h > 0 && m > 0) return `New ideas in ${h}h ${m}m`;
+  if (h > 0) return `New ideas in ${h}h`;
+  return `New ideas in ${m}m`;
+}

@@ -56,6 +56,7 @@ import {
   getAcceptFeedback,
   getDismissFeedback,
   shouldShowAcceptFeedback,
+  formatCountdownLabel,
 } from "@/lib/smartMicrocopy";
 import {
   generateIdeas,
@@ -299,6 +300,13 @@ const STATS_RESET_MONTH_KEY = "ideasStatsResetMonth";
 const PATTERN_MEMORY_KEY = "ideasPatternMemory";
 function getSessionSignalsKey(dayKey?: string): string {
   return `ideasSessionSignals_${(dayKey ?? getTodayKey()).replace(/-/g, "_")}`;
+}
+
+/** Ms until next local midnight (start of tomorrow). */
+function msUntilNextMidnight(): number {
+  const now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return tomorrow.getTime() - now.getTime();
 }
 const DECK_SCREEN_W = Dimensions.get("window").width;
 const DECK_SWIPE_THRESHOLD = Math.round(DECK_SCREEN_W * 0.33);
@@ -702,6 +710,19 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
     opacity: completionOpacity.value,
     transform: [{ scale: completionScale.value }],
   }));
+
+  // Completion countdown ("New ideas in Xh Ym")
+  const [countdownLabel, setCountdownLabel] = useState<string | null>(null);
+  const isComplete = currentIndex > 0 && currentIndex >= deck.length;
+  useEffect(() => {
+    if (!isComplete) return;
+    // Compute immediately, then refresh every 60 s
+    const tick = () => setCountdownLabel(formatCountdownLabel(msUntilNextMidnight()));
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [isComplete]);
+
   const acceptStatsRef = useRef<AcceptStats>({});
   const statsResetMonthRef = useRef<string | null>(null);
   const patternMemoryRef = useRef<PatternMemory>({});
@@ -1178,12 +1199,12 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
             </Text>
           )}
 
-          {/* Secondary hint (non-interactive) */}
+          {/* Secondary hint: live countdown to next deck */}
           <Text
             className="text-[11px] mt-2"
             style={{ color: colors.textTertiary }}
           >
-            New ideas tomorrow
+            {countdownLabel ?? "New ideas tomorrow"}
           </Text>
         </Animated.View>
       </View>
