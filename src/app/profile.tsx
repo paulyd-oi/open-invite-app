@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
+import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -238,6 +239,9 @@ export default function ProfileScreen() {
 
   // ── Banner photo URL — SSOT via heroSSOT.resolveBannerUri ──
   const bannerUri = resolveBannerUri(profileData?.profile as Record<string, unknown> | null);
+
+  // [P0_PERF_PRELOAD_OWN_PROFILE_HERO] Preload own banner (max 1, bounded)
+  usePreloadHeroBanners({ uris: bannerUri ? [bannerUri] : [], enabled: !!bannerUri, max: 1 });
 
   // [P0_BANNER_RENDER] DEV proof: what the UI is trying to render
   useEffect(() => {

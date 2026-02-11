@@ -605,6 +605,14 @@ else
   echo "  ✓ Part 5: user/[id].tsx uses usePreloadHeroBanners for public profile hero"
 fi
 
+# Part 6: profile.tsx must use usePreloadHeroBanners for own profile hero
+if ! grep -q 'usePreloadHeroBanners' src/app/profile.tsx 2>/dev/null; then
+  echo "  ❌ profile.tsx does not use usePreloadHeroBanners for own profile hero"
+  PRELOAD_FAIL=1
+else
+  echo "  ✓ Part 6: profile.tsx uses usePreloadHeroBanners for own profile hero"
+fi
+
 if [ "$PRELOAD_FAIL" -ne 0 ]; then
   echo ""
   echo "FAIL: P0_PERF_PRELOAD_BOUNDED_HEROES invariant violated"
