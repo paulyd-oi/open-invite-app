@@ -254,7 +254,18 @@ export async function uploadByKind(
     }
 
     if (__DEV__) {
-      devLog("[P0_UPLOAD_PROOF]", "sign_response", { kind, hasUploadUrl: !!signed.uploadUrl, uploadUrlPrefix: signed.uploadUrl?.slice(0, 45), signedKeys: Object.keys(signed.signedParams || {}).sort() });
+      devLog("[P0_UPLOAD_SIGPROOF]", "sign_response_audit", {
+        kind,
+        endpoint_EXACT: signed.uploadUrl,
+        signedParamKeys_sorted: Object.keys(signed.signedParams).sort(),
+        signedParamValues: Object.fromEntries(
+          Object.entries(signed.signedParams).map(([k, v]) =>
+            k === "signature" ? [k, String(v).slice(0, 8) + "..."] :
+            k === "api_key" ? [k, "REDACTED"] : [k, String(v)]
+          )
+        ),
+        keyCount: Object.keys(signed.signedParams).length,
+      });
     }
 
     // --- C. Upload to Cloudinary (signed) ----------------------------------
@@ -285,7 +296,27 @@ export async function uploadByKind(
     // SSOT: use backend-provided uploadUrl verbatim
     const endpoint = signed.uploadUrl;
     if (__DEV__) {
-      devLog("[P0_UPLOAD_PROOF]", "cloudinary_fetch", { kind, endpointPrefix: endpoint?.slice(0, 45), hasEventId: !!entityId && kind==="event_photo", hasCircleId: !!entityId && kind==="circle_photo" });
+      const appendedKeys = Object.keys(formFields);
+      const signedKeys = Object.keys(signed.signedParams);
+      const extraKeys = appendedKeys.filter(k => !(k in signed.signedParams));
+      const missingKeys = signedKeys.filter(k => !(k in formFields));
+      devLog("[P0_UPLOAD_SIGPROOF]", "formdata_assembly_trace", {
+        kind,
+        endpoint_EXACT: endpoint,
+        appendedKeys_inOrder: appendedKeys,
+        appendedCount: appendedKeys.length,
+        signedCount: signedKeys.length,
+        extraKeys_NOT_in_signedParams: extraKeys,
+        missingKeys_NOT_in_formData: missingKeys,
+        duplicateCheck: appendedKeys.length === new Set(appendedKeys).size ? "NO_DUPLICATES" : "HAS_DUPLICATES",
+        values: Object.fromEntries(
+          Object.entries(formFields).map(([k, v]) =>
+            k === "signature" ? [k, v.slice(0, 8) + "..."] :
+            k === "api_key" ? [k, "REDACTED"] : [k, v]
+          )
+        ),
+        fileField: "appended_last_as_image/jpeg",
+      });
       devLog('[P0_UPLOAD_CLOUDINARY_POST]', { kind, url: endpoint, hasFile: true, fileName: profile.filename, mimeType: 'image/jpeg' });
     }
     let res: Response;
