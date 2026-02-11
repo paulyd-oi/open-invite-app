@@ -26,6 +26,7 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage, safePrependMessages } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -1504,6 +1505,8 @@ export default function CircleScreen() {
   const prevMessageCountRef = useRef<number | null>(null);
   // [P1_CIRCLE_LEAVE_VIS] Track previous member count for roster-change detection
   const prevMemberCountRef = useRef<number | null>(null);
+  // [P0_CIRCLE_LIST_REFRESH] Dedup set so contract fires once per member_left message
+  const memberLeftSeenRef = useRef(new Set<string>());
 
   const bumpUnseen = useCallback((delta: number) => {
     unseenCountRef.current = Math.max(0, unseenCountRef.current + delta);
@@ -3354,6 +3357,19 @@ export default function CircleScreen() {
               Math.abs(new Date(item.createdAt).getTime() - new Date(prev.createdAt).getTime()) <= RUN_WINDOW_MS;
 
             const isFailedOptimistic = (item as any).status === "failed" && (item as any).id?.startsWith("optimistic-");
+
+            // [P0_CIRCLE_LIST_REFRESH] Invalidate circle list when a member_left pill renders
+            if (
+              item.content?.startsWith("__system:member_left:") &&
+              !memberLeftSeenRef.current.has(item.id)
+            ) {
+              memberLeftSeenRef.current.add(item.id);
+              refreshCircleListContract({
+                reason: "system_member_left_render",
+                circleId: id,
+                queryClient,
+              });
+            }
 
             const handleCopy = async () => {
               try {

@@ -18,6 +18,7 @@ import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushTok
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { handlePushEvent } from "@/lib/pushRouter";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
 
@@ -708,16 +709,8 @@ export function useNotifications() {
           devLog(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
         checkAndRegisterToken(); // Will be throttled unless backend empty
-        // [P1_CIRCLE_STALENESS] Self-heal circles + unread on foreground
-        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
-        queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
-        if (__DEV__) {
-          devLog('[P1_CIRCLE_STALENESS]', {
-            reason: 'app_active',
-            circleId: null,
-            invalidations: ['circleKeys.all', 'circleKeys.unreadCount'],
-          });
-        }
+        // [P0_CIRCLE_LIST_REFRESH] SSOT contract: self-heal circles + unread on foreground
+        refreshCircleListContract({ reason: "app_active", queryClient });
       }
     };
 

@@ -83,6 +83,7 @@ import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
@@ -1173,18 +1174,11 @@ export default function FriendsScreen() {
 
   const circles = circlesData?.circles ?? [];
 
-  // [P1_CIRCLE_STALENESS] Refetch circles on tab focus to clear stale membership
+  // [P0_CIRCLE_LIST_REFRESH] SSOT contract: refetch circles on tab focus
   useFocusEffect(
     React.useCallback(() => {
-      refetchCircles();
-      if (__DEV__) {
-        devLog('[P1_CIRCLE_STALENESS]', {
-          reason: 'friends_focus',
-          circleId: null,
-          invalidations: ['refetchCircles()'],
-        });
-      }
-    }, [refetchCircles])
+      refreshCircleListContract({ reason: "friends_focus", queryClient, refetchCircles });
+    }, [queryClient, refetchCircles])
   );
 
   // [P1_CIRCLE_BADGE] Per-circle unread overlay from unread v2 SSOT
