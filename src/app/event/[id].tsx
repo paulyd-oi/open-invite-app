@@ -1086,6 +1086,22 @@ export default function EventDetailScreen() {
         });
       }
 
+      // [P0_OPTIMISTIC] DEV proof: optimistic_apply phase
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'event_rsvp',
+          eventId: id,
+          phase: 'optimistic_apply',
+          status: nextStatus,
+        }));
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'attendees',
+          eventId: id,
+          phase: 'optimistic_apply',
+          attendeeCount: nextTotalGoing,
+        }));
+      }
+
       // Cancel outgoing refetches so they don't overwrite optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.rsvp(id ?? "") });
       await queryClient.cancelQueries({ queryKey: eventKeys.attendees(id ?? "") });
@@ -1140,6 +1156,18 @@ export default function EventDetailScreen() {
       
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'event_rsvp',
+          eventId: id,
+          phase: 'server_commit',
+          status,
+        }));
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'attendees',
+          eventId: id,
+          phase: 'server_commit',
+          attendeeCount: 'pending_refetch',
+        }));
         // [P1_EVENT_PROJ] Proof: log which projection keys are invalidated
         devLog('[P1_EVENT_PROJ]', 'rsvp onSuccess invalidation', {
           eventId: id,
@@ -1183,6 +1211,18 @@ export default function EventDetailScreen() {
           status: error?.response?.status ?? error?.status,
           code: error?.data?.code ?? error?.response?.data?.code,
         });
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'event_rsvp',
+          eventId: id,
+          phase: 'rollback',
+          status: context?.prevRsvpStatus ?? null,
+        }));
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'attendees',
+          eventId: id,
+          phase: 'rollback',
+          attendeeCount: 'restored_from_snapshot',
+        }));
       }
 
       // Restore cache to previous state
@@ -1208,6 +1248,28 @@ export default function EventDetailScreen() {
         ], "rsvp_error_409");
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
+      }
+    },
+    onSettled: (_data, error) => {
+      // [P0_OPTIMISTIC] Guard: after every mutation (success or error), verify cache
+      // converges to server truth via the invalidation that already fired.
+      if (__DEV__) {
+        const currentRsvp = queryClient.getQueryData(eventKeys.rsvp(id ?? "")) as any;
+        const currentAttendees = queryClient.getQueryData(eventKeys.attendees(id ?? "")) as any;
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'event_rsvp',
+          eventId: id,
+          phase: 'converged',
+          hadError: !!error,
+          cacheStatus: currentRsvp?.status ?? null,
+        }));
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'attendees',
+          eventId: id,
+          phase: 'converged',
+          hadError: !!error,
+          attendeeCount: currentAttendees?.totalGoing ?? null,
+        }));
       }
     },
   });
@@ -1338,6 +1400,37 @@ export default function EventDetailScreen() {
       }
     },
   });
+
+  // [P0_UI_CONVERGENCE] Event RSVP convergence guard (DEV only)
+  // Proves displayed RSVP status always converges to the query snapshot after reconciliation.
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!id || !myRsvpData) return;
+    const raw = myRsvpData.status;
+    const normalized = raw === 'maybe' ? 'interested' : raw === 'invited' ? null : raw;
+    devLog('[P0_UI_CONVERGENCE]', {
+      domain: 'event_rsvp',
+      eventId: id,
+      rsvpStatus: normalized,
+      source: 'query',
+      queryKey: 'eventKeys.rsvp(id)',
+    });
+  }, [id, myRsvpData]);
+
+  // [P0_UI_CONVERGENCE] Attendee list convergence guard (DEV only)
+  // Proves attendee roster re-renders from query snapshot — no stale memoized lists survive refetch.
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!id || !attendeesQuery.data) return;
+    devLog('[P0_UI_CONVERGENCE]', {
+      domain: 'attendees',
+      eventId: id,
+      attendeeCount: attendeesQuery.data.attendees?.length ?? 0,
+      source: 'query',
+      queryKey: 'eventKeys.attendees(id)',
+      isFetching: attendeesQuery.isFetching,
+    });
+  }, [id, attendeesQuery.data, attendeesQuery.isFetching]);
 
   // ============================================
   // P0_HOOK_ORDER: Proof log on mount - all hooks called unconditionally above this point

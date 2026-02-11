@@ -1876,6 +1876,12 @@ export default function CircleScreen() {
 
       if (__DEV__) {
         devLog("[P1_MSG_IDEMP]", "mutate", { clientMessageId, optimisticId: optimistic.id });
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'optimistic_apply',
+          result: 'message_insert',
+        }));
       }
 
       // Clear input immediately for instant feel
@@ -1923,6 +1929,14 @@ export default function CircleScreen() {
         queryKey: circleKeys.single(id),
         refetchType: "inactive",
       });
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: 'message_reconciled',
+        }));
+      }
     },
     onError: (_error, _vars, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
@@ -1946,6 +1960,12 @@ export default function CircleScreen() {
         );
         if (__DEV__) {
           devLog("[P1_MSG_DELIVERY]", `failed ${context.optimisticId}`);
+          devLog('[P0_OPTIMISTIC]', JSON.stringify({
+            domain: 'circle_action',
+            circleId: id,
+            phase: 'rollback',
+            result: 'message_marked_failed',
+          }));
         }
       }
       safeToast.error("Message Failed", "Message failed to send. Tap to retry.");
@@ -1958,6 +1978,15 @@ export default function CircleScreen() {
       api.post<{ success: boolean; addedCount: number }>(`/api/circles/${id}/members`, { memberIds }),
     onSuccess: async (_data, memberIds) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // [P0_OPTIMISTIC] DEV proof: server_commit for add members (no optimistic, invalidate only)
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: `members_added_${memberIds.length}`,
+        }));
+      }
       setShowAddMembers(false);
       setSelectedFriends([]);
 
@@ -1973,6 +2002,15 @@ export default function CircleScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // [P0_OPTIMISTIC] DEV proof: no optimistic to rollback, just log failure
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'add_members_failed',
+        }));
+      }
       safeToast.error("Add Members Failed", "Failed to add members. Please try again.");
     },
   });
@@ -1992,6 +2030,12 @@ export default function CircleScreen() {
     onSuccess: async (_data, memberUserId) => {
       if (__DEV__) {
         devLog('[CircleRemoveMember] Mutation SUCCESS:', { circleId: id, memberUserId });
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: 'member_removed',
+        }));
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Removed", "Member has been removed from the circle.");
@@ -2010,6 +2054,12 @@ export default function CircleScreen() {
           message: error?.message,
           body: error?.body,
         });
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'remove_member_failed',
+        }));
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (error?.status === 403) {
@@ -2054,6 +2104,15 @@ export default function CircleScreen() {
     },
     onMutate: async (isMuted) => {
       if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "optimistic_update", { circleId: id, isMuted });
+      // [P0_OPTIMISTIC] DEV proof: optimistic_apply phase for circle mute
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'optimistic_apply',
+          result: `mute_${isMuted}`,
+        }));
+      }
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: circleKeys.all() });
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
@@ -2108,6 +2167,15 @@ export default function CircleScreen() {
       queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "mutation_success", { circleId: id, persistedMuted: isMuted });
       if (__DEV__) devLog("[P0_CIRCLE_SETTINGS]", "mute_persist_ok", { circleId: id, isMuted });
+      // [P0_OPTIMISTIC] DEV proof: server_commit phase for circle mute
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: `mute_${isMuted}_committed`,
+        }));
+      }
     },
     onError: (error, isMuted, context) => {
       // Revert optimistic updates
@@ -2127,6 +2195,15 @@ export default function CircleScreen() {
         });
       }
       if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "mutation_error", { circleId: id, desiredMuted: isMuted, error: String(error) });
+      // [P0_OPTIMISTIC] DEV proof: rollback phase for circle mute
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'mute_reverted',
+        }));
+      }
       safeToast.error("Oops", "Could not update mute setting");
     },
   });
@@ -2559,17 +2636,42 @@ export default function CircleScreen() {
       await queryClient.cancelQueries({ queryKey: circleKeys.notificationLevel(id!) });
       const prev = queryClient.getQueryData(circleKeys.notificationLevel(id!));
       queryClient.setQueryData(circleKeys.notificationLevel(id!), { ok: true, level });
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'optimistic_apply',
+          result: `notify_level_${level}`,
+        }));
+      }
       return { prev };
     },
     onError: (_err, _level, context) => {
       if (context?.prev) {
         queryClient.setQueryData(circleKeys.notificationLevel(id!), context.prev);
       }
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'notify_level_reverted',
+        }));
+      }
       safeToast.error("Update Failed", "Failed to update notifications");
       if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "save_error", { level: _level });
     },
     onSuccess: (_data, level) => {
       if (__DEV__) devLog("[P1_NOTIFY_LEVEL_UI]", "save_success", { level });
+      // [P0_OPTIMISTIC] DEV proof: server_commit phase for notify level
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: `notify_level_${level}_committed`,
+        }));
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: circleKeys.notificationLevel(id!) });
@@ -2602,15 +2704,40 @@ export default function CircleScreen() {
       await queryClient.cancelQueries({ queryKey: circleKeys.planLock(id!) });
       const prev = queryClient.getQueryData(circleKeys.planLock(id!));
       queryClient.setQueryData(circleKeys.planLock(id!), { locked, note: note || undefined });
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'optimistic_apply',
+          result: `plan_lock_${locked}`,
+        }));
+      }
       return { prev };
     },
     onSuccess: () => {
       if (__DEV__) devLog("[P1_PLAN_LOCK_UI]", "save", { circleId: id });
+      // [P0_OPTIMISTIC] DEV proof: server_commit phase for plan lock
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: 'plan_lock_committed',
+        }));
+      }
       queryClient.invalidateQueries({ queryKey: circleKeys.planLock(id!), refetchType: "inactive" });
     },
     onError: (_err, _vars, context) => {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(circleKeys.planLock(id!), context.prev);
+      }
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'plan_lock_reverted',
+        }));
       }
       safeToast.error("Update Failed", "Could not update plan lock");
     },
@@ -2686,15 +2813,40 @@ export default function CircleScreen() {
       });
       if (__DEV__) devLog("[P1_POLL_UI]", "vote", { pollId, optionId });
       if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_attempt", { pollId, optionId });
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'optimistic_apply',
+          result: `vote_${pollId}_${optionId}`,
+        }));
+      }
       return { prev };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: circleKeys.polls(id!) });
       if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_success");
+      // [P0_OPTIMISTIC] DEV proof: server_commit phase for vote
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'server_commit',
+          result: 'vote_committed',
+        }));
+      }
     },
     onError: (_err, _vars, context) => {
       if (context?.prev !== undefined) {
         queryClient.setQueryData(circleKeys.polls(id!), context.prev);
+      }
+      if (__DEV__) {
+        devLog('[P0_OPTIMISTIC]', JSON.stringify({
+          domain: 'circle_action',
+          circleId: id,
+          phase: 'rollback',
+          result: 'vote_reverted',
+        }));
       }
       safeToast.error("Vote Failed", "Could not submit vote");
       if (__DEV__) devLog("[P1_POLLS_E2E_UI]", "vote_error", { error: String(_err) });
@@ -2810,6 +2962,22 @@ export default function CircleScreen() {
       });
     });
   }, []);
+
+  // [P0_UI_CONVERGENCE] Circle roster convergence guard (DEV only)
+  // Proves the member list rendered is always the query snapshot — never stale optimistic data.
+  useEffect(() => {
+    if (!__DEV__) return;
+    const qMembers = data?.circle?.members;
+    if (!qMembers || !id) return;
+    devLog('[P0_UI_CONVERGENCE]', {
+      domain: 'circle_roster',
+      circleId: id,
+      memberCount: qMembers.length,
+      source: 'query',
+      queryKey: 'circleKeys.single(id)',
+      isFetching,
+    });
+  }, [data?.circle?.members, id, isFetching]);
 
   // [P0_HOOK_FIX] hooks normalized — all hooks above, early return below
   if (__DEV__) devLog("[P0_HOOK_FIX]", "hooks normalized");

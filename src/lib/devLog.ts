@@ -189,6 +189,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_CIRCLE_LIST_REFRESH]",
   // P0 realtime reconcile contract (push → server truth)
   "[P0_RECONCILE]",
+  // P0 optimistic proof (mutation convergence / rollback)
+  "[P0_OPTIMISTIC]",
 ];
 
 /**
