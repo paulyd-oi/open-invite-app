@@ -41,12 +41,12 @@ import {
   List,
   LayoutGrid,
   Activity,
-  Sparkles,
   BadgeCheck,
   Plus,
   Pin,
   Trash2,
   ChevronUp,
+  MessageCircle,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -589,10 +589,20 @@ export default function FriendsScreen() {
   const isBootWaiting = (!session || bootStatus !== 'authed') && bootStatus !== 'loggedOut';
   const { isTimedOut: isBootTimedOut, reset: resetBootTimeout } = useLoadingTimeout(isBootWaiting, { timeout: 3000 });
   const [isRetrying, setIsRetrying] = useState(false);
-  const params = useLocalSearchParams<{ search?: string }>();
+  const params = useLocalSearchParams<{ search?: string; tab?: string }>();
   // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+
+  // ── Tab shell: Activity(0) | Chats(1) | People(2) ─────────
+  // Default to Chats (index 1); deep-link ?tab= overrides
+  const FRIENDS_TABS = ["Activity", "Chats", "People"] as const;
+  const [friendsTab, setFriendsTab] = useState<number>(() => {
+    if (params.tab === "activity") return 0;
+    if (params.tab === "people") return 2;
+    return 1; // default: Chats
+  });
+
   const [searchEmail, setSearchEmail] = useState("");
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showContactsModal, setShowContactsModal] = useState(false);
@@ -604,8 +614,16 @@ export default function FriendsScreen() {
   useEffect(() => {
     if (params.search === "true") {
       setShowAddFriend(true);
+      setFriendsTab(2); // switch to People pane for search
     }
   }, [params.search]);
+
+  // Deep-link ?tab= override (runtime param changes)
+  useEffect(() => {
+    if (params.tab === "activity") setFriendsTab(0);
+    else if (params.tab === "people") setFriendsTab(2);
+    else if (params.tab === "chats") setFriendsTab(1);
+  }, [params.tab]);
 
   // Live search state
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -1358,45 +1376,49 @@ export default function FriendsScreen() {
         }
       />
 
-      {/* Social Features Quick Access */}
+      {/* ── Tab Header: Activity | Chats | People ────────── */}
       <View className="px-5 pb-3">
-        <View className="flex-row gap-2">
-          <Pressable
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/activity");
-            }}
-            className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: "#2196F320", borderWidth: 1, borderColor: "#2196F330" }}
-          >
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <View style={{ position: "relative" }}>
-              <Activity size={16} color="#2196F3" />
-              {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicator removed pre-launch */}
-            </View>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-sm font-medium ml-2" style={{ color: "#2196F3" }}>
-              Activity
-            </Text>
-          </Pressable>
-          <Pressable
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push("/suggestions");
-            }}
-            className="flex-1 flex-row items-center justify-center px-3 py-2.5 rounded-xl"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: "#9C27B020", borderWidth: 1, borderColor: "#9C27B030" }}
-          >
-            <Sparkles size={16} color="#9C27B0" />
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-sm font-medium ml-2" style={{ color: "#9C27B0" }}>
-              Suggestions
-            </Text>
-          </Pressable>
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+        <View className="flex-row" style={{ backgroundColor: colors.surface2, borderRadius: 12, padding: 3 }}>
+          {/* INVARIANT_ALLOW_SMALL_MAP */}
+          {FRIENDS_TABS.map((label, idx) => {
+            const isActive = friendsTab === idx;
+            const icon = idx === 0 ? Activity : idx === 1 ? MessageCircle : Users;
+            const IconComp = icon;
+            return (
+              <Pressable
+                key={label}
+                /* INVARIANT_ALLOW_INLINE_HANDLER */
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setFriendsTab(idx);
+                }}
+                className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ backgroundColor: isActive ? colors.surface : "transparent" }}
+              >
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                <View style={{ position: "relative" }}>
+                  <IconComp size={15} color={isActive ? themeColor : colors.textSecondary} />
+                  {/* Activity badge: unseen count dot */}
+                  {idx === 0 && unseenCount > 0 && (
+                    <View
+                      className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full"
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ backgroundColor: "#EF4444" }}
+                    />
+                  )}
+                </View>
+                <Text
+                  className="text-xs font-semibold ml-1.5"
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  style={{ color: isActive ? themeColor : colors.textSecondary }}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -1413,51 +1435,56 @@ export default function FriendsScreen() {
           />
         }
       >
-        <FriendsActivityPane />
+        {/* ── Active pane based on friendsTab ────────────── */}
+        {friendsTab === 0 && <FriendsActivityPane />}
 
-        <FriendsChatsPane
-          circles={circles}
-          planningExpanded={planningExpanded}
-          onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
-          onCreateCirclePress={handleCreateCirclePress}
-          byCircle={byCircle}
-          onPinCircle={(id) => pinCircleMutation.mutate(id)}
-          onLeaveCircle={(id, name) => {
-            setCircleToLeave({ id, name });
-            setShowLeaveCircleConfirm(true);
-          }}
-        />
+        {friendsTab === 1 && (
+          <FriendsChatsPane
+            circles={circles}
+            planningExpanded={planningExpanded}
+            onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
+            onCreateCirclePress={handleCreateCirclePress}
+            byCircle={byCircle}
+            onPinCircle={(id) => pinCircleMutation.mutate(id)}
+            onLeaveCircle={(id, name) => {
+              setCircleToLeave({ id, name });
+              setShowLeaveCircleConfirm(true);
+            }}
+          />
+        )}
 
-        <FriendsPeoplePane
-          showAddFriend={showAddFriend}
-          searchEmail={searchEmail}
-          onSearchEmailChange={setSearchEmail}
-          onDirectFriendRequest={handleDirectFriendRequest}
-          isRequestSending={sendRequestMutation.isPending}
-          onLoadContacts={loadContacts}
-          contactsLoading={contactsLoading}
-          searchResults={searchResults}
-          isSearching={isSearching}
-          isOnline={networkStatus.isOnline}
-          debouncedQuery={debouncedQuery}
-          receivedRequests={receivedRequests}
-          requestsExpanded={requestsExpanded}
-          onToggleRequestsExpanded={() => setRequestsExpanded(!requestsExpanded)}
-          isAcceptPending={acceptRequestMutation.isPending}
-          isRejectPending={rejectRequestMutation.isPending}
-          onAcceptRequest={(id) => acceptRequestMutation.mutate(id)}
-          onRejectRequest={(id) => rejectRequestMutation.mutate(id)}
-          filteredFriends={filteredFriends}
-          friendsExpanded={friendsExpanded}
-          onToggleFriendsExpanded={() => setFriendsExpanded(!friendsExpanded)}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          isLoading={isLoading}
-          pinnedFriendshipIds={pinnedFriendshipIds}
-          friendKeyExtractor={friendKeyExtractor}
-          renderFriendListItem={renderFriendListItem}
-          renderFriendCard={renderFriendCard}
-        />
+        {friendsTab === 2 && (
+          <FriendsPeoplePane
+            showAddFriend={showAddFriend}
+            searchEmail={searchEmail}
+            onSearchEmailChange={setSearchEmail}
+            onDirectFriendRequest={handleDirectFriendRequest}
+            isRequestSending={sendRequestMutation.isPending}
+            onLoadContacts={loadContacts}
+            contactsLoading={contactsLoading}
+            searchResults={searchResults}
+            isSearching={isSearching}
+            isOnline={networkStatus.isOnline}
+            debouncedQuery={debouncedQuery}
+            receivedRequests={receivedRequests}
+            requestsExpanded={requestsExpanded}
+            onToggleRequestsExpanded={() => setRequestsExpanded(!requestsExpanded)}
+            isAcceptPending={acceptRequestMutation.isPending}
+            isRejectPending={rejectRequestMutation.isPending}
+            onAcceptRequest={(id) => acceptRequestMutation.mutate(id)}
+            onRejectRequest={(id) => rejectRequestMutation.mutate(id)}
+            filteredFriends={filteredFriends}
+            friendsExpanded={friendsExpanded}
+            onToggleFriendsExpanded={() => setFriendsExpanded(!friendsExpanded)}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            isLoading={isLoading}
+            pinnedFriendshipIds={pinnedFriendshipIds}
+            friendKeyExtractor={friendKeyExtractor}
+            renderFriendListItem={renderFriendListItem}
+            renderFriendCard={renderFriendCard}
+          />
+        )}
       </ScrollView>
 
       {/* Create Circle Modal */}
