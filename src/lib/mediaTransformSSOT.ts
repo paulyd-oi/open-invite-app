@@ -28,6 +28,16 @@ export type CloudinaryTransform = {
   format?: "auto" | "jpg" | "png" | "webp";
 };
 
+/**
+ * Reusable transform presets.
+ * HERO_BANNER      - matches HeroBannerSurface render size.
+ * THUMBNAIL_SQUARE - event gallery grid thumbnails (128px UI x 3 = 384, rounded to 360).
+ */
+export const CLOUDINARY_PRESETS = {
+  HERO_BANNER: { w: 1200, h: 600, crop: "fill" } as CloudinaryTransform,
+  THUMBNAIL_SQUARE: { w: 360, h: 360, crop: "fill" } as CloudinaryTransform,
+} as const;
+
 const UPLOAD_MARKER = "/image/upload/";
 
 /** Tokens that indicate an existing Cloudinary transform segment. */

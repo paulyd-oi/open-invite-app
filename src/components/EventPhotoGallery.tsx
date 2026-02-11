@@ -29,6 +29,7 @@ import { uploadByKind } from "@/lib/imageUpload";
 import { requestCameraPermission } from "@/lib/permissions";
 import { devError, devLog } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 
 // Define types locally to avoid import issues
 interface EventPhoto {
@@ -386,7 +387,7 @@ export function EventPhotoGallery({
                   className="mr-3"
                 >
                   <Image
-                    source={{ uri: photo.imageUrl }}
+                    source={{ uri: toCloudinaryTransformedUrl(photo.imageUrl, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
                     className="w-32 h-32 rounded-xl"
                     resizeMode="cover"
                   />

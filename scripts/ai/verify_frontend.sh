@@ -480,7 +480,7 @@ echo "Running P0_PERF_IMAGE_DECODE_HYGIENE checks…"
 echo "  Goal: hero/banner Image sources must use toCloudinaryTransformedUrl."
 
 DECODE_FAIL=0
-DECODE_SCOPE="src/components/HeroBannerSurface.tsx src/app/profile.tsx src/app/public-profile.tsx src/app/event/[id].tsx src/components/ProfilePreviewCard.tsx"
+DECODE_SCOPE="src/components/HeroBannerSurface.tsx src/app/profile.tsx src/app/public-profile.tsx src/app/event/[id].tsx src/components/ProfilePreviewCard.tsx src/components/EventPhotoGallery.tsx"
 
 for DFILE in $DECODE_SCOPE; do
   if [ ! -f "$DFILE" ]; then
@@ -516,13 +516,29 @@ else
   echo "  ✓ Part 2: HeroBannerSurface uses toCloudinaryTransformedUrl"
 fi
 
+# EventPhotoGallery must import + use the helper for thumbnails
+if ! grep -q 'toCloudinaryTransformedUrl' src/components/EventPhotoGallery.tsx 2>/dev/null; then
+  echo "  ❌ EventPhotoGallery.tsx does not use toCloudinaryTransformedUrl for thumbnails"
+  DECODE_FAIL=1
+else
+  echo "  ✓ Part 3: EventPhotoGallery uses toCloudinaryTransformedUrl for thumbnails"
+fi
+
+# CLOUDINARY_PRESETS must be exported with THUMBNAIL preset
+if ! grep -q 'THUMBNAIL_SQUARE' src/lib/mediaTransformSSOT.ts 2>/dev/null; then
+  echo "  ❌ mediaTransformSSOT.ts missing THUMBNAIL_SQUARE preset"
+  DECODE_FAIL=1
+else
+  echo "  ✓ Part 4: mediaTransformSSOT.ts exports THUMBNAIL_SQUARE preset"
+fi
+
 if [ "$DECODE_FAIL" -ne 0 ]; then
   echo ""
   echo "FAIL: P0_PERF_IMAGE_DECODE_HYGIENE invariant violated"
   exit 1
 fi
 
-echo "  ✓ Part 3: All enforced files pass Cloudinary decode hygiene"
+echo "  ✓ Part 5: All enforced files pass Cloudinary decode hygiene"
 echo ""
 echo "P0_PERF_IMAGE_DECODE_HYGIENE checks PASS"
 
