@@ -1203,7 +1203,13 @@ function DailyIdeasDeck({ onSwitchToPeople, peopleCount = 0 }: { onSwitchToPeopl
         onDismiss={handleDismiss}
         onWhyPress={__DEV__ ? () => {
           setDebugCard(currentCard);
-          devLog("[P1_IDEA_DEBUGGER]", { id: currentCard.id, archetype: currentCard.archetype });
+          devLog("[P1_IDEA_DEBUGGER]", {
+            archetype: currentCard.archetype,
+            finalScore: currentCard.scoreBreakdown?.final,
+            confidence: currentCard.scoreBreakdown?.confidence,
+            idx: currentIndex,
+            total: deck.length,
+          });
         } : undefined}
       />
       {/* Transient microcopy feedback */}
