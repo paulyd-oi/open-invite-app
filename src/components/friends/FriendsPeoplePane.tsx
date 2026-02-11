@@ -1,8 +1,9 @@
-import React from "react";
-import { View, Text, Pressable, TextInput, FlatList, Platform } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, Pressable, TextInput, FlatList, Platform, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   ChevronRight,
@@ -13,6 +14,8 @@ import {
   Bell,
   Contact,
   Users,
+  UserPlus,
+  Sparkles,
   List,
   LayoutGrid,
 } from "@/ui/icons";
@@ -21,12 +24,21 @@ import { Button } from "@/ui/Button";
 import { FriendsListSkeleton } from "@/components/SkeletonLoader";
 import { ShareAppButton } from "@/components/ShareApp";
 import { useTheme } from "@/lib/ThemeContext";
+import { useSession } from "@/lib/useSession";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isAuthedForNetwork } from "@/lib/authedGate";
+import { api } from "@/lib/api";
+import { guardEmailVerification } from "@/lib/emailVerification";
+import { safeToast } from "@/lib/safeToast";
 import { devLog } from "@/lib/devLog";
 import type {
   Friendship,
   FriendRequest,
   SearchUsersRankedResponse,
   SearchUserResult,
+  GetFriendSuggestionsResponse,
+  FriendSuggestion,
+  SendFriendRequestResponse,
 } from "@/shared/contracts";
 
 // ── FriendRequestCard (moved from ActivityPane — SSOT) ─────────
@@ -198,6 +210,176 @@ export interface FriendsPeoplePaneProps {
   friendKeyExtractor: (item: Friendship) => string;
   renderFriendListItem: (info: { item: Friendship; index: number }) => React.ReactElement | null;
   renderFriendCard: (info: { item: Friendship; index: number }) => React.ReactElement | null;
+}
+
+// ── People You May Know Section (self-contained) ──────────────
+const MAX_SUGGESTIONS = 8;
+
+function PeopleYouMayKnowSection() {
+  const { themeColor, colors } = useTheme();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
+  const [expanded, setExpanded] = useState(true);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
+
+  const { data: suggestionsData, isLoading } = useQuery({
+    queryKey: ["friendSuggestions"],
+    queryFn: () => api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60000,
+  });
+
+  const sendRequestMutation = useMutation({
+    mutationFn: (userId: string) =>
+      api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
+    onSuccess: (_, userId) => {
+      setSentRequests((prev) => new Set(prev).add(userId));
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["friendSuggestions"] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Sent", "Friend request sent!");
+    },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Failed", "Could not send request. Try again.");
+    },
+  });
+
+  const handleAddFriend = useCallback((suggestion: FriendSuggestion) => {
+    if (!guardEmailVerification(session)) return;
+    sendRequestMutation.mutate(suggestion.user.id);
+  }, [session, sendRequestMutation]);
+
+  const suggestions = suggestionsData?.suggestions?.slice(0, MAX_SUGGESTIONS) ?? [];
+
+  // Don't render section if no suggestions and not loading
+  if (!isLoading && suggestions.length === 0) return null;
+
+  return (
+    <View className="mb-4">
+      <Pressable
+        /* INVARIANT_ALLOW_INLINE_HANDLER */
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          setExpanded(!expanded);
+        }}
+        className="flex-row items-center justify-between mb-2"
+      >
+        <View className="flex-row items-center">
+          <Sparkles size={16} color="#9333EA" />
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <Text className="text-sm font-semibold ml-1" style={{ color: colors.textSecondary }}>
+            People you may know{suggestions.length > 0 ? ` (${suggestions.length})` : ""}
+          </Text>
+        </View>
+        {expanded ? (
+          <ChevronUp size={18} color={colors.textTertiary} />
+        ) : (
+          <ChevronDown size={18} color={colors.textTertiary} />
+        )}
+      </Pressable>
+
+      {expanded && (
+        <Animated.View entering={FadeInDown.duration(200)}>
+          {isLoading ? (
+            <View className="py-6 items-center">
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                Finding people…
+              </Text>
+            </View>
+          ) : (
+            /* INVARIANT_ALLOW_SMALL_MAP */
+            suggestions.map((suggestion, index) => {
+              const user = suggestion.user;
+              const isSent = sentRequests.has(user.id);
+              const isPending = sendRequestMutation.isPending && sendRequestMutation.variables === user.id;
+              const mutualCount = suggestion.mutualFriendCount;
+              const bio = user.calendarBio || user.bio;
+
+              return (
+                <Animated.View key={user.id} entering={FadeInDown.delay(index * 40).springify()}>
+                  <Pressable
+                    /* INVARIANT_ALLOW_INLINE_HANDLER */
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/user/${user.id}` as any);
+                    }}
+                    className="flex-row items-center rounded-xl p-3 mb-2"
+                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                    style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                  >
+                    <EntityAvatar
+                      photoUrl={user.avatarUrl}
+                      initials={user.name?.charAt(0).toUpperCase() ?? user.handle?.charAt(0).toUpperCase() ?? "?"}
+                      size={44}
+                      backgroundColor={user.avatarUrl ? "transparent" : "#9333EA" + "20"}
+                      foregroundColor="#9333EA"
+                    />
+                    <View className="flex-1 ml-3 mr-2">
+                      {/* Name */}
+                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                      <Text className="font-medium" style={{ color: colors.text }} numberOfLines={1}>
+                        {user.name ?? (user.handle ? `@${user.handle}` : "Unknown")}
+                      </Text>
+                      {/* @handle + mutual count */}
+                      <View className="flex-row items-center">
+                        {user.handle && (
+                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                          <Text className="text-xs" style={{ color: colors.textSecondary }} numberOfLines={1}>
+                            @{user.handle}
+                          </Text>
+                        )}
+                        {user.handle && mutualCount > 0 && (
+                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                          <Text className="text-xs mx-1" style={{ color: colors.textTertiary }}>•</Text>
+                        )}
+                        {mutualCount > 0 && (
+                          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                          <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                            {mutualCount} mutual{mutualCount === 1 ? "" : "s"}
+                          </Text>
+                        )}
+                      </View>
+                      {/* Bio */}
+                      {bio ? (
+                        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                        <Text className="text-xs mt-0.5" style={{ color: colors.textTertiary }} numberOfLines={1}>
+                          {bio}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {/* Add button */}
+                    <Pressable
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        if (!isSent && !isPending) handleAddFriend(suggestion);
+                      }}
+                      disabled={isPending || isSent}
+                      className="w-9 h-9 rounded-full items-center justify-center"
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ backgroundColor: isSent ? "#4CAF50" : themeColor, opacity: isPending ? 0.6 : 1 }}
+                    >
+                      {isPending ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : isSent ? (
+                        <Check size={16} color="#fff" />
+                      ) : (
+                        <UserPlus size={16} color="#fff" />
+                      )}
+                    </Pressable>
+                  </Pressable>
+                </Animated.View>
+              );
+            })
+          )}
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -482,6 +664,9 @@ export function FriendsPeoplePane({
           )}
         </View>
       )}
+
+      {/* ── People You May Know ─────────────────────────────── */}
+      <PeopleYouMayKnowSection />
 
       {/* ── Friends List - Collapsible (existing) ────────────── */}
       <View className="mb-2">
