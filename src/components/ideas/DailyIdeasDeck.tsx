@@ -111,6 +111,58 @@ function msUntilNextMidnight(): number {
 const DECK_SCREEN_W = Dimensions.get("window").width;
 const DECK_SWIPE_THRESHOLD = Math.round(DECK_SCREEN_W * 0.33);
 
+// ─── Anti-repeat: prevent consecutive cards of the same category ──
+/**
+ * Greedy bucket reorder: picks from the largest non-last-used category bucket
+ * each round to maximise spacing between same-category cards.
+ *
+ * Pure function — no side-effects. If perfect interleave is impossible (e.g.
+ * one category dominates), the tail will cluster but earlier positions stay
+ * spread. O(n·k) where k = number of distinct categories (≤ 5).
+ */
+function antiRepeatByCategory<T>(items: T[], getCategory: (item: T) => string): T[] {
+  if (items.length <= 1) return items;
+
+  // Build category buckets preserving original relative order
+  const buckets = new Map<string, T[]>();
+  for (const item of items) {
+    const cat = getCategory(item);
+    const arr = buckets.get(cat);
+    if (arr) arr.push(item);
+    else buckets.set(cat, [item]);
+  }
+
+  const result: T[] = [];
+  let lastCat: string | null = null;
+
+  while (result.length < items.length) {
+    // Find the largest bucket whose category differs from lastCat
+    let bestCat: string | null = null;
+    let bestLen = -1;
+    for (const [cat, arr] of buckets) {
+      if (arr.length === 0) continue;
+      if (cat !== lastCat && arr.length > bestLen) {
+        bestCat = cat;
+        bestLen = arr.length;
+      }
+    }
+
+    // Fallback: if only lastCat remains, pick it (consecutive is unavoidable)
+    if (bestCat == null) {
+      for (const [cat, arr] of buckets) {
+        if (arr.length > 0) { bestCat = cat; break; }
+      }
+    }
+    if (bestCat == null) break; // shouldn't happen
+
+    const bucket = buckets.get(bestCat)!;
+    result.push(bucket.shift()!);
+    lastCat = bestCat;
+  }
+
+  return result;
+}
+
 interface DeckReconnectSuggestion {
   friend: { id: string; name: string | null; image: string | null };
   friendshipId: string;
@@ -780,7 +832,29 @@ export function DailyIdeasDeck({
       }
     }
 
-    const newDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current, myId, yesterdaySignalsRef.current);
+    const rawDeck = generateIdeas(context, exposureMapRef.current, acceptStatsRef.current, birthdayMap, patternMemoryRef.current, myId, yesterdaySignalsRef.current);
+
+    // Anti-repeat: prevent consecutive cards of the same category
+    const newDeck = antiRepeatByCategory(rawDeck, (c) => c.category);
+
+    if (__DEV__) {
+      const beforeCats = rawDeck.slice(0, 12).map((c) => c.category);
+      const afterCats = newDeck.slice(0, 12).map((c) => c.category);
+      // Count consecutive-same violations before/after
+      const countViolations = (cats: string[]) => {
+        let v = 0;
+        for (let i = 1; i < cats.length; i++) { if (cats[i] === cats[i - 1]) v++; }
+        return v;
+      };
+      devLog("[IDEAS_ANTI_REPEAT]", {
+        deckSize: newDeck.length,
+        violationsBefore: countViolations(beforeCats),
+        violationsAfter: countViolations(afterCats),
+        beforeFirst12: beforeCats,
+        afterFirst12: afterCats,
+      });
+    }
+
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);

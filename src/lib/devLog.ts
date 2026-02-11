@@ -201,6 +201,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_LOGOUT_DEACTIVATE_ORDER]",
   // P0 login re-register proof (push reg decision on authed)
   "[P0_LOGIN_RE_REGISTER]",
+  // Ideas anti-repeat (category-level consecutive-card prevention)
+  "[IDEAS_ANTI_REPEAT]",
 ];
 
 /**
