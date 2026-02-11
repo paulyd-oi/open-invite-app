@@ -34,7 +34,7 @@ import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
-import { devError } from "@/lib/devLog";
+import { devLog, devError } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -63,7 +63,22 @@ export default function CreateEventRequestScreen() {
         return parsedDate;
       }
     }
-    return new Date();
+    // [P1_AUTOFILL_DEFAULTS] No explicit date param — default to next 6 PM
+    const now = new Date();
+    const evening = new Date(now);
+    evening.setHours(18, 0, 0, 0);
+    if (evening.getTime() <= now.getTime()) {
+      evening.setDate(evening.getDate() + 1);
+    }
+    if (__DEV__) {
+      devLog('[P1_AUTOFILL_DEFAULTS]', {
+        applied: ['startTime'],
+        startTime: evening.toISOString(),
+        reason: 'no_date_param_next_evening',
+        screen: 'create-event-request',
+      });
+    }
+    return evening;
   };
 
   const [title, setTitle] = useState("");

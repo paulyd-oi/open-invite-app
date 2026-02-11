@@ -392,14 +392,30 @@ export default function CreateEventScreen() {
     fetchUserLocation();
   }, []);
 
-  // Initialize date from URL param or use current date (hardened)
+  // Initialize date from URL param or use next-evening heuristic (hardened)
   const getInitialDate = (): Date => {
     const parsed = safeParseDate(date);
     if (parsed) return parsed;
     if (__DEV__ && date) {
       devWarn('[P1_PREFILL_EVENT]', 'params_invalid', { field: 'date', reason: 'unparseable' });
     }
-    return new Date();
+    // [P1_AUTOFILL_DEFAULTS] No explicit date param — default to next 6 PM
+    const now = new Date();
+    const evening = new Date(now);
+    evening.setHours(18, 0, 0, 0);
+    // If 6 PM today is still in the future, use it; otherwise tomorrow 6 PM
+    if (evening.getTime() <= now.getTime()) {
+      evening.setDate(evening.getDate() + 1);
+    }
+    if (__DEV__) {
+      devLog('[P1_AUTOFILL_DEFAULTS]', {
+        applied: ['startTime'],
+        startTime: evening.toISOString(),
+        reason: 'no_date_param_next_evening',
+        hasCircleContext: isCircleEvent,
+      });
+    }
+    return evening;
   };
 
   const [title, setTitle] = useState(templateTitle ?? "");
