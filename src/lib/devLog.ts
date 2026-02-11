@@ -213,6 +213,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_HOSTING_QUOTA]",
   // P1 hosting quota UI indicator (create screen)
   "[P1_HOSTING_QUOTA_UI]",
+  // P1 hosting quota soft nudge (2-of-3 banner)
+  "[P1_HOSTING_QUOTA_NUDGE]",
 ];
 
 /**

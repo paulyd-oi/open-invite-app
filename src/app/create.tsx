@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -48,6 +48,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button } from "@/ui/Button";
 import { logError, normalizeCreateEventError, type CreateEventErrorReceipt } from "@/lib/errors";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
@@ -517,6 +518,91 @@ export default function CreateEventScreen() {
       }
     }
   }, [hostingQuota.isLoading, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, hostingQuota.remaining, hostingQuota.canHost, hostingQuota.isUnlimited]);
+
+  // ── [P1_HOSTING_QUOTA_NUDGE] Soft nudge banner state ──
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const nudgeCheckedRef = React.useRef(false);
+
+  const nudgeMonthKey = useMemo(() => {
+    const now = new Date();
+    const yyyy = now.getUTCFullYear();
+    const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+    return `${yyyy}-${mm}`;
+  }, []);
+
+  const nudgeStorageKey = useMemo(() => {
+    const userId = session?.user?.id;
+    if (!userId) return null;
+    return `oi:hosting_nudge_dismissed:${userId}:${nudgeMonthKey}`;
+  }, [session?.user?.id, nudgeMonthKey]);
+
+  // Check dismiss state on mount
+  useEffect(() => {
+    if (nudgeCheckedRef.current || !nudgeStorageKey) return;
+    nudgeCheckedRef.current = true;
+    (async () => {
+      try {
+        const val = await AsyncStorage.getItem(nudgeStorageKey);
+        if (val === "1") setNudgeDismissed(true);
+      } catch {
+        // fail-open: show banner if read fails
+      }
+    })();
+  }, [nudgeStorageKey]);
+
+  const handleNudgeDismiss = useCallback(async () => {
+    setNudgeDismissed(true);
+    if (__DEV__) {
+      devLog("[P1_HOSTING_QUOTA_NUDGE]", { action: "dismiss", monthKey: nudgeMonthKey });
+    }
+    if (nudgeStorageKey) {
+      try {
+        await AsyncStorage.setItem(nudgeStorageKey, "1");
+      } catch {
+        // non-critical
+      }
+    }
+  }, [nudgeStorageKey, nudgeMonthKey]);
+
+  const handleNudgeUpgrade = useCallback(() => {
+    if (__DEV__) {
+      devLog("[P1_HOSTING_QUOTA_NUDGE]", { action: "upgrade_tap", monthKey: nudgeMonthKey });
+    }
+    setPaywallContext("ACTIVE_EVENTS_LIMIT");
+    setShowPaywallModal(true);
+  }, [nudgeMonthKey]);
+
+  // Compute nudge visibility
+  const showNudgeBanner = useMemo(() => {
+    // Premium suppression
+    if (hostingQuota.isUnlimited) {
+      if (__DEV__ && !hostingQuota.isLoading && session?.user?.id) {
+        devLog("[P1_HOSTING_QUOTA_NUDGE]", { suppressed: true, reason: "isUnlimited", userId: session.user.id });
+      }
+      return false;
+    }
+    // Must have loaded + have a numeric limit
+    if (hostingQuota.isLoading) return false;
+    if (hostingQuota.monthlyLimit == null) return false;
+    // Only show at threshold: eventsUsed === monthlyLimit - 1
+    if (hostingQuota.eventsUsed !== hostingQuota.monthlyLimit - 1) return false;
+    // User dismissed for this month
+    if (nudgeDismissed) return false;
+    return true;
+  }, [hostingQuota.isUnlimited, hostingQuota.isLoading, hostingQuota.monthlyLimit, hostingQuota.eventsUsed, nudgeDismissed, session?.user?.id]);
+
+  // DEV proof log when banner becomes visible
+  useEffect(() => {
+    if (showNudgeBanner && __DEV__ && session?.user?.id) {
+      devLog("[P1_HOSTING_QUOTA_NUDGE]", {
+        eventsUsed: hostingQuota.eventsUsed,
+        monthlyLimit: hostingQuota.monthlyLimit,
+        userId: session.user.id,
+        monthKey: nudgeMonthKey,
+        reason: "threshold_reached",
+      });
+    }
+  }, [showNudgeBanner, hostingQuota.eventsUsed, hostingQuota.monthlyLimit, session?.user?.id, nudgeMonthKey]);
 
   // Check for pending ICS import on mount
   useEffect(() => {
@@ -1476,6 +1562,51 @@ export default function CreateEventScreen() {
               </View>
             )}
           </Animated.View>
+
+          {/* [P1_HOSTING_QUOTA_NUDGE] Soft nudge banner — 1 event away from limit */}
+          {showNudgeBanner && (
+            <Animated.View
+              entering={FadeInDown.delay(200).springify()}
+              style={{
+                backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED",
+                borderRadius: 12,
+                padding: 14,
+                marginTop: 12,
+                borderWidth: 1,
+                borderColor: isDark ? "#3A3A3C" : "#FDBA74",
+              }}
+            >
+              <Text style={{ color: colors.text, fontWeight: "600", fontSize: 14, marginBottom: 4 }}>
+                Almost at your monthly limit
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18, marginBottom: 10 }}>
+                You've hosted {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events this month. Upgrade to Pro for unlimited hosting.
+              </Text>
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <Pressable
+                  onPress={handleNudgeUpgrade}
+                  style={{
+                    backgroundColor: themeColor,
+                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 13 }}>Upgrade</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleNudgeDismiss}
+                  style={{
+                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Not now</Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
 
           {/* Hosting quota indicator — hidden for Pro/unlimited */}
           {!hostingQuota.isLoading && !hostingQuota.isUnlimited && hostingQuota.monthlyLimit != null && (
