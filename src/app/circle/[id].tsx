@@ -1897,7 +1897,7 @@ export default function CircleScreen() {
       // Clear input immediately for instant feel
       setMessage("");
 
-      return { optimisticId: optimistic.id, content, clientMessageId };
+      return { optimisticId: optimistic.id, content, clientMessageId, _t0: Date.now() };
     },
     onSuccess: (serverResponse: any, _vars, context) => {
       // Reconcile: replace optimistic message with server response, mark sent
@@ -1946,6 +1946,12 @@ export default function CircleScreen() {
           phase: 'server_commit',
           result: 'message_reconciled',
         }));
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'message_send',
+          state: 'success',
+          circleId: id,
+          durationMs: context?._t0 ? Date.now() - context._t0 : 0,
+        }));
       }
     },
     onError: (_error, _vars, context) => {
@@ -1979,6 +1985,14 @@ export default function CircleScreen() {
         }
       }
       safeToast.error("Message Failed", "Message failed to send. Tap to retry.");
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'message_send',
+          state: 'error',
+          circleId: id,
+          durationMs: context?._t0 ? Date.now() - context._t0 : 0,
+        }));
+      }
     },
   });
 

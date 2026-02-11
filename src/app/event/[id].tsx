@@ -1145,9 +1145,9 @@ export default function EventDetailScreen() {
       });
 
       // Return snapshot for rollback on error
-      return { previousRsvp, previousAttendees, previousSingle, prevRsvpStatus, nextStatus };
+      return { previousRsvp, previousAttendees, previousSingle, prevRsvpStatus, nextStatus, _t0: Date.now() };
     },
-    onSuccess: async (_, status) => {
+    onSuccess: async (_, status, context) => {
       // Haptic feedback only - no intrusive toast popups
       if (status === "going") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1175,6 +1175,13 @@ export default function EventDetailScreen() {
           nextStatus: status,
           keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
         });
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'event_rsvp',
+          state: 'success',
+          eventId: id,
+          status,
+          durationMs: context?._t0 ? Date.now() - context._t0 : 0,
+        }));
       }
       
       // P0 FIX: Invalidate using SSOT contract
@@ -1249,6 +1256,14 @@ export default function EventDetailScreen() {
         ], "rsvp_error_409");
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
+      }
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'event_rsvp',
+          state: 'error',
+          eventId: id,
+          durationMs: context?._t0 ? Date.now() - context._t0 : 0,
+        }));
       }
     },
     onSettled: (_data, error) => {

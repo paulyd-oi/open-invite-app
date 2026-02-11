@@ -149,11 +149,17 @@ export default function CirclesScreen() {
         };
       });
       
-      return { previousCircles };
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'circle_leave', state: 'optimistic', circleId }));
+      }
+      return { previousCircles, _t0: Date.now() };
     },
-    onSuccess: (_, circleId) => {
+    onSuccess: (_, circleId, context) => {
       devLog("[P1_CIRCLES_CARD]", "action=success", "type=delete", `circleId=${circleId}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'circle_leave', state: 'success', circleId, durationMs: context?._t0 ? Date.now() - context._t0 : 0 }));
+      }
       renderVersion.current += 1;
       if (__DEV__) devLog('[P2_CIRCLES_RERENDER_SOT]', 'leave complete, renderVersion=' + renderVersion.current, 'circleId=' + circleId);
       queryClient.invalidateQueries({ queryKey: circleKeys.all() });
@@ -167,6 +173,9 @@ export default function CirclesScreen() {
         queryClient.setQueryData(circleKeys.all(), context.previousCircles);
       }
       safeToast.error("Oops", "Could not leave group");
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'circle_leave', state: 'error', circleId, durationMs: context?._t0 ? Date.now() - context._t0 : 0 }));
+      }
     },
   });
 

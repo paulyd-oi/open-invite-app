@@ -551,14 +551,33 @@ export default function UserProfileScreen() {
   const acceptRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put<{ success: boolean; friendshipId?: string; friend?: { id: string; name: string | null; image: string | null } }>(`/api/friends/request/${requestId}`, { status: "accepted" }),
-    onSuccess: () => {
+    onMutate: () => {
+      const _t0 = Date.now();
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_accept', state: 'optimistic', userId: id }));
+      }
+      return { _t0 };
+    },
+    onSuccess: (_data, _requestId, context) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Friend added!", `You're now friends`);
       // Stay on this screen - refetch will update state to show friend features
       queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       // Refetch to get the updated isFriend state
       refetch();
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_accept', state: 'success', durationMs }));
+      }
+    },
+    onError: (_error, _requestId, context) => {
+      safeToast.error("Accept Failed", "Could not accept request. Please try again.");
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_accept', state: 'error', durationMs }));
+      }
     },
   });
 
@@ -566,10 +585,28 @@ export default function UserProfileScreen() {
   const rejectRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put(`/api/friends/request/${requestId}`, { status: "rejected" }),
-    onSuccess: () => {
+    onMutate: () => {
+      const _t0 = Date.now();
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_reject', state: 'optimistic', userId: id }));
+      }
+      return { _t0 };
+    },
+    onSuccess: (_data, _requestId, context) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ["userProfile", id] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_reject', state: 'success', durationMs }));
+      }
+    },
+    onError: (_error, _requestId, context) => {
+      safeToast.error("Decline Failed", "Could not decline request. Please try again.");
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'profile_friend_reject', state: 'error', durationMs }));
+      }
     },
   });
 
@@ -796,10 +833,11 @@ export default function UserProfileScreen() {
                             variant="secondary"
                             label="Decline"
                             onPress={() => {
+                              if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) return;
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                               rejectRequestMutation.mutate(incomingRequestId);
                             }}
-                            disabled={rejectRequestMutation.isPending}
+                            disabled={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
                             loading={rejectRequestMutation.isPending}
                             leftIcon={!rejectRequestMutation.isPending ? <X size={18} color={colors.textSecondary} /> : undefined}
                             style={{ marginRight: 12 }}
@@ -808,10 +846,11 @@ export default function UserProfileScreen() {
                             variant="success"
                             label={acceptRequestMutation.isPending ? "Accepting..." : "Accept"}
                             onPress={() => {
+                              if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) return;
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                               acceptRequestMutation.mutate(incomingRequestId);
                             }}
-                            disabled={acceptRequestMutation.isPending}
+                            disabled={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
                             loading={acceptRequestMutation.isPending}
                             leftIcon={!acceptRequestMutation.isPending ? <Check size={18} color="#fff" /> : undefined}
                           />
@@ -1028,10 +1067,11 @@ export default function UserProfileScreen() {
                           size="sm"
                           label="Decline"
                           onPress={() => {
+                            if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) return;
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             rejectRequestMutation.mutate(incomingRequestId);
                           }}
-                          disabled={rejectRequestMutation.isPending}
+                          disabled={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
                           loading={rejectRequestMutation.isPending}
                           leftIcon={!rejectRequestMutation.isPending ? <X size={16} color={colors.textSecondary} /> : undefined}
                           style={{ marginRight: 8 }}
@@ -1041,10 +1081,11 @@ export default function UserProfileScreen() {
                           size="sm"
                           label={acceptRequestMutation.isPending ? "..." : "Accept"}
                           onPress={() => {
+                            if (acceptRequestMutation.isPending || rejectRequestMutation.isPending) return;
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                             acceptRequestMutation.mutate(incomingRequestId);
                           }}
-                          disabled={acceptRequestMutation.isPending}
+                          disabled={acceptRequestMutation.isPending || rejectRequestMutation.isPending}
                           loading={acceptRequestMutation.isPending}
                           leftIcon={!acceptRequestMutation.isPending ? <Check size={16} color="#fff" /> : undefined}
                         />

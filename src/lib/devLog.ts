@@ -203,6 +203,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_LOGIN_RE_REGISTER]",
   // Ideas anti-repeat (category-level consecutive-card prevention)
   "[IDEAS_ANTI_REPEAT]",
+  // P0 action feedback proof (optimistic/success/error + durationMs)
+  "[ACTION_FEEDBACK]",
 ];
 
 /**

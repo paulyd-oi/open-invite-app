@@ -828,24 +828,90 @@ export default function SocialScreen() {
   const rsvpMutation = useMutation({
     mutationFn: ({ eventId, status }: { eventId: string; status: RsvpStatus }) => 
       api.post(`/api/events/${eventId}/rsvp`, { status }),
-    onSuccess: (_, { eventId, status }) => {
+    onMutate: async ({ eventId, status }) => {
+      const _t0 = Date.now();
+      // Cancel outgoing feed refetches so they don't overwrite optimistic update
+      await queryClient.cancelQueries({ queryKey: eventKeys.feedPaginated() });
+
+      // Snapshot previous feed pages for rollback
+      const previousFeed = queryClient.getQueryData(eventKeys.feedPaginated());
+
+      // Optimistically update viewerRsvpStatus + goingCount in the feed cache
+      queryClient.setQueryData(eventKeys.feedPaginated(), (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          /* INVARIANT_ALLOW_SMALL_MAP */
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            /* INVARIANT_ALLOW_SMALL_MAP */
+            events: page.events.map((ev: any) => {
+              if (ev.id !== eventId) return ev;
+              const wasGoing = ev.viewerRsvpStatus === "going";
+              const isGoing = status === "going";
+              let delta = 0;
+              if (!wasGoing && isGoing) delta = 1;
+              else if (wasGoing && !isGoing) delta = -1;
+              return {
+                ...ev,
+                viewerRsvpStatus: status,
+                goingCount: Math.max(0, (ev.goingCount ?? 0) + delta),
+              };
+            }),
+          })),
+        };
+      });
+
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'rsvp_swipe',
+          state: 'optimistic',
+          eventId,
+          status,
+        }));
+      }
+
+      return { previousFeed, _t0 };
+    },
+    onSuccess: (_, { eventId, status }, context) => {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {
-        devLog('[P1_EVENT_PROJ]', 'swipe rsvp onSuccess invalidation', {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'rsvp_swipe',
+          state: 'success',
           eventId,
-          nextStatus: status,
-          keys: ['single', 'attendees', 'interests', 'rsvp', 'feed', 'feedPaginated', 'myEvents', 'calendar', 'attending'],
-        });
+          status,
+          durationMs,
+        }));
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, { eventId, status }, context) => {
+      // Rollback optimistic feed update
+      if (context?.previousFeed) {
+        queryClient.setQueryData(eventKeys.feedPaginated(), context.previousFeed);
+      }
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
         safeToast.warning("Full", "This invite is full.");
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
       }
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({
+          action: 'rsvp_swipe',
+          state: 'error',
+          eventId,
+          status,
+          durationMs,
+        }));
+      }
+    },
+    onSettled: (_, __, { eventId }) => {
+      // Always reconcile with server truth
+      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_settled`);
     },
   });
 

@@ -45,6 +45,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
+import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
@@ -1302,6 +1303,7 @@ export default function CalendarScreen() {
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const calendarMountTime = useRef(Date.now()); // [PERF_SWEEP] render timing
 
   // DEV-only proof log for P0 white screen fix
   useEffect(() => {

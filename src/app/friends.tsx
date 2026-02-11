@@ -794,6 +794,7 @@ export default function FriendsScreen() {
     staleTime: 60 * 1000, // 1 min - requests can change more often
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    placeholderData: (prev: GetFriendRequestsResponse | undefined) => prev, // [PERF_SWEEP] Keep requests visible during refetch
   });
 
   // [P0_LOADING_ESCAPE] Retry handler (after queries are available)
@@ -809,7 +810,21 @@ export default function FriendsScreen() {
   const acceptRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put<{ success: boolean; friendshipId?: string; friend?: { id: string; name: string | null; image: string | null } }>(`/api/friends/request/${requestId}`, { status: "accepted" }),
-    onSuccess: async (data) => {
+    onMutate: async (requestId) => {
+      const _t0 = Date.now();
+      // Optimistically remove the request from the list
+      await queryClient.cancelQueries({ queryKey: ["friendRequests"] });
+      const previousRequests = queryClient.getQueryData(["friendRequests"]);
+      queryClient.setQueryData(["friendRequests"], (old: any) => {
+        if (!old?.received) return old;
+        return { ...old, received: old.received.filter((r: any) => r.id !== requestId) };
+      });
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_accept', state: 'optimistic', requestId }));
+      }
+      return { previousRequests, _t0 };
+    },
+    onSuccess: async (data, _requestId, context) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refetch();
       refetchRequests();
@@ -821,6 +836,11 @@ export default function FriendsScreen() {
       if (__DEV__) devLog('[LEGACY_ADD_TO_GROUPS_REMOVED] Would have shown add-to-groups modal');
       safeToast.success("Friend added!", data.friend?.name ? `${data.friend.name} is now your friend` : "You're now friends");
 
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_accept', state: 'success', durationMs }));
+      }
+
       // Check if we should show second order social nudge
       if (bootStatus === 'authed') {
         const canShow = await canShowSecondOrderSocialNudge();
@@ -829,13 +849,60 @@ export default function FriendsScreen() {
         }
       }
     },
+    onError: (_error, _requestId, context) => {
+      // Rollback optimistic removal
+      if (context?.previousRequests) {
+        queryClient.setQueryData(["friendRequests"], context.previousRequests);
+      }
+      safeToast.error("Accept Failed", "Could not accept request. Please try again.");
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_accept', state: 'error', durationMs }));
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+    },
   });
 
   const rejectRequestMutation = useMutation({
     mutationFn: (requestId: string) =>
       api.put(`/api/friends/request/${requestId}`, { status: "rejected" }),
-    onSuccess: () => {
+    onMutate: async (requestId) => {
+      const _t0 = Date.now();
+      // Optimistically remove the request from the list
+      await queryClient.cancelQueries({ queryKey: ["friendRequests"] });
+      const previousRequests = queryClient.getQueryData(["friendRequests"]);
+      queryClient.setQueryData(["friendRequests"], (old: any) => {
+        if (!old?.received) return old;
+        return { ...old, received: old.received.filter((r: any) => r.id !== requestId) };
+      });
+      if (__DEV__) {
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_reject', state: 'optimistic', requestId }));
+      }
+      return { previousRequests, _t0 };
+    },
+    onSuccess: (_data, _requestId, context) => {
       refetchRequests();
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_reject', state: 'success', durationMs }));
+      }
+    },
+    onError: (_error, _requestId, context) => {
+      // Rollback optimistic removal
+      if (context?.previousRequests) {
+        queryClient.setQueryData(["friendRequests"], context.previousRequests);
+      }
+      safeToast.error("Decline Failed", "Could not decline request. Please try again.");
+      if (__DEV__) {
+        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
+        devLog('[ACTION_FEEDBACK]', JSON.stringify({ action: 'friend_reject', state: 'error', durationMs }));
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
     },
   });
 
@@ -873,6 +940,7 @@ export default function FriendsScreen() {
     staleTime: 5 * 60 * 1000, // 5 min - circles rarely change
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    placeholderData: (prev: GetCirclesResponse | undefined) => prev, // [PERF_SWEEP] Keep circles visible during refetch
   });
 
   const circles = circlesData?.circles ?? [];
