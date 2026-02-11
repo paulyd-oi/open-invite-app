@@ -38,6 +38,39 @@ let pushProofDiagnosticRan = false;
 let lastRegisteredUserId: string | null = null;
 
 /**
+ * P0_PUSH_REG: Reset module-level push registration state.
+ * MUST be called on logout so the next login triggers a fresh registration
+ * regardless of throttle or same-user re-login.
+ *
+ * Clears:
+ *   - lastRegisteredUserId (so next login is treated as fresh, not throttled)
+ *   - pushProofDiagnosticRan (so DEV proof runs again on next login)
+ *   - AsyncStorage throttle stamp for the given userId
+ */
+export async function resetPushRegistrationState(userId?: string): Promise<void> {
+  const prevUser = lastRegisteredUserId;
+  lastRegisteredUserId = null;
+  pushProofDiagnosticRan = false;
+
+  // Clear throttle stamp for the logging-out user (or prevUser if no userId given)
+  const clearId = userId ?? prevUser;
+  if (clearId) {
+    const key = getThrottleKey(clearId);
+    if (key) {
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (__DEV__) {
+    devLog(`[P0_PUSH_REG] RESET_STATE prevUser=${prevUser?.substring(0, 8) ?? "null"} clearedThrottle=${clearId?.substring(0, 8) ?? "null"}`);
+  }
+}
+
+/**
  * P0_PUSH_REG: Verify backend token state via GET /api/push/me
  * Returns { activeCount, totalCount, lastSeenAt } or null on error
  */
@@ -625,6 +658,8 @@ export function useNotifications() {
 
   // P0_PUSH_REG: Initial registration and AppState listener
   // CRITICAL: Gate on bootStatus === 'authed' AND runs when userId changes (account switch)
+  // After logout, resetPushRegistrationState() clears lastRegisteredUserId,
+  // so the next boot-authed always forces registration (no stale throttle).
   useEffect(() => {
     const userId = session?.user?.id;
     const userIdPrefix = userId?.substring(0, 8) ?? "none";
@@ -633,19 +668,25 @@ export function useNotifications() {
       if (__DEV__ && bootStatus !== 'authed') {
         devLog(`[P0_PUSH_REG] WAIT bootStatus=${bootStatus}`);
       }
+      // Reset ref when leaving authed (logout)
+      registrationAttempted.current = false;
       return;
     }
 
-    // Check for account switch
+    // Detect fresh login vs account switch
     const isAccountSwitch = userId !== lastRegisteredUserId && lastRegisteredUserId !== null;
+    const isFreshLogin = lastRegisteredUserId === null; // cleared by resetPushRegistrationState
     
-    // Initial check (do not request permission on mount - read only)
+    // Force registration on fresh login or account switch (bypass throttle)
+    const shouldForce = isFreshLogin || isAccountSwitch;
+    
+    // Initial check
     if (__DEV__) {
-      devLog(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
+      devLog(`[P0_PUSH_REG] BOOT_AUTHED userId=${userIdPrefix}... isAccountSwitch=${isAccountSwitch} isFreshLogin=${isFreshLogin} force=${shouldForce} lastUser=${lastRegisteredUserId?.substring(0, 8) ?? "null"}`);
       // Run proof diagnostic ONCE on cold start (DEV only)
       runPushRegistrationProof();
     }
-    checkAndRegisterToken(false);
+    checkAndRegisterToken(shouldForce);
 
     // Re-check permission when app comes to foreground (throttled)
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
@@ -1190,10 +1231,36 @@ export function useNotifications() {
     }
   }, [bootStatus, session?.user]);
 
+  /**
+   * P0_PUSH_REG: ensurePushRegistered — deterministic push registration.
+   * Safe to call multiple times. Bypasses throttle when force=true.
+   * Use for: DEV force re-register button, post-login hook, etc.
+   */
+  const ensurePushRegistered = useCallback(async (opts?: { reason?: string; force?: boolean }) => {
+    const reason = opts?.reason ?? "manual";
+    const force = opts?.force ?? false;
+    const userId = session?.user?.id;
+    const userIdPrefix = userId?.substring(0, 8) ?? "none";
+
+    if (__DEV__) {
+      devLog(`[P0_PUSH_REG] ENSURE reason=${reason} force=${force} userId=${userIdPrefix}... bootStatus=${bootStatus}`);
+    }
+
+    if (bootStatus !== "authed" || !session?.user) {
+      if (__DEV__) {
+        devLog(`[P0_PUSH_REG] ENSURE_SKIP reason=NOT_AUTHED bootStatus=${bootStatus}`);
+      }
+      return;
+    }
+
+    await checkAndRegisterToken(force);
+  }, [bootStatus, session?.user, checkAndRegisterToken]);
+
   return {
     expoPushToken,
     notification,
     recheckPermission: checkAndRegisterToken,
+    ensurePushRegistered,
     runPushDiagnostics,
     clearMyPushTokens,
   };

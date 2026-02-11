@@ -29,6 +29,7 @@ import { deriveAuthState, assertAuthInvariants, type AuthState } from "./authSta
 import { SESSION_TOKEN_KEY, LEGACY_TOKEN_KEYS, SESSION_CACHE_KEY } from "./authKeys";
 import { consumeLogoutIntent } from "./logoutIntent";
 import { devLog, devWarn } from "./devLog";
+import { resetPushRegistrationState } from "@/hooks/useNotifications";
 
 /**
  * DEV-only trace helper for auth token flow tracing.
@@ -268,6 +269,16 @@ export async function resetSession(options?: { reason?: string; status?: number;
 
   // Step 5: React Query cache will be cleared by caller
   log("Step 5/5: React Query cache will be cleared by caller");
+
+  // P0_PUSH_REG: Clear push registration throttle state so next login
+  // forces a fresh backend registration (even for same user re-login).
+  // No userId arg needed — resetPushRegistrationState uses its own lastRegisteredUserId.
+  try {
+    await resetPushRegistrationState();
+    log("  ✓ Push registration state cleared");
+  } catch (e) {
+    log("  ⚠️ Push state clear error (non-fatal):", e);
+  }
 
   log("✅ Session reset successful");
   

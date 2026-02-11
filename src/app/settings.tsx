@@ -415,7 +415,7 @@ function ReferralCounterSection({
 export default function SettingsScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
-  const { runPushDiagnostics, clearMyPushTokens } = useNotifications();
+  const { runPushDiagnostics, clearMyPushTokens, ensurePushRegistered } = useNotifications();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, setThemeColor, themeColorName, themeMode, setThemeMode, isDark, colors } = useTheme();
@@ -1933,6 +1933,20 @@ export default function SettingsScreen() {
                   onPress={handlePushDiagnostics}
                 />
               </>
+            )}
+            {/* P0_PUSH_REG: Force re-register push token (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<Bell size={20} color="#F59E0B" />}
+                title="Force Re-register Push"
+                subtitle="Bypass throttle, re-register token now"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  devLog("[P0_PUSH_REG] FORCE_REREGISTER triggered from Settings");
+                  await ensurePushRegistered({ reason: "settings_force", force: true });
+                }}
+              />
             )}
           </View>
         </Animated.View>
