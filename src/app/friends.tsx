@@ -1413,7 +1413,22 @@ export default function FriendsScreen() {
           />
         }
       >
-        <FriendsActivityPane
+        <FriendsActivityPane />
+
+        <FriendsChatsPane
+          circles={circles}
+          planningExpanded={planningExpanded}
+          onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
+          onCreateCirclePress={handleCreateCirclePress}
+          byCircle={byCircle}
+          onPinCircle={(id) => pinCircleMutation.mutate(id)}
+          onLeaveCircle={(id, name) => {
+            setCircleToLeave({ id, name });
+            setShowLeaveCircleConfirm(true);
+          }}
+        />
+
+        <FriendsPeoplePane
           showAddFriend={showAddFriend}
           searchEmail={searchEmail}
           onSearchEmailChange={setSearchEmail}
@@ -1432,22 +1447,6 @@ export default function FriendsScreen() {
           isRejectPending={rejectRequestMutation.isPending}
           onAcceptRequest={(id) => acceptRequestMutation.mutate(id)}
           onRejectRequest={(id) => rejectRequestMutation.mutate(id)}
-        />
-
-        <FriendsChatsPane
-          circles={circles}
-          planningExpanded={planningExpanded}
-          onTogglePlanningExpanded={() => setPlanningExpanded(!planningExpanded)}
-          onCreateCirclePress={handleCreateCirclePress}
-          byCircle={byCircle}
-          onPinCircle={(id) => pinCircleMutation.mutate(id)}
-          onLeaveCircle={(id, name) => {
-            setCircleToLeave({ id, name });
-            setShowLeaveCircleConfirm(true);
-          }}
-        />
-
-        <FriendsPeoplePane
           filteredFriends={filteredFriends}
           friendsExpanded={friendsExpanded}
           onToggleFriendsExpanded={() => setFriendsExpanded(!friendsExpanded)}
