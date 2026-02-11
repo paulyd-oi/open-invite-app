@@ -49,6 +49,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
 
+// [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
+const QueryDebugOverlay = __DEV__
+  ? require('@/dev/QueryDebugOverlay').default
+  : () => null;
+
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
   // This ensures fresh installs ALWAYS start at /welcome.
@@ -866,6 +871,7 @@ export default function RootLayout() {
                       <ToastContainer />
                       <BootRouter />
                       <RootLayoutNav />
+                      {__DEV__ && <QueryDebugOverlay />}
                     {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
                   </View>
                 </ErrorBoundary>
