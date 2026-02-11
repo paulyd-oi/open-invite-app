@@ -943,4 +943,55 @@ echo "  ✓ P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS: all INVARIANT annotations us
 echo ""
 echo "P0_INVARIANT_JSX_COMMENT_HYGIENE_FEEDS checks PASS"
 
+# ── P0 INVARIANT JSX CHILDREN BARE-COMMENT GUARD ──────────────────
+# Bare /* INVARIANT_... */ in JSX children context is parsed as a text
+# node, crashing React Native with "Text strings must be rendered
+# within a <Text> component". This guard checks .tsx files containing
+# INVARIANT_ for a bare /* INVARIANT_... */ line preceded by a line
+# ending with > or /> or */} — all indicators of JSX children position.
+echo ""
+echo "Running P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT checks…"
+
+JSX_BARE_FAIL=0
+JSX_BARE_CANDIDATES=$(grep -rl '\/\*[[:space:]]*INVARIANT_' src/ --include='*.tsx' 2>/dev/null || true)
+
+for tsx_file in $JSX_BARE_CANDIDATES; do
+  BARE_HITS=$(awk '
+    /^[[:space:]]*$/ { next }
+    {
+      is_bare = 0
+      if (match($0, /^[[:space:]]*\/\*[[:space:]]*INVARIANT_/) && !match($0, /\{\/\*/)) {
+        is_bare = 1
+      }
+      if (is_bare && prev_trimmed != "") {
+        if (prev_trimmed ~ />$/ || prev_trimmed ~ /\*\/\}$/) {
+          printf "  L%d: %s\n", NR, $0
+          found++
+        }
+      }
+      prev_trimmed = $0
+      sub(/^[[:space:]]+/, "", prev_trimmed)
+      sub(/[[:space:]]+$/, "", prev_trimmed)
+    }
+  ' "$tsx_file" 2>/dev/null || true)
+
+  if [ -n "$BARE_HITS" ]; then
+    echo "  ❌ $tsx_file — bare /* INVARIANT_... */ in JSX children context:"
+    echo "$BARE_HITS"
+    JSX_BARE_FAIL=1
+  fi
+done
+
+if [ "$JSX_BARE_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT — bare block comments in JSX children"
+  echo "  These become text nodes and crash React Native."
+  echo "  Remediation: convert /* INVARIANT_... */ to {/* INVARIANT_... */} in JSX children."
+  exit 1
+fi
+
+echo "  ✓ P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT: no bare INVARIANT block comments in JSX children"
+echo ""
+echo "P0_INVARIANT_JSX_CHILDREN_BARE_COMMENT checks PASS"
+
 echo "PASS: verify_frontend"

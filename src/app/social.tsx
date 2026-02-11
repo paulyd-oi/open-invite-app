@@ -284,7 +284,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
             {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — event photo thumbnail, Cloudinary-transformed */}
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Image source={{ uri: toCloudinaryTransformedUrl(displayEvent.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }} className="w-full h-full" resizeMode="cover" />
           </View>
         )}

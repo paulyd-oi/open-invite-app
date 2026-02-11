@@ -1917,7 +1917,7 @@ export default function FriendsScreen() {
           {friendsExpanded && (
             <View className="flex-row items-center justify-between mt-2">
               {/* View Mode Toggle */}
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <View className="flex-row items-center rounded-lg p-0.5" style={{ backgroundColor: colors.surface2 }}>
                 <Pressable
                   /* INVARIANT_ALLOW_INLINE_HANDLER */
