@@ -324,11 +324,51 @@ if [ "$P0_FAIL" -ne 0 ]; then
   exit 1
 fi
 
-# Informational: count remaining raw <Image in src/app (content images are expected)
-OTHER_RAW=$(grep -rn '<Image' src/app/ --include='*.tsx' 2>/dev/null | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' || true)
-if [ -n "$OTHER_RAW" ]; then
-  OTHER_COUNT=$(echo "$OTHER_RAW" | wc -l | tr -d ' ')
-  echo "  ⚠ P0_MEDIA_IDENTITY Info: ${OTHER_COUNT} raw <Image in src/app/ (content — review if new avatar added)"
+# ── P0_MEDIA_IDENTITY_RAW_IMAGE_AUDIT ────────────────────────────────
+# Every raw <Image in src/app/ must be either:
+#   A) Identity avatar → EntityAvatar SSOT (already enforced above).
+#   B) Hero/banner → CLOUDINARY_PRESETS.HERO_BANNER via toCloudinaryTransformedUrl
+#      (annotated: INVARIANT_HERO_USES_TRANSFORM_SSOT).
+#   C) Content media → annotated: INVARIANT_ALLOW_RAW_IMAGE_CONTENT
+#      If URI is Cloudinary, must use toCloudinaryTransformedUrl.
+
+RAW_AUDIT_FAIL=0
+
+# Collect all raw <Image lines in src/app/ (exclude ImagePlus/ImageIcon/ImageBackground)
+ALL_RAW=$(grep -rn '<Image\b' src/app/ --include='*.tsx' 2>/dev/null \
+  | grep -v 'ImagePlus\|ImageIcon\|ImageBackground' || true)
+
+if [ -n "$ALL_RAW" ]; then
+  # Each line must have an annotation on or around it:
+  #   INVARIANT_HERO_USES_TRANSFORM_SSOT  or  INVARIANT_ALLOW_RAW_IMAGE_CONTENT
+  while IFS= read -r line; do
+    FILE=$(echo "$line" | cut -d: -f1)
+    LINENO_RAW=$(echo "$line" | cut -d: -f2)
+    # Check 5 lines above for the annotation comment
+    START_CHECK=$((LINENO_RAW - 5))
+    if [ "$START_CHECK" -lt 1 ]; then START_CHECK=1; fi
+    CONTEXT=$(sed -n "${START_CHECK},${LINENO_RAW}p" "$FILE" 2>/dev/null)
+    if echo "$CONTEXT" | grep -q 'INVARIANT_HERO_USES_TRANSFORM_SSOT\|INVARIANT_ALLOW_RAW_IMAGE_CONTENT'; then
+      : # annotated — ok
+    else
+      echo "  ❌ Un-annotated raw <Image at ${FILE}:${LINENO_RAW}"
+      echo "     → Must have INVARIANT_HERO_USES_TRANSFORM_SSOT or INVARIANT_ALLOW_RAW_IMAGE_CONTENT"
+      RAW_AUDIT_FAIL=1
+    fi
+  done <<< "$ALL_RAW"
+fi
+
+if [ "$RAW_AUDIT_FAIL" -eq 0 ]; then
+  RAW_COUNT=0
+  if [ -n "$ALL_RAW" ]; then
+    RAW_COUNT=$(echo "$ALL_RAW" | wc -l | tr -d ' ')
+  fi
+  echo "  ✓ P0_MEDIA_IDENTITY_RAW_IMAGE_AUDIT: all ${RAW_COUNT} raw <Image in src/app/ are annotated"
+else
+  echo ""
+  echo "FAIL: P0_MEDIA_IDENTITY_RAW_IMAGE_AUDIT — un-annotated raw <Image in src/app/"
+  echo "Remediation: Add INVARIANT_HERO_USES_TRANSFORM_SSOT or INVARIANT_ALLOW_RAW_IMAGE_CONTENT annotation"
+  exit 1
 fi
 
 echo ""

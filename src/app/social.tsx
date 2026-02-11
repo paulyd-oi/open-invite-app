@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import BottomNavigation from "@/components/BottomNavigation";
 import { AppHeader } from "@/components/AppHeader";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -280,7 +281,8 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         {/* Event Photo Thumbnail */}
         {displayEvent.eventPhotoUrl && displayEvent.visibility !== "private" && (
           <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
-            <Image source={{ uri: displayEvent.eventPhotoUrl }} className="w-full h-full" resizeMode="cover" />
+            {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — event photo thumbnail, Cloudinary-transformed */}
+            <Image source={{ uri: toCloudinaryTransformedUrl(displayEvent.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }} className="w-full h-full" resizeMode="cover" />
           </View>
         )}
 

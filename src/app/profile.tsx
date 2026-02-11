@@ -9,7 +9,7 @@ import {
   Share,
 } from "react-native";
 import { resolveBannerUri } from "@/lib/heroSSOT";
-import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -499,8 +499,9 @@ export default function ProfileScreen() {
             {/* Banner as full-bleed background */}
             {bannerUri && (
               <>
+                {/* INVARIANT_HERO_USES_TRANSFORM_SSOT — banner decoded via CLOUDINARY_PRESETS.HERO_BANNER */}
                 <Image
-                  source={{ uri: toCloudinaryTransformedUrl(bannerUri!, { w: 1200, h: 600, crop: "fill", format: "auto" }) }}
+                  source={{ uri: toCloudinaryTransformedUrl(bannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
                   resizeMode="cover"
                 />

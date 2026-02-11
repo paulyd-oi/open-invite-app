@@ -1140,6 +1140,7 @@ export default function WelcomeOnboardingScreen() {
             <Pressable onPress={handlePickPhoto} disabled={uploadBusy}>
               <View style={[styles.photoPlaceholder, { borderColor: themeColor }]}>
                 {avatarLocalUri ? (
+                  // INVARIANT_ALLOW_RAW_IMAGE_CONTENT — onboarding avatar local preview (not Cloudinary)
                   <Image source={{ uri: avatarLocalUri }} style={styles.photoImage} />
                 ) : (
                   <Camera size={32} color={themeColor} />

@@ -48,6 +48,7 @@ import * as Contacts from "expo-contacts";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MotionDurations } from "@/lib/motionSSOT";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import {
   generateIdeas,
   getTodayKey,
@@ -357,8 +358,9 @@ function DeckCardFace({ card, index, total }: { card: IdeaCard; index?: number; 
       {/* Hero / banner area */}
       <View style={{ height: HERO_H, position: "relative" }}>
         {hasEventPhoto ? (
+          // INVARIANT_HERO_USES_TRANSFORM_SSOT — suggestion hero decoded via CLOUDINARY_PRESETS.HERO_BANNER
           <Image
-            source={{ uri: card.eventPhotoUrl! }}
+            source={{ uri: toCloudinaryTransformedUrl(card.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
             style={{ width: "100%", height: HERO_H }}
             resizeMode="cover"
           />

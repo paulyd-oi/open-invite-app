@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -1626,8 +1627,9 @@ export default function SettingsScreen() {
                     >
                       {showBanner && bannerSource ? (
                         <View>
+                          {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — banner preview thumbnail, Cloudinary-transformed when applicable */}
                           <Image
-                            source={{ uri: bannerSource }}
+                            source={{ uri: toCloudinaryTransformedUrl(bannerSource, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
                             style={{ width: "100%", height: 80 }}
                             resizeMode="cover"
                           />

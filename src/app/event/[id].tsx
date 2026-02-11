@@ -114,6 +114,7 @@ import {
 } from "@/lib/eventQueryKeys";
 import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { getRsvpPhrase } from "@/lib/smartCopy";
 
@@ -2793,8 +2794,9 @@ export default function EventDetailScreen() {
             <View className="rounded-2xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
               {commentImage && (
                 <View className="mb-3 relative">
+                  {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image preview, Cloudinary-transformed */}
                   <Image
-                    source={{ uri: commentImage }}
+                    source={{ uri: toCloudinaryTransformedUrl(commentImage, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
                     className="w-full h-40 rounded-xl"
                     resizeMode="cover"
                   />
@@ -2935,8 +2937,9 @@ export default function EventDetailScreen() {
                             <Text className="mt-1" style={{ color: colors.textSecondary }}>{comment.content}</Text>
                           )}
                           {comment.imageUrl && (
+                            // INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image display, Cloudinary-transformed
                             <Image
-                              source={{ uri: comment.imageUrl }}
+                              source={{ uri: toCloudinaryTransformedUrl(comment.imageUrl, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
                               className="w-full h-48 rounded-xl mt-2"
                               resizeMode="cover"
                             />
