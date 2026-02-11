@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Image, StyleSheet } from "react-native";
 import { getHeroGlassStyle, getGlassBoostStyle } from "@/lib/heroSSOT";
+import MotionSurface from "@/components/MotionSurface";
 
 export interface HeroBannerSurfaceProps {
   /** Resolved banner image URI (pass null for no-banner fallback). */
@@ -32,7 +33,8 @@ export function HeroBannerSurface({
   const hasBanner = typeof bannerUri === "string" && bannerUri.length > 0;
 
   return (
-    <View
+    <MotionSurface
+      preset="hero"
       style={{
         minHeight: hasBanner ? minHeight : undefined,
         borderRadius: 16,
@@ -42,11 +44,13 @@ export function HeroBannerSurface({
     >
       {/* Full-bleed banner image */}
       {hasBanner && (
-        <Image
-          source={{ uri: bannerUri! }}
-          resizeMode="cover"
-          style={StyleSheet.absoluteFillObject}
-        />
+        <MotionSurface preset="media" style={StyleSheet.absoluteFillObject}>
+          <Image
+            source={{ uri: bannerUri! }}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFillObject}
+          />
+        </MotionSurface>
       )}
 
       {/* Subtle tint overlay */}
@@ -101,7 +105,7 @@ export function HeroBannerSurface({
           {children}
         </View>
       </View>
-    </View>
+    </MotionSurface>
   );
 }
 

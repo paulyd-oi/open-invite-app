@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { HeroBannerSurface } from "@/components/HeroBannerSurface";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import MotionSurface from "@/components/MotionSurface";
 
 export interface ProfilePreviewCardProps {
   /** Profile-like object with bannerPhotoUrl / bannerUrl / avatarUrl / name / handle / calendarBio etc. */
@@ -54,16 +55,17 @@ export function ProfilePreviewCard({
   const initials = name?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <View
-      style={{
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: colors.border,
-        overflow: "hidden",
-        backgroundColor: colors.surface,
-      }}
-    >
-      <HeroBannerSurface
+    <MotionSurface preset="card">
+      <View
+        style={{
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: colors.border,
+          overflow: "hidden",
+          backgroundColor: colors.surface,
+        }}
+      >
+        <HeroBannerSurface
         bannerUri={bannerUri}
         isDark={isDark}
         minHeight={minHeight}
@@ -117,8 +119,9 @@ export function ProfilePreviewCard({
             </Text>
           ) : null}
         </View>
-      </HeroBannerSurface>
-    </View>
+        </HeroBannerSurface>
+      </View>
+    </MotionSurface>
   );
 }
 
