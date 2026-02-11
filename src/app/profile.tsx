@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
-import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
+import { resolveBannerUri } from "@/lib/heroSSOT";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -504,10 +504,27 @@ export default function ProfileScreen() {
                   style={{
                     position: "absolute",
                     top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: isDark ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.06)",
+                    backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
                   }}
                 />
               </>
+            )}
+
+            {/* Bottom legibility gradient */}
+            {bannerUri && (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 80,
+                  backgroundColor: isDark
+                    ? "rgba(0,0,0,0.35)"
+                    : "rgba(255,255,255,0.25)",
+                }}
+              />
             )}
 
             {/* Content layer — pushed to bottom when banner present */}
@@ -515,7 +532,7 @@ export default function ProfileScreen() {
               {/* Avatar row */}
               <View style={{ alignItems: bannerUri ? "center" : "flex-start", marginBottom: bannerUri ? 8 : 0 }}>
                 {bannerUri && (
-                  <View className="relative" style={{ marginBottom: 8 }}>
+                  <View className="relative" style={{ marginBottom: 8, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                     <EntityAvatar
                       imageSource={avatarSource}
                       initials={StringSafe(getProfileInitial({ profileData, session }))}
@@ -539,13 +556,17 @@ export default function ProfileScreen() {
               {/* Text legibility panel (fake glass when banner present) */}
               <View
                 style={bannerUri ? {
-                  backgroundColor: isDark ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.72)",
-                  borderColor: isDark ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.55)",
+                  backgroundColor: isDark ? "rgba(0,0,0,0.46)" : "rgba(255,255,255,0.82)",
+                  borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                   borderWidth: 1,
                   borderRadius: 16,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   overflow: "hidden",
+                  shadowColor: "#000",
+                  shadowOpacity: isDark ? 0.35 : 0.12,
+                  shadowRadius: 12,
+                  shadowOffset: { width: 0, height: 6 },
                 } : undefined}
               >
                 {/* Legibility boost — subtle bottom deepening */}
@@ -613,7 +634,7 @@ export default function ProfileScreen() {
                     <View className="flex-row items-center">
                       <Text
                         className="text-xl font-sora-bold"
-                        style={{ color: getHeroTextColor(isDark), letterSpacing: -0.3 }}
+                        style={{ color: colors.text, fontWeight: "700", letterSpacing: -0.3 }}
                       >
                         {displayName}
                       </Text>
@@ -622,13 +643,13 @@ export default function ProfileScreen() {
                       )}
                     </View>
                     {userHandle && (
-                      <Text style={{ color: getHeroSubTextColor(isDark), fontSize: 14, marginTop: 2 }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
                         {`@${StringSafe(userHandle)}`}
                       </Text>
                     )}
                     <View className="flex-row items-center" style={{ marginTop: 6 }}>
-                      <Calendar size={14} color={getHeroSubTextColor(isDark)} />
-                      <Text className="ml-2 text-sm" style={{ color: getHeroSubTextColor(isDark) }} numberOfLines={1}>
+                      <Calendar size={14} color={colors.textTertiary} />
+                      <Text className="ml-2 text-sm" style={{ color: colors.textTertiary }} numberOfLines={1}>
                         {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
                       </Text>
                     </View>

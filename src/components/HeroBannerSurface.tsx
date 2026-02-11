@@ -56,16 +56,46 @@ export function HeroBannerSurface({
             StyleSheet.absoluteFillObject,
             {
               backgroundColor: isDark
-                ? "rgba(0,0,0,0.25)"
-                : "rgba(255,255,255,0.15)",
+                ? "rgba(0,0,0,0.28)"
+                : "rgba(255,255,255,0.18)",
             },
           ]}
         />
       )}
 
+      {/* Bottom legibility gradient */}
+      {hasBanner && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 80,
+            backgroundColor: isDark
+              ? "rgba(0,0,0,0.35)"
+              : "rgba(255,255,255,0.25)",
+          }}
+        />
+      )}
+
       {/* Content layer — flex-end so glass sits at bottom */}
       <View style={{ flex: 1, justifyContent: hasBanner ? "flex-end" : "flex-start", padding: 12 }}>
-        <View style={hasBanner ? getHeroGlassStyle(isDark) : undefined}>
+        <View style={hasBanner ? {
+          ...getHeroGlassStyle(isDark),
+          backgroundColor: isDark
+            ? "rgba(0,0,0,0.46)"
+            : "rgba(255,255,255,0.82)",
+          borderWidth: 1,
+          borderColor: isDark
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(0,0,0,0.06)",
+          shadowColor: "#000",
+          shadowOpacity: isDark ? 0.35 : 0.12,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 6 },
+        } : undefined}>
           {/* Legibility boost overlay inside glass */}
           {hasBanner && <View style={getGlassBoostStyle(isDark)} />}
           {children}

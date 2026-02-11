@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
-import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
+import { resolveBannerUri } from "@/lib/heroSSOT";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
@@ -366,16 +366,33 @@ export default function PublicProfileScreen() {
                           style={{
                             position: "absolute",
                             top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: isDark ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.06)",
+                            backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
                           }}
                         />
                       </>
                     )}
 
+                    {/* Bottom legibility gradient */}
+                    {pubBannerUri && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 80,
+                          backgroundColor: isDark
+                            ? "rgba(0,0,0,0.35)"
+                            : "rgba(255,255,255,0.25)",
+                        }}
+                      />
+                    )}
+
                     {/* Content layer — pushed to bottom when banner present */}
                     <View style={{ flex: 1, justifyContent: pubBannerUri ? "flex-end" : "flex-start", padding: pubBannerUri ? 12 : 24, alignItems: "center" }}>
                       {/* Avatar */}
-                      <View style={{ marginBottom: pubBannerUri ? 8 : 0 }}>
+                      <View style={{ marginBottom: pubBannerUri ? 8 : 0, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                         <EntityAvatar
                           photoUrl={user.Profile?.avatarUrl ?? user.image}
                           initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
@@ -392,8 +409,8 @@ export default function PublicProfileScreen() {
                       {/* Text legibility panel (fake glass when banner present) */}
                       <View
                         style={pubBannerUri ? {
-                          backgroundColor: isDark ? "rgba(0,0,0,0.38)" : "rgba(255,255,255,0.72)",
-                          borderColor: isDark ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.55)",
+                          backgroundColor: isDark ? "rgba(0,0,0,0.46)" : "rgba(255,255,255,0.82)",
+                          borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
                           borderWidth: 1,
                           borderRadius: 16,
                           paddingVertical: 10,
@@ -401,6 +418,10 @@ export default function PublicProfileScreen() {
                           overflow: "hidden",
                           alignItems: "center",
                           width: "100%",
+                          shadowColor: "#000",
+                          shadowOpacity: isDark ? 0.35 : 0.12,
+                          shadowRadius: 12,
+                          shadowOffset: { width: 0, height: 6 },
                         } : { alignItems: "center", marginTop: 16, width: "100%" }}
                       >
                         {/* Legibility boost — subtle bottom deepening */}
@@ -417,31 +438,31 @@ export default function PublicProfileScreen() {
                           />
                         )}
                         <View className="flex-row items-center">
-                          <Text className="text-xl font-bold" style={{ color: pubBannerUri ? getHeroTextColor(isDark) : colors.text, letterSpacing: -0.3 }}>
+                          <Text className="text-xl font-bold" style={{ color: colors.text, fontWeight: "700", letterSpacing: -0.3 }}>
                             {user.name ?? "No name"}
                           </Text>
                         </View>
 
                         {/* @handle — hero contrast when banner present */}
                         {user.Profile?.handle && (
-                          <Text className="text-sm" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textSecondary, marginTop: 4 }}>
+                          <Text className="text-sm" style={{ color: colors.textSecondary, marginTop: 4 }}>
                             @{user.Profile.handle}
                           </Text>
                         )}
 
                         {/* Calendar Bio */}
                         <View className="flex-row items-center" style={{ marginTop: 8 }}>
-                          <Calendar size={14} color={pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary} />
-                          <Text className="ml-1.5 text-sm" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary }}>
+                          <Calendar size={14} color={colors.textTertiary} />
+                          <Text className="ml-1.5 text-sm" style={{ color: colors.textTertiary }}>
                             My calendar looks like...
                           </Text>
                         </View>
                         {user.Profile?.calendarBio ? (
-                          <Text className="text-sm mt-1 text-center px-4" style={{ color: pubBannerUri ? getHeroTextColor(isDark) : colors.text }}>
+                          <Text className="text-sm mt-1 text-center px-4" style={{ color: colors.text }}>
                             {user.Profile.calendarBio}
                           </Text>
                         ) : (
-                          <Text className="text-sm mt-1 italic" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary }}>
+                          <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
                             Not set yet
                           </Text>
                         )}
