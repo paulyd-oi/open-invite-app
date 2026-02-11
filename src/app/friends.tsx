@@ -1173,10 +1173,17 @@ export default function FriendsScreen() {
 
   const circles = circlesData?.circles ?? [];
 
-  // [P0_PUSH_TWO_ENDED] Refetch circles on tab focus to clear stale membership
+  // [P1_CIRCLE_STALENESS] Refetch circles on tab focus to clear stale membership
   useFocusEffect(
     React.useCallback(() => {
       refetchCircles();
+      if (__DEV__) {
+        devLog('[P1_CIRCLE_STALENESS]', {
+          reason: 'friends_focus',
+          circleId: null,
+          invalidations: ['refetchCircles()'],
+        });
+      }
     }, [refetchCircles])
   );
 

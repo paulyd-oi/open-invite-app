@@ -183,6 +183,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_PUSH_TWO_ENDED]",
   // P1 create-event circle error receipts
   "[P1_CREATE_EVENT_CIRCLE_ERR]",
+  // P1 circle staleness self-heal (focus + foreground + push)
+  "[P1_CIRCLE_STALENESS]",
 ];
 
 /**

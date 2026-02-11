@@ -703,8 +703,16 @@ export function useNotifications() {
           devLog(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
         checkAndRegisterToken(); // Will be throttled unless backend empty
-        // Refresh circle unread counts on app resume
+        // [P1_CIRCLE_STALENESS] Self-heal circles + unread on foreground
+        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
         queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount() });
+        if (__DEV__) {
+          devLog('[P1_CIRCLE_STALENESS]', {
+            reason: 'app_active',
+            circleId: null,
+            invalidations: ['circleKeys.all', 'circleKeys.unreadCount'],
+          });
+        }
       }
     };
 
