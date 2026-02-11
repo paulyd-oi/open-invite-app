@@ -348,6 +348,7 @@
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
+- 2026-02-10: P0_IDEAS_FIRST_LOAD_FIX + P1_IDEAS_CARD_PREMIUM — Fixed blank Ideas tab on first load (data readiness gate: storageChecked + all queries isFetched). Premium card redesign: avatar + hero area + category pill + context chips + swipe hint. Accept routing: low_rsvp→event, reconnect/birthday/repeat→circle chat.
 - 2026-02-10: P1_IDEAS_ENGINE_V2 — Ideas engine overhaul: new SSOT src/lib/ideasEngine.ts with draftMessage, Suggestions screen now 2-tab (Ideas | People, Ideas default), accept action opens/creates circle chat with prefilled draft (never auto-send), persistence keyed by ideasDeck_YYYY_MM_DD
 - 2026-02-10: P1_SUGGESTIONS_SWIPE_DECK_V1 — Daily Ideas swipe deck on Suggestions screen (Ideas tab), SSOT in src/lib/suggestionsDeck.ts, 4 rules (low-RSVP events, reconnect, birthday, repeat), AsyncStorage daily persistence
 - 2026-02-09: Event Photo Lite — hero photo on Event Details (host-only nudge + upload + remove), social feed photo thumbnail

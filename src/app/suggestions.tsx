@@ -29,6 +29,10 @@ import {
   Contact,
   ChevronRight,
   Zap,
+  Gift,
+  Repeat,
+  MessageCircle,
+  RefreshCw,
 } from "@/ui/icons";
 import Animated, {
   FadeInDown,
@@ -287,41 +291,149 @@ const CATEGORY_ACCENT: Record<string, string> = {
   timing: "#10B981",
 };
 
-function DeckCardFace({ card }: { card: IdeaCard }) {
-  const { themeColor, colors } = useTheme();
+const CATEGORY_PILL: Record<string, { label: string; Icon: typeof Users }> = {
+  reconnect: { label: "Reconnect", Icon: RefreshCw },
+  low_rsvp: { label: "Join", Icon: Zap },
+  birthday: { label: "Birthday", Icon: Gift },
+  activity_repeat: { label: "Repeat", Icon: Repeat },
+  timing: { label: "Idea", Icon: Sparkles },
+};
+
+const HERO_H = 100;
+
+function DeckCardFace({ card, index, total }: { card: IdeaCard; index?: number; total?: number }) {
+  const { themeColor, colors, isDark } = useTheme();
   const accent = CATEGORY_ACCENT[card.category] ?? themeColor;
+  const pill = CATEGORY_PILL[card.category] ?? CATEGORY_PILL.timing;
+  const PillIcon = pill.Icon;
+
+  const hasEventPhoto = !!card.eventPhotoUrl;
+  const hasAvatar = !!card.friendAvatarUrl;
+
+  if (__DEV__) {
+    devLog(`[P1_IDEAS_CARD] render: ${card.id} media=${hasEventPhoto ? "eventPhoto" : hasAvatar ? "avatar" : "gradient"}`);
+  }
+
   return (
     <View
       className="rounded-2xl overflow-hidden"
       style={{
         backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: colors.border,
-        height: 88,
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
       }}
     >
-      <View className="flex-row flex-1">
-        <View style={{ width: 4, backgroundColor: accent }} />
-        <View className="flex-1 px-4 justify-center">
-          <Text
-            className="text-[15px] font-semibold mb-0.5"
-            style={{ color: colors.text }}
-            numberOfLines={2}
-          >
-            {card.title}
-          </Text>
-          <Text
-            className="text-[13px]"
-            style={{ color: colors.textSecondary }}
-            numberOfLines={2}
-          >
-            {card.subtitle}
+      {/* Header row: pill + progress */}
+      <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+        <View
+          className="flex-row items-center px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: accent + "18" }}
+        >
+          <PillIcon size={12} color={accent} />
+          <Text className="text-[11px] font-semibold ml-1" style={{ color: accent }}>
+            {pill.label}
           </Text>
         </View>
+        {index != null && total != null && (
+          <Text className="text-[11px]" style={{ color: colors.textTertiary }}>
+            {index + 1} of {total}
+          </Text>
+        )}
+      </View>
+
+      {/* Hero / banner area */}
+      <View style={{ height: HERO_H, position: "relative" }}>
+        {hasEventPhoto ? (
+          <Image
+            source={{ uri: card.eventPhotoUrl! }}
+            style={{ width: "100%", height: HERO_H }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: "100%",
+              height: HERO_H,
+              backgroundColor: accent + "12",
+            }}
+          >
+            {/* Subtle gradient feel via layered opacity */}
+            <View
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: HERO_H * 0.5,
+                backgroundColor: isDark ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.4)",
+              }}
+            />
+          </View>
+        )}
+
+        {/* Avatar overlay at bottom-left of hero */}
+        {(hasAvatar || card.friendId) && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: -18,
+              left: 16,
+              borderRadius: 22,
+              borderWidth: 2.5,
+              borderColor: colors.surface,
+            }}
+          >
+            <EntityAvatar
+              photoUrl={card.friendAvatarUrl ?? undefined}
+              initials={card.title.replace(/^(Catch up with |Join |Do )/, "").charAt(0).toUpperCase()}
+              size={40}
+              backgroundColor={card.friendAvatarUrl ? "transparent" : accent + "20"}
+              foregroundColor={accent}
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Main content */}
+      <View className="px-4 pt-6 pb-4">
+        <Text
+          className="text-[16px] font-semibold leading-5"
+          style={{ color: colors.text }}
+          numberOfLines={2}
+        >
+          {card.title}
+        </Text>
+        <Text
+          className="text-[13px] mt-1"
+          style={{ color: colors.textSecondary }}
+          numberOfLines={1}
+        >
+          {card.subtitle}
+        </Text>
+
+        {/* Context chips */}
+        {card.contextChips && card.contextChips.length > 0 && (
+          <View className="flex-row mt-2.5" style={{ gap: 6 }}>
+            {/* INVARIANT_ALLOW_SMALL_MAP */}
+            {card.contextChips.slice(0, 2).map((chip, i) => (
+              <View
+                key={i}
+                className="px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
+              >
+                <Text className="text-[11px]" style={{ color: colors.textSecondary }}>
+                  {chip}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
 }
+
+const CARD_H = HERO_H + 150; // hero + content area
 
 function DeckSwipeCard({
   card,
@@ -387,12 +499,12 @@ function DeckSwipeCard({
     };
   });
 
-  const cardW = DECK_SCREEN_W - 48;
+  const cardW = DECK_SCREEN_W - 32;
 
   return (
-    <View className="items-center">
+    <Animated.View entering={FadeInDown.springify().damping(18)} className="items-center px-4">
       {/* Card stack */}
-      <View style={{ width: cardW, height: 88 }}>
+      <View style={{ width: cardW, minHeight: CARD_H }}>
         {nextCard && (
           <Animated.View
             style={[
@@ -410,36 +522,28 @@ function DeckSwipeCard({
               topStyle,
             ]}
           >
-            <DeckCardFace card={card} />
+            <DeckCardFace card={card} index={index} total={total} />
           </Animated.View>
         </GestureDetector>
       </View>
 
-      {/* Progress */}
-      <Text
-        className="text-xs mt-4"
-        style={{ color: colors.textTertiary }}
-      >
-        {index + 1} of {total}
-      </Text>
-
       {/* Action buttons */}
-      <View className="flex-row mt-3" style={{ gap: 12 }}>
+      <View className="flex-row mt-5" style={{ gap: 12 }}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             translateX.value = withTiming(-DECK_SCREEN_W, { duration: 200 });
             setTimeout(onDismiss, 150);
           }}
-          className="flex-row items-center px-5 py-2 rounded-full"
+          className="flex-row items-center px-6 py-2.5 rounded-full"
           style={{ backgroundColor: isDark ? "#3F3F46" : "#F4F4F5" }}
         >
-          <X size={14} color={colors.textSecondary} />
+          <X size={15} color={colors.textSecondary} />
           <Text
             className="text-sm font-medium ml-1.5"
             style={{ color: colors.textSecondary }}
           >
-            No
+            Pass
           </Text>
         </Pressable>
         <Pressable
@@ -448,14 +552,21 @@ function DeckSwipeCard({
             translateX.value = withTiming(DECK_SCREEN_W, { duration: 200 });
             setTimeout(onAccept, 150);
           }}
-          className="flex-row items-center px-5 py-2 rounded-full"
+          className="flex-row items-center px-6 py-2.5 rounded-full"
           style={{ backgroundColor: themeColor }}
         >
-          <Check size={14} color="#fff" />
-          <Text className="text-sm font-medium ml-1.5 text-white">Yes</Text>
+          <Check size={15} color="#fff" />
+          <Text className="text-sm font-semibold ml-1.5 text-white">
+            {card.category === "low_rsvp" ? "View Event" : "Open Chat"}
+          </Text>
         </Pressable>
       </View>
-    </View>
+
+      {/* Swipe hint */}
+      <Text className="text-[11px] mt-3" style={{ color: colors.textTertiary }}>
+        Swipe left to pass • Swipe right to open
+      </Text>
+    </Animated.View>
   );
 }
 
@@ -469,12 +580,13 @@ function DailyIdeasDeck() {
   const [deck, setDeck] = useState<IdeaCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [deckReady, setDeckReady] = useState(false);
-  const restoredRef = useRef(false);
+  const [storageChecked, setStorageChecked] = useState(false);
+  const generatedTodayRef = useRef(false);
 
   const enabled = isAuthedForNetwork(bootStatus, session);
 
   // ── Data queries (re-use existing query keys) ──
-  const { data: reconnectData } = useQuery({
+  const { data: reconnectData, isFetched: reconnectFetched } = useQuery({
     queryKey: ["suggestions"],
     queryFn: () =>
       api.get<{ suggestions: DeckReconnectSuggestion[] }>(
@@ -484,21 +596,21 @@ function DailyIdeasDeck() {
     staleTime: 60000,
   });
 
-  const { data: birthdayData } = useQuery({
+  const { data: birthdayData, isFetched: birthdayFetched } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
     enabled,
     staleTime: 60000,
   });
 
-  const { data: feedEventsData } = useQuery({
+  const { data: feedEventsData, isFetched: feedFetched } = useQuery({
     queryKey: eventKeys.feed(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/feed"),
     enabled,
     staleTime: 30000,
   });
 
-  const { data: myEventsData } = useQuery({
+  const { data: myEventsData, isFetched: myEventsFetched } = useQuery({
     queryKey: eventKeys.mine(),
     queryFn: () => api.get<GetEventsResponse>("/api/events/mine"),
     enabled,
@@ -522,40 +634,44 @@ function DailyIdeasDeck() {
     },
   });
 
-  // ── Persistence: load saved deck for today ──
+  // ── ideasReady: all key queries have resolved ──
+  const ideasReady = enabled && reconnectFetched && birthdayFetched && feedFetched && myEventsFetched;
+
+  // ── Persistence: check storage for today's deck ──
   useEffect(() => {
     (async () => {
       try {
         const storageKey = getDeckStorageKey();
         const raw = await AsyncStorage.getItem(storageKey);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (
-          Array.isArray(parsed.deck) &&
-          parsed.deck.length > 0
-        ) {
-          setDeck(parsed.deck);
-          setCurrentIndex(parsed.index ?? 0);
-          restoredRef.current = true;
-          setDeckReady(true);
-          if (__DEV__) {
-            devLog(
-              `[P1_IDEAS_ENGINE] restored: ${parsed.deck.length} cards, idx=${parsed.index ?? 0}`,
-            );
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (
+            Array.isArray(parsed.deck) &&
+            parsed.deck.length > 0
+          ) {
+            setDeck(parsed.deck);
+            setCurrentIndex(parsed.index ?? 0);
+            generatedTodayRef.current = true;
+            setDeckReady(true);
+            if (__DEV__) {
+              devLog(
+                `[P0_IDEAS_BOOT] restored from storage: ${parsed.deck.length} cards, idx=${parsed.index ?? 0}`,
+              );
+            }
           }
         }
       } catch {
         /* ignore corrupt storage */
       }
+      setStorageChecked(true);
     })();
   }, []);
 
-  // ── Build deck from query data (skip if restored) ──
+  // ── Build deck: only after storage checked + all data ready + not already generated ──
   useEffect(() => {
-    if (restoredRef.current) return;
-    const hasData =
-      reconnectData || birthdayData || feedEventsData || myEventsData;
-    if (!hasData) return;
+    if (!storageChecked) return;
+    if (generatedTodayRef.current) return;
+    if (!ideasReady) return;
 
     const myId = (session as any)?.user?.id as string | undefined;
 
@@ -564,11 +680,13 @@ function DailyIdeasDeck() {
         friendId: s.friend.id,
         friendName: s.friend.name,
         daysSinceHangout: s.daysSinceHangout,
+        avatarUrl: s.friend.image,
       })),
       birthdays: (birthdayData?.birthdays ?? []).map((b) => ({
         friendId: b.id,
         friendName: b.name,
         birthday: b.birthday,
+        avatarUrl: (b as any).image as string | null | undefined,
       })),
       upcomingFriendEvents: (feedEventsData?.events ?? [])
         .filter((ev) => !myId || ev.userId !== myId)
@@ -580,6 +698,8 @@ function DailyIdeasDeck() {
           startTime: ev.startTime,
           goingCount: (ev as any).goingCount as number | undefined,
           capacity: (ev as any).capacity as number | null | undefined,
+          hostAvatarUrl: ev.user?.image ?? null,
+          eventPhotoUrl: (ev as any).eventPhotoUrl as string | null | undefined,
         })),
       myRecentEvents: (myEventsData?.events ?? []).map((ev) => ({
         title: ev.title,
@@ -591,25 +711,33 @@ function DailyIdeasDeck() {
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);
-    restoredRef.current = true;
+    generatedTodayRef.current = true;
+
+    if (__DEV__) {
+      devLog(
+        `[P0_IDEAS_BOOT] generated: ${newDeck.length} cards (ideasReady=true)`,
+      );
+    }
 
     AsyncStorage.setItem(
       getDeckStorageKey(),
       JSON.stringify({ deck: newDeck, index: 0 }),
     ).catch(() => {});
-  }, [reconnectData, birthdayData, feedEventsData, myEventsData, session]);
+  }, [storageChecked, ideasReady, reconnectData, birthdayData, feedEventsData, myEventsData, session]);
 
-  // ── Accept handler: open chat (find or create circle) then advance ──
+  // ── Accept handler: route depends on card category ──
   const handleAccept = useCallback(async () => {
     const card = deck[currentIndex];
     if (!card) return;
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // For cards with a friendId, try to open a circle chat
-    if (card.friendId) {
+    // low_rsvp → navigate to the event detail screen (so user can RSVP)
+    if (card.category === "low_rsvp" && card.eventId) {
+      router.push(`/event/${card.eventId}` as any);
+    } else if (card.friendId) {
+      // reconnect/birthday/repeat with friendId → open circle chat
       const circles = circlesData?.circles ?? [];
-      // Find smallest circle containing this friend (proxy for 1:1)
       const myId = (session as any)?.user?.id as string | undefined;
       let bestCircle: { id: string; memberCount: number } | null = null;
       for (const c of circles) {
@@ -625,12 +753,10 @@ function DailyIdeasDeck() {
       }
 
       if (bestCircle) {
-        // Navigate to existing circle with draft
         router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
       } else {
-        // Create a new circle with this friend, then navigate
         try {
-          const friendName = card.title.split(" ").slice(2, 3).join("") || "friend";
+          const friendName = card.title.replace(/^(Catch up with |Join |Do )/, "").replace(/[?'].*/, "").trim() || "friend";
           const result = await createCircleMutation.mutateAsync({
             name: friendName,
             emoji: "💬",
@@ -638,15 +764,11 @@ function DailyIdeasDeck() {
           });
           router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
         } catch {
-          // Fallback: navigate to profile
           router.push(`/user/${card.friendId}` as any);
         }
       }
-    } else if (card.eventId) {
-      // Event card: navigate to event
-      router.push(`/event/${card.eventId}` as any);
     } else {
-      // Activity repeat: navigate to create with title
+      // Activity repeat (no friend): navigate to create
       const title = card.title.replace(/^Do |\?$/g, "").replace(/ again this week$/i, "");
       router.push(`/create?title=${encodeURIComponent(title)}` as any);
     }
@@ -673,9 +795,25 @@ function DailyIdeasDeck() {
   if (!deckReady) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <ActivityIndicator size="small" color={themeColor} />
+        <View className="w-full px-4">
+          {/* Skeleton card mimicking premium card shape */}
+          <View
+            className="rounded-2xl overflow-hidden"
+            style={{
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View style={{ height: HERO_H, backgroundColor: themeColor + "08" }} />
+            <View className="px-4 pt-6 pb-4">
+              <View className="h-4 w-3/4 rounded" style={{ backgroundColor: colors.border }} />
+              <View className="h-3 w-1/2 rounded mt-2" style={{ backgroundColor: colors.border + "80" }} />
+            </View>
+          </View>
+        </View>
         <Text
-          className="text-sm mt-3"
+          className="text-sm mt-4"
           style={{ color: colors.textSecondary }}
         >
           Building your ideas…
@@ -689,10 +827,16 @@ function DailyIdeasDeck() {
       <View className="flex-1 items-center justify-center px-6">
         <Sparkles size={28} color={colors.textTertiary} />
         <Text
-          className="text-sm mt-3 text-center"
+          className="text-base font-semibold mt-3"
+          style={{ color: colors.text }}
+        >
+          No ideas yet
+        </Text>
+        <Text
+          className="text-sm mt-1 text-center"
           style={{ color: colors.textSecondary }}
         >
-          No suggestions right now. Check back later!
+          Check back tomorrow — we'll find something fun.
         </Text>
       </View>
     );

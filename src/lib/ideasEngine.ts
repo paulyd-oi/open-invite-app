@@ -34,6 +34,13 @@ export interface IdeaCard {
 
   /** Higher = more relevant. Used for sort. */
   score: number;
+
+  // ── Optional media (derived from already-available data) ──
+  friendAvatarUrl?: string | null;
+  eventPhotoUrl?: string | null;
+  eventTitle?: string;
+  /** Short context chips, max 2. Shown only when data exists. */
+  contextChips?: string[];
 }
 
 // ─── Context (caller collects from existing queries) ─────
@@ -51,6 +58,8 @@ export interface IdeasEvent {
   startTime: string; // ISO
   goingCount?: number;
   capacity?: number | null;
+  hostAvatarUrl?: string | null;
+  eventPhotoUrl?: string | null;
 }
 
 export interface IdeasMyEvent {
@@ -62,12 +71,14 @@ export interface IdeasBirthday {
   friendId: string;
   friendName: string | null;
   birthday: string; // ISO date
+  avatarUrl?: string | null;
 }
 
 export interface IdeasReconnect {
   friendId: string;
   friendName: string | null;
   daysSinceHangout: number;
+  avatarUrl?: string | null;
 }
 
 export interface IdeasContext {
@@ -102,6 +113,8 @@ function ruleReconnect(
   for (const r of reconnects) {
     if (r.daysSinceHangout < 14) continue;
     const name = firstName(r.friendName);
+    const chips: string[] = [];
+    if (r.daysSinceHangout >= 14) chips.push(`${r.daysSinceHangout}d since last hangout`);
     cards.push({
       id: `reconnect_${r.friendId}_${todayKey}`,
       category: "reconnect",
@@ -110,6 +123,8 @@ function ruleReconnect(
       subtitle: "It's been a while — plan something easy.",
       draftMessage: "Hey! Want to catch up soon?",
       score: Math.min(85, 50 + r.daysSinceHangout / 7),
+      friendAvatarUrl: r.avatarUrl,
+      contextChips: chips.length > 0 ? chips.slice(0, 2) : undefined,
     });
   }
   return cards;
@@ -136,6 +151,10 @@ function ruleLowRsvp(
     if (!isLow) continue;
 
     const host = firstName(ev.hostName);
+    const chips: string[] = [];
+    if (going > 0) chips.push(`${going} going`);
+    if (diffDays <= 1) chips.push("Tomorrow");
+    else if (diffDays <= 3) chips.push(`In ${Math.ceil(diffDays)} days`);
     cards.push({
       id: `low_rsvp_${ev.id}_${todayKey}`,
       category: "low_rsvp",
@@ -145,6 +164,10 @@ function ruleLowRsvp(
       subtitle: "They could use company.",
       draftMessage: `I'm thinking about joining your ${ev.title} — save me a spot?`,
       score: 90 - diffDays * 5,
+      friendAvatarUrl: ev.hostAvatarUrl,
+      eventPhotoUrl: ev.eventPhotoUrl,
+      eventTitle: ev.title,
+      contextChips: chips.length > 0 ? chips.slice(0, 2) : undefined,
     });
   }
   return cards;
@@ -172,6 +195,10 @@ function ruleBirthday(
     if (diffDays < 0 || diffDays > 21) continue;
 
     const name = firstName(b.friendName);
+    const chips: string[] = [];
+    if (diffDays <= 1) chips.push("Tomorrow!");
+    else if (diffDays <= 7) chips.push(`In ${Math.ceil(diffDays)} days`);
+    else chips.push(`In ${Math.ceil(diffDays)} days`);
     cards.push({
       id: `birthday_${b.friendId}_${todayKey}`,
       category: "birthday",
@@ -180,6 +207,8 @@ function ruleBirthday(
       subtitle: "Plan something fun?",
       draftMessage: `Your birthday is coming up! Want to plan something?`,
       score: 95 - diffDays * 2,
+      friendAvatarUrl: b.avatarUrl,
+      contextChips: chips.length > 0 ? chips.slice(0, 2) : undefined,
     });
   }
   return cards;

@@ -141,6 +141,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_SUGGESTIONS_DECK]",
   // P1 ideas engine (deterministic idea-card generator)
   "[P1_IDEAS_ENGINE]",
+  // P0 ideas boot (first-load readiness proof)
+  "[P0_IDEAS_BOOT]",
+  // P1 ideas card (media variant rendered)
+  "[P1_IDEAS_CARD]",
 ];
 
 /**
