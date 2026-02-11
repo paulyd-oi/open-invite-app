@@ -181,6 +181,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_DRAFT_VARIANTS]",
   // P0 push two-ended proof (logout/login re-registration + stale refresh)
   "[P0_PUSH_TWO_ENDED]",
+  // P1 create-event circle error receipts
+  "[P1_CREATE_EVENT_CIRCLE_ERR]",
 ];
 
 /**

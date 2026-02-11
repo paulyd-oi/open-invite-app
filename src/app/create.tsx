@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Switch,
+  Alert,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -48,7 +49,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
-import { toUserMessage, logError } from "@/lib/errors";
+import { logError, normalizeCreateEventError, type CreateEventErrorReceipt } from "@/lib/errors";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
@@ -112,6 +113,10 @@ interface PlaceSuggestion {
 }
 
 // Search places using backend proxy (avoids CORS/API key issues)
+
+// DEV-only: last create-event error receipt for inspection
+let __lastCreateEventReceipt: CreateEventErrorReceipt | null = null;
+
 const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number): Promise<PlaceSuggestion[]> => {
   if (!query || query.length < 2) return [];
 
@@ -628,23 +633,29 @@ export default function CreateEventScreen() {
       router.back();
     },
     onError: (error: any) => {
-      // [P1_CREATE_FLOW] Proof log: create failure
+      // ── Structured error receipt ──────────────────────────────────────
+      const receipt = normalizeCreateEventError(error, circleId ?? null);
+
+      // [P1_CREATE_EVENT_CIRCLE_ERR] Proof log: structured receipt
       if (__DEV__) {
-        devLog('[P1_CREATE_FLOW]', 'create failure', {
-          status: error?.status || error?.response?.status,
-          code: error?.data?.error || error?.response?.data?.error,
-        });
+        devLog('[P1_CREATE_EVENT_CIRCLE_ERR]', 'create failure receipt', receipt);
+        __lastCreateEventReceipt = receipt;
       }
       logError("Create Event", error);
+
       // Check for HOST_LIMIT_REACHED - show soft limit modal
-      const errorData = error?.response?.data || error?.data || {};
-      if (errorData.error === "HOST_LIMIT_REACHED" && errorData.requiresUpgrade) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        setShowSoftLimitModal(true);
-        return;
+      if (receipt.code === "HOST_LIMIT_REACHED") {
+        const errorData = error?.response?.data || error?.data || {};
+        if (errorData.requiresUpgrade) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          setShowSoftLimitModal(true);
+          return;
+        }
       }
-      const { title, message } = toUserMessage(error);
-      safeToast.error(title, message || "Failed to create event. Please try again.");
+
+      // Actionable user-facing copy from receipt (never generic "Server Error")
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error(receipt.message, receipt.hint);
     },
   });
 
@@ -1451,6 +1462,33 @@ export default function CreateEventScreen() {
               }}
             />
           </Animated.View>
+
+          {/* DEV-only: Show last create-event error receipt */}
+          {__DEV__ && __lastCreateEventReceipt && (
+            <Pressable
+              onPress={() => {
+                const r = __lastCreateEventReceipt;
+                if (!r) return;
+                Alert.alert(
+                  "Last Create-Event Error",
+                  [
+                    `Status: ${r.status ?? "null"}`,
+                    `Code: ${r.code ?? "none"}`,
+                    `Message: ${r.message}`,
+                    `Hint: ${r.hint}`,
+                    `Circle: ${r.isCircle ? r.circleId : "n/a"}`,
+                    `Request ID: ${r.requestId ?? "none"}`,
+                    `Time: ${r.ts}`,
+                  ].join("\n"),
+                );
+              }}
+              className="mt-2 py-2 items-center"
+            >
+              <Text style={{ color: colors.textTertiary }} className="text-xs">
+                DEV: Show last create-event error
+              </Text>
+            </Pressable>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
