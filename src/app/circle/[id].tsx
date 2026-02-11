@@ -1197,6 +1197,19 @@ function formatDateSeparator(dateStr: string): string {
   return `${month} ${day}`;
 }
 
+// -- Parse __system:event_created:{JSON} payload from message content --
+function parseSystemEventPayload(content: string): { eventId: string; title: string; startTime: string; hostId: string } | null {
+  const PREFIX = "__system:event_created:";
+  if (!content.startsWith(PREFIX)) return null;
+  try {
+    const raw = JSON.parse(content.slice(PREFIX.length));
+    if (raw && typeof raw.eventId === "string" && typeof raw.title === "string" && typeof raw.startTime === "string" && typeof raw.hostId === "string") {
+      return { eventId: raw.eventId, title: raw.title, startTime: raw.startTime, hostId: raw.hostId };
+    }
+  } catch { /* malformed JSON — fall through */ }
+  return null;
+}
+
 // Message Bubble Component
 function MessageBubble({
   message,
@@ -1212,6 +1225,7 @@ function MessageBubble({
   reactions,
   editedContent,
   isDeleted,
+  onViewEvent,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -1226,15 +1240,65 @@ function MessageBubble({
   reactions?: string[];
   editedContent?: string;
   isDeleted?: boolean;
+  onViewEvent?: (eventId: string) => void;
 }) {
-  const isSystemMessage = message.content.startsWith("📅");
+  const isLegacySystemMessage = message.content.startsWith("📅");
+  const systemEventPayload = parseSystemEventPayload(message.content);
   const isSending = (message as any).status === "sending";
   const isFailed = (message as any).status === "failed";
   const isSent = (message as any).status === "sent" || (!isSending && !isFailed);
   // Guard: prevent onPress firing after onLongPress
   const longPressFiredRef = useRef(false);
 
-  if (isSystemMessage) {
+  // Rich event card for __system:event_created messages
+  if (systemEventPayload) {
+    const d = new Date(systemEventPayload.startTime);
+    const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return (
+      <View className="items-center my-3">
+        <Pressable
+          onPress={() => onViewEvent?.(systemEventPayload.eventId)}
+          style={{
+            width: "85%",
+            borderRadius: 16,
+            backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
+            borderWidth: 1,
+            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            overflow: "hidden",
+          }}
+        >
+          <View style={{ backgroundColor: themeColor + "18", paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Calendar size={16} color={themeColor} />
+            <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>New Event</Text>
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={2}>
+              {systemEventPayload.title}
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+              {dateStr} · {timeStr}
+            </Text>
+          </View>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+            <View
+              style={{
+                borderRadius: 10,
+                paddingVertical: 8,
+                alignItems: "center",
+                backgroundColor: themeColor,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>View Event</Text>
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Legacy system messages (📅 prefix)
+  if (isLegacySystemMessage) {
     return (
       <View className="items-center my-2">
         <View className="rounded-full px-3 py-1" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
@@ -3215,7 +3279,7 @@ export default function CircleScreen() {
           renderItem={({ item, index }) => {
             // -- Run grouping: consecutive same-sender within 2 min --
             const RUN_WINDOW_MS = 120_000;
-            const isGroupable = (m: any) => !!m?.userId && !!m?.user && !m.content?.startsWith("\u{1F4C5}");
+            const isGroupable = (m: any) => !!m?.userId && !!m?.user && !m.content?.startsWith("\u{1F4C5}") && !m.content?.startsWith("__system:");
             const prev = index > 0 ? messages[index - 1] : null;
             const isRunContinuation =
               !!prev &&
@@ -3259,7 +3323,7 @@ export default function CircleScreen() {
             };
 
             const handleLongPress = () => {
-              if (!item.content || item.content.startsWith("📅")) return;
+              if (!item.content || item.content.startsWith("📅") || item.content.startsWith("__system:")) return;
               const isOwnMsg = item.userId === currentUserId;
               const isDeletedMsg = !!deletedStableIds[item.id ?? (item as any).clientMessageId];
               // Guard: no actions on deleted messages except Copy
@@ -3416,6 +3480,10 @@ export default function CircleScreen() {
                 reactions={stableId ? reactionsByStableId[stableId] : undefined}
                 editedContent={stableId ? editedContentByStableId[stableId]?.content : undefined}
                 isDeleted={stableId ? !!deletedStableIds[stableId] : false}
+                onViewEvent={(eventId) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/event/${eventId}` as any);
+                }}
               />
               </>
             );

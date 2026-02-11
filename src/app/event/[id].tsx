@@ -776,7 +776,7 @@ export default function EventDetailScreen() {
 
   const isMyEvent = event?.userId === session?.user?.id;
   const hasJoinRequest = event?.joinRequests?.some(
-    (r) => r.userId === session?.user?.id
+    (r) => r.userId === session?.user?.id && r.status === "accepted"
   );
   const myJoinRequest = event?.joinRequests?.find(
     (r) => r.userId === session?.user?.id
@@ -1029,7 +1029,8 @@ export default function EventDetailScreen() {
   // Optimistic updates target eventKeys.rsvp(id) only.
   // ============================================
   const rawRsvpStatus = myRsvpData?.status;
-  const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
+  // Normalize: "maybe" → "interested", "invited" → null (pending RSVP, show controls)
+  const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
 
   // [P0_RSVP] Render proof: log current RSVP status and its source on every render
   if (__DEV__ && id && !isBusyBlock) {
