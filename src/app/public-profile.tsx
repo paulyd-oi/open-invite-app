@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
-import { resolveBannerUri } from "@/lib/heroSSOT";
+import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
@@ -417,31 +417,31 @@ export default function PublicProfileScreen() {
                           />
                         )}
                         <View className="flex-row items-center">
-                          <Text className="text-xl font-bold" style={{ color: colors.text, letterSpacing: -0.3 }}>
+                          <Text className="text-xl font-bold" style={{ color: pubBannerUri ? getHeroTextColor(isDark) : colors.text, letterSpacing: -0.3 }}>
                             {user.name ?? "No name"}
                           </Text>
                         </View>
 
-                        {/* @handle — secondary tone */}
+                        {/* @handle — hero contrast when banner present */}
                         {user.Profile?.handle && (
-                          <Text className="text-sm" style={{ color: colors.textSecondary, marginTop: 4 }}>
+                          <Text className="text-sm" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textSecondary, marginTop: 4 }}>
                             @{user.Profile.handle}
                           </Text>
                         )}
 
                         {/* Calendar Bio */}
                         <View className="flex-row items-center" style={{ marginTop: 8 }}>
-                          <Calendar size={14} color={colors.textTertiary} />
-                          <Text className="ml-1.5 text-sm" style={{ color: colors.textTertiary }}>
+                          <Calendar size={14} color={pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary} />
+                          <Text className="ml-1.5 text-sm" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary }}>
                             My calendar looks like...
                           </Text>
                         </View>
                         {user.Profile?.calendarBio ? (
-                          <Text className="text-sm mt-1 text-center px-4" style={{ color: colors.text }}>
+                          <Text className="text-sm mt-1 text-center px-4" style={{ color: pubBannerUri ? getHeroTextColor(isDark) : colors.text }}>
                             {user.Profile.calendarBio}
                           </Text>
                         ) : (
-                          <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
+                          <Text className="text-sm mt-1 italic" style={{ color: pubBannerUri ? getHeroSubTextColor(isDark) : colors.textTertiary }}>
                             Not set yet
                           </Text>
                         )}

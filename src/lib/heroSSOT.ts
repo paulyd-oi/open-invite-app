@@ -59,3 +59,20 @@ export function getGlassBoostStyle(isDark: boolean): ViewStyle {
     backgroundColor: isDark ? "rgba(0,0,0,0.22)" : "rgba(255,255,255,0.18)",
   };
 }
+
+// ── Hero contrast text tokens ────────────────────────────────────
+/**
+ * High-contrast primary text color for hero glass panels.
+ * Use ONLY inside banner-backed glass — not for general UI text.
+ */
+export function getHeroTextColor(isDark: boolean): string {
+  return isDark ? "#FFFFFF" : "#111111";
+}
+
+/**
+ * High-contrast secondary text color for hero glass panels.
+ * Use ONLY inside banner-backed glass — not for general UI text.
+ */
+export function getHeroSubTextColor(isDark: boolean): string {
+  return isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)";
+}

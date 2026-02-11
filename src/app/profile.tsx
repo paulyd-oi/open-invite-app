@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
-import { resolveBannerUri } from "@/lib/heroSSOT";
+import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -608,12 +608,12 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 ) : (
-                  /* Banner layout: centered text */
+                  /* Banner layout: centered text — hero contrast tokens */
                   <View style={{ alignItems: "center" }}>
                     <View className="flex-row items-center">
                       <Text
                         className="text-xl font-sora-bold"
-                        style={{ color: colors.text, letterSpacing: -0.3 }}
+                        style={{ color: getHeroTextColor(isDark), letterSpacing: -0.3 }}
                       >
                         {displayName}
                       </Text>
@@ -622,13 +622,13 @@ export default function ProfileScreen() {
                       )}
                     </View>
                     {userHandle && (
-                      <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                      <Text style={{ color: getHeroSubTextColor(isDark), fontSize: 14, marginTop: 2 }}>
                         {`@${StringSafe(userHandle)}`}
                       </Text>
                     )}
                     <View className="flex-row items-center" style={{ marginTop: 6 }}>
-                      <Calendar size={14} color={colors.textTertiary} />
-                      <Text className="ml-2 text-sm" style={{ color: colors.textTertiary }} numberOfLines={1}>
+                      <Calendar size={14} color={getHeroSubTextColor(isDark)} />
+                      <Text className="ml-2 text-sm" style={{ color: getHeroSubTextColor(isDark) }} numberOfLines={1}>
                         {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
                       </Text>
                     </View>
@@ -661,17 +661,25 @@ export default function ProfileScreen() {
               </Animated.View>
             </View>
 
-            {/* View Public Profile */}
+            {/* View Public Profile — accent pill CTA */}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push("/public-profile" as any);
               }}
-              className="flex-row items-center justify-center mt-3 py-2 rounded-lg"
-              style={{ backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}
+              style={{
+                backgroundColor: themeColor,
+                paddingVertical: 8,
+                paddingHorizontal: 14,
+                borderRadius: 999,
+                alignSelf: "center",
+                marginTop: 8,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
             >
-              <Eye size={14} color={themeColor} />
-              <Text className="text-sm ml-1.5" style={{ color: themeColor }}>
+              <Eye size={14} color="#FFFFFF" />
+              <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 13, marginLeft: 6 }}>
                 View Public Profile
               </Text>
             </Pressable>
