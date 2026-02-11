@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1270,6 +1271,8 @@ export default function EventDetailScreen() {
           hadError: !!error,
           attendeeCount: currentAttendees?.totalGoing ?? null,
         }));
+        // [P0_TIMELINE] Mark RSVP UI converged
+        if (id) markTimeline(id, "ui_converged");
       }
     },
   });

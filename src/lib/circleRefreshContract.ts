@@ -15,6 +15,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { devLog } from "@/lib/devLog";
 import { recordQueryInvalidateReceipt, recordQueryRefetchReceipt } from "@/lib/devQueryReceipt";
+import { markTimeline } from "@/lib/devConvergenceTimeline";
 
 export type CircleRefreshReason =
   | "app_active"
@@ -39,6 +40,8 @@ export function refreshCircleListContract(opts: {
   if (__DEV__) {
     recordQueryInvalidateReceipt({ queryKeyName: "circleKeys.all", reason, circleId });
     recordQueryInvalidateReceipt({ queryKeyName: "circleKeys.unreadCount", reason, circleId });
+    // [P0_TIMELINE] Mark query invalidation
+    markTimeline(circleId ?? "circle_list", "query_invalidated");
   }
 
   // Only actively refetch when on Friends tab focus
@@ -47,6 +50,8 @@ export function refreshCircleListContract(opts: {
     refetchCircles!();
     if (__DEV__) {
       recordQueryRefetchReceipt({ queryKeyName: "circleKeys.all", reason: "friends_focus", circleId });
+      // [P0_TIMELINE] Mark query refetch
+      markTimeline("circle_list", "query_refetched");
     }
   }
 

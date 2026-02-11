@@ -195,6 +195,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_AGENT]",
   // P0 push/me activeCount SSOT decision proof
   "[P0_PUSH_ME_TRUTH]",
+  // P0 convergence timeline (push → invalidate → refetch → UI)
+  "[P0_TIMELINE]",
 ];
 
 /**

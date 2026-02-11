@@ -27,6 +27,7 @@ import { safeToast } from "@/lib/safeToast";
 import { shouldMaskEvent, getEventDisplayFields } from "@/lib/eventVisibility";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
+import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { safeAppendMessage, buildOptimisticMessage, retryFailedMessage, safePrependMessages } from "@/lib/pushRouter";
 import { KeyboardAvoidingView, KeyboardStickyView } from "react-native-keyboard-controller";
@@ -1774,6 +1775,15 @@ export default function CircleScreen() {
     { isLoading, isFetching, isSuccess, data },
     "circle-detail",
   );
+
+  // [P0_TIMELINE] Mark UI converged when circle detail refetch settles
+  const prevFetchingRef = useRef(false);
+  useEffect(() => {
+    if (__DEV__ && prevFetchingRef.current && !isFetching && id) {
+      markTimeline(id, "ui_converged");
+    }
+    prevFetchingRef.current = isFetching;
+  }, [isFetching, id]);
 
   // [P0_LOADING_ESCAPE] Timeout safety for initial load
   const { isTimedOut: isCircleTimedOut, reset: resetCircleTimeout } = useLoadingTimeout(

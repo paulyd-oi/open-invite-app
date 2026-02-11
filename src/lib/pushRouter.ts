@@ -21,6 +21,7 @@ import { devLog } from "@/lib/devLog";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
 import { recordQueryInvalidateReceipt } from "@/lib/devQueryReceipt";
 import { emitReconcileProof } from "@/lib/reconcileContract";
+import { markTimeline } from "@/lib/devConvergenceTimeline";
 
 // ============================================================================
 // DEDUPE MECHANISM
@@ -241,6 +242,9 @@ export function handlePushEvent(
         circleId: payload?.circleId ?? payload?.circle_id ?? null,
         eventId: payload?.eventId ?? payload?.event_id ?? null,
       });
+      // [P0_TIMELINE] Start convergence timeline for this entity
+      const timelineId = payload?.circleId ?? payload?.circle_id ?? payload?.eventId ?? payload?.event_id ?? entityId;
+      markTimeline(timelineId, "push_received");
     }
     
   } catch (error) {
