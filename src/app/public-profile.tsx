@@ -342,76 +342,101 @@ export default function PublicProfileScreen() {
           <>
             {/* User Info Card — matches user/[id] layout, NO friend CTAs */}
             <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-4">
-              <View
-                className="rounded-2xl items-center overflow-hidden"
-                style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-              >
-                {/* Banner image (SSOT: bannerPhotoUrl ?? bannerUrl) */}
-                {(() => {
-                  const pubBanner = user.Profile?.bannerPhotoUrl ?? user.Profile?.bannerUrl ?? null;
-                  const pubBannerUri = typeof pubBanner === "string" && pubBanner.length > 0 ? pubBanner : null;
-                  return pubBannerUri ? (
-                    <View style={{ width: "100%", height: 100 }}>
-                      <Image source={{ uri: pubBannerUri }} style={{ width: "100%", height: 100 }} resizeMode="cover" />
-                      {/* Scrim for readability */}
+              {(() => {
+                const pubBanner = user.Profile?.bannerPhotoUrl ?? user.Profile?.bannerUrl ?? null;
+                const pubBannerUri = typeof pubBanner === "string" && pubBanner.length > 0 ? pubBanner : null;
+                return (
+                  <View
+                    className="rounded-2xl overflow-hidden"
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderWidth: 1,
+                      minHeight: pubBannerUri ? 220 : undefined,
+                    }}
+                  >
+                    {/* Banner as full-bleed background */}
+                    {pubBannerUri && (
+                      <>
+                        <Image
+                          source={{ uri: pubBannerUri }}
+                          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                          resizeMode="cover"
+                        />
+                        {/* Subtle global tint */}
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: isDark ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.06)",
+                          }}
+                        />
+                      </>
+                    )}
+
+                    {/* Content layer — pushed to bottom when banner present */}
+                    <View style={{ flex: 1, justifyContent: pubBannerUri ? "flex-end" : "flex-start", padding: pubBannerUri ? 12 : 24, alignItems: "center" }}>
+                      {/* Avatar */}
+                      <View style={{ marginBottom: pubBannerUri ? 8 : 0 }}>
+                        <EntityAvatar
+                          photoUrl={user.Profile?.avatarUrl ?? user.image}
+                          initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                          size={88}
+                          backgroundColor={
+                            (user.Profile?.avatarUrl ?? user.image)
+                              ? (isDark ? "#2C2C2E" : "#E5E7EB")
+                              : themeColor + "30"
+                          }
+                          foregroundColor={themeColor}
+                        />
+                      </View>
+
+                      {/* Text legibility panel (frosted when banner present) */}
                       <View
-                        style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 50,
-                          backgroundColor: isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)",
-                        }}
-                      />
+                        style={pubBannerUri ? {
+                          backgroundColor: isDark ? "rgba(0,0,0,0.50)" : "rgba(255,255,255,0.82)",
+                          borderRadius: 14,
+                          padding: 12,
+                          alignItems: "center",
+                          width: "100%",
+                        } : { alignItems: "center", marginTop: 16, width: "100%" }}
+                      >
+                        <View className="flex-row items-center">
+                          <Text className="text-xl font-bold" style={{ color: pubBannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text, letterSpacing: -0.3 }}>
+                            {user.name ?? "No name"}
+                          </Text>
+                        </View>
+
+                        {/* @handle — secondary tone */}
+                        {user.Profile?.handle && (
+                          <Text className="text-sm" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.7)" : colors.textSecondary) : colors.textSecondary, marginTop: 4 }}>
+                            @{user.Profile.handle}
+                          </Text>
+                        )}
+
+                        {/* Calendar Bio */}
+                        <View className="flex-row items-center" style={{ marginTop: 8 }}>
+                          <Calendar size={14} color={pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary} />
+                          <Text className="ml-1.5 text-sm" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }}>
+                            My calendar looks like...
+                          </Text>
+                        </View>
+                        {user.Profile?.calendarBio ? (
+                          <Text className="text-sm mt-1 text-center px-4" style={{ color: pubBannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text }}>
+                            {user.Profile.calendarBio}
+                          </Text>
+                        ) : (
+                          <Text className="text-sm mt-1 italic" style={{ color: pubBannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }}>
+                            Not set yet
+                          </Text>
+                        )}
+
+                        {/* NO friend request / Add Friend CTA — this is self preview */}
+                      </View>
                     </View>
-                  ) : null;
-                })()}
-              <View style={{ padding: 24, alignItems: "center", width: "100%" }}>
-                <EntityAvatar
-                  photoUrl={user.Profile?.avatarUrl ?? user.image}
-                  initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                  size={88}
-                  backgroundColor={
-                    (user.Profile?.avatarUrl ?? user.image)
-                      ? (isDark ? "#2C2C2E" : "#E5E7EB")
-                      : themeColor + "30"
-                  }
-                  foregroundColor={themeColor}
-                />
-                <View className="flex-row items-center mt-4">
-                  <Text className="text-xl font-bold" style={{ color: colors.text, letterSpacing: -0.3 }}>
-                    {user.name ?? "No name"}
-                  </Text>
-                </View>
-
-                {/* @handle — secondary tone */}
-                {user.Profile?.handle && (
-                  <Text className="text-sm" style={{ color: colors.textSecondary, marginTop: 4 }}>
-                    @{user.Profile.handle}
-                  </Text>
-                )}
-
-                {/* Calendar Bio */}
-                <View className="flex-row items-center" style={{ marginTop: 8 }}>
-                  <Calendar size={14} color={colors.textTertiary} />
-                  <Text className="ml-1.5 text-sm" style={{ color: colors.textTertiary }}>
-                    My calendar looks like...
-                  </Text>
-                </View>
-                {user.Profile?.calendarBio ? (
-                  <Text className="text-sm mt-1 text-center px-4" style={{ color: colors.text }}>
-                    {user.Profile.calendarBio}
-                  </Text>
-                ) : (
-                  <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
-                    Not set yet
-                  </Text>
-                )}
-
-                {/* NO friend request / Add Friend CTA — this is self preview */}
-              </View>
-              </View>
+                  </View>
+                );
+              })()}
             </Animated.View>
 
             {/* Calendar — owner sees their actual events as indicators */}

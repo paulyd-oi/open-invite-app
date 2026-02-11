@@ -492,102 +492,139 @@ export default function ProfileScreen() {
               backgroundColor: colors.surface,
               borderColor: userIsPremium ? "#FFD700" : colors.border,
               borderWidth: userIsPremium ? 2 : 1,
+              minHeight: bannerUri ? 220 : undefined,
             }}
           >
-            {/* Banner background (optional) */}
+            {/* Banner as full-bleed background */}
             {bannerUri && (
-              <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 120 }}>
-                <Image source={{ uri: bannerUri }} style={{ width: "100%", height: 120 }} resizeMode="cover" />
-                {/* Top: light tint so banner is still visible */}
+              <>
+                <Image
+                  source={{ uri: bannerUri }}
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                  resizeMode="cover"
+                />
+                {/* Subtle global tint */}
                 <View
                   style={{
                     position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 50,
-                    backgroundColor: isDark ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.30)",
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.06)",
                   }}
                 />
-                {/* Bottom: heavier scrim behind name/bio for readability */}
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 80,
-                    backgroundColor: isDark ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.75)",
-                  }}
-                />
-              </View>
+              </>
             )}
-            <View style={{ padding: 20 }}>
-            <View className="flex-row items-center">
-              {/* Avatar — visual anchor */}
-              <View className="relative" style={{ marginRight: 16 }}>
-                <EntityAvatar
-                  imageSource={avatarSource}
-                  initials={StringSafe(getProfileInitial({ profileData, session }))}
-                  size={72}
-                  backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
-                  foregroundColor={themeColor}
-                  fallbackIcon="person"
-                />
-                {/* Premium crown on avatar */}
-                {userIsPremium && (
-                  <View
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
-                    style={{ backgroundColor: "#FFD700" }}
-                  >
-                    <Crown size={12} color="#FFFFFF" />
+
+            {/* Content layer — pushed to bottom when banner present */}
+            <View style={{ flex: 1, justifyContent: bannerUri ? "flex-end" : "flex-start", padding: bannerUri ? 12 : 20 }}>
+              {/* Avatar row */}
+              <View style={{ alignItems: bannerUri ? "center" : "flex-start", marginBottom: bannerUri ? 8 : 0 }}>
+                {bannerUri && (
+                  <View className="relative" style={{ marginBottom: 8 }}>
+                    <EntityAvatar
+                      imageSource={avatarSource}
+                      initials={StringSafe(getProfileInitial({ profileData, session }))}
+                      size={72}
+                      backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
+                      foregroundColor={themeColor}
+                      fallbackIcon="person"
+                    />
+                    {userIsPremium && (
+                      <View
+                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
+                        style={{ backgroundColor: "#FFD700" }}
+                      >
+                        <Crown size={12} color="#FFFFFF" />
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
 
-              {/* Name + Handle — clear hierarchy */}
-              <View className="flex-1">
-                <View className="flex-row items-center">
-                  <Text
-                    className="text-xl font-sora-bold"
-                    style={{ color: colors.text, letterSpacing: -0.3 }}
-                  >
-                    {displayName}
-                  </Text>
-                  {/* PRO pill next to name */}
-                  {userIsPremium && (
-                    <Chip
-                      variant="status"
-                      label="PRO"
-                      color="#B8860B"
-                      size="sm"
-                      style={{ marginLeft: 8 }}
-                    />
-                  )}
-                </View>
-
-                {userHandle && (
-                  <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
-                    {`@${StringSafe(userHandle)}`}
-                  </Text>
+              {/* Text legibility panel (frosted when banner present) */}
+              <View
+                style={bannerUri ? {
+                  backgroundColor: isDark ? "rgba(0,0,0,0.50)" : "rgba(255,255,255,0.82)",
+                  borderRadius: 14,
+                  padding: 12,
+                } : undefined}
+              >
+                {/* No-banner layout: horizontal avatar + text */}
+                {!bannerUri ? (
+                  <View className="flex-row items-center">
+                    <View className="relative" style={{ marginRight: 16 }}>
+                      <EntityAvatar
+                        imageSource={avatarSource}
+                        initials={StringSafe(getProfileInitial({ profileData, session }))}
+                        size={72}
+                        backgroundColor={isDark ? colors.surfaceElevated : `${themeColor}15`}
+                        foregroundColor={themeColor}
+                        fallbackIcon="person"
+                      />
+                      {userIsPremium && (
+                        <View
+                          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full items-center justify-center"
+                          style={{ backgroundColor: "#FFD700" }}
+                        >
+                          <Crown size={12} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center">
+                        <Text
+                          className="text-xl font-sora-bold"
+                          style={{ color: colors.text, letterSpacing: -0.3 }}
+                        >
+                          {displayName}
+                        </Text>
+                        {userIsPremium && (
+                          <Chip variant="status" label="PRO" color="#B8860B" size="sm" style={{ marginLeft: 8 }} />
+                        )}
+                      </View>
+                      {userHandle && (
+                        <Text style={{ color: colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                          {`@${StringSafe(userHandle)}`}
+                        </Text>
+                      )}
+                      <View className="flex-row items-center" style={{ marginTop: 6 }}>
+                        <Calendar size={14} color={colors.textTertiary} />
+                        <Text className="ml-2 text-sm" style={{ color: colors.textTertiary }} numberOfLines={1}>
+                          {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  /* Banner layout: centered text */
+                  <View style={{ alignItems: "center" }}>
+                    <View className="flex-row items-center">
+                      <Text
+                        className="text-xl font-sora-bold"
+                        style={{ color: bannerUri ? (isDark ? "#FFFFFF" : colors.text) : colors.text, letterSpacing: -0.3 }}
+                      >
+                        {displayName}
+                      </Text>
+                      {userIsPremium && (
+                        <Chip variant="status" label="PRO" color="#B8860B" size="sm" style={{ marginLeft: 8 }} />
+                      )}
+                    </View>
+                    {userHandle && (
+                      <Text style={{ color: bannerUri ? (isDark ? "rgba(255,255,255,0.7)" : colors.textSecondary) : colors.textSecondary, fontSize: 14, marginTop: 2 }}>
+                        {`@${StringSafe(userHandle)}`}
+                      </Text>
+                    )}
+                    <View className="flex-row items-center" style={{ marginTop: 6 }}>
+                      <Calendar size={14} color={bannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary} />
+                      <Text className="ml-2 text-sm" style={{ color: bannerUri ? (isDark ? "rgba(255,255,255,0.5)" : colors.textTertiary) : colors.textTertiary }} numberOfLines={1}>
+                        {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
+                      </Text>
+                    </View>
+                  </View>
                 )}
-
-                {/* Bio */}
-                <View className="flex-row items-center" style={{ marginTop: 6 }}>
-                  <Calendar size={14} color={colors.textTertiary} />
-                  <Text
-                    className="ml-2 text-sm"
-                    style={{ color: colors.textTertiary }}
-                    numberOfLines={1}
-                  >
-                    {calendarBio ? StringSafe(calendarBio) : "Tap Edit to add a bio"}
-                  </Text>
-                </View>
               </View>
-            </View>
 
             {/* Edit / Share / Preview — visually grouped action row */}
-            <View className="flex-row mt-5 pt-3 border-t" style={{ borderColor: colors.border, gap: 8 }}>
+            <View className="flex-row mt-5 pt-3 border-t" style={{ borderColor: bannerUri ? (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)") : colors.border, gap: 8 }}>
               <Button
                 variant="secondary"
                 label="Edit"
