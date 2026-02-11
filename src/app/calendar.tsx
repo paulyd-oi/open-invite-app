@@ -1692,7 +1692,7 @@ export default function CalendarScreen() {
   });
 
   // Fetch friend birthdays
-  const { data: birthdaysData, isLoading: isLoadingBirthdays, isError: isBirthdaysError } = useQuery({
+  const { data: birthdaysData, isLoading: isLoadingBirthdays, isError: isBirthdaysError, refetch: refetchBirthdays } = useQuery({
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -1871,7 +1871,7 @@ export default function CalendarScreen() {
   // Replaces the old manual useFocusEffect refetch
   const { isRefreshing: calendarIsRefreshing, onManualRefresh: onCalendarManualRefresh } = useLiveRefreshContract({
     screenName: "calendar",
-    refetchFns: [refetchCalendarEvents],
+    refetchFns: [refetchCalendarEvents, refetchBirthdays],
   });
 
   // Convert birthdays to pseudo-events for the calendar

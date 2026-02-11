@@ -6,7 +6,12 @@
  *   2. Foreground resume       (AppState background→active, throttled 2 s)
  *   3. Tab focus               (Expo Router focus, quiet invalidation)
  *
- * Canonical DEV log tag: [LIVE_REFRESH]
+ * Storm guard:
+ *   - Per-screen inFlight latch prevents foreground/focus from stacking.
+ *   - 10 s max-duration fail-safe auto-releases the latch.
+ *   - Manual refresh always wins: clears the latch & fires immediately.
+ *
+ * Canonical DEV log tag: [LIVE_REFRESH]  [LIVE_REFRESH_GUARD]
  *
  * Usage:
  *   const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
@@ -20,6 +25,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { devLog } from "@/lib/devLog";
+
+// ── Constants ────────────────────────────────────────────────────
+/** Max time (ms) the inFlight latch can stay locked before auto-release. */
+const IN_FLIGHT_MAX_MS = 10_000;
+
+/** Min ms between focus triggers on the same screen. */
+const FOCUS_THROTTLE_MS = 2000;
 
 // ── Types ────────────────────────────────────────────────────────
 export interface LiveRefreshOptions {
@@ -69,16 +81,53 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
   const screenRef = useRef(screenName);
   screenRef.current = screenName;
 
+  // ── Storm guard: per-screen inFlight latch ──
+  const inFlightRef = useRef(false);
+  const inFlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Mark in-flight with a fail-safe auto-release after IN_FLIGHT_MAX_MS. */
+  const setInFlight = useCallback(() => {
+    inFlightRef.current = true;
+    // Clear any prior fail-safe timer
+    if (inFlightTimerRef.current) clearTimeout(inFlightTimerRef.current);
+    inFlightTimerRef.current = setTimeout(() => {
+      if (__DEV__ && inFlightRef.current) {
+        devLog("[LIVE_REFRESH_GUARD]", screenRef.current, "failsafe_release", `after=${IN_FLIGHT_MAX_MS}ms`);
+      }
+      inFlightRef.current = false;
+      inFlightTimerRef.current = null;
+    }, IN_FLIGHT_MAX_MS);
+  }, []);
+
+  /** Clear in-flight latch and cancel fail-safe timer. */
+  const clearInFlight = useCallback(() => {
+    inFlightRef.current = false;
+    if (inFlightTimerRef.current) {
+      clearTimeout(inFlightTimerRef.current);
+      inFlightTimerRef.current = null;
+    }
+  }, []);
+
+  // Focus throttle
+  const lastFocusRef = useRef(0);
+
+  // Cleanup fail-safe timer on unmount
+  useEffect(() => {
+    return () => {
+      if (inFlightTimerRef.current) clearTimeout(inFlightTimerRef.current);
+    };
+  }, []);
+
   // ── helpers ──
   const fireAll = useCallback((trigger: "manual" | "foreground" | "focus", reason: string) => {
     const fns = fnsRef.current;
     if (__DEV__) {
       devLog(
-        "[LIVE_REFRESH]",
-        screenRef.current,
+        "[LIVE_REFRESH_GUARD]",
+        `screen=${screenRef.current}`,
         `trigger=${trigger}`,
+        `outcome=run`,
         `keys=${fns.length}`,
-        `reason=${reason}`,
       );
     }
     fns.forEach((fn) => {
@@ -90,14 +139,20 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
     });
   }, []);
 
-  // ── 1. Manual pull-to-refresh ──
+  // ── 1. Manual pull-to-refresh (always wins) ──
   const onManualRefresh = useCallback(() => {
+    // Manual always wins: clear any in-flight latch and fire immediately
+    clearInFlight();
     setIsRefreshing(true);
+    setInFlight();
     fireAll("manual", "user_pull");
     // Allow spinner for a visible minimum then clear.
     // React Query will keep stale data visible (placeholderData) so no flash.
-    setTimeout(() => setIsRefreshing(false), 800);
-  }, [fireAll]);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      clearInFlight();
+    }, 800);
+  }, [fireAll, setInFlight, clearInFlight]);
 
   // ── 2. Foreground resume (AppState) ──
   const lastForegroundRef = useRef(0);
@@ -114,25 +169,55 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
         const now = Date.now();
         if (now - lastForegroundRef.current < foregroundThrottleMs) {
           if (__DEV__) {
-            devLog("[LIVE_REFRESH]", screenRef.current, "trigger=foreground", "THROTTLED");
+            devLog("[LIVE_REFRESH_GUARD]", `screen=${screenRef.current}`, "trigger=foreground", "outcome=skip_throttle");
+          }
+          return;
+        }
+        // Storm guard: skip if a refresh is already in-flight
+        if (inFlightRef.current) {
+          if (__DEV__) {
+            devLog("[LIVE_REFRESH_GUARD]", `screen=${screenRef.current}`, "trigger=foreground", "outcome=skip_inflight");
           }
           return;
         }
         lastForegroundRef.current = now;
+        setInFlight();
         fireAll("foreground", "app_resumed");
+        // Release latch after a short window (queries are async but fire-and-forget)
+        setTimeout(() => clearInFlight(), 3000);
       }
     };
 
     const subscription = AppState.addEventListener("change", handleChange);
     return () => subscription.remove();
-  }, [disableForeground, foregroundThrottleMs, fireAll]);
+  }, [disableForeground, foregroundThrottleMs, fireAll, setInFlight, clearInFlight]);
 
   // ── 3. Focus (tab navigation) ──
   useFocusEffect(
     useCallback(() => {
       if (disableFocus) return;
+
+      const now = Date.now();
+      // Throttle focus triggers (prevents spam on rapid tab switching)
+      if (now - lastFocusRef.current < FOCUS_THROTTLE_MS) {
+        if (__DEV__) {
+          devLog("[LIVE_REFRESH_GUARD]", `screen=${screenRef.current}`, "trigger=focus", "outcome=skip_throttle");
+        }
+        return;
+      }
+      // Storm guard: skip if a refresh is already in-flight
+      if (inFlightRef.current) {
+        if (__DEV__) {
+          devLog("[LIVE_REFRESH_GUARD]", `screen=${screenRef.current}`, "trigger=focus", "outcome=skip_inflight");
+        }
+        return;
+      }
+      lastFocusRef.current = now;
+      setInFlight();
       fireAll("focus", "tab_focused");
-    }, [disableFocus, fireAll]),
+      // Release latch after a short window
+      setTimeout(() => clearInFlight(), 3000);
+    }, [disableFocus, fireAll, setInFlight, clearInFlight]),
   );
 
   return { isRefreshing, onManualRefresh };

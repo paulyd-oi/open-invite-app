@@ -74,7 +74,6 @@ import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { circleKeys } from "@/lib/circleQueryKeys";
-import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { trackFriendAdded } from "@/lib/rateApp";
 import { Button } from "@/ui/Button";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
@@ -945,12 +944,8 @@ export default function FriendsScreen() {
 
   const circles = circlesData?.circles ?? [];
 
-  // [P0_CIRCLE_LIST_REFRESH] SSOT contract: refetch circles on tab focus
-  useFocusEffect(
-    React.useCallback(() => {
-      refreshCircleListContract({ reason: "friends_focus", queryClient, refetchCircles });
-    }, [queryClient, refetchCircles])
-  );
+  // [P0_CIRCLE_LIST_REFRESH] SSOT: circle invalidation now handled by useLiveRefreshContract
+  // (Removed duplicate useFocusEffect — refetchCircles is in refetchFns below)
 
   // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
   const { isRefreshing: liveIsRefreshing, onManualRefresh: onFriendsManualRefresh } = useLiveRefreshContract({
