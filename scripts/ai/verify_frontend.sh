@@ -405,4 +405,73 @@ fi
 echo ""
 echo "P0_MOTION_SSOT checks PASS"
 
+# ── P0 PERF INVARIANT: NO .map() IN PRIMARY FEEDS ───────────────────
+echo ""
+echo "Running P0_PERF_INVAR_MAP_FEEDS checks…"
+echo "  Goal: primary feed screens must not render large lists via .map()."
+echo "  Small UI maps allowed only when previous non-empty line is exactly:"
+echo "    // INVARIANT_ALLOW_SMALL_MAP"
+
+MAP_FAIL=0
+FEED_SCREENS="src/app/discover.tsx src/app/social.tsx src/app/friends.tsx src/app/calendar.tsx"
+
+for SCREEN in $FEED_SCREENS; do
+  if [ ! -f "$SCREEN" ]; then
+    echo "  ⚠ $SCREEN not found — skipping"
+    continue
+  fi
+
+  # Use awk to find .map( lines, skip data transforms, check annotation.
+  HITS=$(awk '
+    BEGIN { fail = 0 }
+    {
+      if (/\.map\(/) {
+        skip = 0
+
+        # Skip data-transform patterns (not JSX rendering)
+        if ($0 ~ /^[ \t]*(const |let |var )[a-zA-Z]/) skip = 1
+        if ($0 ~ /new Set\(/) skip = 1
+        if ($0 ~ /\.split\(.*\.map\(/) skip = 1
+        if ($0 ~ /\.map\(.*\.join\(/) skip = 1
+        if ($0 ~ /^[ \t]*\.\.\.[a-zA-Z]/) skip = 1
+        if ($0 ~ /^[ \t]*\.map\(/) skip = 1
+        if ($0 ~ /devLog|devWarn|devError|console\./) skip = 1
+        if ($0 ~ /^[ \t]*\/\//) skip = 1
+        if ($0 ~ /^[ \t]*return[ \t]/ && $0 !~ /</) skip = 1
+        if ($0 ~ /sampleOmittedIds/) skip = 1
+
+        if (!skip) {
+          # Check previous non-empty line for annotation (// or {/* */} form)
+          if (prev !~ /INVARIANT_ALLOW_SMALL_MAP/) {
+            printf "  ❌ %s:%d: %s\n", FILENAME, NR, substr($0, 1, 120)
+            fail = 1
+          }
+        }
+      }
+
+      # Track previous non-empty line (updated AFTER checking .map)
+      if (/[^ \t]/) prev = $0
+    }
+    END { if (fail) exit 1 }
+  ' "$SCREEN" 2>&1)
+
+  if [ $? -ne 0 ]; then
+    echo "$HITS"
+    echo "  Remediation: Add '// INVARIANT_ALLOW_SMALL_MAP' on the line above,"
+    echo "    or convert the list to FlatList."
+    MAP_FAIL=1
+  fi
+done
+
+if [ "$MAP_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_INVAR_MAP_FEEDS — unannotated .map() in primary feed screens"
+  exit 1
+else
+  echo "  ✓ P0_PERF_INVAR_MAP_FEEDS: All JSX .map() calls in feed screens are annotated"
+fi
+
+echo ""
+echo "P0_PERF_INVAR_MAP_FEEDS checks PASS"
+
 echo "PASS: verify_frontend"

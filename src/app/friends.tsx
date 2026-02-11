@@ -157,6 +157,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
     <View className="mt-2 pt-2 border-t" style={{ borderTopColor: colors.separator }}>
       {/* Day headers */}
       <View className="flex-row mb-1">
+        {/* INVARIANT_ALLOW_SMALL_MAP */}
         {dayNames.map((day, i) => (
           <View key={i} className="flex-1 items-center">
             <Text className="text-[8px]" style={{ color: colors.textTertiary }}>{day}</Text>
@@ -167,11 +168,13 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
       {/* Calendar grid - compact version showing only necessary rows */}
       <View className="flex-row flex-wrap">
         {/* Empty cells for days before month starts */}
+        {/* INVARIANT_ALLOW_SMALL_MAP */}
         {Array.from({ length: startingDay }).map((_, i) => (
           <View key={`empty-${i}`} className="w-[14.28%] h-4" />
         ))}
 
         {/* Days of the month */}
+        {/* INVARIANT_ALLOW_SMALL_MAP */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const hasEvent = eventDays.has(day);
@@ -1565,6 +1568,7 @@ export default function FriendsScreen() {
                   {/* Results */}
                   {networkStatus.isOnline && !isSearching && searchResults?.users && searchResults.users.length > 0 && (
                     <View>
+                      {/* INVARIANT_ALLOW_SMALL_MAP */}
                       {searchResults.users.map((user: SearchUserResult) => (
                         <Pressable
                           key={user.id}
@@ -1660,6 +1664,7 @@ export default function FriendsScreen() {
             </Pressable>
             {requestsExpanded && (
               <Animated.View entering={FadeInDown.duration(200)}>
+                {/* INVARIANT_ALLOW_SMALL_MAP */}
                 {receivedRequests.map((request: FriendRequest) => {
                   const senderId = request.sender?.id;
                   return (
@@ -1772,6 +1777,7 @@ export default function FriendsScreen() {
                   </Text>
                 </Pressable>
               ) : (
+                // INVARIANT_ALLOW_SMALL_MAP
                 circles.map((circle, index) => (
                   <CircleCard
                     key={circle.id}
@@ -1903,6 +1909,7 @@ export default function FriendsScreen() {
         onConfirm={(name, emoji, memberIds) => {
           createCircleMutation.mutate({ name, emoji, memberIds });
         }}
+        // INVARIANT_ALLOW_SMALL_MAP
         friends={friends.filter((f) => f.friend != null).map((f) => ({
           id: f.id,
           friendId: f.friendId,

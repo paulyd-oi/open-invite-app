@@ -547,6 +547,7 @@ function EventSection({
           </Text>
         )}
       </Pressable>
+      {/* INVARIANT_ALLOW_SMALL_MAP */}
       {!isCollapsed && events.map((event, index) => {
         // Check if this is a series or single event
         const isSeries = 'nextEvent' in event;

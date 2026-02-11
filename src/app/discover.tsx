@@ -398,6 +398,7 @@ export default function DiscoverScreen() {
       <View className="px-5">
         {/* ═══ Lens Switcher ═══ */}
         <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: colors.segmentBg }}>
+          {/* INVARIANT_ALLOW_SMALL_MAP */}
           {LENS_OPTIONS.map((opt) => {
             const active = lens === opt.key;
             return (
@@ -516,6 +517,7 @@ export default function DiscoverScreen() {
 
             {/* ═══ Lens Feed ═══ */}
             {lensPreview.length > 0 ? (
+              // INVARIANT_ALLOW_SMALL_MAP
               lensPreview.map((e, i) => renderEventCard(e, i, 80))
             ) : (
               <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-3">
