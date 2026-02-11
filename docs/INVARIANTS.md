@@ -119,3 +119,34 @@ INVARIANT: `SchedulingEngine` (`src/lib/scheduling/engine.ts`) is the single sou
 - Rendering hardcoded availability labels without engine output.
 
 **Proof tag:** `[SCHED_ENGINE_V1]` — logged once per compute in `engine.ts`.
+
+---
+
+## Motion SSOT
+
+All imperative reanimated animation (useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, Easing) must flow through the motion SSOT layer:
+
+- **`src/lib/motionSSOT.ts`** — single source of truth for presets (hero, card, press, media), easing curves (`MotionEasings`), and duration tokens.
+- **`src/components/MotionSurface.tsx`** — consumes SSOT presets; wraps any view with fade-in / slide / scale animation.
+- **`src/hooks/usePressMotion.ts`** — press-scale hook backed by the `press` preset.
+
+### Rules
+
+1. **No screen-local easing.** Every `withTiming` / `withSpring` call must pull `easing` and `duration` from `MotionPresetConfig` or `MotionEasings`.
+2. **New animations go through MotionSurface.** If a screen needs a new motion pattern, add a preset in `motionSSOT.ts` and consume it via `MotionSurface` or a dedicated hook.
+3. **Entering/exiting layout presets are exempt.** `FadeInDown`, `FadeIn`, etc. from reanimated layout API do not require SSOT — they are declarative and self-contained.
+4. **Allowlist is append-only.** Existing files using imperative reanimated are tracked in `verify_frontend.sh`. New files must not be added without a review rationale.
+
+### Invariants
+
+- `motionSSOT.ts` must export `MotionPresetConfig` (all presets) and `MotionEasings` (INV-M1).
+- `MotionSurface.tsx` must consume `config.easing` from SSOT — no hardcoded easing (INV-M2).
+- `usePressMotion.ts` must pull easing from `MotionPresetConfig.press.easing` (INV-M3).
+- `verify_frontend.sh` must fail if any file outside the allowlist uses imperative reanimated primitives (INV-M4).
+
+**Forbidden patterns:**
+- `withTiming(value, { duration: 300 })` with an inline number outside `motionSSOT.ts`.
+- `Easing.bezier(...)` or `Easing.out(...)` in a screen or component file (only in `motionSSOT.ts`).
+- New files importing `useSharedValue` / `useAnimatedStyle` without being added to the motion allowlist.
+
+**Proof tag:** `[MOTION_SSOT_V1]` — present in `motionSSOT.ts` exports.

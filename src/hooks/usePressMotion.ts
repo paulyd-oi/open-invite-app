@@ -15,13 +15,14 @@ export function usePressMotion() {
   const onPressIn = () => {
     scale.value = withTiming(
       MotionPresetConfig.press.scaleTo ?? 0.97,
-      { duration: MotionPresetConfig.press.duration },
+      { duration: MotionPresetConfig.press.duration, easing: MotionPresetConfig.press.easing },
     );
   };
 
   const onPressOut = () => {
     scale.value = withTiming(1, {
       duration: MotionPresetConfig.press.duration,
+      easing: MotionPresetConfig.press.easing,
     });
   };
 

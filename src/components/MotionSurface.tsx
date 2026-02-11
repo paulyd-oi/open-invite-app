@@ -31,9 +31,10 @@ export default function MotionSurface({
   const scale = useSharedValue(config.scaleFrom ?? 1);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: config.duration });
-    translateY.value = withTiming(0, { duration: config.duration });
-    scale.value = withTiming(1, { duration: config.duration });
+    const timing = { duration: config.duration, easing: config.easing };
+    opacity.value = withTiming(1, timing);
+    translateY.value = withTiming(0, timing);
+    scale.value = withTiming(1, timing);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

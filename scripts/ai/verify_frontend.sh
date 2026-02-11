@@ -334,4 +334,75 @@ fi
 echo ""
 echo "P0_MEDIA_IDENTITY_AVATAR_SSOT checks PASS"
 
+# ── P0 MOTION SSOT INVARIANT ────────────────────────────────────────
+echo ""
+echo "Running P0_MOTION_SSOT checks…"
+echo "  Goal: all imperative Reanimated usage must go through MotionSurface/usePressMotion + motionSSOT tokens."
+
+MOTION_FAIL=0
+
+# Allowlist: files permitted to use imperative reanimated primitives directly.
+# SSOT core:
+#   src/lib/motionSSOT.ts
+#   src/components/MotionSurface.tsx
+#   src/hooks/usePressMotion.ts
+# Existing debt (to be migrated incrementally):
+MOTION_ALLOWLIST="motionSSOT\.ts|MotionSurface\.tsx|usePressMotion\.ts"
+MOTION_ALLOWLIST+="|AnimatedButton\.tsx|AnimatedCard\.tsx|BottomNavigation\.tsx"
+MOTION_ALLOWLIST+="|CircleCard\.tsx|Confetti\.tsx|EmptyState\.tsx"
+MOTION_ALLOWLIST+="|EventReactions\.tsx|EventSummaryModal\.tsx|FriendCard\.tsx"
+MOTION_ALLOWLIST+="|MonthlyRecap\.tsx|QuickEventButton\.tsx|Skeleton\.tsx"
+MOTION_ALLOWLIST+="|SkeletonLoader\.tsx|SplashScreen\.tsx|SwipeableEventRequestCard\.tsx"
+MOTION_ALLOWLIST+="|UpgradeModal\.tsx|Button\.tsx|motion\.ts"
+MOTION_ALLOWLIST+="|calendar\.tsx|friends\.tsx|login\.tsx|onboarding\.tsx"
+MOTION_ALLOWLIST+="|profile\.tsx|social\.tsx|suggestions\.tsx"
+
+# --- Check B: Block imperative reanimated primitives outside allowlist --------
+MOTION_PRIMITIVES='useSharedValue(|useAnimatedStyle(|withTiming(|withSpring(|withDelay(|withRepeat(|Easing\.'
+
+MOTION_HITS=$(grep -rn --include="*.ts" --include="*.tsx" -E "$MOTION_PRIMITIVES" src/ 2>/dev/null \
+  | grep -v node_modules \
+  | grep -v -E "$MOTION_ALLOWLIST" || true)
+
+if [ -n "$MOTION_HITS" ]; then
+  echo "❌ P0_MOTION_SSOT FAIL — imperative reanimated primitives outside allowlist:"
+  echo "$MOTION_HITS"
+  echo "  Remediation: Move animation into MotionSurface preset or motionSSOT token."
+  MOTION_FAIL=1
+else
+  echo "  ✓ P0_MOTION_SSOT Part 1: No imperative reanimated primitives outside allowlist"
+fi
+
+# --- Check C: motionSSOT.ts must define MotionPresetConfig + MotionEasings ----
+if ! grep -q 'MotionPresetConfig' src/lib/motionSSOT.ts 2>/dev/null; then
+  echo "❌ P0_MOTION_SSOT FAIL — motionSSOT.ts missing MotionPresetConfig"
+  MOTION_FAIL=1
+else
+  echo "  ✓ P0_MOTION_SSOT Part 2: motionSSOT.ts exports MotionPresetConfig"
+fi
+
+if ! grep -q 'MotionEasings' src/lib/motionSSOT.ts 2>/dev/null; then
+  echo "❌ P0_MOTION_SSOT FAIL — motionSSOT.ts missing MotionEasings"
+  MOTION_FAIL=1
+else
+  echo "  ✓ P0_MOTION_SSOT Part 3: motionSSOT.ts exports MotionEasings"
+fi
+
+# --- Check D: MotionSurface must consume config.easing ---------------------
+if ! grep -q 'config\.easing' src/components/MotionSurface.tsx 2>/dev/null; then
+  echo "❌ P0_MOTION_SSOT FAIL — MotionSurface.tsx does not consume config.easing"
+  MOTION_FAIL=1
+else
+  echo "  ✓ P0_MOTION_SSOT Part 4: MotionSurface consumes config.easing from SSOT"
+fi
+
+if [ "$MOTION_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_MOTION_SSOT invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_MOTION_SSOT checks PASS"
+
 echo "PASS: verify_frontend"
