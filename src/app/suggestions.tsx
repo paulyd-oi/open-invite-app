@@ -44,12 +44,14 @@ import * as Contacts from "expo-contacts";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  buildDailyDeck,
+  generateIdeas,
   getTodayKey,
-  type SuggestionCard,
-  type DeckInput,
-} from "@/lib/suggestionsDeck";
+  type IdeaCard,
+  type IdeasContext,
+} from "@/lib/ideasEngine";
 import { eventKeys } from "@/lib/eventQueryKeys";
+import { circleKeys } from "@/lib/circleQueryKeys";
+import type { GetCirclesResponse } from "@/shared/contracts";
 
 import { useSession } from "@/lib/useSession";
 import { EntityAvatar } from "@/components/EntityAvatar";
@@ -57,11 +59,10 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
-import { useSuggestionsFeed } from "@/hooks/useSuggestionsFeed";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 import { EmptyState as EnhancedEmptyState } from "@/components/EmptyState";
-import { SuggestionFeedCard, SuggestionsFeedEmpty } from "@/components/SuggestionFeedCard";
+
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { useNetworkStatus } from "@/lib/networkStatus";
@@ -262,8 +263,10 @@ function EmptyState({ onInvite, onInfo }: { onInvite: () => void; onInfo: () => 
   );
 }
 
-// ─── Daily Ideas Deck (SSOT: src/lib/suggestionsDeck.ts) ─────────
-const DECK_STORAGE_KEY = "suggestions_deck_v1";
+// ─── Daily Ideas Deck (SSOT: src/lib/ideasEngine.ts) ────────────
+function getDeckStorageKey(): string {
+  return `ideasDeck_${getTodayKey().replace(/-/g, "_")}`;
+}
 const DECK_SWIPE_THRESHOLD = 100;
 const DECK_SCREEN_W = Dimensions.get("window").width;
 
@@ -276,14 +279,17 @@ interface DeckReconnectSuggestion {
   daysSinceHangout: number;
 }
 
-function DeckCardFace({ card }: { card: SuggestionCard }) {
+const CATEGORY_ACCENT: Record<string, string> = {
+  reconnect: "#EC4899",
+  low_rsvp: "#3B82F6",
+  birthday: "#F59E0B",
+  activity_repeat: "#8B5CF6",
+  timing: "#10B981",
+};
+
+function DeckCardFace({ card }: { card: IdeaCard }) {
   const { themeColor, colors } = useTheme();
-  const accent =
-    card.kind === "open_event"
-      ? "#3B82F6"
-      : card.kind === "open_profile"
-        ? "#EC4899"
-        : themeColor;
+  const accent = CATEGORY_ACCENT[card.category] ?? themeColor;
   return (
     <View
       className="rounded-2xl overflow-hidden"
@@ -309,7 +315,7 @@ function DeckCardFace({ card }: { card: SuggestionCard }) {
             style={{ color: colors.textSecondary }}
             numberOfLines={2}
           >
-            {card.body}
+            {card.subtitle}
           </Text>
         </View>
       </View>
@@ -325,8 +331,8 @@ function DeckSwipeCard({
   onAccept,
   onDismiss,
 }: {
-  card: SuggestionCard;
-  nextCard?: SuggestionCard;
+  card: IdeaCard;
+  nextCard?: IdeaCard;
   index: number;
   total: number;
   onAccept: () => void;
@@ -455,11 +461,12 @@ function DeckSwipeCard({
 
 function DailyIdeasDeck() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { themeColor, colors } = useTheme();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
 
-  const [deck, setDeck] = useState<SuggestionCard[]>([]);
+  const [deck, setDeck] = useState<IdeaCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [deckReady, setDeckReady] = useState(false);
   const restoredRef = useRef(false);
@@ -498,25 +505,42 @@ function DailyIdeasDeck() {
     staleTime: 60000,
   });
 
-  // ── Persistence: load on mount ──
+  // Circles list (for accept → chat flow)
+  const { data: circlesData } = useQuery({
+    queryKey: circleKeys.all(),
+    queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
+    enabled,
+    staleTime: 60000,
+  });
+
+  // Circle creation mutation (for accept → chat when no 1:1 circle exists)
+  const createCircleMutation = useMutation({
+    mutationFn: (data: { name: string; emoji?: string; memberIds: string[] }) =>
+      api.post<{ circle: { id: string } }>("/api/circles", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
+    },
+  });
+
+  // ── Persistence: load saved deck for today ──
   useEffect(() => {
     (async () => {
       try {
-        const raw = await AsyncStorage.getItem(DECK_STORAGE_KEY);
+        const storageKey = getDeckStorageKey();
+        const raw = await AsyncStorage.getItem(storageKey);
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (
-          parsed.todayKey === getTodayKey() &&
           Array.isArray(parsed.deck) &&
           parsed.deck.length > 0
         ) {
           setDeck(parsed.deck);
-          setCurrentIndex(parsed.currentIndex ?? 0);
+          setCurrentIndex(parsed.index ?? 0);
           restoredRef.current = true;
           setDeckReady(true);
           if (__DEV__) {
             devLog(
-              `[P1_SUGGESTIONS_DECK] restored: ${parsed.deck.length} cards, idx=${parsed.currentIndex ?? 0}`,
+              `[P1_IDEAS_ENGINE] restored: ${parsed.deck.length} cards, idx=${parsed.index ?? 0}`,
             );
           }
         }
@@ -526,17 +550,16 @@ function DailyIdeasDeck() {
     })();
   }, []);
 
-  // ── Build deck from query data (skip if restored from storage) ──
+  // ── Build deck from query data (skip if restored) ──
   useEffect(() => {
     if (restoredRef.current) return;
     const hasData =
       reconnectData || birthdayData || feedEventsData || myEventsData;
     if (!hasData) return;
 
-    const todayKey = getTodayKey();
     const myId = (session as any)?.user?.id as string | undefined;
 
-    const input: DeckInput = {
+    const context: IdeasContext = {
       reconnects: (reconnectData?.suggestions ?? []).map((s) => ({
         friendId: s.friend.id,
         friendName: s.friend.name,
@@ -564,59 +587,85 @@ function DailyIdeasDeck() {
       })),
     };
 
-    const newDeck = buildDailyDeck(input, todayKey);
+    const newDeck = generateIdeas(context);
     setDeck(newDeck);
     setCurrentIndex(0);
     setDeckReady(true);
     restoredRef.current = true;
 
     AsyncStorage.setItem(
-      DECK_STORAGE_KEY,
-      JSON.stringify({ todayKey, deck: newDeck, currentIndex: 0 }),
+      getDeckStorageKey(),
+      JSON.stringify({ deck: newDeck, index: 0 }),
     ).catch(() => {});
   }, [reconnectData, birthdayData, feedEventsData, myEventsData, session]);
 
-  // ── Accept handler: navigate then advance ──
-  const handleAccept = useCallback(() => {
+  // ── Accept handler: open chat (find or create circle) then advance ──
+  const handleAccept = useCallback(async () => {
     const card = deck[currentIndex];
     if (!card) return;
 
-    switch (card.kind) {
-      case "open_profile":
-        if (card.target.profileUserId) {
-          router.push(`/user/${card.target.profileUserId}` as any);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // For cards with a friendId, try to open a circle chat
+    if (card.friendId) {
+      const circles = circlesData?.circles ?? [];
+      // Find smallest circle containing this friend (proxy for 1:1)
+      const myId = (session as any)?.user?.id as string | undefined;
+      let bestCircle: { id: string; memberCount: number } | null = null;
+      for (const c of circles) {
+        const members = (c as any).members as Array<{ userId: string }> | undefined;
+        if (!members) continue;
+        const hasFriend = members.some((m) => m.userId === card.friendId);
+        const hasMe = myId ? members.some((m) => m.userId === myId) : true;
+        if (hasFriend && hasMe) {
+          if (!bestCircle || members.length < bestCircle.memberCount) {
+            bestCircle = { id: c.id, memberCount: members.length };
+          }
         }
-        break;
-      case "open_event":
-        if (card.target.eventId) {
-          router.push(`/event/${card.target.eventId}` as any);
-        }
-        break;
-      case "create_event": {
-        const p = card.target.createParams;
-        const qs = p?.title
-          ? `?title=${encodeURIComponent(p.title)}`
-          : "";
-        router.push(`/create${qs}` as any);
-        break;
       }
+
+      if (bestCircle) {
+        // Navigate to existing circle with draft
+        router.push(`/circle/${bestCircle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
+      } else {
+        // Create a new circle with this friend, then navigate
+        try {
+          const friendName = card.title.split(" ").slice(2, 3).join("") || "friend";
+          const result = await createCircleMutation.mutateAsync({
+            name: friendName,
+            emoji: "💬",
+            memberIds: [card.friendId],
+          });
+          router.push(`/circle/${result.circle.id}?draftMessage=${encodeURIComponent(card.draftMessage)}` as any);
+        } catch {
+          // Fallback: navigate to profile
+          router.push(`/user/${card.friendId}` as any);
+        }
+      }
+    } else if (card.eventId) {
+      // Event card: navigate to event
+      router.push(`/event/${card.eventId}` as any);
+    } else {
+      // Activity repeat: navigate to create with title
+      const title = card.title.replace(/^Do |\?$/g, "").replace(/ again this week$/i, "");
+      router.push(`/create?title=${encodeURIComponent(title)}` as any);
     }
 
     const next = currentIndex + 1;
     setCurrentIndex(next);
     AsyncStorage.setItem(
-      DECK_STORAGE_KEY,
-      JSON.stringify({ todayKey: getTodayKey(), deck, currentIndex: next }),
+      getDeckStorageKey(),
+      JSON.stringify({ deck, index: next }),
     ).catch(() => {});
-  }, [currentIndex, deck, router]);
+  }, [currentIndex, deck, router, circlesData, session, createCircleMutation]);
 
   // ── Dismiss handler: advance only ──
   const handleDismiss = useCallback(() => {
     const next = currentIndex + 1;
     setCurrentIndex(next);
     AsyncStorage.setItem(
-      DECK_STORAGE_KEY,
-      JSON.stringify({ todayKey: getTodayKey(), deck, currentIndex: next }),
+      getDeckStorageKey(),
+      JSON.stringify({ deck, index: next }),
     ).catch(() => {});
   }, [currentIndex, deck]);
 
@@ -697,7 +746,7 @@ export default function SuggestionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set()); // Track by userId
   const [showInfoModal, setShowInfoModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"for-you" | "people" | "ideas">("for-you");
+  const [activeTab, setActiveTab] = useState<"ideas" | "people">("ideas");
 
   // Add Friend module state (same as Friends page)
   const [showAddFriend, setShowAddFriend] = useState(false);
@@ -730,13 +779,6 @@ export default function SuggestionsScreen() {
       }
     };
   }, [searchEmail]);
-
-  // Fetch personalized suggestions feed
-  const {
-    suggestions: feedSuggestions,
-    isLoading: feedLoading,
-    refetch: refetchFeed,
-  } = useSuggestionsFeed();
 
   // Fetch referral stats for sharing
   const { data: referralStats } = useQuery({
@@ -804,9 +846,9 @@ export default function SuggestionsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchFeed()]);
+    await refetch();
     setRefreshing(false);
-  }, [refetch, refetchFeed]);
+  }, [refetch]);
 
   const handleAddFriend = useCallback((suggestion: FriendSuggestion) => {
     // Guard: require email verification
@@ -952,15 +994,8 @@ export default function SuggestionsScreen() {
   }
 
   // ─── FlatList callbacks (stable identity) ──────────────
-  const feedKeyExtractor = useCallback((item: { id: string }) => item.id, []);
   const peopleKeyExtractor = useCallback(
     (item: FriendSuggestion) => item.user.id,
-    [],
-  );
-  const renderFeedItem = useCallback(
-    ({ item, index }: { item: any; index: number }) => (
-      <SuggestionFeedCard suggestion={item} index={index} />
-    ),
     [],
   );
   const renderPeopleItem = useCallback(
@@ -1179,22 +1214,22 @@ export default function SuggestionsScreen() {
         </Animated.View>
       )}
 
-      {/* Segmented Control */}
+      {/* Segmented Control — Ideas | People */}
       <View className="flex-row mx-4 mt-3 p-1 rounded-xl" style={{ backgroundColor: colors.surface }}>
         <Pressable
           onPress={() => {
             Haptics.selectionAsync();
-            setActiveTab("for-you");
+            setActiveTab("ideas");
           }}
           className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
-          style={{ backgroundColor: activeTab === "for-you" ? themeColor : "transparent" }}
+          style={{ backgroundColor: activeTab === "ideas" ? themeColor : "transparent" }}
         >
-          <Sparkles size={16} color={activeTab === "for-you" ? "#fff" : colors.textSecondary} />
+          <Zap size={16} color={activeTab === "ideas" ? "#fff" : colors.textSecondary} />
           <Text
             className="font-medium ml-1.5"
-            style={{ color: activeTab === "for-you" ? "#fff" : colors.textSecondary }}
+            style={{ color: activeTab === "ideas" ? "#fff" : colors.textSecondary }}
           >
-            For You
+            Ideas
           </Text>
         </Pressable>
         <Pressable
@@ -1213,56 +1248,10 @@ export default function SuggestionsScreen() {
             People
           </Text>
         </Pressable>
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            setActiveTab("ideas");
-          }}
-          className="flex-1 py-2 rounded-lg items-center flex-row justify-center"
-          style={{ backgroundColor: activeTab === "ideas" ? themeColor : "transparent" }}
-        >
-          <Zap size={16} color={activeTab === "ideas" ? "#fff" : colors.textSecondary} />
-          <Text
-            className="font-medium ml-1.5"
-            style={{ color: activeTab === "ideas" ? "#fff" : colors.textSecondary }}
-          >
-            Ideas
-          </Text>
-        </Pressable>
       </View>
 
       {/* Content based on active tab */}
-      {activeTab === "for-you" ? (
-        /* Suggestions Feed */
-        <FlatList
-          data={feedSuggestions}
-          keyExtractor={feedKeyExtractor}
-          renderItem={renderFeedItem}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          contentContainerStyle={{
-            paddingTop: 16,
-            paddingBottom: 100,
-            flexGrow: feedSuggestions.length === 0 ? 1 : undefined,
-          }}
-          ListEmptyComponent={
-            feedLoading ? (
-              <SuggestionsSkeleton />
-            ) : (
-              <SuggestionsFeedEmpty />
-            )
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={themeColor}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      ) : activeTab === "ideas" ? (
+      {activeTab === "ideas" ? (
         /* Daily Ideas Deck */
         <DailyIdeasDeck />
       ) : (

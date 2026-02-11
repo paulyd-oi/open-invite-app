@@ -1383,7 +1383,7 @@ function MessageBubble({
 }
 
 export default function CircleScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, draftMessage } = useLocalSearchParams<{ id: string; draftMessage?: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
@@ -1559,7 +1559,7 @@ export default function CircleScreen() {
     });
   }, []);
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(draftMessage ?? "");
   // [P2_TYPING_UI] Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; name: string }>>([]);
   const lastTypingPingRef = useRef<number>(0);

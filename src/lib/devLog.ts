@@ -139,6 +139,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_MODAL_GUARD]",
   // P1 suggestions deck (daily ideas card generation)
   "[P1_SUGGESTIONS_DECK]",
+  // P1 ideas engine (deterministic idea-card generator)
+  "[P1_IDEAS_ENGINE]",
 ];
 
 /**
