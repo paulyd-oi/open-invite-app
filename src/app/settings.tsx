@@ -11,6 +11,7 @@ import {
   Linking,
   Modal,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -92,6 +93,7 @@ import { checkAdminStatus } from "@/lib/adminApi";
 import { useEntitlements, useRefreshProContract, useIsPro } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
+import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -1945,6 +1947,42 @@ export default function SettingsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   devLog("[P0_PUSH_REG] FORCE_REREGISTER triggered from Settings");
                   await ensurePushRegistered({ reason: "settings_force", force: true });
+                }}
+              />
+            )}
+            {/* P0_PUSH_TWO_ENDED: View/clear push receipts (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<Bell size={20} color="#8B5CF6" />}
+                title="View Push Receipts"
+                subtitle="Last 20 registration + delivery events"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const entries = await getRecentReceipts();
+                  if (entries.length === 0) {
+                    Alert.alert("Push Receipts", "No receipts recorded yet.");
+                    return;
+                  }
+                  const lines = entries.map((r, i) => {
+                    const t = r.ts.split("T")[1]?.split(".")[0] ?? r.ts;
+                    const det = Object.entries(r.details).map(([k, v]) => `${k}=${String(v)}`).join(" ");
+                    return `${i + 1}. [${t}] ${r.kind} u=${r.userId} ${det}`;
+                  });
+                  Alert.alert(`Push Receipts (${entries.length})`, lines.join("\n"));
+                }}
+              />
+            )}
+            {__DEV__ && (
+              <SettingItem
+                icon={<Trash2 size={20} color="#EF4444" />}
+                title="Clear Push Receipts"
+                subtitle="Remove all stored receipt entries"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  await clearPushReceipts();
+                  safeToast.success("Cleared", "Push receipts cleared.");
                 }}
               />
             )}

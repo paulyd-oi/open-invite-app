@@ -19,6 +19,7 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { handlePushEvent } from "@/lib/pushRouter";
+import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
 
 // Throttle token registration to once per 24 hours per user
 // CRITICAL: Key is user-scoped to prevent cross-account registration blocking
@@ -449,6 +450,7 @@ export function useNotifications() {
     if (bootStatus !== 'authed' || !session?.user) {
       if (__DEV__) {
         devLog(`[P0_PUSH_REG] SKIP reason=NOT_AUTHED bootStatus=${bootStatus} hasUser=${!!session?.user}`);
+        recordPushReceipt("register_skip", userIdPrefix, { reason: "NOT_AUTHED", bootStatus });
       }
       return;
     }
@@ -559,6 +561,7 @@ export function useNotifications() {
       // Log registration attempt context
       if (__DEV__) {
         devLog(`[P0_PUSH_REG] ATTEMPT userId=${userIdPrefix}... force=${forceRegister} permChange=${permissionChanged} accountSwitch=${isAccountSwitch} throttleBypass=${throttleBypassReason ?? "none"}`);
+        recordPushReceipt("register_attempt", userIdPrefix, { reason: forceRegister ? "force" : isAccountSwitch ? "account_switch" : throttleBypassReason ?? "normal", force: forceRegister });
       }
 
       const token = await registerForPushNotificationsAsync();
@@ -586,6 +589,7 @@ export function useNotifications() {
             registerSuccess = true;
             if (__DEV__) {
               devLog(`[P0_PUSH_REG] REGISTER_SUCCESS userId=${userIdPrefix}... attempt=${attempt} tokenSuffix=${tokenSuffix}`);
+              recordPushReceipt("register_success", userIdPrefix, { tokenSuffix, attempt });
             }
             break;
           } catch (regErr: any) {
@@ -643,6 +647,7 @@ export function useNotifications() {
         // No token (simulator or unsupported device)
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] SKIP reason=NO_TOKEN userId=${userIdPrefix}... (simulator/unsupported)`);
+          recordPushReceipt("register_skip", userIdPrefix, { reason: "NO_TOKEN" });
         }
       }
 
@@ -770,6 +775,17 @@ export function useNotifications() {
       (notification) => {
         setNotification(notification);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // [P0_PUSH_TWO_ENDED] Record push received receipt (DEV only)
+        if (__DEV__) {
+          const uid = session?.user?.id?.substring(0, 8) ?? "none";
+          const nd = notification.request.content.data;
+          recordPushReceipt("push_received", uid, {
+            pushType: nd?.type ?? "unknown",
+            circleId: nd?.circleId ?? nd?.circle_id ?? null,
+            eventId: nd?.eventId ?? nd?.event_id ?? null,
+          });
+        }
 
         // [P1_PUSH_ROUTER] Route all push-driven refreshes through centralized router
         const data = notification.request.content.data;

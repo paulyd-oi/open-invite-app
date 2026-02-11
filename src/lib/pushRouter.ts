@@ -17,6 +17,7 @@ import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { getActiveCircle } from "@/lib/activeCircle";
 import { devLog } from "@/lib/devLog";
+import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
 
 // ============================================================================
 // DEDUPE MECHANISM
@@ -225,6 +226,13 @@ export function handlePushEvent(
     // Log successful handling
     if (__DEV__) {
       devLog(`[P1_PUSH_ROUTER] HANDLED type=${type} entityId=${entityId} action=${actionSummary}`);
+      recordPushReceipt("push_router_handled", "system", {
+        pushType: type,
+        entityId,
+        action: actionSummary,
+        circleId: payload?.circleId ?? payload?.circle_id ?? null,
+        eventId: payload?.eventId ?? payload?.event_id ?? null,
+      });
     }
     
   } catch (error) {
