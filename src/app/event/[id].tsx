@@ -113,6 +113,8 @@ import {
   logRsvpMismatch,
 } from "@/lib/eventQueryKeys";
 import { invalidateEventMedia } from "@/lib/mediaInvalidation";
+import HeroBannerSurface from "@/components/HeroBannerSurface";
+import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 
 // Helper to open event location using the shared utility
 const openEventLocation = (event: any) => {
@@ -1764,6 +1766,12 @@ export default function EventDetailScreen() {
         minute: "2-digit",
       });
 
+  // Hero banner URI — maps event photo → hero surface (no schema change)
+  const eventBannerUri = resolveBannerUri({
+    bannerPhotoUrl: event?.eventPhotoUrl ?? null,
+    bannerUrl: event?.eventPhotoUrl ?? null,
+  });
+
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
       <Stack.Screen
@@ -1792,63 +1800,37 @@ export default function EventDetailScreen() {
       >
         {/* Event Header */}
         <Animated.View entering={FadeInDown.springify()}>
-          {/* Hero header surface — photo with overlay title */}
+          {/* Hero header surface — SSOT via HeroBannerSurface + heroSSOT */}
           {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-            <View
-              style={{
-                height: 240,
-                borderRadius: 20,
-                overflow: "hidden",
-                marginBottom: 16,
-              }}
-            >
-              <EventPhotoEmoji
-                photoUrl={event.eventPhotoUrl}
-                emoji={event.emoji}
-                emojiStyle={{ fontSize: 64 }}
-                onPhotoLoad={() => {
-                  if (__DEV__) devLog("[EVENT_HERO_PHOTO_LOADED]", `url=${event.eventPhotoUrl}`);
-                  if (heroLoadedUrl.current === event.eventPhotoUrl) return;
-                  heroLoadedUrl.current = event.eventPhotoUrl ?? null;
-                  RNAnimated.parallel([
-                    RNAnimated.timing(heroTitleOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-                    RNAnimated.timing(heroTitleTranslateY, { toValue: 0, duration: 220, useNativeDriver: true }),
-                  ]).start();
-                }}
-              />
-              {/* Gradient-style overlay for title readability (5-layer feather) */}
-              <View
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 110,
-                  backgroundColor: "transparent",
-                }}
+            <View style={{ marginBottom: 16 }}>
+              <HeroBannerSurface
+                bannerUri={eventBannerUri}
+                isDark={isDark}
+                minHeight={240}
               >
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.0)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.05)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.14)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.28)" }} />
-                <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.48)" }} />
-              </View>
-              {/* Title overlay */}
-              <RNAnimated.View style={{ position: "absolute", bottom: 22, left: 16, right: 16, opacity: heroTitleOpacity, transform: [{ translateY: heroTitleTranslateY }] }}>
-                <Text
-                  style={{
-                    color: "#fff",
-                    fontSize: 22,
-                    fontWeight: "700",
-                    textShadowColor: "rgba(0,0,0,0.45)",
-                    textShadowOffset: { width: 0, height: 2 },
-                    textShadowRadius: 10,
-                  }}
-                  numberOfLines={2}
-                >
-                  {event.emoji} {event.title}
-                </Text>
-              </RNAnimated.View>
+                <View style={{ alignItems: "center", gap: 6 }}>
+                  <Text
+                    style={{
+                      color: getHeroTextColor(isDark),
+                      fontSize: 22,
+                      fontWeight: "700",
+                      textAlign: "center",
+                    }}
+                    numberOfLines={2}
+                  >
+                    {event.emoji} {event.title}
+                  </Text>
+                  <Text
+                    style={{
+                      color: getHeroSubTextColor(isDark),
+                      fontSize: 14,
+                      textAlign: "center",
+                    }}
+                  >
+                    {dateLabel} at {timeLabel}
+                  </Text>
+                </View>
+              </HeroBannerSurface>
               {/* Floating edit button (host only) */}
               {isMyEvent && (
                 <RNAnimated.View style={{ position: "absolute", top: editTop, right: 12, transform: [{ scale: editScale }] }}>
