@@ -191,6 +191,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_RECONCILE]",
   // P0 optimistic proof (mutation convergence / rollback)
   "[P0_OPTIMISTIC]",
+  // P0 agent session tagging (concurrent agent tracing)
+  "[P0_AGENT]",
 ];
 
 /**
