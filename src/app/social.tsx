@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, Activi
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, FadeOut, useSharedValue, useAnimatedStyle, withSpring, runOnJS, interpolate } from "react-native-reanimated";
@@ -618,6 +619,7 @@ function EmptyFeed() {
 }
 
 export default function SocialScreen() {
+  const socialMountTime = useRef(Date.now());
   const { data: session, isPending: sessionLoading } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
@@ -776,6 +778,7 @@ export default function SocialScreen() {
     staleTime: 30 * 1000, // 30s - feed changes often but not instantly
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
+    placeholderData: (prev: any) => prev, // [PERF_SWEEP] Keep pages visible during refetch
   });
 
   // Flatten paginated feed data for existing consumption
@@ -868,6 +871,7 @@ export default function SocialScreen() {
     staleTime: 5 * 60 * 1000, // 5 min - same as friends tab
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    placeholderData: (prev: any) => prev,
   });
 
   // Check if user is eligible for first-value nudge
@@ -1109,13 +1113,19 @@ export default function SocialScreen() {
     }).length;
   }, [discoveryEvents]);
 
-  const handleRefresh = () => {
+  const handleRefreshLegacy = () => {
     refetchFeed();
     refetchMyEvents();
     refetchAttending();
   };
 
-  const isRefreshing = isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
+  // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
+  const { isRefreshing: liveIsRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "social",
+    refetchFns: [refetchFeed, refetchMyEvents, refetchAttending],
+  });
+
+  const isRefreshing = liveIsRefreshing || isRefetchingFeed || isRefetchingMyEvents || isRefetchingAttending;
   
   // P1 JITTER FIX: Use sticky loading to prevent flicker on fast refetches
   const isStickyLoading = useStickyLoadingCombined(
@@ -1129,6 +1139,12 @@ export default function SocialScreen() {
     { isLoading: isStickyLoading, isFetching: isRefreshing, isSuccess: !!feedData, data: feedData },
     "social-feed",
   );
+
+  // [PERF_SWEEP] DEV-only render timing
+  if (__DEV__ && !isLoading && socialMountTime.current) {
+    devLog("[PERF_SWEEP]", { screen: "social", phase: "render", durationMs: Date.now() - socialMountTime.current });
+    socialMountTime.current = 0;
+  }
 
   // Render loading state for non-authed states (redirect useEffect handles routing)
   // Keep BottomNavigation visible for escape route
@@ -1338,7 +1354,7 @@ export default function SocialScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
-              onRefresh={handleRefresh}
+              onRefresh={onManualRefresh}
               tintColor={themeColor}
             />
           }

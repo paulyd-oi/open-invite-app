@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { devLog } from "@/lib/devLog";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { useQuery } from "@tanstack/react-query";
@@ -79,6 +80,7 @@ const LENS_OPTIONS: { key: Lens; label: string }[] = [
 ];
 
 export default function DiscoverScreen() {
+  const mountTime = useRef(Date.now());
   const { data: session } = useSession();
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
@@ -95,22 +97,36 @@ export default function DiscoverScreen() {
     queryKey: eventKeys.feedPopular(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events/feed?visibility=open_invite"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
   });
 
   const { data: myEventsData, isLoading: loadingMyEvents, isFetching: fetchingMyEvents, refetch: refetchMyEvents, isError: myEventsError } = useQuery({
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<{ events: PopularEvent[] }>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
   });
 
   const isLoading = loadingFeed || loadingMyEvents;
   const isError = feedError || myEventsError;
 
   // [P0_LOADING_ESCAPE] loadedOnce discipline: skeleton only on first load
-  const { showInitialLoading: showDiscoverLoading } = useLoadedOnce(
+  const { showInitialLoading: showDiscoverLoading, showRefetchIndicator: discoverRefetching } = useLoadedOnce(
     { isLoading, isFetching: fetchingFeed || fetchingMyEvents, isSuccess: !!(feedData || myEventsData), data: feedData },
     "discover-feed",
   );
+
+  // [PERF_SWEEP] DEV-only render timing
+  if (__DEV__ && !showDiscoverLoading && mountTime.current) {
+    devLog("[PERF_SWEEP]", { screen: "discover", phase: "render", durationMs: Date.now() - mountTime.current });
+    mountTime.current = 0;
+  }
 
   // [P0_LOADING_ESCAPE] Timeout safety
   const isBootLoading = bootStatus === 'loading';
@@ -125,10 +141,11 @@ export default function DiscoverScreen() {
     setTimeout(() => setIsRetrying(false), 1500);
   }, [resetTimeout, retryBootstrap, refetchFeed, refetchMyEvents]);
 
-  const handleRefresh = useCallback(() => {
-    refetchFeed();
-    refetchMyEvents();
-  }, [refetchFeed, refetchMyEvents]);
+  // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "discover",
+    refetchFns: [refetchFeed, refetchMyEvents],
+  });
 
   // ── SSOT: merge + deduplicate + enrich all events ──
   const enrichedEvents = useMemo(() => {
@@ -461,8 +478,8 @@ export default function DiscoverScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={false}
-            onRefresh={handleRefresh}
+            refreshing={isRefreshing}
+            onRefresh={onManualRefresh}
             tintColor={themeColor}
           />
         }

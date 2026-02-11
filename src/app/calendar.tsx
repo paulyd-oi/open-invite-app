@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1685,6 +1686,7 @@ export default function CalendarScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
     refetchOnMount: true,
     staleTime: 0, // Always consider data stale to ensure fresh data on navigation
+    placeholderData: (prev: GetCalendarEventsResponse | undefined) => prev, // [PERF_SWEEP] Keep calendar visible during refetch
   });
 
   // Fetch friend birthdays
@@ -1692,6 +1694,8 @@ export default function CalendarScreen() {
     queryKey: ["birthdays"],
     queryFn: () => api.get<GetFriendBirthdaysResponse>("/api/birthdays"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 5 * 60 * 1000, // 5 min — birthdays rarely change
+    placeholderData: (prev: GetFriendBirthdaysResponse | undefined) => prev,
   });
 
   // QueryClient for invalidating queries
@@ -1825,10 +1829,22 @@ export default function CalendarScreen() {
     __DEV__ ? "calendar" : undefined
   );
 
+  // [PERF_SWEEP] loadedOnce discipline: skeleton only on first load, never on refetch
+  const { showInitialLoading: showCalendarLoading } = useLoadedOnce(
+    { isLoading: stickyLoading, isFetching: isRefetchingCalendar, isSuccess: !!calendarData, data: calendarData },
+    "calendar-events",
+  );
+
+  // [PERF_SWEEP] DEV-only render timing
+  if (__DEV__ && !showCalendarLoading && calendarMountTime.current) {
+    devLog("[PERF_SWEEP]", { screen: "calendar", phase: "render", durationMs: Date.now() - calendarMountTime.current });
+    calendarMountTime.current = 0;
+  }
+
   // Determine empty state logic (fixed bug: account for loading states)
   // Note: isRefetchingCalendar intentionally excluded – refetch should not reset empty state
-  // Use stickyLoading for UI decisions to prevent flicker
-  const isDataSettled = !stickyLoading && bootStatus === 'authed';
+  // Use showCalendarLoading (loadedOnce) for UI decisions to prevent blank flash on refetch
+  const isDataSettled = !showCalendarLoading && bootStatus === 'authed';
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
 
@@ -1849,15 +1865,12 @@ export default function CalendarScreen() {
     });
   }, [bootStatus, isLoadingCalendar, isRefetchingCalendar, isLoadingBirthdays, isCalendarError, isBirthdaysError, isDataSettled, hasQueryError]);
 
-  // Refetch calendar when screen gains focus (ensures fresh data after navigation)
-  useFocusEffect(
-    useCallback(() => {
-      if (bootStatus === 'authed') {
-        devLog("[CalendarScreen] Screen focused, refetching calendar events");
-        refetchCalendarEvents();
-      }
-    }, [bootStatus, refetchCalendarEvents])
-  );
+  // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
+  // Replaces the old manual useFocusEffect refetch
+  const { isRefreshing: calendarIsRefreshing, onManualRefresh: onCalendarManualRefresh } = useLiveRefreshContract({
+    screenName: "calendar",
+    refetchFns: [refetchCalendarEvents],
+  });
 
   // Convert birthdays to pseudo-events for the calendar
   const birthdayEvents = useMemo(() => {
@@ -2441,6 +2454,13 @@ export default function CalendarScreen() {
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={calendarIsRefreshing}
+              onRefresh={onCalendarManualRefresh}
+              tintColor={themeColor}
+            />
+          }
         >
           {isListView ? (
           <ListView

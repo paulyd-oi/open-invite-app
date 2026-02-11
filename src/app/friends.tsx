@@ -15,6 +15,7 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -883,6 +884,12 @@ export default function FriendsScreen() {
     }, [queryClient, refetchCircles])
   );
 
+  // [LIVE_REFRESH] SSOT live-feel contract: manual + foreground + focus
+  const { isRefreshing: liveIsRefreshing, onManualRefresh: onFriendsManualRefresh } = useLiveRefreshContract({
+    screenName: "friends",
+    refetchFns: [refetch, refetchRequests, refetchCircles],
+  });
+
   // [P1_CIRCLE_BADGE] Per-circle unread overlay from unread v2 SSOT
   const { data: unreadData } = useQuery({
     queryKey: circleKeys.unreadCount(),
@@ -1248,8 +1255,8 @@ export default function FriendsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
+            refreshing={liveIsRefreshing || isRefetching}
+            onRefresh={onFriendsManualRefresh}
             tintColor={themeColor}
           />
         }
