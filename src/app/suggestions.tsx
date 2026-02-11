@@ -47,8 +47,14 @@ import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { MotionDurations } from "@/lib/motionSSOT";
+import { MotionDurations, MotionEasings } from "@/lib/motionSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
+import { buildDailySeed } from "@/lib/ideaScoring";
+import {
+  getCompletionCopy,
+  getAcceptFeedback,
+  getDismissFeedback,
+} from "@/lib/smartMicrocopy";
 import {
   generateIdeas,
   getTodayKey,
@@ -635,10 +641,10 @@ function DeckSwipeCard({
   );
 }
 
-function DailyIdeasDeck() {
+function DailyIdeasDeck({ onSwitchToPeople }: { onSwitchToPeople?: () => void }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { themeColor, colors } = useTheme();
+  const { themeColor, colors, isDark } = useTheme();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
 
@@ -648,6 +654,27 @@ function DailyIdeasDeck() {
   const [storageChecked, setStorageChecked] = useState(false);
   const generatedTodayRef = useRef(false);
   const exposureMapRef = useRef<ExposureMap>({});
+
+  // Session-level swipe counters (for completion copy)
+  const sessionAcceptedRef = useRef(0);
+  const sessionDismissedRef = useRef(0);
+
+  // Transient microcopy feedback
+  const [feedbackText, setFeedbackText] = useState<string | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showFeedback = useCallback((msg: string) => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    setFeedbackText(msg);
+    feedbackTimerRef.current = setTimeout(() => setFeedbackText(null), 1200);
+  }, []);
+
+  // Completion card animation
+  const completionOpacity = useSharedValue(0);
+  const completionScale = useSharedValue(0.96);
+  const completionStyle = useAnimatedStyle(() => ({
+    opacity: completionOpacity.value,
+    transform: [{ scale: completionScale.value }],
+  }));
   const acceptStatsRef = useRef<AcceptStats>({});
   const statsResetMonthRef = useRef<string | null>(null);
   const patternMemoryRef = useRef<PatternMemory>({});
@@ -888,6 +915,16 @@ function DailyIdeasDeck() {
       AsyncStorage.setItem(getSessionSignalsKey(), JSON.stringify(sessionSignalsRef.current)).catch(() => {});
     }
 
+    // Session counter + microcopy feedback
+    sessionAcceptedRef.current++;
+    const myId = (session as any)?.user?.id as string | undefined;
+    const dailySeed = myId ? buildDailySeed(myId) : 0;
+    const acceptMsg = getAcceptFeedback({ seed: dailySeed, archetype: card.archetype, category: card.category });
+    if (acceptMsg) {
+      showFeedback(acceptMsg);
+      if (__DEV__) devLog("[P1_MICROCOPY]", { kind: "accept", message: acceptMsg, archetype: card.archetype });
+    }
+
     // low_rsvp → navigate to the event detail screen (so user can RSVP)
     if (card.category === "low_rsvp" && card.eventId) {
       router.push(`/event/${card.eventId}` as any);
@@ -950,6 +987,16 @@ function DailyIdeasDeck() {
         sessionSignalsRef.current = recordSessionSignal(sessionSignalsRef.current, card.archetype, "dismissed");
         AsyncStorage.setItem(getSessionSignalsKey(), JSON.stringify(sessionSignalsRef.current)).catch(() => {});
       }
+
+      // Session counter + rare dismiss feedback
+      sessionDismissedRef.current++;
+      const myId = (session as any)?.user?.id as string | undefined;
+      const dailySeed = myId ? buildDailySeed(myId) : 0;
+      const dismissMsg = getDismissFeedback({ seed: dailySeed, archetype: card.archetype, category: card.category, index: currentIndex });
+      if (dismissMsg) {
+        showFeedback(dismissMsg);
+        if (__DEV__) devLog("[P1_MICROCOPY]", { kind: "dismiss", message: dismissMsg, archetype: card.archetype });
+      }
     }
     const next = currentIndex + 1;
     setCurrentIndex(next);
@@ -957,7 +1004,7 @@ function DailyIdeasDeck() {
       getDeckStorageKey(),
       JSON.stringify({ deck, index: next }),
     ).catch(() => {});
-  }, [currentIndex, deck]);
+  }, [currentIndex, deck, session, showFeedback]);
 
   // ── Render ──
   if (!deckReady) {
@@ -1011,21 +1058,82 @@ function DailyIdeasDeck() {
   }
 
   if (currentIndex >= deck.length) {
+    // Trigger entrance animation once
+    if (completionOpacity.value === 0) {
+      completionOpacity.value = withTiming(1, { duration: MotionDurations.hero });
+      completionScale.value = withTiming(1, { duration: MotionDurations.hero });
+    }
+
+    const myId = (session as any)?.user?.id as string | undefined;
+    const dailySeed = myId ? buildDailySeed(myId) : 0;
+    const copy = getCompletionCopy({
+      seed: dailySeed,
+      acceptedCount: sessionAcceptedRef.current,
+      dismissedCount: sessionDismissedRef.current,
+      totalCount: deck.length,
+    });
+
+    if (__DEV__) {
+      devLog("[P1_DECK_COMPLETE]", {
+        acceptedCount: sessionAcceptedRef.current,
+        dismissedCount: sessionDismissedRef.current,
+        total: deck.length,
+      });
+    }
+
     return (
-      <View className="flex-1 items-center justify-center px-6">
-        <Sparkles size={32} color={themeColor} />
-        <Text
-          className="text-lg font-semibold mt-4"
-          style={{ color: colors.text }}
+      <View className="flex-1 pt-8 items-center px-4">
+        <Animated.View
+          style={[
+            {
+              width: DECK_SCREEN_W - 32,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              backgroundColor: colors.surface,
+              paddingVertical: 32,
+              paddingHorizontal: 24,
+              alignItems: "center",
+            },
+            completionStyle,
+          ]}
         >
-          You're caught up.
-        </Text>
-        <Text
-          className="text-sm mt-1"
-          style={{ color: colors.textSecondary }}
-        >
-          Come back tomorrow.
-        </Text>
+          <Sparkles size={28} color={themeColor} />
+          <Text
+            className="text-lg font-semibold mt-4 text-center"
+            style={{ color: colors.text }}
+          >
+            {copy.title}
+          </Text>
+          <Text
+            className="text-sm mt-2 text-center leading-5"
+            style={{ color: colors.textSecondary }}
+          >
+            {copy.subtitle}
+          </Text>
+
+          {/* Primary CTA: switch to People tab */}
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onSwitchToPeople?.();
+            }}
+            className="mt-5 px-6 py-2.5 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-sm font-semibold text-white">
+              Browse People
+            </Text>
+          </Pressable>
+
+          {/* Secondary hint (non-interactive) */}
+          <Text
+            className="text-[11px] mt-3"
+            style={{ color: colors.textTertiary }}
+          >
+            New ideas tomorrow
+          </Text>
+        </Animated.View>
       </View>
     );
   }
@@ -1046,6 +1154,16 @@ function DailyIdeasDeck() {
         onAccept={handleAccept}
         onDismiss={handleDismiss}
       />
+      {/* Transient microcopy feedback */}
+      {feedbackText && (
+        <Animated.Text
+          entering={FadeIn.duration(MotionDurations.normal)}
+          className="text-[12px] text-center mt-1"
+          style={{ color: colors.textTertiary }}
+        >
+          {feedbackText}
+        </Animated.Text>
+      )}
     </View>
   );
 }
@@ -1567,7 +1685,7 @@ export default function SuggestionsScreen() {
       {/* Content based on active tab */}
       {activeTab === "ideas" ? (
         /* Daily Ideas Deck */
-        <DailyIdeasDeck />
+        <DailyIdeasDeck onSwitchToPeople={() => setActiveTab("people")} />
       ) : (
         /* People You May Know */
         <FlatList

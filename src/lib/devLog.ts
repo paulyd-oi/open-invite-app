@@ -169,6 +169,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P4B_RHYTHM]",
   // P3C friend cooldown (same-friend spacing within window)
   "[P3C_FRIEND_COOLDOWN]",
+  // P1 deck completion (end-of-deck UX surface)
+  "[P1_DECK_COMPLETE]",
+  // P1 microcopy intelligence (accept/dismiss feedback)
+  "[P1_MICROCOPY]",
 ];
 
 /**
