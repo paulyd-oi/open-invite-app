@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
+import { formatReconnectRecencyLabel } from "@/lib/smartMicrocopy";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import type { DARK_COLORS } from "@/lib/ThemeContext";
@@ -138,9 +139,7 @@ export function ReconnectReminder({
                 className="text-xs text-center mt-0.5"
                 style={{ color: "#FF6B6B" }}
               >
-                {item.daysSinceHangout > 100
-                  ? "Haven't met yet"
-                  : `${item.daysSinceHangout} days ago`}
+                {formatReconnectRecencyLabel(item.daysSinceHangout) ?? "A while ago"}
               </Text>
             </View>
 

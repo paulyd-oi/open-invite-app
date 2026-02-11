@@ -246,3 +246,22 @@ export function getDraftMessageVariants(input: DraftVariantsInput): [string, str
   }
   return variants as [string, string, string];
 }
+
+// ── Reconnect recency ────────────────────────────────────
+
+/**
+ * Human-friendly label for how long since last hangout.
+ * Returns null when no chip should be shown.
+ *
+ * INV: never returns a string containing digits.
+ */
+export function formatReconnectRecencyLabel(
+  daysSince: number | null | undefined,
+): string | null {
+  if (daysSince == null || daysSince <= 0) return null;
+  if (daysSince <= 6) return "This week";
+  if (daysSince <= 13) return "Last week";
+  if (daysSince <= 34) return "A few weeks ago";
+  if (daysSince <= 89) return "A couple months ago";
+  return "A while ago";
+}

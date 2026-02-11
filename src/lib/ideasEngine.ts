@@ -19,7 +19,7 @@ import {
   computeConfidence,
   applyFriendCooldown,
 } from "@/lib/ideaScoring";
-import { getDraftMessageVariants } from "@/lib/smartMicrocopy";
+import { getDraftMessageVariants, formatReconnectRecencyLabel } from "@/lib/smartMicrocopy";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -485,7 +485,8 @@ function ruleReconnect(
     if (r.daysSinceHangout < 14) continue;
     const name = firstName(r.friendName);
     const chips: string[] = [];
-    if (r.daysSinceHangout >= 14) chips.push(`${r.daysSinceHangout}d since last hangout`);
+    const recencyLabel = formatReconnectRecencyLabel(r.daysSinceHangout);
+    if (recencyLabel) chips.push(recencyLabel);
     cards.push({
       id: `reconnect_${r.friendId}_${todayKey}`,
       category: "reconnect",
