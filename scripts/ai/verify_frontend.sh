@@ -740,12 +740,18 @@ for FEED in "${FEED_SCREENS[@]}"; do
       if (match($0, /on(Press|LongPress|PressIn|PressOut)[[:space:]]*=[[:space:]]*\{/) && match($0, /=>/)) {
         gsub(/^[[:space:]]+/, "", prev_nonempty)
         gsub(/[[:space:]]+$/, "", prev_nonempty)
-        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_HANDLER") {
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_HANDLER" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_HANDLER */}") {
           printf "%s:%d: %s\n", FILENAME, NR, $0
           count++
         }
       }
-      prev_nonempty = $0
+      # Skip OTHER annotation types so this scanner sees its own; skip ARRAY_PROP & OBJECT_PROP
+      trimmed = $0
+      gsub(/^[[:space:]]+/, "", trimmed)
+      gsub(/[[:space:]]+$/, "", trimmed)
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(ARRAY_PROP|OBJECT_PROP) \*\/\}$/) {
+        prev_nonempty = $0
+      }
     }
   }
   END { exit (count > 0 ? 1 : 0) }
@@ -795,12 +801,18 @@ for OBJ_FEED in "${OBJ_FEED_SCREENS[@]}"; do
       if (match($0, /=\{\{/)) {
         gsub(/^[[:space:]]+/, "", prev_nonempty)
         gsub(/[[:space:]]+$/, "", prev_nonempty)
-        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_OBJECT_PROP") {
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_OBJECT_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}") {
           printf "%s:%d: %s\n", FILENAME, NR, $0
           count++
         }
       }
-      prev_nonempty = $0
+      # Skip OTHER annotation types so this scanner sees its own; skip HANDLER & ARRAY_PROP
+      trimmed = $0
+      gsub(/^[[:space:]]+/, "", trimmed)
+      gsub(/[[:space:]]+$/, "", trimmed)
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|ARRAY_PROP) \*\/\}$/) {
+        prev_nonempty = $0
+      }
     }
   }
   END { exit (count > 0 ? 1 : 0) }
@@ -829,5 +841,66 @@ echo "  ✓ P0_PERF_INLINE_OBJECT_PROPS_FEEDS: all inline object props in primar
 
 echo ""
 echo "P0_PERF_INLINE_OBJECT_PROPS_FEEDS checks PASS"
+
+# ── P0 PERF INLINE ARRAY PROPS IN FEEDS ────────────────────────────
+echo ""
+echo "Running P0_PERF_INLINE_ARRAY_PROPS_FEEDS checks…"
+echo "  Goal: prevent unannotated inline array literal props (={[) in primary feed screens."
+
+ARR_FAIL=0
+ARR_TOTAL=0
+
+ARR_FEED_SCREENS=(
+  src/app/discover.tsx
+  src/app/social.tsx
+  src/app/friends.tsx
+  src/app/calendar.tsx
+)
+
+for ARR_FEED in "${ARR_FEED_SCREENS[@]}"; do
+  if [ ! -f "$ARR_FEED" ]; then continue; fi
+  ARR_VIOLATIONS=$(awk '
+  {
+    if (NF > 0) {
+      if (match($0, /=\{\[/)) {
+        gsub(/^[[:space:]]+/, "", prev_nonempty)
+        gsub(/[[:space:]]+$/, "", prev_nonempty)
+        if (prev_nonempty != "// INVARIANT_ALLOW_INLINE_ARRAY_PROP" && prev_nonempty != "{/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}") {
+          printf "%s:%d: %s\n", FILENAME, NR, $0
+          count++
+        }
+      }
+      # Skip OTHER annotation types so this scanner sees its own; skip HANDLER & OBJECT_PROP
+      trimmed = $0
+      gsub(/^[[:space:]]+/, "", trimmed)
+      gsub(/[[:space:]]+$/, "", trimmed)
+      if (trimmed !~ /^\/\/ INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP)$/ && trimmed !~ /^\{\/\* INVARIANT_ALLOW_INLINE_(HANDLER|OBJECT_PROP) \*\/\}$/) {
+        prev_nonempty = $0
+      }
+    }
+  }
+  END { exit (count > 0 ? 1 : 0) }
+  ' "$ARR_FEED" 2>&1)
+  ARR_VSTAT=$?
+  if [ "$ARR_VSTAT" -ne 0 ]; then
+    ARR_VCOUNT=$(echo "$ARR_VIOLATIONS" | wc -l | tr -d ' ')
+    echo "  ❌ $ARR_FEED has $ARR_VCOUNT unannotated inline array prop(s):"
+    echo "$ARR_VIOLATIONS"
+    ARR_FAIL=1
+    ARR_TOTAL=$((ARR_TOTAL + ARR_VCOUNT))
+  fi
+done
+
+if [ "$ARR_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_INLINE_ARRAY_PROPS_FEEDS — $ARR_TOTAL unannotated inline array prop(s)"
+  echo "Remediation: Add '// INVARIANT_ALLOW_INLINE_ARRAY_PROP' on the line immediately above each inline array prop."
+  exit 1
+fi
+
+echo "  ✓ P0_PERF_INLINE_ARRAY_PROPS_FEEDS: all inline array props in primary feeds are annotated"
+
+echo ""
+echo "P0_PERF_INLINE_ARRAY_PROPS_FEEDS checks PASS"
 
 echo "PASS: verify_frontend"

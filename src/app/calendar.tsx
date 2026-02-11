@@ -465,7 +465,7 @@ function StackedDayCell({
           {day}
         </Text>
       </View>
-      // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       <View style={{ width: "100%", paddingHorizontal: 2 }}>
         {/* INVARIANT_ALLOW_SMALL_MAP */}
         {eventColors.map((color, idx) => (
@@ -780,7 +780,7 @@ function EventListItem({
             <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
               {isWork ? `💼 ${displayTitle}` : displayTitle}
             </Text>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {timeLabel}
             </Text>
@@ -811,7 +811,7 @@ function EventListItem({
                 emojiStyle={{ fontSize: 18 }}
               />
             </View>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
               {displayTitle}
             </Text>
@@ -830,7 +830,7 @@ function EventListItem({
           </View>
           <View className="flex-row items-center mt-1">
             <Clock size={12} color={textColor} />
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs ml-1" style={{ color: textColor }}>
               {timeLabel}
             </Text>
@@ -859,7 +859,7 @@ function EventListItem({
         <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
           {displayTitle}
         </Text>
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text className="text-xs" style={{ color: colors.textSecondary }}>
           {timeLabel}
         </Text>
@@ -887,14 +887,14 @@ function EventListItem({
               emojiStyle={{ fontSize: 18 }}
             />
           </View>
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
             {displayTitle}
           </Text>
         </View>
         <View className="flex-row items-center mt-1">
           <Clock size={12} color={textColor} />
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-xs ml-1" style={{ color: textColor }}>
             {timeLabel}
           </Text>
@@ -902,7 +902,7 @@ function EventListItem({
             <>
               // INVARIANT_ALLOW_INLINE_OBJECT_PROP
               <MapPin size={12} color={colors.textTertiary} style={{ marginLeft: 12 }} />
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-xs ml-1 flex-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
                 {displayLocation}
               </Text>
@@ -1046,11 +1046,11 @@ function UpcomingBirthdaysSection({
       >
         <View className="flex-row items-center">
           <Cake size={18} color="#FF69B4" />
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
             Upcoming Birthdays
           </Text>
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF69B420" }}>
             // INVARIANT_ALLOW_INLINE_OBJECT_PROP
             <Text className="text-xs font-medium" style={{ color: "#FF69B4" }}>
@@ -1122,7 +1122,7 @@ function UpcomingBirthdaysSection({
                     <Text className="font-medium" style={{ color: colors.text }}>
                       {bday.isOwnBirthday ? "My Birthday" : `${bday.name ?? "Friend"}'s Birthday`}
                     </Text>
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-xs" style={{ color: colors.textSecondary }}>
                       {bday.showYear ? (bday.isOwnBirthday ? `Turning ${bday.turningAge}` : `Turns ${bday.turningAge}`) : "Birthday!"}
                     </Text>
@@ -1148,7 +1148,7 @@ function UpcomingBirthdaysSection({
                           <Text className="text-sm font-semibold" style={{ color: "#FF69B4" }}>
                             {bday.nextBirthday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                           </Text>
-                          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                           <Text className="text-xs" style={{ color: colors.textTertiary }}>
                             in {bday.daysUntil} days
                           </Text>
@@ -1226,9 +1226,9 @@ function ListView({
     return (
       <View className="px-5 py-10 items-center">
         <Text className="text-4xl mb-3">📅</Text>
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text className="font-medium mb-1" style={{ color: colors.text }}>Nothing this month</Text>
-        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text className="text-sm mb-4" style={{ color: colors.textSecondary }}>Try a different month or create something</Text>
         <Pressable
           testID="create-event-button"
@@ -1242,7 +1242,7 @@ function ListView({
           style={{ backgroundColor: themeColor }}
         >
           <Plus size={16} color="#fff" />
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="font-semibold ml-1" style={{ color: "#fff" }}>
             Create Event
           </Text>
@@ -1267,7 +1267,7 @@ function ListView({
                 {date.getDate()}
               </Text>
             </View>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="font-semibold" style={{ color: colors.text }}>
               {date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
             </Text>
@@ -2225,6 +2225,7 @@ export default function CalendarScreen() {
     // Include testID for E2E to detect we're on calendar route
     return (
       // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
           // INVARIANT_ALLOW_INLINE_OBJECT_PROP
@@ -2246,13 +2247,14 @@ export default function CalendarScreen() {
   if (hasQueryError) {
     return (
       // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center px-8">
           // INVARIANT_ALLOW_INLINE_OBJECT_PROP
           <Text className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
             Couldn't load your calendar
           </Text>
-          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-base text-center mb-6" style={{ color: colors.textSecondary }}>
             Couldn't refresh right now. Try again in a moment.
           </Text>
@@ -2275,6 +2277,7 @@ export default function CalendarScreen() {
     // INVARIANT_ALLOW_INLINE_OBJECT_PROP
     <GestureHandlerRootView style={{ flex: 1 }}>
       // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
       <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title={`${MONTHS[currentMonth]} ${currentYear}`}
@@ -2298,7 +2301,7 @@ export default function CalendarScreen() {
               <Text className="font-sora-bold" style={{ color: themeColor, fontSize: HEADER_TITLE_SIZE }}>
                 {MONTHS[currentMonth]}
               </Text>
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="font-sora-bold ml-2" style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}>
                 {currentYear}
               </Text>
@@ -2322,7 +2325,7 @@ export default function CalendarScreen() {
             <View className="flex-row items-center justify-between mt-3">
               <Pressable onPress={goToPrevMonth} className="flex-row items-center p-2">
                 <ChevronLeft size={20} color={themeColor} />
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="font-bold ml-1" style={{ color: themeColor, fontSize: 15 }}>
                   {MONTHS[(currentMonth - 1 + 12) % 12].slice(0, 3)}
                 </Text>
@@ -2407,7 +2410,7 @@ export default function CalendarScreen() {
             <Text className="font-semibold text-sm" style={{ color: colors.text }}>
               Import your calendar
             </Text>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
               One-time import. Your data stays private.
             </Text>
@@ -2603,7 +2606,7 @@ export default function CalendarScreen() {
                         router.push(`/create?date=${selectedDate.toISOString()}`);
                       }}
                     />
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <View style={{ width: 1, height: 16, backgroundColor: colors.border }} />
                     <Button
                       variant="ghost"
@@ -2646,7 +2649,7 @@ export default function CalendarScreen() {
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
                     <Send size={18} color={themeColor} />
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
                       Proposed Events
                     </Text>
@@ -2673,7 +2676,7 @@ export default function CalendarScreen() {
                     style={{ backgroundColor: `${themeColor}15` }}
                   >
                     <Plus size={14} color={themeColor} />
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-sm font-medium ml-1" style={{ color: themeColor }}>
                       Propose
                     </Text>
@@ -2736,7 +2739,7 @@ export default function CalendarScreen() {
                                   style={{ backgroundColor: "#22C55E20" }}
                                 >
                                   <Check size={10} color="#22C55E" />
-                                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                                   <Text className="text-xs font-medium ml-1" style={{ color: "#22C55E" }}>
                                     Confirmed
                                   </Text>
@@ -2745,7 +2748,7 @@ export default function CalendarScreen() {
                             </View>
                             <View className="flex-row items-center mt-1">
                               <Clock size={12} color={colors.textSecondary} />
-                              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                               <Text className="text-xs ml-1" style={{ color: colors.textSecondary }}>
                                 {startDate.toLocaleDateString("en-US", {
                                   month: "short",
@@ -2760,7 +2763,7 @@ export default function CalendarScreen() {
                             </View>
                             <View className="flex-row items-center mt-2">
                               <Users size={12} color={colors.textTertiary} />
-                              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                               <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>
                                 {isCreator ? "You invited " : `${request.creator.name ?? "Someone"} + `}
                                 {totalMembers} {totalMembers === 1 ? "friend" : "friends"}
@@ -2828,11 +2831,11 @@ export default function CalendarScreen() {
               >
                 <BookOpen size={32} color="#fff" />
               </View>
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-xl font-bold text-center" style={{ color: colors.text }}>
                 Welcome to Open Invite!
               </Text>
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm text-center mt-2" style={{ color: colors.textSecondary }}>
                 Take a quick tour to learn how to share plans with friends
               </Text>
@@ -2842,17 +2845,17 @@ export default function CalendarScreen() {
             <View className="px-6 py-5">
               <View className="flex-row items-center mb-3">
                 <Text className="text-2xl mr-3">📅</Text>
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.text }} className="flex-1">See friends' plans on your calendar</Text>
               </View>
               <View className="flex-row items-center mb-3">
                 <Text className="text-2xl mr-3">🎉</Text>
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.text }} className="flex-1">Create and share events easily</Text>
               </View>
               <View className="flex-row items-center">
                 <Text className="text-2xl mr-3">👥</Text>
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.text }} className="flex-1">Find who's free to hang out</Text>
               </View>
             </View>
@@ -2925,7 +2928,7 @@ export default function CalendarScreen() {
                     <Text className="text-lg font-semibold" style={{ color: colors.text }}>
                       Add Busy Block
                     </Text>
-                    // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-sm" style={{ color: colors.textSecondary }}>
                       {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     </Text>
@@ -2954,7 +2957,7 @@ export default function CalendarScreen() {
                   }}
                 />
 
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-xs mt-2" style={{ color: colors.textTertiary }}>
                     Busy blocks are private placeholders and can’t be joined.
                   </Text>
@@ -2997,7 +3000,7 @@ export default function CalendarScreen() {
                     <ChevronRight size={16} color={colors.textSecondary} />
                   </Pressable>
                 </View>
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="text-center text-sm my-1" style={{ color: colors.textSecondary }}>to</Text>
                 <View className="flex-row items-center">
                   <Pressable

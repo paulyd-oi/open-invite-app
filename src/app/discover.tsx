@@ -321,7 +321,7 @@ export default function DiscoverScreen() {
             </Text>
             <View className="flex-row items-center mt-1">
               <Clock size={12} color={colors.textTertiary} />
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
                 {new Date(event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
                 {" at "}
@@ -331,7 +331,7 @@ export default function DiscoverScreen() {
             {event.location && (
               <View className="flex-row items-center mt-0.5">
                 <MapPin size={12} color={colors.textTertiary} />
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text className="text-sm ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>
                   {event.location}
                 </Text>
@@ -350,7 +350,7 @@ export default function DiscoverScreen() {
               }
               leftIcon={<Users size={14} color={event.isFull ? "#EF4444" : themeColor} />}
             />
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
               {event.isFull ? `${event.attendeeCount} going` : "going"}
             </Text>
@@ -385,7 +385,7 @@ export default function DiscoverScreen() {
                   </View>
                 ))}
             </View>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>
               {event.joinRequests.filter(r => r.status === "accepted" && r.user != null).slice(0, 2).map(r => r.user?.name?.split(" ")[0] ?? "?").join(", ")}
               {event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length > 2 && ` +${event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length - 2} more`}
@@ -489,7 +489,7 @@ export default function DiscoverScreen() {
               <Animated.View entering={FadeInDown.delay(20).duration(SHEET_MS)} className="mb-5">
                 <View className="flex-row items-center mb-2">
                   <Sparkles size={14} color={themeColor} />
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>
                 </View>
                 <Pressable
@@ -513,7 +513,7 @@ export default function DiscoverScreen() {
                       <Text className="font-bold text-lg" style={{ color: colors.text }} numberOfLines={1}>{featured.title}</Text>
                       <View className="flex-row items-center mt-1">
                         <Clock size={12} color={colors.textTertiary} />
-                        // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                         <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
                           {new Date(featured.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
                           {" at "}
@@ -523,7 +523,7 @@ export default function DiscoverScreen() {
                       {featured.location && (
                         <View className="flex-row items-center mt-0.5">
                           <MapPin size={12} color={colors.textTertiary} />
-                          // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                           <Text className="text-sm ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>{featured.location}</Text>
                         </View>
                       )}
@@ -574,9 +574,9 @@ export default function DiscoverScreen() {
                   style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
                 >
                   <Plus size={14} color={colors.textTertiary} />
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>No events yet</Text>
-                  // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                   <Text className="text-xs font-medium" style={{ color: themeColor }}>Create</Text>
                 </Pressable>
               </Animated.View>

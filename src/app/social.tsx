@@ -351,7 +351,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                   // INVARIANT_ALLOW_INLINE_OBJECT_PROP
                   style={{ marginRight: 8 }}
                 />
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
                   {isOwn ? "Your event" : displayEvent.user?.name ?? "Someone"}
                 </Text>
@@ -365,18 +365,18 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           <View className="flex-row mt-3 pt-3 flex-wrap" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
             <View className="flex-row items-center mr-4">
               <Calendar size={14} color="#9CA3AF" />
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{dateLabel}</Text>
             </View>
             <View className="flex-row items-center mr-4">
               <Clock size={14} color={themeColor} />
-              // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1">{timeLabel}</Text>
             </View>
             {displayEvent.location && (
               <View className="flex-row items-center flex-1">
                 <MapPin size={14} color="#4ECDC4" />
-                // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.textSecondary, fontSize: 14 }} className="ml-1" numberOfLines={1}>
                   {displayEvent.location}
                 </Text>
@@ -389,7 +389,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         {!isSeries && displayEvent.capacity != null && (
           <View className="flex-row items-center mt-2">
             <Users size={14} color={displayEvent.isFull ? "#EF4444" : "#22C55E"} />
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text style={{ color: displayEvent.isFull ? "#EF4444" : colors.textSecondary, fontSize: 14 }} className="ml-1">
               {displayEvent.isFull 
                 ? `Full • ${effectiveGoingCount} going`
@@ -444,6 +444,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
         {/* Action buttons revealed on swipe */}
         <Animated.View 
           className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-4"
+          // INVARIANT_ALLOW_INLINE_ARRAY_PROP
           style={[{ width: ACTION_WIDTH }, actionsAnimatedStyle]}
         >
           <Pressable
@@ -1134,6 +1135,7 @@ export default function SocialScreen() {
   if (bootStatus === 'loading' || bootStatus === 'loggedOut' || bootStatus === 'error' || bootStatus === 'onboarding') {
     return (
       // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <View className="flex-1 items-center justify-center">
           // INVARIANT_ALLOW_INLINE_OBJECT_PROP
@@ -1148,6 +1150,7 @@ export default function SocialScreen() {
     return (
       <AuthProvider state="checking">
         // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        // INVARIANT_ALLOW_INLINE_ARRAY_PROP
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
           <View className="flex-1 items-center justify-center">
             // INVARIANT_ALLOW_INLINE_OBJECT_PROP
@@ -1178,6 +1181,7 @@ export default function SocialScreen() {
     return (
       <AuthProvider state="checking">
         // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+        // INVARIANT_ALLOW_INLINE_ARRAY_PROP
         <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
           <View className="flex-1 items-center justify-center">
             // INVARIANT_ALLOW_INLINE_OBJECT_PROP
@@ -1209,6 +1213,7 @@ export default function SocialScreen() {
   return (
     <AuthProvider state="authed">
       // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+      // INVARIANT_ALLOW_INLINE_ARRAY_PROP
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title="Open Invites"
@@ -1280,7 +1285,7 @@ export default function SocialScreen() {
           />
           <View className="py-12 items-center px-8">
             <Text className="text-5xl mb-4">📅</Text>
-            // INVARIANT_ALLOW_INLINE_OBJECT_PROP
+            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
               Nothing new yet
             </Text>
