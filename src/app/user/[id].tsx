@@ -21,6 +21,8 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { type FriendUser, type Event, type ReportReason } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
+import { resolveBannerUri } from "@/lib/heroSSOT";
+import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 
 
 // MoreHorizontal icon using Ionicons
@@ -465,6 +467,13 @@ export default function UserProfileScreen() {
   const friendshipId = data?.friendshipId ?? null;
   const hasPendingRequest = data?.hasPendingRequest ?? false;
   const incomingRequestId = data?.incomingRequestId ?? null;
+
+  // [P0_PERF_PRELOAD_PUBLIC_PROFILE_HERO] Preload viewed user's banner (max 1)
+  const heroUri = useMemo(
+    () => resolveBannerUri(user?.Profile ?? null),
+    [user?.Profile?.bannerPhotoUrl, user?.Profile?.bannerUrl],
+  );
+  usePreloadHeroBanners({ uris: heroUri ? [heroUri] : [], enabled: !!heroUri, max: 1 });
 
   // [P0_PROFILE_SOT] DEV-only proof log on mount
   useEffect(() => {

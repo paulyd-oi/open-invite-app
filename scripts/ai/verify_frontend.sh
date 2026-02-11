@@ -597,6 +597,14 @@ else
   echo "  ✓ Part 4: Image.prefetch confined to SSOT files only"
 fi
 
+# Part 5: user/[id].tsx must use usePreloadHeroBanners for public profile hero
+if ! grep -q 'usePreloadHeroBanners' 'src/app/user/[id].tsx' 2>/dev/null; then
+  echo "  ❌ user/[id].tsx does not use usePreloadHeroBanners for public profile hero"
+  PRELOAD_FAIL=1
+else
+  echo "  ✓ Part 5: user/[id].tsx uses usePreloadHeroBanners for public profile hero"
+fi
+
 if [ "$PRELOAD_FAIL" -ne 0 ]; then
   echo ""
   echo "FAIL: P0_PERF_PRELOAD_BOUNDED_HEROES invariant violated"
