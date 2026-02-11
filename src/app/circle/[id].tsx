@@ -543,7 +543,6 @@ function MiniCalendar({
               </Text>
               <Text style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>Tap to see best times</Text>
             </View>
-            <ChevronRight size={14} color={quietHasPerfectOverlap ? "#10B981" : colors.textTertiary} />
           </Pressable>
 
           {/* Day selector chips — SSOT: sets bestTimesDate */}
@@ -583,8 +582,8 @@ function MiniCalendar({
             })}
           </ScrollView>
 
-          {/* Inline summary for selected day — from quietSlots (filtered dateScheduleResult) */}
-          {quietSlots.length > 0 && quietBestSlot ? (
+          {/* Inline summary — visible only in overview state (before tapping a date) */}
+          {!showBestTimeSheet && (quietSlots.length > 0 && quietBestSlot ? (
             <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
               {quietBestSlot.availableCount} of {quietBestSlot.totalMembers} available · {quietSlots.length} time{quietSlots.length !== 1 ? "s" : ""}
             </Text>
@@ -592,7 +591,7 @@ function MiniCalendar({
             <Text style={{ fontSize: 10, lineHeight: 13, marginTop: 2, color: colors.textTertiary }}>
               No shared free times — try another day
             </Text>
-          )}
+          ))}
 
           {/* Best Time to Meet Sheet */}
           <BottomSheet
@@ -4501,7 +4500,7 @@ export default function CircleScreen() {
                         if (__DEV__) devLog('[CIRCLE_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
 
                         setUploadingPhoto(true);
-                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri, id);
+                        const uploadResult = await uploadCirclePhoto(result.assets[0].uri);
                         if (__DEV__) devLog('[CIRCLE_PHOTO_SAVE]', { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId ?? null });
                         await api.put(`/api/circles/${id}`, { photoUrl: uploadResult.url, photoPublicId: uploadResult.publicId });
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
