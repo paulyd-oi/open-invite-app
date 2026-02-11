@@ -37,6 +37,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
+import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
@@ -70,11 +71,11 @@ interface PopularEvent {
 /** Max cards rendered per section on Discover (scale-safety invariant). */
 const PREVIEW_LIMIT = 3;
 
-type Lens = "popular" | "best_friends" | "new";
+type Lens = "popular" | "best_friends" | "ideas";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
   { key: "popular", label: "Popular" },
   { key: "best_friends", label: "For you" },
-  { key: "new", label: "New" },
+  { key: "ideas", label: "Ideas" },
 ];
 
 export default function DiscoverScreen() {
@@ -169,16 +170,10 @@ export default function DiscoverScreen() {
   // best_friends: no friend-signal field exists on events — fallback to "for you" (same popular ranking)
   const forYouSorted = popularSorted; // alias; fallback acknowledged in DEV log
 
-  const newSorted = useMemo(() => {
-    return [...enrichedEvents].sort(
-      (a, b) => new Date(b.createdAt ?? b.startTime).getTime() - new Date(a.createdAt ?? a.startTime).getTime(),
-    );
-  }, [enrichedEvents]);
-
   const totalActive = enrichedEvents.length;
 
   // ── Active lens feed ──
-  const lensAll = lens === "popular" ? popularSorted : lens === "best_friends" ? forYouSorted : newSorted;
+  const lensAll = lens === "popular" ? popularSorted : lens === "best_friends" ? forYouSorted : popularSorted;
 
   // Featured = first event in lens feed
   const featured = lensAll.length > 0 ? lensAll[0] : null;
@@ -200,7 +195,7 @@ export default function DiscoverScreen() {
   const lensTotal = lensAll.length;
 
   // Lens context labels
-  const lensLabel = lens === "popular" ? "Popular right now" : lens === "best_friends" ? "From your people" : "New this week";
+  const lensLabel = lens === "popular" ? "Popular right now" : lens === "best_friends" ? "From your people" : "Popular right now";
 
   const handleViewAll = () => {
     if (__DEV__) devLog("[DISCOVER_LENS]", { viewAll: true, lens, total: lensTotal });
@@ -455,6 +450,10 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
+      {lens === "ideas" ? (
+        /* ═══ Ideas Deck (swipeable daily ideas) ═══ */
+        <DailyIdeasDeck />
+      ) : (
       <ScrollView
         className="flex-1"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -584,6 +583,7 @@ export default function DiscoverScreen() {
           </>
         )}
       </ScrollView>
+      )}
 
       <BottomNavigation />
     </SafeAreaView>
