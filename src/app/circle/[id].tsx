@@ -1464,6 +1464,8 @@ export default function CircleScreen() {
   const unseenCountRef = useRef(0);
   const [unseenCount, setUnseenCount] = useState(0);
   const prevMessageCountRef = useRef<number | null>(null);
+  // [P1_CIRCLE_LEAVE_VIS] Track previous member count for roster-change detection
+  const prevMemberCountRef = useRef<number | null>(null);
 
   const bumpUnseen = useCallback((delta: number) => {
     unseenCountRef.current = Math.max(0, unseenCountRef.current + delta);
@@ -2099,6 +2101,31 @@ export default function CircleScreen() {
         setActiveCircle(null);
       };
     }, [session, id, bootStatus, sendReadHorizon]),
+  );
+
+  // [P1_CIRCLE_LEAVE_VIS] Refetch circle on focus + detect roster changes
+  useFocusEffect(
+    useCallback(() => {
+      if (!id || !isAuthedForNetwork(bootStatus, session)) return;
+      refetch().then((result) => {
+        const nextMembers = result.data?.circle?.members;
+        if (!nextMembers) return;
+        const nextCount = nextMembers.length;
+        const prevCount = prevMemberCountRef.current;
+        if (prevCount !== null && prevCount !== nextCount) {
+          if (__DEV__) {
+            devLog("[P1_CIRCLE_LEAVE_VIS]", "roster_changed", {
+              circleId: id,
+              prevCount,
+              nextCount,
+              delta: nextCount - prevCount,
+            });
+            safeToast.info("Roster updated", `${nextCount} member${nextCount === 1 ? "" : "s"}`);
+          }
+        }
+        prevMemberCountRef.current = nextCount;
+      });
+    }, [id, bootStatus, session, refetch]),
   );
 
   // [P2_TYPING_UI] Poll typing list every 2s while focused + app active
