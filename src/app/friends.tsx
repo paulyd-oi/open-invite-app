@@ -24,7 +24,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Search,
-  UserPlus,
+
   ChevronRight,
   ChevronDown,
   Users,
@@ -604,7 +604,6 @@ export default function FriendsScreen() {
   });
 
   const [searchEmail, setSearchEmail] = useState("");
-  const [showAddFriend, setShowAddFriend] = useState(false);
   const [showContactsModal, setShowContactsModal] = useState(false);
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
@@ -613,8 +612,7 @@ export default function FriendsScreen() {
   // Auto-open search modal if navigated with ?search=true
   useEffect(() => {
     if (params.search === "true") {
-      setShowAddFriend(true);
-      setFriendsTab(2); // switch to People pane for search
+      setFriendsTab(2); // switch to People pane for search (Add Friend visible by default)
     }
   }, [params.search]);
 
@@ -896,7 +894,6 @@ export default function FriendsScreen() {
         safeToast.success("Success", "Friend request sent!");
       }
       setSearchEmail("");
-      setShowAddFriend(false);
       setShowContactsModal(false);
       refetchRequests();
       
@@ -1353,26 +1350,15 @@ export default function FriendsScreen() {
         title="Friends"
         left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
         right={
-          <View className="flex-row items-center">
-            {receivedRequests.length > 0 && (
-              <View
-                className="w-6 h-6 rounded-full items-center justify-center mr-2"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: themeColor }}
-              >
-                <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
-              </View>
-            )}
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => setShowAddFriend(!showAddFriend)}
-              className="w-10 h-10 rounded-full items-center justify-center"
+          receivedRequests.length > 0 ? (
+            <View
+              className="w-6 h-6 rounded-full items-center justify-center"
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               style={{ backgroundColor: themeColor }}
             >
-              <UserPlus size={20} color="#fff" />
-            </Pressable>
-          </View>
+              <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
+            </View>
+          ) : undefined
         }
       />
 
@@ -1455,7 +1441,6 @@ export default function FriendsScreen() {
 
         {friendsTab === 2 && (
           <FriendsPeoplePane
-            showAddFriend={showAddFriend}
             searchEmail={searchEmail}
             onSearchEmailChange={setSearchEmail}
             onDirectFriendRequest={handleDirectFriendRequest}

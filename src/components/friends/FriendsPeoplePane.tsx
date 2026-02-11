@@ -179,7 +179,6 @@ function FriendRequestCard({
 // ── Props ──────────────────────────────────────────────────────
 export interface FriendsPeoplePaneProps {
   // Add Friend section
-  showAddFriend: boolean;
   searchEmail: string;
   onSearchEmailChange: (text: string) => void;
   onDirectFriendRequest: () => void;
@@ -384,7 +383,6 @@ function PeopleYouMayKnowSection() {
 
 // ── Component ──────────────────────────────────────────────────
 export function FriendsPeoplePane({
-  showAddFriend,
   searchEmail,
   onSearchEmailChange,
   onDirectFriendRequest,
@@ -416,10 +414,58 @@ export function FriendsPeoplePane({
   const { themeColor, isDark, colors } = useTheme();
   const router = useRouter();
 
+  // Internal sub-toggle: "add" (default) vs "suggestions"
+  const [peopleMode, setPeopleMode] = useState<"add" | "suggestions">("add");
+
   return (
     <>
-      {/* ── Add Friend Section (moved from ActivityPane) ─────── */}
-      {showAddFriend && (
+      {/* ── People Sub-Toggle ─────────────────────────────── */}
+      <View className="mb-4">
+        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+        <View className="flex-row" style={{ backgroundColor: colors.surface2, borderRadius: 10, padding: 3 }}>
+          <Pressable
+            /* INVARIANT_ALLOW_INLINE_HANDLER */
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setPeopleMode("add");
+            }}
+            className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            style={{ backgroundColor: peopleMode === "add" ? colors.surface : "transparent" }}
+          >
+            <UserPlus size={14} color={peopleMode === "add" ? themeColor : colors.textSecondary} />
+            <Text
+              className="text-xs font-semibold ml-1.5"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ color: peopleMode === "add" ? themeColor : colors.textSecondary }}
+            >
+              Add Friend
+            </Text>
+          </Pressable>
+          <Pressable
+            /* INVARIANT_ALLOW_INLINE_HANDLER */
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setPeopleMode("suggestions");
+            }}
+            className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            style={{ backgroundColor: peopleMode === "suggestions" ? colors.surface : "transparent" }}
+          >
+            <Sparkles size={14} color={peopleMode === "suggestions" ? themeColor : colors.textSecondary} />
+            <Text
+              className="text-xs font-semibold ml-1.5"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ color: peopleMode === "suggestions" ? themeColor : colors.textSecondary }}
+            >
+              People you may know
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* ── Add Friend Section ─────────────────────────────── */}
+      {peopleMode === "add" && (
         <Animated.View entering={FadeInDown.springify()} className="mb-4">
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="rounded-xl p-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
@@ -665,8 +711,8 @@ export function FriendsPeoplePane({
         </View>
       )}
 
-      {/* ── People You May Know ─────────────────────────────── */}
-      <PeopleYouMayKnowSection />
+      {/* ── People You May Know (only when sub-toggle selected) ── */}
+      {peopleMode === "suggestions" && <PeopleYouMayKnowSection />}
 
       {/* ── Friends List - Collapsible (existing) ────────────── */}
       <View className="mb-2">
