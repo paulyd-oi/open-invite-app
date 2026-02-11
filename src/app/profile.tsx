@@ -9,6 +9,7 @@ import {
   Share,
 } from "react-native";
 import { resolveBannerUri } from "@/lib/heroSSOT";
+import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -495,7 +496,7 @@ export default function ProfileScreen() {
             {bannerUri && (
               <>
                 <Image
-                  source={{ uri: bannerUri }}
+                  source={{ uri: toCloudinaryTransformedUrl(bannerUri!, { w: 1200, h: 600, crop: "fill", format: "auto" }) }}
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
                   resizeMode="cover"
                 />

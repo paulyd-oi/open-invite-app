@@ -474,4 +474,56 @@ fi
 echo ""
 echo "P0_PERF_INVAR_MAP_FEEDS checks PASS"
 
+# ── P0 PERF IMAGE DECODE HYGIENE ────────────────────────────────────
+echo ""
+echo "Running P0_PERF_IMAGE_DECODE_HYGIENE checks…"
+echo "  Goal: hero/banner Image sources must use toCloudinaryTransformedUrl."
+
+DECODE_FAIL=0
+DECODE_SCOPE="src/components/HeroBannerSurface.tsx src/app/profile.tsx src/app/public-profile.tsx src/app/event/[id].tsx src/components/ProfilePreviewCard.tsx"
+
+for DFILE in $DECODE_SCOPE; do
+  if [ ! -f "$DFILE" ]; then
+    continue
+  fi
+
+  HAS_UPLOAD=$(grep -c '/image/upload/' "$DFILE" 2>/dev/null || true)
+  HAS_SOURCE_URI=$(grep -cE 'source=\{\{[ ]*uri:' "$DFILE" 2>/dev/null || true)
+
+  if [ "$HAS_UPLOAD" -gt 0 ] && [ "$HAS_SOURCE_URI" -gt 0 ]; then
+    HAS_TRANSFORM=$(grep -c 'toCloudinaryTransformedUrl(' "$DFILE" 2>/dev/null || true)
+    if [ "$HAS_TRANSFORM" -eq 0 ]; then
+      echo "  ❌ $DFILE uses Cloudinary /image/upload/ in Image source without toCloudinaryTransformedUrl"
+      echo "     Remediation: Use toCloudinaryTransformedUrl(url, { w, h, crop }) before passing to Image source."
+      DECODE_FAIL=1
+    fi
+  fi
+done
+
+# Structural: mediaTransformSSOT.ts must export the helper
+if ! grep -q 'toCloudinaryTransformedUrl' src/lib/mediaTransformSSOT.ts 2>/dev/null; then
+  echo "  ❌ src/lib/mediaTransformSSOT.ts missing toCloudinaryTransformedUrl export"
+  DECODE_FAIL=1
+else
+  echo "  ✓ Part 1: mediaTransformSSOT.ts exports toCloudinaryTransformedUrl"
+fi
+
+# HeroBannerSurface must import + use the helper
+if ! grep -q 'toCloudinaryTransformedUrl' src/components/HeroBannerSurface.tsx 2>/dev/null; then
+  echo "  ❌ HeroBannerSurface.tsx does not use toCloudinaryTransformedUrl"
+  DECODE_FAIL=1
+else
+  echo "  ✓ Part 2: HeroBannerSurface uses toCloudinaryTransformedUrl"
+fi
+
+if [ "$DECODE_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PERF_IMAGE_DECODE_HYGIENE invariant violated"
+  exit 1
+fi
+
+echo "  ✓ Part 3: All enforced files pass Cloudinary decode hygiene"
+echo ""
+echo "P0_PERF_IMAGE_DECODE_HYGIENE checks PASS"
+
 echo "PASS: verify_frontend"

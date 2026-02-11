@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Image, StyleSheet } from "react-native";
 import { getHeroGlassStyle, getGlassBoostStyle } from "@/lib/heroSSOT";
+import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
 import MotionSurface from "@/components/MotionSurface";
 
 export interface HeroBannerSurfaceProps {
@@ -31,6 +32,10 @@ export function HeroBannerSurface({
   fallbackBg,
 }: HeroBannerSurfaceProps) {
   const hasBanner = typeof bannerUri === "string" && bannerUri.length > 0;
+  // [MEDIA_TRANSFORM_SSOT_V1] — decode-optimised hero render URL
+  const bannerRenderUri = hasBanner
+    ? toCloudinaryTransformedUrl(bannerUri!, { w: 1200, h: 600, crop: "fill", format: "auto" })
+    : null;
 
   return (
     <MotionSurface
@@ -46,7 +51,7 @@ export function HeroBannerSurface({
       {hasBanner && (
         <MotionSurface preset="media" style={StyleSheet.absoluteFillObject}>
           <Image
-            source={{ uri: bannerUri! }}
+            source={{ uri: bannerRenderUri! }}
             resizeMode="cover"
             style={StyleSheet.absoluteFillObject}
           />
