@@ -241,6 +241,17 @@ export type UseSessionResult = {
 };
 
 /**
+ * Last server-echoed x-request-id (set per response for correlation).
+ * Consumed by api.ts to pair clientRequestId ↔ serverRequestId.
+ */
+let _lastServerRequestId: string | null = null;
+
+/** Return the server-echoed x-request-id from the most recent $fetch call (or null). */
+export function getLastServerRequestId(): string | null {
+  return _lastServerRequestId;
+}
+
+/**
  * $fetch: Uses Better Auth client's $fetch with EXPLICIT cookie attachment.
  * React Native doesn't support cookies natively like browsers.
  * We explicitly store the session cookie and attach it to every request.
@@ -351,6 +362,9 @@ async function $fetch<T = any>(
       headers: finalHeaders,
       credentials: "include",
     });
+
+    // Capture server-echoed x-request-id for correlation
+    _lastServerRequestId = response.headers.get("x-request-id") ?? null;
     
     // Log response status for every request (helps debug auth issues)
     if (AUTH_DEBUG) {
@@ -369,6 +383,7 @@ async function $fetch<T = any>(
       err.status = response.status;
       err.response = { status: response.status, _data: errorData };
       err.data = errorData;
+      if (_lastServerRequestId) err.serverRequestId = _lastServerRequestId;
       
       // AUTH EXPIRY: Emit event on 401 ONLY for authenticated endpoints (not /api/auth/*)
       // 403 = "Forbidden" = valid privacy response (keep session)
@@ -461,6 +476,7 @@ async function $fetch<T = any>(
     e2.endpoint = path;
     e2.method = details.method;
     e2.response = { status: details.status }; // Backward compat
+    if (error?.serverRequestId) e2.serverRequestId = error.serverRequestId;
     throw e2;
   }
 }

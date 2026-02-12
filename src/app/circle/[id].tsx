@@ -1956,7 +1956,7 @@ export default function CircleScreen() {
         }));
       }
     },
-    onError: (_error, _vars, context) => {
+    onError: (error, _vars, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
       if (context?.optimisticId) {
         queryClient.setQueryData(
@@ -1986,7 +1986,7 @@ export default function CircleScreen() {
           }));
         }
       }
-      safeToast.error("Message Failed", "Message failed to send. Tap to retry.");
+      safeToast.error("Message Failed", "Message failed to send. Tap to retry.", error);
       if (__DEV__) {
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
           action: 'message_send',
@@ -2469,6 +2469,11 @@ export default function CircleScreen() {
   };
 
   const handleSend = () => {
+    // [P0_SINGLEFLIGHT] Prevent double-submit while mutation is in-flight
+    if (sendMessageMutation.isPending) {
+      if (__DEV__) devLog("[P0_SINGLEFLIGHT]", "blocked action=sendMessage");
+      return;
+    }
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendTypingClear();
