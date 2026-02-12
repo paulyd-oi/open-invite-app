@@ -9,7 +9,7 @@
  */
 
 // Import the authentication client for all authenticated requests
-import { authClient } from "./authClient";
+import { authClient, getLastServerRequestId } from "./authClient";
 
 // Import fetch for upload FormData handling
 import { fetch } from "expo/fetch";
@@ -75,10 +75,12 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     } as any);
 
     if (__DEV__) {
+      const serverRequestId = getLastServerRequestId();
       devLog("[P0_REQID_CLIENT]", {
         method,
         path,
-        requestId,
+        clientRequestId: requestId,
+        ...(serverRequestId ? { serverRequestId } : {}),
         status: "ok",
       });
     }
@@ -87,12 +89,16 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
   } catch (error: any) {
     // Attach requestId to error for downstream debugging
     error.requestId = requestId;
+    // Prefer server-echoed request ID when available
+    const serverReqId = error.serverRequestId ?? getLastServerRequestId();
+    if (serverReqId) error.serverRequestId = serverReqId;
     // Enhanced error handling for debugging
     if (__DEV__) {
       devLog("[P0_REQID_CLIENT]", {
         method,
         path,
-        requestId,
+        clientRequestId: requestId,
+        ...(serverReqId ? { serverRequestId: serverReqId } : {}),
         status: "error",
         errorStatus: error.status,
       });
@@ -227,10 +233,12 @@ const api = {
       } as any);
 
       if (__DEV__) {
+        const serverRequestId = getLastServerRequestId();
         devLog("[P0_REQID_CLIENT]", {
           method: "POST",
           path,
-          requestId,
+          clientRequestId: requestId,
+          ...(serverRequestId ? { serverRequestId } : {}),
           status: "ok",
           upload: true,
         });
@@ -239,11 +247,14 @@ const api = {
       return response;
     } catch (error: any) {
       error.requestId = requestId;
+      const serverReqId = error.serverRequestId ?? getLastServerRequestId();
+      if (serverReqId) error.serverRequestId = serverReqId;
       if (__DEV__) {
         devLog("[P0_REQID_CLIENT]", {
           method: "POST",
           path,
-          requestId,
+          clientRequestId: requestId,
+          ...(serverReqId ? { serverRequestId: serverReqId } : {}),
           status: "error",
           upload: true,
           errorStatus: error.status,
