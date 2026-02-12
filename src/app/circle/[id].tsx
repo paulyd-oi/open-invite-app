@@ -1956,7 +1956,7 @@ export default function CircleScreen() {
         }));
       }
     },
-    onError: (_error, _vars, context) => {
+    onError: (error, _vars, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
       if (context?.optimisticId) {
         queryClient.setQueryData(
@@ -1986,7 +1986,7 @@ export default function CircleScreen() {
           }));
         }
       }
-      safeToast.error("Message Failed", "Message failed to send. Tap to retry.");
+      safeToast.error("Message Failed", "Message failed to send. Tap to retry.", error);
       if (__DEV__) {
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
           action: 'message_send',

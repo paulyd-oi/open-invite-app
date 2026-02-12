@@ -784,7 +784,7 @@ export default function CreateEventScreen() {
 
       // Actionable user-facing copy from receipt (never generic "Server Error")
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      safeToast.error(receipt.message, receipt.hint);
+      safeToast.error(receipt.message, receipt.hint, error);
     },
   });
 

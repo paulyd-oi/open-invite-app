@@ -1257,7 +1257,7 @@ export default function EventDetailScreen() {
           eventKeys.feed(),
         ], "rsvp_error_409");
       } else {
-        safeToast.error("Oops", "That didn't go through. Please try again.");
+        safeToast.error("Oops", "That didn't go through. Please try again.", error);
       }
       if (__DEV__) {
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
