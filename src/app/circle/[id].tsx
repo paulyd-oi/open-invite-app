@@ -2469,6 +2469,11 @@ export default function CircleScreen() {
   };
 
   const handleSend = () => {
+    // [P0_SINGLEFLIGHT] Prevent double-submit while mutation is in-flight
+    if (sendMessageMutation.isPending) {
+      if (__DEV__) devLog("[P0_SINGLEFLIGHT]", "blocked action=sendMessage");
+      return;
+    }
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       sendTypingClear();

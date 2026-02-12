@@ -1299,6 +1299,7 @@ export default function EventDetailScreen() {
     if (rsvpMutation.isPending) {
       if (__DEV__) {
         devLog('[P0_RSVP]', 'tap ignored (pending)', { eventId: id, nextStatus: status });
+        devLog('[P0_SINGLEFLIGHT]', 'blocked action=rsvp');
       }
       return;
     }
@@ -1345,6 +1346,7 @@ export default function EventDetailScreen() {
     if (rsvpMutation.isPending) {
       if (__DEV__) {
         devLog('[P0_RSVP]', 'confirm tap ignored (pending)', { eventId: id, nextStatus: 'not_going' });
+        devLog('[P0_SINGLEFLIGHT]', 'blocked action=rsvp');
       }
       return;
     }

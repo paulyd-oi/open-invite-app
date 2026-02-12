@@ -823,6 +823,11 @@ export default function CreateEventScreen() {
   };
 
   const handleCreate = () => {
+    // [P0_SINGLEFLIGHT] Prevent double-submit while mutation is in-flight
+    if (createMutation.isPending) {
+      if (__DEV__) devLog("[P0_SINGLEFLIGHT]", "blocked action=createEvent");
+      return;
+    }
     // [P1_CREATE_FLOW] Proof log: submit tapped
     if (__DEV__) {
       devLog('[P1_CREATE_FLOW]', 'submit tapped', {
