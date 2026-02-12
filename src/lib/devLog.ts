@@ -232,6 +232,10 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_REQID_CLIENT]",
   // P0 net gate (authed-only query prevention)
   "[P0_NET_GATE]",
+  // P0 idempotency client (pending-retry proof)
+  "[P0_IDEMPOTENCY_CLIENT]",
+  // P0 single-flight guard (double-submit prevention)
+  "[P0_SINGLEFLIGHT]",
 ];
 
 /**

@@ -1257,7 +1257,7 @@ export default function EventDetailScreen() {
           eventKeys.feed(),
         ], "rsvp_error_409");
       } else {
-        safeToast.error("Oops", "That didn't go through. Please try again.");
+        safeToast.error("Oops", "That didn't go through. Please try again.", error);
       }
       if (__DEV__) {
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
@@ -1298,6 +1298,7 @@ export default function EventDetailScreen() {
     // [P0_RSVP] Guard: prevent rapid-tap race conditions
     if (rsvpMutation.isPending) {
       if (__DEV__) {
+        devLog('[P0_SINGLEFLIGHT]', 'blocked action=rsvp');
         devLog('[P0_RSVP]', 'tap ignored (pending)', { eventId: id, nextStatus: status });
       }
       return;
@@ -1344,6 +1345,7 @@ export default function EventDetailScreen() {
     // [P0_RSVP] Guard: prevent race if mutation already pending
     if (rsvpMutation.isPending) {
       if (__DEV__) {
+        devLog('[P0_SINGLEFLIGHT]', 'blocked action=rsvp');
         devLog('[P0_RSVP]', 'confirm tap ignored (pending)', { eventId: id, nextStatus: 'not_going' });
       }
       return;
