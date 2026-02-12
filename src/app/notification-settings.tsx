@@ -54,6 +54,9 @@ import { devLog, devError } from "@/lib/devLog";
 import { trackAnalytics } from "@/lib/entitlements";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { Button } from "@/ui/Button";
+import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useSession } from "@/lib/useSession";
+import { shouldAllowAuthedFetch } from "@/lib/netGate";
 
 // [P0_CIRCLE_MUTE_POLISH] Storage key for dismissing circle notification info card
 const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
@@ -234,6 +237,8 @@ export default function NotificationSettingsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
 
   const [expandedSections, setExpandedSections] = useState<string[]>(["master"]);
   
@@ -334,6 +339,7 @@ export default function NotificationSettingsScreen() {
     queryFn: async () => {
       return api.get<GetNotificationPreferencesResponse>("/api/notifications/preferences");
     },
+    enabled: shouldAllowAuthedFetch(bootStatus, session, "notifPrefs"),
   });
 
   // Update mutation
@@ -354,6 +360,7 @@ export default function NotificationSettingsScreen() {
   const { data: circlesData } = useQuery<{ circles: { id: string; isMuted?: boolean }[] }>({
     queryKey: circleKeys.all(),
     queryFn: () => api.get("/api/circles"),
+    enabled: shouldAllowAuthedFetch(bootStatus, session, "notifCircles"),
   });
 
   // [P0_CIRCLE_MUTE_V1] Bulk mute mutation

@@ -230,6 +230,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_PREMIUM_PAYWALL_DECISION]",
   // P0 request-id client-side propagation proof
   "[P0_REQID_CLIENT]",
+  // P0 net gate (authed-only query prevention)
+  "[P0_NET_GATE]",
 ];
 
 /**

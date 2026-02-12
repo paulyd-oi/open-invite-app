@@ -2,8 +2,8 @@
  * Net Gate — auth-aware fetch discipline
  *
  * Thin canonical wrapper around isAuthedForNetwork that:
- * 1. Provides shouldAllowAuthedFetch() alias for the task contract
- * 2. Adds [P1_NET_GATE] DEV proof logging on denial
+ * 1. Provides shouldAllowAuthedFetch() / canAuthedNetworkRun() for the task contract
+ * 2. Adds [P0_NET_GATE] DEV proof logging on denial
  * 3. Serves as single import for new auth-gated queries
  *
  * INVARIANT: No authenticated query may fire while
@@ -29,7 +29,7 @@ let lastLoggedState: string | null = null;
  * shouldAllowAuthedFetch — canonical net gate check
  *
  * Returns true when the app is authenticated and ready for network calls.
- * Logs [P1_NET_GATE] on first denial per state transition (DEV only).
+ * Logs [P0_NET_GATE] on first denial per state transition (DEV only).
  *
  * Usage:
  *   enabled: shouldAllowAuthedFetch(bootStatus, session)
@@ -49,7 +49,7 @@ export function shouldAllowAuthedFetch(
     if (lastLoggedState !== stateKey) {
       lastLoggedState = stateKey;
       devLog(
-        `[P1_NET_GATE] BLOCKED bootStatus=${bootStatus ?? "undefined"} userId=${session?.user?.id ?? session?.effectiveUserId ?? "none"}${tag ? ` tag=${tag}` : ""}`
+        `[P0_NET_GATE] BLOCKED bootStatus=${bootStatus ?? "undefined"} userId=${session?.user?.id ?? session?.effectiveUserId ?? "none"}${tag ? ` tag=${tag}` : ""}`
       );
     }
   }
@@ -57,8 +57,16 @@ export function shouldAllowAuthedFetch(
   if (__DEV__ && allowed && lastLoggedState !== null) {
     // Gate opened — log once
     lastLoggedState = null;
-    devLog(`[P1_NET_GATE] OPEN bootStatus=${bootStatus ?? "undefined"}`);
+    devLog(`[P0_NET_GATE] OPEN bootStatus=${bootStatus ?? "undefined"}`);
   }
 
   return allowed;
 }
+
+/**
+ * canAuthedNetworkRun — task-contract alias for shouldAllowAuthedFetch.
+ *
+ * Identical semantics: returns true only when bootStatus is authed
+ * and session has a userId. Fires [P0_NET_GATE] DEV log on denial.
+ */
+export const canAuthedNetworkRun = shouldAllowAuthedFetch;
