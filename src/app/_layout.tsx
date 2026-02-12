@@ -49,6 +49,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
 import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
+import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime/wsClient';
 
 // [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
 const QueryDebugOverlay = __DEV__
@@ -382,6 +383,37 @@ function BootRouter() {
   // Register push notifications globally (gates on bootStatus === 'authed' internally)
   // Previously in social.tsx - moved here so tokens register immediately on auth, not tab mount
   useNotifications();
+
+  // [P0_WS_BOOT] Start/stop realtime WS based on boot status (SSOT)
+  // Idempotent: wsClient.connect() is a no-op if already connected/connecting or flag off.
+  const wsBootedRef = useRef(false);
+  useEffect(() => {
+    const isAuthed = bootStatus === 'authed' || bootStatus === 'onboarding';
+
+    if (isAuthed && userId) {
+      if (!wsBootedRef.current) {
+        wsBootedRef.current = true;
+        devLog('[P0_WS_BOOT]', 'start', {
+          bootStatus,
+          userIdPrefix: userId.substring(0, 8),
+        });
+      }
+      wsConnect();
+    } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
+      if (wsBootedRef.current) {
+        wsBootedRef.current = false;
+        devLog('[P0_WS_BOOT]', 'stop', {
+          bootStatus,
+          userIdPrefix: userId?.substring(0, 8) ?? 'none',
+        });
+      }
+      wsDisconnect();
+    }
+    // Cleanup: disconnect on unmount (safety net)
+    return () => {
+      wsDisconnect();
+    };
+  }, [bootStatus, userId]);
 
   // DEV-only: Log once when authed shell is mounted for push bootstrap
   const loggedPushBootstrapOnceRef = useRef(false);
