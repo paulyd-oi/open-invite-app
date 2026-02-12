@@ -37,6 +37,11 @@ import {
   REALTIME_WS_URL,
   RECONNECT_CAP_MS,
   SEND_QUEUE_CAP,
+  FLAP_DISCONNECT_LIMIT,
+  FLAP_WINDOW_MS,
+  enterDegradedMode,
+  isRealtimeDegraded,
+  resetDegradedMode,
 } from "./realtimeConfig";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +84,9 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Whether the client was intentionally disconnected (don't auto-reconnect). */
 let intentionalClose = false;
+
+/** Timestamps of recent disconnects for flap detection (FRONT-6). */
+const disconnectTimestamps: number[] = [];
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -172,6 +180,11 @@ function scheduleReconnect() {
 
 function openSocket() {
   if (!REALTIME_WS_ENABLED) return;
+  // FRONT-6: Do not reconnect while in degraded mode
+  if (isRealtimeDegraded()) {
+    devLog("[P0_WS_DEGRADED]", "openSocket skipped — degraded mode active");
+    return;
+  }
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     return; // already open or connecting
   }
@@ -232,6 +245,19 @@ function openSocket() {
     setState("disconnected");
 
     if (!intentionalClose) {
+      // FRONT-6: Flap detection — track disconnect timestamps
+      const now = Date.now();
+      disconnectTimestamps.push(now);
+      // Prune timestamps outside the flap window
+      while (disconnectTimestamps.length > 0 && disconnectTimestamps[0] < now - FLAP_WINDOW_MS) {
+        disconnectTimestamps.shift();
+      }
+      if (disconnectTimestamps.length >= FLAP_DISCONNECT_LIMIT) {
+        devLog("[P0_WS_DEGRADED]", `flap detected: ${disconnectTimestamps.length} disconnects in ${FLAP_WINDOW_MS / 1000}s — entering degraded mode`);
+        enterDegradedMode();
+        disconnectTimestamps.length = 0; // reset counter
+        return; // do NOT schedule reconnect
+      }
       scheduleReconnect();
     }
   };
@@ -263,6 +289,8 @@ export function disconnect(): void {
   sendQueue.length = 0;
   desiredRooms.clear();
   retryAttempt = 0;
+  disconnectTimestamps.length = 0;
+  resetDegradedMode();
 
   if (ws) {
     devLog(TAG, "disconnect requested, closing socket");
@@ -321,3 +349,16 @@ export function getState(): WsConnectionState {
 export function getDesiredRoomCount(): number {
   return desiredRooms.size;
 }
+
+/**
+ * Send a JSON message over the WebSocket.
+ * No-op if feature flag is off or degraded.
+ */
+export function send(msg: Record<string, unknown>): void {
+  if (!REALTIME_WS_ENABLED) return;
+  if (isRealtimeDegraded()) return;
+  safeSend(msg);
+}
+
+// Re-export degraded helper for external callers
+export { isRealtimeDegraded } from "./realtimeConfig";

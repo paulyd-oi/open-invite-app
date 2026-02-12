@@ -110,6 +110,8 @@ import {
 } from "@/shared/contracts";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { useCircleRealtime } from "@/lib/realtime/circleRealtime";
+import { useTypingRealtime } from "@/lib/realtime/typingRealtime";
+import { broadcastReadHorizon, useReadHorizonReceiver } from "@/lib/realtime/readRealtime";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -1498,6 +1500,10 @@ export default function CircleScreen() {
   const { themeColor, isDark, colors } = useTheme();
   // [P0_WS_MSG_APPLY] Subscribe to realtime circle messages via WS
   useCircleRealtime(id, bootStatus, session);
+  // [P0_WS_TYPING_UI] Realtime typing indicator via WebSocket
+  const { typingUserIds, setTyping } = useTypingRealtime(id, session?.user?.id);
+  // [P0_WS_READ_APPLY] Receive remote read horizon signals
+  useReadHorizonReceiver(bootStatus, session);
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const isNearBottomRef = useRef(true);
@@ -1614,6 +1620,8 @@ export default function CircleScreen() {
           // Background reconcile — inactive only
           queryClient.invalidateQueries({ queryKey: circleKeys.unreadCount(), refetchType: "inactive" });
           queryClient.invalidateQueries({ queryKey: circleKeys.all(), refetchType: "inactive" });
+          // [P0_WS_READ_APPLY] Broadcast over WS so other devices update immediately
+          broadcastReadHorizon(id!, lastReadAt);
           if (__DEV__) devLog("[P1_READ_HORIZON]", "ok", {
             endpoint: `/api/circles/${id}/read-horizon`,
             circleId: id,
@@ -1682,10 +1690,7 @@ export default function CircleScreen() {
   const variantIndexRef = useRef(0);
   const [showTryAnother, setShowTryAnother] = useState(!!draftVariants);
 
-  // [P2_TYPING_UI] Typing indicator state
-  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; name: string }>>([]);
-  const lastTypingPingRef = useRef<number>(0);
-  const prevTypingNonEmptyRef = useRef(false);
+  // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
   const [showCalendar, setShowCalendar] = useState(true);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [createEventVisibility, setCreateEventVisibility] = useState<"open_invite" | "circle_only">("circle_only");
@@ -2274,64 +2279,16 @@ export default function CircleScreen() {
     }, [id, bootStatus, session, refetch]),
   );
 
-  // [P2_TYPING_UI] Poll typing list every 2s while focused + app active
+  // [P0_WS_TYPING_UI] Send/receive handled by useTypingRealtime hook;
+  // clear typing on screen blur via useFocusEffect.
   useFocusEffect(
     useCallback(() => {
-      if (!id || !session?.user?.id || !isAuthedForNetwork(bootStatus, session)) return;
-      let active = true;
-      let paused = AppState.currentState !== "active";
-      const poll = async () => {
-        if (!active || paused) return;
-        try {
-          const res = await api.get<{ ok: boolean; typing: Array<{ userId: string; name: string; updatedAt: number }> }>(
-            `/api/circles/${id}/typing`,
-          );
-          if (!active || paused) return;
-          const filtered = (res?.typing ?? []).filter((t) => t.userId !== session.user?.id);
-          setTypingUsers(filtered);
-          // [P2_TYPING_UI] Log transitions
-          const nowNonEmpty = filtered.length > 0;
-          if (nowNonEmpty !== prevTypingNonEmptyRef.current) {
-            if (__DEV__) devLog("[P2_TYPING_UI]", nowNonEmpty ? "show" : "hide", nowNonEmpty ? { count: filtered.length } : {});
-            prevTypingNonEmptyRef.current = nowNonEmpty;
-          }
-        } catch {
-          // Silently ignore polling errors
-        }
-      };
-      poll();
-      const interval = setInterval(poll, 2000);
-      // Pause polling when app goes to background
-      const appSub = AppState.addEventListener("change", (next) => {
-        paused = next !== "active";
-        if (!paused) poll(); // Resume immediately on foreground
-      });
       return () => {
-        active = false;
-        clearInterval(interval);
-        appSub.remove();
-        setTypingUsers([]);
-        prevTypingNonEmptyRef.current = false;
         // Best-effort clear typing on blur so others don't see stale indicator
-        api.post(`/api/circles/${id}/typing`, { isTyping: false }).catch(() => {});
+        setTyping(false);
       };
-    }, [id, session, bootStatus]),
+    }, [setTyping]),
   );
-
-  // [P2_TYPING_UI] Throttled typing ping (max 1/sec)
-  const sendTypingPing = useCallback(() => {
-    if (!id) return;
-    const now = Date.now();
-    if (now - lastTypingPingRef.current < 1000) return;
-    lastTypingPingRef.current = now;
-    api.post(`/api/circles/${id}/typing`, { isTyping: true }).catch(() => {});
-  }, [id]);
-
-  const sendTypingClear = useCallback(() => {
-    if (!id) return;
-    lastTypingPingRef.current = 0;
-    api.post(`/api/circles/${id}/typing`, { isTyping: false }).catch(() => {});
-  }, [id]);
 
   // [P1_CHAT_CURSOR_V2] Fetch older messages with compound cursor pagination
   const fetchOlderMessages = useCallback(async () => {
@@ -2479,7 +2436,7 @@ export default function CircleScreen() {
     }
     if (message.trim()) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendTypingClear();
+      setTyping(false);
       const clientMessageId = `cmi-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       // [P2_CHAT_REPLY_UI2] Build reply payload for API
       let reply: { messageId: string; userId: string; userName: string; snippet: string } | undefined;
@@ -3024,7 +2981,8 @@ export default function CircleScreen() {
   };
   const qaToggleTyping = () => {
     const snap = qaSnap();
-    setTypingUsers(prev => prev.length > 0 ? [] : [{ userId: "qa-1", name: "QA Alice" }, { userId: "qa-2", name: "QA Bob" }]);
+    // QA: typing state now driven by WS hook; toggle send signal only
+    setTyping(true);
     qaLog("toggle_typing", snap, false);
   };
   const qaToggleFailed = () => {
@@ -3853,15 +3811,19 @@ export default function CircleScreen() {
             </Pressable>
         )}
 
-        {/* [P2_TYPING_UI] Typing indicator */}
-        {typingUsers.length > 0 && (
+        {/* [P0_WS_TYPING_UI] Typing indicator */}
+        {typingUserIds.length > 0 && (
           <View style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
             <Text style={{ color: colors.textTertiary, fontSize: 13, fontStyle: "italic" }}>
-              {typingUsers.length === 1
-                ? `${typingUsers[0].name} is typing\u2026`
-                : typingUsers.length === 2
-                  ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing\u2026`
-                  : `${typingUsers.length} people are typing\u2026`}
+              {(() => {
+                const names = typingUserIds.map((uid) => {
+                  const m = members.find((mb) => mb.userId === uid);
+                  return m?.user?.name ?? "Someone";
+                });
+                if (names.length === 1) return `${names[0]} is typing\u2026`;
+                if (names.length === 2) return `${names[0]} and ${names[1]} are typing\u2026`;
+                return `${names.length} people are typing\u2026`;
+              })()}
             </Text>
           </View>
         )}
@@ -3928,11 +3890,11 @@ export default function CircleScreen() {
               value={message}
               onChangeText={(text) => {
                 setMessage(text);
-                if (text.trim().length > 0) sendTypingPing();
-                else sendTypingClear();
+                if (text.trim().length > 0) setTyping(true);
+                else setTyping(false);
               }}
               onBlur={() => {
-                sendTypingClear();
+                setTyping(false);
                 if (replyTarget && !message.trim()) clearReplyTarget("blur");
               }}
               placeholder="Message..."
