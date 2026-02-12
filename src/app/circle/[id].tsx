@@ -109,6 +109,7 @@ import {
   type Friendship,
 } from "@/shared/contracts";
 import { postIdempotent } from "@/lib/idempotencyKey";
+import { useCircleRealtime } from "@/lib/realtime/circleRealtime";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -1495,6 +1496,8 @@ export default function CircleScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  // [P0_WS_MSG_APPLY] Subscribe to realtime circle messages via WS
+  useCircleRealtime(id, bootStatus, session);
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const isNearBottomRef = useRef(true);
