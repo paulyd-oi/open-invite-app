@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
 import { SubscriptionContext } from "./SubscriptionContext";
 import { devLog, devWarn, devError } from "./devLog";
+import { qk } from "./queryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession } from "@/lib/useSession";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -232,7 +233,7 @@ export function useEntitlements(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
   
   return useQuery({
-    queryKey: ["entitlements"],
+    queryKey: qk.entitlements(),
     queryFn: async () => {
       try {
         const response = await api.get<EntitlementsResponse>("/api/entitlements");
@@ -263,10 +264,10 @@ export function useRefreshEntitlements() {
 
   return useCallback(async (): Promise<{ isPro: boolean }> => {
     // Invalidate to mark stale
-    await queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+    await queryClient.invalidateQueries({ queryKey: qk.entitlements() });
     // Refetch and get fresh data
     const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
-      queryKey: ["entitlements"],
+      queryKey: qk.entitlements(),
     });
     const backendIsPro = isPro(freshData);
     
@@ -333,9 +334,9 @@ export function useRefreshProContract() {
 
     try {
       // Step 2: Refresh backend entitlements
-      await queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      await queryClient.invalidateQueries({ queryKey: qk.entitlements() });
       const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
-        queryKey: ["entitlements"],
+        queryKey: qk.entitlements(),
       });
       backendIsPro = isPro(freshData);
       
@@ -358,7 +359,7 @@ export function useRefreshProContract() {
     }
 
     // [P0_ENTITLEMENT_REFRESH_TRACE] Ensure profile re-derives with fresh Pro state
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: qk.profile() });
 
     // [P0_ENTITLEMENT_INVARIANT] Upgrade assertion: if this was an upgrade-class event,
     // combinedIsPro MUST be true. Fire a DEV warning if not.

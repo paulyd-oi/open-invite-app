@@ -53,6 +53,7 @@ import { safeToast } from "@/lib/safeToast";
 import { devLog, devError } from "@/lib/devLog";
 import { trackAnalytics } from "@/lib/entitlements";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { qk } from "@/lib/queryKeys";
 import { Button } from "@/ui/Button";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession } from "@/lib/useSession";
@@ -335,7 +336,7 @@ export default function NotificationSettingsScreen() {
 
   // Fetch preferences
   const { data, isLoading, error } = useQuery<GetNotificationPreferencesResponse>({
-    queryKey: ["notificationPreferences"],
+    queryKey: qk.notificationPreferences(),
     queryFn: async () => {
       return api.get<GetNotificationPreferencesResponse>("/api/notifications/preferences");
     },
@@ -352,7 +353,7 @@ export default function NotificationSettingsScreen() {
       return api.put<UpdateNotificationPreferencesResponse>("/api/notifications/preferences", updates);
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["notificationPreferences"], data);
+      queryClient.setQueryData(qk.notificationPreferences(), data);
     },
   });
 

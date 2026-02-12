@@ -5,6 +5,7 @@ import { api } from "./api";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession } from "@/lib/useSession";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { qk } from "@/lib/queryKeys";
 
 // ============================================
 // FREE TIER LIMITS (mirror of backend)
@@ -209,7 +210,7 @@ export function useSubscription() {
   const { status: bootStatus } = useBootAuthority();
   const { data: session } = useSession();
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["subscription"],
+    queryKey: qk.subscription(),
     queryFn: () => api.get<SubscriptionData>("/api/subscription"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 5 * 60 * 1000, // 5 minutes

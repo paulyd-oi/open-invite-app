@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { qk } from "@/lib/queryKeys";
 import {
   MapPin,
   Clock,
@@ -750,7 +751,7 @@ export default function CreateEventScreen() {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterEventCreate(), "event_create");
       // Invalidate entitlements to refresh usage counts
-      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
+      queryClient.invalidateQueries({ queryKey: qk.entitlements() });
       // Also invalidate circle queries if this is a circle event
       if (circleId) {
         queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });

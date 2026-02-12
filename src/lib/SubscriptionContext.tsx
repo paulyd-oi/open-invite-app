@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { useSession } from "./useSession";
 import { devLog, devWarn, devError } from "./devLog";
+import { qk } from "./queryKeys";
 import {
   getCustomerInfo,
   isRevenueCatEnabled,
@@ -112,10 +113,10 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     if (__DEV__) {
       devLog("[SubscriptionContext] Invalidating all subscription queries");
     }
-    queryClient.invalidateQueries({ queryKey: ["entitlements"] });
-    queryClient.invalidateQueries({ queryKey: ["subscription"] });
-    queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
-    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: qk.entitlements() });
+    queryClient.invalidateQueries({ queryKey: qk.subscription() });
+    queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
+    queryClient.invalidateQueries({ queryKey: qk.profile() });
   }, [queryClient]);
 
   const fetchSubscription = useCallback(async (): Promise<{ isPro: boolean }> => {

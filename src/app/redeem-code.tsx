@@ -21,6 +21,7 @@ import { safeToast } from "@/lib/safeToast";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import { useRefreshProContract } from "@/lib/entitlements";
 import { useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/queryKeys";
 
 export default function RedeemCodeScreen() {
   const router = useRouter();
@@ -91,9 +92,9 @@ export default function RedeemCodeScreen() {
       safeToast.success("Pro Active!", response.benefit || "You now have full access to all features");
 
       // Invalidate queries for UI refresh
-      queryClient.invalidateQueries({ queryKey: ["entitlements"] });
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
+      queryClient.invalidateQueries({ queryKey: qk.entitlements() });
+      queryClient.invalidateQueries({ queryKey: qk.subscription() });
+      queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
 
       // Navigate back after a delay
       setTimeout(() => {

@@ -25,6 +25,7 @@ import * as Haptics from "expo-haptics";
 import { type PurchasesPackage } from "react-native-purchases";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/queryKeys";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
@@ -246,8 +247,8 @@ export default function PaywallScreen() {
       }
 
       // Invalidate subscription queries for UI sync across screens
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
+      queryClient.invalidateQueries({ queryKey: qk.subscription() });
+      queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setRedeemedBenefit(data.benefit);

@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { qk } from "@/lib/queryKeys";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -106,7 +107,7 @@ export default function SubscriptionScreen() {
 
   // Fetch subscription details from backend
   const { data: subscriptionData, isLoading, refetch } = useQuery({
-    queryKey: ["subscriptionDetails"],
+    queryKey: qk.subscriptionDetails(),
     queryFn: () => api.get<SubscriptionDetails>("/api/subscription/details"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -156,7 +157,7 @@ export default function SubscriptionScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Welcome to Pro!", "You now have access to all premium features.");
       refetch();
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      queryClient.invalidateQueries({ queryKey: qk.subscription() });
     } else {
       if (result.error) {
         const errorMessage = typeof result.error === "string"
@@ -197,7 +198,7 @@ export default function SubscriptionScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         safeToast.success("Restored!", "Your subscription has been restored.");
         refetch();
-        queryClient.invalidateQueries({ queryKey: ["subscription"] });
+        queryClient.invalidateQueries({ queryKey: qk.subscription() });
       } else {
         safeToast.info("No Purchases Found", "We couldn't find any previous purchases.");
       }
@@ -241,8 +242,8 @@ export default function SubscriptionScreen() {
         
         // Invalidate queries for UI refresh
         refetch();
-        queryClient.invalidateQueries({ queryKey: ["subscription"] });
-        queryClient.invalidateQueries({ queryKey: ["subscriptionDetails"] });
+        queryClient.invalidateQueries({ queryKey: qk.subscription() });
+        queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
         
         // Show toast based on combined result
         if (combinedIsPro) {
