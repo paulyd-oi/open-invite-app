@@ -26,6 +26,22 @@ type FetchOptions = {
 };
 
 /**
+ * Generate a unique request ID for tracing.
+ * Prefers crypto.randomUUID() (available in Hermes/Expo SDK 50+),
+ * falls back to timestamp+random.
+ */
+function generateRequestId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // fallback below
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
  * Core Fetch Function
  *
  * A generic, type-safe wrapper around authClient.$fetch for all API requests.
@@ -47,6 +63,7 @@ type FetchOptions = {
  */
 const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
   const { method, body } = options;
+  const requestId = generateRequestId();
 
   try {
     // Use authClient.$fetch for all requests - this handles authentication automatically
@@ -54,12 +71,32 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     const response = await authClient.$fetch(path, {
       method,
       body: body,
+      headers: { "x-request-id": requestId },
     } as any);
+
+    if (__DEV__) {
+      devLog("[P0_REQID_CLIENT]", {
+        method,
+        path,
+        requestId,
+        status: "ok",
+      });
+    }
 
     return response as T;
   } catch (error: any) {
+    // Attach requestId to error for downstream debugging
+    error.requestId = requestId;
     // Enhanced error handling for debugging
     if (__DEV__) {
+      devLog("[P0_REQID_CLIENT]", {
+        method,
+        path,
+        requestId,
+        status: "error",
+        errorStatus: error.status,
+      });
+
       // Known optional endpoints - don't log 404s as errors
       const isKnownOptional = error.status === 404 && (
         path.includes("/api/entitlements")
@@ -180,17 +217,37 @@ const api = {
    * @param formData - FormData containing the file(s) to upload
    */
   upload: async <T>(path: string, formData: FormData): Promise<T> => {
+    const requestId = generateRequestId();
     try {
       // Use authClient.$fetch which handles FormData correctly (no JSON Content-Type)
       const response = await authClient.$fetch<T>(path, {
         method: "POST",
         body: formData,
-      });
+        headers: { "x-request-id": requestId },
+      } as any);
+
+      if (__DEV__) {
+        devLog("[P0_REQID_CLIENT]", {
+          method: "POST",
+          path,
+          requestId,
+          status: "ok",
+          upload: true,
+        });
+      }
 
       return response;
     } catch (error: any) {
+      error.requestId = requestId;
       if (__DEV__) {
-        devLog(`[api.ts upload]: ${error}`);
+        devLog("[P0_REQID_CLIENT]", {
+          method: "POST",
+          path,
+          requestId,
+          status: "error",
+          upload: true,
+          errorStatus: error.status,
+        });
       }
       throw error;
     }

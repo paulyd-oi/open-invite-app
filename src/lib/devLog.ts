@@ -228,6 +228,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_PREMIUM_DRIFT_VIOLATION]",
   // P0 premium paywall decision (submit-time gate proof)
   "[P0_PREMIUM_PAYWALL_DECISION]",
+  // P0 request-id client-side propagation proof
+  "[P0_REQID_CLIENT]",
 ];
 
 /**
