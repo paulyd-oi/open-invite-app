@@ -236,6 +236,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_IDEMPOTENCY_CLIENT]",
   // P0 single-flight guard (double-submit prevention)
   "[P0_SINGLEFLIGHT]",
+  // P0 WebSocket realtime client (connect/disconnect/retry/rooms/backpressure)
+  "[P0_WS_CLIENT]",
 ];
 
 /**
