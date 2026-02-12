@@ -34,3 +34,47 @@ export const RECONNECT_CAP_MS = 30_000;
 
 /** Outgoing send queue cap (backpressure) */
 export const SEND_QUEUE_CAP = 200;
+
+// ---------------------------------------------------------------------------
+// Kill-switch / degraded mode (FRONT-6)
+// ---------------------------------------------------------------------------
+
+/** Max disconnects within the flap window before entering degraded mode. */
+export const FLAP_DISCONNECT_LIMIT = 5;
+
+/** Time window (ms) for counting disconnects (2 minutes). */
+export const FLAP_WINDOW_MS = 2 * 60 * 1000;
+
+/** Duration (ms) to stay in degraded mode (10 minutes). */
+export const DEGRADED_COOLDOWN_MS = 10 * 60 * 1000;
+
+// Module-level degraded state
+let degradedUntil = 0;
+
+/**
+ * Mark the client as degraded until `Date.now() + DEGRADED_COOLDOWN_MS`.
+ * Called by wsClient when flap threshold is exceeded.
+ */
+export function enterDegradedMode(): void {
+  degradedUntil = Date.now() + DEGRADED_COOLDOWN_MS;
+}
+
+/**
+ * Returns true when realtime is in degraded mode (kill switch active).
+ * Callers should fall back to push + refetch while degraded.
+ */
+export function isRealtimeDegraded(): boolean {
+  if (degradedUntil === 0) return false;
+  if (Date.now() >= degradedUntil) {
+    degradedUntil = 0; // cooldown expired
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Reset degraded state (e.g. on explicit reconnect or logout).
+ */
+export function resetDegradedMode(): void {
+  degradedUntil = 0;
+}

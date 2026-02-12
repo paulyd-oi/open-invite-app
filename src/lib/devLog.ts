@@ -238,6 +238,12 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_SINGLEFLIGHT]",
   // P0 WebSocket realtime client (connect/disconnect/retry/rooms/backpressure)
   "[P0_WS_CLIENT]",
+  // P0 WebSocket degraded mode (kill switch flap detection)
+  "[P0_WS_DEGRADED]",
+  // P0 WebSocket typing indicator (send/recv)
+  "[P0_WS_TYPING_UI]",
+  // P0 WS read horizon apply (remote horizon → unread cache update)
+  "[P0_WS_READ_APPLY]",
 ];
 
 /**
