@@ -78,6 +78,7 @@ import {
 import { SuggestedTimesPicker } from "@/components/SuggestedTimesPicker";
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
+import { postIdempotent } from "@/lib/idempotencyKey";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
 const EMOJI_OPTIONS = [
@@ -728,7 +729,7 @@ export default function CreateEventScreen() {
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
-      api.post<CreateEventResponse>("/api/events", data),
+      postIdempotent<CreateEventResponse>("/api/events", data),
     onSuccess: (response) => {
       // [P1_CREATE_FLOW] Proof log: create success
       if (__DEV__) {

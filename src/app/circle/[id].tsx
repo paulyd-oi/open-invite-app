@@ -108,6 +108,7 @@ import {
   type GetFriendsResponse,
   type Friendship,
 } from "@/shared/contracts";
+import { postIdempotent } from "@/lib/idempotencyKey";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -1865,7 +1866,7 @@ export default function CircleScreen() {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ content, clientMessageId, reply }: { content: string; clientMessageId: string; reply?: { messageId: string; userId: string; userName: string; snippet: string } }) =>
-      api.post(`/api/circles/${id}/messages`, { content, clientMessageId, ...(reply ? { reply } : {}) }),
+      postIdempotent(`/api/circles/${id}/messages`, { content, clientMessageId, ...(reply ? { reply } : {}) }),
     onMutate: async ({ content, clientMessageId, reply }: { content: string; clientMessageId: string; reply?: { messageId: string; userId: string; userName: string; snippet: string } }) => {
       // Build optimistic message and insert into cache immediately
       const userId = session?.user?.id ?? "unknown";
