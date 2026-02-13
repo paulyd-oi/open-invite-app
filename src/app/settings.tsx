@@ -1090,6 +1090,8 @@ export default function SettingsScreen() {
     },
   });
 
+  const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+
   const updateWorkScheduleMutation = useMutation({
     mutationFn: (data: { dayOfWeek: number; isEnabled?: boolean; startTime?: string; endTime?: string; label?: string; block2StartTime?: string | null; block2EndTime?: string | null }) => {
       if (__DEV__ && (data.block2StartTime !== undefined || data.block2EndTime !== undefined)) {
@@ -1099,7 +1101,7 @@ export default function SettingsScreen() {
           block2EndTime: data.block2EndTime,
         });
       }
-      return api.put<{ schedule: WorkScheduleDay }>(`/api/work-schedule/${data.dayOfWeek}`, data);
+      return api.put<{ schedule: WorkScheduleDay }>(`/api/work-schedule/${data.dayOfWeek}`, { ...data, timezone: deviceTimezone });
     },
     onSuccess: (response) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1119,7 +1121,7 @@ export default function SettingsScreen() {
 
   const updateWorkSettingsMutation = useMutation({
     mutationFn: (data: { showOnCalendar: boolean }) =>
-      api.put<{ settings: WorkScheduleSettings }>("/api/work-schedule/settings", data),
+      api.put<{ settings: WorkScheduleSettings }>("/api/work-schedule/settings", { ...data, timezone: deviceTimezone }),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
