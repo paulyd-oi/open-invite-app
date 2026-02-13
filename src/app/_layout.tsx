@@ -57,7 +57,7 @@ const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
 Sentry.init({
   dsn: SENTRY_DSN,
-  enabled: !__DEV__ && !!SENTRY_DSN,
+enabled: !__DEV__ && !!SENTRY_DSN,
   release: `${Constants.expoConfig?.version ?? "unknown"} (${Constants.expoConfig?.ios?.buildNumber ?? "0"})`,
   environment: __DEV__ ? "development" : "production",
   tracesSampleRate: 0.0,
