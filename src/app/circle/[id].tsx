@@ -18,6 +18,7 @@ import {
   ActionSheetIOS,
   Alert,
   AppState,
+  PanResponder,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
   type ViewToken,
@@ -442,6 +443,46 @@ function MiniCalendar({
   const [quietPreset, setQuietPreset] = useState<SuggestedHoursPreset>("default");
   const [showPresetPicker, setShowPresetPicker] = useState(false);
 
+  // [P0_DAY_DETAIL_SWIPE] Swipe left/right inside unified sheet to change day
+  const bestTimesDateRef = useRef(bestTimesDate);
+  bestTimesDateRef.current = bestTimesDate;
+  const swipeConsumedRef = useRef(false);
+
+  const daySwipePanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_evt, gs) => {
+      // Only claim horizontal swipes that clearly exceed vertical movement
+      return Math.abs(gs.dx) >= 40 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5;
+    },
+    onMoveShouldSetPanResponderCapture: () => false,
+    onPanResponderGrant: () => {
+      swipeConsumedRef.current = false;
+    },
+    onPanResponderMove: (_evt, gs) => {
+      if (swipeConsumedRef.current) return;
+      if (Math.abs(gs.dx) >= 40 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5) {
+        swipeConsumedRef.current = true;
+        const fromDate = bestTimesDateRef.current;
+        const toDate = new Date(fromDate);
+        const direction = gs.dx < 0 ? "left" : "right";
+        toDate.setDate(toDate.getDate() + (direction === "left" ? 1 : -1));
+        toDate.setHours(0, 0, 0, 0);
+        Haptics.selectionAsync().catch(() => {});
+        setBestTimesDate(toDate);
+        if (__DEV__) {
+          devLog('[P0_DAY_DETAIL_SWIPE]', {
+            circleId,
+            fromDate: fromDate.toISOString(),
+            toDate: toDate.toISOString(),
+            direction,
+          });
+        }
+      }
+    },
+    onPanResponderRelease: () => {
+      swipeConsumedRef.current = false;
+    },
+  }), [circleId]);
+
   // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule for busy-block SSOT
   const { data: workScheduleData } = useQuery({
     queryKey: ["workSchedule"],
@@ -863,43 +904,6 @@ function MiniCalendar({
             </View>
           </Pressable>
 
-          {/* Day selector chips — SSOT: sets bestTimesDate */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }} contentContainerStyle={{ paddingRight: 4 }}>
-            {Array.from({ length: 14 }, (_, i) => {
-              const d = new Date();
-              d.setHours(0, 0, 0, 0);
-              d.setDate(d.getDate() + i);
-              const isSelected = d.toDateString() === bestTimesDate.toDateString();
-              const dayAbbr = d.toLocaleDateString("en-US", { weekday: "short" });
-              const dayNum = d.getDate();
-              return (
-                <Pressable
-                  key={i}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    setBestTimesDate(d);
-                    setShowBestTimeSheet(true);
-                  }}
-                  style={{
-                    alignItems: "center",
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    marginRight: 5,
-                    borderRadius: 8,
-                    backgroundColor: isSelected
-                      ? (isDark ? themeColor + "30" : themeColor + "18")
-                      : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
-                    borderWidth: isSelected ? 1 : 0,
-                    borderColor: isSelected ? themeColor : "transparent",
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "500", color: isSelected ? themeColor : colors.textTertiary }}>{dayAbbr}</Text>
-                  <Text style={{ fontSize: 12, fontWeight: isSelected ? "700" : "500", color: isSelected ? themeColor : colors.text }}>{dayNum}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           {/* Unified Day Detail Sheet (events + who's free) */}
           <BottomSheet
             visible={showBestTimeSheet}
@@ -910,6 +914,9 @@ function MiniCalendar({
             backdropOpacity={0.45}
           >
             <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+              {/* [P0_DAY_DETAIL_SWIPE] Swipe wrapper for day change gesture */}
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <View {...daySwipePanResponder.panHandlers}>
 
               {/* ── Section 1: Open Events ──────────────────────── */}
               <DayDetailEventsSection
@@ -1189,6 +1196,7 @@ function MiniCalendar({
               <Text style={{ fontSize: 11, lineHeight: 15, color: colors.textTertiary, marginTop: 6, textAlign: "center" }}>
                 Suggested hours can be changed in Best time to meet.
               </Text>
+              </View>
             </ScrollView>
           </BottomSheet>
 
