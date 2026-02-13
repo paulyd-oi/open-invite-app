@@ -314,7 +314,7 @@ export default function AddFriendsScreen() {
                 ref={searchInputRef}
                 value={searchEmail}
                 onChangeText={setSearchEmail}
-                placeholder="Name, email, or phone"
+                placeholder="Search by name, email, or phone"
                 placeholderTextColor={colors.textTertiary}
                 autoCapitalize="none"
                 className="flex-1 py-3 px-2"

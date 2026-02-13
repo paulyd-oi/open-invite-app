@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Open Invite",
+    "description": "Open Invite is a social calendar for making plans with friends—discover events, RSVP, chat in circles, and keep everything organized in one place.",
     "slug": "open-invite",
     "scheme": "open-invite",
     "version": "1.0.0",
