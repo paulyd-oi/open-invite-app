@@ -61,7 +61,6 @@ import {
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
-import DayAgendaSheet from "@/components/DayAgendaSheet";
 import { UserListRow } from "@/components/UserListRow";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
@@ -138,6 +137,276 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 // Mini Calendar Component (similar to FeedCalendar)
+
+// Event type used in DayDetailEventsSection
+type DayDetailEvent = {
+  id: string;
+  title: string;
+  emoji: string;
+  startTime: string;
+  endTime: string | null;
+  location: string | null;
+  userId: string;
+  color: string;
+  userName: string;
+  attendingMemberIds: string[];
+  isPrivate: boolean;
+  isBusy?: boolean;
+};
+
+/**
+ * DayDetailEventsSection – Section 1 of the unified Day Detail sheet.
+ * Renders open events (visible + busy summary) for the selected day.
+ * Extracted from the old DayAgendaSheet children IIFE with zero logic changes.
+ */
+function DayDetailEventsSection({
+  events,
+  themeColor,
+  colors,
+  isDark,
+  circleId,
+  currentUserId,
+  members,
+  onClose,
+  router,
+  bestTimesDate,
+}: {
+  events: DayDetailEvent[];
+  themeColor: string;
+  colors: any;
+  isDark: boolean;
+  circleId: string;
+  currentUserId: string | null;
+  members: Circle["members"];
+  onClose: () => void;
+  router: ReturnType<typeof useRouter>;
+  bestTimesDate: Date;
+}) {
+  // Split events into masked-busy vs visible buckets
+  const maskedBusyEvents: DayDetailEvent[] = [];
+  const visibleEvents: DayDetailEvent[] = [];
+  for (const event of events) {
+    const viewerIsOwner = event.userId === currentUserId;
+    const maskedBusy = shouldMaskEvent(
+      { isBusy: event.isBusy, isWork: false, isOwn: viewerIsOwner },
+      viewerIsOwner
+    ) || (event.isPrivate && !viewerIsOwner);
+    if (maskedBusy) {
+      maskedBusyEvents.push(event);
+    } else {
+      visibleEvents.push(event);
+    }
+  }
+
+  // Group masked-busy events per person
+  const busyGroupMap = new Map<string, {
+    ownerName: string;
+    ranges: { start: string; end: string | null }[];
+  }>();
+  for (const ev of maskedBusyEvents) {
+    const key = ev.userId || ev.userName || "unknown";
+    if (!busyGroupMap.has(key)) {
+      busyGroupMap.set(key, {
+        ownerName: ev.userName || "Someone",
+        ranges: [],
+      });
+    }
+    busyGroupMap.get(key)!.ranges.push({
+      start: ev.startTime,
+      end: ev.endTime,
+    });
+  }
+  for (const group of busyGroupMap.values()) {
+    group.ranges.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  }
+  const busyGroups = Array.from(busyGroupMap.values());
+
+  // Time formatting helper
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
+  // All-day detection
+  const isAllDay = (start: string, end: string | null): boolean => {
+    if (!end) return false;
+    const s = new Date(start);
+    const e = new Date(end);
+    if (e.getTime() - s.getTime() >= 23.5 * 60 * 60 * 1000) return true;
+    const dayStart = new Date(bestTimesDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(bestTimesDate);
+    dayEnd.setHours(23, 59, 59, 999);
+    const EPSILON = 30 * 60 * 1000;
+    if (s.getTime() <= dayStart.getTime() + EPSILON && e.getTime() >= dayEnd.getTime() - EPSILON) return true;
+    return false;
+  };
+
+  const fmtRange = (r: { start: string; end: string | null }) => {
+    if (isAllDay(r.start, r.end)) return "All day";
+    return r.end ? `${fmtTime(r.start)}\u2013${fmtTime(r.end)}` : fmtTime(r.start);
+  };
+
+  const buildRangeString = (ranges: { start: string; end: string | null }[]) => {
+    const MAX_DISPLAY = 2;
+    const displayed = ranges.slice(0, MAX_DISPLAY).map(fmtRange);
+    const extra = ranges.length - MAX_DISPLAY;
+    return extra > 0
+      ? `${displayed.join(", ")} +${extra} more ${extra === 1 ? "block" : "blocks"}`
+      : displayed.join(", ");
+  };
+
+  if (events.length === 0) {
+    return (
+      <View style={{ marginBottom: 16 }}>
+        <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8 }}>
+          OPEN EVENTS
+        </Text>
+        <View style={{ alignItems: "center", paddingVertical: 16, borderRadius: 12, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
+          <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>No events on this day</Text>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              onClose();
+              router.push({ pathname: "/create", params: { date: bestTimesDate.toISOString(), circleId } } as any);
+            }}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 10,
+              backgroundColor: themeColor,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#fff" }}>Create Event</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8 }}>
+        OPEN EVENTS
+      </Text>
+      {/* Busy summary rows */}
+      {busyGroups.length > 0 && (
+        <>
+          <Text style={{
+            fontSize: 10,
+            fontWeight: "600",
+            letterSpacing: 1,
+            color: colors.textTertiary,
+            marginBottom: 6,
+            marginTop: 2,
+          }}>
+            BUSY BLOCKS
+          </Text>
+          {busyGroups.map((group, gIdx) => (
+            <View
+              key={`busy-group-${gIdx}`}
+              style={{
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 8,
+                backgroundColor: isDark ? "rgba(44,44,46,0.7)" : "rgba(249,250,251,0.8)",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: isDark ? "rgba(156,163,175,0.5)" : "rgba(156,163,175,0.6)" }} />
+                <Text style={{ fontWeight: "500", flex: 1, color: colors.textSecondary }} numberOfLines={1}>
+                  {`${group.ownerName} is busy`}
+                </Text>
+                <Lock size={12} color={colors.textTertiary} />
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4, marginLeft: 18 }} numberOfLines={1}>
+                {buildRangeString(group.ranges)}
+              </Text>
+            </View>
+          ))}
+        </>
+      )}
+
+      {/* Visible event rows */}
+      {visibleEvents.map((event, index) => (
+        <Pressable
+          key={event.id}
+          onPress={() => {
+            if (__DEV__) {
+              devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
+                sourceSurface: 'circle-day-detail',
+                eventIdPrefix: event.id?.slice(0, 6),
+                hostIdPrefix: event.userId?.slice(0, 6),
+                isBusy: false,
+                viewerFriendOfHost: 'unknown',
+                decision: 'navigating_to_event_details',
+                reason: 'tap_allowed_event_will_gate',
+              });
+            }
+            const eventId = event.id;
+            if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
+              if (__DEV__) {
+                devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
+                  eventId: eventId ?? 'missing',
+                  eventTitle: event.title,
+                  circleId,
+                });
+              }
+              return;
+            }
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onClose();
+            router.push(`/event/${eventId}` as any);
+          }}
+        >
+          <Animated.View
+            entering={FadeInDown.delay((busyGroups.length + index) * 50).springify()}
+            style={{
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 8,
+              backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  marginRight: 8,
+                  backgroundColor: event.color || themeColor
+                }}
+              />
+              <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
+                {event.title}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.textTertiary }}>
+                {event.endTime
+                  ? `${fmtTime(event.startTime)} \u2013 ${fmtTime(event.endTime)}`
+                  : fmtTime(event.startTime)}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                {event.attendingMemberIds.length > 1
+                  ? `${event.attendingMemberIds.length} attending`
+                  : event.userName}
+              </Text>
+              {event.location && (
+                <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
+                  <MapPin size={10} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
+                    {event.location}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function MiniCalendar({
   memberEvents,
   members,
@@ -162,7 +431,6 @@ function MiniCalendar({
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showDayModal, setShowDayModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
@@ -375,6 +643,28 @@ function MiniCalendar({
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
+  // [P0_DAY_DETAIL_UNIFY] Events for the unified Day Detail sheet (keyed off bestTimesDate)
+  const dayDetailEvents = useMemo(() => {
+    return getEventsForDate(bestTimesDate).sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+  }, [bestTimesDate, getEventsForDate]);
+
+  // [P0_DAY_DETAIL_UNIFY] Proof log: once per sheet open or day change
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!showBestTimeSheet) return;
+    const everyoneFreeCount = quietSlots.filter(s => s.availableCount === s.totalMembers).length;
+    const partialCount = quietSlots.length - everyoneFreeCount;
+    devLog('[P0_DAY_DETAIL_UNIFY]', {
+      circleId,
+      selectedDate: bestTimesDate.toISOString(),
+      eventsCount: dayDetailEvents.length,
+      suggestedTimesCount: quietSlots.length,
+      freeLabelCounts: { everyoneFreeCount, partialCount },
+    });
+  }, [showBestTimeSheet, bestTimesDate, dayDetailEvents, quietSlots, circleId]);
+
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
 
@@ -413,15 +703,11 @@ function MiniCalendar({
   const handleDayPress = (day: number) => {
     Haptics.selectionAsync();
     const date = new Date(currentYear, currentMonth, day);
+    date.setHours(0, 0, 0, 0);
     setSelectedDate(date);
-    setShowDayModal(true);
+    setBestTimesDate(date);
+    setShowBestTimeSheet(true);
   };
-
-  const selectedDateEvents = selectedDate
-    ? getEventsForDate(selectedDate).sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      )
-    : [];
 
   return (
     <View className="rounded-xl mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 10 }}>
@@ -614,16 +900,35 @@ function MiniCalendar({
             })}
           </ScrollView>
 
-          {/* Best Time to Meet Sheet */}
+          {/* Unified Day Detail Sheet (events + who's free) */}
           <BottomSheet
             visible={showBestTimeSheet}
             onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
-            title="Best time to meet"
+            title={bestTimesDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
             heightPct={0}
-            maxHeightPct={0.75}
+            maxHeightPct={0.85}
             backdropOpacity={0.45}
           >
             <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+
+              {/* ── Section 1: Open Events ──────────────────────── */}
+              <DayDetailEventsSection
+                events={dayDetailEvents}
+                themeColor={themeColor}
+                colors={colors}
+                isDark={isDark}
+                circleId={circleId}
+                currentUserId={currentUserId}
+                members={members}
+                onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
+                router={router}
+                bestTimesDate={bestTimesDate}
+              />
+
+              {/* ── Section 2: Who's Free ───────────────────────── */}
+              <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8, marginTop: 4 }}>
+                WHO{"\u2019"}S FREE
+              </Text>
               <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 8 }}>
                 Based on availability shared in this circle
               </Text>
@@ -972,242 +1277,6 @@ function MiniCalendar({
         ))}
       </View>
 
-      {/* Day Agenda – SSOT shared sheet */}
-      <DayAgendaSheet
-        visible={showDayModal}
-        onClose={() => setShowDayModal(false)}
-        selectedDate={selectedDate}
-        eventCount={selectedDateEvents.length}
-        themeColor={themeColor}
-      >
-        {(() => {
-          // PART B — Split events into masked-busy vs visible buckets
-          const maskedBusyEvents: typeof selectedDateEvents = [];
-          const visibleEvents: typeof selectedDateEvents = [];
-          for (const event of selectedDateEvents) {
-            const viewerIsOwner = event.userId === currentUserId;
-            const maskedBusy = shouldMaskEvent(
-              { isBusy: event.isBusy, isWork: false, isOwn: viewerIsOwner },
-              viewerIsOwner
-            ) || (event.isPrivate && !viewerIsOwner);
-            if (maskedBusy) {
-              maskedBusyEvents.push(event);
-            } else {
-              visibleEvents.push(event);
-            }
-          }
-
-          // PART C — Group masked-busy events per person
-          const busyGroupMap = new Map<string, {
-            ownerName: string;
-            ranges: { start: string; end: string | null }[];
-          }>();
-          for (const ev of maskedBusyEvents) {
-            const key = ev.userId || ev.userName || "unknown";
-            if (!busyGroupMap.has(key)) {
-              busyGroupMap.set(key, {
-                ownerName: ev.userName || "Someone",
-                ranges: [],
-              });
-            }
-            busyGroupMap.get(key)!.ranges.push({
-              start: ev.startTime,
-              end: ev.endTime,
-            });
-          }
-          // Sort each group's ranges by start time
-          for (const group of busyGroupMap.values()) {
-            group.ranges.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-          }
-          const busyGroups = Array.from(busyGroupMap.values());
-
-          // Time formatting helper
-          const fmtTime = (iso: string) =>
-            new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-
-          // All-day detection: treat as all-day if span covers essentially the whole selected day
-          const isAllDay = (start: string, end: string | null): boolean => {
-            if (!end) return false;
-            const s = new Date(start);
-            const e = new Date(end);
-            // Heuristic 1: duration >= 23h 30m
-            if (e.getTime() - s.getTime() >= 23.5 * 60 * 60 * 1000) return true;
-            // Heuristic 2: start <= startOfDay + 30min AND end >= endOfDay - 30min
-            if (selectedDate) {
-              const dayStart = new Date(selectedDate);
-              dayStart.setHours(0, 0, 0, 0);
-              const dayEnd = new Date(selectedDate);
-              dayEnd.setHours(23, 59, 59, 999);
-              const EPSILON = 30 * 60 * 1000; // 30 minutes
-              if (s.getTime() <= dayStart.getTime() + EPSILON && e.getTime() >= dayEnd.getTime() - EPSILON) return true;
-            }
-            return false;
-          };
-
-          const fmtRange = (r: { start: string; end: string | null }) => {
-            if (isAllDay(r.start, r.end)) return "All day";
-            return r.end ? `${fmtTime(r.start)}\u2013${fmtTime(r.end)}` : fmtTime(r.start);
-          };
-
-          const buildRangeString = (ranges: { start: string; end: string | null }[]) => {
-            const MAX_DISPLAY = 2;
-            const displayed = ranges.slice(0, MAX_DISPLAY).map(fmtRange);
-            const extra = ranges.length - MAX_DISPLAY;
-            return extra > 0
-              ? `${displayed.join(", ")} +${extra} more ${extra === 1 ? "block" : "blocks"}`
-              : displayed.join(", ");
-          };
-
-          // DEV proof logs
-          let allDayCount = 0;
-          let overflowCount = 0;
-          for (const g of busyGroups) {
-            allDayCount += g.ranges.filter(r => isAllDay(r.start, r.end)).length;
-            if (g.ranges.length > 2) overflowCount++;
-          }
-          if (__DEV__) {
-            devLog('[P0_BUSY_SUMMARY_POLISH]', {
-              groups: busyGroups.length,
-              allDayCount,
-              overflowCount,
-            });
-            if (busyGroups.length > 0) {
-              const first = busyGroups[0];
-              devLog('[P0_BUSY_SUMMARY_FMT]', { ownerName: first.ownerName, ranges: buildRangeString(first.ranges) });
-            }
-          }
-
-          return (
-            <>
-              {/* INV_BUSY_SUM_2/3: Per-person busy summary rows */}
-              {busyGroups.length > 0 && (
-                <>
-                  <Text style={{
-                    fontSize: 10,
-                    fontWeight: "600",
-                    letterSpacing: 1,
-                    color: colors.textTertiary,
-                    marginBottom: 6,
-                    marginTop: 2,
-                  }}>
-                    BUSY BLOCKS
-                  </Text>
-                  {busyGroups.map((group, gIdx) => (
-                    <View
-                      key={`busy-group-${gIdx}`}
-                      style={{
-                        borderRadius: 12,
-                        padding: 12,
-                        marginBottom: 8,
-                        backgroundColor: isDark ? "rgba(44,44,46,0.7)" : "rgba(249,250,251,0.8)",
-                      }}
-                    >
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: isDark ? "rgba(156,163,175,0.5)" : "rgba(156,163,175,0.6)" }} />
-                        <Text style={{ fontWeight: "500", flex: 1, color: colors.textSecondary }} numberOfLines={1}>
-                          {`${group.ownerName} is busy`}
-                        </Text>
-                        <Lock size={12} color={colors.textTertiary} />
-                      </View>
-                      <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4, marginLeft: 18 }} numberOfLines={1}>
-                        {buildRangeString(group.ranges)}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              {/* Visible (non-busy) event rows — unchanged behavior */}
-              {visibleEvents.map((event, index) => (
-                <Pressable
-                  key={event.id}
-                  onPress={() => {
-                    if (__DEV__) {
-                      devLog('[P0_VISIBILITY] Circle mini calendar tap navigating:', {
-                        sourceSurface: 'circle-mini',
-                        eventIdPrefix: event.id?.slice(0, 6),
-                        hostIdPrefix: event.userId?.slice(0, 6),
-                        isBusy: false,
-                        viewerFriendOfHost: 'unknown',
-                        decision: 'navigating_to_event_details',
-                        reason: 'tap_allowed_event_will_gate',
-                      });
-                    }
-                    const eventId = event.id;
-                    if (!eventId || typeof eventId !== 'string' || eventId.length < 10) {
-                      if (__DEV__) {
-                        devLog('[P0_CIRCLES_EVENT_GUARD] blocked navigation: invalid eventId', {
-                          eventId: eventId ?? 'missing',
-                          eventTitle: event.title,
-                          circleId,
-                        });
-                      }
-                      return;
-                    }
-                    if (__DEV__) {
-                      devLog('[P0_CIRCLES_EVENT_TRACE]', {
-                        circleId,
-                        eventId,
-                        requestUrl: `/api/events/${eventId}`,
-                        eventTitle: event.title,
-                        isPrivate: event.isPrivate,
-                      });
-                    }
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowDayModal(false);
-                    router.push(`/event/${eventId}` as any);
-                  }}
-                >
-                  <Animated.View
-                    entering={FadeInDown.delay((busyGroups.length + index) * 50).springify()}
-                    style={{
-                      borderRadius: 12,
-                      padding: 12,
-                      marginBottom: 8,
-                      backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <View
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 5,
-                          marginRight: 8,
-                          backgroundColor: event.color || themeColor
-                        }}
-                      />
-                      <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
-                        {event.title}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: colors.textTertiary }}>
-                        {event.endTime
-                          ? `${fmtTime(event.startTime)} – ${fmtTime(event.endTime)}`
-                          : fmtTime(event.startTime)}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
-                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                        {event.attendingMemberIds.length > 1
-                          ? `${event.attendingMemberIds.length} attending`
-                          : event.userName}
-                      </Text>
-                      {event.location && (
-                        <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
-                          <MapPin size={10} color={colors.textTertiary} />
-                          <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
-                            {event.location}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </Animated.View>
-                </Pressable>
-              ))}
-            </>
-          );
-        })()}
-      </DayAgendaSheet>
     </View>
   );
 }
