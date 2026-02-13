@@ -19,6 +19,7 @@ import {
   Alert,
   AppState,
   PanResponder,
+  InteractionManager,
   type NativeSyntheticEvent,
   type NativeScrollEvent,
   type ViewToken,
@@ -435,6 +436,8 @@ function MiniCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
+  // [P0_ALL_AVAIL_FIX] Deferred render flag — avoids UI freeze on toggle
+  const [allAvailReady, setAllAvailReady] = useState(false);
   const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -649,6 +652,25 @@ function MiniCalendar({
       mergeWorkScheduleWindows(busyWindowsByUserId, currentUserId, workWindows);
     }
 
+    // [P0_ALL_AVAIL_FIX] Diagnostic: log per-member busy window counts so we
+    // can verify whether each member's work schedule is being counted.
+    if (__DEV__) {
+      const perMember: Record<string, { total: number; work: number }> = {};
+      for (const m of members) {
+        const wins = busyWindowsByUserId[m.userId] ?? [];
+        perMember[m.userId] = {
+          total: wins.length,
+          work: wins.filter((w) => (w as any).source === "work_schedule").length,
+        };
+      }
+      devLog('[P0_ALL_AVAIL_FIX]', 'dateSchedule_busyDiag', {
+        date: bestTimesDate.toISOString(),
+        currentUserId,
+        workScheduleCount: workSchedules.length,
+        perMember,
+      });
+    }
+
     return computeSchedule({
       members: members.map((m) => ({ id: m.userId })),
       busyWindowsByUserId,
@@ -683,6 +705,24 @@ function MiniCalendar({
       membersTotal: members.length,
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
+
+  // [P0_ALL_AVAIL_FIX] Defer expanded slot render to next frame to prevent freeze
+  useEffect(() => {
+    if (!showAllAvailability) {
+      setAllAvailReady(false);
+      return;
+    }
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setAllAvailReady(true);
+    });
+    if (__DEV__) {
+      devLog('[P0_ALL_AVAIL_FIX]', 'expand_toggled', {
+        totalSlots: quietSlots.length,
+        memberCount: members.length,
+      });
+    }
+    return () => handle.cancel();
+  }, [showAllAvailability, quietSlots.length, members.length]);
 
   // [P0_DAY_DETAIL_UNIFY] Events for the unified Day Detail sheet (keyed off bestTimesDate)
   const dayDetailEvents = useMemo(() => {
@@ -1045,7 +1085,8 @@ function MiniCalendar({
                   <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
                     Recommended
                   </Text>
-                  {quietSlots.map((slot, idx) => {
+                  {/* [P0_ALL_AVAIL_FIX] Only show top 3 recommended slots — prevents all-slot render */}
+                  {quietSlots.slice(0, 3).map((slot, idx) => {
                     const slotDate = new Date(slot.start);
                     const endDate = new Date(slot.end);
                     const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -1108,8 +1149,11 @@ function MiniCalendar({
                     </Text>
                   </Pressable>
 
-                  {/* Expanded availability details */}
-                  {showAllAvailability && quietSlots.map((slot, idx) => {
+                  {/* [P0_ALL_AVAIL_FIX] Expanded availability details — deferred render to prevent freeze */}
+                  {showAllAvailability && !allAvailReady && (
+                    <ActivityIndicator size="small" color={themeColor} style={{ marginVertical: 12 }} />
+                  )}
+                  {showAllAvailability && allAvailReady && quietSlots.map((slot, idx) => {
                     const slotDate = new Date(slot.start);
                     const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
                     return (
