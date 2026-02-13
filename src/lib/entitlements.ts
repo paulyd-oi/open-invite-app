@@ -203,7 +203,7 @@ export type AnalyticsEvent =
   | "circle_mute_bulk";
 
 /**
- * Track analytics events (stub - can be connected to Amplitude/Mixpanel later)
+* Track analytics events (stub - can be connected to an analytics provider later)
  */
 export function trackAnalytics(
   event: AnalyticsEvent,
@@ -216,8 +216,7 @@ export function trackAnalytics(
 
   // TODO: Connect to real analytics provider
   // Examples:
-  // - Amplitude.logEvent(event, properties);
-  // - Mixpanel.track(event, properties);
+  // - provider.track(event, properties);
   // - PostHog.capture(event, properties);
 }
 
