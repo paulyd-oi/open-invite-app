@@ -217,6 +217,21 @@ export function computeSchedule(
 
   // [SCHED_INVAR_V1] Aggregate proof log: once per computeSchedule call
   if (__DEV__) {
+    // [P0_WORK_HOURS_BLOCK] Count work_schedule busy blocks per member
+    let totalWorkScheduleBlocks = 0;
+    const perMemberBusyCounts: Record<string, { total: number; workSchedule: number }> = {};
+    for (const m of members) {
+      const rawWindows = busyWindowsByUserId[m.id] ?? [];
+      const workCount = rawWindows.filter((w) => (w as any).source === "work_schedule").length;
+      totalWorkScheduleBlocks += workCount;
+      perMemberBusyCounts[m.id] = { total: rawWindows.length, workSchedule: workCount };
+    }
+    devLog('[P0_WORK_HOURS_BLOCK]', 'computeSchedule_proof', {
+      memberCount: totalMembers,
+      totalWorkScheduleBlocks,
+      perMemberBusyCounts,
+    });
+
     devLog('[SCHED_INVAR_V1]', 'compute_ok', {
       rangeStart,
       rangeEnd,

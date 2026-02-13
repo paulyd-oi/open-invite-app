@@ -28,6 +28,9 @@ import { useEntitlements, usePremiumStatusContract, canViewWhosFree, type Paywal
 import { devLog } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { Button } from "@/ui/Button";
+import { computeSchedule } from "@/lib/scheduling/engine";
+import type { BusyWindow } from "@/lib/scheduling/types";
+import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -346,25 +349,139 @@ export default function WhosFreeScreen() {
 
   const allFriends = allFriendsData?.friends ?? [];
 
-  // Fetch suggested times based on selected friends and date range
+  // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule for busy-block SSOT
+  const { data: workScheduleData } = useQuery({
+    queryKey: ["workSchedule"],
+    queryFn: () => api.get<{ schedules: WorkScheduleDay[] }>("/api/work-schedule"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+  });
+  const workSchedules = workScheduleData?.schedules ?? [];
+
+  // [P0_WORK_HOURS_BLOCK] Fetch each selected friend's events for client-side scheduling
   const {
-    data: suggestedTimesData,
-    isLoading: isLoadingSuggestions,
+    data: friendEventsData,
+    isLoading: isLoadingFriendEvents,
   } = useQuery({
-    queryKey: ["suggested-times", bestTimeFriendIds, startDate.toISOString(), endDate.toISOString()],
-    queryFn: () =>
-      api.post<GetSuggestedTimesResponse>("/api/events/suggested-times", {
-        friendIds: bestTimeFriendIds,
-        dateRange: {
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-        },
-        duration: 60,
-      }),
-    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0,
+    queryKey: ["best-time-friend-events", bestTimeFriendIds],
+    queryFn: async () => {
+      // Find friendshipId for each selected friendId
+      const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isBusy?: boolean; isWork?: boolean }> }> = [];
+      // Also include the current user as a "member"
+      if (session?.user?.id) {
+        const myRes = await api.get<{ createdEvents: any[]; goingEvents: any[] }>("/api/events/calendar");
+        const myEvents = [
+          ...(myRes.createdEvents ?? []),
+          ...(myRes.goingEvents ?? []),
+        ].map((e) => ({ startTime: e.startTime, endTime: e.endTime, isBusy: e.isBusy }));
+        results.push({ userId: session.user.id, events: myEvents });
+      }
+      // Fetch each friend's events
+      for (const friendId of bestTimeFriendIds) {
+        const friendship = allFriends.find((f) => f.friendId === friendId);
+        if (!friendship) continue;
+        try {
+          const res = await api.get<{ events: any[] }>(`/api/friends/${friendship.id}/events`);
+          results.push({
+            userId: friendId,
+            events: (res.events ?? []).map((e: any) => ({
+              startTime: e.startTime,
+              endTime: e.endTime,
+              isBusy: e.isBusy,
+              isWork: e.isWork,
+            })),
+          });
+        } catch {
+          // Friend events unavailable — treat as fully free
+          results.push({ userId: friendId, events: [] });
+        }
+      }
+      return results;
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0 && allFriends.length > 0,
   });
 
-  const suggestedSlots = suggestedTimesData?.slots ?? [];
+  // [P0_WORK_HOURS_BLOCK] Client-side scheduling engine (replaces backend suggested-times)
+  const { suggestedSlots, isLoadingSuggestions } = useMemo(() => {
+    if (!friendEventsData || friendEventsData.length === 0) {
+      return { suggestedSlots: [] as TimeSlot[], isLoadingSuggestions: isLoadingFriendEvents };
+    }
+
+    const rangeStart = startDate.toISOString();
+    const rangeEnd = endDate.toISOString();
+
+    // Build busy windows for all members (current user + selected friends)
+    const allMemberIds: string[] = [];
+    const busyWindowsByUserId: Record<string, BusyWindow[]> = {};
+
+    for (const member of friendEventsData) {
+      allMemberIds.push(member.userId);
+      const windows: BusyWindow[] = [];
+      for (const evt of member.events) {
+        const sMs = new Date(evt.startTime).getTime();
+        if (isNaN(sMs)) continue;
+        const endIso = evt.endTime ?? new Date(sMs + 60 * 60 * 1000).toISOString();
+        const eMs = new Date(endIso).getTime();
+        if (isNaN(eMs) || eMs <= sMs) continue;
+        windows.push({
+          start: evt.startTime,
+          end: endIso,
+          source: evt.isWork ? "work_schedule" : "event",
+        });
+      }
+      busyWindowsByUserId[member.userId] = windows;
+    }
+
+    // [P0_WORK_HOURS_BLOCK] Merge current user's work schedule as busy blocks
+    const currentUserId = session?.user?.id;
+    if (currentUserId && workSchedules.length > 0) {
+      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
+      if (!busyWindowsByUserId[currentUserId]) {
+        busyWindowsByUserId[currentUserId] = [];
+      }
+      busyWindowsByUserId[currentUserId] = busyWindowsByUserId[currentUserId].concat(workWindows);
+
+      if (__DEV__) {
+        devLog("[P0_WORK_HOURS_BLOCK]", "whos_free_work_merge", {
+          currentUserId,
+          workWindowsCount: workWindows.length,
+          totalBusyForUser: busyWindowsByUserId[currentUserId].length,
+        });
+      }
+    }
+
+    const result = computeSchedule({
+      members: allMemberIds.map((id) => ({ id })),
+      busyWindowsByUserId,
+      rangeStart,
+      rangeEnd,
+      intervalMinutes: 30,
+      slotDurationMinutes: 60,
+      maxTopSlots: 10,
+    });
+
+    if (!result) {
+      return { suggestedSlots: [] as TimeSlot[], isLoadingSuggestions: false };
+    }
+
+    // Map SchedulingSlotResult[] → TimeSlot[] for existing UI compatibility
+    const slots: TimeSlot[] = result.topSlots.map((slot) => ({
+      start: slot.start,
+      end: slot.end,
+      totalAvailable: slot.availableCount,
+      availableFriends: slot.availableUserIds
+        .filter((uid) => uid !== currentUserId)
+        .map((uid) => {
+          const friend = allFriends.find((f) => f.friendId === uid);
+          return {
+            id: uid,
+            name: friend?.friend.name ?? null,
+            image: friend?.friend.image ?? null,
+          };
+        }),
+    }));
+
+    return { suggestedSlots: slots, isLoadingSuggestions: false };
+  }, [friendEventsData, isLoadingFriendEvents, startDate, endDate, allFriends, workSchedules, session?.user?.id]);
 
   // Fetch circles for filter
   interface Circle {

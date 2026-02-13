@@ -42,9 +42,11 @@ import {
   type GetFriendsResponse,
   type Friendship,
   type CreateEventRequestResponse,
-  type GetSuggestedTimesResponse,
   type TimeSlot,
 } from "@/shared/contracts";
+import { computeSchedule } from "@/lib/scheduling/engine";
+import type { BusyWindow } from "@/lib/scheduling/types";
+import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 
 const EMOJI_OPTIONS = ["📅", "🏃", "🎬", "🎮", "💃", "🍽️", "☕", "🎉", "🏋️", "📚", "🎵", "⚽"];
 
@@ -135,21 +137,110 @@ export default function CreateEventRequestScreen() {
     return d;
   }, []);
 
-  const { data: suggestedTimesData, isLoading: isLoadingSuggestions } = useQuery({
-    queryKey: ["suggested-times", selectedFriendIds, startDate.toISOString()],
-    queryFn: () =>
-      api.post<GetSuggestedTimesResponse>("/api/events/suggested-times", {
-        friendIds: selectedFriendIds,
-        dateRange: {
-          start: new Date().toISOString(),
-          end: endDateRange.toISOString(),
-        },
-        duration: 60,
-      }),
-    enabled: isAuthedForNetwork(bootStatus, session) && selectedFriendIds.length > 0,
+  // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule
+  const { data: workScheduleData } = useQuery({
+    queryKey: ["workSchedule"],
+    queryFn: () => api.get<{ schedules: WorkScheduleDay[] }>("/api/work-schedule"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+  });
+  const workSchedules = workScheduleData?.schedules ?? [];
+
+  // [P0_WORK_HOURS_BLOCK] Fetch friend events for client-side computation
+  const {
+    data: friendEventsData,
+    isLoading: isLoadingFriendEvents,
+  } = useQuery({
+    queryKey: ["request-friend-events", selectedFriendIds],
+    queryFn: async () => {
+      const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isWork?: boolean }> }> = [];
+      if (session?.user?.id) {
+        const myRes = await api.get<{ createdEvents: any[]; goingEvents: any[] }>("/api/events/calendar");
+        const myEvents = [
+          ...(myRes.createdEvents ?? []),
+          ...(myRes.goingEvents ?? []),
+        ].map((e) => ({ startTime: e.startTime, endTime: e.endTime }));
+        results.push({ userId: session.user.id, events: myEvents });
+      }
+      for (const friendId of selectedFriendIds) {
+        const friendship = friends.find((f) => f.friendId === friendId);
+        if (!friendship) continue;
+        try {
+          const res = await api.get<{ events: any[] }>(`/api/friends/${friendship.id}/events`);
+          results.push({
+            userId: friendId,
+            events: (res.events ?? []).map((e: any) => ({
+              startTime: e.startTime,
+              endTime: e.endTime,
+              isWork: e.isWork,
+            })),
+          });
+        } catch {
+          results.push({ userId: friendId, events: [] });
+        }
+      }
+      return results;
+    },
+    enabled: isAuthedForNetwork(bootStatus, session) && selectedFriendIds.length > 0 && friends.length > 0,
   });
 
-  const suggestedSlots = suggestedTimesData?.slots ?? [];
+  // [P0_WORK_HOURS_BLOCK] Client-side scheduling
+  const { suggestedSlots, isLoadingSuggestions } = useMemo(() => {
+    if (!friendEventsData || friendEventsData.length === 0) {
+      return { suggestedSlots: [] as TimeSlot[], isLoadingSuggestions: isLoadingFriendEvents };
+    }
+
+    const rangeStart = new Date().toISOString();
+    const rangeEnd = endDateRange.toISOString();
+    const allMemberIds: string[] = [];
+    const busyWindowsByUserId: Record<string, BusyWindow[]> = {};
+
+    for (const member of friendEventsData) {
+      allMemberIds.push(member.userId);
+      const windows: BusyWindow[] = [];
+      for (const evt of member.events) {
+        const sMs = new Date(evt.startTime).getTime();
+        if (isNaN(sMs)) continue;
+        const endIso = evt.endTime ?? new Date(sMs + 60 * 60 * 1000).toISOString();
+        const eMs = new Date(endIso).getTime();
+        if (isNaN(eMs) || eMs <= sMs) continue;
+        windows.push({ start: evt.startTime, end: endIso, source: evt.isWork ? "work_schedule" : "event" });
+      }
+      busyWindowsByUserId[member.userId] = windows;
+    }
+
+    const currentUserId = session?.user?.id;
+    if (currentUserId && workSchedules.length > 0) {
+      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
+      if (!busyWindowsByUserId[currentUserId]) busyWindowsByUserId[currentUserId] = [];
+      busyWindowsByUserId[currentUserId] = busyWindowsByUserId[currentUserId].concat(workWindows);
+    }
+
+    const result = computeSchedule({
+      members: allMemberIds.map((id) => ({ id })),
+      busyWindowsByUserId,
+      rangeStart,
+      rangeEnd,
+      intervalMinutes: 30,
+      slotDurationMinutes: 60,
+      maxTopSlots: 10,
+    });
+
+    if (!result) return { suggestedSlots: [] as TimeSlot[], isLoadingSuggestions: false };
+
+    const mapped: TimeSlot[] = result.topSlots.map((slot) => ({
+      start: slot.start,
+      end: slot.end,
+      totalAvailable: slot.availableCount,
+      availableFriends: slot.availableUserIds
+        .filter((uid) => uid !== currentUserId)
+        .map((uid) => {
+          const friend = friends.find((f) => f.friendId === uid);
+          return { id: uid, name: friend?.friend.name ?? null, image: friend?.friend.image ?? null };
+        }),
+    }));
+
+    return { suggestedSlots: mapped, isLoadingSuggestions: false };
+  }, [friendEventsData, isLoadingFriendEvents, endDateRange, friends, workSchedules, session?.user?.id]);
 
   const toggleFriend = (friendId: string) => {
     Haptics.selectionAsync();

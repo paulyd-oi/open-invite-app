@@ -6,10 +6,15 @@
  * INV-S4: Each slot returns transparent participation fields.
  */
 
+/** Canonical source of a busy window for analytics/debugging. */
+export type BusyWindowSource = "manual" | "event" | "work_schedule" | "import";
+
 /** A busy window for one user (ISO-8601 strings). */
 export interface BusyWindow {
   start: string; // ISOString
   end: string;   // ISOString
+  /** Optional: origin of this busy window (default "event"). */
+  source?: BusyWindowSource;
 }
 
 /** Input to the scheduling engine. */

@@ -88,6 +88,7 @@ import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canAddCircleMember, trackAnalytics, type PaywallContext } from "@/lib/entitlements";
 import { computeSchedule } from "@/lib/scheduling/engine";
 import { buildBusyWindowsFromMemberEvents } from "@/lib/scheduling/adapters";
+import { buildWorkScheduleBusyWindows, mergeWorkScheduleWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 import type { SchedulingSlotResult } from "@/lib/scheduling/types";
 import { formatSlotAvailability, formatSlotAvailabilityCompact, hasPerfectAvailability } from "@/lib/scheduling/format";
 import {
@@ -172,6 +173,14 @@ function MiniCalendar({
   });
   const [quietPreset, setQuietPreset] = useState<SuggestedHoursPreset>("default");
   const [showPresetPicker, setShowPresetPicker] = useState(false);
+
+  // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule for busy-block SSOT
+  const { data: workScheduleData } = useQuery({
+    queryKey: ["workSchedule"],
+    queryFn: () => api.get<{ schedules: WorkScheduleDay[] }>("/api/work-schedule"),
+    enabled: !!currentUserId,
+  });
+  const workSchedules = workScheduleData?.schedules ?? [];
 
   // Load persisted suggested-hours preset on mount
   useEffect(() => {
@@ -298,6 +307,12 @@ function MiniCalendar({
     // Build busy windows from memberEvents via SSOT adapter
     const busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
 
+    // [P0_WORK_HOURS_BLOCK] Merge current user's work schedule as busy blocks
+    if (currentUserId && workSchedules.length > 0) {
+      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
+      mergeWorkScheduleWindows(busyWindowsByUserId, currentUserId, workWindows);
+    }
+
     return computeSchedule({
       members: members.map((m) => ({ id: m.userId })),
       busyWindowsByUserId,
@@ -307,7 +322,7 @@ function MiniCalendar({
       slotDurationMinutes: 60,
       maxTopSlots: 1000, // Return all slots so per-day dot indicators can be derived
     });
-  }, [memberEvents, members]);
+  }, [memberEvents, members, workSchedules, currentUserId]);
 
   // Per-date availability for the "Best time to meet" sheet
   const dateScheduleResult = useMemo(() => {
@@ -316,6 +331,15 @@ function MiniCalendar({
     const dayEnd = new Date(bestTimesDate);
     dayEnd.setHours(23, 59, 59, 999);
     const busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
+
+    // [P0_WORK_HOURS_BLOCK] Merge current user's work schedule as busy blocks
+    if (currentUserId && workSchedules.length > 0) {
+      const rangeStart = dayStart.toISOString();
+      const rangeEnd = dayEnd.toISOString();
+      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
+      mergeWorkScheduleWindows(busyWindowsByUserId, currentUserId, workWindows);
+    }
+
     return computeSchedule({
       members: members.map((m) => ({ id: m.userId })),
       busyWindowsByUserId,
@@ -325,7 +349,7 @@ function MiniCalendar({
       slotDurationMinutes: 60,
       maxTopSlots: 1000, // Parity with 14-day pool — prevents false-empty after suggested-hours filter
     });
-  }, [memberEvents, members, bestTimesDate]);
+  }, [memberEvents, members, bestTimesDate, workSchedules, currentUserId]);
 
   // Suggested hours filter + social ranking via SSOT (src/lib/quietHours.ts)
   const quietWindow = getSuggestedHoursForPreset(quietPreset);

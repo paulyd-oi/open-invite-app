@@ -20,6 +20,8 @@ const DEFAULT_BUSY_DURATION_MS = 60 * 60 * 1000;
 export interface AdapterMemberEvent {
   startTime: string;
   endTime: string | null;
+  /** When true the event originated from a work schedule. */
+  isWork?: boolean;
 }
 
 /**
@@ -58,7 +60,11 @@ export function buildBusyWindowsFromMemberEvents(
       // Skip invalid window: end must be after start
       if (endMs <= startMs) continue;
 
-      windows.push({ start: evt.startTime, end: endIso });
+      windows.push({
+        start: evt.startTime,
+        end: endIso,
+        source: evt.isWork ? "work_schedule" : "event",
+      });
     }
 
     result[group.userId] = windows;
