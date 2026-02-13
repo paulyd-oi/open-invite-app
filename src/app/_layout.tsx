@@ -50,6 +50,20 @@ import { p15, once } from '@/lib/runtimeInvariants';
 import { maybeTriggerInvariantsOnce, maybeRunScenarioOnce } from '@/lib/devStress';
 import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
 import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime/wsClient';
+import * as Sentry from "@sentry/react-native";
+import Constants from "expo-constants";
+
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+
+Sentry.init({
+  dsn: SENTRY_DSN,
+  enabled: !__DEV__ && !!SENTRY_DSN,
+  release: `${Constants.expoConfig?.version ?? "unknown"} (${Constants.expoConfig?.ios?.buildNumber ?? "0"})`,
+  environment: __DEV__ ? "development" : "production",
+  tracesSampleRate: 0.0,
+  sendDefaultPii: false,
+});
+
 
 // [P0_QUERY_STALENESS_VISUALIZER] DEV-only overlay
 const QueryDebugOverlay = __DEV__

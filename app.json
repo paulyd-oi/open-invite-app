@@ -70,7 +70,8 @@
       "expo-asset",
       "expo-video",
       "expo-web-browser",
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true
