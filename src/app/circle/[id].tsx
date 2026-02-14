@@ -425,11 +425,17 @@ const SlotDetailRow = React.memo(function SlotDetailRow({
   item,
   textColor,
   tertiaryColor,
+  firstRowTsRef,
 }: {
   item: SlotDetailItem;
   textColor: string;
   tertiaryColor: string;
+  firstRowTsRef?: React.MutableRefObject<number>;
 }) {
+  // [P0_DAYDETAIL_DETAILS_VIRT] Latch first-row render timestamp
+  if (firstRowTsRef && firstRowTsRef.current === 0) {
+    firstRowTsRef.current = Date.now();
+  }
   return (
     <View style={{ marginBottom: 12, paddingHorizontal: 4 }}>
       <Text style={{ fontSize: 12, fontWeight: "600", color: textColor, marginBottom: 4 }}>
@@ -796,31 +802,44 @@ function MiniCalendar({
     });
   }, [quietSlots, members]);
 
-  // [P0_ALL_AVAIL_VLIST] DEV proof log — fires once per expand action via ref latch
+  // [P0_DAYDETAIL_DETAILS_VIRT] DEV proof log with timing probe — fires once per expand
   const vlistLogLatchRef = useRef(false);
+  const expandTapTsRef = useRef(0);
+  const firstRowTsRef = useRef(0);
   useEffect(() => {
     if (!showAllAvailability) {
       vlistLogLatchRef.current = false;
+      expandTapTsRef.current = 0;
+      firstRowTsRef.current = 0;
       return;
     }
     if (vlistLogLatchRef.current) return;
     vlistLogLatchRef.current = true;
     if (__DEV__) {
       const dayKey = bestTimesDate.toISOString().slice(0, 10);
-      devLog('[P0_ALL_AVAIL_VLIST]', {
-        circleId,
-        dayKey,
-        slotCount: slotDetailItems.length,
-        memberCount: members.length,
-        initialNumToRender: 8,
-        windowSize: 5,
+      // Defer so firstRowTsRef has time to be set by first render
+      requestAnimationFrame(() => {
+        const firstRowPaintMs = firstRowTsRef.current > 0 && expandTapTsRef.current > 0
+          ? firstRowTsRef.current - expandTapTsRef.current
+          : -1;
+        devLog('[P0_DAYDETAIL_DETAILS_VIRT]', {
+          circleId,
+          dayKey,
+          memberCount: members.length,
+          detailsRowCount: slotDetailItems.length,
+          listType: 'FlatList',
+          initialNumToRender: 10,
+          maxToRenderPerBatch: 8,
+          windowSize: 5,
+          firstRowPaintMs,
+        });
       });
     }
   }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId]);
 
-  // [P0_ALL_AVAIL_VLIST] Stable renderItem callback for FlatList
+  // [P0_DAYDETAIL_DETAILS_VIRT] Stable renderItem callback for the single-scroll FlatList
   const renderSlotDetailRow = useCallback(({ item }: { item: SlotDetailItem }) => (
-    <SlotDetailRow item={item} textColor={colors.text} tertiaryColor={colors.textTertiary} />
+    <SlotDetailRow item={item} textColor={colors.text} tertiaryColor={colors.textTertiary} firstRowTsRef={firstRowTsRef} />
   ), [colors.text, colors.textTertiary]);
 
   const slotDetailKeyExtractor = useCallback((item: SlotDetailItem) => item.key, []);
@@ -1075,7 +1094,18 @@ function MiniCalendar({
             maxHeightPct={0.85}
             backdropOpacity={0.45}
           >
-            <ScrollView style={{ paddingHorizontal: 16, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+            <FlatList
+              data={showAllAvailability ? slotDetailItems : []}
+              renderItem={renderSlotDetailRow}
+              keyExtractor={slotDetailKeyExtractor}
+              initialNumToRender={10}
+              maxToRenderPerBatch={8}
+              windowSize={5}
+              removeClippedSubviews={true}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+              ListHeaderComponent={
+              <>
               {/* [P0_DAY_DETAIL_SWIPE] Swipe wrapper for day change gesture */}
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <View {...daySwipePanResponder.panHandlers}>
@@ -1263,56 +1293,17 @@ function MiniCalendar({
 
                   {/* View all toggle */}
                   <Pressable
-                    onPress={() => setShowAllAvailability(!showAllAvailability)}
+                    onPress={() => {
+                      expandTapTsRef.current = Date.now();
+                      firstRowTsRef.current = 0;
+                      setShowAllAvailability(!showAllAvailability);
+                    }}
                     style={{ paddingVertical: 10, alignItems: "center" }}
                   >
                     <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
                       {showAllAvailability ? "Hide details" : "View all availability"}
                     </Text>
                   </Pressable>
-
-                  {/* [P0_ALL_AVAIL_VLIST] Expanded availability details — virtualized FlatList */}
-                  {showAllAvailability && (
-                    <FlatList
-                      data={slotDetailItems}
-                      renderItem={renderSlotDetailRow}
-                      keyExtractor={slotDetailKeyExtractor}
-                      initialNumToRender={8}
-                      maxToRenderPerBatch={8}
-                      windowSize={5}
-                      removeClippedSubviews={true}
-                      scrollEnabled={false}
-                      nestedScrollEnabled
-                    />
-                  )}
-
-                  {/* Create event at best time — uses quietBestSlot (filtered) */}
-                  {quietBestSlot && <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                      setShowBestTimeSheet(false);
-                      setShowAllAvailability(false);
-                      const best = quietBestSlot;
-                      const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
-                      router.push({
-                        pathname: "/create",
-                        params: {
-                          date: best.start,
-                          circleId: circleId,
-                          duration: String(durationMin),
-                        },
-                      } as any);
-                    }}
-                    style={{
-                      marginTop: 12,
-                      paddingVertical: 14,
-                      borderRadius: 12,
-                      backgroundColor: themeColor,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
-                  </Pressable>}
                 </>
               ) : (
                 <View style={{ alignItems: "center", paddingVertical: 24 }}>
@@ -1335,16 +1326,49 @@ function MiniCalendar({
                   </Pressable>
                 </View>
               )}
-
-              {/* Privacy disclaimer */}
-              <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
-                {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact. Times outside your suggested hours are hidden."}
-              </Text>
-              <Text style={{ fontSize: 11, lineHeight: 15, color: colors.textTertiary, marginTop: 6, textAlign: "center" }}>
-                Suggested hours can be changed in Best time to meet.
-              </Text>
               </View>
-            </ScrollView>
+              </>
+              }
+              ListFooterComponent={
+              <View style={{ paddingHorizontal: 0 }}>
+                {/* Create event at best time — uses quietBestSlot (filtered) */}
+                {quietBestSlot && <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                    setShowBestTimeSheet(false);
+                    setShowAllAvailability(false);
+                    const best = quietBestSlot;
+                    const durationMin = Math.round((new Date(best.end).getTime() - new Date(best.start).getTime()) / 60000);
+                    router.push({
+                      pathname: "/create",
+                      params: {
+                        date: best.start,
+                        circleId: circleId,
+                        duration: String(durationMin),
+                      },
+                    } as any);
+                  }}
+                  style={{
+                    marginTop: 12,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    backgroundColor: themeColor,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: "600", color: "#fff" }}>Create event at best time</Text>
+                </Pressable>}
+
+                {/* Privacy disclaimer */}
+                <Text style={{ fontSize: 12, lineHeight: 16, color: colors.textTertiary, marginTop: 16, textAlign: "center" }}>
+                  {"\u201CEveryone\u2019s free\u201D is based on availability shared in the app and may not always be exact. Times outside your suggested hours are hidden."}
+                </Text>
+                <Text style={{ fontSize: 11, lineHeight: 15, color: colors.textTertiary, marginTop: 6, textAlign: "center" }}>
+                  Suggested hours can be changed in Best time to meet.
+                </Text>
+              </View>
+              }
+            />
           </BottomSheet>
 
           {/* Slot Availability Bottom Sheet */}
