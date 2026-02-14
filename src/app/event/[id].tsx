@@ -125,11 +125,15 @@ import { getRsvpPhrase } from "@/lib/smartCopy";
 const openEventLocation = (event: any) => {
   const lat = event?.lat ?? event?.latitude ?? event?.latitude;
   const lng = event?.lng ?? event?.longitude ?? event?.longitude;
+  // Derive display string: priority ordering across possible field names
+  const label =
+    event?.location ?? event?.locationName ?? event?.address ??
+    event?.placeName ?? event?.venueName ?? event?.title;
 
   if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
-    openMaps({ lat: Number(lat), lng: Number(lng), label: event?.location ?? event?.title });
+    openMaps({ lat: Number(lat), lng: Number(lng), label });
   } else {
-    openMaps({ query: event?.location ?? event?.title });
+    openMaps({ query: label });
   }
 };
 
@@ -502,7 +506,7 @@ export default function EventDetailScreen() {
         title: event.title,
         startTime: event.startTime,
         endTime: event.endTime,
-        location: event.location,
+        location: event.location ?? (event as any).locationName ?? (event as any).address ?? (event as any).placeName ?? (event as any).venueName ?? null,
         description: event.description,
         emoji: event.emoji,
       });
@@ -546,7 +550,7 @@ export default function EventDetailScreen() {
         duplicate: "true",
         title: event.title,
         description: event.description ?? "",
-        location: event.location ?? "",
+        location: event.location ?? (event as any).locationName ?? (event as any).address ?? (event as any).placeName ?? (event as any).venueName ?? "",
         emoji: event.emoji,
         visibility: event.visibility,
         category: event.category ?? "",
@@ -1884,6 +1888,31 @@ export default function EventDetailScreen() {
         minute: "2-digit",
       });
 
+  // [P0_EVENT_LOCATION_RENDER] Derive locationDisplay with priority ordering.
+  // Accept any of: location, locationName, address, placeName, venueName.
+  const _ev = event as any;
+  const locationDisplay: string | null =
+    (typeof event.location === "string" && event.location.trim() ? event.location.trim() : null) ??
+    (typeof _ev.locationName === "string" && _ev.locationName.trim() ? _ev.locationName.trim() : null) ??
+    (typeof _ev.address === "string" && _ev.address.trim() ? _ev.address.trim() : null) ??
+    (typeof _ev.placeName === "string" && _ev.placeName.trim() ? _ev.placeName.trim() : null) ??
+    (typeof _ev.venueName === "string" && _ev.venueName.trim() ? _ev.venueName.trim() : null) ??
+    null;
+
+  // [P0_EVENT_LOCATION_RENDER] DEV-only proof log (once per mount)
+  if (__DEV__) {
+    devLog("[P0_EVENT_LOCATION_RENDER]", {
+      eventId: event.id,
+      rawLocation: event.location,
+      rawLocationName: _ev.locationName,
+      rawAddress: _ev.address,
+      rawPlaceName: _ev.placeName,
+      rawVenueName: _ev.venueName,
+      locationDisplay,
+      rowRenders: !!locationDisplay,
+    });
+  }
+
   // Hero banner URI — maps event photo → hero surface (no schema change)
   const eventBannerUri = resolveBannerUri({
     bannerPhotoUrl: event?.eventPhotoUrl ?? null,
@@ -2049,7 +2078,7 @@ export default function EventDetailScreen() {
             </View>
 
             {/* Location */}
-            {event.location && (
+            {locationDisplay && (
               <View className="py-3 border-t" style={{ borderColor: colors.border }}>
                 <Pressable
                   onPress={() => {
@@ -2061,7 +2090,7 @@ export default function EventDetailScreen() {
                   <MapPin size={20} color="#4ECDC4" />
                   <View className="ml-3 flex-1">
                     <Text className="text-sm" style={{ color: colors.textTertiary }}>Location</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>{event.location}</Text>
+                    <Text className="font-semibold" style={{ color: colors.text }}>{locationDisplay}</Text>
                   </View>
                   <ChevronRight
                     size={20}
@@ -3100,7 +3129,7 @@ export default function EventDetailScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowSyncModal(false);
-                  openGoogleCalendar(event);
+                  openGoogleCalendar({ ...event, location: locationDisplay });
                 }}
                 className="flex-row items-center px-5 py-4 border-b"
                 style={{ borderColor: colors.border }}
@@ -3124,7 +3153,7 @@ export default function EventDetailScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowSyncModal(false);
-                  addToDeviceCalendar(event, safeToast);
+                  addToDeviceCalendar({ ...event, location: locationDisplay }, safeToast);
                 }}
                 className="flex-row items-center px-5 py-4"
               >
@@ -3269,7 +3298,7 @@ export default function EventDetailScreen() {
                     onPress={() => {
                       setShowEventActionsSheet(false);
                       Haptics.selectionAsync();
-                      shareEvent(event);
+                      shareEvent({ ...event, location: locationDisplay });
                     }}
                   >
                     <View
