@@ -412,10 +412,11 @@ function DayDetailEventsSection({
 
 /**
  * SlotSummaryRow — cheap memoized row for the virtualized "View all availability" list.
- * Renders time label + "freeCount/totalMembers" + tiny dot cluster (no member names).
+ * Renders time label + human-readable availability label + tiny dot cluster (no member names).
  * Tap opens the existing Slot Availability BottomSheet with full member details.
  */
 type SlotDetailItem = {
+  kind: "slot";
   key: string;
   timeLabel: string;
   slotStartISO: string;
@@ -426,6 +427,29 @@ type SlotDetailItem = {
   availableUsers: Array<{ uid: string; name: string }>;
   unavailableUsers: Array<{ uid: string; name: string }>;
 };
+
+/** Section header items injected into the FlatList data array */
+type SectionHeaderItem = {
+  kind: "section-header";
+  key: string;
+  title: string;
+};
+
+/** Toggle row for showing/hiding limited times */
+type LimitedToggleItem = {
+  kind: "limited-toggle";
+  key: string;
+  showing: boolean;
+  count: number;
+};
+
+type AvailListItem = SlotDetailItem | SectionHeaderItem | LimitedToggleItem;
+
+/** Human-readable availability label: "Everyone free", "2 of 3 free", etc. */
+function freeLabel(freeCount: number, totalMembers: number): string {
+  if (freeCount === totalMembers) return "Everyone free";
+  return `${freeCount} of ${totalMembers} free`;
+}
 
 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP — static styles kept inline for tiny dot cluster */
 const SlotSummaryRow = React.memo(function SlotSummaryRow({
@@ -476,9 +500,9 @@ const SlotSummaryRow = React.memo(function SlotSummaryRow({
           />
         ))}
       </View>
-      {/* Right: freeCount/totalMembers */}
-      <Text style={{ fontSize: 13, fontWeight: "600", color: item.freeCount === item.totalMembers ? "#10B981" : textColor }}>
-        {item.freeCount}/{item.totalMembers}
+      {/* Right: human-readable availability label */}
+      <Text style={{ fontSize: 12, fontWeight: "600", color: item.freeCount === item.totalMembers ? "#10B981" : textColor }}>
+        {freeLabel(item.freeCount, item.totalMembers)}
       </Text>
     </Pressable>
   );
@@ -511,6 +535,7 @@ function MiniCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
+  const [showLimitedTimes, setShowLimitedTimes] = useState(false);
   const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -825,6 +850,7 @@ function MiniCalendar({
         const availSet = new Set(slot.availableUserIds);
         const memberStatuses = members.map((m) => availSet.has(m.userId));
         return {
+          kind: "slot" as const,
           key: slot.start,
           timeLabel,
           slotStartISO: slot.start,
@@ -837,7 +863,39 @@ function MiniCalendar({
       });
   }, [quietSlots, members]);
 
-  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] DEV proof logs — fires once per expand action
+  // [P0_DAYDETAIL_AVAIL_SECTIONS] Derived section arrays from slotDetailItems
+  const everyoneFreeItems = useMemo(() =>
+    slotDetailItems.filter((s) => s.freeCount === s.totalMembers),
+  [slotDetailItems]);
+  const almostItems = useMemo(() =>
+    slotDetailItems.filter((s) => s.freeCount === s.totalMembers - 1),
+  [slotDetailItems]);
+  const limitedItems = useMemo(() =>
+    slotDetailItems.filter((s) => s.freeCount <= s.totalMembers - 2),
+  [slotDetailItems]);
+
+  // Composite data array for the FlatList — section headers + slot rows + limited toggle
+  const sectionListData = useMemo((): AvailListItem[] => {
+    const items: AvailListItem[] = [];
+    if (everyoneFreeItems.length > 0) {
+      items.push({ kind: "section-header", key: "sh-everyone", title: "Everyone free" });
+      items.push(...everyoneFreeItems);
+    }
+    if (almostItems.length > 0) {
+      items.push({ kind: "section-header", key: "sh-almost", title: "Almost everyone" });
+      items.push(...almostItems);
+    }
+    if (limitedItems.length > 0) {
+      items.push({ kind: "limited-toggle", key: "lt-toggle", showing: showLimitedTimes, count: limitedItems.length });
+      if (showLimitedTimes) {
+        items.push({ kind: "section-header", key: "sh-limited", title: "Limited" });
+        items.push(...limitedItems);
+      }
+    }
+    return items;
+  }, [everyoneFreeItems, almostItems, limitedItems, showLimitedTimes]);
+
+  // DEV proof logs — fires once per expand action
   const vlistLogLatchRef = useRef(false);
   const expandTapTsRef = useRef(0);
   const firstRowTsRef = useRef(0);
@@ -853,16 +911,15 @@ function MiniCalendar({
     if (__DEV__) {
       const dayKey = bestTimesDate.toISOString().slice(0, 10);
       requestAnimationFrame(() => {
-        const firstRowPaintMs = firstRowTsRef.current > 0 && expandTapTsRef.current > 0
-          ? firstRowTsRef.current - expandTapTsRef.current
-          : -1;
-        // [P0_DAYDETAIL_AVAIL_EXPAND]
-        devLog('[P0_DAYDETAIL_AVAIL_EXPAND]', {
+        // [P0_DAYDETAIL_AVAIL_SECTIONS]
+        devLog('[P0_DAYDETAIL_AVAIL_SECTIONS]', {
           circleId,
           dayKey,
-          slotCount: slotDetailItems.length,
-          memberCount: members.length,
-          firstRowPaintMs,
+          totalMembers: members.length,
+          everyoneCount: everyoneFreeItems.length,
+          almostCount: almostItems.length,
+          limitedCount: limitedItems.length,
+          showLimitedTimes,
         });
         // [P0_DAYDETAIL_AVAIL_SORT_PROOF] — first 3 and last 3 slot starts to prove monotonic ordering
         const starts = slotDetailItems.map((s) => s.slotStartISO);
@@ -874,10 +931,41 @@ function MiniCalendar({
         });
       });
     }
-  }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId]);
+  }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId, everyoneFreeItems.length, almostItems.length, limitedItems.length, showLimitedTimes]);
 
-  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] Stable renderItem — SlotSummaryRow with onPress -> selectedSlot
-  const renderSlotSummaryRow = useCallback(({ item }: { item: SlotDetailItem }) => {
+  // Stable renderItem for clustered section list — handles slot rows, section headers, and limited toggle
+  const renderAvailListItem = useCallback(({ item }: { item: AvailListItem }) => {
+    if (item.kind === "section-header") {
+      return (
+        <Text style={{ fontSize: 11, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginTop: 14, marginBottom: 6, paddingHorizontal: 4 }}>
+          {item.title}
+        </Text>
+      );
+    }
+    if (item.kind === "limited-toggle") {
+      return (
+        <Pressable
+          onPress={() => {
+            const next = !item.showing;
+            if (__DEV__) {
+              devLog('[P0_DAYDETAIL_AVAIL_LIMITED_TOGGLE]', {
+                circleId,
+                dayKey: bestTimesDate.toISOString().slice(0, 10),
+                nextShowLimitedTimes: next,
+                limitedCount: item.count,
+              });
+            }
+            setShowLimitedTimes(next);
+          }}
+          style={{ paddingVertical: 10, alignItems: "center", marginTop: 8 }}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
+            {item.showing ? "Hide limited times" : `Show limited times (${item.count})`}
+          </Text>
+        </Pressable>
+      );
+    }
+    // kind === "slot"
     const handlePress = () => {
       if (__DEV__) {
         devLog('[P0_DAYDETAIL_AVAIL_ROW_TAP]', {
@@ -888,7 +976,6 @@ function MiniCalendar({
           totalMembers: item.totalMembers,
         });
       }
-      // Find the original SchedulingSlotResult to open existing Slot detail BottomSheet
       const original = quietSlots.find((s) => s.start === item.slotStartISO);
       if (original) setSelectedSlot(original);
     };
@@ -901,9 +988,9 @@ function MiniCalendar({
         firstRowTsRef={firstRowTsRef}
       />
     );
-  }, [colors.text, colors.textTertiary, circleId, bestTimesDate, quietSlots]);
+  }, [colors.text, colors.textTertiary, colors.textSecondary, circleId, bestTimesDate, quietSlots, themeColor]);
 
-  const slotDetailKeyExtractor = useCallback((item: SlotDetailItem) => item.key, []);
+  const availListKeyExtractor = useCallback((item: AvailListItem) => item.key, []);
 
   // [P0_DAY_DETAIL_UNIFY] Events for the unified Day Detail sheet (keyed off bestTimesDate)
   const dayDetailEvents = useMemo(() => {
@@ -1149,16 +1236,16 @@ function MiniCalendar({
           {/* Unified Day Detail Sheet (events + who's free) */}
           <BottomSheet
             visible={showBestTimeSheet}
-            onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
+            onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); }}
             title={bestTimesDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
             heightPct={0}
             maxHeightPct={0.85}
             backdropOpacity={0.45}
           >
             <FlatList
-              data={showAllAvailability ? slotDetailItems : []}
-              renderItem={renderSlotSummaryRow}
-              keyExtractor={slotDetailKeyExtractor}
+              data={showAllAvailability ? sectionListData : []}
+              renderItem={renderAvailListItem}
+              keyExtractor={availListKeyExtractor}
               initialNumToRender={10}
               maxToRenderPerBatch={8}
               windowSize={5}
@@ -1180,7 +1267,7 @@ function MiniCalendar({
                 circleId={circleId}
                 currentUserId={currentUserId}
                 members={members}
-                onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); }}
+                onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); }}
                 router={router}
                 bestTimesDate={bestTimesDate}
               />
