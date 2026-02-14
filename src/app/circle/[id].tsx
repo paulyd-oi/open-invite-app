@@ -411,25 +411,34 @@ function DayDetailEventsSection({
 }
 
 /**
- * SlotDetailRow — memoized row for the virtualized "View all availability" list.
- * Each row shows a time label + green/grey dots with member names.
+ * SlotSummaryRow — cheap memoized row for the virtualized "View all availability" list.
+ * Renders time label + "freeCount/totalMembers" + tiny dot cluster (no member names).
+ * Tap opens the existing Slot Availability BottomSheet with full member details.
  */
 type SlotDetailItem = {
   key: string;
   timeLabel: string;
+  slotStartISO: string;
+  freeCount: number;
+  totalMembers: number;
+  /** true = free, false = busy, one entry per member */
+  memberStatuses: boolean[];
   availableUsers: Array<{ uid: string; name: string }>;
   unavailableUsers: Array<{ uid: string; name: string }>;
 };
 
-const SlotDetailRow = React.memo(function SlotDetailRow({
+/* INVARIANT_ALLOW_INLINE_OBJECT_PROP — static styles kept inline for tiny dot cluster */
+const SlotSummaryRow = React.memo(function SlotSummaryRow({
   item,
   textColor,
   tertiaryColor,
+  onPress,
   firstRowTsRef,
 }: {
   item: SlotDetailItem;
   textColor: string;
   tertiaryColor: string;
+  onPress: () => void;
   firstRowTsRef?: React.MutableRefObject<number>;
 }) {
   // [P0_DAYDETAIL_DETAILS_VIRT] Latch first-row render timestamp
@@ -437,23 +446,41 @@ const SlotDetailRow = React.memo(function SlotDetailRow({
     firstRowTsRef.current = Date.now();
   }
   return (
-    <View style={{ marginBottom: 12, paddingHorizontal: 4 }}>
-      <Text style={{ fontSize: 12, fontWeight: "600", color: textColor, marginBottom: 4 }}>
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        marginBottom: 4,
+        borderRadius: 10,
+      }}
+    >
+      {/* Left: time label */}
+      <Text style={{ flex: 1, fontSize: 13, fontWeight: "500", color: textColor }}>
         {item.timeLabel}
       </Text>
-      {item.availableUsers.map((u) => (
-        <View key={u.uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
-          <Text style={{ fontSize: 12, color: textColor }}>{u.name}</Text>
-        </View>
-      ))}
-      {item.unavailableUsers.map((u) => (
-        <View key={u.uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tertiaryColor, marginRight: 8 }} />
-          <Text style={{ fontSize: 12, color: tertiaryColor }}>{u.name}</Text>
-        </View>
-      ))}
-    </View>
+      {/* Dot cluster — one tiny dot per member, green=free grey=busy */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
+        {item.memberStatuses.map((free, i) => (
+          <View
+            key={i}
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: 2.5,
+              backgroundColor: free ? "#10B981" : tertiaryColor,
+              marginLeft: i > 0 ? 2 : 0,
+            }}
+          />
+        ))}
+      </View>
+      {/* Right: freeCount/totalMembers */}
+      <Text style={{ fontSize: 13, fontWeight: "600", color: item.freeCount === item.totalMembers ? "#10B981" : textColor }}>
+        {item.freeCount}/{item.totalMembers}
+      </Text>
+    </Pressable>
   );
 });
 
@@ -784,25 +811,33 @@ function MiniCalendar({
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
-  // [P0_ALL_AVAIL_VLIST] Precompute slot detail items for virtualized FlatList
+  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] Precompute slot summary items — sorted ascending by slot start, cheap summary fields
   const slotDetailItems = useMemo((): SlotDetailItem[] => {
-    return quietSlots.map((slot, idx) => {
-      const slotDate = new Date(slot.start);
-      const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      const resolveName = (uid: string) => {
-        const m = members.find((mb) => mb.userId === uid);
-        return m?.user?.name ?? uid.slice(-6);
-      };
-      return {
-        key: `detail-${idx}`,
-        timeLabel,
-        availableUsers: slot.availableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
-        unavailableUsers: slot.unavailableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
-      };
-    });
+    const resolveName = (uid: string) => {
+      const m = members.find((mb) => mb.userId === uid);
+      return m?.user?.name ?? uid.slice(-6);
+    };
+    return [...quietSlots]
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .map((slot) => {
+        const slotDate = new Date(slot.start);
+        const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        const availSet = new Set(slot.availableUserIds);
+        const memberStatuses = members.map((m) => availSet.has(m.userId));
+        return {
+          key: slot.start,
+          timeLabel,
+          slotStartISO: slot.start,
+          freeCount: slot.availableCount,
+          totalMembers: slot.totalMembers,
+          memberStatuses,
+          availableUsers: slot.availableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
+          unavailableUsers: slot.unavailableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
+        };
+      });
   }, [quietSlots, members]);
 
-  // [P0_DAYDETAIL_DETAILS_VIRT] DEV proof log with timing probe — fires once per expand
+  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] DEV proof logs — fires once per expand action
   const vlistLogLatchRef = useRef(false);
   const expandTapTsRef = useRef(0);
   const firstRowTsRef = useRef(0);
@@ -817,30 +852,56 @@ function MiniCalendar({
     vlistLogLatchRef.current = true;
     if (__DEV__) {
       const dayKey = bestTimesDate.toISOString().slice(0, 10);
-      // Defer so firstRowTsRef has time to be set by first render
       requestAnimationFrame(() => {
         const firstRowPaintMs = firstRowTsRef.current > 0 && expandTapTsRef.current > 0
           ? firstRowTsRef.current - expandTapTsRef.current
           : -1;
-        devLog('[P0_DAYDETAIL_DETAILS_VIRT]', {
+        // [P0_DAYDETAIL_AVAIL_EXPAND]
+        devLog('[P0_DAYDETAIL_AVAIL_EXPAND]', {
           circleId,
           dayKey,
+          slotCount: slotDetailItems.length,
           memberCount: members.length,
-          detailsRowCount: slotDetailItems.length,
-          listType: 'FlatList',
-          initialNumToRender: 10,
-          maxToRenderPerBatch: 8,
-          windowSize: 5,
           firstRowPaintMs,
+        });
+        // [P0_DAYDETAIL_AVAIL_SORT_PROOF] — first 3 and last 3 slot starts to prove monotonic ordering
+        const starts = slotDetailItems.map((s) => s.slotStartISO);
+        devLog('[P0_DAYDETAIL_AVAIL_SORT_PROOF]', {
+          dayKey,
+          first: starts.slice(0, 3),
+          last: starts.slice(-3),
+          slotCount: starts.length,
         });
       });
     }
   }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId]);
 
-  // [P0_DAYDETAIL_DETAILS_VIRT] Stable renderItem callback for the single-scroll FlatList
-  const renderSlotDetailRow = useCallback(({ item }: { item: SlotDetailItem }) => (
-    <SlotDetailRow item={item} textColor={colors.text} tertiaryColor={colors.textTertiary} firstRowTsRef={firstRowTsRef} />
-  ), [colors.text, colors.textTertiary]);
+  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] Stable renderItem — SlotSummaryRow with onPress -> selectedSlot
+  const renderSlotSummaryRow = useCallback(({ item }: { item: SlotDetailItem }) => {
+    const handlePress = () => {
+      if (__DEV__) {
+        devLog('[P0_DAYDETAIL_AVAIL_ROW_TAP]', {
+          circleId,
+          dayKey: bestTimesDate.toISOString().slice(0, 10),
+          slotStart: item.slotStartISO,
+          freeCount: item.freeCount,
+          totalMembers: item.totalMembers,
+        });
+      }
+      // Find the original SchedulingSlotResult to open existing Slot detail BottomSheet
+      const original = quietSlots.find((s) => s.start === item.slotStartISO);
+      if (original) setSelectedSlot(original);
+    };
+    return (
+      <SlotSummaryRow
+        item={item}
+        textColor={colors.text}
+        tertiaryColor={colors.textTertiary}
+        onPress={handlePress}
+        firstRowTsRef={firstRowTsRef}
+      />
+    );
+  }, [colors.text, colors.textTertiary, circleId, bestTimesDate, quietSlots]);
 
   const slotDetailKeyExtractor = useCallback((item: SlotDetailItem) => item.key, []);
 
@@ -1096,7 +1157,7 @@ function MiniCalendar({
           >
             <FlatList
               data={showAllAvailability ? slotDetailItems : []}
-              renderItem={renderSlotDetailRow}
+              renderItem={renderSlotSummaryRow}
               keyExtractor={slotDetailKeyExtractor}
               initialNumToRender={10}
               maxToRenderPerBatch={8}
