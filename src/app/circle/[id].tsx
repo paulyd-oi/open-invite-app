@@ -464,20 +464,27 @@ function isoToTimeLabel(iso: string): string {
 
 /**
  * Merge contiguous slots with the same freeCount into time ranges.
- * Two slots are contiguous if nextSlot.start === prevSlot.end (exact ISO match)
- * and they share the same freeCount and totalMembers.
- * Input must be pre-sorted ascending by slotStartISO.
+ * Uses numeric timestamp comparison with 1-second tolerance instead of
+ * strict ISO string equality (which fails on format differences like
+ * trailing milliseconds or Z vs +00:00).
+ * Handles overlapping slots by extending the range end.
+ * Input is sorted ascending by slotStartISO before merging.
  */
 function mergeContiguousSlots(
   items: SlotDetailItem[],
   section: "everyone" | "almost" | "limited",
 ): RangeItem[] {
   if (items.length === 0) return [];
+  // Sort by numeric start time (defensive — should already be sorted)
+  const sorted = [...items].sort(
+    (a, b) => new Date(a.slotStartISO).getTime() - new Date(b.slotStartISO).getTime(),
+  );
   const ranges: RangeItem[] = [];
-  let rangeStart = items[0].slotStartISO;
-  let rangeEnd = items[0].slotEndISO;
-  let fc = items[0].freeCount;
-  let tm = items[0].totalMembers;
+  let rangeStart = sorted[0].slotStartISO;
+  let rangeEndMs = new Date(sorted[0].slotEndISO).getTime();
+  let rangeEnd = sorted[0].slotEndISO;
+  let fc = sorted[0].freeCount;
+  let tm = sorted[0].totalMembers;
   let slotCount = 1;
 
   const flush = () => {
@@ -498,16 +505,26 @@ function mergeContiguousSlots(
     });
   };
 
-  for (let i = 1; i < items.length; i++) {
-    const cur = items[i];
-    // Contiguous: next start == current range end, same freeCount/totalMembers
-    if (cur.slotStartISO === rangeEnd && cur.freeCount === fc && cur.totalMembers === tm) {
-      rangeEnd = cur.slotEndISO;
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    const curStartMs = new Date(cur.slotStartISO).getTime();
+    const curEndMs = new Date(cur.slotEndISO).getTime();
+    // Contiguous (within 1s tolerance) or overlapping, same availability
+    const isContiguous = Math.abs(rangeEndMs - curStartMs) < 1000;
+    const isOverlap = curStartMs <= rangeEndMs;
+    if ((isContiguous || isOverlap) && cur.freeCount === fc && cur.totalMembers === tm) {
+      // Extend range end to the later of the two
+      const newEndMs = Math.max(rangeEndMs, curEndMs);
+      if (newEndMs > rangeEndMs) {
+        rangeEndMs = newEndMs;
+        rangeEnd = cur.slotEndISO;
+      }
       slotCount++;
     } else {
       flush();
       rangeStart = cur.slotStartISO;
       rangeEnd = cur.slotEndISO;
+      rangeEndMs = curEndMs;
       fc = cur.freeCount;
       tm = cur.totalMembers;
       slotCount = 1;
@@ -945,6 +962,14 @@ function MiniCalendar({
           almostRanges: almostRanges.length,
           limitedRanges: limitedRanges.length,
           showLimitedTimes,
+        });
+        const allRanges = [...everyoneRanges, ...almostRanges, ...limitedRanges];
+        devLog('[P0_DAYDETAIL_RANGE_MERGE_PROOF]', {
+          dayKey,
+          inputSlotCount: slotDetailItems.length,
+          outputRangeCount: allRanges.length,
+          firstRangeStart: allRanges[0]?.rangeStartISO ?? null,
+          lastRangeEnd: allRanges[allRanges.length - 1]?.rangeEndISO ?? null,
         });
       });
     }
