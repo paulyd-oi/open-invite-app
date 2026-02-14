@@ -2352,6 +2352,21 @@ export default function CircleScreen() {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: circleKeys.single(id) });
 
+      // [P0_CHAT_BUMP_UI] Optimistically bump lastMessageAt in circles list so chat reorders to top
+      const nowISO = new Date().toISOString();
+      queryClient.setQueryData(circleKeys.all(), (old: any) => {
+        if (!old?.circles) return old;
+        return {
+          ...old,
+          circles: old.circles.map((c: any) =>
+            c.id === id ? { ...c, lastMessageAt: nowISO } : c
+          ),
+        };
+      });
+      if (__DEV__) {
+        devLog('[P0_CHAT_BUMP_UI]', { circleId: id, lastMessageAt: nowISO, source: 'send' });
+      }
+
       queryClient.setQueryData(
         circleKeys.single(id),
         (prev: any) => safeAppendMessage(prev, optimistic),

@@ -942,7 +942,18 @@ export default function FriendsScreen() {
     placeholderData: (prev: GetCirclesResponse | undefined) => prev, // [PERF_SWEEP] Keep circles visible during refetch
   });
 
-  const circles = circlesData?.circles ?? [];
+  const circlesRaw = circlesData?.circles ?? [];
+
+  // [P0_CHAT_BUMP_UI] Sort: pinned first, then by lastMessageAt desc (fallback updatedAt/createdAt)
+  const circles = useMemo(() => {
+    return [...circlesRaw].sort((a: any, b: any) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      const aTime = a.lastMessageAt ?? a.updatedAt ?? a.createdAt ?? '';
+      const bTime = b.lastMessageAt ?? b.updatedAt ?? b.createdAt ?? '';
+      return bTime > aTime ? 1 : bTime < aTime ? -1 : 0;
+    });
+  }, [circlesRaw]);
 
   // [P0_CIRCLE_LIST_REFRESH] SSOT: circle invalidation now handled by useLiveRefreshContract
   // (Removed duplicate useFocusEffect — refetchCircles is in refetchFns below)
