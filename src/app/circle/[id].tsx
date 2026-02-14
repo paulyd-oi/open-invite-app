@@ -410,6 +410,47 @@ function DayDetailEventsSection({
   );
 }
 
+/**
+ * SlotDetailRow — memoized row for the virtualized "View all availability" list.
+ * Each row shows a time label + green/grey dots with member names.
+ */
+type SlotDetailItem = {
+  key: string;
+  timeLabel: string;
+  availableUsers: Array<{ uid: string; name: string }>;
+  unavailableUsers: Array<{ uid: string; name: string }>;
+};
+
+const SlotDetailRow = React.memo(function SlotDetailRow({
+  item,
+  textColor,
+  tertiaryColor,
+}: {
+  item: SlotDetailItem;
+  textColor: string;
+  tertiaryColor: string;
+}) {
+  return (
+    <View style={{ marginBottom: 12, paddingHorizontal: 4 }}>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: textColor, marginBottom: 4 }}>
+        {item.timeLabel}
+      </Text>
+      {item.availableUsers.map((u) => (
+        <View key={u.uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
+          <Text style={{ fontSize: 12, color: textColor }}>{u.name}</Text>
+        </View>
+      ))}
+      {item.unavailableUsers.map((u) => (
+        <View key={u.uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tertiaryColor, marginRight: 8 }} />
+          <Text style={{ fontSize: 12, color: tertiaryColor }}>{u.name}</Text>
+        </View>
+      ))}
+    </View>
+  );
+});
+
 function MiniCalendar({
   memberEvents,
   members,
@@ -437,8 +478,6 @@ function MiniCalendar({
   const [selectedSlot, setSelectedSlot] = useState<SchedulingSlotResult | null>(null);
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
-  // [P0_ALL_AVAIL_FIX] Deferred render flag — avoids UI freeze on toggle
-  const [allAvailReady, setAllAvailReady] = useState(false);
   const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -739,23 +778,52 @@ function MiniCalendar({
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
-  // [P0_ALL_AVAIL_FIX] Defer expanded slot render to next frame to prevent freeze
+  // [P0_ALL_AVAIL_VLIST] Precompute slot detail items for virtualized FlatList
+  const slotDetailItems = useMemo((): SlotDetailItem[] => {
+    return quietSlots.map((slot, idx) => {
+      const slotDate = new Date(slot.start);
+      const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      const resolveName = (uid: string) => {
+        const m = members.find((mb) => mb.userId === uid);
+        return m?.user?.name ?? uid.slice(-6);
+      };
+      return {
+        key: `detail-${idx}`,
+        timeLabel,
+        availableUsers: slot.availableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
+        unavailableUsers: slot.unavailableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
+      };
+    });
+  }, [quietSlots, members]);
+
+  // [P0_ALL_AVAIL_VLIST] DEV proof log — fires once per expand action via ref latch
+  const vlistLogLatchRef = useRef(false);
   useEffect(() => {
     if (!showAllAvailability) {
-      setAllAvailReady(false);
+      vlistLogLatchRef.current = false;
       return;
     }
-    const handle = InteractionManager.runAfterInteractions(() => {
-      setAllAvailReady(true);
-    });
+    if (vlistLogLatchRef.current) return;
+    vlistLogLatchRef.current = true;
     if (__DEV__) {
-      devLog('[P0_ALL_AVAIL_FIX]', 'expand_toggled', {
-        totalSlots: quietSlots.length,
+      const dayKey = bestTimesDate.toISOString().slice(0, 10);
+      devLog('[P0_ALL_AVAIL_VLIST]', {
+        circleId,
+        dayKey,
+        slotCount: slotDetailItems.length,
         memberCount: members.length,
+        initialNumToRender: 8,
+        windowSize: 5,
       });
     }
-    return () => handle.cancel();
-  }, [showAllAvailability, quietSlots.length, members.length]);
+  }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId]);
+
+  // [P0_ALL_AVAIL_VLIST] Stable renderItem callback for FlatList
+  const renderSlotDetailRow = useCallback(({ item }: { item: SlotDetailItem }) => (
+    <SlotDetailRow item={item} textColor={colors.text} tertiaryColor={colors.textTertiary} />
+  ), [colors.text, colors.textTertiary]);
+
+  const slotDetailKeyExtractor = useCallback((item: SlotDetailItem) => item.key, []);
 
   // [P0_DAY_DETAIL_UNIFY] Events for the unified Day Detail sheet (keyed off bestTimesDate)
   const dayDetailEvents = useMemo(() => {
@@ -1203,39 +1271,20 @@ function MiniCalendar({
                     </Text>
                   </Pressable>
 
-                  {/* [P0_ALL_AVAIL_FIX] Expanded availability details — deferred render to prevent freeze */}
-                  {showAllAvailability && !allAvailReady && (
-                    <ActivityIndicator size="small" color={themeColor} style={{ marginVertical: 12 }} />
+                  {/* [P0_ALL_AVAIL_VLIST] Expanded availability details — virtualized FlatList */}
+                  {showAllAvailability && (
+                    <FlatList
+                      data={slotDetailItems}
+                      renderItem={renderSlotDetailRow}
+                      keyExtractor={slotDetailKeyExtractor}
+                      initialNumToRender={8}
+                      maxToRenderPerBatch={8}
+                      windowSize={5}
+                      removeClippedSubviews={true}
+                      scrollEnabled={false}
+                      nestedScrollEnabled
+                    />
                   )}
-                  {showAllAvailability && allAvailReady && quietSlots.map((slot, idx) => {
-                    const slotDate = new Date(slot.start);
-                    const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                    return (
-                      <View key={`detail-${idx}`} style={{ marginBottom: 12, paddingHorizontal: 4 }}>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.text, marginBottom: 4 }}>
-                          {timeLabel}
-                        </Text>
-                        {slot.availableUserIds.map((uid) => {
-                          const m = members.find((mb) => mb.userId === uid);
-                          return (
-                            <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981", marginRight: 8 }} />
-                              <Text style={{ fontSize: 12, color: colors.text }}>{m?.user?.name ?? uid.slice(-6)}</Text>
-                            </View>
-                          );
-                        })}
-                        {slot.unavailableUserIds.map((uid) => {
-                          const m = members.find((mb) => mb.userId === uid);
-                          return (
-                            <View key={uid} style={{ flexDirection: "row", alignItems: "center", marginBottom: 3 }}>
-                              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textTertiary, marginRight: 8 }} />
-                              <Text style={{ fontSize: 12, color: colors.textTertiary }}>{m?.user?.name ?? uid.slice(-6)}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    );
-                  })}
 
                   {/* Create event at best time — uses quietBestSlot (filtered) */}
                   {quietBestSlot && <Pressable
