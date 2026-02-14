@@ -106,6 +106,9 @@ export const eventSchema = z.object({
   goingCount: z.number().optional(), // Number of confirmed attendees
   isFull: z.boolean().optional(), // True if goingCount >= capacity
   viewerRsvpStatus: z.enum(["going", "not_going", "interested", "maybe"]).nullable().optional(), // Current viewer's RSVP
+  // Circle event metadata (present when visibility is circle_only)
+  circleId: z.string().nullable().optional(), // Circle this event belongs to
+  circleName: z.string().nullable().optional(), // Human-readable circle name for UI labels
 });
 export type Event = z.infer<typeof eventSchema>;
 

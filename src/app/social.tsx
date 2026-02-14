@@ -1058,6 +1058,7 @@ export default function SocialScreen() {
   }, []);
 
   // Discovery events: pure discovery (excludes going/interested/host)
+  // P0: Client-side safety net — also exclude circle-only events from social feed
   const discoveryEvents = useMemo(() => {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
@@ -1067,13 +1068,26 @@ export default function SocialScreen() {
     const attendingEventIds = new Set(attendingEvents.map(e => e.id));
     const viewerUserId = session?.user?.id;
 
-    return feedEvents.filter(event => {
+    let excludedCircleCount = 0;
+    const filtered = feedEvents.filter(event => {
       if (event.userId === viewerUserId) return false;
       if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
       if (myEventIds.has(event.id)) return false;
       if (attendingEventIds.has(event.id)) return false;
+      // Safety net: circle-only events must not appear in social/discover feed
+      if (event.visibility === 'circle_only' || (event.circleId && event.visibility !== 'all_friends')) {
+        excludedCircleCount++;
+        return false;
+      }
       return true;
     });
+    if (__DEV__) {
+      devLog('[P0_SOCIAL_OPEN_INVITES_FILTER]', {
+        renderedCount: filtered.length,
+        excludedCircleCount,
+      });
+    }
+    return filtered;
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // All events for calendar (includes my events + attending + discovery)

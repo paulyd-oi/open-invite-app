@@ -236,6 +236,16 @@ function EventCard({ event, index }: { event: Event; index: number }) {
               </View>
             </View>
 
+            {/* Circle source label */}
+            {(event.circleName || (event.circleId && event.visibility === "circle_only")) && (
+              <View className="flex-row items-center mb-1">
+                <Users size={12} color={themeColor} />
+                <Text className="text-xs ml-1 font-medium" style={{ color: themeColor }}>
+                  Circle{event.circleName ? ` \u2022 ${event.circleName}` : ''}
+                </Text>
+              </View>
+            )}
+
             {event.description && (
               <Text className="text-sm mb-2" style={{ color: colors.textSecondary }} numberOfLines={2}>
                 {event.description}
@@ -533,14 +543,29 @@ export default function UserProfileScreen() {
   const minuteTick = useMinuteTick(true);
 
   // Filter to only show upcoming events (exclude past - event still shows if endTime not yet passed)
+  // P0: Client-side safety net — exclude circle-only events from Open Invites
   const friendEvents = useMemo(() => {
     const events = friendEventsData?.events ?? [];
     const now = new Date();
-    return events.filter(event => {
+    let excludedCircleCount = 0;
+    const filtered = events.filter(event => {
       // Use endTime if available, otherwise fall back to startTime
       const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
-      return relevantTime >= now;
+      if (relevantTime < now) return false;
+      // Safety net: exclude circle-only events (backend should already omit, but be resilient)
+      if (event.visibility === "circle_only" || (event.circleId && event.visibility !== "all_friends")) {
+        excludedCircleCount++;
+        return false;
+      }
+      return true;
     });
+    if (__DEV__) {
+      devLog('[P0_PROFILE_OPEN_INVITES_FILTER]', {
+        renderedCount: filtered.length,
+        excludedCircleCount,
+      });
+    }
+    return filtered;
   }, [friendEventsData?.events, minuteTick]);
 
   // Send friend request mutation
