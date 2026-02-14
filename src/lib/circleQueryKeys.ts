@@ -34,6 +34,9 @@ export const circleKeys = {
   // Unread count
   unreadCount: () => ["circles", "unreadCount"] as const,
 
+  // Interval-based availability for a circle (SSOT for day-detail "Who's Free")
+  availability: (id: string, start: string, end: string) => ["circles", "availability", id, start, end] as const,
+
   // Availability summary for a circle
   availabilitySummary: (id: string) => ["circles", "availabilitySummary", id] as const,
 

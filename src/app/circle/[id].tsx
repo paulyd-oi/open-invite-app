@@ -109,6 +109,7 @@ import {
   type Circle,
   type GetFriendsResponse,
   type Friendship,
+  type GetCircleAvailabilityResponse,
 } from "@/shared/contracts";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { useCircleRealtime } from "@/lib/realtime/circleRealtime";
@@ -636,37 +637,69 @@ function MiniCalendar({
     });
   }, [memberEvents, members, workSchedules, currentUserId]);
 
-  // Per-date availability for the "Best time to meet" sheet
-  const dateScheduleResult = useMemo(() => {
+  // [P0_DAY_AVAIL_SOT] Compute stable date range strings for the selected day
+  const dayAvailRange = useMemo(() => {
     const dayStart = new Date(bestTimesDate);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(bestTimesDate);
     dayEnd.setHours(23, 59, 59, 999);
-    const busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
+    return { start: dayStart.toISOString(), end: dayEnd.toISOString() };
+  }, [bestTimesDate]);
 
-    // [P0_WORK_HOURS_BLOCK] Merge current user's work schedule as busy blocks
-    if (currentUserId && workSchedules.length > 0) {
-      const rangeStart = dayStart.toISOString();
-      const rangeEnd = dayEnd.toISOString();
-      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
-      mergeWorkScheduleWindows(busyWindowsByUserId, currentUserId, workWindows);
+  // [P0_DAY_AVAIL_SOT] Fetch interval-based availability from server (includes ALL members' work schedules)
+  const { data: dayAvailData } = useQuery({
+    queryKey: circleKeys.availability(circleId, dayAvailRange.start, dayAvailRange.end),
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams({ start: dayAvailRange.start, end: dayAvailRange.end });
+        return await api.get<GetCircleAvailabilityResponse>(
+          `/api/circles/${circleId}/availability?${params.toString()}`
+        );
+      } catch (e: any) {
+        if (__DEV__) devLog('[P0_DAY_AVAIL_SOT]', 'fetch_error', { status: e?.status ?? 'unknown' });
+        return null;
+      }
+    },
+    enabled: !!circleId && showBestTimeSheet,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  // Per-date availability for the "Best time to meet" sheet
+  // [P0_DAY_AVAIL_SOT] Uses /availability response as SSOT when available,
+  // falls back to client-side memberEvents when the query hasn't resolved yet.
+  const dateScheduleResult = useMemo(() => {
+    let busyWindowsByUserId: Record<string, import("@/lib/scheduling/types").BusyWindow[]>;
+
+    if (dayAvailData?.availability) {
+      // SSOT path: server-side busyTimes include ALL members' work schedules
+      busyWindowsByUserId = {};
+      for (const member of dayAvailData.availability) {
+        busyWindowsByUserId[member.userId] = member.busyTimes.map((bt) => ({
+          start: bt.start,
+          end: bt.end,
+        }));
+      }
+    } else {
+      // Fallback: client-side memberEvents + current user's work schedule only
+      busyWindowsByUserId = buildBusyWindowsFromMemberEvents(memberEvents);
+      if (currentUserId && workSchedules.length > 0) {
+        const workWindows = buildWorkScheduleBusyWindows(workSchedules, dayAvailRange.start, dayAvailRange.end);
+        mergeWorkScheduleWindows(busyWindowsByUserId, currentUserId, workWindows);
+      }
     }
 
-    // [P0_ALL_AVAIL_FIX] Diagnostic: log per-member busy window counts so we
-    // can verify whether each member's work schedule is being counted.
+    // [P0_ALL_AVAIL_FIX] Diagnostic: log per-member busy window counts
     if (__DEV__) {
-      const perMember: Record<string, { total: number; work: number }> = {};
+      const perMember: Record<string, { total: number }> = {};
       for (const m of members) {
         const wins = busyWindowsByUserId[m.userId] ?? [];
-        perMember[m.userId] = {
-          total: wins.length,
-          work: wins.filter((w) => (w as any).source === "work_schedule").length,
-        };
+        perMember[m.userId] = { total: wins.length };
       }
-      devLog('[P0_ALL_AVAIL_FIX]', 'dateSchedule_busyDiag', {
+      devLog('[P0_DAY_AVAIL_SOT]', 'dateSchedule_busyDiag', {
         date: bestTimesDate.toISOString(),
-        currentUserId,
-        workScheduleCount: workSchedules.length,
+        source: dayAvailData?.availability ? 'server_availability' : 'client_fallback',
+        memberCount: members.length,
         perMember,
       });
     }
@@ -674,13 +707,13 @@ function MiniCalendar({
     return computeSchedule({
       members: members.map((m) => ({ id: m.userId })),
       busyWindowsByUserId,
-      rangeStart: dayStart.toISOString(),
-      rangeEnd: dayEnd.toISOString(),
+      rangeStart: dayAvailRange.start,
+      rangeEnd: dayAvailRange.end,
       intervalMinutes: 30,
       slotDurationMinutes: 60,
-      maxTopSlots: 1000, // Parity with 14-day pool — prevents false-empty after suggested-hours filter
+      maxTopSlots: 1000,
     });
-  }, [memberEvents, members, bestTimesDate, workSchedules, currentUserId]);
+  }, [dayAvailData, memberEvents, members, bestTimesDate, workSchedules, currentUserId, dayAvailRange]);
 
   // Suggested hours filter + social ranking via SSOT (src/lib/quietHours.ts)
   const quietWindow = getSuggestedHoursForPreset(quietPreset);
@@ -731,20 +764,41 @@ function MiniCalendar({
     );
   }, [bestTimesDate, getEventsForDate]);
 
-  // [P0_DAY_DETAIL_UNIFY] Proof log: once per sheet open or day change
+  // [P0_DAY_AVAIL_SOT] Proof log: once per sheet open or day change
+  // Logs circleId, selectedDate, memberCount, per-member busyTimes counts,
+  // and confirms slot-level freeCount during evening window.
   useEffect(() => {
     if (!__DEV__) return;
     if (!showBestTimeSheet) return;
     const everyoneFreeCount = quietSlots.filter(s => s.availableCount === s.totalMembers).length;
     const partialCount = quietSlots.length - everyoneFreeCount;
-    devLog('[P0_DAY_DETAIL_UNIFY]', {
+
+    // Per-member busyTimes counts from SSOT (/availability) when available
+    const memberBusyDigest: Array<{ userId: string; busyTimesCount: number }> = [];
+    if (dayAvailData?.availability) {
+      for (const m of dayAvailData.availability.slice(0, 2)) {
+        memberBusyDigest.push({ userId: m.userId, busyTimesCount: m.busyTimes.length });
+      }
+    }
+
+    // Check evening window (17:00Z–22:00Z) for a slot with freeCount < memberCount
+    const eveningSlot = quietSlots.find((s) => {
+      const h = new Date(s.start).getUTCHours();
+      return h >= 17 && h < 22;
+    });
+
+    devLog('[P0_DAY_AVAIL_SOT]', {
       circleId,
       selectedDate: bestTimesDate.toISOString(),
-      eventsCount: dayDetailEvents.length,
-      suggestedTimesCount: quietSlots.length,
+      memberCount: members.length,
+      source: dayAvailData?.availability ? 'server_availability' : 'client_fallback',
+      memberBusyDigest,
       freeLabelCounts: { everyoneFreeCount, partialCount },
+      eveningProbe: eveningSlot
+        ? { start: eveningSlot.start, freeCount: eveningSlot.availableCount, totalMembers: eveningSlot.totalMembers }
+        : null,
     });
-  }, [showBestTimeSheet, bestTimesDate, dayDetailEvents, quietSlots, circleId]);
+  }, [showBestTimeSheet, bestTimesDate, dayDetailEvents, quietSlots, circleId, dayAvailData, members]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDayOfMonth = getFirstDayOfMonth(currentYear, currentMonth);
