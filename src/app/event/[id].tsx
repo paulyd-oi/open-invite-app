@@ -641,6 +641,8 @@ export default function EventDetailScreen() {
     : null;
   const _fbHostFirst: string = _fbHostName ? _fbHostName.split(' ')[0] : 'the host';
 
+  const _fbDenyReason: string | undefined = _is403Restricted ? errorBody?.denyReason : undefined;
+
   const fb = {
     restricted: !!_is403Restricted,
     hostId: _fbHostId,                       // string | undefined
@@ -648,6 +650,7 @@ export default function EventDetailScreen() {
     hostImage: _fbHostImage,                 // string | null
     hostFirst: _fbHostFirst,                 // first token or "the host"
     hostDisplayName: _fbHostName ?? 'the host',
+    denyReason: _fbDenyReason,               // "circle_only" | "friends_only" | undefined
   };
 
   // Legacy aliases — kept for copy that still references them
@@ -660,6 +663,7 @@ export default function EventDetailScreen() {
       devLog('[P0_EVENT_FRIEND_BOUNDARY_FETCH]', {
         status: eventErrorStatus,
         restricted: fb.restricted,
+        denyReason: fb.denyReason,
         hostId: fb.hostId,
         hostName: fb.hostName,
       });
@@ -1660,6 +1664,14 @@ export default function EventDetailScreen() {
           hostId: fb.hostId,
           hostName: fb.hostName,
           hasHostId,
+          denyReason: fb.denyReason,
+        });
+        devLog('[P0_CIRCLE_EVENT_AUTHZ]', {
+          eventId: id,
+          denyReason: fb.denyReason,
+          isCircleOnly: fb.denyReason === 'circle_only',
+          viewerIsMember: false,
+          allowed: false,
         });
         if (!hasHostId) {
           devLog('[P0_EVENT_FRIEND_BOUNDARY_HOSTID_MISSING]', {
@@ -1750,7 +1762,7 @@ export default function EventDetailScreen() {
                 className="text-xl font-semibold text-center"
                 style={{ color: colors.text, marginBottom: 8 }}
               >
-                Event details hidden
+                {fb.denyReason === "circle_only" ? "Circle-only event" : "Event details hidden"}
               </Text>
 
               {/* Line 3: body */}
@@ -1758,11 +1770,13 @@ export default function EventDetailScreen() {
                 className="text-center"
                 style={{ color: colors.textSecondary, lineHeight: 22, marginBottom: 28 }}
               >
-                {`Connect with ${fb.hostFirst} to see this event.`}
+                {fb.denyReason === "circle_only"
+                  ? "Join the circle to view this event."
+                  : `Connect with ${fb.hostFirst} to see this event.`}
               </Text>
 
               {/* CTA: View profile (primary) or fallback text */}
-              {hasHostId ? (
+              {fb.denyReason !== "circle_only" && hasHostId ? (
                 <View className="w-full">
                   <Button
                     variant="primary"
@@ -1770,14 +1784,14 @@ export default function EventDetailScreen() {
                     onPress={goToHostProfile}
                   />
                 </View>
-              ) : (
+              ) : fb.denyReason !== "circle_only" ? (
                 <Text
                   className="text-sm text-center"
                   style={{ color: colors.textTertiary }}
                 >
                   Profile unavailable right now.
                 </Text>
-              )}
+              ) : null}
             </View>
           </View>
         </SafeAreaView>
