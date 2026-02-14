@@ -692,10 +692,67 @@ export default function CreateEventScreen() {
     return () => clearTimeout(timeoutId);
   }, [locationQuery, userLocation, locationPermissionAsked, requestAndFetchLocation]);
 
+  /**
+   * Normalize a location string to prevent duplicated address segments.
+   * Example input:  "9355 Vervain Street, 9355 Vervain Street, Rancho Peñasquitos, San Diego"
+   * Example output: "9355 Vervain Street, Rancho Peñasquitos, San Diego"
+   */
+  const normalizeLocationString = (raw: string | null | undefined): string | null => {
+    if (!raw || typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    // Split on ", " into segments
+    const parts = trimmed.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+    if (parts.length < 2) return trimmed;
+
+    // Deduplicate: walk segments, skip any that duplicate the previous segment (case-insensitive)
+    const deduped: string[] = [parts[0]];
+    for (let i = 1; i < parts.length; i++) {
+      const prev = deduped[deduped.length - 1].toLowerCase();
+      const curr = parts[i].toLowerCase();
+      // Skip if exact dup or if previous already contains this segment
+      if (curr === prev || prev.includes(curr)) continue;
+      deduped.push(parts[i]);
+    }
+
+    return deduped.join(", ") || null;
+  };
+
+  /**
+   * Build a clean location string from a PlaceSuggestion.
+   * Prefers address (formatted_address) over fullAddress to avoid server-side
+   * name+address concatenation that causes duplication.
+   * If place.address looks like a real address (not a placeholder like "Nearby location"),
+   * use it. Otherwise fall back to fullAddress with dedup normalization.
+   */
+  const buildCleanLocation = (place: PlaceSuggestion): string => {
+    const isRealAddress = place.address &&
+      place.address !== "Use as custom location" &&
+      place.address !== "Nearby location" &&
+      place.address !== "Search nearby" &&
+      place.address !== "Downtown area" &&
+      place.address !== "At a restaurant";
+
+    if (isRealAddress) {
+      // Backend returns: name="Bonsai", address="9355 Vervain St, San Diego, CA"
+      // If name differs from the address start, compose "Name, Address"
+      const addrLC = place.address.toLowerCase();
+      const nameLC = place.name.toLowerCase();
+      if (nameLC && !addrLC.startsWith(nameLC) && nameLC !== addrLC) {
+        return normalizeLocationString(`${place.name}, ${place.address}`) ?? place.address;
+      }
+      return normalizeLocationString(place.address) ?? place.address;
+    }
+
+    // Fallback: use fullAddress with dedup normalization
+    return normalizeLocationString(place.fullAddress) ?? place.fullAddress;
+  };
+
   const handleSelectPlace = (place: PlaceSuggestion) => {
     Haptics.selectionAsync();
     setSelectedPlace(place);
-    setLocation(place.fullAddress);
+    setLocation(buildCleanLocation(place));
     setLocationQuery("");
     setShowLocationSearch(false);
     setPlaceSuggestions([]);
@@ -927,10 +984,23 @@ export default function CreateEventScreen() {
       }
     }
 
+    // Normalize location to prevent duplicated address segments at persist time
+    const _normalizedLocation = normalizeLocationString(location) ?? (location.trim() || undefined);
+
+    if (__DEV__) {
+      devLog("[P0_EVENT_CREATE_LOCATION_PAYLOAD]", {
+        rawLocationState: location,
+        normalizedLocation: _normalizedLocation,
+        selectedPlaceName: selectedPlace?.name,
+        selectedPlaceAddress: selectedPlace?.address,
+        selectedPlaceFullAddress: selectedPlace?.fullAddress,
+      });
+    }
+
     createMutation.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
-      location: location.trim() || undefined,
+      location: _normalizedLocation,
       emoji,
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),

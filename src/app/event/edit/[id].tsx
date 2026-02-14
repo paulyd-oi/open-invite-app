@@ -161,6 +161,28 @@ export default function EditEventScreen() {
     },
   });
 
+  /**
+   * Normalize a location string to prevent duplicated address segments.
+   */
+  const normalizeLocationString = (raw: string | null | undefined): string | undefined => {
+    if (!raw || typeof raw !== "string") return undefined;
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+
+    const parts = trimmed.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+    if (parts.length < 2) return trimmed;
+
+    const deduped: string[] = [parts[0]];
+    for (let i = 1; i < parts.length; i++) {
+      const prev = deduped[deduped.length - 1].toLowerCase();
+      const curr = parts[i].toLowerCase();
+      if (curr === prev || prev.includes(curr)) continue;
+      deduped.push(parts[i]);
+    }
+
+    return deduped.join(", ") || undefined;
+  };
+
   const handleSave = () => {
     if (!title.trim()) {
       safeToast.warning("Missing Title", "Please enter a title for your event.");
@@ -172,10 +194,21 @@ export default function EditEventScreen() {
       return;
     }
 
+    // Normalize location to fix any stored duplicated address segments
+    const _normalizedLocation = normalizeLocationString(location) ?? (location.trim() || undefined);
+
+    if (__DEV__) {
+      devLog("[P0_EVENT_CREATE_LOCATION_PAYLOAD]", {
+        rawLocationState: location,
+        normalizedLocation: _normalizedLocation,
+        context: "edit",
+      });
+    }
+
     updateMutation.mutate({
       title: title.trim(),
       description: description.trim() || undefined,
-      location: location.trim() || undefined,
+      location: _normalizedLocation,
       emoji,
       startTime: startDate.toISOString(),
       visibility,

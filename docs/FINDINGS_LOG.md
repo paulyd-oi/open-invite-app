@@ -1611,3 +1611,22 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - **All operations require userId**: completeStep, startGuide, dismissGuide, resetGuide check userId before mutating storage
 - **Implementation location**: `src/hooks/useOnboardingGuide.ts` (hook), `src/components/OnboardingGuideOverlay.tsx` (UI)
 - **Usage pattern**: `const guide = useOnboardingGuide(); guide.shouldShowStep("friends_tab")` returns true only if userId loaded + not completed + not loading
+
+## P0_EVENT_CREATE_LOCATION_NORMALIZE — Data-at-Creation Dedup Fix
+
+### Root Cause
+Backend `/api/places/search` builds `fullAddress` by concatenating `name + ", " + formatted_address`. When the place name equals the street portion of formatted_address, duplication occurs: "9355 Vervain Street, 9355 Vervain Street, Rancho Peñasquitos, San Diego, California".
+
+### Fix Applied
+1. **normalizeLocationString(s)**: Splits on `", "`, walks segments, skips any segment that is a case-insensitive duplicate of the previous segment. Returns cleaned string or null if no change.
+2. **buildCleanLocation(place)**: Smart place-to-string builder that prefers `place.address` (raw formatted_address) when it looks like a real address. Composes "Name, Address" only when name differs from address start. Always applies dedup normalization.
+3. **Create submit** (create.tsx): Applies `normalizeLocationString` to location state before mutation payload.
+4. **Edit save** (edit/[id].tsx): Applies `normalizeLocationString` to location state before mutation payload.
+5. **handleSelectPlace** (create.tsx): Uses `buildCleanLocation` instead of raw `place.fullAddress`.
+
+### DEV Proof Logs
+- `[P0_EVENT_CREATE_LOCATION_PAYLOAD]`: Fires once per create/edit submit with rawLocationState, normalizedLocation, selectedPlace fields.
+
+### Blast Radius
+- All `fullAddress` references confined to `src/app/create.tsx`. No other files compose location payloads.
+- Event detail render-side dedup (`locationDisplay`/`locationQuery` in `src/app/event/[id].tsx`) remains as defense-in-depth.

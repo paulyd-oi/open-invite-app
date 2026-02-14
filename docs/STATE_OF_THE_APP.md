@@ -342,12 +342,14 @@
 - Query gating across: calendar.tsx, profile.tsx, settings.tsx, friends.tsx
 - /api/auth/session 401 after signup - Fixed: welcome.tsx now uses authClient.signUp.email()
 - React Native drops uppercase Cookie header; now using lowercase 'cookie'
+- Event location normalization: normalizeLocationString dedup at create/edit submit, buildCleanLocation at place selection, prevents garbled "Street, Street, City" addresses
 
 ## Next Priority
 - TestFlight verification: Apple Sign-In flow on real device
 - TestFlight verification: Signup + photo upload + Continue flow stability
 
 ## Last Verified
+- 2026-02-10: P0_EVENT_CREATE_LOCATION_NORMALIZE — Fixed data-at-creation bug where duplicated addresses ("X, X, City, State") were stored. normalizeLocationString dedup at create submit, edit save, and handleSelectPlace via buildCleanLocation. DEV proof: [P0_EVENT_CREATE_LOCATION_PAYLOAD]
 - 2026-02-10: P0_IDEAS_FIRST_LOAD_FIX + P1_IDEAS_CARD_PREMIUM — Fixed blank Ideas tab on first load (data readiness gate: storageChecked + all queries isFetched). Premium card redesign: avatar + hero area + category pill + context chips + swipe hint. Accept routing: low_rsvp→event, reconnect/birthday/repeat→circle chat.
 - 2026-02-10: P1_IDEAS_ENGINE_V2 — Ideas engine overhaul: new SSOT src/lib/ideasEngine.ts with draftMessage, Suggestions screen now 2-tab (Ideas | People, Ideas default), accept action opens/creates circle chat with prefilled draft (never auto-send), persistence keyed by ideasDeck_YYYY_MM_DD
 - 2026-02-10: P1_SUGGESTIONS_SWIPE_DECK_V1 — Daily Ideas swipe deck on Suggestions screen (Ideas tab), SSOT in src/lib/suggestionsDeck.ts, 4 rules (low-RSVP events, reconnect, birthday, repeat), AsyncStorage daily persistence
