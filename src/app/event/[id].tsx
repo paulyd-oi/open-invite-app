@@ -122,18 +122,21 @@ import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/h
 import { getRsvpPhrase } from "@/lib/smartCopy";
 
 // Helper to open event location using the shared utility
-const openEventLocation = (event: any) => {
-  const lat = event?.lat ?? event?.latitude ?? event?.latitude;
-  const lng = event?.lng ?? event?.longitude ?? event?.longitude;
-  // Derive display string: priority ordering across possible field names
-  const label =
-    event?.location ?? event?.locationName ?? event?.address ??
-    event?.placeName ?? event?.venueName ?? event?.title;
+// Accepts pre-computed query + optional event for lat/lng coords.
+const openEventLocation = (query: string, event?: any, eventId?: string) => {
+  try {
+    const lat = event?.lat ?? event?.latitude;
+    const lng = event?.lng ?? event?.longitude;
 
-  if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
-    openMaps({ lat: Number(lat), lng: Number(lng), label });
-  } else {
-    openMaps({ query: label });
+    if (lat != null && lng != null && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng))) {
+      openMaps({ lat: Number(lat), lng: Number(lng), label: query });
+    } else {
+      openMaps({ query });
+    }
+  } catch (error: any) {
+    if (__DEV__) {
+      devError("[P0_EVENT_LOCATION_OPEN_FAIL]", { eventId, locationQuery: query, error: error?.message ?? error });
+    }
   }
 };
 
@@ -506,7 +509,7 @@ export default function EventDetailScreen() {
         title: event.title,
         startTime: event.startTime,
         endTime: event.endTime,
-        location: event.location ?? (event as any).locationName ?? (event as any).address ?? (event as any).placeName ?? (event as any).venueName ?? null,
+        location: locationDisplay,
         description: event.description,
         emoji: event.emoji,
       });
@@ -550,7 +553,7 @@ export default function EventDetailScreen() {
         duplicate: "true",
         title: event.title,
         description: event.description ?? "",
-        location: event.location ?? (event as any).locationName ?? (event as any).address ?? (event as any).placeName ?? (event as any).venueName ?? "",
+        location: locationDisplay ?? "",
         emoji: event.emoji,
         visibility: event.visibility,
         category: event.category ?? "",
@@ -1888,28 +1891,58 @@ export default function EventDetailScreen() {
         minute: "2-digit",
       });
 
-  // [P0_EVENT_LOCATION_RENDER] Derive locationDisplay with priority ordering.
-  // Accept any of: location, locationName, address, placeName, venueName.
+  // [P0_EVENT_LOCATION_NORMALIZE] Derive locationDisplay (UI) + locationQuery (maps).
+  // Dedup rule: if one string contains the other, keep the longer one.
   const _ev = event as any;
-  const locationDisplay: string | null =
-    (typeof event.location === "string" && event.location.trim() ? event.location.trim() : null) ??
-    (typeof _ev.locationName === "string" && _ev.locationName.trim() ? _ev.locationName.trim() : null) ??
-    (typeof _ev.address === "string" && _ev.address.trim() ? _ev.address.trim() : null) ??
-    (typeof _ev.placeName === "string" && _ev.placeName.trim() ? _ev.placeName.trim() : null) ??
-    (typeof _ev.venueName === "string" && _ev.venueName.trim() ? _ev.venueName.trim() : null) ??
-    null;
+  const _str = (v: unknown): string | null =>
+    typeof v === "string" && v.trim() ? v.trim() : null;
 
-  // [P0_EVENT_LOCATION_RENDER] DEV-only proof log (once per mount)
+  const _rawLocation  = _str(event.location);
+  const _rawName      = _str(_ev.locationName);
+  const _rawAddress   = _str(_ev.address);
+  const _rawPlace     = _str(_ev.placeName);
+  const _rawVenue     = _str(_ev.venueName);
+
+  // Collapse repeated commas / excess whitespace in any raw value
+  const _clean = (s: string): string =>
+    s.replace(/,{2,}/g, ",").replace(/\s{2,}/g, " ").replace(/^[,\s]+|[,\s]+$/g, "");
+
+  let locationDisplay: string | null = null;
+  let locationQuery: string | null = null;
+
+  // Priority: if we have a name AND an address, compose "Name — Address" with dedup.
+  const _name = _rawName ?? _rawPlace ?? _rawVenue;
+  const _addr = _rawAddress;
+
+  if (_name && _addr) {
+    // Dedup: if one fully contains the other, keep the longer one
+    const nameLC = _name.toLowerCase();
+    const addrLC = _addr.toLowerCase();
+    if (addrLC.includes(nameLC)) {
+      locationDisplay = _clean(_addr);
+    } else if (nameLC.includes(addrLC)) {
+      locationDisplay = _clean(_name);
+    } else {
+      locationDisplay = _clean(`${_name} \u2014 ${_addr}`);
+    }
+  } else if (_rawLocation) {
+    locationDisplay = _clean(_rawLocation);
+  } else {
+    locationDisplay = _name ? _clean(_name) : _addr ? _clean(_addr) : null;
+  }
+
+  // Query for maps: prefer raw address (best geocoding), else fall back to display
+  locationQuery = _addr ?? locationDisplay;
+
+  // [P0_EVENT_LOCATION_NORMALIZE] DEV-only proof log
   if (__DEV__) {
-    devLog("[P0_EVENT_LOCATION_RENDER]", {
+    devLog("[P0_EVENT_LOCATION_NORMALIZE]", {
       eventId: event.id,
       rawLocation: event.location,
       rawLocationName: _ev.locationName,
       rawAddress: _ev.address,
-      rawPlaceName: _ev.placeName,
-      rawVenueName: _ev.venueName,
       locationDisplay,
-      rowRenders: !!locationDisplay,
+      locationQuery,
     });
   }
 
@@ -2083,7 +2116,7 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync();
-                    openEventLocation(event);
+                    openEventLocation(locationQuery ?? locationDisplay, event, event.id);
                   }}
                   className="flex-row items-center"
                 >
@@ -2104,7 +2137,7 @@ export default function EventDetailScreen() {
                   <Pressable
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      openEventLocation(event);
+                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
                     }}
                     className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
                     style={{
@@ -3129,7 +3162,7 @@ export default function EventDetailScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowSyncModal(false);
-                  openGoogleCalendar({ ...event, location: locationDisplay });
+                  openGoogleCalendar({ ...event, location: locationDisplay ?? null });
                 }}
                 className="flex-row items-center px-5 py-4 border-b"
                 style={{ borderColor: colors.border }}
@@ -3153,7 +3186,7 @@ export default function EventDetailScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   setShowSyncModal(false);
-                  addToDeviceCalendar({ ...event, location: locationDisplay }, safeToast);
+                  addToDeviceCalendar({ ...event, location: locationDisplay ?? null }, safeToast);
                 }}
                 className="flex-row items-center px-5 py-4"
               >
@@ -3298,7 +3331,7 @@ export default function EventDetailScreen() {
                     onPress={() => {
                       setShowEventActionsSheet(false);
                       Haptics.selectionAsync();
-                      shareEvent({ ...event, location: locationDisplay });
+                      shareEvent({ ...event, location: locationDisplay ?? null });
                     }}
                   >
                     <View
