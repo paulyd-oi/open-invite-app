@@ -411,21 +411,27 @@ function DayDetailEventsSection({
 }
 
 /**
- * SlotSummaryRow — cheap memoized row for the virtualized "View all availability" list.
- * Renders time label + human-readable availability label + tiny dot cluster (no member names).
- * Tap opens the existing Slot Availability BottomSheet with full member details.
+ * Slot detail item — internal representation of a single scheduling slot.
+ * Used for building merged time ranges.
  */
 type SlotDetailItem = {
-  kind: "slot";
-  key: string;
-  timeLabel: string;
   slotStartISO: string;
+  slotEndISO: string;
   freeCount: number;
   totalMembers: number;
-  /** true = free, false = busy, one entry per member */
-  memberStatuses: boolean[];
-  availableUsers: Array<{ uid: string; name: string }>;
-  unavailableUsers: Array<{ uid: string; name: string }>;
+};
+
+/** Merged contiguous time range for the expanded availability list */
+type RangeItem = {
+  kind: "range";
+  key: string;
+  rangeStartISO: string;
+  rangeEndISO: string;
+  rangeLabel: string;
+  freeCount: number;
+  totalMembers: number;
+  representativeSlotStartISO: string;
+  section: "everyone" | "almost" | "limited";
 };
 
 /** Section header items injected into the FlatList data array */
@@ -443,7 +449,7 @@ type LimitedToggleItem = {
   count: number;
 };
 
-type AvailListItem = SlotDetailItem | SectionHeaderItem | LimitedToggleItem;
+type AvailListItem = RangeItem | SectionHeaderItem | LimitedToggleItem;
 
 /** Human-readable availability label: "Everyone free", "2 of 3 free", etc. */
 function freeLabel(freeCount: number, totalMembers: number): string {
@@ -451,24 +457,77 @@ function freeLabel(freeCount: number, totalMembers: number): string {
   return `${freeCount} of ${totalMembers} free`;
 }
 
-/* INVARIANT_ALLOW_INLINE_OBJECT_PROP — static styles kept inline for tiny dot cluster */
-const SlotSummaryRow = React.memo(function SlotSummaryRow({
+/** Format ISO time to local display (e.g. "5:30 PM") */
+function isoToTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+/**
+ * Merge contiguous slots with the same freeCount into time ranges.
+ * Two slots are contiguous if nextSlot.start === prevSlot.end (exact ISO match)
+ * and they share the same freeCount and totalMembers.
+ * Input must be pre-sorted ascending by slotStartISO.
+ */
+function mergeContiguousSlots(
+  items: SlotDetailItem[],
+  section: "everyone" | "almost" | "limited",
+): RangeItem[] {
+  if (items.length === 0) return [];
+  const ranges: RangeItem[] = [];
+  let rangeStart = items[0].slotStartISO;
+  let rangeEnd = items[0].slotEndISO;
+  let fc = items[0].freeCount;
+  let tm = items[0].totalMembers;
+  let slotCount = 1;
+
+  const flush = () => {
+    const startLabel = isoToTimeLabel(rangeStart);
+    const rangeLabel = slotCount === 1
+      ? startLabel
+      : `${startLabel} \u2013 ${isoToTimeLabel(rangeEnd)}`;
+    ranges.push({
+      kind: "range",
+      key: `${section}:${rangeStart}:${rangeEnd}`,
+      rangeStartISO: rangeStart,
+      rangeEndISO: rangeEnd,
+      rangeLabel,
+      freeCount: fc,
+      totalMembers: tm,
+      representativeSlotStartISO: rangeStart,
+      section,
+    });
+  };
+
+  for (let i = 1; i < items.length; i++) {
+    const cur = items[i];
+    // Contiguous: next start == current range end, same freeCount/totalMembers
+    if (cur.slotStartISO === rangeEnd && cur.freeCount === fc && cur.totalMembers === tm) {
+      rangeEnd = cur.slotEndISO;
+      slotCount++;
+    } else {
+      flush();
+      rangeStart = cur.slotStartISO;
+      rangeEnd = cur.slotEndISO;
+      fc = cur.freeCount;
+      tm = cur.totalMembers;
+      slotCount = 1;
+    }
+  }
+  flush();
+  return ranges;
+}
+
+/** RangeRow — cheap memoized row for merged time ranges. No dot cluster, no member names. */
+const RangeRow = React.memo(function RangeRow({
   item,
   textColor,
-  tertiaryColor,
   onPress,
-  firstRowTsRef,
 }: {
-  item: SlotDetailItem;
+  item: RangeItem;
   textColor: string;
-  tertiaryColor: string;
   onPress: () => void;
-  firstRowTsRef?: React.MutableRefObject<number>;
 }) {
-  // [P0_DAYDETAIL_DETAILS_VIRT] Latch first-row render timestamp
-  if (firstRowTsRef && firstRowTsRef.current === 0) {
-    firstRowTsRef.current = Date.now();
-  }
+  const isEveryone = item.freeCount === item.totalMembers;
   return (
     <Pressable
       onPress={onPress}
@@ -481,27 +540,10 @@ const SlotSummaryRow = React.memo(function SlotSummaryRow({
         borderRadius: 10,
       }}
     >
-      {/* Left: time label */}
       <Text style={{ flex: 1, fontSize: 13, fontWeight: "500", color: textColor }}>
-        {item.timeLabel}
+        {item.rangeLabel}
       </Text>
-      {/* Dot cluster — one tiny dot per member, green=free grey=busy */}
-      <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
-        {item.memberStatuses.map((free, i) => (
-          <View
-            key={i}
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: 2.5,
-              backgroundColor: free ? "#10B981" : tertiaryColor,
-              marginLeft: i > 0 ? 2 : 0,
-            }}
-          />
-        ))}
-      </View>
-      {/* Right: human-readable availability label */}
-      <Text style={{ fontSize: 12, fontWeight: "600", color: item.freeCount === item.totalMembers ? "#10B981" : textColor }}>
+      <Text style={{ fontSize: 12, fontWeight: "600", color: isEveryone ? "#10B981" : textColor }}>
         {freeLabel(item.freeCount, item.totalMembers)}
       </Text>
     </Pressable>
@@ -836,66 +878,51 @@ function MiniCalendar({
     });
   }, [showBestTimeSheet, bestTimesDate, dateScheduleResult, quietSlots, quietWindow, quietPreset, members]);
 
-  // [P0_DAYDETAIL_AVAIL_UI_COMPRESS] Precompute slot summary items — sorted ascending by slot start, cheap summary fields
+  // Precompute slot detail items — sorted ascending by slot start
   const slotDetailItems = useMemo((): SlotDetailItem[] => {
-    const resolveName = (uid: string) => {
-      const m = members.find((mb) => mb.userId === uid);
-      return m?.user?.name ?? uid.slice(-6);
-    };
     return [...quietSlots]
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      .map((slot) => {
-        const slotDate = new Date(slot.start);
-        const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-        const availSet = new Set(slot.availableUserIds);
-        const memberStatuses = members.map((m) => availSet.has(m.userId));
-        return {
-          kind: "slot" as const,
-          key: slot.start,
-          timeLabel,
-          slotStartISO: slot.start,
-          freeCount: slot.availableCount,
-          totalMembers: slot.totalMembers,
-          memberStatuses,
-          availableUsers: slot.availableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
-          unavailableUsers: slot.unavailableUserIds.map((uid) => ({ uid, name: resolveName(uid) })),
-        };
-      });
-  }, [quietSlots, members]);
+      .map((slot) => ({
+        slotStartISO: slot.start,
+        slotEndISO: slot.end,
+        freeCount: slot.availableCount,
+        totalMembers: slot.totalMembers,
+      }));
+  }, [quietSlots]);
 
-  // [P0_DAYDETAIL_AVAIL_SECTIONS] Derived section arrays from slotDetailItems
-  const everyoneFreeItems = useMemo(() =>
-    slotDetailItems.filter((s) => s.freeCount === s.totalMembers),
+  // [P0_DAYDETAIL_AVAIL_RANGE_SECTIONS] Derive merged ranges per section
+  const everyoneRanges = useMemo(() =>
+    mergeContiguousSlots(slotDetailItems.filter((s) => s.freeCount === s.totalMembers), "everyone"),
   [slotDetailItems]);
-  const almostItems = useMemo(() =>
-    slotDetailItems.filter((s) => s.freeCount === s.totalMembers - 1),
+  const almostRanges = useMemo(() =>
+    mergeContiguousSlots(slotDetailItems.filter((s) => s.freeCount === s.totalMembers - 1), "almost"),
   [slotDetailItems]);
-  const limitedItems = useMemo(() =>
-    slotDetailItems.filter((s) => s.freeCount <= s.totalMembers - 2),
+  const limitedRanges = useMemo(() =>
+    mergeContiguousSlots(slotDetailItems.filter((s) => s.freeCount <= s.totalMembers - 2), "limited"),
   [slotDetailItems]);
 
-  // Composite data array for the FlatList — section headers + slot rows + limited toggle
+  // Composite data array for the FlatList — section headers + range rows + limited toggle
   const sectionListData = useMemo((): AvailListItem[] => {
     const items: AvailListItem[] = [];
-    if (everyoneFreeItems.length > 0) {
+    if (everyoneRanges.length > 0) {
       items.push({ kind: "section-header", key: "sh-everyone", title: "Everyone free" });
-      items.push(...everyoneFreeItems);
+      items.push(...everyoneRanges);
     }
-    if (almostItems.length > 0) {
+    if (almostRanges.length > 0) {
       items.push({ kind: "section-header", key: "sh-almost", title: "Almost everyone" });
-      items.push(...almostItems);
+      items.push(...almostRanges);
     }
-    if (limitedItems.length > 0) {
-      items.push({ kind: "limited-toggle", key: "lt-toggle", showing: showLimitedTimes, count: limitedItems.length });
+    if (limitedRanges.length > 0) {
+      items.push({ kind: "limited-toggle", key: "lt-toggle", showing: showLimitedTimes, count: limitedRanges.length });
       if (showLimitedTimes) {
         items.push({ kind: "section-header", key: "sh-limited", title: "Limited" });
-        items.push(...limitedItems);
+        items.push(...limitedRanges);
       }
     }
     return items;
-  }, [everyoneFreeItems, almostItems, limitedItems, showLimitedTimes]);
+  }, [everyoneRanges, almostRanges, limitedRanges, showLimitedTimes]);
 
-  // DEV proof logs — fires once per expand action
+  // DEV proof log — fires once per expand action via ref latch
   const vlistLogLatchRef = useRef(false);
   const expandTapTsRef = useRef(0);
   const firstRowTsRef = useRef(0);
@@ -911,29 +938,19 @@ function MiniCalendar({
     if (__DEV__) {
       const dayKey = bestTimesDate.toISOString().slice(0, 10);
       requestAnimationFrame(() => {
-        // [P0_DAYDETAIL_AVAIL_SECTIONS]
-        devLog('[P0_DAYDETAIL_AVAIL_SECTIONS]', {
-          circleId,
+        devLog('[P0_DAYDETAIL_AVAIL_RANGE_SECTIONS]', {
           dayKey,
           totalMembers: members.length,
-          everyoneCount: everyoneFreeItems.length,
-          almostCount: almostItems.length,
-          limitedCount: limitedItems.length,
+          everyoneRanges: everyoneRanges.length,
+          almostRanges: almostRanges.length,
+          limitedRanges: limitedRanges.length,
           showLimitedTimes,
-        });
-        // [P0_DAYDETAIL_AVAIL_SORT_PROOF] — first 3 and last 3 slot starts to prove monotonic ordering
-        const starts = slotDetailItems.map((s) => s.slotStartISO);
-        devLog('[P0_DAYDETAIL_AVAIL_SORT_PROOF]', {
-          dayKey,
-          first: starts.slice(0, 3),
-          last: starts.slice(-3),
-          slotCount: starts.length,
         });
       });
     }
-  }, [showAllAvailability, slotDetailItems.length, members.length, bestTimesDate, circleId, everyoneFreeItems.length, almostItems.length, limitedItems.length, showLimitedTimes]);
+  }, [showAllAvailability, members.length, bestTimesDate, everyoneRanges.length, almostRanges.length, limitedRanges.length, showLimitedTimes]);
 
-  // Stable renderItem for clustered section list — handles slot rows, section headers, and limited toggle
+  // Stable renderItem for clustered section list — handles range rows, section headers, and limited toggle
   const renderAvailListItem = useCallback(({ item }: { item: AvailListItem }) => {
     if (item.kind === "section-header") {
       return (
@@ -960,35 +977,35 @@ function MiniCalendar({
           style={{ paddingVertical: 10, alignItems: "center", marginTop: 8 }}
         >
           <Text style={{ fontSize: 13, fontWeight: "500", color: themeColor }}>
-            {item.showing ? "Hide limited times" : `Show limited times (${item.count})`}
+            {item.showing ? "Hide limited times" : `Show limited times (${item.count} ranges)`}
           </Text>
         </Pressable>
       );
     }
-    // kind === "slot"
+    // kind === "range"
     const handlePress = () => {
       if (__DEV__) {
-        devLog('[P0_DAYDETAIL_AVAIL_ROW_TAP]', {
+        devLog('[P0_DAYDETAIL_AVAIL_RANGE_TAP]', {
           circleId,
           dayKey: bestTimesDate.toISOString().slice(0, 10),
-          slotStart: item.slotStartISO,
+          section: item.section,
+          rangeStartISO: item.rangeStartISO,
+          rangeEndISO: item.rangeEndISO,
           freeCount: item.freeCount,
           totalMembers: item.totalMembers,
         });
       }
-      const original = quietSlots.find((s) => s.start === item.slotStartISO);
+      const original = quietSlots.find((s) => s.start === item.representativeSlotStartISO);
       if (original) setSelectedSlot(original);
     };
     return (
-      <SlotSummaryRow
+      <RangeRow
         item={item}
         textColor={colors.text}
-        tertiaryColor={colors.textTertiary}
         onPress={handlePress}
-        firstRowTsRef={firstRowTsRef}
       />
     );
-  }, [colors.text, colors.textTertiary, colors.textSecondary, circleId, bestTimesDate, quietSlots, themeColor]);
+  }, [colors.text, colors.textTertiary, circleId, bestTimesDate, quietSlots, themeColor]);
 
   const availListKeyExtractor = useCallback((item: AvailListItem) => item.key, []);
 
