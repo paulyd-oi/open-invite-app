@@ -19,6 +19,7 @@ import { safeAppendMessage } from "@/lib/pushRouter";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { getActiveCircle } from "@/lib/activeCircle";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
+import { bumpCircleLastMessage } from "@/lib/bumpCircleLastMessage";
 import { devLog } from "@/lib/devLog";
 import type { BootStatus } from "@/hooks/useBootAuthority";
 
@@ -128,6 +129,9 @@ export function useCircleRealtime(
           },
         );
       }
+
+      // ── Bump lastMessageAt in circle list cache (sort key for chat list) ──
+      bumpCircleLastMessage(circleId, message.createdAt, "ws", queryClient);
 
       // ── Circle list refresh (SSOT contract) ──
       refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });

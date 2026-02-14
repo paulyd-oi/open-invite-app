@@ -16,6 +16,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
+import { bumpCircleLastMessage } from "@/lib/bumpCircleLastMessage";
 import { getActiveCircle } from "@/lib/activeCircle";
 import { devLog } from "@/lib/devLog";
 import { recordPushReceipt } from "@/lib/push/pushReceiptStore";
@@ -499,6 +500,9 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     queryClient,
     reconciledKeys: [circleKeys.single(circleId), circleKeys.messages(circleId)],
   });
+
+  // ── Bump lastMessageAt in circle list cache (sort key for chat list) ──
+  bumpCircleLastMessage(circleId, message?.createdAt, "push", queryClient);
 
   // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on push message
   refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });

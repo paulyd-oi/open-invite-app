@@ -1680,6 +1680,7 @@ export const circleSchema = z.object({
   members: z.array(circleMemberSchema),
   messageCount: z.number().optional(),
   unreadCount: z.number().optional(),
+  lastMessageAt: z.string().nullable().optional(), // ISO timestamp of latest message (for sort)
 });
 export type Circle = z.infer<typeof circleSchema>;
 
