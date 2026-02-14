@@ -312,6 +312,8 @@ export default function CreateEventScreen() {
   const queryClient = useQueryClient();
   const onboardingGuide = useOnboardingGuide();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
+  const isSmartMode = params?.mode === "smart";
   
   // [P1_CREATE_FLOW] Proof log: create screen mounted
   useEffect(() => {
@@ -319,6 +321,15 @@ export default function CreateEventScreen() {
       devLog('[P1_CREATE_FLOW]', 'create screen mounted', { bootStatus });
     }
   }, []);
+  useEffect(() => {
+    if (__DEV__ && isSmartMode) {
+      console.log("[P0_SMART_CREATE_MODE]", {
+        circleId: params?.circleId,
+        date: params?.date,
+        duration: params?.duration,
+      });
+    }
+  }, [isSmartMode]);
   const { date, template, emoji: templateEmoji, title: templateTitle, duration, circleId, visibility: visibilityParam, endDate: endDateParam } = useLocalSearchParams<{
     date?: string;
     template?: string;
@@ -1096,6 +1107,26 @@ export default function CreateEventScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {isSmartMode && (
+            <View
+              style={{
+                backgroundColor: "#ECFDF5",
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: "#A7F3D0",
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "600", color: "#065F46", marginBottom: 4 }}>
+                Best time selected
+              </Text>
+              <Text style={{ fontSize: 12, color: "#065F46" }}>
+                Everyone is available at this time. You can adjust it before sending.
+              </Text>
+            </View>
+          )}
+
           {/* Emoji Picker */}
           <Animated.View entering={FadeInDown.delay(0).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Event Icon</Text>
@@ -1356,59 +1387,67 @@ export default function CreateEventScreen() {
           {/* Date & Time */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">When</Text>
-            <View 
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+            <View
+              style={{
+                borderColor: isSmartMode ? themeColor : "transparent",
+                borderWidth: isSmartMode ? 1 : 0,
+                borderRadius: 12,
+              }}
             >
-              {/* Start Row */}
-              <View className="flex-row items-center justify-between mb-3">
-                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
-                <View className="flex-row flex-1 items-center justify-end">
-                  <DateTimePicker
-                    value={startDate}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "compact" : "default"}
-                    themeVariant={isDark ? "dark" : "light"}
-                    onChange={(_, date) => date && setStartDate(date)}
-                  />
-                  <DateTimePicker
-                    value={startDate}
-                    mode="time"
-                    display={Platform.OS === "ios" ? "compact" : "default"}
-                    themeVariant={isDark ? "dark" : "light"}
-                    onChange={(_, date) => date && setStartDate(date)}
-                  />
+              <View
+                className="rounded-xl p-4 mb-4"
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+              >
+                {/* Start Row */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
+                  <View className="flex-row flex-1 items-center justify-end">
+                    <DateTimePicker
+                      value={startDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      themeVariant={isDark ? "dark" : "light"}
+                      onChange={(_, date) => date && setStartDate(date)}
+                    />
+                    <DateTimePicker
+                      value={startDate}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      themeVariant={isDark ? "dark" : "light"}
+                      onChange={(_, date) => date && setStartDate(date)}
+                    />
+                  </View>
                 </View>
-              </View>
 
-              {/* End Row */}
-              <View className="flex-row items-center justify-between">
-                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
-                <View className="flex-row flex-1 items-center justify-end">
-                  <DateTimePicker
-                    value={endDate}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "compact" : "default"}
-                    themeVariant={isDark ? "dark" : "light"}
-                    onChange={(_, date) => {
-                      if (date) {
-                        setEndDate(date);
-                        setUserModifiedEndTime(true);
-                      }
-                    }}
-                  />
-                  <DateTimePicker
-                    value={endDate}
-                    mode="time"
-                    display={Platform.OS === "ios" ? "compact" : "default"}
-                    themeVariant={isDark ? "dark" : "light"}
-                    onChange={(_, date) => {
-                      if (date) {
-                        setEndDate(date);
-                        setUserModifiedEndTime(true);
-                      }
-                    }}
-                  />
+                {/* End Row */}
+                <View className="flex-row items-center justify-between">
+                  <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
+                  <View className="flex-row flex-1 items-center justify-end">
+                    <DateTimePicker
+                      value={endDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      themeVariant={isDark ? "dark" : "light"}
+                      onChange={(_, date) => {
+                        if (date) {
+                          setEndDate(date);
+                          setUserModifiedEndTime(true);
+                        }
+                      }}
+                    />
+                    <DateTimePicker
+                      value={endDate}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "compact" : "default"}
+                      themeVariant={isDark ? "dark" : "light"}
+                      onChange={(_, date) => {
+                        if (date) {
+                          setEndDate(date);
+                          setUserModifiedEndTime(true);
+                        }
+                      }}
+                    />
+                  </View>
                 </View>
               </View>
             </View>

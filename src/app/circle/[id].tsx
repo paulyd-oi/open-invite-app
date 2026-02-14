@@ -1535,6 +1535,7 @@ function MiniCalendar({
                         date: best.start,
                         circleId: circleId,
                         duration: String(durationMin),
+                        mode: "smart",
                       },
                     } as any);
                   }}
