@@ -55,6 +55,7 @@ import { logError, normalizeCreateEventError, type CreateEventErrorReceipt } fro
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
+import { PostValueInvitePrompt, canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, usePremiumDriftGuard, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
@@ -506,6 +507,7 @@ export default function CreateEventScreen() {
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
   const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
+  const [showPostValueInvite, setShowPostValueInvite] = useState(false);
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
@@ -799,7 +801,7 @@ export default function CreateEventScreen() {
   const createMutation = useMutation({
     mutationFn: (data: CreateEventRequest) =>
       postIdempotent<CreateEventResponse>("/api/events", data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       // [P1_CREATE_FLOW] Proof log: create success
       if (__DEV__) {
         devLog('[P1_CREATE_FLOW]', 'create success', {
@@ -827,7 +829,14 @@ export default function CreateEventScreen() {
       }
       // Check if we should show notification pre-prompt (Aha moment: first event created)
       checkNotificationNudge();
-      router.back();
+      // Post-value invite prompt (7-day cooldown, after event creation)
+      const canInvite = await canShowPostValueInvite("create");
+      if (canInvite) {
+        setShowPostValueInvite(true);
+        // router.back() will be called when prompt is dismissed
+      } else {
+        router.back();
+      }
     },
     onError: (error: any) => {
       // ── Structured error receipt ──────────────────────────────────────
@@ -1845,6 +1854,16 @@ export default function CreateEventScreen() {
         visible={showNotificationPrePrompt}
         onClose={() => setShowNotificationPrePrompt(false)}
         userId={session?.user?.id}
+      />
+
+      {/* Post-value invite prompt (share app after event creation) */}
+      <PostValueInvitePrompt
+        visible={showPostValueInvite}
+        surface="create"
+        onClose={() => {
+          setShowPostValueInvite(false);
+          router.back();
+        }}
       />
 
       {/* Soft-Limit Modal */}
