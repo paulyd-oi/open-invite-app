@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock, StickyNote, ChevronDown, Plus, Trash2 } from "@/ui/icons";
+import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock, StickyNote, ChevronDown, Plus, Trash2, MessageCircle } from "@/ui/icons";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -680,6 +680,27 @@ export default function UserProfileScreen() {
     },
   });
 
+  // DM circle mutation — idempotent: creates or returns existing 2-member DM circle
+  const dmMutation = useMutation({
+    mutationFn: (targetUserId: string) =>
+      api.post<{ circleId: string }>("/api/circles/dm", { targetUserId }),
+    onMutate: (targetUserId) => {
+      if (__DEV__) {
+        devLog("[P1_DM_BUTTON]", `targetUserId=${targetUserId}`);
+      }
+    },
+    onSuccess: (response) => {
+      if (__DEV__) {
+        devLog("[P1_DM_OPEN]", `circleId=${response.circleId}`);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.push(`/circle/${response.circleId}` as any);
+    },
+    onError: (error: any) => {
+      safeToast.error("Message Failed", error?.message || "Could not open conversation. Please try again.");
+    },
+  });
+
   // ===== FRIEND-ONLY HANDLERS =====
   const handleAddNote = () => {
     if (newNoteText.trim().length === 0) return;
@@ -909,6 +930,28 @@ export default function UserProfileScreen() {
                       />
                     )}
                   </>
+                )}
+
+                {/* Message button — friend-only DM */}
+                {isFriend && (
+                  <Button
+                    variant="secondary"
+                    label={dmMutation.isPending ? "Opening..." : "Message"}
+                    onPress={() => {
+                      if (id) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        dmMutation.mutate(id);
+                      }
+                    }}
+                    disabled={dmMutation.isPending}
+                    loading={dmMutation.isPending}
+                    leftIcon={
+                      !dmMutation.isPending
+                        ? <MessageCircle size={18} color={colors.textSecondary} />
+                        : undefined
+                    }
+                    style={{ marginTop: 12 }}
+                  />
                 )}
               </View>
             </Animated.View>
