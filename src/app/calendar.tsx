@@ -63,6 +63,7 @@ import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@
 import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -829,6 +830,17 @@ function EventListItem({
                 </Text>
               </View>
             )}
+            {!isWork && (
+              <EventVisibilityBadge
+                visibility={event.visibility}
+                circleId={event.circleId}
+                isBusy={event.isBusy}
+                circleName={event.circleName}
+                eventId={event.id}
+                surface="calendar_list"
+                isDark={isDark}
+              />
+            )}
           </View>
           <View className="flex-row items-center mt-1">
             <Clock size={12} color={textColor} />
@@ -893,6 +905,15 @@ function EventListItem({
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
             {displayTitle}
           </Text>
+          <EventVisibilityBadge
+            visibility={event.visibility}
+            circleId={event.circleId}
+            isBusy={event.isBusy}
+            circleName={event.circleName}
+            eventId={event.id}
+            surface="calendar_list"
+            isDark={isDark}
+          />
         </View>
         <View className="flex-row items-center mt-1">
           <Clock size={12} color={textColor} />

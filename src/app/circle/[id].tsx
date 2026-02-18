@@ -66,6 +66,7 @@ import BottomSheet from "@/components/BottomSheet";
 import { UserListRow } from "@/components/UserListRow";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { CirclePhotoEmoji } from "@/components/CirclePhotoEmoji";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
@@ -382,6 +383,14 @@ function DayDetailEventsSection({
               <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
                 {event.title}
               </Text>
+              <EventVisibilityBadge
+                visibility="circle_only"
+                circleId={circleId}
+                isBusy={event.isBusy}
+                eventId={event.id}
+                surface="circle_day_detail"
+                isDark={isDark}
+              />
               <Text style={{ fontSize: 11, color: colors.textTertiary }}>
                 {event.endTime
                   ? `${fmtTime(event.startTime)} \u2013 ${fmtTime(event.endTime)}`

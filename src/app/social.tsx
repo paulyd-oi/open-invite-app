@@ -48,6 +48,7 @@ import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAtten
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -304,6 +305,15 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 <Chip variant="accent" label="You" size="sm" style={{ marginLeft: 8 }} />
               )}
+              <EventVisibilityBadge
+                visibility={displayEvent.visibility}
+                circleId={displayEvent.circleId}
+                isBusy={displayEvent.isBusy}
+                circleName={displayEvent.circleName}
+                eventId={displayEvent.id}
+                surface="social_feed"
+                isDark={isDark}
+              />
             </View>
             {displayEvent.description && !isSeries && (
               <Text

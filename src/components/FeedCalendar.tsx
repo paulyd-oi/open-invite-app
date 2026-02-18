@@ -14,6 +14,7 @@ import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette"
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
 import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
@@ -154,6 +155,14 @@ function EventListItem({
                 <Text className="text-xs font-medium" style={{ color: themeColor }}>You</Text>
               </View>
             )}
+            <EventVisibilityBadge
+              visibility={event.visibility}
+              circleId={undefined}
+              isBusy={event.isBusy}
+              eventId={event.id}
+              surface="feed_calendar"
+              isDark={isDark}
+            />
           </View>
 
           {/* Description - hidden for non-visible events */}
