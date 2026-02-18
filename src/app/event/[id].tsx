@@ -93,6 +93,7 @@ import { EventPhotoGallery } from "@/components/EventPhotoGallery";
 // [P0_DEMO_LEAK] EventCategoryBadge import removed - category field unsupported by create/edit UI
 import { EventSummaryModal } from "@/components/EventSummaryModal";
 import { FirstRsvpNudge, canShowFirstRsvpNudge, markFirstRsvpNudgeCompleted } from "@/components/FirstRsvpNudge";
+import { PostValueInvitePrompt, canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 // MapPreview removed; use native maps via openMaps
@@ -380,6 +381,7 @@ export default function EventDetailScreen() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
   const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
+  const [showPostValueInvite, setShowPostValueInvite] = useState(false);
   const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
 
   // Event Report Modal state
@@ -1221,6 +1223,14 @@ export default function EventDetailScreen() {
           setShowFirstRsvpNudge(true);
         }
       }
+
+      // Post-value invite prompt (7-day cooldown, after RSVP going)
+      if (bootStatus === 'authed') {
+        const canInvite = await canShowPostValueInvite("rsvp");
+        if (canInvite) {
+          setTimeout(() => setShowPostValueInvite(true), 800);
+        }
+      }
     },
     onError: (error: any, _nextStatus, context) => {
       // [P0_RSVP] Rollback optimistic update on error
@@ -1548,6 +1558,10 @@ export default function EventDetailScreen() {
   const handleFirstRsvpNudgeDismiss = async () => {
     await markFirstRsvpNudgeCompleted();
     setShowFirstRsvpNudge(false);
+  };
+
+  const handlePostValueInviteClose = () => {
+    setShowPostValueInvite(false);
   };
 
   // REMOVED: handleNotificationNudgeClose - now handled by pre-prompt modal
@@ -3301,6 +3315,13 @@ export default function EventDetailScreen() {
         onPrimary={handleFirstRsvpNudgePrimary}
         onSecondary={handleFirstRsvpNudgeSecondary}
         onDismiss={handleFirstRsvpNudgeDismiss}
+      />
+
+      {/* Post-value invite prompt (share app after RSVP) */}
+      <PostValueInvitePrompt
+        visible={showPostValueInvite}
+        surface="rsvp"
+        onClose={handlePostValueInviteClose}
       />
 
       {/* Notification Pre-Prompt Modal (Aha moment: first RSVP going/interested) */}
