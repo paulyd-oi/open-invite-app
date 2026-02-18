@@ -78,6 +78,7 @@ import { RADIUS } from "@/ui/layout";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import {
   type GetEventsResponse,
   type Event,
@@ -2014,6 +2015,15 @@ export default function EventDetailScreen() {
                   >
                     {event.emoji} {event.title}
                   </Text>
+                  <EventVisibilityBadge
+                    visibility={event.visibility}
+                    circleId={event.circleId}
+                    isBusy={event.isBusy}
+                    circleName={event.circleName}
+                    eventId={event.id}
+                    surface="event_detail_hero"
+                    isDark={isDark}
+                  />
                   <Text
                     style={{
                       color: getHeroSubTextColor(isDark),
@@ -2088,6 +2098,15 @@ export default function EventDetailScreen() {
               <Text className="text-2xl font-bold text-center" style={{ color: colors.text }}>
                 {event.title}
               </Text>
+              <EventVisibilityBadge
+                visibility={event.visibility}
+                circleId={event.circleId}
+                isBusy={event.isBusy}
+                circleName={event.circleName}
+                eventId={event.id}
+                surface="event_detail"
+                isDark={isDark}
+              />
             </View>
             )}
 
@@ -2194,13 +2213,17 @@ export default function EventDetailScreen() {
                   <Users size={20} color="#9CA3AF" />
                 ) : event.visibility === "all_friends" ? (
                   <Compass size={20} color="#9CA3AF" />
+                ) : event.visibility === "circle_only" ? (
+                  <Lock size={20} color="#9CA3AF" />
+                ) : event.visibility === "private" ? (
+                  <Lock size={20} color="#9CA3AF" />
                 ) : (
                   <Users size={20} color="#9CA3AF" />
                 )}
                 <View className="ml-3 flex-1">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
                   <Text className="font-semibold" style={{ color: colors.text }}>
-                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : "Specific Groups"}
+                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
                   </Text>
                 </View>
               </View>
