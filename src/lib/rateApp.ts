@@ -5,7 +5,7 @@ import { devError } from "./devLog";
 const STORAGE_KEY = "app_review_data";
 
 // Replace with your actual App Store ID when published
-const APP_STORE_ID = "YOUR_APP_STORE_ID";
+const APP_STORE_ID = "6757429210";
 
 interface ReviewData {
   eventsCreated: number;

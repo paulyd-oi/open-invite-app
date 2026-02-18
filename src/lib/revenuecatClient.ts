@@ -324,6 +324,52 @@ export const hasActiveSubscription = async (): Promise<
 };
 
 /**
+ * Get the best available offering with fallback logic.
+ *
+ * 1. Try REVENUECAT_OFFERING_ID (founder_pro_v1) from offerings.all
+ * 2. Fall back to offerings.current (the "default" offering in RevenueCat)
+ * 3. Return null if neither exists
+ *
+ * Logs [PRO_OFFERING] in DEV with full resolution details.
+ */
+export const getOfferingWithFallback = async (): Promise<
+  RevenueCatResult<{ offering: import("react-native-purchases").PurchasesOffering | null; usedId: string | null; foundRequested: boolean }>
+> => {
+  const offeringsResult = await getOfferings();
+  if (!offeringsResult.ok) {
+    return { ok: false, reason: offeringsResult.reason, error: offeringsResult.error };
+  }
+
+  const offerings = offeringsResult.data;
+  const requestedId = REVENUECAT_OFFERING_ID;
+  let foundRequested = false;
+  let offering: import("react-native-purchases").PurchasesOffering | null = null;
+  let usedId: string | null = null;
+
+  // 1. Try the requested offering by identifier
+  if (requestedId && offerings.all?.[requestedId]) {
+    offering = offerings.all[requestedId];
+    usedId = requestedId;
+    foundRequested = true;
+  }
+
+  // 2. Fallback to current (default) offering
+  if (!offering && offerings.current) {
+    offering = offerings.current;
+    usedId = offerings.current.identifier ?? "default";
+  }
+
+  if (__DEV__) {
+    devLog(
+      `[PRO_OFFERING] requestedOfferingId=${requestedId} foundRequested=${foundRequested} ` +
+      `usedOfferingId=${usedId} packagesCount=${offering?.availablePackages?.length ?? 0}`
+    );
+  }
+
+  return { ok: true, data: { offering, usedId, foundRequested } };
+};
+
+/**
  * Get a specific package from the current offering
  *
  * @param packageIdentifier - The package identifier (e.g., "$rc_monthly", "$rc_annual")

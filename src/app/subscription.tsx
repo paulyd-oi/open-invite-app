@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   Linking,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,7 +38,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/ui/Button";
 import {
   isRevenueCatEnabled,
-  getOfferings,
+  getOfferingWithFallback,
   purchasePackage,
   restorePurchases,
   getCustomerInfo,
@@ -112,7 +113,7 @@ export default function SubscriptionScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  // Fetch RevenueCat offerings
+  // Fetch RevenueCat offerings with fallback
   useEffect(() => {
     const fetchOfferings = async () => {
       setPackagesLoading(true);
@@ -121,18 +122,14 @@ export default function SubscriptionScreen() {
         return;
       }
 
-      const result = await getOfferings();
-      if (result.ok && result.data.current) {
-        const packages = result.data.current.availablePackages;
+      const result = await getOfferingWithFallback();
+      if (result.ok && result.data.offering) {
+        const packages = result.data.offering.availablePackages;
         setYearlyPackage(packages.find((p) => p.identifier === "$rc_annual") ?? null);
         setLifetimePackage(packages.find((p) => p.identifier === "$rc_lifetime") ?? null);
-      } else {
-        // Offering fetch failed - show calm message
-        safeToast.info(
-          "Founder Pro Unavailable",
-          "Founder Pro is temporarily unavailable. Try again in a moment."
-        );
       }
+      // No scary toast — if no offering found, purchase buttons stay disabled
+      // and inline copy ("Subscription options unavailable") already handles it.
       setPackagesLoading(false);
     };
     fetchOfferings();
@@ -416,10 +413,16 @@ export default function SubscriptionScreen() {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+      >
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Status Hero Section */}
         <Animated.View entering={FadeIn.delay(0).duration(400)} className="mx-4 mt-2">
@@ -812,6 +815,7 @@ export default function SubscriptionScreen() {
           Manage your subscription in your device settings.
         </Text>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

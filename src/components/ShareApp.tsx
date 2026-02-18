@@ -10,7 +10,7 @@ import { devError } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 
-const APP_STORE_URL = "https://apps.apple.com/app/open-invite"; // Placeholder
+const APP_STORE_URL = "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
 const SHARE_MESSAGE = "Check out Open Invite - the easiest way to share plans with friends!";
 
 interface ShareAppButtonProps {

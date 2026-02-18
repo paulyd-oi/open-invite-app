@@ -70,7 +70,7 @@ export function UpdateBanner() {
 
   // App Store URL - will be replaced with actual IDs in production
   const storeUrl = Platform.OS === "ios"
-    ? "https://apps.apple.com/app/open-invite/id6740003498"
+    ? "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210"
     : "https://play.google.com/store/apps/details?id=com.openinvite.app";
 
   const handleUpdate = () => {

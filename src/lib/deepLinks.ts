@@ -20,6 +20,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseICS, isValidICSContent } from './icsParser';
 import { handleReferralUrl } from './referral';
 import { devLog, devWarn, devError } from './devLog';
+import { forceRefreshSession } from './sessionCache';
+import { safeToast } from './safeToast';
 
 // Backend URL for generating shareable links (production)
 export const BACKEND_URL = 'https://api.openinvite.cloud';
@@ -287,9 +289,18 @@ export async function handleDeepLink(url: string): Promise<boolean> {
       break;
 
     case 'verify-email':
-      // FIX 1: Handle email verification deep links - route to verify-email screen
-      // The verify-email screen will handle displaying the code input
-      router.push('/verify-email');
+      // P0_EMAIL_VERIFY: User tapped verification link in email.
+      // Refresh session so emailVerified flag updates, then land on Calendar.
+      if (__DEV__) devLog('[P0_EMAIL_VERIFY_DEEPLINK] refreshing session after email link tap');
+      forceRefreshSession()
+        .then(() => {
+          safeToast.success('Email verified', "You're all set!");
+          router.replace('/calendar');
+        })
+        .catch(() => {
+          // Fallback: still navigate, session will refresh on next query
+          router.replace('/calendar');
+        });
       return true;
   }
 

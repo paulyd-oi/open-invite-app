@@ -306,7 +306,7 @@ export default function ProfileScreen() {
     try {
       const handle = userHandle ? `@${userHandle}` : displayName;
       await Share.share({
-        message: `Join ${handle} on Open Invite — turning plans into memories.\n\nhttps://apps.apple.com/app/open-invite`,
+        message: `Join ${handle} on Open Invite — turning plans into memories.\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210`,
       });
     } catch {
       // user cancelled

@@ -280,15 +280,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
           ...(isDark ? {} : TILE_SHADOW),
         }}
       >
-        {/* Event Photo Thumbnail */}
-        {displayEvent.eventPhotoUrl && displayEvent.visibility !== "private" && (
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          <View className="rounded-xl overflow-hidden mb-3" style={{ aspectRatio: 4 / 3 }}>
-            {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — event photo thumbnail, Cloudinary-transformed */}
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Image source={{ uri: toCloudinaryTransformedUrl(displayEvent.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }} className="w-full h-full" resizeMode="cover" />
-          </View>
-        )}
+        {/* [P1_SOCIAL_CARD_CLEAN] Banner overlay removed — image shown via EventPhotoEmoji thumbnail only */}
 
         <View className="flex-row items-start">
           <View
@@ -1401,8 +1393,8 @@ export default function SocialScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
                     await Share.share({
-                      message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/app/open-invite",
-                      url: "https://apps.apple.com/app/open-invite",
+                      message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
+                      url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
                     });
                   } catch (error) {
                     devError("Error sharing:", error);

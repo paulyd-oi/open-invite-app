@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -34,7 +36,7 @@ import { useRefreshProContract } from "@/lib/entitlements";
 import { useSubscription } from "@/lib/SubscriptionContext";
 import {
   isRevenueCatEnabled,
-  getOfferings,
+  getOfferingWithFallback,
   purchasePackage,
   restorePurchases,
   hasEntitlement,
@@ -76,6 +78,8 @@ export default function PaywallScreen() {
   // Discount code state
   const [showDiscountInput, setShowDiscountInput] = useState(false);
   const [discountCode, setDiscountCode] = useState("");
+  const scrollViewRef = useRef<ScrollView>(null);
+  const discountInputY = useRef(0);
   const [isValidatingCode, setIsValidatingCode] = useState(false);
   const [isRedeemingCode, setIsRedeemingCode] = useState(false);
 
@@ -114,27 +118,20 @@ export default function PaywallScreen() {
       return;
     }
 
-    const result = await getOfferings();
+    const result = await getOfferingWithFallback();
 
-    if (result.ok && result.data.current) {
-      const packages = result.data.current.availablePackages;
+    if (result.ok && result.data.offering) {
+      const packages = result.data.offering.availablePackages;
       const yearly = packages.find((p) => p.identifier === "$rc_annual");
-      
-      if (!yearly) {
-        safeToast.info(
-          "Founder Pro Unavailable",
-          "Founder Pro is temporarily unavailable. Try again in a moment."
-        );
-      }
-      
       setYearlyPackage(yearly ?? null);
-    } else {
-      // Offering fetch failed
-      safeToast.info(
-        "Founder Pro Unavailable",
-        "Founder Pro is temporarily unavailable. Try again in a moment."
-      );
+      // No scary modal — if yearly package is missing but offering exists,
+      // user just sees the purchase button disabled.
+    } else if (!result.ok) {
+      // SDK-level failure — calm inline message, no modal
+      if (__DEV__) devWarn("[Paywall] Offering load failed:", result.reason);
     }
+    // If result.ok but offering is null → no offerings at all;
+    // purchase button stays disabled, no scary toast.
 
     setIsLoading(false);
   };
@@ -338,10 +335,18 @@ export default function PaywallScreen() {
         </Animated.View>
       </LinearGradient>
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
       <ScrollView
+        ref={scrollViewRef}
         className="flex-1"
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Beta Banner */}
         {BETA_MODE && (
@@ -366,7 +371,10 @@ export default function PaywallScreen() {
         )}
 
         {/* Discount Code Card */}
-        <Animated.View entering={FadeInUp.delay(150)}>
+        <Animated.View
+          entering={FadeInUp.delay(150)}
+          onLayout={(e) => { discountInputY.current = e.nativeEvent.layout.y; }}
+        >
           <Pressable
             onPress={() => setShowDiscountInput(!showDiscountInput)}
             className="rounded-2xl p-4 mb-6"
@@ -415,6 +423,12 @@ export default function PaywallScreen() {
                     autoCorrect={false}
                     className="flex-1 py-3"
                     style={{ color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: 1 }}
+                    onFocus={() => {
+                      // Scroll discount input into view above keyboard
+                      setTimeout(() => {
+                        scrollViewRef.current?.scrollTo({ y: discountInputY.current, animated: true });
+                      }, 300);
+                    }}
                   />
                 </View>
                 <Pressable
@@ -572,6 +586,7 @@ export default function PaywallScreen() {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Bottom CTA */}
       <SafeAreaView edges={["bottom"]} style={{ backgroundColor: colors.background }}>

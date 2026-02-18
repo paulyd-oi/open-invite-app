@@ -801,7 +801,7 @@ export default function OnboardingScreen() {
     } catch (error) {
       devError("Share error:", error);
       await Share.share({
-        message: "Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: https://apps.apple.com/app/open-invite/id123456789",
+        message: "Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
         title: "Join Open Invite!",
       });
     } finally {

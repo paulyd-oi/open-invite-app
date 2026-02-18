@@ -1,16 +1,18 @@
 /**
  * Email Verification Screen
- * 
- * Allows user to verify their email address via 6-digit code.
- * Features:
- * - 6-digit code input
- * - Resend code with 30s cooldown
- * - Error handling for invalid code, rate limits, suppressed emails
- * - Updates session after success
+ *
+ * "Check your email" instruction screen — uses Resend email-link verification,
+ * NOT a 6-digit code.  Two CTAs:
+ *   1. Resend verification email
+ *   2. I verified — refresh (re-checks session emailVerified status)
+ *
+ * Deep-link flow: when user taps verification link in email, the app
+ * deep-link handler routes here or directly refreshes session so the user
+ * lands on the authenticated Calendar screen.
  */
 
-import React, { useState, useRef, useEffect } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft, Mail, Check } from "@/ui/icons";
@@ -18,11 +20,12 @@ import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "@/lib/useSession";
-import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
 import { useTheme } from "@/lib/ThemeContext";
 import { forceRefreshSession } from "@/lib/sessionCache";
-import { devError } from "@/lib/devLog";
+import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
+import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
+import { devLog, devError } from "@/lib/devLog";
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
@@ -30,15 +33,20 @@ export default function VerifyEmailScreen() {
   const { data: session } = useSession();
   const { themeColor, isDark, colors } = useTheme();
 
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const codeInputRefs = useRef<(TextInput | null)[]>([]);
 
   const userEmail = session?.user?.email || "";
 
-  // Cooldown timer
+  // DEV proof log
+  useEffect(() => {
+    if (__DEV__) {
+      devLog("[P0_EMAIL_VERIFY_UI] screen=check-email email=", userEmail);
+    }
+  }, [userEmail]);
+
+  // Cooldown timer for resend button
   useEffect(() => {
     if (cooldown > 0) {
       const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
@@ -46,90 +54,64 @@ export default function VerifyEmailScreen() {
     }
   }, [cooldown]);
 
-  const handleCodeInput = (index: number, digit: string) => {
-    if (digit.length <= 1) {
-      const newCode = [...code];
-      newCode[index] = digit;
-      setCode(newCode);
-
-      if (digit && index < 5) {
-        codeInputRefs.current[index + 1]?.focus();
-      }
-    } else if (digit.length === 6) {
-      // Pasted 6-digit code
-      const digits = digit.split("").slice(0, 6);
-      setCode(digits);
-      codeInputRefs.current[5]?.focus();
+  // Auto-navigate away when session shows verified (e.g. deep-link callback)
+  useEffect(() => {
+    if (session?.user?.emailVerified === true) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Email verified", "You're all set!");
+      router.replace("/calendar");
     }
-  };
-
-  const handleKeyPress = (index: number, key: string) => {
-    if (key === "Backspace" && !code[index] && index > 0) {
-      codeInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = async () => {
-    const codeStr = code.join("");
-    if (codeStr.length !== 6) {
-      safeToast.warning("Invalid Code", "Please enter the 6-digit code");
-      return;
-    }
-
-    setIsVerifying(true);
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/email-verification/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail.toLowerCase(), code: codeStr }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        safeToast.success("Email verified", "You're all set.");
-        
-        // Refresh session to get updated emailVerified status
-        await forceRefreshSession();
-        queryClient.invalidateQueries({ queryKey: ["session"] });
-        
-        // Navigate back to settings
-        router.back();
-      } else {
-        // Map backend errors to user-friendly messages
-        let errorMessage = "That code didn't work. Try again.";
-        if (data.error?.toLowerCase().includes("rate") || data.error?.toLowerCase().includes("attempt")) {
-          errorMessage = "Too many attempts. Try again in a few minutes.";
-        }
-        safeToast.error("", errorMessage);
-      }
-    } catch (error) {
-      devError("[VerifyEmail] Error:", error);
-      safeToast.error("", "That code didn't work. Try again.");
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+  }, [session?.user?.emailVerified, router]);
 
   const handleResend = async () => {
-    if (cooldown > 0 || isResending) return;
+    if (cooldown > 0 || isResending || !userEmail) return;
 
     setIsResending(true);
-    try {
-      await fetch(`${BACKEND_URL}/api/email-verification/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail.toLowerCase() }),
-      });
+    if (__DEV__) {
+      devLog("[P0_EMAIL_VERIFY_RESEND] email=", userEmail);
+    }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCooldown(30);
+    await resendVerificationEmail({
+      email: userEmail,
+      name: session?.user?.name || session?.user?.displayName,
+      onSuccess: () => {
+        triggerVerificationCooldown();
+        setCooldown(30);
+      },
+    });
+
+    setIsResending(false);
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+
+    if (__DEV__) {
+      devLog("[P0_EMAIL_VERIFY_REFRESH] checking verified status…");
+    }
+
+    try {
+      await forceRefreshSession();
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+
+      // Give a moment for React Query to propagate the new session
+      await new Promise((r) => setTimeout(r, 600));
+
+      // Re-read latest session from cache after invalidation
+      const latestSession = queryClient.getQueryData<{ user?: { emailVerified?: boolean } }>(["session"]);
+      if (latestSession?.user?.emailVerified === true) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        safeToast.success("Email verified", "You're all set!");
+        router.replace("/calendar");
+      } else {
+        safeToast.info("Not yet verified", "Please tap the link in your email first.");
+      }
     } catch (error) {
-      devError("[VerifyEmail] Resend error:", error);
-      safeToast.error("", "We couldn't resend the code. Please try again.");
+      devError("[P0_EMAIL_VERIFY_REFRESH] error", error);
+      safeToast.error("Error", "Couldn't check verification status. Try again.");
     } finally {
-      setIsResending(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -169,71 +151,66 @@ export default function VerifyEmailScreen() {
 
         {/* Instructions */}
         <Text style={{ color: colors.text }} className="text-2xl font-bold text-center mb-2">
-          Verify your email
+          Check your email
         </Text>
         <Text style={{ color: colors.textSecondary }} className="text-center mb-1 px-4">
-          We sent a 6-digit code to:
+          We sent a verification link to:
         </Text>
-        <Text style={{ color: colors.text }} className="text-center mb-8 px-4 font-medium">
+        <Text style={{ color: colors.text }} className="text-center mb-4 px-4 font-medium">
           {userEmail || "No email found for this account."}
         </Text>
 
-        {/* Code Input */}
-        <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-3">
-          Verification code
-        </Text>
-        <View className="flex-row justify-center mb-8">
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => { codeInputRefs.current[index] = ref; }}
-              value={digit}
-              onChangeText={(text) => handleCodeInput(index, text)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-              keyboardType="number-pad"
-              maxLength={1}
-              className="w-12 h-14 text-center text-2xl font-bold rounded-xl mx-1"
-              style={{
-                backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
-                color: colors.text,
-                borderWidth: 2,
-                borderColor: digit ? themeColor : (isDark ? "#38383A" : "#E5E7EB"),
-              }}
-              placeholderTextColor={colors.textTertiary}
-              autoComplete="one-time-code"
-            />
-          ))}
+        {/* Spam / Junk notice */}
+        <View
+          className="rounded-xl p-3 mb-8"
+          style={{ backgroundColor: isDark ? "rgba(255,152,0,0.12)" : "#FFF9E6" }}
+        >
+          <Text style={{ color: isDark ? "#FFB74D" : "#E65100" }} className="text-sm text-center font-medium">
+            Check Spam/Junk — Outlook and some providers often filter new senders.
+          </Text>
         </View>
 
-        {/* Verify Button */}
-        <Pressable
-          onPress={handleVerify}
-          disabled={isVerifying || code.join("").length !== 6}
-          className="rounded-xl p-4 mb-4"
-          style={{
-            backgroundColor: code.join("").length === 6 ? themeColor : (isDark ? "#2C2C2E" : "#E5E7EB"),
-            opacity: isVerifying ? 0.6 : 1,
-          }}
-        >
-          <Text className="text-white font-semibold text-center">
-            {isVerifying ? "Verifying…" : "Verify"}
-          </Text>
-        </Pressable>
-
-        {/* Resend Code */}
+        {/* Resend verification email */}
         <Pressable
           onPress={handleResend}
           disabled={cooldown > 0 || isResending}
-          className="p-4"
+          className="rounded-xl p-4 mb-3"
+          style={{
+            backgroundColor: cooldown > 0 || isResending ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor,
+            opacity: isResending ? 0.6 : 1,
+          }}
         >
-          <Text
-            className="text-center font-medium"
-            style={{
-              color: cooldown > 0 || isResending ? colors.textTertiary : themeColor,
-            }}
-          >
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-          </Text>
+          {isResending ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text className="text-white font-semibold text-center">
+              {cooldown > 0 ? `Resend email in ${cooldown}s` : "Resend verification email"}
+            </Text>
+          )}
+        </Pressable>
+
+        {/* I verified — refresh */}
+        <Pressable
+          onPress={handleRefresh}
+          disabled={isRefreshing}
+          className="rounded-xl p-4 mb-4"
+          style={{
+            backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+            borderWidth: 2,
+            borderColor: themeColor,
+            opacity: isRefreshing ? 0.6 : 1,
+          }}
+        >
+          {isRefreshing ? (
+            <ActivityIndicator color={themeColor} size="small" />
+          ) : (
+            <View className="flex-row items-center justify-center">
+              <Check size={20} color={themeColor} />
+              <Text className="font-semibold text-center ml-2" style={{ color: themeColor }}>
+                I verified — refresh
+              </Text>
+            </View>
+          )}
         </Pressable>
 
         {/* Not now button */}
@@ -251,7 +228,7 @@ export default function VerifyEmailScreen() {
 
         {/* Help Text */}
         <Text style={{ color: colors.textTertiary }} className="text-sm text-center mt-4 px-8">
-          Didn't get a code? Check spam, or try a different email.
+          Tap the link in your email, then come back and press "I verified — refresh" above.
         </Text>
       </View>
     </SafeAreaView>

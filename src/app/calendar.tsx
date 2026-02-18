@@ -2606,8 +2606,8 @@ export default function CalendarScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         try {
                           await Share.share({
-                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/app/open-invite",
-                            url: "https://apps.apple.com/app/open-invite",
+                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
+                            url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
                           });
                         } catch (error) {
                           devError("Error sharing:", error);
