@@ -40,6 +40,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { usePremiumStatusContract } from "@/lib/entitlements";
+import { APP_STORE_URL } from "@/lib/config";
 import { devLog } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
@@ -306,7 +307,7 @@ export default function ProfileScreen() {
     try {
       const handle = userHandle ? `@${userHandle}` : displayName;
       await Share.share({
-        message: `Join ${handle} on Open Invite — turning plans into memories.\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210`,
+        message: `Join ${handle} on Open Invite — turning plans into memories.\n\n${APP_STORE_URL}`,
       });
     } catch {
       // user cancelled

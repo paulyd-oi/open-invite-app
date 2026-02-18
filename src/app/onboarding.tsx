@@ -67,6 +67,7 @@ import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { usePremiumStatusContract } from "@/lib/entitlements";
+import { APP_STORE_URL } from "@/lib/config";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -801,7 +802,7 @@ export default function OnboardingScreen() {
     } catch (error) {
       devError("Share error:", error);
       await Share.share({
-        message: "Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
+        message: `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${APP_STORE_URL}`,
         title: "Join Open Invite!",
       });
     } finally {

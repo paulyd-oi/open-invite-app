@@ -63,6 +63,7 @@ import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@
 import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
+import { APP_STORE_URL } from "@/lib/config";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -2606,8 +2607,8 @@ export default function CalendarScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         try {
                           await Share.share({
-                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                            url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
+                            message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
+                            url: APP_STORE_URL,
                           });
                         } catch (error) {
                           devError("Error sharing:", error);

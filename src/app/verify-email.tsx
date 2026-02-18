@@ -36,6 +36,7 @@ export default function VerifyEmailScreen() {
   const [isResending, setIsResending] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [verifiedSuccess, setVerifiedSuccess] = useState(false);
 
   const userEmail = session?.user?.email || "";
 
@@ -102,8 +103,10 @@ export default function VerifyEmailScreen() {
       const latestSession = queryClient.getQueryData<{ user?: { emailVerified?: boolean } }>(["session"]);
       if (latestSession?.user?.emailVerified === true) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setVerifiedSuccess(true);
         safeToast.success("Email verified", "You're all set!");
-        router.replace("/calendar");
+        // Brief success state before navigating
+        setTimeout(() => router.replace("/calendar"), 800);
       } else {
         safeToast.info("Not yet verified", "Please tap the link in your email first.");
       }
@@ -153,11 +156,11 @@ export default function VerifyEmailScreen() {
         <Text style={{ color: colors.text }} className="text-2xl font-bold text-center mb-2">
           Check your email
         </Text>
-        <Text style={{ color: colors.textSecondary }} className="text-center mb-1 px-4">
-          We sent a verification link to:
-        </Text>
-        <Text style={{ color: colors.text }} className="text-center mb-4 px-4 font-medium">
-          {userEmail || "No email found for this account."}
+        <Text style={{ color: colors.textSecondary }} className="text-center mb-4 px-4">
+          We sent a verification link to:{"\n"}
+          <Text style={{ color: colors.text, fontWeight: "700" }}>
+            {userEmail || "No email found for this account."}
+          </Text>
         </Text>
 
         {/* Spam / Junk notice */}
@@ -192,17 +195,26 @@ export default function VerifyEmailScreen() {
         {/* I verified — refresh */}
         <Pressable
           onPress={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || verifiedSuccess}
           className="rounded-xl p-4 mb-4"
           style={{
-            backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
-            borderWidth: 2,
+            backgroundColor: verifiedSuccess
+              ? "#10B981"
+              : isDark ? "#1C1C1E" : "#FFFFFF",
+            borderWidth: verifiedSuccess ? 0 : 2,
             borderColor: themeColor,
             opacity: isRefreshing ? 0.6 : 1,
           }}
         >
           {isRefreshing ? (
             <ActivityIndicator color={themeColor} size="small" />
+          ) : verifiedSuccess ? (
+            <View className="flex-row items-center justify-center">
+              <Check size={20} color="#FFFFFF" />
+              <Text className="font-semibold text-center ml-2" style={{ color: "#FFFFFF" }}>
+                Verified! Redirecting…
+              </Text>
+            </View>
           ) : (
             <View className="flex-row items-center justify-center">
               <Check size={20} color={themeColor} />

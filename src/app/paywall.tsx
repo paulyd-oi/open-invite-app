@@ -285,9 +285,12 @@ export default function PaywallScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: colors.background }}>
+        <View className="w-16 h-16 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${themeColor}20` }}>
+          <Crown size={32} color={themeColor} />
+        </View>
         <ActivityIndicator size="large" color={themeColor} />
-        <Text style={{ color: colors.textSecondary }} className="mt-4">
-          Loading...
+        <Text style={{ color: colors.textSecondary }} className="mt-4 text-base">
+          Loading plans…
         </Text>
       </View>
     );
@@ -513,7 +516,7 @@ export default function PaywallScreen() {
                 transform: [{ translateX: -40 }],
               }}
             >
-              <Text className="text-white text-xs font-semibold">Best Value</Text>
+              <Text className="text-white text-xs font-semibold">Most Popular</Text>
             </View>
 
             <Text style={{ color: colors.text }} className="text-lg font-bold text-center mb-1 mt-2">
@@ -655,7 +658,7 @@ export default function PaywallScreen() {
                 style={{ color: colors.textTertiary }}
                 className="text-xs text-center mt-2 px-4"
               >
-                Cancel anytime. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
+                Cancel anytime in Settings. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
               </Text>
             </>
           )}

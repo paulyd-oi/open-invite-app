@@ -46,6 +46,7 @@ import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type Ge
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
+import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
 
@@ -272,17 +273,17 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const cardContent = (
       <Pressable
         onPress={handlePress}
-        className="rounded-2xl p-4 mb-3"
+        className="rounded-2xl p-4 mb-4"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
           backgroundColor: colors.surface,
           ...getBorderStyle(),
-          ...(isDark ? {} : TILE_SHADOW),
+          ...(isDark ? { elevation: 1 } : TILE_SHADOW),
         }}
       >
         {/* [P1_SOCIAL_CARD_CLEAN] Banner overlay removed — image shown via EventPhotoEmoji thumbnail only */}
 
-        <View className="flex-row items-start">
+        <View className="flex-row items-center">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -1393,8 +1394,8 @@ export default function SocialScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
                     await Share.share({
-                      message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                      url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
+                      message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
+                      url: APP_STORE_URL,
                     });
                   } catch (error) {
                     devError("Error sharing:", error);
