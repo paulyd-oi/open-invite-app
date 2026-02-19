@@ -77,3 +77,11 @@ artifacts/
 # Handoff artifacts (never commit)
 HANDOFF_*
 docs/HANDOFF_*
+
+# Junk handoff artifacts
+HANDOFF_*
+backend-export.tar.gz
+backend-for-github.zip
+
+# Junk artifacts
+HANDOFF_*

@@ -52,6 +52,9 @@ import { runProdGateSelfTest } from '@/lib/prodGateSelfTest';
 import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime/wsClient';
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
+import { PostHogProvider, usePostHog } from "posthog-react-native";
+import { getPostHogProviderProps, posthogIdentify, posthogReset, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
+import { usePostHogScreenTrack } from "@/analytics/usePostHogScreenTrack";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -268,6 +271,54 @@ function OfflineSyncProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Conditional PostHog provider wrapper (no-op when key missing)
+function PostHogProviderWrapper({ posthogProps, children }: { posthogProps: ReturnType<typeof getPostHogProviderProps>; children: React.ReactNode }) {
+  if (!posthogProps) return <>{children}</>;
+  return (
+    <PostHogProvider
+      apiKey={posthogProps.apiKey}
+      options={posthogProps.options}
+      autocapture={posthogProps.autocapture}
+      debug={posthogProps.debug}
+    >
+      {children}
+    </PostHogProvider>
+  );
+}
+
+/**
+ * PostHogLifecycle — identify / reset / screen tracking.
+ *
+ * Rendered ONLY inside PostHogProvider (via POSTHOG_ENABLED guard),
+ * so usePostHog() is always valid — no conditional hook violation.
+ *
+ * [P0_POSTHOG_BOOT] proof tag
+ */
+function PostHogLifecycle({ bootStatus, userId, emailVerified }: {
+  bootStatus: string;
+  userId: string | undefined;
+  emailVerified: boolean;
+}) {
+  const posthog = usePostHog();
+  const identifiedRef = useRef(false);
+
+  useEffect(() => {
+    if (bootStatus === 'authed' && userId && posthog && !identifiedRef.current) {
+      identifiedRef.current = true;
+      posthogIdentify(posthog, userId, { emailVerified });
+    }
+    if ((bootStatus === 'loggedOut' || bootStatus === 'error') && identifiedRef.current) {
+      identifiedRef.current = false;
+      posthogReset(posthog);
+    }
+  }, [bootStatus, userId, posthog, emailVerified]);
+
+  // [P0_POSTHOG_SCREEN] Track screen views via Expo Router pathname changes
+  usePostHogScreenTrack();
+
+  return null;
+}
+
 /**
  * Boot Router Component
  * 
@@ -429,6 +480,9 @@ function BootRouter() {
     };
   }, [bootStatus, userId]);
 
+  // [P0_POSTHOG_BOOT] PostHog lifecycle handled by <PostHogLifecycle /> below
+  // (separate component so hooks are never called conditionally)
+
   // DEV-only: Log once when authed shell is mounted for push bootstrap
   const loggedPushBootstrapOnceRef = useRef(false);
   useEffect(() => {
@@ -579,6 +633,13 @@ function BootRouter() {
 
   return (
     <>
+      {POSTHOG_ENABLED && (
+        <PostHogLifecycle
+          bootStatus={bootStatus}
+          userId={userId}
+          emailVerified={session?.user?.emailVerified ?? false}
+        />
+      )}
       {showBootOverlay && (
         <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />
       )}
@@ -907,34 +968,38 @@ export default function RootLayout() {
     );
   }
 
+  const posthogProps = getPostHogProviderProps();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <KeyboardProvider>
-          <AppThemeProvider>
-            {/* [P0_PREMIUM_CONTRACT] SubscriptionProvider MUST wrap app for usePremiumStatusContract() to work */}
-            <SubscriptionProvider>
-              <OfflineSyncProvider>
-                <AutoSyncProvider>
-                  <ErrorBoundary>
-                    <View style={{ flex: 1 }}>
-                      <NetworkStatusBanner />
-                      <UpdateBanner />
-                      <AnnouncementBanner />
-                      <ToastContainer />
-                      <BootRouter />
-                      <RootLayoutNav />
-                      {__DEV__ && <QueryDebugOverlay />}
-                      {__DEV__ && <LiveRefreshProofOverlay />}
-                    {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
-                  </View>
-                </ErrorBoundary>
-                </AutoSyncProvider>
-              </OfflineSyncProvider>
-            </SubscriptionProvider>
-          </AppThemeProvider>
-        </KeyboardProvider>
-      </GestureHandlerRootView>
+      <PostHogProviderWrapper posthogProps={posthogProps}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <KeyboardProvider>
+            <AppThemeProvider>
+              {/* [P0_PREMIUM_CONTRACT] SubscriptionProvider MUST wrap app for usePremiumStatusContract() to work */}
+              <SubscriptionProvider>
+                <OfflineSyncProvider>
+                  <AutoSyncProvider>
+                    <ErrorBoundary>
+                      <View style={{ flex: 1 }}>
+                        <NetworkStatusBanner />
+                        <UpdateBanner />
+                        <AnnouncementBanner />
+                        <ToastContainer />
+                        <BootRouter />
+                        <RootLayoutNav />
+                        {__DEV__ && <QueryDebugOverlay />}
+                        {__DEV__ && <LiveRefreshProofOverlay />}
+                      {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
+                    </View>
+                  </ErrorBoundary>
+                  </AutoSyncProvider>
+                </OfflineSyncProvider>
+              </SubscriptionProvider>
+            </AppThemeProvider>
+          </KeyboardProvider>
+        </GestureHandlerRootView>
+      </PostHogProviderWrapper>
     </QueryClientProvider>
   );
 }
