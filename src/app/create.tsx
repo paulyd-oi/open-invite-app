@@ -506,8 +506,9 @@ export default function CreateEventScreen() {
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
-  const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
-  const [showPostValueInvite, setShowPostValueInvite] = useState(false);
+  // Prompt arbitration: only ONE modal per create success
+  type CreatePromptChoice = "post_value_invite" | "notification" | "none";
+  const [createPromptChoice, setCreatePromptChoice] = useState<CreatePromptChoice>("none");
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
@@ -827,13 +828,39 @@ export default function CreateEventScreen() {
         queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
         queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       }
-      // Check if we should show notification pre-prompt (Aha moment: first event created)
-      checkNotificationNudge();
-      // Post-value invite prompt (7-day cooldown, after event creation)
-      const canInvite = await canShowPostValueInvite("create");
-      if (canInvite) {
-        setShowPostValueInvite(true);
-        // router.back() will be called when prompt is dismissed
+      // ── Prompt arbitration: at most ONE modal per create success ──
+      // Priority: PostValueInvite > NotificationPrePrompt > none
+      let postValueEligible = false;
+      let notifEligible = false;
+
+      try {
+        postValueEligible = await canShowPostValueInvite("create");
+      } catch {
+        postValueEligible = false;
+      }
+
+      if (!postValueEligible) {
+        try {
+          notifEligible = await shouldShowNotificationPrompt(session?.user?.id) ?? false;
+        } catch {
+          notifEligible = false;
+        }
+      }
+
+      let chosen: CreatePromptChoice = "none";
+      if (postValueEligible) {
+        chosen = "post_value_invite";
+      } else if (notifEligible) {
+        chosen = "notification";
+      }
+
+      if (__DEV__) {
+        devLog("[P1_PROMPT_ARB_CREATE]", `chosen=${chosen} postValueEligible=${postValueEligible} notifEligible=${notifEligible}`);
+      }
+
+      if (chosen !== "none") {
+        setCreatePromptChoice(chosen);
+        // router.back() deferred until the chosen modal is dismissed
       } else {
         router.back();
       }
@@ -881,22 +908,6 @@ export default function CreateEventScreen() {
     }
     setFrequency(newFrequency);
     setShowFrequencyPicker(false);
-  };
-
-  // Check notification pre-prompt eligibility after successful create (Aha moment)
-  const checkNotificationNudge = async () => {
-    try {
-      const userId = session?.user?.id;
-      const shouldShow = await shouldShowNotificationPrompt(userId);
-      if (shouldShow) {
-        // Wait 600ms before showing modal (after router.back() completes)
-        setTimeout(() => {
-          setShowNotificationPrePrompt(true);
-        }, 600);
-      }
-    } catch (error) {
-      devLog("[CreateEvent] Error checking notification prompt:", error);
-    }
   };
 
   const handleCreate = () => {
@@ -1849,19 +1860,21 @@ export default function CreateEventScreen() {
         onClose={() => setShowPaywallModal(false)}
       />
 
-      {/* Notification Pre-Prompt Modal (Aha moment: first event created) */}
+      {/* Prompt arbitration: exactly one modal per create success */}
       <NotificationPrePromptModal
-        visible={showNotificationPrePrompt}
-        onClose={() => setShowNotificationPrePrompt(false)}
+        visible={createPromptChoice === "notification"}
+        onClose={() => {
+          setCreatePromptChoice("none");
+          router.back();
+        }}
         userId={session?.user?.id}
       />
 
-      {/* Post-value invite prompt (share app after event creation) */}
       <PostValueInvitePrompt
-        visible={showPostValueInvite}
+        visible={createPromptChoice === "post_value_invite"}
         surface="create"
         onClose={() => {
-          setShowPostValueInvite(false);
+          setCreatePromptChoice("none");
           router.back();
         }}
       />
