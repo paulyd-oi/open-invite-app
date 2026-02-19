@@ -1471,6 +1471,23 @@ export default function SocialScreen() {
             />
           }
         >
+          <FeedCalendar
+            events={calendarEvents}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            userId={session?.user?.id}
+          />
+          {socialMemory && !insightDismissed && (
+            <SocialMemoryCard
+              memory={socialMemory.memory}
+              type={socialMemory.type}
+              themeColor={themeColor}
+              isDark={isDark}
+              colors={colors}
+              onDismiss={handleDismissInsight}
+            />
+          )}
           {/* Feed filter: Group Events vs Open Invites */}
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="flex-row mb-4 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? colors.surface : '#F2F2F7', borderWidth: 1, borderColor: colors.borderSubtle }}>
@@ -1495,24 +1512,6 @@ export default function SocialScreen() {
               <Text className="text-sm font-semibold" style={{ color: feedFilter === 'open' ? '#FFFFFF' : colors.textSecondary }}>Open Invites</Text>
             </Pressable>
           </View>
-
-          <FeedCalendar
-            events={calendarEvents}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userId={session?.user?.id}
-          />
-          {socialMemory && !insightDismissed && (
-            <SocialMemoryCard
-              memory={socialMemory.memory}
-              type={socialMemory.type}
-              themeColor={themeColor}
-              isDark={isDark}
-              colors={colors}
-              onDismiss={handleDismissInsight}
-            />
-          )}
           <EventSection
             title="Today"
             events={groupedEvents.today}
