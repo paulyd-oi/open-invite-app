@@ -51,6 +51,29 @@ export function getPostHogProviderProps() {
 }
 
 // ---------------------------------------------------------------------------
+// Module-level instance ref (set once from PostHogLifecycle)
+// ---------------------------------------------------------------------------
+
+type PostHogLike = {
+  identify: (id: string, props?: Record<string, any>) => void;
+  reset: () => void;
+  capture: (event: string, props?: Record<string, any>) => void;
+  screen: (name: string, props?: Record<string, any>) => void;
+};
+
+let _phRef: PostHogLike | null = null;
+
+/** Store the PostHog instance for non-hook callers (e.g. track() in event catalog). */
+export function setPostHogRef(instance: PostHogLike | null): void {
+  _phRef = instance;
+}
+
+/** Retrieve stored PostHog instance. Returns null when PostHog is disabled. */
+export function getPostHogRef(): PostHogLike | null {
+  return _phRef;
+}
+
+// ---------------------------------------------------------------------------
 // Safe helpers (always callable, no-op when disabled)
 // ---------------------------------------------------------------------------
 

@@ -53,8 +53,9 @@ import { connect as wsConnect, disconnect as wsDisconnect } from '@/lib/realtime
 import * as Sentry from "@sentry/react-native";
 import Constants from "expo-constants";
 import { PostHogProvider, usePostHog } from "posthog-react-native";
-import { getPostHogProviderProps, posthogIdentify, posthogReset, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
+import { getPostHogProviderProps, posthogIdentify, posthogReset, setPostHogRef, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
 import { usePostHogScreenTrack } from "@/analytics/usePostHogScreenTrack";
+import { trackAppOpened, trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -301,6 +302,18 @@ function PostHogLifecycle({ bootStatus, userId, emailVerified }: {
 }) {
   const posthog = usePostHog();
   const identifiedRef = useRef(false);
+  const prevEmailVerifiedRef = useRef(emailVerified);
+
+  // Store instance so non-hook callers (track()) can reach PostHog
+  useEffect(() => {
+    setPostHogRef(posthog ?? null);
+    return () => setPostHogRef(null);
+  }, [posthog]);
+
+  // [P0_ANALYTICS_EVENT] app_opened — once per cold start
+  useEffect(() => {
+    if (posthog) trackAppOpened();
+  }, [posthog]);
 
   useEffect(() => {
     if (bootStatus === 'authed' && userId && posthog && !identifiedRef.current) {
@@ -312,6 +325,14 @@ function PostHogLifecycle({ bootStatus, userId, emailVerified }: {
       posthogReset(posthog);
     }
   }, [bootStatus, userId, posthog, emailVerified]);
+
+  // [P0_ANALYTICS_EVENT] email_verified — edge detection (false → true)
+  useEffect(() => {
+    if (emailVerified && !prevEmailVerifiedRef.current) {
+      trackEmailVerified();
+    }
+    prevEmailVerifiedRef.current = emailVerified;
+  }, [emailVerified]);
 
   // [P0_POSTHOG_SCREEN] Track screen views via Expo Router pathname changes
   usePostHogScreenTrack();

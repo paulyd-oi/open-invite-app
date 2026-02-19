@@ -15,6 +15,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
+import { trackEventRsvp, trackInviteShared } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -283,6 +284,7 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
 
     message += `\n🔗 ${shareUrl}`;
 
+    trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
     await Share.share({
       message,
       title: event.title,
@@ -1170,6 +1172,8 @@ export default function EventDetailScreen() {
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
+      // [P0_ANALYTICS_EVENT] event_rsvp
+      trackEventRsvp({ rsvpStatus: status, sourceScreen: "event_detail" });
       
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });

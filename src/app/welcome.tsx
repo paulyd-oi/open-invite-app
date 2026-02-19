@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -351,6 +352,11 @@ export default function WelcomeOnboardingScreen() {
       
       if (__DEV__) devLog("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
 
+      // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
+      if (isNewAccount) {
+        trackSignupCompleted({ authProvider: "email", isEmailVerified: false });
+      }
+
       // NEW ACCOUNT ONLY: Enable onboarding guide forceShow gate + send verification email
       if (isNewAccount) {
         const forceShowKey = buildGuideKey(GUIDE_FORCE_SHOW_PREFIX, userId);
@@ -682,6 +688,8 @@ export default function WelcomeOnboardingScreen() {
 
       // Advance to Slide 3 - auth succeeded (cookie is set)
       traceLog("final_success", { advancingToSlide: 3 });
+      // [P0_ANALYTICS_EVENT] signup_completed (Apple — best-effort, fires on every Apple auth since we can't distinguish new vs returning)
+      trackSignupCompleted({ authProvider: "apple", isEmailVerified: true });
       setCurrentSlide(3);
     } catch (error: any) {
       // Classify the error for diagnostics

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { trackCircleCreated } from "@/analytics/analyticsEventsSSOT";
 import { useRouter } from "expo-router";
 import { Users, Plus, ChevronLeft, BellOff } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -202,6 +203,7 @@ export default function CirclesScreen() {
       setShowCreateCircle(false);
       // Mark guidance complete - user has created their first circle
       markGuidanceComplete("join_circle");
+      trackCircleCreated({ source: "circles" });
       router.push(`/circle/${response.circle.id}` as any);
     },
     onError: (error: any) => {

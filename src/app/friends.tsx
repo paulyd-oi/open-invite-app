@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { trackCircleCreated } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
   Text,
@@ -1036,6 +1037,7 @@ export default function FriendsScreen() {
       refreshAfterCircleCreate(queryClient);
       refetchCircles();
       setShowCreateCircle(false);
+      trackCircleCreated({ source: "friends" });
     },
     onError: () => {
       safeToast.error("Create Failed", "Failed to create circle");

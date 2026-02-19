@@ -1,4 +1,5 @@
 import React from "react";
+import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
   Text,
@@ -98,6 +99,7 @@ export default function InviteScreen() {
 
     const message = `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${stats.referralCode}\n\nDownload: ${stats.shareLink}`;
 
+    trackInviteShared({ entity: "referral", sourceScreen: "invite" });
     await Share.share({
       message,
       title: "Join Open Invite!",
