@@ -653,6 +653,9 @@ export default function SocialScreen() {
   // Collapse state for sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
+  // Feed filter: "group" = circle-only events, "open" = open/public invites
+  const [feedFilter, setFeedFilter] = useState<"group" | "open">("group");
+
   // Auth gating based on boot status AND session userId (SSOT gate)
   const isAuthed = isAuthedForNetwork(bootStatus, session);
 
@@ -1077,9 +1080,8 @@ export default function SocialScreen() {
     SplashScreen.hideAsync();
   }, []);
 
-  // Discovery events: pure discovery (excludes going/interested/host)
-  // P0: Client-side safety net — also exclude circle-only events from social feed
-  const discoveryEvents = useMemo(() => {
+  // Discovery events: split into open invites vs circle/group events
+  const { discoveryEvents, circleDiscoveryEvents } = useMemo(() => {
     const feedEvents = feedData?.events ?? [];
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
@@ -1088,27 +1090,31 @@ export default function SocialScreen() {
     const attendingEventIds = new Set(attendingEvents.map(e => e.id));
     const viewerUserId = session?.user?.id;
 
-    let excludedCircleCount = 0;
-    const filtered = feedEvents.filter(event => {
-      if (event.userId === viewerUserId) return false;
-      if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
-      if (myEventIds.has(event.id)) return false;
-      if (attendingEventIds.has(event.id)) return false;
-      // Safety net: circle-only events must not appear in social/discover feed
+    const open: Event[] = [];
+    const circle: Event[] = [];
+    for (const event of feedEvents) {
+      if (event.userId === viewerUserId) continue;
+      if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') continue;
+      if (myEventIds.has(event.id)) continue;
+      if (attendingEventIds.has(event.id)) continue;
+      // Classify: circle-only vs open
       if (event.visibility === 'circle_only' || (event.circleId && event.visibility !== 'all_friends')) {
-        excludedCircleCount++;
-        return false;
+        circle.push(event);
+      } else {
+        open.push(event);
       }
-      return true;
-    });
+    }
     if (__DEV__) {
       devLog('[P0_SOCIAL_OPEN_INVITES_FILTER]', {
-        renderedCount: filtered.length,
-        excludedCircleCount,
+        openCount: open.length,
+        circleCount: circle.length,
       });
     }
-    return filtered;
+    return { discoveryEvents: open, circleDiscoveryEvents: circle };
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
+
+  // Active discovery set based on feed filter toggle
+  const activeDiscoveryEvents = feedFilter === 'group' ? circleDiscoveryEvents : discoveryEvents;
 
   // All events for calendar (includes my events + attending + discovery)
   // IMPORTANT: Filter out busy events - they are private and must not appear in social view
@@ -1130,15 +1136,17 @@ export default function SocialScreen() {
     myEvents.filter(e => !shouldOmit(e)).forEach(e => eventMap.set(e.id, e));
     attendingEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
     discoveryEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    circleDiscoveryEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
 
     const result = Array.from(eventMap.values());
     
     // DEV logging for social busy omit invariant
     if (__DEV__) {
-      const totalInput = myEvents.length + attendingEvents.length + discoveryEvents.length;
+      const allDiscovery = [...discoveryEvents, ...circleDiscoveryEvents];
+      const totalInput = myEvents.length + attendingEvents.length + allDiscovery.length;
       const busyOmittedCount = myEvents.filter(e => shouldOmit(e)).length + 
         attendingEvents.filter(e => shouldOmit(e)).length + 
-        discoveryEvents.filter(e => shouldOmit(e)).length;
+        allDiscovery.filter(e => shouldOmit(e)).length;
       if (busyOmittedCount > 0) {
         devLog("[SOCIAL_OMIT_BUSY]", {
           inputCount: totalInput,
@@ -1150,7 +1158,7 @@ export default function SocialScreen() {
     }
     
     return result;
-  }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
+  }, [myEventsData?.events, attendingData?.events, discoveryEvents, circleDiscoveryEvents]);
 
   // Prepare events for calendar with metadata
   const calendarEvents = useMemo(() => {
@@ -1181,10 +1189,10 @@ export default function SocialScreen() {
     return Array.from(eventMap.values());
   }, [myEventsData?.events, attendingData?.events]);
 
-  // Group discovery events by time (feed sections show ONLY discovery)
+  // Group discovery events by time (feed sections show ONLY active filter set)
   const groupedEvents = useMemo(
-    () => groupEventsByTime(discoveryEvents, session?.user?.id),
-    [discoveryEvents, session?.user?.id]
+    () => groupEventsByTime(activeDiscoveryEvents, session?.user?.id),
+    [activeDiscoveryEvents, session?.user?.id]
   );
 
   // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded social feed sections
@@ -1207,11 +1215,12 @@ export default function SocialScreen() {
   const plansIn14Days = useMemo(() => {
     const now = new Date();
     const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-    return discoveryEvents.filter((event) => {
+    const allFeed = [...discoveryEvents, ...circleDiscoveryEvents];
+    return allFeed.filter((event) => {
       const eventDate = new Date(event.startTime);
       return eventDate >= now && eventDate <= fourteenDaysFromNow;
     }).length;
-  }, [discoveryEvents]);
+  }, [discoveryEvents, circleDiscoveryEvents]);
 
   const handleRefreshLegacy = () => {
     refetchFeed();
@@ -1313,6 +1322,9 @@ export default function SocialScreen() {
     groupedEvents.tomorrow.length > 0 ||
     groupedEvents.thisWeek.length > 0 ||
     groupedEvents.upcoming.length > 0;
+
+  // Check if either filter set has events (for empty state gating)
+  const hasAnyFeedEvents = discoveryEvents.length > 0 || circleDiscoveryEvents.length > 0;
     
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => {
@@ -1375,7 +1387,7 @@ export default function SocialScreen() {
       {/* Filter Pills */}
       {isLoading ? (
         <FeedSkeleton />
-      ) : !hasEvents ? (
+      ) : !hasAnyFeedEvents ? (
         <ScrollView
           className="flex-1 px-5"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -1459,6 +1471,31 @@ export default function SocialScreen() {
             />
           }
         >
+          {/* Feed filter: Group Events vs Open Invites */}
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <View className="flex-row mb-4 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? colors.surface : '#F2F2F7', borderWidth: 1, borderColor: colors.borderSubtle }}>
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => { setFeedFilter('group'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              className="flex-1 py-2.5 items-center rounded-xl"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={feedFilter === 'group' ? { backgroundColor: themeColor } : undefined}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === 'group' ? '#FFFFFF' : colors.textSecondary }}>Group Events</Text>
+            </Pressable>
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => { setFeedFilter('open'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              className="flex-1 py-2.5 items-center rounded-xl"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={feedFilter === 'open' ? { backgroundColor: themeColor } : undefined}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === 'open' ? '#FFFFFF' : colors.textSecondary }}>Open Invites</Text>
+            </Pressable>
+          </View>
+
           <FeedCalendar
             events={calendarEvents}
             themeColor={themeColor}
