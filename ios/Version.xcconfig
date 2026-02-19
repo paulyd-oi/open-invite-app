@@ -1,0 +1,5 @@
+// Version.xcconfig — Single source of truth for app + extension versioning.
+// Both the app target and widget extension target reference this file.
+// Bump these values here; they propagate to all targets automatically.
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 201

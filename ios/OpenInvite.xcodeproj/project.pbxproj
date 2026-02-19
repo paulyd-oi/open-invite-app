@@ -58,6 +58,7 @@
 		DB0CF89B2F4736B0004235C2 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		DB0CF89D2F4736B0004235C2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		DB0CF8B42F4736F6004235C2 /* OpenInviteTodayWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenInviteTodayWidgetExtension.entitlements; sourceTree = "<group>"; };
+		6A72611348D4841A30BE7B22 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = OpenInvite/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* OpenInvite-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "OpenInvite-Bridging-Header.h"; path = "OpenInvite/OpenInvite-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -153,6 +154,7 @@
 			isa = PBXGroup;
 			children = (
 				DB0CF8B42F4736F6004235C2 /* OpenInviteTodayWidgetExtension.entitlements */,
+				6A72611348D4841A30BE7B22 /* Version.xcconfig */,
 				13B07FAE1A68108700A75B9A /* OpenInvite */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				DB0CF89F2F4736B0004235C2 /* OpenInviteTodayWidget */,
@@ -453,7 +455,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = OpenInvite/OpenInvite.entitlements;
-				CURRENT_PROJECT_VERSION = 201;
 				DEVELOPMENT_TEAM = T3LP6XXS49;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -466,7 +467,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -490,7 +490,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = OpenInvite/OpenInvite.entitlements;
-				CURRENT_PROJECT_VERSION = 201;
 				DEVELOPMENT_TEAM = T3LP6XXS49;
 				INFOPLIST_FILE = OpenInvite/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -498,7 +497,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -516,6 +514,7 @@
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6A72611348D4841A30BE7B22 /* Version.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
@@ -579,6 +578,7 @@
 		};
 		83CBBA211A601CBA00E9B192 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6A72611348D4841A30BE7B22 /* Version.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
@@ -647,7 +647,6 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = OpenInviteTodayWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 201;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = T3LP6XXS49;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -663,7 +662,6 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
@@ -678,6 +676,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -697,7 +696,6 @@
 				CODE_SIGN_ENTITLEMENTS = OpenInviteTodayWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 201;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = T3LP6XXS49;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -713,7 +711,6 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
 				MTL_FAST_MATH = YES;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.vibecode.openinvite.0qi5wk.OpenInviteTodayWidget;
@@ -726,6 +723,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
