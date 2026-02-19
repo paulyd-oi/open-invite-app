@@ -80,7 +80,15 @@ export function DayInsightCard({
       ? "Today"
       : selectedDate.toLocaleDateString("en-US", { weekday: "long" });
 
-    const bodyLine = isToday ? "Nothing planned yet" : "Open day";
+    // Case A: truly empty (no events at all) → "Wide open."
+    // Case B: only work/birthday events → "Open day."
+    const hasAnyEvents = events.length > 0;
+    const bodyLine = hasAnyEvents ? "Open day." : "Wide open.";
+
+    // Soft subline only for Case A (truly empty)
+    const softSubline = !hasAnyEvents
+      ? "Add something when you're ready."
+      : null;
 
     if (__DEV__) {
       devLog("[P0_DAY_INSIGHT_CARD]", {
@@ -88,12 +96,13 @@ export function DayInsightCard({
         isToday,
         emptyEnough,
         freeAfter,
+        bodyLine,
         totalEvents: events.length,
         openInviteCount: openInviteEvents.length,
       });
     }
 
-    return { dayLabel, bodyLine, freeAfter };
+    return { dayLabel, bodyLine, freeAfter, softSubline };
   }, [selectedDate, events]);
 
   if (!insight) return null;
@@ -104,7 +113,7 @@ export function DayInsightCard({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onCreatePress();
       }}
-      className="rounded-2xl px-4 py-3 mb-4"
+      className="rounded-2xl px-4 py-4 mb-4"
       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
       style={{
         backgroundColor: isDark ? colors.surface : `${themeColor}08`,
@@ -117,16 +126,36 @@ export function DayInsightCard({
         <View className="flex-1 mr-3">
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text
-            className="text-sm font-semibold mb-0.5"
+            className="text-sm font-semibold mb-1"
             style={{ color: themeColor }}
           >
             {insight.dayLabel}
           </Text>
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <Text className="text-xs" style={{ color: colors.textSecondary }}>
+          <Text
+            className="text-[13px] leading-[18px]"
+            style={{ color: colors.textSecondary }}
+          >
             {insight.bodyLine}
-            {insight.freeAfter ? ` · Free after ${insight.freeAfter}` : ""}
           </Text>
+          {insight.freeAfter ? (
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            <Text
+              className="text-xs mt-0.5"
+              style={{ color: colors.textSecondary, opacity: 0.7 }}
+            >
+              Free after {insight.freeAfter}
+            </Text>
+          ) : null}
+          {insight.softSubline ? (
+            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+            <Text
+              className="text-xs mt-0.5"
+              style={{ color: colors.textSecondary, opacity: 0.55 }}
+            >
+              {insight.softSubline}
+            </Text>
+          ) : null}
         </View>
         <View
           className="w-8 h-8 rounded-full items-center justify-center"
