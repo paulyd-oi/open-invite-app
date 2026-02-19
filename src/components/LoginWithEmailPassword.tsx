@@ -6,7 +6,8 @@ import { ArrowLeft, Mail, CheckCircle, PartyPopper, Eye, EyeOff, ShieldCheck } f
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { devLog, devError } from "@/lib/devLog";
-import { trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
+// CANONICAL_EMAIL_VERIFIED_ONLY: email_verified fires via src/app/_layout.tsx edge-detect (SSOT)
+// import { trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
@@ -206,7 +207,8 @@ export default function LoginWithEmailPassword() {
       // Success - email verified!
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // [P0_ANALYTICS_EVENT] email_verified (in_app code entry)
-      trackEmailVerified({ method: "in_app" });
+// CANONICAL_EMAIL_VERIFIED_ONLY: email_verified fires via src/app/_layout.tsx edge-detect (SSOT)
+//       trackEmailVerified({ method: "in_app" });
 
       // Check circuit breaker before attempting login
       if (isRateLimited()) {
