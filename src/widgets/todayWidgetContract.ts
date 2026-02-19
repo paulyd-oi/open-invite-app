@@ -12,8 +12,8 @@
 /** Current schema version. Bump on any breaking payload change. */
 export const WIDGET_SCHEMA_VERSION = 1;
 
-/** Maximum items to include in the widget payload */
-export const WIDGET_MAX_ITEMS = 5;
+/** Maximum items to include in the widget payload (matches widget UI row count) */
+export const WIDGET_MAX_ITEMS = 3;
 
 /** UserDefaults / SharedPreferences key (platform-agnostic) */
 export const WIDGET_PAYLOAD_KEY = 'todayWidgetPayload_v1';

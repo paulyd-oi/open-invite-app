@@ -33,7 +33,7 @@ export async function syncTodayWidget(events: Event[]): Promise<void> {
 
     // DEV proof log
     if (__DEV__) {
-      devLog('[WIDGET_SYNC]', {
+      devLog('[P0_TODAY_WIDGET_WRITE]', {
         status: 'ok',
         dateKeyLocal: payload.dateKeyLocal,
         itemCount: payload.items.length,
@@ -42,7 +42,7 @@ export async function syncTodayWidget(events: Event[]): Promise<void> {
   } catch (error) {
     // Widget sync is never critical — swallow errors to protect app stability
     if (__DEV__) {
-      devLog('[WIDGET_SYNC]', { status: 'error', error });
+      devLog('[P0_TODAY_WIDGET_WRITE]', { status: 'error', error });
     }
   }
 }

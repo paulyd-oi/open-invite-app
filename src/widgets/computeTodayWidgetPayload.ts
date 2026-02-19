@@ -123,7 +123,7 @@ export function computeTodayWidgetPayload(
   // DEV proof log
   if (__DEV__) {
     const jsonSize = JSON.stringify(payload).length;
-    devLog('[WIDGET_PAYLOAD_COMPUTE]', {
+    devLog('[P0_TODAY_WIDGET_COMPUTE]', {
       dateKeyLocal,
       itemCount: items.length,
       moreCount,

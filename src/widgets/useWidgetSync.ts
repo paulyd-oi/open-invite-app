@@ -65,7 +65,7 @@ export function useWidgetSync(enabled: boolean): void {
     const now = Date.now();
     if (now - lastSyncRef.current < FOREGROUND_DEBOUNCE_MS) {
       if (__DEV__) {
-        devLog('[WIDGET_SYNC]', 'foreground sync debounced');
+        devLog('[P0_TODAY_WIDGET_HOOK]', 'foreground sync debounced');
       }
       return;
     }
@@ -73,7 +73,7 @@ export function useWidgetSync(enabled: boolean): void {
 
     const events = getCalendarEventsFromCache(queryClient);
     if (__DEV__) {
-      devLog('[WIDGET_SYNC]', 'foreground sync triggered', {
+      devLog('[P0_TODAY_WIDGET_HOOK]', 'foreground sync triggered', {
         cachedEventCount: events.length,
       });
     }
