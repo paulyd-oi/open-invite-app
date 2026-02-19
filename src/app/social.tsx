@@ -688,20 +688,20 @@ export default function SocialScreen() {
   // Removed old verification banner logic - now using EmailVerificationBanner component
   // which auto-shows when emailVerified === false
 
-  // Check insight card dismissal status (14-day cooldown)
+  // Check insight card dismissal status (3-day cooldown)
   useEffect(() => {
     const checkInsightDismissal = async () => {
       try {
         const userId = session?.user?.id;
         if (!userId) return;
-        const dismissedUntil = await AsyncStorage.getItem(`feed_insight_dismissed_until::${userId}`);
+        const dismissedUntil = await AsyncStorage.getItem(`socialInsightDismissedUntil_v1::${userId}`);
         if (dismissedUntil) {
           const until = parseInt(dismissedUntil, 10);
           if (Date.now() < until) {
             setInsightDismissed(true);
           } else {
             // Expired, clear it
-            await AsyncStorage.removeItem(`feed_insight_dismissed_until::${userId}`);
+            await AsyncStorage.removeItem(`socialInsightDismissedUntil_v1::${userId}`);
             setInsightDismissed(false);
           }
         }
@@ -719,9 +719,9 @@ export default function SocialScreen() {
     try {
       const userId = session?.user?.id;
       if (!userId) return;
-      // 14-day cooldown
-      const until = Date.now() + 14 * 24 * 60 * 60 * 1000;
-      await AsyncStorage.setItem(`feed_insight_dismissed_until::${userId}`, until.toString());
+      // 3-day cooldown
+      const until = Date.now() + 3 * 24 * 60 * 60 * 1000;
+      await AsyncStorage.setItem(`socialInsightDismissedUntil_v1::${userId}`, until.toString());
     } catch (error) {
       // Ignore
     }
@@ -994,7 +994,18 @@ export default function SocialScreen() {
     checkFirstValueNudge();
   }, [isAuthed, isFirstValueNudgeEligible, feedLoading, myEventsLoading, attendingLoading, friendsLoading]);
 
-  // Derive social memory from existing data patterns
+  // Rotating insight pool — deterministic daily rotation, no backend
+  const SOCIAL_INSIGHTS: { memory: string; type: 'events' | 'hosting' | 'friends'; filter?: 'group' | 'open' }[] = [
+    { memory: "Your circle events keep the group connected. Regular meetups build stronger friendships over time.", type: 'events', filter: 'group' },
+    { memory: "Open invites help you meet new people. Every public event is a chance to grow your community.", type: 'events', filter: 'open' },
+    { memory: "Hosting events is a superpower. Each one you create gives others a reason to show up.", type: 'hosting' },
+    { memory: "People who make plans together stay close. Your activity here is building real relationships.", type: 'friends' },
+    { memory: "Small groups create the best memories. Circle events let you plan with the people who matter most.", type: 'events', filter: 'group' },
+    { memory: "The more you show up, the more your network grows. Consistency is the key to lasting connections.", type: 'friends' },
+    { memory: "Open events attract like-minded people. Shared interests are the foundation of great friendships.", type: 'events', filter: 'open' },
+    { memory: "Planning ahead pays off. Friends who coordinate calendars see each other three times more often.", type: 'hosting' },
+  ];
+
   const socialMemory = useMemo(() => {
     if (bootStatus !== 'authed' || feedLoading || myEventsLoading || attendingLoading || friendsLoading) {
       return null;
@@ -1004,56 +1015,22 @@ export default function SocialScreen() {
     const myEvents = myEventsData?.events || [];
     const friends = friendsData?.friends || [];
 
-    // Pattern 1: Frequent Event Attendance (≥2 events attending)
-    if (attendingEvents.length >= 2) {
-      const eventTypes = attendingEvents.map(e => e.title.toLowerCase());
-      const hasRepeatedTypes = eventTypes.some(type => 
-        eventTypes.filter(t => t.includes(type.split(' ')[0]) || type.includes(t.split(' ')[0])).length > 1
-      );
-      
-      if (hasRepeatedTypes) {
-        return {
-          memory: "You have a pattern of joining events that align with your interests. Your social connections are building around shared experiences.",
-          type: 'events' as const
-        };
-      } else {
-        return {
-          memory: "You're exploring diverse social experiences. Each event you join adds a new dimension to your social identity.",
-          type: 'events' as const
-        };
-      }
+    // Need at least some activity to show insight
+    if (attendingEvents.length < 1 && myEvents.length < 1 && friends.length < 1) {
+      return null;
     }
 
-    // Pattern 2: Active Event Hosting (≥2 events created)
-    if (myEvents.length >= 2) {
-      const recentEvents = myEvents.filter(e => 
-        new Date(e.startTime) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      );
-      
-      if (recentEvents.length >= 1) {
-        return {
-          memory: "You're becoming a social catalyst in your community. People look forward to the experiences you create.",
-          type: 'hosting' as const
-        };
-      } else {
-        return {
-          memory: "Your hosting journey is creating lasting memories for others. Each event you organize strengthens your community.",
-          type: 'hosting' as const
-        };
-      }
+    // Deterministic daily rotation
+    const dayKey = Math.floor(Date.now() / 86400000);
+
+    // Bias toward filter-relevant insights when possible
+    const preferred = SOCIAL_INSIGHTS.filter(i => i.filter === feedFilter);
+    if (preferred.length > 0) {
+      return preferred[dayKey % preferred.length];
     }
 
-    // Pattern 3: Growing Social Network (≥2 friends)
-    if (friends.length >= 2) {
-      return {
-        memory: "Your social network is growing meaningfully. Each connection represents a shared moment and potential for deeper friendship.",
-        type: 'friends' as const
-      };
-    }
-
-    // No qualifying patterns found
-    return null;
-  }, [bootStatus, feedLoading, myEventsLoading, attendingLoading, friendsLoading, attendingData, myEventsData, friendsData]);
+    return SOCIAL_INSIGHTS[dayKey % SOCIAL_INSIGHTS.length];
+  }, [bootStatus, feedLoading, myEventsLoading, attendingLoading, friendsLoading, attendingData, myEventsData, friendsData, feedFilter]);
 
   // Auto-dismiss guidance for senior users (those with friends or events)
   // This prevents showing guides to existing accounts who have already used the app
