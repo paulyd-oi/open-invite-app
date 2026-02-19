@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
 import { trackEventRsvp, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
+import { syncTodayWidget } from "@/widgets/syncTodayWidget";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -893,6 +894,8 @@ export default function SocialScreen() {
       }
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
+      // [B241_WIDGET] Sync widget after swipe RSVP (fire-and-forget)
+      syncTodayWidget([...(queryClient.getQueryData<any>(["events", "calendar"])?.createdEvents ?? []), ...(queryClient.getQueryData<any>(["events", "calendar"])?.goingEvents ?? [])]).catch(() => {});
       if (__DEV__) {
         const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
         devLog('[ACTION_FEEDBACK]', JSON.stringify({

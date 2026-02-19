@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated } from "@/analytics/analyticsEventsSSOT";
+import { syncTodayWidget } from "@/widgets/syncTodayWidget";
 import {
   View,
   Text,
@@ -844,6 +845,8 @@ export default function CreateEventScreen() {
       invalidateEventKeys(queryClient, getInvalidateAfterEventCreate(), "event_create");
       // Invalidate entitlements to refresh usage counts
       queryClient.invalidateQueries({ queryKey: qk.entitlements() });
+      // [B241_WIDGET] Sync widget after event create (fire-and-forget)
+      syncTodayWidget([...(queryClient.getQueryData<any>(["events", "calendar"])?.createdEvents ?? []), ...(queryClient.getQueryData<any>(["events", "calendar"])?.goingEvents ?? [])]).catch(() => {});
       // Also invalidate circle queries if this is a circle event
       if (circleId) {
         queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });

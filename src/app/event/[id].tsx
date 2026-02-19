@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
+import { syncTodayWidget } from "@/widgets/syncTodayWidget";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -1218,6 +1219,8 @@ export default function EventDetailScreen() {
       
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
+      // [B241_WIDGET] Sync widget after RSVP change (fire-and-forget)
+      syncTodayWidget([...(queryClient.getQueryData<any>(["events", "calendar"])?.createdEvents ?? []), ...(queryClient.getQueryData<any>(["events", "calendar"])?.goingEvents ?? [])]).catch(() => {});
       setShowRsvpOptions(false);
       
       // ── Prompt arbitration: at most ONE modal per RSVP success ──

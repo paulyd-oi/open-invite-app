@@ -56,6 +56,7 @@ import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { getPostHogProviderProps, posthogIdentify, posthogReset, setPostHogRef, POSTHOG_ENABLED } from "@/analytics/posthogSSOT";
 import { usePostHogScreenTrack } from "@/analytics/usePostHogScreenTrack";
 import { trackAppOpened, trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
+import { useWidgetSync } from "@/widgets/useWidgetSync";
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
@@ -465,6 +466,9 @@ function BootRouter() {
   useEntitlementsForegroundRefresh({
     isLoggedIn: bootStatus === 'authed' || bootStatus === 'onboarding',
   });
+
+  // [B241_WIDGET] Sync Today Widget on foreground (debounced, cache-only — no new fetches)
+  useWidgetSync(bootStatus === 'authed');
 
   // Register push notifications globally (gates on bootStatus === 'authed' internally)
   // Previously in social.tsx - moved here so tokens register immediately on auth, not tab mount
