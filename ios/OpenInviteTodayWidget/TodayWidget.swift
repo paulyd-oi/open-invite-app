@@ -222,9 +222,11 @@ struct AccessoryInlineView: View {
 
     var body: some View {
         if let first = entry.payload?.items.first {
-            Label(first.title, systemImage: "calendar")
+            Text("Next: \(first.timeLabel) \(first.title)")
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         } else {
-            Label("No plans today", systemImage: "calendar")
+            Text("No plans today")
         }
     }
 }
@@ -232,35 +234,29 @@ struct AccessoryInlineView: View {
 @available(iOSApplicationExtension 16.0, *)
 struct AccessoryRectangularView: View {
     let entry: TodayWidgetEntry
-    private let maxRows = 2
 
     var body: some View {
-        if let payload = entry.payload, !payload.items.isEmpty {
+        if let first = entry.payload?.items.first {
             VStack(alignment: .leading, spacing: 2) {
-                ForEach(Array(payload.items.prefix(maxRows))) { item in
-                    HStack(spacing: 4) {
-                        Text(item.timeLabel)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .frame(width: 44, alignment: .leading)
-                            .lineLimit(1)
-                        Text(item.title)
-                            .font(.system(size: 12, weight: .medium))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                let hiddenCount = max(0, payload.items.count - maxRows) + payload.moreCount
-                if hiddenCount > 0 {
-                    Text("+\(hiddenCount) more")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
+                Text("Today  \(first.timeLabel)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                Text(first.title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         } else {
-            Text("No plans today")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Today")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text("No plans")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
         }
     }
 }
@@ -276,10 +272,7 @@ struct AccessoryCircularView: View {
                 Image(systemName: "calendar")
                     .font(.system(size: 12))
                 if let count = entry.payload?.items.count, count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                } else {
-                    Text("0")
+                    Text("\(min(count, 9))")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                 }
             }
