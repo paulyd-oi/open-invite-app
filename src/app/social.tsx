@@ -4,6 +4,7 @@ import { trackEventRsvp, trackRsvpCompleted } from "@/analytics/analyticsEventsS
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { updateWidgetEventsCache } from "@/lib/widgetBridge";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
@@ -1175,6 +1176,11 @@ export default function SocialScreen() {
     
     return result;
   }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
+
+  // Update iOS Lock Screen widget cache whenever allEvents changes
+  useEffect(() => {
+    updateWidgetEventsCache(allEvents);
+  }, [allEvents]);
 
   // Prepare events for calendar with metadata
   const calendarEvents = useMemo(() => {

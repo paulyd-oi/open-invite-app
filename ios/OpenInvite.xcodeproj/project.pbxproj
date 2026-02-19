@@ -8,20 +8,56 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2A07E282AB710630B9E00714 /* OpenInviteTodayWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 78AC80AC1347BDE4477DAB7E /* OpenInviteTodayWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2CB31DE1263F34F17AB7B782 /* WidgetBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 05211B593E32A36834CC4B6D /* WidgetBridge.m */; };
+		36D601015C473904AFEA271A /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A662C9FD25554F40397B3B3B /* WidgetBridge.swift */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		55C6C39FBC042C91CD7E594B /* OpenInviteTodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB78A5A70C9AFB506AC1B4F /* OpenInviteTodayWidget.swift */; };
+		691860B4190AC0FB3D170417 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F45CC61E414302B24F90D001 /* Assets.xcassets */; };
 		7A840D6BE3B8762F3523A78E /* libPods-OpenInvite.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BA238D26D0444B934385F140 /* libPods-OpenInvite.a */; };
 		936D3C7330147A0D04189B0D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 151C7D4AA9FC842B44E84223 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		BC2A3B8E8C4F123F37D75643 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE527446B363BE167DA7715B /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		FEE51E625AFE9D51A1EF5DDA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 429EE4F2A172F4DDFF4D3303 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		81427C6D19CD2B2C71FEA5C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2CEA10EE6B4D5A79069AA09B;
+			remoteInfo = OpenInviteTodayWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A5D083443DDBC4BB811F0450 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2A07E282AB710630B9E00714 /* OpenInviteTodayWidgetExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		05211B593E32A36834CC4B6D /* WidgetBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = WidgetBridge.m; path = OpenInvite/WidgetBridge.m; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* OpenInvite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenInvite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = OpenInvite/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = OpenInvite/Info.plist; sourceTree = "<group>"; };
 		151C7D4AA9FC842B44E84223 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = OpenInvite/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		429EE4F2A172F4DDFF4D3303 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		7873142C6DD6D5841924848F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = Info.plist; path = OpenInviteTodayWidget/Info.plist; sourceTree = "<group>"; };
+		78AC80AC1347BDE4477DAB7E /* OpenInviteTodayWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenInviteTodayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		952B456217AE8D8E9A93F606 /* Pods-OpenInvite.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.debug.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.debug.xcconfig"; sourceTree = "<group>"; };
+		9FB78A5A70C9AFB506AC1B4F /* OpenInviteTodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OpenInviteTodayWidget.swift; path = OpenInviteTodayWidget/OpenInviteTodayWidget.swift; sourceTree = "<group>"; };
+		A662C9FD25554F40397B3B3B /* WidgetBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WidgetBridge.swift; path = OpenInvite/WidgetBridge.swift; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = OpenInvite/SplashScreen.storyboard; sourceTree = "<group>"; };
 		AE527446B363BE167DA7715B /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-OpenInvite/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		B9402155582766C1713BD4EB /* Pods-OpenInvite.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-OpenInvite.release.xcconfig"; path = "Target Support Files/Pods-OpenInvite/Pods-OpenInvite.release.xcconfig"; sourceTree = "<group>"; };
@@ -30,6 +66,7 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = OpenInvite/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* OpenInvite-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "OpenInvite-Bridging-Header.h"; path = "OpenInvite/OpenInvite-Bridging-Header.h"; sourceTree = "<group>"; };
+		F45CC61E414302B24F90D001 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = OpenInviteTodayWidget/Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +75,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				7A840D6BE3B8762F3523A78E /* libPods-OpenInvite.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3547D48D9DC731F166313951 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEE51E625AFE9D51A1EF5DDA /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,6 +109,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				151C7D4AA9FC842B44E84223 /* PrivacyInfo.xcprivacy */,
+				A662C9FD25554F40397B3B3B /* WidgetBridge.swift */,
+				05211B593E32A36834CC4B6D /* WidgetBridge.m */,
 			);
 			name = OpenInvite;
 			sourceTree = "<group>";
@@ -73,8 +120,17 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				BA238D26D0444B934385F140 /* libPods-OpenInvite.a */,
+				458200D36F98FDCBE64B9F7C /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		458200D36F98FDCBE64B9F7C /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				429EE4F2A172F4DDFF4D3303 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		79D168E44936D912C346E86F /* ExpoModulesProviders */ = {
@@ -101,6 +157,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				076403F91EC5E020EFF1EDDE /* Pods */,
 				79D168E44936D912C346E86F /* ExpoModulesProviders */,
+				EBBBAAD20735E6A5BF2467B3 /* OpenInviteTodayWidget */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -111,6 +168,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* OpenInvite.app */,
+				78AC80AC1347BDE4477DAB7E /* OpenInviteTodayWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -122,6 +180,17 @@
 			);
 			name = Supporting;
 			path = OpenInvite/Supporting;
+			sourceTree = "<group>";
+		};
+		EBBBAAD20735E6A5BF2467B3 /* OpenInviteTodayWidget */ = {
+			isa = PBXGroup;
+			children = (
+				9FB78A5A70C9AFB506AC1B4F /* OpenInviteTodayWidget.swift */,
+				F45CC61E414302B24F90D001 /* Assets.xcassets */,
+				7873142C6DD6D5841924848F /* Info.plist */,
+			);
+			name = OpenInviteTodayWidget;
+			path = OpenInviteTodayWidget;
 			sourceTree = "<group>";
 		};
 		EFE1B92C9769556E5FD51CD5 /* OpenInvite */ = {
@@ -146,15 +215,34 @@
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				A5D083443DDBC4BB811F0450 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				40DF108B75751B18EEAC4A4D /* PBXTargetDependency */,
 			);
 			name = OpenInvite;
 			productName = OpenInvite;
 			productReference = 13B07F961A680F5B00A75B9A /* OpenInvite.app */;
 			productType = "com.apple.product-type.application";
+		};
+		2CEA10EE6B4D5A79069AA09B /* OpenInviteTodayWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF5570D354F0383C12164E90 /* Build configuration list for PBXNativeTarget "OpenInviteTodayWidgetExtension" */;
+			buildPhases = (
+				1F0069550A9A4C8608A9C9FC /* Sources */,
+				3547D48D9DC731F166313951 /* Frameworks */,
+				A432A8B7041F8B662085C2CB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenInviteTodayWidgetExtension;
+			productName = OpenInviteTodayWidgetExtension;
+			productReference = 78AC80AC1347BDE4477DAB7E /* OpenInviteTodayWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -183,6 +271,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* OpenInvite */,
+				2CEA10EE6B4D5A79069AA09B /* OpenInviteTodayWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -196,6 +285,14 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				936D3C7330147A0D04189B0D /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A432A8B7041F8B662085C2CB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				691860B4190AC0FB3D170417 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -329,10 +426,29 @@
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
 				BC2A3B8E8C4F123F37D75643 /* ExpoModulesProvider.swift in Sources */,
+				36D601015C473904AFEA271A /* WidgetBridge.swift in Sources */,
+				2CB31DE1263F34F17AB7B782 /* WidgetBridge.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1F0069550A9A4C8608A9C9FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55C6C39FBC042C91CD7E594B /* OpenInviteTodayWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		40DF108B75751B18EEAC4A4D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = OpenInviteTodayWidgetExtension;
+			target = 2CEA10EE6B4D5A79069AA09B /* OpenInviteTodayWidgetExtension */;
+			targetProxy = 81427C6D19CD2B2C71FEA5C9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -525,6 +641,49 @@
 			};
 			name = Release;
 		};
+		8919EBD2DC3DA3A63EB63041 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = OpenInviteTodayWidgetExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenInviteTodayWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vibecode.openinvite.0qi5wk.widget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F7BB4D9DEF837A88FAE1E0C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = OpenInviteTodayWidgetExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenInviteTodayWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vibecode.openinvite.0qi5wk.widget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -542,6 +701,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF5570D354F0383C12164E90 /* Build configuration list for PBXNativeTarget "OpenInviteTodayWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8919EBD2DC3DA3A63EB63041 /* Release */,
+				F7BB4D9DEF837A88FAE1E0C4 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
