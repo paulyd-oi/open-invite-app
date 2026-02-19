@@ -681,20 +681,29 @@ export default function UserProfileScreen() {
   });
 
   // DM circle mutation — idempotent: creates or returns existing 2-member DM circle
+  // Supports both response shapes: { circleId } (legacy) and { circle: { id } } (current)
   const dmMutation = useMutation({
     mutationFn: (targetUserId: string) =>
-      api.post<{ circleId: string }>("/api/circles/dm", { targetUserId }),
+      api.post<{ circleId?: string; circle?: { id: string } }>("/api/circles/dm", { targetUserId }),
     onMutate: (targetUserId) => {
       if (__DEV__) {
         devLog("[P1_DM_BUTTON]", `targetUserId=${targetUserId}`);
       }
     },
-    onSuccess: (response) => {
+    onSuccess: (data) => {
+      const circleId = data?.circleId ?? data?.circle?.id;
+      if (!circleId) {
+        if (__DEV__) {
+          devLog("[P1_DM_OPEN]", `outcome=missing_circleId payloadKeys=${Object.keys(data || {})}`);
+        }
+        safeToast.error("Message Failed", "Could not open conversation. Please try again.");
+        return;
+      }
       if (__DEV__) {
-        devLog("[P1_DM_OPEN]", `circleId=${response.circleId}`);
+        devLog("[P1_DM_OPEN]", `circleId=${circleId}`);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push(`/circle/${response.circleId}` as any);
+      router.push(`/circle/${circleId}` as any);
     },
     onError: (error: any) => {
       safeToast.error("Message Failed", error?.message || "Could not open conversation. Please try again.");
