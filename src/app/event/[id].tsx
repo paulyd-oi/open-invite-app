@@ -15,7 +15,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -1174,6 +1174,18 @@ export default function EventDetailScreen() {
       }
       // [P0_ANALYTICS_EVENT] event_rsvp
       trackEventRsvp({ rsvpStatus: status, sourceScreen: "event_detail" });
+      // [P0_POSTHOG_VALUE] rsvp_completed — canonical retention event
+      trackRsvpCompleted({
+        eventId: id ?? "unknown",
+        rsvpStatus: status,
+        isOpenInvite: event?.visibility === "all_friends",
+        source: "event_detail",
+        hasGuests: totalGoing ?? 0,
+        ts: new Date().toISOString(),
+      });
+      if (__DEV__) {
+        devLog("[P0_POSTHOG_VALUE]", { event: "rsvp_completed", eventId: (id ?? "").slice(0, 8) + "..." });
+      }
       
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });

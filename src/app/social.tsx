@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
-import { trackEventRsvp } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -879,6 +879,18 @@ export default function SocialScreen() {
     onSuccess: (_, { eventId, status }, context) => {
       // [P0_ANALYTICS_EVENT] event_rsvp (feed)
       trackEventRsvp({ rsvpStatus: status, sourceScreen: "feed" });
+      // [P0_POSTHOG_VALUE] rsvp_completed — canonical retention event
+      trackRsvpCompleted({
+        eventId,
+        rsvpStatus: status,
+        isOpenInvite: true, // feed events are all_friends visibility
+        source: "feed",
+        hasGuests: 0,
+        ts: new Date().toISOString(),
+      });
+      if (__DEV__) {
+        devLog("[P0_POSTHOG_VALUE]", { event: "rsvp_completed", eventId: eventId.slice(0, 8) + "..." });
+      }
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {

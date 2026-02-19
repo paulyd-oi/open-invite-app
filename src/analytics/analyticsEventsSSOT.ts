@@ -28,6 +28,9 @@ export const AnalyticsEvent = {
   EVENT_RSVP: "event_rsvp",
   MESSAGE_SENT: "message_sent",
   INVITE_SHARED: "invite_shared",
+  // Canonical VALUE events (retention measurement)
+  RSVP_COMPLETED: "rsvp_completed",
+  VALUE_EVENT_CREATED: "value_event_created",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -200,4 +203,41 @@ export function trackInviteShared(props?: {
   sourceScreen?: string;
 }): void {
   track(AnalyticsEvent.INVITE_SHARED, props);
+}
+
+// ---------------------------------------------------------------------------
+// Canonical VALUE events (retention measurement)
+// ---------------------------------------------------------------------------
+
+/**
+ * rsvp_completed — canonical value event for retention.
+ * Fires once per successful RSVP action (mutation onSuccess).
+ * [P0_POSTHOG_VALUE]
+ */
+export function trackRsvpCompleted(props: {
+  eventId: string;
+  rsvpStatus: "going" | "interested" | "not_going";
+  isOpenInvite: boolean;
+  source: "feed" | "calendar" | "event_detail" | "circle" | "unknown";
+  hasGuests: number;
+  ts: string;
+}): void {
+  track(AnalyticsEvent.RSVP_COMPLETED, props);
+}
+
+/**
+ * value_event_created — canonical value event for retention.
+ * Fires once per successful event creation (mutation onSuccess).
+ * [P0_POSTHOG_VALUE]
+ */
+export function trackValueEventCreated(props: {
+  eventId: string;
+  isOpenInvite: boolean;
+  source: "calendar" | "circle" | "create" | "unknown";
+  hasLocation: boolean;
+  hasCoverImage: boolean;
+  hasGuests: number;
+  ts: string;
+}): void {
+  track(AnalyticsEvent.VALUE_EVENT_CREATED, props);
 }

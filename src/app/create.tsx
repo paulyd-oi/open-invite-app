@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { trackEventCreated as trackEventCreatedAnalytics } from "@/analytics/analyticsEventsSSOT";
+import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
   Text,
@@ -821,6 +821,19 @@ export default function CreateEventScreen() {
         hasPhoto: 0,
         isOpenInvite: visibility === "all_friends" ? 1 : 0,
       });
+      // [P0_POSTHOG_VALUE] value_event_created — canonical retention event
+      trackValueEventCreated({
+        eventId: response?.event?.id ?? "unknown",
+        isOpenInvite: visibility === "all_friends",
+        source: circleId ? "circle" : "create",
+        hasLocation: !!location,
+        hasCoverImage: false,
+        hasGuests: 0,
+        ts: new Date().toISOString(),
+      });
+      if (__DEV__) {
+        devLog("[P0_POSTHOG_VALUE]", { event: "value_event_created", eventId: (response?.event?.id ?? "").slice(0, 8) + "..." });
+      }
       // Mark guidance complete - user has created their first invite
       markGuidanceComplete("create_invite");
       // Complete "create_event" onboarding step
