@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextIn
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock, StickyNote, ChevronDown, Plus, Trash2, MessageCircle } from "@/ui/icons";
+import { Calendar, ChevronRight, ChevronLeft, UserPlus, Lock, Shield, Check, X, Users, MapPin, Clock, Plus, Trash2, MessageCircle } from "@/ui/icons";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -36,12 +36,7 @@ const MoreHorizontal: React.FC<{ size?: number; color?: string }> = ({ size = 24
   <Ionicons name="ellipsis-horizontal" size={size} color={color as any} />
 );
 
-// Friend note type
-interface FriendNote {
-  id: string;
-  content: string;
-  createdAt: string;
-}
+// [P0_FRIEND_NOTES_CALLSITE_REMOVED] FriendNote interface removed — backend /api/friends/:id/notes does not exist (404)
 
 // Minimal Calendar Component (no events visible for privacy)
 function PrivateCalendar({ themeColor }: { themeColor: string }) {
@@ -459,10 +454,7 @@ export default function UserProfileScreen() {
   }, [isSelf, viewerId, id, router, source]);
 
   // ===== FRIEND-ONLY STATE (unlocked when isFriend=true) =====
-  const [showNotesSection, setShowNotesSection] = useState(true);
-  const [newNoteText, setNewNoteText] = useState("");
-  const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  // [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes state removed — no backend endpoint
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -494,6 +486,11 @@ export default function UserProfileScreen() {
   // [P0_PROFILE_SOT] DEV-only proof log on mount
   useEffect(() => {
     if (__DEV__ && data) {
+      devLog("[P0_FRIEND_NOTES_CALLSITE_REMOVED]", {
+        file: "src/app/user/[id].tsx",
+        ok: true,
+        reason: "backend_404_no_endpoint",
+      });
       devLog("[P0_PROFILE_SOT]", {
         routeSource: source ?? "user/[id]",
         targetUserId: id,
@@ -502,7 +499,6 @@ export default function UserProfileScreen() {
         relationshipState: isFriend ? "friend" : "non-friend",
         friendshipId: friendshipId,
         gatedSections: {
-          notes: isFriend,
           calendar: isFriend,
           unfriendMenu: isFriend,
         },
@@ -530,14 +526,7 @@ export default function UserProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId && isFriend,
   });
 
-  // Fetch notes for this friend (friend-only feature)
-  const { data: notesData, refetch: refetchNotes } = useQuery({
-    queryKey: ["friendNotes", friendshipId],
-    queryFn: () => api.get<{ notes: FriendNote[] }>(`/api/friends/${friendshipId}/notes`),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId && isFriend,
-  });
-
-  const notes = notesData?.notes ?? [];
+  // [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes query removed — /api/friends/:id/notes returns 404
 
   // Minute tick to force rerender when events pass their end time
   const minuteTick = useMinuteTick(true);
@@ -638,32 +627,7 @@ export default function UserProfileScreen() {
   });
 
   // ===== FRIEND-ONLY MUTATIONS =====
-  // Add note mutation
-  const addNoteMutation = useMutation({
-    mutationFn: (content: string) =>
-      api.post<{ note: FriendNote }>(`/api/friends/${friendshipId}/notes`, { content }),
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setNewNoteText("");
-      refetchNotes();
-    },
-    onError: (error: any) => {
-      safeToast.error("Save Failed", error?.message || "Failed to add note");
-    },
-  });
-
-  // Delete note mutation
-  const deleteNoteMutation = useMutation({
-    mutationFn: (noteId: string) =>
-      api.delete(`/api/friends/${friendshipId}/notes/${noteId}`),
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      refetchNotes();
-    },
-    onError: (error: any) => {
-      safeToast.error("Delete Failed", error?.message || "Failed to delete note");
-    },
-  });
+  // [P0_FRIEND_NOTES_CALLSITE_REMOVED] addNoteMutation + deleteNoteMutation removed — no backend endpoint
 
   // Unfriend mutation
   const unfriendMutation = useMutation({
@@ -711,24 +675,7 @@ export default function UserProfileScreen() {
   });
 
   // ===== FRIEND-ONLY HANDLERS =====
-  const handleAddNote = () => {
-    if (newNoteText.trim().length === 0) return;
-    addNoteMutation.mutate(newNoteText.trim());
-  };
-
-  const handleDeleteNote = (noteId: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    setNoteToDelete(noteId);
-    setShowDeleteNoteConfirm(true);
-  };
-
-  const confirmDeleteNote = () => {
-    if (noteToDelete) {
-      deleteNoteMutation.mutate(noteToDelete);
-    }
-    setShowDeleteNoteConfirm(false);
-    setNoteToDelete(null);
-  };
+  // [P0_FRIEND_NOTES_CALLSITE_REMOVED] handleAddNote, handleDeleteNote, confirmDeleteNote removed — no backend endpoint
 
   const handleMenuPress = () => {
     Haptics.selectionAsync();
@@ -1000,113 +947,7 @@ export default function UserProfileScreen() {
                   ))
                 )}
 
-                {/* Notes Section (FRIEND-ONLY SSOT FEATURE) */}
-                <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4 mt-4">
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowNotesSection(!showNotesSection);
-                    }}
-                    className="flex-row items-center justify-between mb-3"
-                  >
-                    <View className="flex-row items-center">
-                      <StickyNote size={18} color="#F59E0B" />
-                      <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                        Notes to Remember
-                      </Text>
-                      {notes.length > 0 && (
-                        <View
-                          className="ml-2 px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: "#F59E0B20" }}
-                        >
-                          <Text className="text-xs font-medium" style={{ color: "#F59E0B" }}>
-                            {notes.length}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <ChevronDown
-                      size={18}
-                      color={colors.textTertiary}
-                      style={{ transform: [{ rotate: showNotesSection ? "0deg" : "-90deg" }] }}
-                    />
-                  </Pressable>
-
-                  {showNotesSection && (
-                    <View
-                      className="rounded-2xl p-4"
-                      style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}
-                    >
-                      <Text className="text-xs mb-3" style={{ color: colors.textTertiary }}>
-                        Private notes only you can see
-                      </Text>
-
-                      {/* Add new note input */}
-                      <View className="flex-row items-center mb-3">
-                        <TextInput
-                          value={newNoteText}
-                          onChangeText={setNewNoteText}
-                          placeholder="Add a note about this friend..."
-                          placeholderTextColor={colors.textTertiary}
-                          className="flex-1 rounded-xl px-4 py-3 mr-2"
-                          style={{
-                            backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                            color: colors.text,
-                          }}
-                          onSubmitEditing={handleAddNote}
-                          returnKeyType="done"
-                        />
-                        <Pressable
-                          onPress={handleAddNote}
-                          disabled={newNoteText.trim().length === 0 || addNoteMutation.isPending}
-                          className="w-10 h-10 rounded-full items-center justify-center"
-                          style={{
-                            backgroundColor: newNoteText.trim().length > 0 ? themeColor : (isDark ? "#2C2C2E" : "#E5E7EB"),
-                            opacity: addNoteMutation.isPending ? 0.5 : 1,
-                          }}
-                        >
-                          <Plus size={20} color={newNoteText.trim().length > 0 ? "#fff" : colors.textTertiary} />
-                        </Pressable>
-                      </View>
-
-                      {/* Notes list */}
-                      {notes.length === 0 ? (
-                        <View className="py-4 items-center">
-                          <Text className="text-sm" style={{ color: colors.textTertiary }}>
-                            No notes yet. Add one above!
-                          </Text>
-                        </View>
-                      ) : (
-                        <View>
-                          {notes.map((note, index) => (
-                            <View
-                              key={note.id}
-                              className="flex-row items-start py-2"
-                              style={{
-                                borderTopWidth: index > 0 ? 1 : 0,
-                                borderTopColor: colors.separator,
-                              }}
-                            >
-                              <Text className="mr-2 mt-0.5" style={{ color: "#F59E0B" }}>
-                                •
-                              </Text>
-                              <Text className="flex-1 text-sm" style={{ color: colors.text }}>
-                                {note.content}
-                              </Text>
-                              <Pressable
-                                onPress={() => handleDeleteNote(note.id)}
-                                className="ml-2 p-1"
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                              >
-                                <Trash2 size={14} color={colors.textTertiary} />
-                              </Pressable>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </Animated.View>
+                {/* [P0_FRIEND_NOTES_CALLSITE_REMOVED] Notes Section removed — /api/friends/:id/notes returns 404. */}
               </>
             ) : (
               <>
@@ -1201,19 +1042,7 @@ export default function UserProfileScreen() {
 
       {/* ===== FRIEND-ONLY MODALS (SSOT: gated by isFriend) ===== */}
       
-      {/* Delete Note Confirmation Modal */}
-      <ConfirmModal
-        visible={showDeleteNoteConfirm}
-        title="Delete Note"
-        message="Are you sure you want to delete this note?"
-        confirmText="Delete"
-        isDestructive
-        onConfirm={confirmDeleteNote}
-        onCancel={() => {
-          setShowDeleteNoteConfirm(false);
-          setNoteToDelete(null);
-        }}
-      />
+      {/* [P0_FRIEND_NOTES_CALLSITE_REMOVED] Delete Note ConfirmModal removed */}
 
       {/* Menu Modal (friend-only) */}
       <Modal
