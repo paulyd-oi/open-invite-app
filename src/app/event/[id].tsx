@@ -380,9 +380,9 @@ export default function EventDetailScreen() {
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
-  const [showFirstRsvpNudge, setShowFirstRsvpNudge] = useState(false);
-  const [showPostValueInvite, setShowPostValueInvite] = useState(false);
-  const [showNotificationPrePrompt, setShowNotificationPrePrompt] = useState(false);
+  // Prompt arbitration: only ONE modal per RSVP success
+  type RsvpPromptChoice = "post_value_invite" | "first_rsvp_nudge" | "notification" | "none";
+  const [rsvpPromptChoice, setRsvpPromptChoice] = useState<RsvpPromptChoice>("none");
 
   // Event Report Modal state
   const [showReportModal, setShowReportModal] = useState(false);
@@ -1204,31 +1204,55 @@ export default function EventDetailScreen() {
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
       setShowRsvpOptions(false);
       
-      // Check if we should show notification pre-prompt (Aha moment: first RSVP going/interested)
-      if (bootStatus === 'authed' && (status === "going" || status === "interested")) {
-        const userId = session?.user?.id;
-        const shouldShow = await shouldShowNotificationPrompt(userId);
-        if (shouldShow) {
-          // Wait 600ms before showing modal
-          setTimeout(() => {
-            setShowNotificationPrePrompt(true);
-          }, 600);
-        }
-      }
-      
-      // Also check if we should show first RSVP nudge (different from notification prompt)
+      // ── Prompt arbitration: at most ONE modal per RSVP success ──
+      // Priority: PostValueInvite > FirstRsvpNudge > NotificationPrePrompt
       if (bootStatus === 'authed') {
-        const canShow = await canShowFirstRsvpNudge();
-        if (canShow) {
-          setShowFirstRsvpNudge(true);
-        }
-      }
+        let postValueEligible = false;
+        let firstRsvpEligible = false;
+        let notifEligible = false;
 
-      // Post-value invite prompt (7-day cooldown, after RSVP going)
-      if (bootStatus === 'authed') {
-        const canInvite = await canShowPostValueInvite("rsvp");
-        if (canInvite) {
-          setTimeout(() => setShowPostValueInvite(true), 800);
+        // 1. Check PostValueInvitePrompt eligibility (highest priority)
+        try {
+          postValueEligible = await canShowPostValueInvite("rsvp");
+        } catch {
+          postValueEligible = false;
+        }
+
+        // 2. Check FirstRsvpNudge eligibility
+        try {
+          firstRsvpEligible = await canShowFirstRsvpNudge();
+        } catch {
+          firstRsvpEligible = false;
+        }
+
+        // 3. Check NotificationPrePrompt eligibility (only for going/interested)
+        if (status === "going" || status === "interested") {
+          try {
+            notifEligible = await shouldShowNotificationPrompt(session?.user?.id) ?? false;
+          } catch {
+            notifEligible = false;
+          }
+        }
+
+        // Arbitrate: pick exactly one
+        let chosen: "post_value_invite" | "first_rsvp_nudge" | "notification" | "none" = "none";
+        if (postValueEligible) {
+          chosen = "post_value_invite";
+        } else if (firstRsvpEligible) {
+          chosen = "first_rsvp_nudge";
+        } else if (notifEligible) {
+          chosen = "notification";
+        }
+
+        if (__DEV__) {
+          devLog("[P1_PROMPT_ARB_RSVP]", `chosen=${chosen} postValueEligible=${postValueEligible} firstRsvpEligible=${firstRsvpEligible} notifEligible=${notifEligible}`);
+        }
+
+        // Lock choice immediately, then apply delay if needed
+        if (chosen !== "none") {
+          setRsvpPromptChoice(chosen);
+          // PostValueInvite uses 800ms delay for smoother UX; others show immediately
+          // Since choice is already locked, no other prompt can appear in the meantime
         }
       }
     },
@@ -1545,23 +1569,23 @@ export default function EventDetailScreen() {
   // First RSVP nudge handlers (REMOVED: old notification nudge logic)
   const handleFirstRsvpNudgePrimary = async () => {
     await markFirstRsvpNudgeCompleted();
-    setShowFirstRsvpNudge(false);
+    setRsvpPromptChoice("none");
     router.push("/discover");
   };
 
   const handleFirstRsvpNudgeSecondary = async () => {
     await markFirstRsvpNudgeCompleted();
-    setShowFirstRsvpNudge(false);
+    setRsvpPromptChoice("none");
     router.push("/create");
   };
 
   const handleFirstRsvpNudgeDismiss = async () => {
     await markFirstRsvpNudgeCompleted();
-    setShowFirstRsvpNudge(false);
+    setRsvpPromptChoice("none");
   };
 
   const handlePostValueInviteClose = () => {
-    setShowPostValueInvite(false);
+    setRsvpPromptChoice("none");
   };
 
   // REMOVED: handleNotificationNudgeClose - now handled by pre-prompt modal
@@ -3310,24 +3334,23 @@ export default function EventDetailScreen() {
         onCancel={() => setShowRemoveRsvpConfirm(false)}
       />
 
+      {/* Prompt arbitration: exactly one modal per RSVP success */}
       <FirstRsvpNudge
-        visible={showFirstRsvpNudge}
+        visible={rsvpPromptChoice === "first_rsvp_nudge"}
         onPrimary={handleFirstRsvpNudgePrimary}
         onSecondary={handleFirstRsvpNudgeSecondary}
         onDismiss={handleFirstRsvpNudgeDismiss}
       />
 
-      {/* Post-value invite prompt (share app after RSVP) */}
       <PostValueInvitePrompt
-        visible={showPostValueInvite}
+        visible={rsvpPromptChoice === "post_value_invite"}
         surface="rsvp"
         onClose={handlePostValueInviteClose}
       />
 
-      {/* Notification Pre-Prompt Modal (Aha moment: first RSVP going/interested) */}
       <NotificationPrePromptModal
-        visible={showNotificationPrePrompt}
-        onClose={() => setShowNotificationPrePrompt(false)}
+        visible={rsvpPromptChoice === "notification"}
+        onClose={() => setRsvpPromptChoice("none")}
         userId={session?.user?.id}
       />
 
