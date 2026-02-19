@@ -86,9 +86,10 @@ export function posthogIdentify(
   userId: string,
   properties?: Record<string, any>,
 ): void {
-  if (!POSTHOG_ENABLED || !posthog) return;
+  const ph = posthog ?? _phRef;
+  if (!POSTHOG_ENABLED || !ph) return;
   try {
-    posthog.identify(userId, properties);
+    ph.identify(userId, properties);
     if (__DEV__) {
       devLog("[P0_POSTHOG_IDENTIFY]", { userId: userId.substring(0, 8) + "..." });
     }
@@ -103,9 +104,10 @@ export function posthogIdentify(
 export function posthogReset(
   posthog: { reset: () => void } | null,
 ): void {
-  if (!POSTHOG_ENABLED || !posthog) return;
+  const ph = posthog ?? _phRef;
+  if (!POSTHOG_ENABLED || !ph) return;
   try {
-    posthog.reset();
+    ph.reset();
     if (__DEV__) {
       devLog("[P0_POSTHOG_RESET]", "identity_cleared");
     }
@@ -122,9 +124,10 @@ export function posthogCapture(
   event: string,
   properties?: Record<string, any>,
 ): void {
-  if (!POSTHOG_ENABLED || !posthog) return;
+  const ph = posthog ?? _phRef;
+  if (!POSTHOG_ENABLED || !ph) return;
   try {
-    posthog.capture(event, properties);
+    ph.capture(event, properties);
   } catch {
     // Never crash the app for analytics
   }
@@ -138,9 +141,10 @@ export function posthogScreen(
   name: string,
   properties?: Record<string, any>,
 ): void {
-  if (!POSTHOG_ENABLED || !posthog) return;
+  const ph = posthog ?? _phRef;
+  if (!POSTHOG_ENABLED || !ph) return;
   try {
-    posthog.screen(name, properties);
+    ph.screen(name, properties);
     if (__DEV__) {
       devLog("[P0_POSTHOG_SCREEN]", { path: name, ...properties });
     }
