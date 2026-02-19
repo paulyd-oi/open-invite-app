@@ -2280,7 +2280,7 @@ export default function EventDetailScreen() {
                 <View className="ml-3 flex-1">
                   <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
                   <Text className="font-semibold" style={{ color: colors.text }}>
-                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
+                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName?.trim() ? event.circleName.trim() : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
                   </Text>
                 </View>
               </View>
