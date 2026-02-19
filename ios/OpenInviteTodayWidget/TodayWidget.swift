@@ -214,6 +214,79 @@ struct MediumWidgetView: View {
     }
 }
 
+// MARK: - Lock Screen Accessory Views
+
+@available(iOSApplicationExtension 16.0, *)
+struct AccessoryInlineView: View {
+    let entry: TodayWidgetEntry
+
+    var body: some View {
+        if let first = entry.payload?.items.first {
+            Label(first.title, systemImage: "calendar")
+        } else {
+            Label("No plans today", systemImage: "calendar")
+        }
+    }
+}
+
+@available(iOSApplicationExtension 16.0, *)
+struct AccessoryRectangularView: View {
+    let entry: TodayWidgetEntry
+    private let maxRows = 2
+
+    var body: some View {
+        if let payload = entry.payload, !payload.items.isEmpty {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(payload.items.prefix(maxRows))) { item in
+                    HStack(spacing: 4) {
+                        Text(item.timeLabel)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .frame(width: 44, alignment: .leading)
+                            .lineLimit(1)
+                        Text(item.title)
+                            .font(.system(size: 12, weight: .medium))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                let hiddenCount = max(0, payload.items.count - maxRows) + payload.moreCount
+                if hiddenCount > 0 {
+                    Text("+\(hiddenCount) more")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+        } else {
+            Text("No plans today")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+@available(iOSApplicationExtension 16.0, *)
+struct AccessoryCircularView: View {
+    let entry: TodayWidgetEntry
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 1) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 12))
+                if let count = entry.payload?.items.count, count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                } else {
+                    Text("0")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Widget Definition
 
 struct OpenInviteTodayWidget: Widget {
@@ -232,18 +305,61 @@ struct OpenInviteTodayWidget: Widget {
         }
         .configurationDisplayName("Today's Plans")
         .description("See your upcoming events at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies({
+            var families: [WidgetFamily] = [.systemSmall, .systemMedium]
+            if #available(iOSApplicationExtension 16.0, *) {
+                families.append(contentsOf: [
+                    .accessoryInline,
+                    .accessoryRectangular,
+                    .accessoryCircular,
+                ])
+            }
+            return families
+        }())
     }
 
     @ViewBuilder
     private func widgetView(for entry: TodayWidgetEntry) -> some View {
-        // Tap on background opens calendar
-        Link(destination: URL(string: "\(kScheme)://calendar")!) {
-            GeometryReader { geometry in
-                if geometry.size.width > 200 {
-                    MediumWidgetView(entry: entry)
-                } else {
-                    SmallWidgetView(entry: entry)
+        if #available(iOSApplicationExtension 16.0, *) {
+            WidgetFamilyRouter(entry: entry)
+        } else {
+            // Pre-iOS 16: only Home Screen families
+            Link(destination: URL(string: "\(kScheme)://calendar")!) {
+                GeometryReader { geometry in
+                    if geometry.size.width > 200 {
+                        MediumWidgetView(entry: entry)
+                    } else {
+                        SmallWidgetView(entry: entry)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Routes to the correct view per WidgetFamily (iOS 16+)
+@available(iOSApplicationExtension 16.0, *)
+private struct WidgetFamilyRouter: View {
+    @Environment(\.widgetFamily) var family
+    let entry: TodayWidgetEntry
+
+    var body: some View {
+        switch family {
+        case .accessoryInline:
+            AccessoryInlineView(entry: entry)
+        case .accessoryRectangular:
+            AccessoryRectangularView(entry: entry)
+        case .accessoryCircular:
+            AccessoryCircularView(entry: entry)
+        default:
+            // Home Screen: .systemSmall, .systemMedium
+            Link(destination: URL(string: "\(kScheme)://calendar")!) {
+                GeometryReader { geometry in
+                    if geometry.size.width > 200 {
+                        MediumWidgetView(entry: entry)
+                    } else {
+                        SmallWidgetView(entry: entry)
+                    }
                 }
             }
         }
