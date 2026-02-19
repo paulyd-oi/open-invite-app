@@ -88,6 +88,11 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
       "Coordinate plans more easily",
       "Stay connected through events",
     ],
+    eventControls: [
+      "Swipe on chats to pin or manage conversations",
+      "Tap a thread to open messages, events, and shared plans",
+      "Pinned chats stay at the top for faster access",
+    ],
     visibility: [
       "Only friends can see your shared calendar",
       "Private and busy details stay protected",
