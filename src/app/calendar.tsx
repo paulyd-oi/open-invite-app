@@ -64,6 +64,7 @@ import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
+import { DayInsightCard } from "@/components/DayInsightCard";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -2597,6 +2598,16 @@ export default function CalendarScreen() {
                   />
                 </View>
               </View>
+
+              {/* Day Insight Card — shows when day is "empty enough" (no Open Invite events) */}
+              <DayInsightCard
+                selectedDate={selectedDate}
+                events={selectedDateEvents}
+                onCreatePress={() => {
+                  if (!guardEmailVerification(session)) return;
+                  router.push(`/create?date=${selectedDate.toISOString()}`);
+                }}
+              />
 
               {selectedDateEvents.length === 0 ? (
                 <View
