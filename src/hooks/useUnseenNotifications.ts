@@ -34,11 +34,17 @@ export function useUnseenNotificationCount() {
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: UNSEEN_COUNT_QUERY_KEY,
-    queryFn: () => api.get<UnseenCountResponse>("/api/notifications/unseen-count"),
+    queryFn: () => {
+      if (__DEV__) {
+        devLog("[P0_UNSEEN_COUNT_FETCH]", "trigger=queryFn outcome=run");
+      }
+      return api.get<UnseenCountResponse>("/api/notifications/unseen-count");
+    },
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // Refetch every 60 seconds for badge freshness
     refetchIntervalInBackground: false, // Only refetch when app is active
+    refetchOnWindowFocus: false, // Prevent RQ auto-refetch on focus — managed by useFocusEffect in friends.tsx
   });
 
   const unseenCount = data?.count ?? 0;
