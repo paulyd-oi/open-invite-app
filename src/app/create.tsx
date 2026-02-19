@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { trackEventCreated as trackEventCreatedAnalytics } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
   Text,
@@ -813,6 +814,13 @@ export default function CreateEventScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Track for rate app prompt
       trackEventCreated();
+      // [P0_ANALYTICS_EVENT] event_created
+      trackEventCreatedAnalytics({
+        visibility: visibility ?? "unknown",
+        hasLocation: location ? 1 : 0,
+        hasPhoto: 0,
+        isOpenInvite: visibility === "all_friends" ? 1 : 0,
+      });
       // Mark guidance complete - user has created their first invite
       markGuidanceComplete("create_invite");
       // Complete "create_event" onboarding step

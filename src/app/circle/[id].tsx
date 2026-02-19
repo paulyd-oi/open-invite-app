@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { trackMessageSent, trackInviteShared, lengthBucket } from "@/analytics/analyticsEventsSSOT";
 import {
   View,
   Text,
@@ -2450,6 +2451,12 @@ export default function CircleScreen() {
           durationMs: context?._t0 ? Date.now() - context._t0 : 0,
         }));
       }
+      // [P0_ANALYTICS_EVENT] message_sent
+      trackMessageSent({
+        hasMedia: 0,
+        lengthBucket: lengthBucket(context?.content?.length ?? 0),
+        sourceScreen: "circle",
+      });
     },
     onError: (error, _vars, context) => {
       // Mark as failed — do NOT remove. Message stays visible for retry.
@@ -5128,6 +5135,7 @@ export default function CircleScreen() {
                 <Pressable
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
                     Share.share({
                       message: `Join my group "${circle?.name}" on Open Invite!`,
                       title: circle?.name,

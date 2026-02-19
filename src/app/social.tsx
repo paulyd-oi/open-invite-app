@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
+import { trackEventRsvp } from "@/analytics/analyticsEventsSSOT";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -876,6 +877,8 @@ export default function SocialScreen() {
       return { previousFeed, _t0 };
     },
     onSuccess: (_, { eventId, status }, context) => {
+      // [P0_ANALYTICS_EVENT] event_rsvp (feed)
+      trackEventRsvp({ rsvpStatus: status, sourceScreen: "feed" });
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {
