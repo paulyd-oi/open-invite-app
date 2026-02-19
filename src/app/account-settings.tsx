@@ -255,12 +255,12 @@ export default function AccountSettingsScreen() {
         <Text style={{ color: colors.text }} className="text-xl font-bold">Account Settings</Text>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: 24, paddingBottom: 24 }}>
         {/* Email Section */}
-        <Animated.View entering={FadeInDown.delay(50).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">EMAIL</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
-            <View className="flex-row items-center mb-3">
+        <Animated.View entering={FadeInDown.delay(50).springify()} className="mx-4" style={{ marginBottom: 16 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", letterSpacing: 0.6, opacity: 0.7, marginBottom: 12, marginLeft: 4 }}>EMAIL</Text>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+            <View className="flex-row items-center" style={{ marginBottom: 12 }}>
               <View
                 className="w-10 h-10 rounded-full items-center justify-center mr-3"
                 style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
@@ -273,12 +273,17 @@ export default function AccountSettingsScreen() {
               </View>
             </View>
 
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 12 }}>
+              A verification link will be sent to your new email address.
+            </Text>
+
             <TextInput
               style={{
                 backgroundColor: isDark ? "#2C2C2E" : "#F5F5F5",
                 color: colors.text,
                 borderWidth: 1,
                 borderColor: colors.separator,
+                marginTop: 8,
               }}
               className="rounded-xl px-4 py-3 text-base mb-3"
               placeholder="New email address"
@@ -296,14 +301,15 @@ export default function AccountSettingsScreen() {
               className="rounded-xl py-3 items-center"
               style={{
                 backgroundColor: !newEmail.trim() ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor,
-                opacity: isChangingEmail ? 0.6 : 1,
+                opacity: isChangingEmail ? 0.6 : (!newEmail.trim() ? 0.5 : 1),
+                marginTop: 12,
               }}
             >
               {isChangingEmail ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={{ color: !newEmail.trim() ? colors.textTertiary : "#FFFFFF" }} className="text-base font-semibold">
-                  Send verification link
+                  Request Email Change
                 </Text>
               )}
             </Pressable>
@@ -311,9 +317,13 @@ export default function AccountSettingsScreen() {
         </Animated.View>
 
         {/* Password Section */}
-        <Animated.View entering={FadeInDown.delay(100).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">PASSWORD</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
+        <Animated.View entering={FadeInDown.delay(100).springify()} className="mx-4" style={{ marginBottom: 16 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", letterSpacing: 0.6, opacity: 0.7, marginBottom: 12, marginLeft: 4 }}>PASSWORD</Text>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 12 }}>
+              Update your password or request a reset email if you forgot it.
+            </Text>
+
             {/* Change Password */}
             <View className="flex-row items-center mb-3">
               <View
@@ -414,7 +424,8 @@ export default function AccountSettingsScreen() {
                 backgroundColor: (!currentPassword || !newPassword || !confirmPassword)
                   ? (isDark ? "#2C2C2E" : "#E5E7EB")
                   : themeColor,
-                opacity: isChangingPassword ? 0.6 : 1,
+                opacity: isChangingPassword ? 0.6 : ((!currentPassword || !newPassword || !confirmPassword) ? 0.5 : 1),
+                marginTop: 16,
               }}
             >
               {isChangingPassword ? (
@@ -458,15 +469,15 @@ export default function AccountSettingsScreen() {
         </Animated.View>
 
         {/* Data & Account Section */}
-        <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">DATA & ACCOUNT</Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+        <Animated.View entering={FadeInDown.delay(150).springify()} className="mx-4" style={{ marginBottom: 16 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", letterSpacing: 0.6, opacity: 0.7, marginBottom: 12, marginLeft: 4 }}>DATA & ACCOUNT</Text>
+          <View style={{ backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: "hidden" }}>
             {/* Download Data */}
             <Pressable
               onPress={handleExportData}
               disabled={isExporting}
               className="flex-row items-center p-4"
-              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+              style={{ borderBottomWidth: 0 }}
             >
               <View
                 className="w-10 h-10 rounded-full items-center justify-center mr-3"
@@ -488,6 +499,9 @@ export default function AccountSettingsScreen() {
                 <Text style={{ color: colors.textTertiary }} className="text-lg">{"\u203A"}</Text>
               )}
             </Pressable>
+
+            {/* Danger zone divider */}
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 0, marginHorizontal: 16, opacity: 0.5 }} />
 
             {/* Delete Account */}
             <Pressable
