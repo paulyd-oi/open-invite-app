@@ -115,6 +115,15 @@ function getAvailabilityStatus(
   return "free";
 }
 
+/**
+ * Check if the viewer has already RSVP'd / is attending the event.
+ * Uses viewerRsvpStatus from the backend contract (shared/contracts.ts).
+ */
+function isAlreadyRsvped(ev: Event | EventSeries): boolean {
+  const display = 'nextEvent' in ev ? (ev as EventSeries).nextEvent : ev;
+  return display.viewerRsvpStatus === 'going';
+}
+
 function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage, userName, userCalendarEvents, onRsvp, isAuthed }: {
   event: Event | EventSeries;
   index: number;
@@ -187,12 +196,15 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   // Compute availability status for this event
   const availability = getAvailabilityStatus(event, userCalendarEvents);
   
-  // Determine border style based on availability
-  // Own events keep their existing theme-tinted border
-  // Non-own events get availability outline (green/red) or default border
+  // Determine border style based on RSVP status + availability
+  // Precedence: own -> already RSVP'd (theme accent) -> availability (green/red) -> default
+  const rsvped = isAlreadyRsvped(event);
   const getBorderStyle = () => {
     if (isOwn) {
       return { borderWidth: 1, borderColor: `${themeColor}40` };
+    }
+    if (rsvped) {
+      return { borderWidth: 2, borderColor: themeColor };
     }
     if (availability === "free") {
       return { borderWidth: 2, borderColor: AVAILABILITY_COLORS.free };
