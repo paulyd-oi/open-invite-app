@@ -66,6 +66,7 @@ import { Chip } from "@/ui/Chip";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { DayInsightCard } from "@/components/DayInsightCard";
 import { FirstTimeCalendarHint } from "@/components/FirstTimeCalendarHint";
+import { SocialPulseRow } from "@/components/SocialPulseRow";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1873,6 +1874,29 @@ export default function CalendarScreen() {
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
 
+  // Social pulse: read cached feed data (no new fetch) to count open events this week
+  const pulseCount = useMemo(() => {
+    try {
+      const cached = queryClient.getQueryData(eventKeys.feedPaginated()) as any;
+      if (!cached?.pages) return 0;
+      const now = new Date();
+      const endOfWeek = new Date(now);
+      endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
+      endOfWeek.setHours(23, 59, 59, 999);
+      let count = 0;
+      for (const page of cached.pages) {
+        if (!page?.events) continue;
+        for (const evt of page.events) {
+          const start = new Date(evt.startTime);
+          if (start >= now && start <= endOfWeek) count++;
+        }
+      }
+      return count;
+    } catch {
+      return 0;
+    }
+  }, [queryClient, myEvents, goingEvents]);
+
   // Aggregate error state for any critical query
   const hasQueryError = isCalendarError || isBirthdaysError;
 
@@ -2621,6 +2645,19 @@ export default function CalendarScreen() {
                   router.push(`/create?date=${selectedDate.toISOString()}`);
                 }}
               />
+
+              {/* Social pulse — cached feed count, no new fetch */}
+              {!isEmailGateActive(session) && pulseCount > 0 && (
+                <SocialPulseRow
+                  count={pulseCount}
+                  variant="open_events"
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => {
+                    if (!guardEmailVerification(session)) return;
+                    router.push('/social' as any);
+                  }}
+                />
+              )}
 
               {selectedDateEvents.length === 0 ? (
                 <View
