@@ -633,6 +633,7 @@ export default function SocialScreen() {
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<"open" | "group">("open");
   const hasBootstrapped = useRef(false);
 
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Social
@@ -1107,6 +1108,32 @@ export default function SocialScreen() {
     return filtered;
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
+  // Circle/group events: events with circleId excluded from open invites feed
+  const circleDiscoveryEvents = useMemo(() => {
+    const feedEvents = feedData?.events ?? [];
+    const myEvents = myEventsData?.events ?? [];
+    const attendingEvents = attendingData?.events ?? [];
+
+    const myEventIds = new Set(myEvents.map(e => e.id));
+    const attendingEventIds = new Set(attendingEvents.map(e => e.id));
+    const viewerUserId = session?.user?.id;
+
+    return feedEvents.filter(event => {
+      if (event.userId === viewerUserId) return false;
+      if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
+      if (myEventIds.has(event.id)) return false;
+      if (attendingEventIds.has(event.id)) return false;
+      // Only circle events (inverse of discoveryEvents circle exclusion)
+      return event.visibility === 'circle_only' || (event.circleId && event.visibility !== 'all_friends');
+    });
+  }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
+
+  // Active discovery events based on feed filter toggle
+  const activeDiscoveryEvents = useMemo(
+    () => feedFilter === "open" ? discoveryEvents : circleDiscoveryEvents,
+    [feedFilter, discoveryEvents, circleDiscoveryEvents]
+  );
+
   // All events for calendar (includes my events + attending + discovery)
   // IMPORTANT: Filter out busy events - they are private and must not appear in social view
   const allEvents = useMemo(() => {
@@ -1178,10 +1205,10 @@ export default function SocialScreen() {
     return Array.from(eventMap.values());
   }, [myEventsData?.events, attendingData?.events]);
 
-  // Group discovery events by time (feed sections show ONLY discovery)
+  // Group discovery events by time (feed sections show ONLY active filter)
   const groupedEvents = useMemo(
-    () => groupEventsByTime(discoveryEvents, session?.user?.id),
-    [discoveryEvents, session?.user?.id]
+    () => groupEventsByTime(activeDiscoveryEvents, session?.user?.id),
+    [activeDiscoveryEvents, session?.user?.id]
   );
 
   // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded social feed sections
@@ -1396,6 +1423,32 @@ export default function SocialScreen() {
             colors={colors}
             userId={session?.user?.id}
           />
+          {/* Segmented Control — always visible */}
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <View className="flex-row mt-4 mb-2 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
+            <Pressable
+              className="flex-1 py-2.5 items-center rounded-xl"
+              style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => setFeedFilter("open")}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
+                Open Invites
+              </Text>
+            </Pressable>
+            <Pressable
+              className="flex-1 py-2.5 items-center rounded-xl"
+              style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => setFeedFilter("group")}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
+                Group Events
+              </Text>
+            </Pressable>
+          </View>
           <View className="py-12 items-center px-8">
             <Text className="text-5xl mb-4">📅</Text>
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -1473,6 +1526,32 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
+          {/* Segmented Control — always visible */}
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <View className="flex-row mt-4 mb-2 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
+            <Pressable
+              className="flex-1 py-2.5 items-center rounded-xl"
+              style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => setFeedFilter("open")}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
+                Open Invites
+              </Text>
+            </Pressable>
+            <Pressable
+              className="flex-1 py-2.5 items-center rounded-xl"
+              style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => setFeedFilter("group")}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
+                Group Events
+              </Text>
+            </Pressable>
+          </View>
           <EventSection
             title="Today"
             events={groupedEvents.today}
