@@ -654,7 +654,7 @@ export default function SocialScreen() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Feed filter: "group" = circle-only events, "open" = open/public invites
-  const [feedFilter, setFeedFilter] = useState<"group" | "open">("group");
+  const [feedFilter, setFeedFilter] = useState<"group" | "open">("open");
 
   // Auth gating based on boot status AND session userId (SSOT gate)
   const isAuthed = isAuthedForNetwork(bootStatus, session);
@@ -1465,19 +1465,9 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
-          {/* Feed filter: Group Events vs Open Invites */}
+          {/* Feed filter: Open Invites vs Group Events */}
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="flex-row mb-4 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? colors.surface : '#F2F2F7', borderWidth: 1, borderColor: colors.borderSubtle }}>
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => { setFeedFilter('group'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-              className="flex-1 py-2.5 items-center rounded-xl"
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={feedFilter === 'group' ? { backgroundColor: themeColor } : undefined}
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold" style={{ color: feedFilter === 'group' ? '#FFFFFF' : colors.textSecondary }}>Group Events</Text>
-            </Pressable>
             <Pressable
               /* INVARIANT_ALLOW_INLINE_HANDLER */
               onPress={() => { setFeedFilter('open'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
@@ -1487,6 +1477,16 @@ export default function SocialScreen() {
             >
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm font-semibold" style={{ color: feedFilter === 'open' ? '#FFFFFF' : colors.textSecondary }}>Open Invites</Text>
+            </Pressable>
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => { setFeedFilter('group'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+              className="flex-1 py-2.5 items-center rounded-xl"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={feedFilter === 'group' ? { backgroundColor: themeColor } : undefined}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm font-semibold" style={{ color: feedFilter === 'group' ? '#FFFFFF' : colors.textSecondary }}>Group Events</Text>
             </Pressable>
           </View>
           <EventSection
