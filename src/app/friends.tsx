@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -680,15 +680,36 @@ export default function FriendsScreen() {
   // Interactive onboarding guide
   const onboardingGuide = useOnboardingGuide();
 
+  // Refs to prevent useFocusEffect dependency instability (onboardingGuide creates new object each render)
+  const onboardingGuideRef = useRef(onboardingGuide);
+  onboardingGuideRef.current = onboardingGuide;
+  const focusFetchedRef = useRef(false);
+
   // Refetch unseen count when screen gains focus + track onboarding step
   useFocusEffect(
     React.useCallback(() => {
-      refetchUnseenCount();
-      // Complete "friends_tab" step when user visits Friends screen
-      if (onboardingGuide.shouldShowStep("friends_tab")) {
-        onboardingGuide.completeStep("friends_tab");
+      // Gate: at most one fetch per focus event
+      if (focusFetchedRef.current) {
+        if (__DEV__) {
+          devLog("[P0_UNSEEN_COUNT_FETCH]", "screen=friends trigger=focus outcome=skip reason=loadedOnce");
+        }
+      } else {
+        focusFetchedRef.current = true;
+        if (__DEV__) {
+          devLog("[P0_UNSEEN_COUNT_FETCH]", "screen=friends trigger=focus outcome=run reason=firstFocus");
+        }
+        refetchUnseenCount();
       }
-    }, [refetchUnseenCount, onboardingGuide])
+      // Onboarding step (read from ref — no dep instability)
+      const guide = onboardingGuideRef.current;
+      if (guide.shouldShowStep("friends_tab")) {
+        guide.completeStep("friends_tab");
+      }
+      // Reset gate on blur so next focus fires once
+      return () => {
+        focusFetchedRef.current = false;
+      };
+    }, [refetchUnseenCount])
   );
 
   // Handler for creating circle with gating
