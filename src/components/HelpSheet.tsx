@@ -26,6 +26,7 @@ import { devLog } from "@/lib/devLog";
 export interface HelpSheetConfig {
   title: string;
   howItWorks: string[];
+  eventControls?: string[];
   visibility: string[];
 }
 
@@ -57,6 +58,11 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
       "See events you\u2019re hosting or attending",
       "Track invites and RSVP status in one place",
       "Everything updates in real time",
+    ],
+    eventControls: [
+      "Press and hold an event to customize its color, share it, or mark it as Busy",
+      "Busy events automatically update your availability",
+      "Busy blocks are private and only visible to you",
     ],
     visibility: [
       "Only friends can see your shared availability",
@@ -179,6 +185,21 @@ export function HelpSheet({ screenKey, config }: HelpSheetProps) {
               <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 }}>{item}</Text>
             </View>
           ))}
+
+          {/* Event controls (calendar only) */}
+          {config.eventControls && config.eventControls.length > 0 && (
+            <>
+              <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textTertiary, letterSpacing: 0.5, marginTop: 16, marginBottom: 8, textTransform: "uppercase" }}>
+                Event controls
+              </Text>
+              {config.eventControls.map((item, i) => (
+                <View key={`e${i}`} style={{ flexDirection: "row", marginBottom: 6, paddingRight: 12 }}>
+                  <Text style={{ color: colors.textSecondary, marginRight: 8, fontSize: 14 }}>{"\u2022"}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 }}>{item}</Text>
+                </View>
+              ))}
+            </>
+          )}
 
           {/* Visibility & privacy */}
           <Text style={{ fontSize: 13, fontWeight: "600", color: colors.textTertiary, letterSpacing: 0.5, marginTop: 16, marginBottom: 8, textTransform: "uppercase" }}>
