@@ -104,6 +104,8 @@ export const HELP_SHEETS: Record<string, HelpSheetConfig> = {
       "Create events inside trusted groups",
       "Share plans with teams, families, or crews",
       "Everything stays organized per circle",
+      "Availability is based on your work schedule and Busy events",
+      "Busy blocks automatically update when you add or edit events",
     ],
     visibility: [
       "Circle activity is visible only to members",

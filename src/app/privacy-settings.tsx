@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -18,27 +18,17 @@ import {
   Users,
   UserPlus,
   Calendar,
-  Download,
-  Trash2,
   Info,
   ChevronDown,
-  Shield,
   Eye,
   EyeOff,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
-
-import { performLogout } from "@/lib/logout";
 
 import { api } from "@/lib/api";
-import { authClient } from "@/lib/authClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
-import { ConfirmModal } from "@/components/ConfirmModal";
-import { devError } from "@/lib/devLog";
 
 type FriendRequestSetting = "everyone" | "friends_of_friends" | "nobody";
 
@@ -62,9 +52,6 @@ export default function PrivacySettingsScreen() {
   const { status: bootStatus } = useBootAuthority();
 
   const [showFriendRequestPicker, setShowFriendRequestPicker] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // Fetch privacy settings
   const { data: privacyData, isLoading } = useQuery({
@@ -87,77 +74,6 @@ export default function PrivacySettingsScreen() {
       safeToast.error("Save Failed", "Failed to update settings. Please try again.");
     },
   });
-
-  // Export data mutation
-  const handleExportData = async () => {
-    setIsExporting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      const exportData = await api.get<Record<string, unknown>>("/api/privacy/export");
-
-      // Create a JSON file
-      const fileName = `open_invite_data_${new Date().toISOString().split("T")[0]}.json`;
-      const filePath = `${FileSystem.documentDirectory}${fileName}`;
-
-      await FileSystem.writeAsStringAsync(
-        filePath,
-        JSON.stringify(exportData, null, 2),
-        { encoding: FileSystem.EncodingType.UTF8 }
-      );
-
-      // Check if sharing is available
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(filePath, {
-          mimeType: "application/json",
-          dialogTitle: "Export Your Data",
-          UTI: "public.json",
-        });
-        safeToast.success("Export Complete", "Your data has been exported successfully.");
-      } else {
-        safeToast.info("Export Ready", `Data saved to ${fileName}`);
-      }
-    } catch (error) {
-      devError("Export error:", error);
-      safeToast.error("Export Failed", "Unable to export your data. Please try again.");
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  // Delete account mutation
-  const deleteAccountMutation = useMutation({
-    mutationFn: () => api.delete<{ success: boolean }>("/api/privacy/account"),
-    onSuccess: async () => {
-      safeToast.success("Account Deleted", "Your account has been permanently deleted.");
-      // Sign out and redirect to login via SSOT helper
-      await performLogout({ screen: "privacy_settings", reason: "account_deletion", queryClient, router });
-    },
-    onError: () => {
-      safeToast.error("Delete Failed", "Failed to delete account. Please try again.");
-    },
-  });
-
-  // State for delete account confirmation
-  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
-  const [showFinalDeleteConfirm, setShowFinalDeleteConfirm] = useState(false);
-
-  const handleDeleteAccount = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    setShowDeleteAccountConfirm(true);
-  };
-
-  const handleFirstConfirm = () => {
-    setShowDeleteAccountConfirm(false);
-    setShowFinalDeleteConfirm(true);
-  };
-
-  const handleFinalConfirm = () => {
-    setShowFinalDeleteConfirm(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    deleteAccountMutation.mutate();
-  };
 
   const handleUpdateSetting = (key: keyof PrivacySettings, value: PrivacySettings[typeof key]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -346,101 +262,9 @@ export default function PrivacySettingsScreen() {
           </Text>
         </Animated.View>
 
-        {/* Data & Account */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2 ml-2">
-            DATA & ACCOUNT
-          </Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
-            {/* Download Data */}
-            <Pressable
-              onPress={handleExportData}
-              disabled={isExporting}
-              className="flex-row items-center p-4"
-              style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
-              >
-                <Download size={20} color="#3B82F6" />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: colors.text }} className="text-base font-medium">
-                  Download My Data
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
-                  Export all your data as JSON
-                </Text>
-              </View>
-              {isExporting ? (
-                <ActivityIndicator size="small" color={themeColor} />
-              ) : (
-                <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
-              )}
-            </Pressable>
-
-            {/* Delete Account */}
-            <Pressable
-              onPress={handleDeleteAccount}
-              disabled={deleteAccountMutation.isPending}
-              className="flex-row items-center p-4"
-            >
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                style={{ backgroundColor: "#FEE2E2" }}
-              >
-                <Trash2 size={20} color="#EF4444" />
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: "#EF4444" }} className="text-base font-medium">
-                  Delete Account
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm mt-0.5">
-                  Permanently delete your account and data
-                </Text>
-              </View>
-              {deleteAccountMutation.isPending ? (
-                <ActivityIndicator size="small" color="#EF4444" />
-              ) : (
-                <Text style={{ color: colors.textTertiary }} className="text-lg">›</Text>
-              )}
-            </Pressable>
-          </View>
-        </Animated.View>
-
-        {/* Warning Notice */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} className="mx-4 mt-6 mb-8">
-          <View
-            className="p-4 rounded-2xl"
-            style={{ backgroundColor: isDark ? "#1C1C1E" : "#FEF3C7" }}
-          >
-            <Text style={{ color: isDark ? "#FCD34D" : "#92400E" }} className="text-sm leading-5">
-              <Text className="font-semibold">Note:</Text> Deleting your account is permanent and cannot be undone. All your events, friends, and data will be permanently removed.
-            </Text>
-          </View>
-        </Animated.View>
+        {/* Bottom spacing */}
+        <View className="mb-8" />
       </ScrollView>
-
-      <ConfirmModal
-        visible={showDeleteAccountConfirm}
-        title="Delete Account"
-        message="Are you absolutely sure you want to delete your account? This action cannot be undone. All your data including events, friends, and settings will be permanently deleted."
-        confirmText="Delete Account"
-        isDestructive
-        onConfirm={handleFirstConfirm}
-        onCancel={() => setShowDeleteAccountConfirm(false)}
-      />
-
-      <ConfirmModal
-        visible={showFinalDeleteConfirm}
-        title="Final Confirmation"
-        message="This is your last chance to cancel. Your account will be permanently deleted."
-        confirmText="I Understand, Delete"
-        isDestructive
-        onConfirm={handleFinalConfirm}
-        onCancel={() => setShowFinalDeleteConfirm(false)}
-      />
     </SafeAreaView>
   );
 }
