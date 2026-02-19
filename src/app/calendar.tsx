@@ -65,6 +65,7 @@ import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { DayInsightCard } from "@/components/DayInsightCard";
+import { FirstTimeCalendarHint } from "@/components/FirstTimeCalendarHint";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -2603,6 +2604,18 @@ export default function CalendarScreen() {
               <DayInsightCard
                 selectedDate={selectedDate}
                 events={selectedDateEvents}
+                onCreatePress={() => {
+                  if (!guardEmailVerification(session)) return;
+                  router.push(`/create?date=${selectedDate.toISOString()}`);
+                }}
+              />
+
+              {/* First-time onboarding hint — auto-dismisses after first event/RSVP or 5 opens */}
+              <FirstTimeCalendarHint
+                createdEventCount={myEvents.length}
+                goingEventCount={goingEvents.length}
+                selectedDayEmpty={selectedDateEvents.filter((e: any) => !e.isWork && !e.isBirthday).length === 0}
+                emailVerified={!isEmailGateActive(session)}
                 onCreatePress={() => {
                   if (!guardEmailVerification(session)) return;
                   router.push(`/create?date=${selectedDate.toISOString()}`);
