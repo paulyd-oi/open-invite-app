@@ -38,7 +38,7 @@ interface AppConfigResponse {
     minSupportedVersion: string | null;
     bannerMessage: string | null;
   };
-  android?: {
+  nonIos?: {
     latestVersion: string | null;
     minSupportedVersion: string | null;
     bannerMessage: string | null;
@@ -57,7 +57,7 @@ export function UpdateBanner() {
   });
 
   // Get platform-specific config
-  const platformConfig = Platform.OS === "ios" ? appConfig?.ios : appConfig?.android;
+  const platformConfig = Platform.OS === "ios" ? appConfig?.ios : appConfig?.nonIos;
   
   const latestVersion = platformConfig?.latestVersion;
   const minVersion = platformConfig?.minSupportedVersion;
