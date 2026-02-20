@@ -63,7 +63,7 @@ import { shouldAllowAuthedFetch } from "@/lib/netGate";
 const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
 
 // Enable LayoutAnimation for Android
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS !== "ios" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
