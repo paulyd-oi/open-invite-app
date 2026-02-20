@@ -88,3 +88,10 @@ backend-for-github.zip
 
 # Junk artifacts
 HANDOFF_*
+
+# iOS local/generated (do not commit)
+ios/.xcode.env
+ios/sentry.properties
+ios/OpenInvite.xcworkspace/
+ios/**/xcuserdata/
+ios/**/.DS_Store
