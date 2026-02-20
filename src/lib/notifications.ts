@@ -24,8 +24,8 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
   let token: string | undefined;
 
-  // Set up Android notification channel
-  if (Platform.OS === "android") {
+  // Set up notification channels (non-iOS only)
+  if (Platform.OS !== "ios") {
     await Notifications.setNotificationChannelAsync("default", {
       name: "Default",
       importance: Notifications.AndroidImportance.MAX,

@@ -36,7 +36,7 @@ interface WidgetSourceEvent {
  * Filter and write today's events to the widget shared store.
  * Call this whenever the social feed loads, calendar loads, or RSVP changes.
  *
- * Safe to call on Android (no-op).
+ * Safe to call on non-iOS (no-op).
  */
 export function updateWidgetEventsCache(events: WidgetSourceEvent[]): void {
   if (Platform.OS !== "ios") return;

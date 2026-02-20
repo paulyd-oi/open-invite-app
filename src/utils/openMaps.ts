@@ -11,11 +11,11 @@ export function openMaps(args: OpenMapsArgs) {
           ios: `http://maps.apple.com/?ll=${args.lat},${args.lng}${
             args.label ? `&q=${encodeURIComponent(args.label)}` : ""
           }`,
-          android: `https://www.google.com/maps/search/?api=1&query=${args.lat},${args.lng}`,
+          default: `https://www.google.com/maps/search/?api=1&query=${args.lat},${args.lng}`,
         })
       : Platform.select({
           ios: `http://maps.apple.com/?q=${encodeURIComponent(args.query)}`,
-          android: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          default: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
             args.query
           )}`,
         });

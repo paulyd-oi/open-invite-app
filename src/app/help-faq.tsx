@@ -35,7 +35,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { openSupportEmail } from "@/lib/support";
 import { Button } from "@/ui/Button";
 
-// Enable LayoutAnimation for Android
+// Enable LayoutAnimation for non-iOS platforms
 if (Platform.OS !== "ios" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }

@@ -133,7 +133,7 @@ async function handleIcsImport(url: string): Promise<boolean> {
       });
       icsContent = fileContent;
     } else if (url.startsWith('content://')) {
-      // Android content URI - read via FileSystem
+      // content:// URI - read via FileSystem
       const fileContent = await FileSystem.readAsStringAsync(url, {
         encoding: FileSystem.EncodingType.UTF8,
       });

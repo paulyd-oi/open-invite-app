@@ -90,8 +90,7 @@ function shouldPromptForReview(data: ReviewData): boolean {
 function openAppStoreReview(): void {
   const url = Platform.select({
     ios: `itms-apps://itunes.apple.com/app/id${APP_STORE_ID}?action=write-review`,
-    android: `market://details?id=com.vibecode.openinvite`,
-    default: null,
+    default: `market://details?id=com.vibecode.openinvite`,
   });
 
   if (url) {

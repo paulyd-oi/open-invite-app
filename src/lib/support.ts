@@ -24,7 +24,7 @@ export async function openSupportEmail(params?: SupportParams): Promise<void> {
   }
 
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
-  const platform = Platform.OS === "ios" ? "iOS" : "Android";
+  const platform = Platform.OS === "ios" ? "iOS" : Platform.OS;
 
   const subject = encodeURIComponent("Open Invite Support");
   const bodyLines = [

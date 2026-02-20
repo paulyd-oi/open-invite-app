@@ -3,7 +3,7 @@
  *
  * Contract:
  *   visible        – controls Modal visibility
- *   onClose        – called on backdrop press (if enabled) and Android back
+ *   onClose        – called on backdrop press (if enabled) and system back
  *   title?         – optional centered/left title string
  *   heightPct?     – fraction of screen height (default 0.65), pass 0 for auto-height
  *   maxHeightPct?  – ceiling cap (default 0.85); height never exceeds this

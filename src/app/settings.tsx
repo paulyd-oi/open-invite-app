@@ -1335,7 +1335,7 @@ export default function SettingsScreen() {
   };
 
   const handleDateChange = (_event: unknown, selectedDate?: Date) => {
-    if (Platform.OS === "android") {
+    if (Platform.OS !== "ios") {
       setShowDatePicker(false);
     }
     if (selectedDate) {
@@ -2496,7 +2496,7 @@ export default function SettingsScreen() {
                           mode="time"
                           display={Platform.OS === "ios" ? "spinner" : "default"}
                           onChange={(_event, selectedDate) => {
-                            if (Platform.OS === "android") {
+                            if (Platform.OS !== "ios") {
                               setShowTimePicker(null);
                             }
                             if (selectedDate) {

@@ -4076,7 +4076,7 @@ export default function CircleScreen() {
                   },
                 );
               } else {
-                // Android: use a simple alert-style approach with Modal state
+                // non-iOS: use a simple alert-style approach with Modal state
                 // For simplicity and zero-dep constraint, use built-in Alert
                 const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
                   { text: "Reply", onPress: () => {

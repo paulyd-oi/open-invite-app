@@ -7,11 +7,11 @@
  * Environment Variables:
  * - EXPO_PUBLIC_VIBECODE_REVENUECAT_TEST_KEY: Used in development/test builds (both platforms)
  * - EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY: Used in production builds (iOS)
- * - EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY: Used in production builds (Android)
+ * - EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY: Used in production builds (non-iOS)
  * These are automatically injected into the workspace by the Vibecode service once the user sets up RevenueCat in the Payments tab.
  *
  * Platform Support:
- * - iOS/Android: Fully supported via app stores
+ * - iOS and other native platforms: Fully supported via app stores
  * - Web: Disabled (RevenueCat only supports native app stores)
  *
  * The module automatically selects the correct key based on __DEV__ mode.
