@@ -70,7 +70,7 @@ func computeTodaySummary(events: [WidgetEvent]) -> (count: Int, nextEvent: Widge
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> TodayEntry {
         TodayEntry(date: .now, eventCount: 3, nextEvent: WidgetEvent(
-            id: "placeholder",
+            id: "preview-event",
             title: "Dinner with friends",
             startAt: Date(),
             viewerRsvpStatus: "going",
