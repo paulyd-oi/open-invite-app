@@ -709,7 +709,7 @@ export default function CreateEventRequestScreen() {
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, newDate) => {
-                    if (Platform.OS === "android") {
+                    if (Platform.OS !== "ios") {
                       setShowDatePicker(false);
                     }
                     if (newDate) setStartDate(newDate);
