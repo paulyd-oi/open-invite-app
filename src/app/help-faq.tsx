@@ -36,7 +36,7 @@ import { openSupportEmail } from "@/lib/support";
 import { Button } from "@/ui/Button";
 
 // Enable LayoutAnimation for Android
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+if (Platform.OS !== "ios" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
