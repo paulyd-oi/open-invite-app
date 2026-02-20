@@ -37,8 +37,11 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
+# generated native folders (allow tracked ios/ files for widget + native bridge)
+!/ios
+/ios/Pods/
+/ios/build/
+/ios/.xcode.env.local
 /android
 
 # Expo log
