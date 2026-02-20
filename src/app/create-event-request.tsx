@@ -740,7 +740,7 @@ export default function CreateEventRequestScreen() {
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, newDate) => {
-                    if (Platform.OS === "android") {
+                    if (Platform.OS !== "ios") {
                       setShowTimePicker(false);
                     }
                     if (newDate) setStartDate(newDate);
@@ -772,7 +772,7 @@ export default function CreateEventRequestScreen() {
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, newDate) => {
-                    if (Platform.OS === "android") {
+                    if (Platform.OS !== "ios") {
                       setShowEndDatePicker(false);
                     }
                     if (newDate) {
@@ -807,7 +807,7 @@ export default function CreateEventRequestScreen() {
                   textColor={isDark ? "#FFFFFF" : "#000000"}
                   themeVariant={isDark ? "dark" : "light"}
                   onChange={(event, newDate) => {
-                    if (Platform.OS === "android") {
+                    if (Platform.OS !== "ios") {
                       setShowEndTimePicker(false);
                     }
                     if (newDate) {
