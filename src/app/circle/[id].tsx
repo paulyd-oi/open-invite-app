@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { trackMessageSent, trackInviteShared, lengthBucket } from "@/analytics/analyticsEventsSSOT";
+import { buildCircleSharePayload } from "@/lib/shareSSOT";
 import {
   View,
   Text,
@@ -5136,10 +5137,8 @@ export default function CircleScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
-                    Share.share({
-                      message: `Join my group "${circle?.name}" on Open Invite!`,
-                      title: circle?.name,
-                    }).catch(() => {
+                    const cp = buildCircleSharePayload(circle?.name ?? "my group");
+                    Share.share({ message: cp.message, title: cp.title }).catch(() => {
                       // User cancelled share
                     });
                   }}

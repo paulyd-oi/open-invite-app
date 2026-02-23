@@ -49,7 +49,7 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
-import { getEventShareLink } from "@/lib/deepLinks";
+import { buildEventSharePayload, buildAppSharePayload } from "@/lib/shareSSOT";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
@@ -162,25 +162,21 @@ const shareEventFromCalendar = async (event: Event) => {
       minute: "2-digit",
     });
 
-    const shareUrl = getEventShareLink(event.id);
-
-    let message = `${event.emoji} ${event.title}\n\n`;
-    message += `📅 ${dateStr} at ${timeStr}\n`;
-
-    if (event.location) {
-      message += `📍 ${event.location}\n`;
-    }
-
-    if (event.description) {
-      message += `\n${event.description}\n`;
-    }
-
-    message += `\n🔗 ${shareUrl}`;
+    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
+    const payload = buildEventSharePayload({
+      id: event.id,
+      title: event.title,
+      emoji: event.emoji,
+      dateStr,
+      timeStr,
+      location: event.location,
+      description: event.description,
+    });
 
     await Share.share({
-      message,
+      message: payload.message,
       title: event.title,
-      url: shareUrl,
+      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);
@@ -2687,10 +2683,8 @@ export default function CalendarScreen() {
                       onPress={async () => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         try {
-                          await Share.share({
-                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                            url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                          });
+                          const p = buildAppSharePayload("Join me on Open Invite - the easiest way to share plans with friends!");
+                          await Share.share({ message: p.message, url: p.url });
                         } catch (error) {
                           devError("Error sharing:", error);
                         }

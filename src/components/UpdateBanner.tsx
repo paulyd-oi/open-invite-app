@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X, RefreshCw } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
+import { APP_STORE_URL } from "@/lib/shareSSOT";
 import * as Haptics from "expo-haptics";
 
 // Get current app version from Expo config
@@ -68,9 +69,9 @@ export function UpdateBanner() {
   const isBelowLatest = latestVersion && compareVersions(APP_VERSION, latestVersion) < 0;
   const needsUpdate = isBelowLatest && !isBelowMin;
 
-  // App Store URL - will be replaced with actual IDs in production
+  // [P0_SHARE_SSOT] App Store URL from SSOT
   const storeUrl = Platform.OS === "ios"
-    ? "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210"
+    ? APP_STORE_URL
     : "https://play.google.com/store/apps/details?id=com.openinvite.app";
 
   const handleUpdate = () => {

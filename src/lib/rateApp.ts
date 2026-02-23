@@ -1,11 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking, Platform, Alert } from "react-native";
 import { devError } from "./devLog";
+import { APP_STORE_ID } from "./shareSSOT";
 
 const STORAGE_KEY = "app_review_data";
-
-// Replace with your actual App Store ID when published
-const APP_STORE_ID = "6757429210";
 
 interface ReviewData {
   eventsCreated: number;

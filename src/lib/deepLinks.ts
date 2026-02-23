@@ -6,7 +6,7 @@
  * - open-invite://user/{userId} - Open user profile (canonical)
  * - open-invite://friend/{userId} - Open user profile (legacy, normalized to /user/)
  * - open-invite://invite/{code} - Handle referral invites
- * - https://api.openinvite.cloud/share/event/{id} - Universal link for events
+ * - open-invite://verify-email?token=xxx - Email verification
  * - .ics file imports - Calendar event sharing
  * 
  * [P0_PROFILE_ROUTE] Profile deep links ALWAYS use userId, never friendshipId.
@@ -23,9 +23,6 @@ import { devLog, devWarn, devError } from './devLog';
 import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
 
-// Backend URL for generating shareable links (production)
-export const BACKEND_URL = 'https://api.openinvite.cloud';
-
 // Deep link scheme
 export const SCHEME = 'open-invite';
 
@@ -33,15 +30,17 @@ export const SCHEME = 'open-invite';
 const PENDING_ICS_IMPORT_KEY = 'pendingIcsImport';
 
 /**
- * Generate a shareable deep link for an event
+ * Generate a shareable deep link for an event.
+ * [P0_SHARE_SSOT] Uses custom scheme — never backend URL.
+ * @deprecated Use buildEventSharePayload from shareSSOT.ts instead for full share flows.
  */
 export function getEventShareLink(eventId: string): string {
-  // Use universal link format for better compatibility
-  return `${BACKEND_URL}/share/event/${eventId}`;
+  return `${SCHEME}://event/${eventId}`;
 }
 
 /**
  * Generate a deep link URI for an event (app-to-app)
+ * @deprecated Use getEventDeepLink from shareSSOT.ts instead.
  */
 export function getEventDeepLink(eventId: string): string {
   return Linking.createURL(`event/${eventId}`);
@@ -49,9 +48,11 @@ export function getEventDeepLink(eventId: string): string {
 
 /**
  * Generate a shareable link for inviting friends
+ * [P0_SHARE_SSOT] Uses custom scheme — never backend URL.
+ * @deprecated Use buildReferralSharePayload from shareSSOT.ts instead for full share flows.
  */
 export function getInviteShareLink(referralCode: string): string {
-  return `${BACKEND_URL}/invite/${referralCode}`;
+  return `${SCHEME}://invite/${referralCode}`;
 }
 
 /**

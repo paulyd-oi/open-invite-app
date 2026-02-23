@@ -1,5 +1,6 @@
 import React from "react";
 import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
+import { buildReferralSharePayload } from "@/lib/shareSSOT";
 import {
   View,
   Text,
@@ -97,12 +98,13 @@ export default function InviteScreen() {
       return;
     }
 
-    const message = `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${stats.referralCode}\n\nDownload: ${stats.shareLink}`;
+    // [P0_SHARE_SSOT] Use SSOT builder — ignore backend shareLink
+    const p = buildReferralSharePayload(stats.referralCode);
 
     trackInviteShared({ entity: "referral", sourceScreen: "invite" });
     await Share.share({
-      message,
-      title: "Join Open Invite!",
+      message: p.message,
+      title: p.title,
     });
   };
 

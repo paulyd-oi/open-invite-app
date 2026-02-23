@@ -38,6 +38,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
+import { buildAppSharePayload } from "@/lib/shareSSOT";
 import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -1476,10 +1477,8 @@ export default function SocialScreen() {
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
-                    await Share.share({
-                      message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                      url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                    });
+                    const p = buildAppSharePayload("Join me on Open Invite - the easiest way to share plans with friends!");
+                    await Share.share({ message: p.message, url: p.url });
                   } catch (error) {
                     devError("Error sharing:", error);
                   }

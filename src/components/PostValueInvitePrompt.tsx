@@ -12,9 +12,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/lib/ThemeContext";
 import { Share2, X } from "@/ui/icons";
 import { devLog, devError } from "@/lib/devLog";
-
-const APP_STORE_URL = "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
-const SHARE_MESSAGE = "I'm using Open Invite to plan hangouts — join me!";
+import { buildAppSharePayload } from "@/lib/shareSSOT";
 const STORAGE_KEY = "postValueInvite:lastShownAt";
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -38,10 +36,8 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
       devLog("[P1_INVITE_SHARE]", `surface=${surface}`);
     }
     try {
-      await Share.share({
-        message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
-      });
+      const p = buildAppSharePayload("I'm using Open Invite to plan hangouts — join me!");
+      await Share.share({ message: p.message, url: p.url });
     } catch (error) {
       devError("[PostValueInvitePrompt] share error:", error);
     }

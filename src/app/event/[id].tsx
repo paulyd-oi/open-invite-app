@@ -72,7 +72,7 @@ import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { getEventShareLink } from "@/lib/deepLinks";
+import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -268,27 +268,22 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
           minute: "2-digit",
         });
 
-    // Get the shareable link for this event
-    const shareUrl = getEventShareLink(event.id);
-
-    let message = `${event.emoji} ${event.title}\n\n`;
-    message += `📅 ${dateStr} at ${timeStr}\n`;
-
-    if (event.location) {
-      message += `📍 ${event.location}\n`;
-    }
-
-    if (event.description) {
-      message += `\n${event.description}\n`;
-    }
-
-    message += `\n🔗 ${shareUrl}`;
+    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
+    const payload = buildEventSharePayload({
+      id: event.id,
+      title: event.title,
+      emoji: event.emoji,
+      dateStr,
+      timeStr,
+      location: event.location,
+      description: event.description,
+    });
 
     trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
     await Share.share({
-      message,
+      message: payload.message,
       title: event.title,
-      url: shareUrl,
+      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);

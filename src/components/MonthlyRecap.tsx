@@ -16,6 +16,7 @@ import { X, Share2, ChevronRight, Calendar, Users, MapPin, Sparkles, Award, Star
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
 import { devError } from "@/lib/devLog";
+import { buildRecapSharePayload } from "@/lib/shareSSOT";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -91,14 +92,16 @@ export function MonthlyRecap({ data, onClose, visible }: MonthlyRecapProps) {
   const handleShare = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     try {
-      await Share.share({
-        message: `📅 My ${data.month} ${data.year} Recap on Open Invite!\n\n` +
-          `🎉 ${data.totalHangouts} hangouts\n` +
-          `👥 ${data.uniqueFriendsMetWith} friends met with\n` +
-          `${data.topCategory ? `${data.topCategory.emoji} Favorite: ${data.topCategory.name}\n` : ""}` +
-          `\nI'm a ${rankConfig.emoji} ${rankConfig.title}!\n\n` +
-          `#OpenInvite #MonthlyRecap`,
+      const p = buildRecapSharePayload({
+        month: data.month,
+        year: data.year,
+        totalHangouts: data.totalHangouts,
+        uniqueFriendsMetWith: data.uniqueFriendsMetWith,
+        topCategory: data.topCategory,
+        rankEmoji: rankConfig.emoji,
+        rankTitle: rankConfig.title,
       });
+      await Share.share({ message: p.message });
     } catch (error) {
       devError("Share error:", error);
     }
