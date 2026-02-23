@@ -1413,6 +1413,13 @@ export default function SocialScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
+          <FeedCalendar
+            events={calendarEvents}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            userId={session?.user?.id}
+          />
           {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
@@ -1423,13 +1430,6 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
-          <FeedCalendar
-            events={calendarEvents}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userId={session?.user?.id}
-          />
           {/* Segmented Control — always visible */}
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <View className="flex-row mt-4 mb-2 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
