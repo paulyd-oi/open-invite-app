@@ -43,6 +43,10 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+// [P0_WHOSFREE_SOT] Hard caps — prevent exploding list renders
+const MAX_SUGGESTED_SLOTS = 25;
+const MAX_EXPANDED_SLOTS = 50;
+
 interface TimeSlot {
   start: string;
   end: string;
@@ -94,6 +98,7 @@ export default function WhosFreeScreen() {
 
   // Find Best Time state
   const [bestTimeFriendIds, setBestTimeFriendIds] = useState<string[]>([]);
+  const [showAllSlots, setShowAllSlots] = useState(false);
   
   // P0 FIX: Initialize startDate/endDate from route param, not hardcoded today
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -267,7 +272,7 @@ export default function WhosFreeScreen() {
       rangeEnd,
       intervalMinutes: 30,
       slotDurationMinutes: 60,
-      maxTopSlots: 10,
+      maxTopSlots: MAX_EXPANDED_SLOTS,
     });
 
     if (__DEV__) {
@@ -304,6 +309,28 @@ export default function WhosFreeScreen() {
 
     return { suggestedSlots: slots, isLoadingSuggestions: false };
   }, [friendEventsData, isLoadingFriendEvents, startDate, endDate, allFriends, workSchedules, session?.user?.id]);
+
+  // [P0_WHOSFREE_SOT] Capped render list — never explode the scroll
+  const renderCap = showAllSlots ? MAX_EXPANDED_SLOTS : MAX_SUGGESTED_SLOTS;
+  const renderedSlots = useMemo(() => {
+    const sliced = suggestedSlots.slice(0, renderCap);
+    if (__DEV__ && suggestedSlots.length > 0) {
+      devLog("[P0_WHOSFREE_SOT] render_list", {
+        rangeStart: formatLocalDate(startDate),
+        rangeEnd: formatLocalDate(endDate),
+        totalSlotsFound: suggestedSlots.length,
+        renderCap,
+        renderedSlots: sliced.length,
+      });
+    }
+    return sliced;
+  }, [suggestedSlots, renderCap, startDate, endDate]);
+
+  // Short date range label for subtitle: "Feb 27 – Mar 5"
+  const rangeLabel = useMemo(() => {
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${fmt(startDate)} – ${fmt(endDate)}`;
+  }, [startDate, endDate]);
 
   const toggleBestTimeFriend = (friendId: string) => {
     Haptics.selectionAsync();
@@ -585,11 +612,21 @@ export default function WhosFreeScreen() {
                   </View>
                 ) : (
                   <View>
-                    {suggestedSlots.slice(0, 5).map((slot, index) => {
+                    {/* Range intent header */}
+                    <View className="mb-3">
+                      <Text className="font-sora-semibold text-sm" style={{ color: colors.text }}>
+                        Best times in this range
+                      </Text>
+                      <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                        Showing top {renderedSlots.length} suggestion{renderedSlots.length !== 1 ? "s" : ""} between {rangeLabel}
+                      </Text>
+                    </View>
+
+                    {renderedSlots.map((slot, index) => {
                       const { date: slotDate, time } = formatTimeSlot(slot);
                       const availLabel = formatSlotAvailability(slot.totalAvailable, slot.totalMembers);
                       return (
-                        <Animated.View key={index} entering={FadeIn.delay(index * 50)}>
+                        <Animated.View key={index} entering={FadeIn.delay(Math.min(index, 5) * 50)}>
                           <Pressable
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -634,6 +671,26 @@ export default function WhosFreeScreen() {
                         </Animated.View>
                       );
                     })}
+
+                    {/* Show More — no recompute, just increase render cap */}
+                    {!showAllSlots && suggestedSlots.length > MAX_SUGGESTED_SLOTS && (
+                      <Pressable
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowAllSlots(true);
+                        }}
+                        className="rounded-xl p-3 mt-1 items-center"
+                        style={{
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: `${themeColor}30`,
+                        }}
+                      >
+                        <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                          Show more suggestions
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 )}
               </>
