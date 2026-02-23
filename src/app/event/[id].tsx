@@ -2256,26 +2256,45 @@ export default function EventDetailScreen() {
             {/* Visibility - Host only */}
             {isMyEvent && (
             <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-              <View className="flex-row items-center">
-                {/* Busy blocks always show "Only self" regardless of stored visibility */}
-                {event.isBusy ? (
-                  <Users size={20} color="#9CA3AF" />
-                ) : event.visibility === "all_friends" ? (
-                  <Compass size={20} color="#9CA3AF" />
-                ) : event.visibility === "circle_only" ? (
-                  <Lock size={20} color="#9CA3AF" />
-                ) : event.visibility === "private" ? (
-                  <Lock size={20} color="#9CA3AF" />
-                ) : (
-                  <Users size={20} color="#9CA3AF" />
-                )}
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
-                  <Text className="font-semibold" style={{ color: colors.text }}>
-                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
-                  </Text>
-                </View>
-              </View>
+              {(() => {
+                const isCircleTappable = event.visibility === "circle_only" && !!event.circleId;
+                const RowWrapper = isCircleTappable ? Pressable : View;
+                const rowProps = isCircleTappable
+                  ? {
+                      onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        devLog("[P0_EVENT_CIRCLE_LINK]", { circleId: event.circleId, eventId: event.id });
+                        router.push(`/circle/${event.circleId}` as any);
+                      },
+                      accessibilityRole: "button" as const,
+                      accessibilityLabel: "Open circle chat",
+                    }
+                  : {};
+                return (
+                  <RowWrapper className="flex-row items-center" {...rowProps}>
+                    {/* Busy blocks always show "Only self" regardless of stored visibility */}
+                    {event.isBusy ? (
+                      <Users size={20} color="#9CA3AF" />
+                    ) : event.visibility === "all_friends" ? (
+                      <Compass size={20} color="#9CA3AF" />
+                    ) : event.visibility === "circle_only" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : event.visibility === "private" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : (
+                      <Users size={20} color="#9CA3AF" />
+                    )}
+                    <View className="ml-3 flex-1">
+                      <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
+                      <Text className="font-semibold" style={{ color: colors.text }}>
+                        {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
+                      </Text>
+                    </View>
+                    {isCircleTappable && <ChevronRight size={16} color={colors.textTertiary} />}
+                  </RowWrapper>
+                );
+              })()}
+
 
               {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
               {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
