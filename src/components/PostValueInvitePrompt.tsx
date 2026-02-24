@@ -135,12 +135,20 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
 
 /**
  * Check if the invite prompt can be shown (respects 7-day cooldown).
+ * Pass bypassCooldown=true to always show (e.g., for zero-friend create flows).
  * Also logs the decision in DEV.
  */
 export const canShowPostValueInvite = async (
   surface: PostValueInviteSurface,
+  options?: { bypassCooldown?: boolean },
 ): Promise<boolean> => {
   try {
+    if (options?.bypassCooldown) {
+      if (__DEV__) {
+        devLog("[P1_POST_VALUE_INVITE]", `surface=${surface} shown=true reason=bypass_cooldown`);
+      }
+      return true;
+    }
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) {
       if (__DEV__) {
