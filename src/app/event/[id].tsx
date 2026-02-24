@@ -2874,9 +2874,22 @@ export default function EventDetailScreen() {
                       </Pressable>
                     </View>
                     {myRsvpStatus === "going" && (
-                      <Text className="text-xs mt-2 px-4" style={{ color: colors.textSecondary }}>
-                        On your calendar · You can change this anytime
-                      </Text>
+                      <View className="mt-2 px-4">
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                          On your calendar · You can change this anytime
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            shareEvent({ ...event, location: locationDisplay ?? null });
+                          }}
+                          className="flex-row items-center mt-3 self-start px-4 py-2 rounded-full"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Share2 size={14} color={themeColor} />
+                          <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>Share with friends</Text>
+                        </Pressable>
+                      </View>
                     )}
                   </View>
                 )}
