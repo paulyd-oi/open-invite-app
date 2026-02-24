@@ -47,6 +47,11 @@ export function getUserDeepLink(userId: string): string {
   return `${SCHEME}://user/${userId}`;
 }
 
+/** Build a deep link to a circle: open-invite://circle/<id> */
+export function getCircleDeepLink(circleId: string): string {
+  return `${SCHEME}://circle/${circleId}`;
+}
+
 // ── Share-text builders ──────────────────────────────────────────────────────
 
 interface EventShareInput {
@@ -167,16 +172,22 @@ export function buildProfileSharePayload(handle: string): {
  * Build the share payload for a circle/group share.
  * Returns { message, title } ready for Share.share().
  */
-export function buildCircleSharePayload(circleName: string): {
+export function buildCircleSharePayload(circleName: string, circleId?: string): {
   message: string;
   title: string;
 } {
-  const msg = `Join my group "${circleName}" on Open Invite!\n\n${APP_STORE_URL}`;
+  const deepLink = circleId ? getCircleDeepLink(circleId) : null;
+
+  let msg = `Join my group "${circleName}" on Open Invite!`;
+  if (deepLink) {
+    msg += `\n\nOpen in app: ${deepLink}`;
+  }
+  msg += `\nDownload: ${APP_STORE_URL}`;
 
   assertNoForbiddenDomains(msg, "buildCircleSharePayload");
 
   if (__DEV__) {
-    devLog("[SHARE_SSOT] circle share", { circleName, appStore: APP_STORE_URL });
+    devLog("[SHARE_SSOT] circle share", { circleName, circleId, deepLink, appStore: APP_STORE_URL });
   }
 
   return { message: msg, title: circleName };

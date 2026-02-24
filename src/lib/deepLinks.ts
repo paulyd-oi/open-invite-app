@@ -208,6 +208,9 @@ export function parseDeepLink(url: string): { type: string; id?: string; code?: 
       if (type === 'invite' && id) {
         return { type: 'invite', code: id };
       }
+      if (type === 'circle' && id) {
+        return { type: 'circle', id };
+      }
     }
 
     // Handle universal links (https://...)
@@ -285,6 +288,13 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         await handleReferralUrl(url);
         // Navigate to calendar (or welcome if not logged in, handled by nav guards)
         router.push('/calendar');
+        return true;
+      }
+      break;
+
+    case 'circle':
+      if (parsed.id) {
+        router.push(`/circle/${parsed.id}`);
         return true;
       }
       break;

@@ -5137,7 +5137,7 @@ export default function CircleScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
-                    const cp = buildCircleSharePayload(circle?.name ?? "my group");
+                    const cp = buildCircleSharePayload(circle?.name ?? "my group", id);
                     Share.share({ message: cp.message, title: cp.title }).catch(() => {
                       // User cancelled share
                     });
