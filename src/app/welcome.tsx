@@ -13,6 +13,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
@@ -142,6 +143,13 @@ const OnboardingLayout = ({
   background: string;
   testID?: string;
 }) => {
+  // [P1_ONBOARD_SNAP] Proof: insets are stable from first render
+  // thanks to SafeAreaProvider + initialWindowMetrics at root
+  if (__DEV__) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const insets = useSafeAreaInsets();
+    devLog('[P1_ONBOARD_SNAP] layout', { top: insets.top, bottom: insets.bottom });
+  }
   return (
     <View testID={testID} style={[styles.layoutContainer, { backgroundColor: background }]}>
       <SafeAreaView style={styles.safeArea}>

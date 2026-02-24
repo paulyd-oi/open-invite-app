@@ -7,6 +7,7 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
@@ -1000,6 +1001,10 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <PostHogProviderWrapper posthogProps={posthogProps}>
+        {/* [P1_ONBOARD_SNAP] SafeAreaProvider with initialWindowMetrics eliminates
+            first-render layout snap: without this, SafeAreaView starts with
+            insets={top:0} then jumps once native measurement completes. */}
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <AppThemeProvider>
@@ -1026,6 +1031,7 @@ export default function RootLayout() {
             </AppThemeProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
+        </SafeAreaProvider>
       </PostHogProviderWrapper>
     </QueryClientProvider>
   );
