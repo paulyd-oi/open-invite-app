@@ -2804,7 +2804,7 @@ export default function EventDetailScreen() {
                 <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <Users size={24} color="#9CA3AF" />
                   <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No one's in yet.{"\n"}Be the first!
+                    No attendees yet
                   </Text>
                 </View>
               </View>

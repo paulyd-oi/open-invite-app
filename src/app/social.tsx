@@ -1465,7 +1465,7 @@ export default function SocialScreen() {
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
-                Bring your people in — invites make the feed come alive.
+                Invite friends to see their plans here.
               </Text>
             )}
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
