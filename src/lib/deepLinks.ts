@@ -22,6 +22,7 @@ import { handleReferralUrl } from './referral';
 import { devLog, devWarn, devError } from './devLog';
 import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
+import { trackDeepLinkLanded } from '@/analytics/analyticsEventsSSOT';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -266,6 +267,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'event':
       if (parsed.id) {
+        trackDeepLinkLanded({ type: 'event', id: parsed.id, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
         router.push(`/event/${parsed.id}`);
         return true;
       }
@@ -284,6 +286,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'invite':
       if (parsed.code) {
+        trackDeepLinkLanded({ type: 'invite', id: parsed.code, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
         // Store referral code for later claim after signup/login
         await handleReferralUrl(url);
         // Navigate to calendar (or welcome if not logged in, handled by nav guards)
@@ -294,6 +297,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'circle':
       if (parsed.id) {
+        trackDeepLinkLanded({ type: 'circle', id: parsed.id, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
         router.push(`/circle/${parsed.id}`);
         return true;
       }

@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { Share2, X } from "@/ui/icons";
 import { devLog, devError } from "@/lib/devLog";
 import { buildAppSharePayload } from "@/lib/shareSSOT";
+import { trackCreateShareClicked } from "@/analytics/analyticsEventsSSOT";
 const STORAGE_KEY = "postValueInvite:lastShownAt";
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -34,6 +35,9 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
   const handleShare = async () => {
     if (__DEV__) {
       devLog("[P1_INVITE_SHARE]", `surface=${surface}`);
+    }
+    if (surface === "create") {
+      trackCreateShareClicked({ surface: "create_success", bypassCooldown: true });
     }
     try {
       const p = buildAppSharePayload("I'm using Open Invite to plan hangouts — join me!");

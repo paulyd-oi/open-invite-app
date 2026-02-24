@@ -15,7 +15,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -2881,6 +2881,12 @@ export default function EventDetailScreen() {
                         <Pressable
                           onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            trackRsvpShareClicked({
+                              eventId: event.id,
+                              surface: "rsvp_confirmation",
+                              visibility: event.visibility ?? "unknown",
+                              hasCircleId: !!event.circleId,
+                            });
                             shareEvent({ ...event, location: locationDisplay ?? null });
                           }}
                           className="flex-row items-center mt-3 self-start px-4 py-2 rounded-full"
