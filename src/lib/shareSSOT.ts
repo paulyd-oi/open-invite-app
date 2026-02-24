@@ -76,12 +76,18 @@ export function getEventUniversalLink(eventId: string): string {
 /**
  * Build the share payload for an event.
  * Returns { message, url } ready for Share.share().
- * [P0_SHARE_ULINK] url is now the universal link so non-app-users land on a web page.
+ *
+ * [P0_SHARE_ULINK] Message includes BOTH links for maximum compatibility:
+ *   1. Custom-scheme deep link (best for installed users)
+ *   2. Universal link fallback (works in browsers / for non-installed users)
+ *   3. App Store download link
+ * The Share.share() `url` field is the universal link (rich iMessage previews).
  */
 export function buildEventSharePayload(event: EventShareInput): {
   message: string;
   url: string;
 } {
+  const deepLink = getEventDeepLink(event.id);
   const universalLink = getEventUniversalLink(event.id);
 
   let msg = `${event.emoji ?? "📅"} ${event.title}\n\n`;
@@ -92,13 +98,19 @@ export function buildEventSharePayload(event: EventShareInput): {
   if (event.description) {
     msg += `\n${event.description}\n`;
   }
-  msg += `\n${universalLink}`;
+  msg += `\nOpen in app: ${deepLink}`;
+  msg += `\nOr open: ${universalLink}`;
   msg += `\nDownload: ${APP_STORE_URL}`;
 
   assertNoForbiddenDomains(msg, "buildEventSharePayload");
 
   if (__DEV__) {
-    devLog("[P0_SHARE_ULINK] event share", { eventId: event.id, universalLink, appStore: APP_STORE_URL });
+    devLog("[P0_SHARE_ULINK] event share", {
+      eventId: event.id,
+      deepLink,
+      universalLink,
+      urlFieldUsed: universalLink,
+    });
   }
 
   return { message: msg, url: universalLink };
