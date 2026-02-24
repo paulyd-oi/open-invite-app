@@ -714,6 +714,7 @@ export default function SocialScreen() {
   }, [session?.user?.id]);
 
   const handleDismissInsight = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setInsightDismissed(true);
     try {
       const userId = session?.user?.id;
@@ -1437,7 +1438,7 @@ export default function SocialScreen() {
               className="flex-1 py-2.5 items-center rounded-xl"
               style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
               /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => setFeedFilter("open")}
+              onPress={() => { Haptics.selectionAsync(); setFeedFilter("open"); }}
             >
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
@@ -1448,7 +1449,7 @@ export default function SocialScreen() {
               className="flex-1 py-2.5 items-center rounded-xl"
               style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
               /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => setFeedFilter("group")}
+              onPress={() => { Haptics.selectionAsync(); setFeedFilter("group"); }}
             >
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
@@ -1538,7 +1539,7 @@ export default function SocialScreen() {
               className="flex-1 py-2.5 items-center rounded-xl"
               style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
               /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => setFeedFilter("open")}
+              onPress={() => { Haptics.selectionAsync(); setFeedFilter("open"); }}
             >
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
@@ -1549,7 +1550,7 @@ export default function SocialScreen() {
               className="flex-1 py-2.5 items-center rounded-xl"
               style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
               /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => setFeedFilter("group")}
+              onPress={() => { Haptics.selectionAsync(); setFeedFilter("group"); }}
             >
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
