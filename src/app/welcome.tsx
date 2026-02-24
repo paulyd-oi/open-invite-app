@@ -39,8 +39,7 @@ import {
   EyeOff,
   Sparkles,
 } from "@/ui/icons";
-import { useFonts } from "expo-font";
-import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
+// [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
@@ -237,11 +236,7 @@ export default function WelcomeOnboardingScreen() {
     }
   }, []);
 
-  const [fontsLoaded] = useFonts({
-    Sora_400Regular,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
+  // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
 
   // Core state
   const [currentSlide, setCurrentSlide] = useState<OnboardingSlide>(1);
@@ -1313,14 +1308,6 @@ export default function WelcomeOnboardingScreen() {
   };
 
   // ============ MAIN RENDER ============
-
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={themeColor} />
-      </View>
-    );
-  }
 
   const renderCurrentSlide = () => {
     switch (currentSlide) {

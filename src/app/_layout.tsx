@@ -987,7 +987,8 @@ export default function RootLayout() {
     setShowSplash(false);
   };
 
-  // Show loading while fonts are loading
+  // [P1_FONTS_SSOT] Gate entire app on font load — single source of truth.
+  // All child screens (welcome, login, onboarding) can assume fonts are ready.
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
@@ -995,6 +996,7 @@ export default function RootLayout() {
       </View>
     );
   }
+  if (__DEV__) devLog('[P1_FONTS_SSOT] fontsLoaded=true — app gated until now');
 
   const posthogProps = getPostHogProviderProps();
 

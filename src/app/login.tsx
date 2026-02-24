@@ -40,12 +40,7 @@ import {
   CheckCircle,
   Sparkles,
 } from "@/ui/icons";
-import { useFonts } from "expo-font";
-import {
-  Sora_400Regular,
-  Sora_600SemiBold,
-  Sora_700Bold,
-} from "@expo-google-fonts/sora";
+// [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
@@ -124,11 +119,7 @@ export default function LoginScreen() {
   const { themeColor, isDark, colors } = useTheme();
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'login', button: 'SSOT', theme: 'ThemeContext' });
 
-  const [fontsLoaded] = useFonts({
-    Sora_400Regular,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
+  // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
 
   const [authView, setAuthView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
@@ -238,21 +229,6 @@ export default function LoginScreen() {
 
   // [P1_ONBOARD_STABLE] Opacity-gate: hide until layout stable
   const { isStable: isLoginStable, onLayout: onLoginLayout } = useFirstPaintStable();
-
-  if (!fontsLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator color={themeColor} size="large" />
-      </View>
-    );
-  }
 
   // Success View
   if (authView === "success") {
