@@ -63,6 +63,7 @@ import { RADIUS } from "@/ui/layout";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
+import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { usePremiumStatusContract } from "@/lib/entitlements";
@@ -1509,8 +1510,11 @@ export default function OnboardingScreen() {
     );
   }
 
+  // [P1_ONBOARD_STABLE] Opacity-gate: hide until layout stable
+  const { isStable: isOnboardStable, onLayout: onOnboardLayout } = useFirstPaintStable();
+
   return (
-    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+    <View className="flex-1" onLayout={onOnboardLayout} style={{ backgroundColor: colors.background }}>
       <LinearGradient
         colors={isDark
           ? [`${currentStep.iconBg}50`, `${currentStep.iconBg}20`, colors.background, colors.background]
@@ -1520,7 +1524,7 @@ export default function OnboardingScreen() {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
-      <SafeAreaView testID="onboarding-screen" className="flex-1">
+      <SafeAreaView testID="onboarding-screen" className="flex-1" style={{ opacity: isOnboardStable ? 1 : 0 }}>
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 pt-2 pb-4">
           <View className="flex-row gap-1.5">

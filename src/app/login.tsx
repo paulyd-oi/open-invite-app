@@ -16,6 +16,7 @@ import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -235,6 +236,9 @@ export default function LoginScreen() {
     }
   };
 
+  // [P1_ONBOARD_STABLE] Opacity-gate: hide until layout stable
+  const { isStable: isLoginStable, onLayout: onLoginLayout } = useFirstPaintStable();
+
   if (!fontsLoaded) {
     return (
       <View
@@ -253,7 +257,7 @@ export default function LoginScreen() {
   // Success View
   if (authView === "success") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
         <LinearGradient
           colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
@@ -303,7 +307,7 @@ export default function LoginScreen() {
   // Forgot Password View
   if (authView === "forgotPassword") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
         <LinearGradient
           colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1 }}
@@ -495,7 +499,7 @@ export default function LoginScreen() {
 
   // Main Login View
   return (
-    <View testID="login-screen" style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="login-screen" onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
       <LinearGradient colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Header with back to Getting Started */}
