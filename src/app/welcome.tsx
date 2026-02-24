@@ -22,14 +22,12 @@ import { devLog, devWarn, devError } from "@/lib/devLog";
 import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   FadeIn,
-  FadeInDown,
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
-// INVARIANT: Animations run ONCE on mount - use opacity+translateY only (no height changes)
-// These use Reanimated's entering animations which are layout-stable
+// INVARIANT: Animations run ONCE on mount - use opacity only (no height/translateY changes)
+// [P1_ONBOARD_BOUNCE] stableFadeInDown removed — was causing bounce via translateY + springify
 const smoothFadeIn = (delayMs = 0) => FadeIn.delay(delayMs).duration(400);
-const stableFadeInDown = (delayMs = 0) => FadeInDown.delay(delayMs).duration(350).springify().damping(15);
 
 import {
   Calendar as CalendarIcon,
@@ -229,6 +227,7 @@ export default function WelcomeOnboardingScreen() {
       hasLoggedMountRef.current = true;
       if (__DEV__) {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
+        devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
       }
     }
   }, []);

@@ -20,8 +20,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeIn,
-  FadeInUp,
-  FadeInDown,
   FadeOut,
   SlideInUp,
   SlideOutDown,
@@ -261,7 +259,7 @@ export default function LoginScreen() {
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
           <Animated.View
-            entering={FadeInUp.springify()}
+            entering={FadeIn.duration(300)}
             style={{ alignItems: "center" }}
           >
             <View
@@ -354,7 +352,7 @@ export default function LoginScreen() {
                 keyboardShouldPersistTaps="handled"
               >
                 <Animated.View
-                  entering={FadeInUp.springify()}
+                  entering={FadeIn.duration(300)}
                   style={{ alignItems: "center" }}
                 >
                   <View
@@ -544,7 +542,7 @@ export default function LoginScreen() {
               }}
               keyboardShouldPersistTaps="handled"
             >
-              <Animated.View entering={FadeInUp.springify()}>
+              <Animated.View entering={FadeIn.duration(300)}>
                 {/* Icon */}
                 <View style={{ alignItems: "center", marginBottom: 32 }}>
                   <View
@@ -586,7 +584,7 @@ export default function LoginScreen() {
 
                 {/* Email Input */}
                 <Animated.View
-                  entering={FadeInUp.delay(100).springify()}
+                  entering={FadeIn.delay(100).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
                     borderRadius: 14,
@@ -622,7 +620,7 @@ export default function LoginScreen() {
 
                 {/* Password Input */}
                 <Animated.View
-                  entering={FadeInUp.delay(200).springify()}
+                  entering={FadeIn.delay(200).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
                     borderRadius: 14,
@@ -666,7 +664,7 @@ export default function LoginScreen() {
 
                 {/* Forgot Password */}
                 <Animated.View
-                  entering={FadeInUp.delay(300).springify()}
+                  entering={FadeIn.delay(300).duration(300)}
                   style={{ alignItems: "flex-end", marginBottom: 24 }}
                 >
                   <Pressable
@@ -686,7 +684,7 @@ export default function LoginScreen() {
                 </Animated.View>
 
                 {/* Sign In Button */}
-                <Animated.View entering={FadeInUp.delay(400).springify()}>
+                <Animated.View entering={FadeIn.delay(400).duration(300)}>
                   <Button
                     testID="login-submit-button"
                     variant="primary"
@@ -700,7 +698,7 @@ export default function LoginScreen() {
 
                 {/* Sign Up Link */}
                 <Animated.View
-                  entering={FadeInUp.delay(500).springify()}
+                  entering={FadeIn.delay(500).duration(300)}
                   style={{ alignItems: "center" }}
                 >
                   <Pressable
