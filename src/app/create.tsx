@@ -14,7 +14,7 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
@@ -78,7 +78,7 @@ import {
   type GetProfilesResponse,
   type GetEventsResponse,
 } from "@/shared/contracts";
-import { SuggestedTimesPicker } from "@/components/SuggestedTimesPicker";
+// [P0_FIND_BEST_TIME_SSOT] SuggestedTimesPicker replaced by route to /whos-free SSOT
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
@@ -522,6 +522,37 @@ export default function CreateEventScreen() {
 
   // [P0_PREMIUM_DRIFT_GUARD] Cross-contract consistency check (DEV-only)
   usePremiumDriftGuard(premiumStatus, hostingQuota);
+
+  // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
+  const BEST_TIME_PICK_KEY = "oi:bestTimePick";
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const raw = await AsyncStorage.getItem(BEST_TIME_PICK_KEY);
+          if (!raw || cancelled) return;
+          await AsyncStorage.removeItem(BEST_TIME_PICK_KEY);
+          const parsed = JSON.parse(raw) as { start: string; end: string };
+          const pickedStart = new Date(parsed.start);
+          const pickedEnd = new Date(parsed.end);
+          if (isNaN(pickedStart.getTime()) || isNaN(pickedEnd.getTime())) return;
+          setStartDate(pickedStart);
+          setEndDate(pickedEnd);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (__DEV__) {
+            devLog("[P0_FIND_BEST_TIME_SSOT] apply", {
+              start: parsed.start,
+              end: parsed.end,
+            });
+          }
+        } catch {
+          // non-critical — user can still pick time manually
+        }
+      })();
+      return () => { cancelled = true; };
+    }, [])
+  );
 
   // [P1_HOSTING_QUOTA_UI] DEV proof log (once per render when quota present)
   const quotaLoggedRef = React.useRef(false);
@@ -1551,16 +1582,39 @@ export default function CreateEventScreen() {
           </Animated.View>
           )}
 
-          {/* Suggested Times */}
+          {/* Find Best Time — routes to Who's Free SSOT */}
           <Animated.View entering={FadeInDown.delay(245).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Need Help Picking a Time?</Text>
             <View className="mb-4">
-              <SuggestedTimesPicker
-                onSelectTime={(time) => {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  setStartDate(time);
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  if (__DEV__) devLog('[P0_FIND_BEST_TIME_SSOT] open', { source: 'create' });
+                  router.push('/whos-free?source=create' as any);
                 }}
-              />
+                className="rounded-xl p-4 flex-row items-center"
+                style={{
+                  backgroundColor: `${themeColor}10`,
+                  borderWidth: 1,
+                  borderColor: `${themeColor}30`,
+                }}
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: `${themeColor}20` }}
+                >
+                  <Sparkles size={20} color={themeColor} />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold" style={{ color: themeColor }}>
+                    Find Best Time
+                  </Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                    See when friends are free
+                  </Text>
+                </View>
+                <ArrowRight size={20} color={themeColor} />
+              </Pressable>
             </View>
           </Animated.View>
 
