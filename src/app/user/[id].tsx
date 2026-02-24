@@ -532,30 +532,47 @@ export default function UserProfileScreen() {
   const minuteTick = useMinuteTick(true);
 
   // Filter to only show upcoming events (exclude past - event still shows if endTime not yet passed)
-  // P0: Client-side safety net — exclude circle-only events from Open Invites
-  const friendEvents = useMemo(() => {
+  // [P0_FRIEND_CAL_SOT] All events for calendar dots (exclude circle-only, keep past)
+  const allFriendCalendarEvents = useMemo(() => {
     const events = friendEventsData?.events ?? [];
-    const now = new Date();
-    let excludedCircleCount = 0;
-    const filtered = events.filter(event => {
-      // Use endTime if available, otherwise fall back to startTime
-      const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
-      if (relevantTime < now) return false;
-      // Safety net: exclude circle-only events (backend should already omit, but be resilient)
+    return events.filter(event => {
       if (event.visibility === "circle_only" || (event.circleId && event.visibility !== "all_friends")) {
-        excludedCircleCount++;
         return false;
       }
+      return true;
+    });
+  }, [friendEventsData?.events]);
+
+  // P0: Client-side safety net — exclude circle-only + past events for Open Invites list
+  const friendEvents = useMemo(() => {
+    const now = new Date();
+    let excludedCircleCount = 0;
+    let excludedPastCount = 0;
+    const filtered = allFriendCalendarEvents.filter(event => {
+      const relevantTime = event.endTime ? new Date(event.endTime) : new Date(event.startTime);
+      if (relevantTime < now) { excludedPastCount++; return false; }
       return true;
     });
     if (__DEV__) {
       devLog('[P0_PROFILE_OPEN_INVITES_FILTER]', {
         renderedCount: filtered.length,
-        excludedCircleCount,
+        excludedPastCount,
       });
     }
     return filtered;
-  }, [friendEventsData?.events, minuteTick]);
+  }, [allFriendCalendarEvents, minuteTick]);
+
+  // [P0_FRIEND_CAL_SOT] DEV proof: calendar vs open-invites event counts
+  useEffect(() => {
+    if (__DEV__ && friendEventsData) {
+      devLog('[P0_FRIEND_CAL_SOT] profile_calendar', {
+        friendshipId: friendshipId?.slice(0, 8) ?? null,
+        rawEventsFromAPI: friendEventsData.events?.length ?? 0,
+        calendarDotEvents: allFriendCalendarEvents.length,
+        openInvitesFiltered: friendEvents.length,
+      });
+    }
+  }, [friendEventsData, allFriendCalendarEvents.length, friendEvents.length]);
 
   // Send friend request mutation
   const sendRequestMutation = useMutation({
@@ -923,7 +940,7 @@ export default function UserProfileScreen() {
                       {user.name?.split(" ")[0] ?? "Their"}'s Calendar
                     </Text>
                   </View>
-                  <FriendCalendar events={friendEvents} themeColor={themeColor} />
+                  <FriendCalendar events={allFriendCalendarEvents} themeColor={themeColor} />
                 </Animated.View>
 
                 {/* Events Section */}

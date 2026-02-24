@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { buildReferralSharePayload, buildAppSharePayload } from "@/lib/shareSSOT";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
@@ -490,20 +491,17 @@ export default function SuggestionsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     try {
-      let message = "Join me on Open Invite — a social calendar to plan and share events.";
-      
-      // Prefer using shareLink if available
-      if (referralStats?.shareLink) {
-        message = `I'm using Open Invite to stay connected in real life — join me: ${referralStats.shareLink}`;
-      } else if (referralStats?.referralCode) {
-        // Fallback to constructing deep link if shareLink is not available
-        const deepLink = `openinvite://?ref=${referralStats.referralCode}`;
-        message = `Join me on Open Invite! Use my code ${referralStats.referralCode} or tap ${deepLink}`;
+      // [P0_SHARE_SSOT] Use SSOT builders — ignore backend shareLink
+      let payload: { message: string; title?: string };
+      if (referralStats?.referralCode) {
+        payload = buildReferralSharePayload(referralStats.referralCode);
+      } else {
+        const p = buildAppSharePayload();
+        payload = { message: p.message, title: "Invite friends to Open Invite" };
       }
-      
       await Share.share({
-        message,
-        title: "Invite friends to Open Invite",
+        message: payload.message,
+        title: payload.title ?? "Invite friends to Open Invite",
       });
     } catch (error) {
       devError("Error sharing:", error);

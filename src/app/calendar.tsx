@@ -16,7 +16,6 @@ import {
   Layers,
   AlignJustify,
   Users,
-  UserPlus,
   Send,
   Check,
   X,
@@ -49,10 +48,10 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
-import { getEventShareLink } from "@/lib/deepLinks";
+import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
-import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
+import { loadGuidanceState, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
@@ -64,7 +63,6 @@ import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
-import { DayInsightCard } from "@/components/DayInsightCard";
 import { FirstTimeCalendarHint } from "@/components/FirstTimeCalendarHint";
 import { SocialPulseRow } from "@/components/SocialPulseRow";
 
@@ -162,25 +160,21 @@ const shareEventFromCalendar = async (event: Event) => {
       minute: "2-digit",
     });
 
-    const shareUrl = getEventShareLink(event.id);
-
-    let message = `${event.emoji} ${event.title}\n\n`;
-    message += `📅 ${dateStr} at ${timeStr}\n`;
-
-    if (event.location) {
-      message += `📍 ${event.location}\n`;
-    }
-
-    if (event.description) {
-      message += `\n${event.description}\n`;
-    }
-
-    message += `\n🔗 ${shareUrl}`;
+    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
+    const payload = buildEventSharePayload({
+      id: event.id,
+      title: event.title,
+      emoji: event.emoji,
+      dateStr,
+      timeStr,
+      location: event.location,
+      description: event.description,
+    });
 
     await Share.share({
-      message,
+      message: payload.message,
       title: event.title,
-      url: shareUrl,
+      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);
@@ -2222,6 +2216,8 @@ export default function CalendarScreen() {
   const selectedDateEvents = getEventsForDate(selectedDate).sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );
+  // Open Invite events only (excludes work blocks & birthdays) — used for empty-state gating
+  const openInviteEvents = selectedDateEvents.filter((e: any) => !e.isWork && !e.isBirthday);
 
   // Render calendar cell based on view mode
   const renderCell = (day: number | null, index: number) => {
@@ -2624,21 +2620,11 @@ export default function CalendarScreen() {
                 </View>
               </View>
 
-              {/* Day Insight Card — shows when day is "empty enough" (no Open Invite events) */}
-              <DayInsightCard
-                selectedDate={selectedDate}
-                events={selectedDateEvents}
-                onCreatePress={() => {
-                  if (!guardEmailVerification(session)) return;
-                  router.push(`/create?date=${selectedDate.toISOString()}`);
-                }}
-              />
-
               {/* First-time onboarding hint — auto-dismisses after first event/RSVP or 5 opens */}
               <FirstTimeCalendarHint
                 createdEventCount={myEvents.length}
                 goingEventCount={goingEvents.length}
-                selectedDayEmpty={selectedDateEvents.filter((e: any) => !e.isWork && !e.isBirthday).length === 0}
+                selectedDayEmpty={openInviteEvents.length === 0}
                 emailVerified={!isEmailGateActive(session)}
                 onCreatePress={() => {
                   if (!guardEmailVerification(session)) return;
@@ -2659,7 +2645,8 @@ export default function CalendarScreen() {
                 />
               )}
 
-              {selectedDateEvents.length === 0 ? (
+              {/* Unified empty-state — shown when no open invite events (work/birthday don't count) */}
+              {openInviteEvents.length === 0 && (
                 <View
                   className="rounded-2xl p-6 items-center"
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -2671,34 +2658,11 @@ export default function CalendarScreen() {
                   }}
                 >
                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
-                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
-                      Plans start when someone joins you.
-                    </Text>
-                  )}
-                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
-                    <Button
-                      variant="primary"
-                      label="Invite a friend"
-                      leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
-                      /* INVARIANT_ALLOW_INLINE_HANDLER */
-                      onPress={async () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        try {
-                          await Share.share({
-                            message: "Join me on Open Invite - the easiest way to share plans with friends!\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                            url: "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-                          });
-                        } catch (error) {
-                          devError("Error sharing:", error);
-                        }
-                      }}
-                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      style={{ marginBottom: 12 }}
-                    />
-                  )}
+                  <Text style={{ color: colors.text }} className="font-semibold mb-1">Nothing planned yet</Text>
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
+                    You're free this day. Create an invite or check who's free.
+                  </Text>
                   <View className="flex-row items-center mt-1 gap-4">
                     <Button
                       variant="ghost"
@@ -2724,7 +2688,10 @@ export default function CalendarScreen() {
                     />
                   </View>
                 </View>
-              ) : (
+              )}
+
+              {/* Event list — renders work/birthday/open invite items when present */}
+              {selectedDateEvents.length > 0 && (
                 /* INVARIANT_ALLOW_SMALL_MAP */
                 selectedDateEvents.map((event, idx) => (
                   <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>

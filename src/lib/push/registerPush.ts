@@ -52,10 +52,10 @@ export async function getPushPermissionStatus(): Promise<"granted" | "denied" | 
 }
 
 /**
- * Set up Android notification channels
+ * Set up notification channels (non-iOS only)
  */
-async function setupAndroidChannels(): Promise<void> {
-  if (Platform.OS !== "android") return;
+async function setupNotificationChannels(): Promise<void> {
+  if (Platform.OS === "ios") return;
 
   await Notifications.setNotificationChannelAsync("default", {
     name: "Default",
@@ -115,8 +115,8 @@ export async function registerPushToken(): Promise<{
   }
 
   try {
-    // Set up Android channels first
-    await setupAndroidChannels();
+    // Set up notification channels (non-iOS)
+    await setupNotificationChannels();
 
     // Check current permission status
     const { status: existingStatus } = await Notifications.getPermissionsAsync();

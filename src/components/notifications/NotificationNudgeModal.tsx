@@ -196,12 +196,12 @@ const FIRST_NUDGE_COPY: NudgeCopy = {
 };
 
 const SECOND_NUDGE_COPY: NudgeCopy = {
-  title: "Don't miss out",
-  subtitle: "You've been missing updates from friends. Turn on notifications to stay connected.",
+  title: "Stay in the loop",
+  subtitle: "Turn on notifications so you never miss a plan from friends.",
   bullets: [
-    { icon: AlertCircle, text: "Missed event updates" },
-    { icon: MessageCircle, text: "Unread messages" },
-    { icon: Users, text: "Pending friend requests" },
+    { icon: AlertCircle, text: "Event updates" },
+    { icon: MessageCircle, text: "New messages" },
+    { icon: Users, text: "Friend requests" },
   ],
   primaryCta: "Turn On Notifications",
   secondaryCta: "Maybe Later",

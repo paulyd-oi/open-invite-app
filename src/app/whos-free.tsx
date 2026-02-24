@@ -4,15 +4,12 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Image,
-  RefreshControl,
-  Modal,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { Calendar, UserCheck, Clock, ChevronRight, Plus, Briefcase, Check, ChevronLeft, Filter, X, Users, Sparkles } from "@/ui/icons";
+import { Calendar, Clock, ChevronRight, Check, Users, Sparkles } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -24,12 +21,12 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
-import { useEntitlements, usePremiumStatusContract, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
-import { devLog } from "@/lib/devLog";
-import { circleKeys } from "@/lib/circleQueryKeys";
+import { useEntitlements, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
+import { devLog, devError } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { computeSchedule } from "@/lib/scheduling/engine";
 import type { BusyWindow } from "@/lib/scheduling/types";
+import { formatSlotAvailability } from "@/lib/scheduling/format";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
@@ -46,26 +43,10 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-interface FriendInfo {
-  friendshipId: string;
-  friend: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-  };
-  groups: Array<{ id: string; name: string; color: string }>;
-  isWorking?: boolean;
-  workLabel?: string | null;
-}
+// [P0_WHOSFREE_SOT] Hard caps — prevent exploding list renders
+const MAX_SUGGESTED_SLOTS = 25;
+const MAX_EXPANDED_SLOTS = 50;
 
-interface WhosFreResponse {
-  date: string;
-  freeFriends: FriendInfo[];
-  busyFriends: FriendInfo[];
-}
-
-// Interface for suggested times feature
 interface TimeSlot {
   start: string;
   end: string;
@@ -75,10 +56,7 @@ interface TimeSlot {
     image: string | null;
   }>;
   totalAvailable: number;
-}
-
-interface GetSuggestedTimesResponse {
-  slots: TimeSlot[];
+  totalMembers: number;
 }
 
 interface Friendship {
@@ -96,194 +74,12 @@ interface GetFriendsResponse {
   friends: Friendship[];
 }
 
-// Mini calendar component to show week availability
-function WeekAvailabilityCalendar({
-  selectedFriends,
-  themeColor,
-  colors,
-  isDark,
-  onDatePress,
-  currentDate,
-}: {
-  selectedFriends: FriendInfo[];
-  themeColor: string;
-  colors: any;
-  isDark: boolean;
-  onDatePress: (date: string) => void;
-  currentDate: Date;
-}) {
-  const { status: bootStatus } = useBootAuthority();
-  const { data: session } = useSession();
-  const [weekOffset, setWeekOffset] = useState(0);
-
-  // Get the week's dates
-  const weekDates = useMemo(() => {
-    const dates: Date[] = [];
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + (weekOffset * 7));
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  }, [currentDate, weekOffset]);
-
-  const friendIds = selectedFriends.map(f => f.friend.id);
-  const dateStrings = weekDates.map(d => d.toISOString().split('T')[0]);
-
-  // Fetch availability for all selected friends for this week
-  const { data: availabilityData } = useQuery({
-    queryKey: ["friends-availability", friendIds, dateStrings],
-    queryFn: async () => {
-      if (friendIds.length === 0) return { availability: {} };
-      const params = new URLSearchParams();
-      friendIds.forEach(id => params.append("friendIds", id));
-      dateStrings.forEach(d => params.append("dates", d));
-      return api.get<{ availability: Record<string, Record<string, boolean>> }>(
-        `/api/events/friends-availability?${params.toString()}`
-      );
-    },
-    enabled: isAuthedForNetwork(bootStatus, session) && friendIds.length > 0,
-  });
-
-  const availability = availabilityData?.availability ?? {};
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return (
-    <View className="mb-4">
-      {/* Week Navigation */}
-      <View className="flex-row items-center justify-between mb-3">
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            setWeekOffset(prev => prev - 1);
-          }}
-          className="w-8 h-8 rounded-full items-center justify-center"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          <ChevronLeft size={18} color={colors.textSecondary} />
-        </Pressable>
-        <Text className="font-medium" style={{ color: colors.text }}>
-          {weekDates[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} - {weekDates[6].toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-        </Text>
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            setWeekOffset(prev => prev + 1);
-          }}
-          className="w-8 h-8 rounded-full items-center justify-center"
-          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-        >
-          <ChevronRight size={18} color={colors.textSecondary} />
-        </Pressable>
-      </View>
-
-      {/* Week Grid */}
-      <View className="flex-row justify-between">
-        {weekDates.map((date, index) => {
-          const dateStr = date.toISOString().split('T')[0];
-          const isToday = date.getTime() === today.getTime();
-          const isPast = date < today;
-
-          // Count how many selected friends are free on this day
-          let freeCount = 0;
-          selectedFriends.forEach(friend => {
-            const friendAvail = availability[friend.friend.id];
-            if (friendAvail && friendAvail[dateStr]) {
-              freeCount++;
-            }
-          });
-
-          const allFree = freeCount === selectedFriends.length && selectedFriends.length > 0;
-          const someFree = freeCount > 0 && freeCount < selectedFriends.length;
-          const noneFree = freeCount === 0 && selectedFriends.length > 0;
-
-          return (
-            <Pressable
-              key={dateStr}
-              onPress={() => {
-                if (!isPast) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onDatePress(dateStr);
-                }
-              }}
-              disabled={isPast}
-              className="items-center flex-1"
-            >
-              <Text
-                className="text-xs mb-1"
-                style={{ color: isToday ? themeColor : colors.textTertiary }}
-              >
-                {["S", "M", "T", "W", "T", "F", "S"][date.getDay()]}
-              </Text>
-              <View
-                className="w-10 h-10 rounded-full items-center justify-center"
-                style={{
-                  backgroundColor: isPast
-                    ? colors.surface
-                    : allFree
-                    ? "#22C55E"
-                    : someFree
-                    ? "#F59E0B"
-                    : noneFree
-                    ? "#EF4444" + "30"
-                    : colors.surface,
-                  borderWidth: isToday ? 2 : 0,
-                  borderColor: themeColor,
-                  opacity: isPast ? 0.4 : 1,
-                }}
-              >
-                <Text
-                  className="font-medium"
-                  style={{
-                    color: allFree || someFree ? "#fff" : colors.text,
-                  }}
-                >
-                  {date.getDate()}
-                </Text>
-              </View>
-              {selectedFriends.length > 0 && !isPast && (
-                <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-                  {freeCount}/{selectedFriends.length}
-                </Text>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Legend */}
-      {selectedFriends.length > 0 && (
-        <View className="flex-row justify-center mt-3 space-x-4">
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: "#22C55E" }} />
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>All free</Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: "#F59E0B" }} />
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>Some free</Text>
-          </View>
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full mr-1" style={{ backgroundColor: "#EF444430" }} />
-            <Text className="text-xs" style={{ color: colors.textTertiary }}>None free</Text>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
 export default function WhosFreeScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
-  const { themeColor, isDark, colors } = useTheme();
-  const [selectedFriendIds, setSelectedFriendIds] = useState<Set<string>>(new Set());
+  const { themeColor, colors } = useTheme();
   
   // P0 FIX: Initialize selectedDate from param using local-safe parsing
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -292,7 +88,6 @@ export default function WhosFreeScreen() {
     }
     return formatLocalDate(new Date()); // Default to today in local timezone
   });
-  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Paywall state for horizon gating
   const [showPaywallModal, setShowPaywallModal] = useState(false);
@@ -301,14 +96,9 @@ export default function WhosFreeScreen() {
   // Fetch entitlements for gating
   const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
-  // Filter state
-  type TimeRange = "all" | "after_work" | "weekend";
-  const [timeRange, setTimeRange] = useState<TimeRange>("all");
-  const [selectedCircleId, setSelectedCircleId] = useState<string | null>(null);
-  const [hideWorking, setHideWorking] = useState(false);
-
   // Find Best Time state
   const [bestTimeFriendIds, setBestTimeFriendIds] = useState<string[]>([]);
+  const [showAllSlots, setShowAllSlots] = useState(false);
   
   // P0 FIX: Initialize startDate/endDate from route param, not hardcoded today
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -326,16 +116,14 @@ export default function WhosFreeScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  // P0 FIX: DEV proof log on mount
+  // [P0_WHOSFREE_SOT] DEV proof log on mount
   React.useEffect(() => {
     if (__DEV__) {
-      devLog('[P0_WHOS_FREE_DATE] mount', {
+      devLog('[P0_WHOSFREE_SOT] mount', {
         routeDateParam: date ?? null,
-        parsedStart: formatLocalDate(startDate),
-        startDateISO: formatLocalDate(startDate),
-        endDateISO: formatLocalDate(endDate),
+        startDate: formatLocalDate(startDate),
+        endDate: formatLocalDate(endDate),
         selectedDate,
-        reason: date ? 'init_from_param' : 'init_today',
       });
     }
   }, []);
@@ -357,28 +145,49 @@ export default function WhosFreeScreen() {
   });
   const workSchedules = workScheduleData?.schedules ?? [];
 
-  // [P0_WORK_HOURS_BLOCK] Fetch each selected friend's events for client-side scheduling
+  // [P0_WHOSFREE_SOT] Fetch each selected friend's events for client-side scheduling
   const {
     data: friendEventsData,
     isLoading: isLoadingFriendEvents,
+    isError: isFriendEventsError,
+    error: friendEventsError,
   } = useQuery({
     queryKey: ["best-time-friend-events", bestTimeFriendIds],
+    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0 && allFriends.length > 0,
     queryFn: async () => {
-      // Find friendshipId for each selected friendId
-      const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isBusy?: boolean; isWork?: boolean }> }> = [];
-      // Also include the current user as a "member"
-      if (session?.user?.id) {
-        const myRes = await api.get<{ createdEvents: any[]; goingEvents: any[] }>("/api/events/calendar");
-        const myEvents = [
-          ...(myRes.createdEvents ?? []),
-          ...(myRes.goingEvents ?? []),
-        ].map((e) => ({ startTime: e.startTime, endTime: e.endTime, isBusy: e.isBusy }));
-        results.push({ userId: session.user.id, events: myEvents });
+      if (__DEV__) {
+        devLog("[P0_WHOSFREE_SOT] query_firing", {
+          friendIds: bestTimeFriendIds,
+          rangeStart: formatLocalDate(startDate),
+          rangeEnd: formatLocalDate(endDate),
+        });
       }
+
+      const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isBusy?: boolean; isWork?: boolean }> }> = [];
+
+      // Include the current user as a "member"
+      if (session?.user?.id) {
+        try {
+          const myRes = await api.get<{ createdEvents: any[]; goingEvents: any[] }>("/api/events/calendar");
+          const myEvents = [
+            ...(myRes.createdEvents ?? []),
+            ...(myRes.goingEvents ?? []),
+          ].map((e) => ({ startTime: e.startTime, endTime: e.endTime, isBusy: e.isBusy }));
+          results.push({ userId: session.user.id, events: myEvents });
+        } catch (err) {
+          if (__DEV__) devError("[P0_WHOSFREE_SOT] current_user_calendar_error", err);
+          // Treat current user as fully free if calendar fetch fails
+          results.push({ userId: session.user.id, events: [] });
+        }
+      }
+
       // Fetch each friend's events
       for (const friendId of bestTimeFriendIds) {
         const friendship = allFriends.find((f) => f.friendId === friendId);
-        if (!friendship) continue;
+        if (!friendship) {
+          if (__DEV__) devLog("[P0_WHOSFREE_SOT] friendship_not_found", { friendId: friendId.slice(0, 8) });
+          continue;
+        }
         try {
           const res = await api.get<{ events: any[] }>(`/api/friends/${friendship.id}/events`);
           results.push({
@@ -395,9 +204,16 @@ export default function WhosFreeScreen() {
           results.push({ userId: friendId, events: [] });
         }
       }
+
+      if (__DEV__) {
+        devLog("[P0_WHOSFREE_SOT] query_response", {
+          memberCount: results.length,
+          eventCounts: results.map(r => ({ id: r.userId.slice(0, 6), events: r.events.length })),
+        });
+      }
+
       return results;
     },
-    enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0 && allFriends.length > 0,
   });
 
   // [P0_WORK_HOURS_BLOCK] Client-side scheduling engine (replaces backend suggested-times)
@@ -456,8 +272,18 @@ export default function WhosFreeScreen() {
       rangeEnd,
       intervalMinutes: 30,
       slotDurationMinutes: 60,
-      maxTopSlots: 10,
+      maxTopSlots: MAX_EXPANDED_SLOTS,
     });
+
+    if (__DEV__) {
+      devLog("[P0_WHOSFREE_SOT] compute_result", {
+        memberCount: allMemberIds.length,
+        rangeStart: formatLocalDate(startDate),
+        rangeEnd: formatLocalDate(endDate),
+        slotsFound: result?.topSlots?.length ?? 0,
+        engineReturnedNull: result === null,
+      });
+    }
 
     if (!result) {
       return { suggestedSlots: [] as TimeSlot[], isLoadingSuggestions: false };
@@ -468,6 +294,7 @@ export default function WhosFreeScreen() {
       start: slot.start,
       end: slot.end,
       totalAvailable: slot.availableCount,
+      totalMembers: slot.totalMembers,
       availableFriends: slot.availableUserIds
         .filter((uid) => uid !== currentUserId)
         .map((uid) => {
@@ -483,94 +310,43 @@ export default function WhosFreeScreen() {
     return { suggestedSlots: slots, isLoadingSuggestions: false };
   }, [friendEventsData, isLoadingFriendEvents, startDate, endDate, allFriends, workSchedules, session?.user?.id]);
 
-  // Fetch circles for filter
-  interface Circle {
-    id: string;
-    name: string;
-    color: string;
-    members: Array<{ friendshipId: string }>;
-  }
-  const { data: circlesData } = useQuery({
-    queryKey: circleKeys.all(),
-    queryFn: () => api.get<{ circles: Circle[] }>("/api/circles"),
-    enabled: isAuthedForNetwork(bootStatus, session),
-  });
-  const circles = circlesData?.circles ?? [];
-
-  // Parse date string as local time to avoid timezone issues
-  // Input format: "2026-01-09" should be treated as local date, not UTC
-  const dateObj = selectedDate ? (() => {
-    const [year, month, day] = selectedDate.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  })() : new Date();
-
-  const formattedDate = dateObj.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
-  const { data, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["whos-free", selectedDate],
-    queryFn: () => api.get<WhosFreResponse>(`/api/events/whos-free?date=${selectedDate}`),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!selectedDate,
-  });
-
-  const freeFriends = data?.freeFriends ?? [];
-  const busyFriends = data?.busyFriends ?? [];
-
-  // Apply filters to friends
-  const applyFilters = (friends: FriendInfo[]): FriendInfo[] => {
-    let filtered = [...friends];
-
-    // Filter by circle
-    if (selectedCircleId) {
-      const circle = circles.find(c => c.id === selectedCircleId);
-      if (circle) {
-        const circleMemberIds = new Set(circle.members.map(m => m.friendshipId));
-        filtered = filtered.filter(f => circleMemberIds.has(f.friendshipId));
-      }
+  // [P0_WHOSFREE_SOT] Capped render list — never explode the scroll
+  const renderCap = showAllSlots ? MAX_EXPANDED_SLOTS : MAX_SUGGESTED_SLOTS;
+  const renderedSlots = useMemo(() => {
+    const sliced = suggestedSlots.slice(0, renderCap);
+    if (__DEV__ && suggestedSlots.length > 0) {
+      devLog("[P0_WHOSFREE_SOT] render_list", {
+        rangeStart: formatLocalDate(startDate),
+        rangeEnd: formatLocalDate(endDate),
+        totalSlotsFound: suggestedSlots.length,
+        renderCap,
+        renderedSlots: sliced.length,
+      });
     }
+    return sliced;
+  }, [suggestedSlots, renderCap, startDate, endDate]);
 
-    // Filter by working status
-    if (hideWorking) {
-      filtered = filtered.filter(f => !f.isWorking);
-    }
-
-    return filtered;
-  };
-
-  const filteredFreeFriends = applyFilters(freeFriends);
-  const filteredBusyFriends = applyFilters(busyFriends);
-
-  // Count active filters
-  const activeFilterCount = (selectedCircleId ? 1 : 0) + (hideWorking ? 1 : 0) + (timeRange !== "all" ? 1 : 0);
-
-  // Get currently selected friends data
-  const selectedFriends = [...freeFriends, ...busyFriends].filter(f =>
-    selectedFriendIds.has(f.friendshipId)
-  );
-
-  const handleToggleFriend = (friendshipId: string) => {
-    Haptics.selectionAsync();
-    setSelectedFriendIds(prev => {
-      const next = new Set(prev);
-      if (next.has(friendshipId)) {
-        next.delete(friendshipId);
-      } else {
-        next.add(friendshipId);
-      }
-      return next;
-    });
-  };
+  // Short date range label for subtitle: "Feb 27 – Mar 5"
+  const rangeLabel = useMemo(() => {
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${fmt(startDate)} – ${fmt(endDate)}`;
+  }, [startDate, endDate]);
 
   const toggleBestTimeFriend = (friendId: string) => {
     Haptics.selectionAsync();
-    setBestTimeFriendIds((prev) =>
-      prev.includes(friendId)
+    setBestTimeFriendIds((prev) => {
+      const next = prev.includes(friendId)
         ? prev.filter((id) => id !== friendId)
-        : [...prev, friendId]
-    );
+        : [...prev, friendId];
+      if (__DEV__) {
+        devLog("[P0_WHOSFREE_SOT] friend_selection", {
+          action: prev.includes(friendId) ? "deselect" : "select",
+          friendId: friendId.slice(0, 8),
+          selectedCount: next.length,
+        });
+      }
+      return next;
+    });
   };
 
   const formatTimeSlot = (slot: TimeSlot) => {
@@ -611,18 +387,6 @@ export default function WhosFreeScreen() {
     router.setParams({ date: newDate });
   };
 
-  const handleCreateEvent = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Pass selected friend IDs to the create event screen
-    const friendIds = Array.from(selectedFriendIds).join(",");
-    router.push(`/create?date=${selectedDate}${friendIds ? `&inviteFriends=${friendIds}` : ""}` as any);
-  };
-
-  const handleFriendPress = (friendshipId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/friend/${friendshipId}` as any);
-  };
-
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -641,25 +405,6 @@ export default function WhosFreeScreen() {
           title: "Who's Free?",
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
-          headerRight: () => (
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowFilterModal(true);
-              }}
-              className="mr-2 flex-row items-center"
-            >
-              <Filter size={20} color={activeFilterCount > 0 ? themeColor : colors.textSecondary} />
-              {activeFilterCount > 0 && (
-                <View
-                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Text className="text-xs text-white font-bold">{activeFilterCount}</Text>
-                </View>
-              )}
-            </Pressable>
-          ),
         }}
       />
 
@@ -667,13 +412,6 @@ export default function WhosFreeScreen() {
         className="flex-1"
         contentContainerStyle={{ padding: 20 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            tintColor={themeColor}
-          />
-        }
       >
         {/* Find Best Time Section */}
         <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-6">
@@ -806,26 +544,10 @@ export default function WhosFreeScreen() {
                   setShowStartPicker(false);
                   if (date) {
                     setStartDate(date);
-                    // P0 FIX: Range normalization - ensure endDate >= startDate
                     if (endDate < date) {
                       const newEnd = new Date(date);
                       newEnd.setDate(newEnd.getDate() + 7);
                       setEndDate(newEnd);
-                      if (__DEV__) {
-                        devLog('[P0_WHOS_FREE_DATE] range_normalized', {
-                          startDateISO: formatLocalDate(date),
-                          endDateISO: formatLocalDate(newEnd),
-                          normalized: true,
-                          reason: 'clamp_end_after_start_change',
-                        });
-                      }
-                    } else if (__DEV__) {
-                      devLog('[P0_WHOS_FREE_DATE] start_changed', {
-                        startDateISO: formatLocalDate(date),
-                        endDateISO: formatLocalDate(endDate),
-                        normalized: false,
-                        reason: 'user_changed_start',
-                      });
                     }
                   }
                 }}
@@ -841,17 +563,8 @@ export default function WhosFreeScreen() {
                 onChange={(_, date) => {
                   setShowEndPicker(false);
                   if (date) {
-                    // P0 FIX: Clamp endDate to be >= startDate (DateTimePicker minimumDate should handle this, but be safe)
                     const clampedDate = date < startDate ? startDate : date;
                     setEndDate(clampedDate);
-                    if (__DEV__) {
-                      devLog('[P0_WHOS_FREE_DATE] end_changed', {
-                        startDateISO: formatLocalDate(startDate),
-                        endDateISO: formatLocalDate(clampedDate),
-                        normalized: date < startDate,
-                        reason: date < startDate ? 'clamp_end' : 'user_changed_end',
-                      });
-                    }
                   }
                 }}
               />
@@ -864,7 +577,20 @@ export default function WhosFreeScreen() {
                   BEST TIMES
                 </Text>
 
-                {isLoadingSuggestions ? (
+                {isFriendEventsError ? (
+                  <View
+                    className="rounded-xl p-4 items-center"
+                    style={{ backgroundColor: colors.surface }}
+                  >
+                    <Clock size={28} color="#EF4444" />
+                    <Text className="text-center mt-2 font-medium text-sm" style={{ color: colors.text }}>
+                      Could not load availability
+                    </Text>
+                    <Text className="text-center mt-1 text-xs" style={{ color: colors.textSecondary }}>
+                      Check your connection and try again
+                    </Text>
+                  </View>
+                ) : isLoadingSuggestions ? (
                   <View className="py-6 items-center">
                     <ActivityIndicator size="large" color={themeColor} />
                     <Text className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
@@ -878,18 +604,29 @@ export default function WhosFreeScreen() {
                   >
                     <Clock size={28} color={colors.textTertiary} />
                     <Text className="text-center mt-2 font-medium text-sm" style={{ color: colors.text }}>
-                      No available times found
+                      No overlapping free times found
                     </Text>
                     <Text className="text-center mt-1 text-xs" style={{ color: colors.textSecondary }}>
-                      Try a different date range or fewer people
+                      Try a wider date range or fewer people
                     </Text>
                   </View>
                 ) : (
                   <View>
-                    {suggestedSlots.slice(0, 5).map((slot, index) => {
+                    {/* Range intent header */}
+                    <View className="mb-3">
+                      <Text className="font-sora-semibold text-sm" style={{ color: colors.text }}>
+                        Best times in this range
+                      </Text>
+                      <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                        Showing top {renderedSlots.length} suggestion{renderedSlots.length !== 1 ? "s" : ""} between {rangeLabel}
+                      </Text>
+                    </View>
+
+                    {renderedSlots.map((slot, index) => {
                       const { date: slotDate, time } = formatTimeSlot(slot);
+                      const availLabel = formatSlotAvailability(slot.totalAvailable, slot.totalMembers);
                       return (
-                        <Animated.View key={index} entering={FadeIn.delay(index * 50)}>
+                        <Animated.View key={index} entering={FadeIn.delay(Math.min(index, 5) * 50)}>
                           <Pressable
                             onPress={() => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -926,7 +663,7 @@ export default function WhosFreeScreen() {
                                 </Text>
                               </View>
                               <Text className="text-xs" style={{ color: colors.textTertiary }}>
-                                available
+                                {availLabel}
                               </Text>
                             </View>
                             <ChevronRight size={16} color={colors.textTertiary} />
@@ -934,6 +671,26 @@ export default function WhosFreeScreen() {
                         </Animated.View>
                       );
                     })}
+
+                    {/* Show More — no recompute, just increase render cap */}
+                    {!showAllSlots && suggestedSlots.length > MAX_SUGGESTED_SLOTS && (
+                      <Pressable
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowAllSlots(true);
+                        }}
+                        className="rounded-xl p-3 mt-1 items-center"
+                        style={{
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: `${themeColor}30`,
+                        }}
+                      >
+                        <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                          Show more suggestions
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 )}
               </>

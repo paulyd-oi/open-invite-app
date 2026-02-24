@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -37,7 +37,7 @@
     },
     "production": {
       "distribution": "store",
-      "autoIncrement": true,
+      "autoIncrement": false,
       "node": "18.20.2",
       "env": {
         "NPM_CONFIG_PACKAGE_MANAGER": "npm",

@@ -15,7 +15,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -72,7 +72,7 @@ import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { getEventShareLink } from "@/lib/deepLinks";
+import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -268,27 +268,22 @@ const shareEvent = async (event: { id: string; title: string; emoji: string; des
           minute: "2-digit",
         });
 
-    // Get the shareable link for this event
-    const shareUrl = getEventShareLink(event.id);
-
-    let message = `${event.emoji} ${event.title}\n\n`;
-    message += `📅 ${dateStr} at ${timeStr}\n`;
-
-    if (event.location) {
-      message += `📍 ${event.location}\n`;
-    }
-
-    if (event.description) {
-      message += `\n${event.description}\n`;
-    }
-
-    message += `\n🔗 ${shareUrl}`;
+    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
+    const payload = buildEventSharePayload({
+      id: event.id,
+      title: event.title,
+      emoji: event.emoji,
+      dateStr,
+      timeStr,
+      location: event.location,
+      description: event.description,
+    });
 
     trackInviteShared({ entity: "event", sourceScreen: "event_detail" });
     await Share.share({
-      message,
+      message: payload.message,
       title: event.title,
-      url: shareUrl,
+      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);
@@ -2261,26 +2256,45 @@ export default function EventDetailScreen() {
             {/* Visibility - Host only */}
             {isMyEvent && (
             <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-              <View className="flex-row items-center">
-                {/* Busy blocks always show "Only self" regardless of stored visibility */}
-                {event.isBusy ? (
-                  <Users size={20} color="#9CA3AF" />
-                ) : event.visibility === "all_friends" ? (
-                  <Compass size={20} color="#9CA3AF" />
-                ) : event.visibility === "circle_only" ? (
-                  <Lock size={20} color="#9CA3AF" />
-                ) : event.visibility === "private" ? (
-                  <Lock size={20} color="#9CA3AF" />
-                ) : (
-                  <Users size={20} color="#9CA3AF" />
-                )}
-                <View className="ml-3 flex-1">
-                  <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
-                  <Text className="font-semibold" style={{ color: colors.text }}>
-                    {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
-                  </Text>
-                </View>
-              </View>
+              {(() => {
+                const isCircleTappable = event.visibility === "circle_only" && !!event.circleId;
+                const RowWrapper = isCircleTappable ? Pressable : View;
+                const rowProps = isCircleTappable
+                  ? {
+                      onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        devLog("[P0_EVENT_CIRCLE_LINK]", { circleId: event.circleId, eventId: event.id });
+                        router.push(`/circle/${event.circleId}` as any);
+                      },
+                      accessibilityRole: "button" as const,
+                      accessibilityLabel: "Open circle chat",
+                    }
+                  : {};
+                return (
+                  <RowWrapper className="flex-row items-center" {...rowProps}>
+                    {/* Busy blocks always show "Only self" regardless of stored visibility */}
+                    {event.isBusy ? (
+                      <Users size={20} color="#9CA3AF" />
+                    ) : event.visibility === "all_friends" ? (
+                      <Compass size={20} color="#9CA3AF" />
+                    ) : event.visibility === "circle_only" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : event.visibility === "private" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : (
+                      <Users size={20} color="#9CA3AF" />
+                    )}
+                    <View className="ml-3 flex-1">
+                      <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
+                      <Text className="font-semibold" style={{ color: colors.text }}>
+                        {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
+                      </Text>
+                    </View>
+                    {isCircleTappable && <ChevronRight size={16} color={colors.textTertiary} />}
+                  </RowWrapper>
+                );
+              })()}
+
 
               {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
               {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
@@ -2790,7 +2804,7 @@ export default function EventDetailScreen() {
                 <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <Users size={24} color="#9CA3AF" />
                   <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No one's in yet.{"\n"}Be the first!
+                    No attendees yet
                   </Text>
                 </View>
               </View>
@@ -2860,9 +2874,28 @@ export default function EventDetailScreen() {
                       </Pressable>
                     </View>
                     {myRsvpStatus === "going" && (
-                      <Text className="text-xs mt-2 px-4" style={{ color: colors.textSecondary }}>
-                        On your calendar · You can change this anytime
-                      </Text>
+                      <View className="mt-2 px-4">
+                        <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                          On your calendar · You can change this anytime
+                        </Text>
+                        <Pressable
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            trackRsvpShareClicked({
+                              eventId: event.id,
+                              surface: "rsvp_confirmation",
+                              visibility: event.visibility ?? "unknown",
+                              hasCircleId: !!event.circleId,
+                            });
+                            shareEvent({ ...event, location: locationDisplay ?? null });
+                          }}
+                          className="flex-row items-center mt-3 self-start px-4 py-2 rounded-full"
+                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        >
+                          <Share2 size={14} color={themeColor} />
+                          <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>Share with friends</Text>
+                        </Pressable>
+                      </View>
                     )}
                   </View>
                 )}

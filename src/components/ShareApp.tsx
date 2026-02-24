@@ -9,9 +9,7 @@ import { safeToast } from "@/lib/safeToast";
 import { devError } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
-
-const APP_STORE_URL = "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
-const SHARE_MESSAGE = "Check out Open Invite - the easiest way to share plans with friends!";
+import { buildAppSharePayload, APP_STORE_URL } from "@/lib/shareSSOT";
 
 interface ShareAppButtonProps {
   variant?: "icon" | "compact" | "full";
@@ -24,10 +22,8 @@ export function ShareAppButton({ variant = "icon" }: ShareAppButtonProps) {
     hapticTap();
 
     try {
-      await Share.share({
-        message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
-      });
+      const p = buildAppSharePayload();
+      await Share.share({ message: p.message, url: p.url });
     } catch (error) {
       devError("Error sharing:", error);
     }
@@ -80,10 +76,8 @@ export function InviteFriendsContent() {
     hapticTap();
 
     try {
-      await Share.share({
-        message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
-      });
+      const p = buildAppSharePayload();
+      await Share.share({ message: p.message, url: p.url });
     } catch (error) {
       devError("Error sharing:", error);
     }

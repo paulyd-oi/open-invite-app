@@ -12,9 +12,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/lib/ThemeContext";
 import { Share2, X } from "@/ui/icons";
 import { devLog, devError } from "@/lib/devLog";
-
-const APP_STORE_URL = "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
-const SHARE_MESSAGE = "I'm using Open Invite to plan hangouts — join me!";
+import { buildAppSharePayload } from "@/lib/shareSSOT";
+import { trackCreateShareClicked } from "@/analytics/analyticsEventsSSOT";
 const STORAGE_KEY = "postValueInvite:lastShownAt";
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -37,11 +36,12 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
     if (__DEV__) {
       devLog("[P1_INVITE_SHARE]", `surface=${surface}`);
     }
+    if (surface === "create") {
+      trackCreateShareClicked({ surface: "create_success", bypassCooldown: true });
+    }
     try {
-      await Share.share({
-        message: `${SHARE_MESSAGE}\n\n${APP_STORE_URL}`,
-        url: APP_STORE_URL,
-      });
+      const p = buildAppSharePayload("I'm using Open Invite to plan hangouts — join me!");
+      await Share.share({ message: p.message, url: p.url });
     } catch (error) {
       devError("[PostValueInvitePrompt] share error:", error);
     }
@@ -139,12 +139,20 @@ export const PostValueInvitePrompt: React.FC<PostValueInvitePromptProps> = ({
 
 /**
  * Check if the invite prompt can be shown (respects 7-day cooldown).
+ * Pass bypassCooldown=true to always show (e.g., for zero-friend create flows).
  * Also logs the decision in DEV.
  */
 export const canShowPostValueInvite = async (
   surface: PostValueInviteSurface,
+  options?: { bypassCooldown?: boolean },
 ): Promise<boolean> => {
   try {
+    if (options?.bypassCooldown) {
+      if (__DEV__) {
+        devLog("[P1_POST_VALUE_INVITE]", `surface=${surface} shown=true reason=bypass_cooldown`);
+      }
+      return true;
+    }
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) {
       if (__DEV__) {

@@ -62,8 +62,8 @@ import { shouldAllowAuthedFetch } from "@/lib/netGate";
 // [P0_CIRCLE_MUTE_POLISH] Storage key for dismissing circle notification info card
 const CIRCLE_NOTIF_INFO_DISMISSED_KEY = "@oi_circle_notif_info_dismissed";
 
-// Enable LayoutAnimation for Android
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+// Enable LayoutAnimation for non-iOS platforms
+if (Platform.OS !== "ios" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 

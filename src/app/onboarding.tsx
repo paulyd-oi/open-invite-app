@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { buildReferralSharePayload, buildAppSharePayload } from "@/lib/shareSSOT";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import {
   Calendar,
@@ -793,17 +794,18 @@ export default function OnboardingScreen() {
 
     try {
       const data = await api.get<{ referralCode: string | null; shareLink: string }>("/api/referral/code");
-      // Handle null referralCode (user hasn't completed profile)
-      const message = data.referralCode
-        ? `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${data.referralCode}\n\nDownload: ${data.shareLink}`
-        : `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${data.shareLink}`;
-      await Share.share({ message, title: "Join Open Invite!" });
+      // [P0_SHARE_SSOT] Use SSOT builders — ignore backend shareLink
+      if (data.referralCode) {
+        const p = buildReferralSharePayload(data.referralCode);
+        await Share.share({ message: p.message, title: p.title });
+      } else {
+        const p = buildAppSharePayload();
+        await Share.share({ message: p.message, title: "Join Open Invite!" });
+      }
     } catch (error) {
       devError("Share error:", error);
-      await Share.share({
-        message: "Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210",
-        title: "Join Open Invite!",
-      });
+      const p = buildAppSharePayload();
+      await Share.share({ message: p.message, title: "Join Open Invite!" });
     } finally {
       setIsSharing(false);
     }

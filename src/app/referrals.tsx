@@ -22,6 +22,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { safeToast } from "@/lib/safeToast";
+import { buildReferralSharePayload } from "@/lib/shareSSOT";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devError, devLog } from "@/lib/devLog";
@@ -252,14 +253,9 @@ export default function ReferralsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Include both the deep link for auto-capture and plain code for manual entry
-      const deepLink = `openinvite://?ref=${stats.referralCode}`;
-      const message = `Join me on Open Invite! Use my code ${stats.referralCode} or tap ${deepLink}`;
-      
-      await Share.share({
-        message,
-        title: "Invite friends to Open Invite",
-      });
+      // [P0_SHARE_SSOT] Use SSOT builder
+      const p = buildReferralSharePayload(stats.referralCode);
+      await Share.share({ message: p.message, title: p.title });
     } catch (error) {
       devError("Error sharing:", error);
     }

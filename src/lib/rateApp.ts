@@ -1,11 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking, Platform, Alert } from "react-native";
 import { devError } from "./devLog";
+import { APP_STORE_ID } from "./shareSSOT";
 
 const STORAGE_KEY = "app_review_data";
-
-// Replace with your actual App Store ID when published
-const APP_STORE_ID = "6757429210";
 
 interface ReviewData {
   eventsCreated: number;
@@ -90,8 +88,7 @@ function shouldPromptForReview(data: ReviewData): boolean {
 function openAppStoreReview(): void {
   const url = Platform.select({
     ios: `itms-apps://itunes.apple.com/app/id${APP_STORE_ID}?action=write-review`,
-    android: `market://details?id=com.vibecode.openinvite`,
-    default: null,
+    default: `market://details?id=com.vibecode.openinvite`,
   });
 
   if (url) {

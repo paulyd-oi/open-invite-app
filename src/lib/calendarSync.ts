@@ -106,7 +106,7 @@ export async function getDefaultCalendarId(): Promise<string | null> {
       const defaultCalendar = await Calendar.getDefaultCalendarAsync();
       return defaultCalendar?.id ?? null;
     } else {
-      // On Android, find the primary calendar or first writable one
+      // On non-iOS, find the primary calendar or first writable one
       const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
       const primary = calendars.find((c) => c.isPrimary && c.allowsModifications);
       const writable = calendars.find((c) => c.allowsModifications);

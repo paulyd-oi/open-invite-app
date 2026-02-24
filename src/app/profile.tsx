@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
+import { buildProfileSharePayload } from "@/lib/shareSSOT";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
@@ -305,9 +306,8 @@ export default function ProfileScreen() {
     if (__DEV__) devLog("[P2_PROFILE_SHARE]", { trigger: "profileCard" });
     try {
       const handle = userHandle ? `@${userHandle}` : displayName;
-      await Share.share({
-        message: `Join ${handle} on Open Invite — turning plans into memories.\n\nhttps://apps.apple.com/us/app/open-invite-social-calendar/id6757429210`,
-      });
+      const p = buildProfileSharePayload(handle);
+      await Share.share({ message: p.message });
     } catch {
       // user cancelled
     }

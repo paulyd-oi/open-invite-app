@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { trackMessageSent, trackInviteShared, lengthBucket } from "@/analytics/analyticsEventsSSOT";
+import { buildCircleSharePayload } from "@/lib/shareSSOT";
 import {
   View,
   Text,
@@ -4076,7 +4077,7 @@ export default function CircleScreen() {
                   },
                 );
               } else {
-                // Android: use a simple alert-style approach with Modal state
+                // non-iOS: use a simple alert-style approach with Modal state
                 // For simplicity and zero-dep constraint, use built-in Alert
                 const buttons: Array<{ text: string; onPress: () => void; style?: "cancel" | "destructive" | "default" }> = [
                   { text: "Reply", onPress: () => {
@@ -5136,10 +5137,8 @@ export default function CircleScreen() {
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     trackInviteShared({ entity: "circle", sourceScreen: "circle_detail" });
-                    Share.share({
-                      message: `Join my group "${circle?.name}" on Open Invite!`,
-                      title: circle?.name,
-                    }).catch(() => {
+                    const cp = buildCircleSharePayload(circle?.name ?? "my group", id);
+                    Share.share({ message: cp.message, title: cp.title }).catch(() => {
                       // User cancelled share
                     });
                   }}

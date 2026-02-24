@@ -855,7 +855,7 @@ export default function CreateEventScreen() {
       let notifEligible = false;
 
       try {
-        postValueEligible = await canShowPostValueInvite("create");
+        postValueEligible = await canShowPostValueInvite("create", { bypassCooldown: true });
       } catch {
         postValueEligible = false;
       }

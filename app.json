@@ -4,7 +4,7 @@
     "description": "Open Invite is a social calendar for making plans with friends—discover events, RSVP, chat in circles, and keep everything organized in one place.",
     "slug": "open-invite",
     "scheme": "open-invite",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -13,7 +13,7 @@
       "icon": "./icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "201",
+      "buildNumber": "247",
       "usesAppleSignIn": true,
       "jsEngine": "jsc",
       "infoPlist": {

@@ -28,6 +28,10 @@ export const AnalyticsEvent = {
   EVENT_RSVP: "event_rsvp",
   MESSAGE_SENT: "message_sent",
   INVITE_SHARED: "invite_shared",
+  // Growth instrumentation events
+  RSVP_SHARE_CLICKED: "rsvp_share_clicked",
+  CREATE_SHARE_CLICKED: "create_share_clicked",
+  DEEP_LINK_LANDED: "deep_link_landed",
   // Canonical VALUE events (retention measurement)
   RSVP_COMPLETED: "rsvp_completed",
   VALUE_EVENT_CREATED: "value_event_created",
@@ -240,4 +244,41 @@ export function trackValueEventCreated(props: {
   ts: string;
 }): void {
   track(AnalyticsEvent.VALUE_EVENT_CREATED, props);
+}
+
+// ---------------------------------------------------------------------------
+// Growth instrumentation events
+// ---------------------------------------------------------------------------
+
+/**
+ * rsvp_share_clicked — user tapped "Share with friends" after RSVP going.
+ */
+export function trackRsvpShareClicked(props: {
+  eventId: string;
+  surface: "rsvp_confirmation";
+  visibility: string;
+  hasCircleId: boolean;
+}): void {
+  track(AnalyticsEvent.RSVP_SHARE_CLICKED, props);
+}
+
+/**
+ * create_share_clicked — user tapped share CTA in post-create prompt.
+ */
+export function trackCreateShareClicked(props: {
+  surface: "create_success";
+  bypassCooldown: boolean;
+}): void {
+  track(AnalyticsEvent.CREATE_SHARE_CLICKED, props);
+}
+
+/**
+ * deep_link_landed — user successfully routed via a deep link.
+ */
+export function trackDeepLinkLanded(props: {
+  type: "event" | "invite" | "circle";
+  id?: string;
+  source: "scheme" | "universal";
+}): void {
+  track(AnalyticsEvent.DEEP_LINK_LANDED, props);
 }

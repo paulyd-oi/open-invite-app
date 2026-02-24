@@ -377,7 +377,7 @@ export function FriendsPeoplePane({
               maxToRenderPerBatch={10}
               windowSize={9}
               updateCellsBatchingPeriod={50}
-              removeClippedSubviews={Platform.OS === 'android'} // Safe on Android, can cause issues on iOS
+              removeClippedSubviews={Platform.OS !== 'ios'} // Safe on non-iOS, can cause issues on iOS
               // Allow nested scrolling inside parent ScrollView
               nestedScrollEnabled
               scrollEnabled={false} // Let parent ScrollView handle scrolling

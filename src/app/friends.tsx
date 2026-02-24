@@ -113,7 +113,15 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
     staleTime: 60000, // Cache for 1 minute to avoid too many requests
   });
 
-  const events = data?.events ?? [];
+  const rawEvents = data?.events ?? [];
+
+  // [P0_FRIEND_CAL_SOT] Exclude circle-only events (SSOT parity with profile calendar)
+  const events = rawEvents.filter((event: any) => {
+    if (event.visibility === "circle_only" || (event.circleId && event.visibility !== "all_friends")) {
+      return false;
+    }
+    return true;
+  });
   
   // Filter to only show future/present events (endTime >= now OR startTime >= now if no endTime)
   const now = new Date();
@@ -129,7 +137,7 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const startingDay = currentMonth.getDay();
 
-  // Create a set of days that have events
+  // Create a set of days that have events (all events in month, not just future)
   const eventDays = new Set<number>();
   events.forEach((event) => {
     const eventDate = new Date(event.startTime);
@@ -140,6 +148,15 @@ const MiniCalendar = React.memo(function MiniCalendar({ friendshipId, bootStatus
       eventDays.add(eventDate.getDate());
     }
   });
+
+  if (__DEV__) {
+    devLog('[P0_FRIEND_CAL_SOT] mini_calendar', {
+      friendshipId: friendshipId?.slice(0, 8),
+      rawFromAPI: rawEvents.length,
+      afterCircleFilter: events.length,
+      dotsThisMonth: eventDays.size,
+    });
+  }
 
   const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
 
