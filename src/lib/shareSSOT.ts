@@ -60,14 +60,24 @@ interface EventShareInput {
 }
 
 /**
+ * Build a universal link for an event (works in browsers AND deep-links into the app).
+ * Format: https://open-invite-api.onrender.com/share/event/<id>
+ * [P0_SHARE_ULINK]
+ */
+export function getEventUniversalLink(eventId: string): string {
+  return `https://open-invite-api.onrender.com/share/event/${eventId}`;
+}
+
+/**
  * Build the share payload for an event.
  * Returns { message, url } ready for Share.share().
+ * [P0_SHARE_ULINK] url is now the universal link so non-app-users land on a web page.
  */
 export function buildEventSharePayload(event: EventShareInput): {
   message: string;
   url: string;
 } {
-  const deepLink = getEventDeepLink(event.id);
+  const universalLink = getEventUniversalLink(event.id);
 
   let msg = `${event.emoji ?? "📅"} ${event.title}\n\n`;
   msg += `📅 ${event.dateStr} at ${event.timeStr}\n`;
@@ -77,16 +87,16 @@ export function buildEventSharePayload(event: EventShareInput): {
   if (event.description) {
     msg += `\n${event.description}\n`;
   }
-  msg += `\nOpen in app: ${deepLink}`;
+  msg += `\n${universalLink}`;
   msg += `\nDownload: ${APP_STORE_URL}`;
 
   assertNoForbiddenDomains(msg, "buildEventSharePayload");
 
   if (__DEV__) {
-    devLog("[SHARE_SSOT] event share", { eventId: event.id, deepLink, appStore: APP_STORE_URL });
+    devLog("[P0_SHARE_ULINK] event share", { eventId: event.id, universalLink, appStore: APP_STORE_URL });
   }
 
-  return { message: msg, url: APP_STORE_URL };
+  return { message: msg, url: universalLink };
 }
 
 /**
