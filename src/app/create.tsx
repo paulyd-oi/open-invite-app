@@ -525,29 +525,53 @@ export default function CreateEventScreen() {
 
   // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
   const BEST_TIME_PICK_KEY = "oi:bestTimePick";
+  const BEST_TIME_TTL_MS = 10 * 60 * 1000; // 10 minutes
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       (async () => {
+        let raw: string | null = null;
         try {
-          const raw = await AsyncStorage.getItem(BEST_TIME_PICK_KEY);
-          if (!raw || cancelled) return;
-          await AsyncStorage.removeItem(BEST_TIME_PICK_KEY);
-          const parsed = JSON.parse(raw) as { start: string; end: string };
-          const pickedStart = new Date(parsed.start);
-          const pickedEnd = new Date(parsed.end);
-          if (isNaN(pickedStart.getTime()) || isNaN(pickedEnd.getTime())) return;
+          raw = await AsyncStorage.getItem(BEST_TIME_PICK_KEY);
+        } catch {
+          // read failed — nothing to apply
+        }
+        // Always clear immediately, even if parse/apply will fail
+        try { await AsyncStorage.removeItem(BEST_TIME_PICK_KEY); } catch {}
+        if (!raw || cancelled) return;
+        try {
+          const parsed = JSON.parse(raw) as { startISO?: string; endISO?: string; pickedAtMs?: number };
+          const { startISO, endISO, pickedAtMs } = parsed;
+          // Validate fields exist
+          if (typeof startISO !== "string" || typeof endISO !== "string" || typeof pickedAtMs !== "number") {
+            if (__DEV__) devLog("[P0_FIND_BEST_TIME_SSOT] ignored", { reason: "invalid_shape", raw });
+            return;
+          }
+          // TTL guard — ignore stale picks
+          const ageMs = Date.now() - pickedAtMs;
+          if (ageMs > BEST_TIME_TTL_MS) {
+            if (__DEV__) devLog("[P0_FIND_BEST_TIME_SSOT] ignored", { reason: "stale", ageMs, ttl: BEST_TIME_TTL_MS });
+            return;
+          }
+          const pickedStart = new Date(startISO);
+          const pickedEnd = new Date(endISO);
+          if (isNaN(pickedStart.getTime()) || isNaN(pickedEnd.getTime())) {
+            if (__DEV__) devLog("[P0_FIND_BEST_TIME_SSOT] ignored", { reason: "bad_date", startISO, endISO });
+            return;
+          }
           setStartDate(pickedStart);
           setEndDate(pickedEnd);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           if (__DEV__) {
             devLog("[P0_FIND_BEST_TIME_SSOT] apply", {
-              start: parsed.start,
-              end: parsed.end,
+              startISO,
+              endISO,
+              ageMs,
+              decision: "applied",
             });
           }
         } catch {
-          // non-critical — user can still pick time manually
+          if (__DEV__) devLog("[P0_FIND_BEST_TIME_SSOT] ignored", { reason: "parse_error" });
         }
       })();
       return () => { cancelled = true; };

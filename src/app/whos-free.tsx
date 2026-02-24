@@ -636,14 +636,16 @@ export default function WhosFreeScreen() {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                               if (isFromCreate) {
                                 // [P0_FIND_BEST_TIME_SSOT] Return picked time to create screen
+                                const pickedAtMs = Date.now();
                                 await AsyncStorage.setItem(
                                   "oi:bestTimePick",
-                                  JSON.stringify({ start: slot.start, end: slot.end }),
+                                  JSON.stringify({ startISO: slot.start, endISO: slot.end, pickedAtMs }),
                                 );
                                 if (__DEV__) {
                                   devLog("[P0_FIND_BEST_TIME_SSOT] pick", {
-                                    start: slot.start,
-                                    end: slot.end,
+                                    startISO: slot.start,
+                                    endISO: slot.end,
+                                    pickedAtMs,
                                     returning: "create",
                                   });
                                 }
