@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -65,6 +65,7 @@ import { Chip } from "@/ui/Chip";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { FirstTimeCalendarHint } from "@/components/FirstTimeCalendarHint";
 import { SocialPulseRow } from "@/components/SocialPulseRow";
+import { useWorkSkipDays, addWorkSkipDay, removeWorkSkipDay, formatDayKey, isWorkSkipped } from "@/lib/workSkipDays";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -617,6 +618,7 @@ function EventListItem({
   onToggleBusy,
   isOwner,
   colorOverride,
+  onWorkSkip,
 }: {
   event: Event;
   isAttending?: boolean;
@@ -631,6 +633,7 @@ function EventListItem({
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   isOwner?: boolean;
   colorOverride?: string;
+  onWorkSkip?: (dayKey: string) => void;
 }) {
   const router = useRouter();
   // Track context menu state to prevent navigation when menu was just opened
@@ -763,12 +766,32 @@ function EventListItem({
 
   // For non-interactive items (birthdays, work), just return simple Pressable
   if (!isInteractive) {
+    // [P2_WORK_SKIP] Long-press handler for work blocks
+    const handleWorkLongPress = isWork && onWorkSkip ? () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const dayKey = formatDayKey(startDate);
+      const alreadySkipped = isWorkSkipped(dayKey);
+      Alert.alert(
+        alreadySkipped ? "Restore Work Schedule" : "Mark Day Off",
+        alreadySkipped
+          ? `Restore work blocks for ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}?`
+          : `Remove work blocks for ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: alreadySkipped ? "Restore" : "Day Off",
+            onPress: () => onWorkSkip(dayKey),
+          },
+        ],
+      );
+    } : undefined;
     if (compact) {
       return (
         <Pressable
           className="flex-row items-center py-2"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           style={{ opacity: isWork ? 0.7 : 1 }}
+          onLongPress={handleWorkLongPress}
         >
           <View
             className="w-1 h-full rounded-full mr-3"
@@ -790,7 +813,8 @@ function EventListItem({
     }
 
     return (
-      <View
+      <Pressable
+        onLongPress={handleWorkLongPress}
         className="flex-row items-center rounded-xl p-3 mb-2"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
@@ -853,7 +877,7 @@ function EventListItem({
             </Text>
           )}
         </View>
-      </View>
+      </Pressable>
     );
   }
 
@@ -1202,6 +1226,7 @@ function ListView({
   onColorChange,
   onDelete,
   onToggleBusy,
+  onWorkSkip,
   session,
   colorOverrides = {},
   selectedDate,
@@ -1217,6 +1242,7 @@ function ListView({
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
+  onWorkSkip?: (dayKey: string) => void;
   session: any;
   colorOverrides?: Record<string, string>;
   selectedDate?: Date;
@@ -1360,6 +1386,7 @@ function ListView({
               onDelete={onDelete}
               onToggleBusy={onToggleBusy}
               colorOverride={colorOverrides[event.id]}
+              onWorkSkip={onWorkSkip}
             />
           ))}
         </Animated.View>
@@ -1867,6 +1894,20 @@ export default function CalendarScreen() {
   const friendBirthdays = birthdaysData?.birthdays ?? [];
   const workSchedules = workScheduleData?.schedules ?? [];
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
+  const { skipKeys: workSkipKeys, refresh: refreshWorkSkip } = useWorkSkipDays();
+
+  // [P2_WORK_SKIP] Toggle day-off exception for work blocks
+  const handleWorkSkip = useCallback(async (dayKey: string) => {
+    const alreadySkipped = workSkipKeys.has(dayKey);
+    if (alreadySkipped) {
+      await removeWorkSkipDay(dayKey);
+    } else {
+      await addWorkSkipDay(dayKey);
+    }
+    refreshWorkSkip();
+    if (__DEV__) devLog('[P2_WORK_SKIP] toggled', { dayKey, nowSkipped: !alreadySkipped });
+  }, [workSkipKeys, refreshWorkSkip]);
+
   const eventRequests = eventRequestsData?.eventRequests ?? [];
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
@@ -2068,8 +2109,11 @@ export default function CalendarScreen() {
       }
     }
 
-    return events;
-  }, [workSchedules, currentYear, currentMonth, session?.user?.id]);
+    return events.filter((e) => {
+      const dk = formatDayKey(new Date(e.startTime));
+      return !workSkipKeys.has(dk);
+    });
+  }, [workSchedules, currentYear, currentMonth, session?.user?.id, workSkipKeys]);
 
   // Combine events (myEvents = created, goingEvents = RSVP going + joined, localEvents = offline created)
   const allEvents = useMemo(() => {
@@ -2571,6 +2615,7 @@ export default function CalendarScreen() {
             onColorChange={handleColorChange}
             onDelete={handleDeleteEvent}
             onToggleBusy={handleToggleBusy}
+            onWorkSkip={handleWorkSkip}
             session={session}
             colorOverrides={colorOverrides}
             selectedDate={selectedDate}
@@ -2762,6 +2807,7 @@ export default function CalendarScreen() {
                       onDelete={handleDeleteEvent}
                       onToggleBusy={handleToggleBusy}
                       colorOverride={colorOverrides[event.id]}
+                      onWorkSkip={handleWorkSkip}
                     />
                   </Animated.View>
                 ))
