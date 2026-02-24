@@ -37,7 +37,6 @@
     },
     "production": {
       "distribution": "store",
-      "autoIncrement": false,
       "node": "18.20.2",
       "env": {
         "NPM_CONFIG_PACKAGE_MANAGER": "npm",
@@ -47,7 +46,8 @@
         "EXPO_PUBLIC_API_URL": "https://api.openinvite.cloud"
       },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "autoIncrement": true
       }
     }
   },
