@@ -300,10 +300,53 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ SLIDE 2: AUTH HANDLERS ============
 
+  // [P0_SIGNUP_FIX] Derive a display name from an email address.
+  // Used as fallback when the UI doesn't collect a name field.
+  function deriveDisplayNameFromEmail(emailAddr: string): string {
+    const base = emailAddr.split("@")[0] ?? "";
+    const sanitized = base.replace(/[^a-zA-Z0-9 _.-]/g, "").trim().slice(0, 30);
+    return sanitized.length > 0 ? sanitized : "New User";
+  }
+
+  // [P0_SIGNUP_FIX] Map raw backend/auth error messages to user-safe strings.
+  // Prevents schema validation strings like "[body.name] Too small" from leaking.
+  function mapAuthErrorToSafeMessage(raw: string): string {
+    const lower = raw.toLowerCase();
+    if (lower.includes("body.name") || lower.includes("name")) {
+      return "Please enter a valid name.";
+    }
+    if (lower.includes("password") && (lower.includes("short") || lower.includes("small") || lower.includes("characters"))) {
+      return "Password is too short. Please use at least 8 characters.";
+    }
+    if (lower.includes("email") && (lower.includes("invalid") || lower.includes("format"))) {
+      return "Please enter a valid email address.";
+    }
+    if (lower.includes("exist")) {
+      return "An account with this email already exists. Try signing in.";
+    }
+    if (lower.includes("credentials") || lower.includes("unauthorized") || lower.includes("incorrect")) {
+      return "Incorrect email or password. Please try again.";
+    }
+    return "Something went wrong. Please try again.";
+  }
+
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
       setErrorBanner("Please enter your email and password");
       return;
+    }
+
+    // [P0_SIGNUP_FIX] Derive display name from email when not provided by UI
+    const derivedName = deriveDisplayNameFromEmail(email.trim());
+    const nameStrategy = "derived" as const;
+
+    if (__DEV__) {
+      devLog("[P0_SIGNUP_FIX] submitting", {
+        hasEmail: !!email.trim(),
+        hasPassword: !!password.trim(),
+        nameStrategy,
+        nameLength: derivedName.length,
+      });
     }
 
     if (__DEV__) devLog("[Onboarding] Starting email auth...");
@@ -320,7 +363,7 @@ export default function WelcomeOnboardingScreen() {
       result = await authClient.signUp.email({
         email: email.trim(),
         password,
-        name: "",
+        name: derivedName,
       });
       
       // If sign-up returns error about existing account, try sign-in
@@ -351,6 +394,7 @@ export default function WelcomeOnboardingScreen() {
       }
       
       if (__DEV__) devLog("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
+      if (__DEV__) devLog("[P0_SIGNUP_FIX] success");
 
       // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
       if (isNewAccount) {
@@ -393,8 +437,16 @@ export default function WelcomeOnboardingScreen() {
       // Advance to Slide 3
       setCurrentSlide(3);
     } catch (error: any) {
-      devError("[Onboarding] Auth error:", error?.message || error);
-      setErrorBanner(error?.message || "Authentication failed. Please try again.");
+      const rawMsg = error?.message || "";
+      const safeMsg = mapAuthErrorToSafeMessage(rawMsg);
+      if (__DEV__) {
+        devLog("[P0_SIGNUP_FIX] failure mapped", {
+          originalSummary: rawMsg.slice(0, 80),
+          mappedMessage: safeMsg,
+        });
+      }
+      devError("[Onboarding] Auth error:", rawMsg);
+      setErrorBanner(safeMsg);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);

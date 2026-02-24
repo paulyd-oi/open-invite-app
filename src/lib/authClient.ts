@@ -996,11 +996,12 @@ export const authClient = {
   signUp: {
     async email(opts: { email: string; password: string; name?: string }) {
       try {
-        // Better Auth requires name to be a string, not undefined
+        // Better Auth requires name to be a non-empty string
+        // [P0_SIGNUP_FIX] Ensure name is never empty — backend rejects ""
         const signUpOpts = {
           email: opts.email,
           password: opts.password,
-          name: opts.name || '', // Ensure name is always a string
+          name: opts.name && opts.name.trim().length > 0 ? opts.name.trim() : 'New User',
         };
         const result = await betterAuthClient.signUp.email(signUpOpts);
         
