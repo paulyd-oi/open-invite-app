@@ -1204,6 +1204,8 @@ function ListView({
   onToggleBusy,
   session,
   colorOverrides = {},
+  selectedDate,
+  parentScrollRef,
 }: {
   events: Array<Event & { isAttending?: boolean; isBirthday?: boolean }>;
   currentMonth: number;
@@ -1217,8 +1219,13 @@ function ListView({
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   session: any;
   colorOverrides?: Record<string, string>;
+  selectedDate?: Date;
+  parentScrollRef?: React.RefObject<ScrollView | null>;
 }) {
   const router = useRouter();
+
+  // [P1_LIST_SCROLL] Auto-scroll to today/selected day on list entry
+  const didInitialScrollRef = useRef(false);
 
   // Group events by date
   const eventsByDate = useMemo(() => {
@@ -1241,6 +1248,47 @@ function ListView({
       events: dateEvents,
     }));
   }, [events, currentMonth, currentYear]);
+
+  // [P1_LIST_SCROLL] Compute target date key for scroll
+  const targetDateKey = useMemo(() => {
+    const target = selectedDate ?? new Date();
+    return target.toDateString();
+  }, [selectedDate]);
+
+  // [P1_LIST_SCROLL] Find target index
+  const targetIndex = useMemo(() => {
+    // Exact match first
+    const exact = eventsByDate.findIndex(({ date }) => date.toDateString() === targetDateKey);
+    if (exact >= 0) return exact;
+    // Closest future date
+    const targetMs = new Date(targetDateKey).getTime();
+    const future = eventsByDate.findIndex(({ date }) => date.getTime() >= targetMs);
+    return future >= 0 ? future : -1;
+  }, [eventsByDate, targetDateKey]);
+
+  // [P1_LIST_SCROLL] Reset scroll guard when month changes
+  useEffect(() => {
+    didInitialScrollRef.current = false;
+  }, [currentMonth, currentYear]);
+
+  // [P1_LIST_SCROLL] onLayout callback for target section
+  const handleTargetLayout = useCallback((e: { nativeEvent: { layout: { y: number } } }) => {
+    if (didInitialScrollRef.current) return;
+    didInitialScrollRef.current = true;
+    const y = e.nativeEvent.layout.y;
+    if (__DEV__) {
+      devLog('[P1_LIST_SCROLL]', {
+        targetDateKey,
+        targetIndex,
+        scrollY: y,
+        method: 'onLayout',
+      });
+    }
+    // Small delay to let ScrollView measure
+    setTimeout(() => {
+      parentScrollRef?.current?.scrollTo({ y, animated: true });
+    }, 100);
+  }, [targetDateKey, targetIndex, parentScrollRef]);
 
   if (eventsByDate.length === 0) {
     return (
@@ -1275,7 +1323,11 @@ function ListView({
     <View className="px-5">
       {/* INVARIANT_ALLOW_SMALL_MAP */}
       {eventsByDate.map(({ date, events: dateEvents }, idx) => (
-        <Animated.View key={date.toISOString()} entering={FadeInDown.delay(idx * 50)}>
+        <Animated.View
+          key={date.toISOString()}
+          entering={FadeInDown.delay(idx * 50)}
+          {...(idx === targetIndex ? { onLayout: handleTargetLayout } : {})}
+        >
           <View className="flex-row items-center mb-3 mt-5">
             <View
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
@@ -2521,6 +2573,8 @@ export default function CalendarScreen() {
             onToggleBusy={handleToggleBusy}
             session={session}
             colorOverrides={colorOverrides}
+            selectedDate={selectedDate}
+            parentScrollRef={scrollViewRef}
           />
         ) : (
           <>
