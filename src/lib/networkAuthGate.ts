@@ -14,6 +14,7 @@
  */
 
 import { devLog } from "./devLog";
+import { DEV_PROBES_ENABLED } from "./devFlags";
 
 // ── Gate state ──────────────────────────────────────────
 let _enabled = true;
@@ -31,20 +32,18 @@ const GATED_PATHS: readonly string[] = [
 /** Disable authed network calls. Called at the VERY START of logout. */
 export function disableAuthedNetwork(): void {
   _enabled = false;
-  if (__DEV__) {
+  if (DEV_PROBES_ENABLED) {
     const payload = { phase: "logout_begin", networkAuthEnabled: false };
     devLog("[P0_POST_LOGOUT_NET]", payload);
-    console.log("[P0_POST_LOGOUT_NET]", JSON.stringify(payload));
   }
 }
 
 /** Re-enable authed network calls. Called when bootStatus = 'authed'. */
 export function enableAuthedNetwork(): void {
   _enabled = true;
-  if (__DEV__) {
+  if (DEV_PROBES_ENABLED) {
     const payload = { phase: "auth_confirmed", networkAuthEnabled: true };
     devLog("[P0_POST_LOGOUT_NET]", payload);
-    console.log("[P0_POST_LOGOUT_NET]", JSON.stringify(payload));
   }
 }
 
@@ -68,10 +67,9 @@ export function shouldAllowAuthedRequest(path: string): boolean {
   if (!isGated) return true;
 
   // Blocked
-  if (__DEV__) {
+  if (DEV_PROBES_ENABLED) {
     const payload = { phase: "blocked_request", path };
     devLog("[P0_POST_LOGOUT_NET]", payload);
-    console.log("[P0_POST_LOGOUT_NET]", JSON.stringify(payload));
   }
   return false;
 }

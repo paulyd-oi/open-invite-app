@@ -1273,4 +1273,52 @@ fi
 echo ""
 echo "P0_PREMIUM_CONTRACT_NAMING_LOCK checks PASS"
 
+# ── P0_LOG_NOISE_CLEANUP enforcement ─────────────────────────────────
+echo ""
+echo "Running P0_LOG_NOISE_CLEANUP checks…"
+
+P0_LOG_NOISE_FAIL=0
+
+# Part 1: console.log must NOT contain probe tags (use devLog only)
+PROBE_TAGS="P0_LAYOUT_JUMP_PROBE\|P0_WELCOME_JUMP_PROBE\|P0_POST_LOGOUT_NET"
+CONSOLE_LOG_PROBE_HITS=$(grep -rn "console\.log.*\($PROBE_TAGS\)" src/ --include='*.ts' --include='*.tsx' || true)
+if [ -n "$CONSOLE_LOG_PROBE_HITS" ]; then
+  echo "  ❌ P0_LOG_NOISE FAIL — console.log with probe tags found (use devLog only):"
+  echo "$CONSOLE_LOG_PROBE_HITS"
+  P0_LOG_NOISE_FAIL=1
+else
+  echo "  ✓ Part 1: No console.log with probe tags"
+fi
+
+# Part 2: Files that call devLog with probe tags must import DEV_PROBES_ENABLED
+for tag in P0_LAYOUT_JUMP_PROBE P0_WELCOME_JUMP_PROBE P0_POST_LOGOUT_NET; do
+  FILES_WITH_TAG=$(grep -rln "devLog(.*\[$tag\]" src/ --include='*.ts' --include='*.tsx' | grep -v devLog.ts | grep -v devFlags.ts || true)
+  for f in $FILES_WITH_TAG; do
+    if ! grep -q 'DEV_PROBES_ENABLED' "$f"; then
+      echo "  ❌ P0_LOG_NOISE FAIL — $f calls devLog with [$tag] but does not reference DEV_PROBES_ENABLED"
+      P0_LOG_NOISE_FAIL=1
+    fi
+  done
+done
+if [ "$P0_LOG_NOISE_FAIL" -eq 0 ]; then
+  echo "  ✓ Part 2: All files with probe tags reference DEV_PROBES_ENABLED"
+fi
+
+# Part 3: devFlags.ts must exist and export DEV_PROBES_ENABLED
+if ! grep -q 'export const DEV_PROBES_ENABLED' src/lib/devFlags.ts 2>/dev/null; then
+  echo "  ❌ P0_LOG_NOISE FAIL — DEV_PROBES_ENABLED export not found in devFlags.ts"
+  P0_LOG_NOISE_FAIL=1
+else
+  echo "  ✓ Part 3: DEV_PROBES_ENABLED exported from devFlags.ts"
+fi
+
+if [ "$P0_LOG_NOISE_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_LOG_NOISE_CLEANUP invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_LOG_NOISE_CLEANUP checks PASS"
+
 echo "PASS: verify_frontend"

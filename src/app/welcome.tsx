@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { DEV_PROBES_ENABLED } from "@/lib/devFlags";
 import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   Easing,
@@ -176,9 +177,9 @@ const OnboardingLayout = ({
     transform: [{ translateY: (1 - revealProgress.value) * 8 }],
   }));
 
-  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only)
+  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only, gated)
   const _probeInsetLoggedRef = React.useRef(false);
-  if (__DEV__ && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
+  if (DEV_PROBES_ENABLED && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
     _probeInsetLoggedRef.current = true;
     _welcomeProbeCount++;
     const payload = {
@@ -189,14 +190,13 @@ const OnboardingLayout = ({
       isStable,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   }
 
   // [P0_WELCOME_JUMP_PROBE] Root container onLayout handler (DEV-only)
   const handleRootLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
     // Call the stability gate's onLayout first
     onLayout(e as any);
-    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
     const { x, y, width, height } = e.nativeEvent.layout;
     const dY = _welcomeProbeRootPrev.y >= 0 ? y - _welcomeProbeRootPrev.y : 0;
     const dH = _welcomeProbeRootPrev.h >= 0 ? height - _welcomeProbeRootPrev.h : 0;
@@ -211,7 +211,6 @@ const OnboardingLayout = ({
       dY, dH,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   return (
@@ -305,9 +304,10 @@ export default function WelcomeOnboardingScreen() {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
         devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
         // [P0_WELCOME_JUMP_PROBE] Mount timestamp (tMs=0 baseline)
-        const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
-        devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-        console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
+        if (DEV_PROBES_ENABLED) {
+          const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
+          devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+        }
       }
     }
   }, []);
@@ -1080,7 +1080,7 @@ export default function WelcomeOnboardingScreen() {
 
   // [P0_WELCOME_JUMP_PROBE] Hero block onLayout handler (DEV-only)
   const handleHeroLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
-    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
     const { x, y, width, height } = e.nativeEvent.layout;
     const dY = _welcomeProbeHeroPrev.y >= 0 ? y - _welcomeProbeHeroPrev.y : 0;
     const dH = _welcomeProbeHeroPrev.h >= 0 ? height - _welcomeProbeHeroPrev.h : 0;
@@ -1094,7 +1094,6 @@ export default function WelcomeOnboardingScreen() {
       dY, dH,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   const renderSlide1 = () => (

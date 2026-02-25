@@ -23,6 +23,7 @@ import {
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SubscriptionProvider } from '@/lib/SubscriptionContext';
 import { devLog } from '@/lib/devLog';
+import { DEV_PROBES_ENABLED } from '@/lib/devFlags';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
@@ -97,6 +98,7 @@ const LayoutJumpProbe = __DEV__
       // devLog('[P0_LAYOUT_JUMP_PROBE]') now always-on (added to ALWAYS_ON_TAG_PREFIXES),
       // but console.log is kept as belt-and-suspenders in case devLog is ever filtered.
       useEffect(() => {
+        if (!DEV_PROBES_ENABLED) return;
         const payload = {
           tMs: 0,
           insetsTop: insets.top,
@@ -106,7 +108,6 @@ const LayoutJumpProbe = __DEV__
           initialMetricsTop: initialWindowMetrics?.insets?.top ?? 'null',
         };
         devLog('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', payload);
-        console.log('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', JSON.stringify(payload));
       }, []);
 
       // Log when insets change (key signal for SafeArea hydration snap)
@@ -126,8 +127,7 @@ const LayoutJumpProbe = __DEV__
             winW,
             winH,
           };
-          devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
-          console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
+          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
           prevInsetsRef.current = { top: insets.top, bottom: insets.bottom };
         }
       }, [insets.top, insets.bottom]);
@@ -144,8 +144,7 @@ const LayoutJumpProbe = __DEV__
             prevWinW: prevWinRef.current.w,
             prevWinH: prevWinRef.current.h,
           };
-          devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
-          console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
+          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
           prevWinRef.current = { w: winW, h: winH };
         }
       }, [winW, winH]);
@@ -1130,16 +1129,8 @@ export default function RootLayout() {
       dH,
       measureCount: _navLayoutCountRef.current,
     };
-    devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
-    console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
+    if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
   };
-
-  // [P0_LAYOUT_JUMP_PROBE] Proof: confirm probe is wired in this build (fires once on mount)
-  useEffect(() => {
-    if (__DEV__) {
-      console.log('[P0_LAYOUT_JUMP_PROBE]', 'RootLayout includes probe:', __DEV__ ? 'YES' : 'NO');
-    }
-  }, []);
 
   const posthogProps = getPostHogProviderProps();
 
