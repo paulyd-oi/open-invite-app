@@ -84,25 +84,29 @@ const LiveRefreshProofOverlay = __DEV__
 // [P0_LAYOUT_JUMP_PROBE] DEV-only instrumentation to identify cold-start jump
 // Logs safe-area insets, window dims, and RootLayoutNav container layout deltas.
 // Max 10 layout logs per app start. Does not affect layout (absolute overlay).
+// IMPORTANT: renders null-equivalent — does NOT wrap children. onLayout lives
+// on the nav container View in RootLayout to avoid reconciliation side-effects.
 // =============================================================================
 const LayoutJumpProbe = __DEV__
-  ? function LayoutJumpProbeImpl({ children }: { children: React.ReactNode }) {
+  ? function LayoutJumpProbeImpl() {
       const insets = useSafeAreaInsets();
       const { width: winW, height: winH } = useWindowDimensions();
-      const prevRef = useRef<{ y: number; h: number }>({ y: -1, h: -1 });
-      const countRef = useRef(0);
       const mountTs = useRef(Date.now());
 
-      // Log once on mount
+      // Log once on mount — BOTH devLog and console.log for redundancy.
+      // devLog('[P0_LAYOUT_JUMP_PROBE]') now always-on (added to ALWAYS_ON_TAG_PREFIXES),
+      // but console.log is kept as belt-and-suspenders in case devLog is ever filtered.
       useEffect(() => {
-        devLog('[P0_LAYOUT_JUMP_PROBE]', 'mounted', {
+        const payload = {
           tMs: 0,
           insetsTop: insets.top,
           insetsBottom: insets.bottom,
           winW,
           winH,
           initialMetricsTop: initialWindowMetrics?.insets?.top ?? 'null',
-        });
+        };
+        devLog('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', payload);
+        console.log('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', JSON.stringify(payload));
       }, []);
 
       // Log when insets change (key signal for SafeArea hydration snap)
@@ -112,7 +116,7 @@ const LayoutJumpProbe = __DEV__
           prevInsetsRef.current.top !== insets.top ||
           prevInsetsRef.current.bottom !== insets.bottom
         ) {
-          devLog('[P0_LAYOUT_JUMP_PROBE]', {
+          const payload = {
             tMs: Date.now() - mountTs.current,
             phase: 'insets-change',
             insetsTop: insets.top,
@@ -121,7 +125,9 @@ const LayoutJumpProbe = __DEV__
             prevInsetsBottom: prevInsetsRef.current.bottom,
             winW,
             winH,
-          });
+          };
+          devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+          console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
           prevInsetsRef.current = { top: insets.top, bottom: insets.bottom };
         }
       }, [insets.top, insets.bottom]);
@@ -130,52 +136,31 @@ const LayoutJumpProbe = __DEV__
       const prevWinRef = useRef({ w: winW, h: winH });
       useEffect(() => {
         if (prevWinRef.current.w !== winW || prevWinRef.current.h !== winH) {
-          devLog('[P0_LAYOUT_JUMP_PROBE]', {
+          const payload = {
             tMs: Date.now() - mountTs.current,
             phase: 'window-change',
             winW,
             winH,
             prevWinW: prevWinRef.current.w,
             prevWinH: prevWinRef.current.h,
-          });
+          };
+          devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+          console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
           prevWinRef.current = { w: winW, h: winH };
         }
       }, [winW, winH]);
 
-      const handleLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
-        if (countRef.current >= 10) return; // throttle: max 10 logs
-        const { x, y, width, height } = e.nativeEvent.layout;
-        const dY = prevRef.current.y >= 0 ? y - prevRef.current.y : 0;
-        const dH = prevRef.current.h >= 0 ? height - prevRef.current.h : 0;
-        // Only log if it's the first measurement or something changed
-        if (prevRef.current.y === y && prevRef.current.h === height && prevRef.current.y >= 0) return;
-        countRef.current++;
-        prevRef.current = { y, h: height };
-        devLog('[P0_LAYOUT_JUMP_PROBE]', {
-          tMs: Date.now() - mountTs.current,
-          phase: 'layout',
-          insetsTop: insets.top,
-          insetsBottom: insets.bottom,
-          winW,
-          winH,
-          layoutX: x,
-          layoutY: y,
-          layoutW: width,
-          layoutH: height,
-          dY,
-          dH,
-          measureCount: countRef.current,
-        });
-      };
-
+      // Zero-impact absolute overlay — does NOT participate in layout flow.
+      // onLayout for the nav container is wired directly in RootLayout.
       return (
-        <View style={{ flex: 1 }} onLayout={handleLayout}>
-          {children}
-        </View>
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0 }}
+        />
       );
     }
-  : function LayoutJumpProbeNoop({ children }: { children: React.ReactNode }) {
-      return <>{children}</>;
+  : function LayoutJumpProbeNoop() {
+      return null;
     };
 
 export const unstable_settings = {
@@ -1118,6 +1103,44 @@ export default function RootLayout() {
     }
   }, [showSplash]);
 
+  // [P0_LAYOUT_JUMP_PROBE] Nav container onLayout tracking (DEV-only, max 10 logs).
+  // Placed here (in RootLayout) so the onLayout goes on the SAME wrapper View that
+  // contains RootLayoutNav, without adding any extra reconciliation-order Views.
+  const _navLayoutCountRef = useRef(0);
+  const _prevNavLayoutRef = useRef({ y: -1, h: -1 });
+  const _navLayoutMountTsRef = useRef(Date.now());
+  const handleNavContainerLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    if (!__DEV__) return;
+    if (_navLayoutCountRef.current >= 10) return; // throttle: max 10 logs
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _prevNavLayoutRef.current.y >= 0 ? y - _prevNavLayoutRef.current.y : 0;
+    const dH = _prevNavLayoutRef.current.h >= 0 ? height - _prevNavLayoutRef.current.h : 0;
+    // Skip if nothing changed (after first measurement)
+    if (_prevNavLayoutRef.current.y === y && _prevNavLayoutRef.current.h === height && _prevNavLayoutRef.current.y >= 0) return;
+    _navLayoutCountRef.current++;
+    _prevNavLayoutRef.current = { y, h: height };
+    const payload = {
+      tMs: Date.now() - _navLayoutMountTsRef.current,
+      phase: 'layout',
+      layoutX: x,
+      layoutY: y,
+      layoutW: width,
+      layoutH: height,
+      dY,
+      dH,
+      measureCount: _navLayoutCountRef.current,
+    };
+    devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+    console.log('[P0_LAYOUT_JUMP_PROBE]', JSON.stringify(payload));
+  };
+
+  // [P0_LAYOUT_JUMP_PROBE] Proof: confirm probe is wired in this build (fires once on mount)
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[P0_LAYOUT_JUMP_PROBE]', 'RootLayout includes probe:', __DEV__ ? 'YES' : 'NO');
+    }
+  }, []);
+
   const posthogProps = getPostHogProviderProps();
 
   return (
@@ -1139,10 +1162,15 @@ export default function RootLayout() {
                         <BootRouter />
                         {/* [P0_FONTS_OVERLAY] Opacity gate: nav content hidden until fonts load.
                             Tree stays mounted — no mount/unmount swap, no layout reflow. */}
-                        <View style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}>
-                          <LayoutJumpProbe>
-                            <RootLayoutNav />
-                          </LayoutJumpProbe>
+                        {/* [P0_LAYOUT_JUMP_PROBE] onLayout on this View (nav container) captures
+                            layout deltas for the RootLayoutNav wrapper. LayoutJumpProbe is a
+                            zero-size absolute sibling — does NOT wrap children, no layout impact. */}
+                        <View
+                          style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}
+                          onLayout={__DEV__ ? handleNavContainerLayout : undefined}
+                        >
+                          {__DEV__ && <LayoutJumpProbe />}
+                          <RootLayoutNav />
                         </View>
                         {/* [P1_TOP_CHROME_JUMP] Top-chrome overlay: absolutely positioned so
                             banners/toasts never participate in layout flow. Prevents content

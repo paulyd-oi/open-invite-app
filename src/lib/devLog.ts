@@ -244,6 +244,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_WS_TYPING_UI]",
   // P0 WS read horizon apply (remote horizon → unread cache update)
   "[P0_WS_READ_APPLY]",
+  // P0 layout jump probe (cold-start layout jump diagnostics)
+  "[P0_LAYOUT_JUMP_PROBE]",
 ];
 
 /**
