@@ -1005,6 +1005,14 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
+  // [P1_TOP_CHROME_JUMP] Proof: top-chrome banners are now in absolute overlay,
+  // not in layout flow. Log once on mount to confirm.
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P1_TOP_CHROME_JUMP]', 'top-chrome overlay mounted: position=absolute, pointerEvents=box-none, zIndex=900 — banners do NOT participate in layout flow');
+    }
+  }, []);
+
   const posthogProps = getPostHogProviderProps();
 
   return (
@@ -1023,15 +1031,29 @@ export default function RootLayout() {
                   <AutoSyncProvider>
                     <ErrorBoundary>
                       <View style={{ flex: 1 }}>
-                        <NetworkStatusBanner />
-                        <UpdateBanner />
-                        <AnnouncementBanner />
-                        <ToastContainer />
                         <BootRouter />
                         {/* [P0_FONTS_OVERLAY] Opacity gate: nav content hidden until fonts load.
                             Tree stays mounted — no mount/unmount swap, no layout reflow. */}
                         <View style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}>
                           <RootLayoutNav />
+                        </View>
+                        {/* [P1_TOP_CHROME_JUMP] Top-chrome overlay: absolutely positioned so
+                            banners/toasts never participate in layout flow. Prevents content
+                            from jumping when banners appear/disappear after async boot. */}
+                        <View
+                          pointerEvents="box-none"
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            zIndex: 900,
+                          }}
+                        >
+                          <NetworkStatusBanner />
+                          <UpdateBanner />
+                          <AnnouncementBanner />
+                          <ToastContainer />
                         </View>
                         {__DEV__ && <QueryDebugOverlay />}
                         {__DEV__ && <LiveRefreshProofOverlay />}
