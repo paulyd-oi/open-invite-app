@@ -156,6 +156,26 @@ fi
 echo ""
 echo "P14 enforcement checks PASS"
 
+# ── P0_SAFE_AREA_SSOT: ban SafeAreaView in auth/onboarding screens ──
+echo ""
+echo "Running P0_SAFE_AREA_SSOT checks…"
+
+# Auth/onboarding screens must use SafeAreaScreen (useSafeAreaInsets-based)
+# NOT SafeAreaView (native async re-measurement causes cold-start layout jump).
+P0_SA_BANNED=$(grep -rn 'SafeAreaView' src/app/welcome.tsx src/app/login.tsx 2>/dev/null || true)
+
+if [ -n "$P0_SA_BANNED" ]; then
+  echo "❌ P0_SAFE_AREA_SSOT FAIL — SafeAreaView found in auth/onboarding screen:"
+  echo "  (Use SafeAreaScreen from @/ui/SafeAreaScreen instead)"
+  echo "$P0_SA_BANNED"
+  exit 1
+else
+  echo "  ✓ P0_SAFE_AREA_SSOT: No SafeAreaView in welcome.tsx or login.tsx"
+fi
+
+echo ""
+echo "P0_SAFE_AREA_SSOT checks PASS"
+
 # ── P17 enforcement: dev route lockdown ──────────────────────────────
 echo ""
 echo "Running P17 enforcement checks…"

@@ -22,7 +22,11 @@ import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
+  Easing,
   FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
@@ -55,6 +59,7 @@ import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
+import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,21 +156,25 @@ const OnboardingLayout = ({
   background: string;
   testID?: string;
 }) => {
-  // [P0_WELCOME_NO_JUMP] FIX: Replace SafeAreaView with useSafeAreaInsets() hook.
-  //
-  // ROOT CAUSE: SafeAreaView is a NATIVE component that re-measures insets
-  // asynchronously, even when SafeAreaProvider has initialWindowMetrics.
-  // This causes a visible layout reflow AFTER the opacity gate has already
-  // revealed content — content shifts down by insetsTop (typically 47px).
-  //
-  // FIX: useSafeAreaInsets() reads from the JS-side insets context, which is
-  // populated synchronously from initialWindowMetrics on first render.
-  // No native measurement, no async reflow, no jump.
+  // [P0_SAFE_AREA_SSOT] SafeAreaScreen handles insets via useSafeAreaInsets().
+  // Hook retained here ONLY for DEV probe logging (inset values).
   const insets = useSafeAreaInsets();
 
   // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
-  // Prevents visible "jump up" caused by async safe-area / font reflows
   const { isStable, onLayout } = useFirstPaintStable();
+
+  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in + small translateY on reveal
+  const revealProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isStable) {
+      revealProgress.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) });
+    }
+  }, [isStable]);
+  const popStyle = useAnimatedStyle(() => ({
+    flex: 1,
+    opacity: revealProgress.value,
+    transform: [{ translateY: (1 - revealProgress.value) * 8 }],
+  }));
 
   // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only)
   const _probeInsetLoggedRef = React.useRef(false);
@@ -206,25 +215,15 @@ const OnboardingLayout = ({
   };
 
   return (
-    <View
+    <SafeAreaScreen
       testID={testID}
       onLayout={handleRootLayout}
-      style={[
-        styles.layoutContainer,
-        {
-          backgroundColor: background,
-          // [P0_WELCOME_NO_JUMP] Apply insets via padding on a plain View.
-          // useSafeAreaInsets() reads from JS context (synchronous, stable on first render).
-          // This replaces SafeAreaView which measured natively and caused async reflow.
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-        },
-      ]}
+      style={{ backgroundColor: background }}
     >
-      <View style={[styles.safeArea, { opacity: isStable ? 1 : 0 }]}>
+      <Animated.View style={popStyle}>
         {children}
-      </View>
-    </View>
+      </Animated.View>
+    </SafeAreaScreen>
   );
 };
 
