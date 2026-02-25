@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { LinearGradient } from "expo-linear-gradient";
@@ -117,6 +117,9 @@ export default function LoginScreen() {
   const router = useRouter();
   const { data: session } = useSession();
   const { themeColor, isDark, colors } = useTheme();
+  // [P0_LOGIN_NO_JUMP] useSafeAreaInsets reads from JS context (populated synchronously
+  // by initialWindowMetrics in _layout.tsx). No async native re-measurement = no jump.
+  const insets = useSafeAreaInsets();
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'login', button: 'SSOT', theme: 'ThemeContext' });
 
   // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
@@ -288,7 +291,7 @@ export default function LoginScreen() {
           colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1 }}
         >
-          <SafeAreaView style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}>
             {/* Header */}
             <View
               style={{
@@ -467,7 +470,7 @@ export default function LoginScreen() {
                 </Animated.View>
               </ScrollView>
             </KeyboardAvoidingView>
-          </SafeAreaView>
+          </View>
         </LinearGradient>
       </View>
     );
@@ -477,7 +480,7 @@ export default function LoginScreen() {
   return (
     <View testID="login-screen" onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
       <LinearGradient colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}>
           {/* Header with back to Getting Started */}
           <View
             style={{
@@ -710,7 +713,7 @@ export default function LoginScreen() {
               </Animated.View>
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
       </LinearGradient>
     </View>
   );
