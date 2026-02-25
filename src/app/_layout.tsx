@@ -1013,6 +1013,13 @@ export default function RootLayout() {
     }
   }, []);
 
+  // [P0_LAYOUT_PROBE] Proof: splash always mounted, no tree swap on completion
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_LAYOUT_PROBE]', { showSplash, note: showSplash ? 'splash visible (absolute overlay)' : 'splash hidden (stays mounted, no tree swap)' });
+    }
+  }, [showSplash]);
+
   const posthogProps = getPostHogProviderProps();
 
   return (
@@ -1073,7 +1080,12 @@ export default function RootLayout() {
                         >
                           <ActivityIndicator size="large" color="#E85D4C" />
                         </View>
-                      {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
+                      {/* [P0_LAYOUT_PROBE] AnimatedSplash: always mounted, toggled via visible prop.
+                          Prevents tree-swap reflow when splash completes. Already position:absolute. */}
+                      <AnimatedSplash
+                        onAnimationComplete={handleSplashComplete}
+                        visible={showSplash}
+                      />
                     </View>
                   </ErrorBoundary>
                   </AutoSyncProvider>
