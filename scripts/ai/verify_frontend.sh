@@ -1321,4 +1321,43 @@ fi
 echo ""
 echo "P0_LOG_NOISE_CLEANUP checks PASS"
 
+# ── P1_FONTS_SSOT enforcement ────────────────────────────────────────
+echo ""
+echo "Running P1_FONTS_SSOT checks…"
+
+P1_FONTS_FAIL=0
+
+# Part 1: SSOT font module must exist and export APP_FONTS
+if ! grep -q 'export const APP_FONTS' src/lib/fonts.ts 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — APP_FONTS export not found in src/lib/fonts.ts"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 1: APP_FONTS exported from src/lib/fonts.ts"
+fi
+
+# Part 2: _layout.tsx must import APP_FONTS (not load fonts inline)
+if ! grep -q 'APP_FONTS' src/app/_layout.tsx 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — _layout.tsx does not reference APP_FONTS"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 2: _layout.tsx references APP_FONTS"
+fi
+
+# Part 3: _layout.tsx must gate splash hide on fontsLoaded
+if ! grep -q 'fontsLoaded' src/app/_layout.tsx 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — _layout.tsx does not reference fontsLoaded"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 3: _layout.tsx gates on fontsLoaded"
+fi
+
+if [ "$P1_FONTS_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P1_FONTS_SSOT invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P1_FONTS_SSOT checks PASS"
+
 echo "PASS: verify_frontend"

@@ -12,13 +12,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
 import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useFonts } from 'expo-font';
-import {
-  Sora_300Light,
-  Sora_400Regular,
-  Sora_500Medium,
-  Sora_600SemiBold,
-  Sora_700Bold,
-} from '@expo-google-fonts/sora';
+import { APP_FONTS } from '@/lib/fonts';
 
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SubscriptionProvider } from '@/lib/SubscriptionContext';
@@ -1018,19 +1012,19 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
-  const [fontsLoaded] = useFonts({
-    Sora_300Light,
-    Sora_400Regular,
-    Sora_500Medium,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
+  // [P1_FONTS_SSOT] Load ALL app fonts from the SSOT font map.
+  // First paint is gated on fontsLoaded — splash stays visible until true.
+  const [fontsLoaded] = useFonts(APP_FONTS);
 
+  // [P1_FONTS_SSOT] Keep native splash visible until fonts are loaded.
+  // This eliminates the first-paint font swap (system → Sora) on cold start.
   useEffect(() => {
-    // Hide the native splash screen once our custom one is ready
+    if (!fontsLoaded) return;
     ExpoSplashScreen.hideAsync();
+  }, [fontsLoaded]);
 
-    // Initialize network monitoring
+  // Initialize network monitoring once on mount
+  useEffect(() => {
     initNetworkMonitoring();
   }, []);
 
