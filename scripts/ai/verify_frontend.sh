@@ -1360,4 +1360,43 @@ fi
 echo ""
 echo "P1_FONTS_SSOT checks PASS"
 
+# ── P0_DEV_TOAST_FILTER enforcement ──────────────────────────────────
+echo ""
+echo "Running P0_DEV_TOAST_FILTER checks…"
+
+P0_TOAST_FILTER_FAIL=0
+
+# Part 1: devToastFilter.ts must exist and export installDevToastFilter
+if ! grep -q 'export function installDevToastFilter' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — installDevToastFilter not found in src/lib/devToastFilter.ts"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 1: devToastFilter.ts exports installDevToastFilter"
+fi
+
+# Part 2: devToastFilter.ts must gate on __DEV__
+if ! grep -q '__DEV__' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — devToastFilter.ts missing __DEV__ guard"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 2: devToastFilter.ts gated behind __DEV__"
+fi
+
+# Part 3: devToastFilter.ts must NOT override console.warn globally
+if grep -q 'console\.warn\s*=' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — devToastFilter.ts overrides console.warn globally"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 3: devToastFilter.ts does not override console.warn"
+fi
+
+if [ "$P0_TOAST_FILTER_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_DEV_TOAST_FILTER invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_DEV_TOAST_FILTER checks PASS"
+
 echo "PASS: verify_frontend"
