@@ -7,9 +7,10 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
   Sora_300Light,
@@ -22,6 +23,7 @@ import {
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SubscriptionProvider } from '@/lib/SubscriptionContext';
 import { devLog } from '@/lib/devLog';
+import { DEV_PROBES_ENABLED } from '@/lib/devFlags';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
@@ -78,6 +80,87 @@ const QueryDebugOverlay = __DEV__
 const LiveRefreshProofOverlay = __DEV__
   ? require('@/dev/LiveRefreshProofOverlay').default
   : () => null;
+
+// =============================================================================
+// [P0_LAYOUT_JUMP_PROBE] DEV-only instrumentation to identify cold-start jump
+// Logs safe-area insets, window dims, and RootLayoutNav container layout deltas.
+// Max 10 layout logs per app start. Does not affect layout (absolute overlay).
+// IMPORTANT: renders null-equivalent — does NOT wrap children. onLayout lives
+// on the nav container View in RootLayout to avoid reconciliation side-effects.
+// =============================================================================
+const LayoutJumpProbe = __DEV__
+  ? function LayoutJumpProbeImpl() {
+      const insets = useSafeAreaInsets();
+      const { width: winW, height: winH } = useWindowDimensions();
+      const mountTs = useRef(Date.now());
+
+      // Log once on mount — BOTH devLog and console.log for redundancy.
+      // devLog('[P0_LAYOUT_JUMP_PROBE]') now always-on (added to ALWAYS_ON_TAG_PREFIXES),
+      // but console.log is kept as belt-and-suspenders in case devLog is ever filtered.
+      useEffect(() => {
+        if (!DEV_PROBES_ENABLED) return;
+        const payload = {
+          tMs: 0,
+          insetsTop: insets.top,
+          insetsBottom: insets.bottom,
+          winW,
+          winH,
+          initialMetricsTop: initialWindowMetrics?.insets?.top ?? 'null',
+        };
+        devLog('[P0_LAYOUT_JUMP_PROBE]', 'MOUNTED', payload);
+      }, []);
+
+      // Log when insets change (key signal for SafeArea hydration snap)
+      const prevInsetsRef = useRef({ top: insets.top, bottom: insets.bottom });
+      useEffect(() => {
+        if (
+          prevInsetsRef.current.top !== insets.top ||
+          prevInsetsRef.current.bottom !== insets.bottom
+        ) {
+          const payload = {
+            tMs: Date.now() - mountTs.current,
+            phase: 'insets-change',
+            insetsTop: insets.top,
+            insetsBottom: insets.bottom,
+            prevInsetsTop: prevInsetsRef.current.top,
+            prevInsetsBottom: prevInsetsRef.current.bottom,
+            winW,
+            winH,
+          };
+          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+          prevInsetsRef.current = { top: insets.top, bottom: insets.bottom };
+        }
+      }, [insets.top, insets.bottom]);
+
+      // Log when window dims change
+      const prevWinRef = useRef({ w: winW, h: winH });
+      useEffect(() => {
+        if (prevWinRef.current.w !== winW || prevWinRef.current.h !== winH) {
+          const payload = {
+            tMs: Date.now() - mountTs.current,
+            phase: 'window-change',
+            winW,
+            winH,
+            prevWinW: prevWinRef.current.w,
+            prevWinH: prevWinRef.current.h,
+          };
+          if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+          prevWinRef.current = { w: winW, h: winH };
+        }
+      }, [winW, winH]);
+
+      // Zero-impact absolute overlay — does NOT participate in layout flow.
+      // onLayout for the nav container is wired directly in RootLayout.
+      return (
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0 }}
+        />
+      );
+    }
+  : function LayoutJumpProbeNoop() {
+      return null;
+    };
 
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
@@ -661,9 +744,13 @@ function BootRouter() {
           emailVerified={session?.user?.emailVerified ?? false}
         />
       )}
-      {showBootOverlay && (
-        <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />
-      )}
+      {/* [P0_BOOT_OVERLAY] Always mounted — toggled via opacity+pointerEvents
+          to avoid tree-swap reflow that causes cold-start layout jump. */}
+      <BootLoading
+        testID="boot-router-loading"
+        context={`boot-router-${bootStatus}`}
+        visible={showBootOverlay}
+      />
       <EmailVerificationGateModal
         visible={showEmailGateModal}
         onClose={() => setShowEmailGateModal(false)}
@@ -986,20 +1073,74 @@ export default function RootLayout() {
     setShowSplash(false);
   };
 
-  // Show loading while fonts are loading
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#E85D4C" />
-      </View>
-    );
-  }
+  // [P1_FONTS_SSOT] Proof log when fonts finish loading (fires once)
+  useEffect(() => {
+    if (__DEV__ && fontsLoaded) {
+      devLog('[P1_FONTS_SSOT] fontsLoaded=true — app tree always mounted, overlay hiding');
+    }
+  }, [fontsLoaded]);
+
+  // [P0_FONTS_OVERLAY] Proof log: overlay visibility toggle
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_FONTS_OVERLAY]', { fontsLoaded, overlayVisible: !fontsLoaded });
+    }
+  }, [fontsLoaded]);
+
+  // [P1_TOP_CHROME_JUMP] Proof: top-chrome banners are now in absolute overlay,
+  // not in layout flow. Log once on mount to confirm.
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P1_TOP_CHROME_JUMP]', 'top-chrome overlay mounted: position=absolute, pointerEvents=box-none, zIndex=900 — banners do NOT participate in layout flow');
+    }
+  }, []);
+
+  // [P0_LAYOUT_PROBE] Proof: splash always mounted, no tree swap on completion
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_LAYOUT_PROBE]', { showSplash, note: showSplash ? 'splash visible (absolute overlay)' : 'splash hidden (stays mounted, no tree swap)' });
+    }
+  }, [showSplash]);
+
+  // [P0_LAYOUT_JUMP_PROBE] Nav container onLayout tracking (DEV-only, max 10 logs).
+  // Placed here (in RootLayout) so the onLayout goes on the SAME wrapper View that
+  // contains RootLayoutNav, without adding any extra reconciliation-order Views.
+  const _navLayoutCountRef = useRef(0);
+  const _prevNavLayoutRef = useRef({ y: -1, h: -1 });
+  const _navLayoutMountTsRef = useRef(Date.now());
+  const handleNavContainerLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    if (!__DEV__) return;
+    if (_navLayoutCountRef.current >= 10) return; // throttle: max 10 logs
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _prevNavLayoutRef.current.y >= 0 ? y - _prevNavLayoutRef.current.y : 0;
+    const dH = _prevNavLayoutRef.current.h >= 0 ? height - _prevNavLayoutRef.current.h : 0;
+    // Skip if nothing changed (after first measurement)
+    if (_prevNavLayoutRef.current.y === y && _prevNavLayoutRef.current.h === height && _prevNavLayoutRef.current.y >= 0) return;
+    _navLayoutCountRef.current++;
+    _prevNavLayoutRef.current = { y, h: height };
+    const payload = {
+      tMs: Date.now() - _navLayoutMountTsRef.current,
+      phase: 'layout',
+      layoutX: x,
+      layoutY: y,
+      layoutW: width,
+      layoutH: height,
+      dY,
+      dH,
+      measureCount: _navLayoutCountRef.current,
+    };
+    if (DEV_PROBES_ENABLED) devLog('[P0_LAYOUT_JUMP_PROBE]', payload);
+  };
 
   const posthogProps = getPostHogProviderProps();
 
   return (
     <QueryClientProvider client={queryClient}>
       <PostHogProviderWrapper posthogProps={posthogProps}>
+        {/* [P1_ONBOARD_SNAP] SafeAreaProvider with initialWindowMetrics eliminates
+            first-render layout snap: without this, SafeAreaView starts with
+            insets={top:0} then jumps once native measurement completes. */}
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <AppThemeProvider>
@@ -1009,15 +1150,61 @@ export default function RootLayout() {
                   <AutoSyncProvider>
                     <ErrorBoundary>
                       <View style={{ flex: 1 }}>
-                        <NetworkStatusBanner />
-                        <UpdateBanner />
-                        <AnnouncementBanner />
-                        <ToastContainer />
                         <BootRouter />
-                        <RootLayoutNav />
+                        {/* [P0_FONTS_OVERLAY] Opacity gate: nav content hidden until fonts load.
+                            Tree stays mounted — no mount/unmount swap, no layout reflow. */}
+                        {/* [P0_LAYOUT_JUMP_PROBE] onLayout on this View (nav container) captures
+                            layout deltas for the RootLayoutNav wrapper. LayoutJumpProbe is a
+                            zero-size absolute sibling — does NOT wrap children, no layout impact. */}
+                        <View
+                          style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}
+                          onLayout={__DEV__ ? handleNavContainerLayout : undefined}
+                        >
+                          {__DEV__ && <LayoutJumpProbe />}
+                          <RootLayoutNav />
+                        </View>
+                        {/* [P1_TOP_CHROME_JUMP] Top-chrome overlay: absolutely positioned so
+                            banners/toasts never participate in layout flow. Prevents content
+                            from jumping when banners appear/disappear after async boot. */}
+                        <View
+                          pointerEvents="box-none"
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            zIndex: 900,
+                          }}
+                        >
+                          <NetworkStatusBanner />
+                          <UpdateBanner />
+                          <AnnouncementBanner />
+                          <ToastContainer />
+                        </View>
                         {__DEV__ && <QueryDebugOverlay />}
                         {__DEV__ && <LiveRefreshProofOverlay />}
-                      {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
+                        {/* [P0_FONTS_OVERLAY] Absolute loader overlay — covers nav while fonts load.
+                            Always mounted, toggled via opacity+pointerEvents (no tree swap). */}
+                        <View
+                          pointerEvents={fontsLoaded ? 'none' : 'auto'}
+                          style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: '#FFFFFF',
+                            opacity: fontsLoaded ? 0 : 1,
+                            zIndex: 1000,
+                          }}
+                        >
+                          <ActivityIndicator size="large" color="#E85D4C" />
+                        </View>
+                      {/* [P0_LAYOUT_PROBE] AnimatedSplash: always mounted, toggled via visible prop.
+                          Prevents tree-swap reflow when splash completes. Already position:absolute. */}
+                      <AnimatedSplash
+                        onAnimationComplete={handleSplashComplete}
+                        visible={showSplash}
+                      />
                     </View>
                   </ErrorBoundary>
                   </AutoSyncProvider>
@@ -1026,6 +1213,7 @@ export default function RootLayout() {
             </AppThemeProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
+        </SafeAreaProvider>
       </PostHogProviderWrapper>
     </QueryClientProvider>
   );

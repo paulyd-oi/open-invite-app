@@ -25,6 +25,7 @@ import { deactivatePushTokenOnLogout } from "./pushTokenManager";
 import { resetPushRegistrationState } from "@/hooks/useNotifications";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
+import { disableAuthedNetwork } from "./networkAuthGate";
 
 // Admin unlock storage key (must match settings.tsx)
 const ADMIN_UNLOCK_KEY = "@oi_admin_unlocked_v1";
@@ -71,6 +72,12 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
   logoutInFlight = true;
 
   try {
+    // [P0_POST_LOGOUT_NET] IMMEDIATELY disable authed network calls.
+    // This is the FIRST action — before any async work — so that
+    // still-mounted queries cannot fire /api/entitlements or
+    // /api/referral/stats while tokens are being cleared.
+    disableAuthedNetwork();
+
     // Step 1: Deactivate push token (best-effort, never blocks)
     if (__DEV__) {
       devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 2, label: "deactivate_attempt" });

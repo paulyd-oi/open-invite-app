@@ -14,14 +14,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeIn,
-  FadeInUp,
-  FadeInDown,
   FadeOut,
   SlideInUp,
   SlideOutDown,
@@ -41,18 +39,14 @@ import {
   CheckCircle,
   Sparkles,
 } from "@/ui/icons";
-import { useFonts } from "expo-font";
-import {
-  Sora_400Regular,
-  Sora_600SemiBold,
-  Sora_700Bold,
-} from "@expo-google-fonts/sora";
+// [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient } from "@/lib/authClient";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
+import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -123,13 +117,10 @@ export default function LoginScreen() {
   const router = useRouter();
   const { data: session } = useSession();
   const { themeColor, isDark, colors } = useTheme();
+  // [P0_SAFE_AREA_SSOT] Insets now handled by SafeAreaScreen component
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'login', button: 'SSOT', theme: 'ThemeContext' });
 
-  const [fontsLoaded] = useFonts({
-    Sora_400Regular,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
+  // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
 
   const [authView, setAuthView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
@@ -237,31 +228,19 @@ export default function LoginScreen() {
     }
   };
 
-  if (!fontsLoaded) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator color={themeColor} size="large" />
-      </View>
-    );
-  }
+  // [P1_ONBOARD_STABLE] Opacity-gate: hide until layout stable
+  const { isStable: isLoginStable, onLayout: onLoginLayout } = useFirstPaintStable();
 
   // Success View
   if (authView === "success") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
         <LinearGradient
           colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
           <Animated.View
-            entering={FadeInUp.springify()}
+            entering={FadeIn.duration(300)}
             style={{ alignItems: "center" }}
           >
             <View
@@ -305,12 +284,12 @@ export default function LoginScreen() {
   // Forgot Password View
   if (authView === "forgotPassword") {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
         <LinearGradient
           colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]}
           style={{ flex: 1 }}
         >
-          <SafeAreaView style={{ flex: 1 }}>
+          <SafeAreaScreen>
             {/* Header */}
             <View
               style={{
@@ -354,7 +333,7 @@ export default function LoginScreen() {
                 keyboardShouldPersistTaps="handled"
               >
                 <Animated.View
-                  entering={FadeInUp.springify()}
+                  entering={FadeIn.duration(300)}
                   style={{ alignItems: "center" }}
                 >
                   <View
@@ -489,7 +468,7 @@ export default function LoginScreen() {
                 </Animated.View>
               </ScrollView>
             </KeyboardAvoidingView>
-          </SafeAreaView>
+          </SafeAreaScreen>
         </LinearGradient>
       </View>
     );
@@ -497,9 +476,9 @@ export default function LoginScreen() {
 
   // Main Login View
   return (
-    <View testID="login-screen" style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="login-screen" onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
       <LinearGradient colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <SafeAreaScreen>
           {/* Header with back to Getting Started */}
           <View
             style={{
@@ -544,7 +523,7 @@ export default function LoginScreen() {
               }}
               keyboardShouldPersistTaps="handled"
             >
-              <Animated.View entering={FadeInUp.springify()}>
+              <Animated.View entering={FadeIn.duration(300)}>
                 {/* Icon */}
                 <View style={{ alignItems: "center", marginBottom: 32 }}>
                   <View
@@ -586,7 +565,7 @@ export default function LoginScreen() {
 
                 {/* Email Input */}
                 <Animated.View
-                  entering={FadeInUp.delay(100).springify()}
+                  entering={FadeIn.delay(100).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
                     borderRadius: 14,
@@ -622,7 +601,7 @@ export default function LoginScreen() {
 
                 {/* Password Input */}
                 <Animated.View
-                  entering={FadeInUp.delay(200).springify()}
+                  entering={FadeIn.delay(200).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
                     borderRadius: 14,
@@ -666,7 +645,7 @@ export default function LoginScreen() {
 
                 {/* Forgot Password */}
                 <Animated.View
-                  entering={FadeInUp.delay(300).springify()}
+                  entering={FadeIn.delay(300).duration(300)}
                   style={{ alignItems: "flex-end", marginBottom: 24 }}
                 >
                   <Pressable
@@ -686,7 +665,7 @@ export default function LoginScreen() {
                 </Animated.View>
 
                 {/* Sign In Button */}
-                <Animated.View entering={FadeInUp.delay(400).springify()}>
+                <Animated.View entering={FadeIn.delay(400).duration(300)}>
                   <Button
                     testID="login-submit-button"
                     variant="primary"
@@ -700,7 +679,7 @@ export default function LoginScreen() {
 
                 {/* Sign Up Link */}
                 <Animated.View
-                  entering={FadeInUp.delay(500).springify()}
+                  entering={FadeIn.delay(500).duration(300)}
                   style={{ alignItems: "center" }}
                 >
                   <Pressable
@@ -732,7 +711,7 @@ export default function LoginScreen() {
               </Animated.View>
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </SafeAreaScreen>
       </LinearGradient>
     </View>
   );

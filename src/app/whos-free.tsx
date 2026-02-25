@@ -28,6 +28,8 @@ import { computeSchedule } from "@/lib/scheduling/engine";
 import type { BusyWindow } from "@/lib/scheduling/types";
 import { formatSlotAvailability } from "@/lib/scheduling/format";
 import { buildWorkScheduleBusyWindows, type WorkScheduleDay } from "@/lib/scheduling/workScheduleAdapter";
+import { useWorkSkipDays } from "@/lib/workSkipDays";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // P0 FIX: Parse YYYY-MM-DD as local date (avoids UTC timezone shift)
 function parseLocalDate(dateStr: string): Date {
@@ -75,11 +77,14 @@ interface GetFriendsResponse {
 }
 
 export default function WhosFreeScreen() {
-  const { date } = useLocalSearchParams<{ date: string }>();
+  const { date, source } = useLocalSearchParams<{ date: string; source?: string }>();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
   const router = useRouter();
   const { themeColor, colors } = useTheme();
+
+  // [P0_FIND_BEST_TIME_SSOT] When launched from create, return picked time instead of pushing
+  const isFromCreate = source === "create";
   
   // P0 FIX: Initialize selectedDate from param using local-safe parsing
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -144,6 +149,7 @@ export default function WhosFreeScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
   const workSchedules = workScheduleData?.schedules ?? [];
+  const { skipKeys: workSkipKeys } = useWorkSkipDays();
 
   // [P0_WHOSFREE_SOT] Fetch each selected friend's events for client-side scheduling
   const {
@@ -250,7 +256,7 @@ export default function WhosFreeScreen() {
     // [P0_WORK_HOURS_BLOCK] Merge current user's work schedule as busy blocks
     const currentUserId = session?.user?.id;
     if (currentUserId && workSchedules.length > 0) {
-      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd);
+      const workWindows = buildWorkScheduleBusyWindows(workSchedules, rangeStart, rangeEnd, workSkipKeys);
       if (!busyWindowsByUserId[currentUserId]) {
         busyWindowsByUserId[currentUserId] = [];
       }
@@ -308,7 +314,7 @@ export default function WhosFreeScreen() {
     }));
 
     return { suggestedSlots: slots, isLoadingSuggestions: false };
-  }, [friendEventsData, isLoadingFriendEvents, startDate, endDate, allFriends, workSchedules, session?.user?.id]);
+  }, [friendEventsData, isLoadingFriendEvents, startDate, endDate, allFriends, workSchedules, session?.user?.id, workSkipKeys]);
 
   // [P0_WHOSFREE_SOT] Capped render list — never explode the scroll
   const renderCap = showAllSlots ? MAX_EXPANDED_SLOTS : MAX_SUGGESTED_SLOTS;
@@ -628,8 +634,26 @@ export default function WhosFreeScreen() {
                       return (
                         <Animated.View key={index} entering={FadeIn.delay(Math.min(index, 5) * 50)}>
                           <Pressable
-                            onPress={() => {
+                            onPress={async () => {
                               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                              if (isFromCreate) {
+                                // [P0_FIND_BEST_TIME_SSOT] Return picked time to create screen
+                                const pickedAtMs = Date.now();
+                                await AsyncStorage.setItem(
+                                  "oi:bestTimePick",
+                                  JSON.stringify({ startISO: slot.start, endISO: slot.end, pickedAtMs }),
+                                );
+                                if (__DEV__) {
+                                  devLog("[P0_FIND_BEST_TIME_SSOT] pick", {
+                                    startISO: slot.start,
+                                    endISO: slot.end,
+                                    pickedAtMs,
+                                    returning: "create",
+                                  });
+                                }
+                                router.back();
+                                return;
+                              }
                               const slotStartDate = new Date(slot.start);
                               const dateStr = slotStartDate.toISOString().split('T')[0];
                               router.push(`/create?date=${dateStr}&time=${slot.start}` as any);

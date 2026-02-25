@@ -14,9 +14,12 @@ const { width, height } = Dimensions.get("window");
 
 interface SplashScreenProps {
   onAnimationComplete: () => void;
+  /** When false, splash is invisible + non-interactive but stays mounted
+   *  to avoid tree-swap layout reflow in parent flex container. */
+  visible?: boolean;
 }
 
-export function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
+export function SplashScreen({ onAnimationComplete, visible = true }: SplashScreenProps) {
   const titleOpacity = useSharedValue(0);
   const titleY = useSharedValue(20);
   const backgroundOpacity = useSharedValue(1);
@@ -42,6 +45,7 @@ export function SplashScreen({ onAnimationComplete }: SplashScreenProps) {
 
   return (
     <Animated.View
+      pointerEvents={visible ? 'auto' : 'none'}
       style={[
         {
           position: "absolute",

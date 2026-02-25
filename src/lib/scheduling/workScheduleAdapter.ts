@@ -35,6 +35,7 @@ export function buildWorkScheduleBusyWindows(
   schedules: WorkScheduleDay[],
   rangeStart: string,
   rangeEnd: string,
+  skipDays?: Set<string>,
 ): BusyWindow[] {
   if (!schedules || schedules.length === 0) return [];
 
@@ -61,6 +62,21 @@ export function buildWorkScheduleBusyWindows(
     const dow = cursor.getDay();
     const sched = byDay.get(dow);
     if (sched && sched.startTime && sched.endTime) {
+      // [P2_WORK_SKIP] Skip day-off exceptions
+      if (skipDays) {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, "0");
+        const d = String(cursor.getDate()).padStart(2, "0");
+        const dayKey = `${y}-${m}-${d}`;
+        if (skipDays.has(dayKey)) {
+          if (__DEV__) {
+            devLog("[P2_WORK_SKIP] generator_skip", { dayKey });
+          }
+          cursor.setDate(cursor.getDate() + 1);
+          continue;
+        }
+      }
+
       // Block 1
       const b1 = parseTimeBlock(cursor, sched.startTime, sched.endTime);
       if (b1) windows.push(b1);

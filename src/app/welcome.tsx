@@ -12,24 +12,28 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { DEV_PROBES_ENABLED } from "@/lib/devFlags";
 import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
+  Easing,
   FadeIn,
-  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 // ============ ANIMATION HELPERS ============
-// INVARIANT: Animations run ONCE on mount - use opacity+translateY only (no height changes)
-// These use Reanimated's entering animations which are layout-stable
+// INVARIANT: Animations run ONCE on mount - use opacity only (no height/translateY changes)
+// [P1_ONBOARD_BOUNCE] stableFadeInDown removed — was causing bounce via translateY + springify
 const smoothFadeIn = (delayMs = 0) => FadeIn.delay(delayMs).duration(400);
-const stableFadeInDown = (delayMs = 0) => FadeInDown.delay(delayMs).duration(350).springify().damping(15);
 
 import {
   Calendar as CalendarIcon,
@@ -39,8 +43,7 @@ import {
   EyeOff,
   Sparkles,
 } from "@/ui/icons";
-import { useFonts } from "expo-font";
-import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
+// [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
@@ -57,6 +60,7 @@ import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
+import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,6 +139,15 @@ function toBackendAvatarUrl(url: string | null | undefined): string | undefined 
 type OnboardingSlide = 1 | 2 | 3 | 4;
 
 // ============ SHARED LAYOUT ============
+// [P0_WELCOME_JUMP_PROBE] DEV-only probe state for welcome screen jump diagnostics.
+// Tracks root container layout deltas and insets on cold start.
+// Throttled to max 12 logs per cold start.
+let _welcomeProbeCount = 0;
+const _WELCOME_PROBE_MAX = 12;
+const _welcomeProbeMountTs = Date.now();
+let _welcomeProbeRootPrev = { y: -1, h: -1 };
+let _welcomeProbeHeroPrev = { y: -1, h: -1 };
+
 const OnboardingLayout = ({
   children,
   background,
@@ -144,12 +157,72 @@ const OnboardingLayout = ({
   background: string;
   testID?: string;
 }) => {
+  // [P0_SAFE_AREA_SSOT] SafeAreaScreen handles insets via useSafeAreaInsets().
+  // Hook retained here ONLY for DEV probe logging (inset values).
+  const insets = useSafeAreaInsets();
+
+  // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
+  const { isStable, onLayout } = useFirstPaintStable();
+
+  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in + small translateY on reveal
+  const revealProgress = useSharedValue(0);
+  useEffect(() => {
+    if (isStable) {
+      revealProgress.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) });
+    }
+  }, [isStable]);
+  const popStyle = useAnimatedStyle(() => ({
+    flex: 1,
+    opacity: revealProgress.value,
+    transform: [{ translateY: (1 - revealProgress.value) * 8 }],
+  }));
+
+  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only, gated)
+  const _probeInsetLoggedRef = React.useRef(false);
+  if (DEV_PROBES_ENABLED && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
+    _probeInsetLoggedRef.current = true;
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'OnboardingLayout-mount',
+      insetsTop: insets.top,
+      insetsBottom: insets.bottom,
+      isStable,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+  }
+
+  // [P0_WELCOME_JUMP_PROBE] Root container onLayout handler (DEV-only)
+  const handleRootLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    // Call the stability gate's onLayout first
+    onLayout(e as any);
+    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _welcomeProbeRootPrev.y >= 0 ? y - _welcomeProbeRootPrev.y : 0;
+    const dH = _welcomeProbeRootPrev.h >= 0 ? height - _welcomeProbeRootPrev.h : 0;
+    // Skip if nothing changed after first measurement
+    if (_welcomeProbeRootPrev.y === y && _welcomeProbeRootPrev.h === height && _welcomeProbeRootPrev.y >= 0) return;
+    _welcomeProbeRootPrev = { y, h: height };
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'root-layout',
+      x, y, w: width, h: height,
+      dY, dH,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+  };
+
   return (
-    <View testID={testID} style={[styles.layoutContainer, { backgroundColor: background }]}>
-      <SafeAreaView style={styles.safeArea}>
+    <SafeAreaScreen
+      testID={testID}
+      onLayout={handleRootLayout}
+      style={{ backgroundColor: background }}
+    >
+      <Animated.View style={popStyle}>
         {children}
-      </SafeAreaView>
-    </View>
+      </Animated.View>
+    </SafeAreaScreen>
   );
 };
 
@@ -229,15 +302,17 @@ export default function WelcomeOnboardingScreen() {
       hasLoggedMountRef.current = true;
       if (__DEV__) {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
+        devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
+        // [P0_WELCOME_JUMP_PROBE] Mount timestamp (tMs=0 baseline)
+        if (DEV_PROBES_ENABLED) {
+          const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
+          devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+        }
       }
     }
   }, []);
 
-  const [fontsLoaded] = useFonts({
-    Sora_400Regular,
-    Sora_600SemiBold,
-    Sora_700Bold,
-  });
+  // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
 
   // Core state
   const [currentSlide, setCurrentSlide] = useState<OnboardingSlide>(1);
@@ -300,10 +375,53 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ SLIDE 2: AUTH HANDLERS ============
 
+  // [P0_SIGNUP_FIX] Derive a display name from an email address.
+  // Used as fallback when the UI doesn't collect a name field.
+  function deriveDisplayNameFromEmail(emailAddr: string): string {
+    const base = emailAddr.split("@")[0] ?? "";
+    const sanitized = base.replace(/[^a-zA-Z0-9 _.-]/g, "").trim().slice(0, 30);
+    return sanitized.length > 0 ? sanitized : "New User";
+  }
+
+  // [P0_SIGNUP_FIX] Map raw backend/auth error messages to user-safe strings.
+  // Prevents schema validation strings like "[body.name] Too small" from leaking.
+  function mapAuthErrorToSafeMessage(raw: string): string {
+    const lower = raw.toLowerCase();
+    if (lower.includes("body.name") || lower.includes("name")) {
+      return "Please enter a valid name.";
+    }
+    if (lower.includes("password") && (lower.includes("short") || lower.includes("small") || lower.includes("characters"))) {
+      return "Password is too short. Please use at least 8 characters.";
+    }
+    if (lower.includes("email") && (lower.includes("invalid") || lower.includes("format"))) {
+      return "Please enter a valid email address.";
+    }
+    if (lower.includes("exist")) {
+      return "An account with this email already exists. Try signing in.";
+    }
+    if (lower.includes("credentials") || lower.includes("unauthorized") || lower.includes("incorrect")) {
+      return "Incorrect email or password. Please try again.";
+    }
+    return "Something went wrong. Please try again.";
+  }
+
   const handleEmailAuth = async () => {
     if (!email.trim() || !password.trim()) {
       setErrorBanner("Please enter your email and password");
       return;
+    }
+
+    // [P0_SIGNUP_FIX] Derive display name from email when not provided by UI
+    const derivedName = deriveDisplayNameFromEmail(email.trim());
+    const nameStrategy = "derived" as const;
+
+    if (__DEV__) {
+      devLog("[P0_SIGNUP_FIX] submitting", {
+        hasEmail: !!email.trim(),
+        hasPassword: !!password.trim(),
+        nameStrategy,
+        nameLength: derivedName.length,
+      });
     }
 
     if (__DEV__) devLog("[Onboarding] Starting email auth...");
@@ -320,7 +438,7 @@ export default function WelcomeOnboardingScreen() {
       result = await authClient.signUp.email({
         email: email.trim(),
         password,
-        name: "",
+        name: derivedName,
       });
       
       // If sign-up returns error about existing account, try sign-in
@@ -351,6 +469,7 @@ export default function WelcomeOnboardingScreen() {
       }
       
       if (__DEV__) devLog("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
+      if (__DEV__) devLog("[P0_SIGNUP_FIX] success");
 
       // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
       if (isNewAccount) {
@@ -393,8 +512,16 @@ export default function WelcomeOnboardingScreen() {
       // Advance to Slide 3
       setCurrentSlide(3);
     } catch (error: any) {
-      devError("[Onboarding] Auth error:", error?.message || error);
-      setErrorBanner(error?.message || "Authentication failed. Please try again.");
+      const rawMsg = error?.message || "";
+      const safeMsg = mapAuthErrorToSafeMessage(rawMsg);
+      if (__DEV__) {
+        devLog("[P0_SIGNUP_FIX] failure mapped", {
+          originalSummary: rawMsg.slice(0, 80),
+          mappedMessage: safeMsg,
+        });
+      }
+      devError("[Onboarding] Auth error:", rawMsg);
+      setErrorBanner(safeMsg);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -951,10 +1078,32 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ RENDER SLIDES ============
 
+  // [P0_WELCOME_JUMP_PROBE] Hero block onLayout handler (DEV-only)
+  const handleHeroLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _welcomeProbeHeroPrev.y >= 0 ? y - _welcomeProbeHeroPrev.y : 0;
+    const dH = _welcomeProbeHeroPrev.h >= 0 ? height - _welcomeProbeHeroPrev.h : 0;
+    if (_welcomeProbeHeroPrev.y === y && _welcomeProbeHeroPrev.h === height && _welcomeProbeHeroPrev.y >= 0) return;
+    _welcomeProbeHeroPrev = { y, h: height };
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'hero-layout',
+      x, y, w: width, h: height,
+      dY, dH,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+  };
+
   const renderSlide1 = () => (
     <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
-        <Animated.View entering={smoothFadeIn(100)} style={styles.centeredContent}>
+        <Animated.View
+          entering={smoothFadeIn(100)}
+          style={styles.centeredContent}
+          onLayout={__DEV__ ? handleHeroLayout : undefined}
+        >
           <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
             <CalendarIcon size={48} color={themeColor} />
           </View>
@@ -1257,14 +1406,6 @@ export default function WelcomeOnboardingScreen() {
   };
 
   // ============ MAIN RENDER ============
-
-  if (!fontsLoaded) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={themeColor} />
-      </View>
-    );
-  }
 
   const renderCurrentSlide = () => {
     switch (currentSlide) {

@@ -18,6 +18,9 @@ import { devLog, devWarn, devError } from "./devLog";
 // Import centralized backend URL configuration
 import { BACKEND_URL } from "./config";
 
+// [P0_POST_LOGOUT_NET] SSOT gate — blocks authed calls immediately on logout
+import { shouldAllowAuthedRequest } from "./networkAuthGate";
+
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
 type FetchOptions = {
@@ -64,6 +67,15 @@ function generateRequestId(): string {
 const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
   const { method, body } = options;
   const requestId = generateRequestId();
+
+  // [P0_POST_LOGOUT_NET] SSOT gate: block authed endpoints when network auth is disabled.
+  // Throws immediately (no fetch) so React Query sees a normal error, not a 401.
+  if (!shouldAllowAuthedRequest(path)) {
+    const err: any = new Error(`[P0_POST_LOGOUT_NET] blocked: ${path}`);
+    err.status = 0; // synthetic — not a real HTTP status
+    err.isNetworkAuthGated = true; // marker so callers can identify gate blocks
+    throw err;
+  }
 
   try {
     // Use authClient.$fetch for all requests - this handles authentication automatically
