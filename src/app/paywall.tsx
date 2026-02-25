@@ -41,6 +41,9 @@ import {
   restorePurchases,
   hasEntitlement,
   REVENUECAT_OFFERING_ID,
+  RC_PACKAGE_ANNUAL,
+  RC_PACKAGE_LIFETIME,
+  getKeySource,
 } from "@/lib/revenuecatClient";
 
 // Beta mode - set to false for production (payments are active)
@@ -72,7 +75,9 @@ export default function PaywallScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
   const [yearlyPackage, setYearlyPackage] = useState<PurchasesPackage | null>(null);
+  const [lifetimePackage, setLifetimePackage] = useState<PurchasesPackage | null>(null);
   const [revenueCatEnabled, setRevenueCatEnabled] = useState(false);
 
   // Discount code state
@@ -122,13 +127,29 @@ export default function PaywallScreen() {
 
     if (result.ok && result.data.offering) {
       const packages = result.data.offering.availablePackages;
-      const yearly = packages.find((p) => p.identifier === "$rc_annual");
-      setYearlyPackage(yearly ?? null);
-      // No scary modal — if yearly package is missing but offering exists,
-      // user just sees the purchase button disabled.
+      const yearly = packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL) ?? null;
+      const lifetime = packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME) ?? null;
+      setYearlyPackage(yearly);
+      setLifetimePackage(lifetime);
+
+      // [P0_RC_STATE] Offering loaded snapshot
+      if (__DEV__) {
+        devLog("[P0_RC_STATE] OFFERING_LOADED", {
+          keySource: getKeySource(),
+          offeringId: result.data.usedId,
+          foundRequested: result.data.foundRequested,
+          packagesTotal: packages.length,
+          hasAnnual: !!yearly,
+          hasLifetime: !!lifetime,
+          packageIds: packages.map((p) => p.identifier),
+        });
+      }
     } else if (!result.ok) {
       // SDK-level failure — calm inline message, no modal
-      if (__DEV__) devWarn("[Paywall] Offering load failed:", result.reason);
+      if (__DEV__) {
+        devWarn("[Paywall] Offering load failed:", result.reason);
+        devLog("[P0_RC_STATE] OFFERING_FAILED", { keySource: getKeySource(), reason: result.reason });
+      }
     }
     // If result.ok but offering is null → no offerings at all;
     // purchase button stays disabled, no scary toast.
@@ -137,7 +158,8 @@ export default function PaywallScreen() {
   };
 
   const handlePurchase = async () => {
-    if (!yearlyPackage) {
+    const packageToPurchase = selectedPlan === "lifetime" ? lifetimePackage : yearlyPackage;
+    if (!packageToPurchase) {
       safeToast.error("Load Failed", "Unable to load subscription. Please try again.");
       return;
     }
@@ -145,7 +167,7 @@ export default function PaywallScreen() {
     setIsPurchasing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const result = await purchasePackage(yearlyPackage);
+    const result = await purchasePackage(packageToPurchase);
 
     if (result.ok) {
       const entitlementResult = await hasEntitlement("premium");
@@ -275,11 +297,11 @@ export default function PaywallScreen() {
     }
   };
 
-  const getYearlyPrice = () => {
-    if (yearlyPackage?.product?.priceString) {
-      return yearlyPackage.product.priceString;
+  const getSelectedPrice = () => {
+    if (selectedPlan === "lifetime") {
+      return lifetimePackage?.product?.priceString ?? "–";
     }
-    return "$9.99";
+    return yearlyPackage?.product?.priceString ?? "–";
   };
 
   if (isLoading) {
@@ -525,10 +547,10 @@ export default function PaywallScreen() {
 
             <View className="items-center mb-4">
               <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                {getYearlyPrice()}
+                {getSelectedPrice()}
               </Text>
               <Text style={{ color: colors.textTertiary }} className="text-xs">
-                per year
+                {selectedPlan === "lifetime" ? "one-time" : "per year"}
               </Text>
             </View>
 
@@ -557,6 +579,41 @@ export default function PaywallScreen() {
             </View>
           </View>
         </Animated.View>
+
+        {/* Plan Selector — only shown if lifetime package exists in current offering */}
+        {lifetimePackage && (
+          <Animated.View entering={FadeInUp.delay(260)} className="mb-4">
+            <View
+              className="flex-row rounded-xl overflow-hidden"
+              style={{ borderWidth: 1, borderColor: colors.border }}
+            >
+              <Pressable
+                onPress={() => setSelectedPlan("yearly")}
+                className="flex-1 py-2 items-center"
+                style={{ backgroundColor: selectedPlan === "yearly" ? themeColor : colors.surface }}
+              >
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: selectedPlan === "yearly" ? "#fff" : colors.text }}
+                >
+                  Annual
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setSelectedPlan("lifetime")}
+                className="flex-1 py-2 items-center"
+                style={{ backgroundColor: selectedPlan === "lifetime" ? themeColor : colors.surface }}
+              >
+                <Text
+                  className="text-sm font-semibold"
+                  style={{ color: selectedPlan === "lifetime" ? "#fff" : colors.text }}
+                >
+                  Lifetime
+                </Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
 
         {/* Value Proposition */}
         <Animated.View entering={FadeInUp.delay(300)}>
@@ -622,7 +679,11 @@ export default function PaywallScreen() {
             <>
               <Pressable
                 onPress={handlePurchase}
-                disabled={isPurchasing || !revenueCatEnabled || !yearlyPackage}
+                disabled={
+                  isPurchasing ||
+                  !revenueCatEnabled ||
+                  (selectedPlan === "lifetime" ? !lifetimePackage : !yearlyPackage)
+                }
                 className="rounded-2xl py-4 items-center"
                 style={{
                   backgroundColor: isPurchasing || !revenueCatEnabled ? colors.border : themeColor,
@@ -634,9 +695,13 @@ export default function PaywallScreen() {
               >
                 {isPurchasing ? (
                   <ActivityIndicator color="#fff" />
+                ) : selectedPlan === "lifetime" ? (
+                  <Text className="text-white text-lg font-semibold">
+                    Get Lifetime — {getSelectedPrice()}
+                  </Text>
                 ) : (
                   <Text className="text-white text-lg font-semibold">
-                    Get Premium - {getYearlyPrice()}/year
+                    Get Premium — {getSelectedPrice()}/year
                   </Text>
                 )}
               </Pressable>

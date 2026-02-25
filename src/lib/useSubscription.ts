@@ -59,7 +59,7 @@ export const PRICING = {
   free: 0,
   proYearly: 10,
   proYearlyFuture: 25,
-  lifetime: 199,
+  lifetime: 249, // Apple one-time lifetime price; UI prefers lifetimePackage.product.priceString
   trialDays: 14,
 } as const;
 

@@ -46,6 +46,14 @@ export const REVENUECAT_OFFERING_ID = "founder_pro_v1";
  */
 export const REVENUECAT_ENTITLEMENT_ID = "premium";
 
+/**
+ * SSOT package identifiers — use these everywhere instead of magic strings.
+ * These match the identifiers set up in the RevenueCat dashboard.
+ */
+export const RC_PACKAGE_ANNUAL = "$rc_annual";
+export const RC_PACKAGE_MONTHLY = "$rc_monthly";
+export const RC_PACKAGE_LIFETIME = "$rc_lifetime";
+
 // Check if running on web
 const isWeb = Platform.OS === "web";
 
@@ -67,6 +75,17 @@ const apiKey = getApiKey();
 
 // Track if RevenueCat is enabled
 const isEnabled = !!apiKey && !isWeb;
+
+/**
+ * Returns which API key slot is active for proof logging.
+ * NEVER returns the actual key value — only the source name.
+ */
+export const getKeySource = (): "dev-test" | "prod-apple" | "prod-google" | "none" => {
+  if (!apiKey) return "none";
+  if (__DEV__) return "dev-test";
+  if (Platform.OS === "ios") return "prod-apple";
+  return "prod-google";
+};
 
 const LOG_PREFIX = "[RevenueCat]";
 
@@ -127,6 +146,12 @@ if (isEnabled) {
     Purchases.configure({ apiKey: apiKey! });
     if (__DEV__) {
       devLog(`${LOG_PREFIX} SDK initialized successfully`);
+      devLog("[P0_RC_STATE] INIT", {
+        keySource: getKeySource(),
+        enabled: true,
+        offeringId: REVENUECAT_OFFERING_ID,
+        entitlementId: REVENUECAT_ENTITLEMENT_ID,
+      });
     }
   } catch (error) {
     if (__DEV__) {

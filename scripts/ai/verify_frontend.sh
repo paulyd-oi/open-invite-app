@@ -1321,4 +1321,151 @@ fi
 echo ""
 echo "P0_LOG_NOISE_CLEANUP checks PASS"
 
+# ── P1_FONTS_SSOT enforcement ────────────────────────────────────────
+echo ""
+echo "Running P1_FONTS_SSOT checks…"
+
+P1_FONTS_FAIL=0
+
+# Part 1: SSOT font module must exist and export APP_FONTS
+if ! grep -q 'export const APP_FONTS' src/lib/fonts.ts 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — APP_FONTS export not found in src/lib/fonts.ts"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 1: APP_FONTS exported from src/lib/fonts.ts"
+fi
+
+# Part 2: _layout.tsx must import APP_FONTS (not load fonts inline)
+if ! grep -q 'APP_FONTS' src/app/_layout.tsx 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — _layout.tsx does not reference APP_FONTS"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 2: _layout.tsx references APP_FONTS"
+fi
+
+# Part 3: _layout.tsx must gate splash hide on fontsLoaded
+if ! grep -q 'fontsLoaded' src/app/_layout.tsx 2>/dev/null; then
+  echo "  ❌ P1_FONTS_SSOT FAIL — _layout.tsx does not reference fontsLoaded"
+  P1_FONTS_FAIL=1
+else
+  echo "  ✓ Part 3: _layout.tsx gates on fontsLoaded"
+fi
+
+if [ "$P1_FONTS_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P1_FONTS_SSOT invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P1_FONTS_SSOT checks PASS"
+
+# ── P0_DEV_TOAST_FILTER enforcement ──────────────────────────────────
+echo ""
+echo "Running P0_DEV_TOAST_FILTER checks…"
+
+P0_TOAST_FILTER_FAIL=0
+
+# Part 1: devToastFilter.ts must exist and export installDevToastFilter
+if ! grep -q 'export function installDevToastFilter' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — installDevToastFilter not found in src/lib/devToastFilter.ts"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 1: devToastFilter.ts exports installDevToastFilter"
+fi
+
+# Part 2: devToastFilter.ts must gate on __DEV__
+if ! grep -q '__DEV__' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — devToastFilter.ts missing __DEV__ guard"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 2: devToastFilter.ts gated behind __DEV__"
+fi
+
+# Part 3: devToastFilter.ts must NOT override console.warn globally
+if grep -q 'console\.warn\s*=' src/lib/devToastFilter.ts 2>/dev/null; then
+  echo "  ❌ P0_DEV_TOAST_FILTER FAIL — devToastFilter.ts overrides console.warn globally"
+  P0_TOAST_FILTER_FAIL=1
+else
+  echo "  ✓ Part 3: devToastFilter.ts does not override console.warn"
+fi
+
+if [ "$P0_TOAST_FILTER_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_DEV_TOAST_FILTER invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_DEV_TOAST_FILTER checks PASS"
+
+# ── P0_RC_SSOT: RevenueCat identifier + price hygiene ────────────────
+echo ""
+echo "Running P0_RC_SSOT checks..."
+
+P0_RC_FAIL=0
+
+# 1. [P0_RC_STATE] must be registered as an always-on proof tag in devLog.ts
+if ! grep -qF '"[P0_RC_STATE]"' src/lib/devLog.ts 2>/dev/null; then
+  echo "  ❌ P0_RC_SSOT FAIL — [P0_RC_STATE] not registered in ALWAYS_ON_TAG_PREFIXES"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ [P0_RC_STATE] registered as always-on proof tag in devLog.ts"
+fi
+
+# 2. No hardcoded $9.99 fallback price in payment UI screens
+RC_HARDCODED_PRICE=$(grep -rn --include="*.tsx" '\$9\.99' src/app/paywall.tsx src/app/subscription.tsx 2>/dev/null || true)
+if [ -n "$RC_HARDCODED_PRICE" ]; then
+  echo "  ❌ P0_RC_SSOT FAIL — hardcoded \$9.99 price found in payment UI:"
+  echo "  $RC_HARDCODED_PRICE"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ No hardcoded \$9.99 fallback in payment UI"
+fi
+
+# 3. No magic $rc_* string literals in paywall, subscription, or SubscriptionContext
+#    (must use RC_PACKAGE_* SSOT constants from revenuecatClient.ts)
+RC_MAGIC_STRINGS=$(grep -rn --include="*.tsx" --include="*.ts" \
+  '"\$rc_annual"\|"\$rc_lifetime"\|"\$rc_monthly"' \
+  src/app/paywall.tsx src/app/subscription.tsx src/lib/SubscriptionContext.tsx 2>/dev/null || true)
+if [ -n "$RC_MAGIC_STRINGS" ]; then
+  echo "  ❌ P0_RC_SSOT FAIL — magic RC package identifiers found (use RC_PACKAGE_* constants):"
+  echo "  $RC_MAGIC_STRINGS"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ RC_PACKAGE_* constants used — no magic \$rc_* strings in payment files"
+fi
+
+# 4. RC_PACKAGE_ANNUAL and RC_PACKAGE_LIFETIME must be exported from revenuecatClient.ts
+if ! grep -q 'export const RC_PACKAGE_ANNUAL' src/lib/revenuecatClient.ts 2>/dev/null; then
+  echo "  ❌ P0_RC_SSOT FAIL — RC_PACKAGE_ANNUAL not exported from revenuecatClient.ts"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ RC_PACKAGE_ANNUAL exported from revenuecatClient.ts"
+fi
+
+if ! grep -q 'export const RC_PACKAGE_LIFETIME' src/lib/revenuecatClient.ts 2>/dev/null; then
+  echo "  ❌ P0_RC_SSOT FAIL — RC_PACKAGE_LIFETIME not exported from revenuecatClient.ts"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ RC_PACKAGE_LIFETIME exported from revenuecatClient.ts"
+fi
+
+# 5. getKeySource must be exported (needed for P0_RC_STATE proof logs)
+if ! grep -q 'export const getKeySource' src/lib/revenuecatClient.ts 2>/dev/null; then
+  echo "  ❌ P0_RC_SSOT FAIL — getKeySource not exported from revenuecatClient.ts"
+  P0_RC_FAIL=1
+else
+  echo "  ✓ getKeySource exported from revenuecatClient.ts"
+fi
+
+if [ "$P0_RC_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_RC_SSOT invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_RC_SSOT checks PASS"
+
 echo "PASS: verify_frontend"
