@@ -229,7 +229,12 @@ export function trackAnalytics(
  * @param options.enabled - If false, prevents network fetch (defaults to true)
  */
 export function useEntitlements(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
+  const callerEnabled = options?.enabled ?? true;
+  // [P0_POST_LOGOUT_NET] Defense-in-depth: gate on auth status so the query
+  // won't fire during logout transition even if React Query tries to refetch.
+  const { status: bootStatus } = useBootAuthority();
+  const { data: session } = useSession();
+  const enabled = callerEnabled && isAuthedForNetwork(bootStatus, session);
   
   return useQuery({
     queryKey: qk.entitlements(),

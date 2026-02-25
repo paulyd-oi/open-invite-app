@@ -15,6 +15,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { bootstrapAuthWithWatchdog } from '@/lib/authBootstrap';
 import { devLog, devError, devWarn } from '@/lib/devLog';
+import { enableAuthedNetwork } from '@/lib/networkAuthGate';
 
 export type BootStatus = 'loading' | 'authed' | 'onboarding' | 'loggedOut' | 'error' | 'degraded';
 
@@ -54,6 +55,11 @@ function setGlobalState(status: BootStatus, error?: string) {
   if (!bootResolvedOnce && TERMINAL_BOOT_STATES.has(status)) {
     bootResolvedOnce = true;
     devLog('[P0_AUTH_JITTER]', `bootResolvedOnce=true (${prevStatus} → ${status})`);
+  }
+
+  // [P0_POST_LOGOUT_NET] Re-enable authed network calls when session is confirmed good.
+  if (status === 'authed') {
+    enableAuthedNetwork();
   }
   
   // [BOOT_FLOW] Proof log: state transition

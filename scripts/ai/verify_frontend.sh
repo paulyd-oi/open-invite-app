@@ -156,6 +156,26 @@ fi
 echo ""
 echo "P14 enforcement checks PASS"
 
+# ── P0_SAFE_AREA_SSOT: ban SafeAreaView in auth/onboarding screens ──
+echo ""
+echo "Running P0_SAFE_AREA_SSOT checks…"
+
+# Auth/onboarding screens must use SafeAreaScreen (useSafeAreaInsets-based)
+# NOT SafeAreaView (native async re-measurement causes cold-start layout jump).
+P0_SA_BANNED=$(grep -rn 'SafeAreaView' src/app/welcome.tsx src/app/login.tsx 2>/dev/null || true)
+
+if [ -n "$P0_SA_BANNED" ]; then
+  echo "❌ P0_SAFE_AREA_SSOT FAIL — SafeAreaView found in auth/onboarding screen:"
+  echo "  (Use SafeAreaScreen from @/ui/SafeAreaScreen instead)"
+  echo "$P0_SA_BANNED"
+  exit 1
+else
+  echo "  ✓ P0_SAFE_AREA_SSOT: No SafeAreaView in welcome.tsx or login.tsx"
+fi
+
+echo ""
+echo "P0_SAFE_AREA_SSOT checks PASS"
+
 # ── P17 enforcement: dev route lockdown ──────────────────────────────
 echo ""
 echo "Running P17 enforcement checks…"
@@ -196,6 +216,57 @@ fi
 
 echo ""
 echo "P17 enforcement checks PASS"
+
+# ── P0_POST_LOGOUT_NET: authed endpoint gate enforcement ────────────
+echo ""
+echo "Running P0_POST_LOGOUT_NET checks…"
+
+P0_LOGOUT_NET_FAIL=0
+
+# Part 1: api.ts must contain the SSOT gate import (shouldAllowAuthedRequest)
+if ! grep -q 'shouldAllowAuthedRequest' src/lib/api.ts 2>/dev/null; then
+  echo "❌ P0_POST_LOGOUT_NET FAIL — api.ts missing shouldAllowAuthedRequest gate"
+  P0_LOGOUT_NET_FAIL=1
+else
+  echo "  ✓ Part 1: api.ts contains shouldAllowAuthedRequest gate"
+fi
+
+# Part 2: networkAuthGate.ts must exist and export the gate functions
+if ! grep -q 'disableAuthedNetwork' src/lib/networkAuthGate.ts 2>/dev/null; then
+  echo "❌ P0_POST_LOGOUT_NET FAIL — networkAuthGate.ts missing disableAuthedNetwork"
+  P0_LOGOUT_NET_FAIL=1
+else
+  echo "  ✓ Part 2: networkAuthGate.ts exports disableAuthedNetwork"
+fi
+
+# Part 3: /api/referral/stats queries in the four known files must have enabled: guard
+for rf in src/app/invite.tsx src/app/suggestions.tsx src/app/settings.tsx src/app/referrals.tsx; do
+  if [ ! -f "$rf" ]; then continue; fi
+  # Check if file has referral/stats queryFn AND an enabled: line within the same useQuery block
+  HAS_QUERY=$(grep -c 'referral/stats' "$rf" 2>/dev/null || echo "0")
+  HAS_ENABLED=$(grep -c 'enabled:' "$rf" 2>/dev/null || echo "0")
+  if [ "$HAS_QUERY" -gt 0 ] && [ "$HAS_ENABLED" -eq 0 ]; then
+    echo "❌ P0_POST_LOGOUT_NET FAIL — $rf has /api/referral/stats query without enabled: guard"
+    P0_LOGOUT_NET_FAIL=1
+  else
+    echo "  ✓ Part 3: $rf has enabled: guard for referral/stats query"
+  fi
+done
+
+# Part 4: useEntitlements must gate on isAuthedForNetwork
+if ! grep -A5 'export function useEntitlements' src/lib/entitlements.ts 2>/dev/null | grep -q 'isAuthedForNetwork\|bootStatus'; then
+  echo "❌ P0_POST_LOGOUT_NET FAIL — useEntitlements missing auth gate (isAuthedForNetwork)"
+  P0_LOGOUT_NET_FAIL=1
+else
+  echo "  ✓ Part 4: useEntitlements gates on auth status"
+fi
+
+if [ "$P0_LOGOUT_NET_FAIL" -ne 0 ]; then
+  exit 1
+fi
+
+echo ""
+echo "P0_POST_LOGOUT_NET checks PASS"
 
 # ── P0_MEDIA_IDENTITY_AVATAR_SSOT enforcement ───────────────────────
 echo ""
