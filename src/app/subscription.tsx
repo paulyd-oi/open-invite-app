@@ -150,9 +150,15 @@ export default function SubscriptionScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const result = await purchasePackage(packageToPurchase);
-    setIsPurchasing(false);
 
     if (result.ok) {
+      // CANONICAL: Use refreshProContract for SSOT after purchase
+      const { combinedIsPro } = await refreshProContract({ reason: "purchase:subscription" });
+
+      if (__DEV__) {
+        devLog("[PRO_SOT] AFTER screen=subscription_purchase combinedIsPro=", combinedIsPro);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Welcome to Pro!", "You now have access to all premium features.");
       refetch();
@@ -168,6 +174,8 @@ export default function SubscriptionScreen() {
         }
       }
     }
+
+    setIsPurchasing(false);
   };
 
   // Handle restore purchases - CANONICAL SSOT
@@ -607,7 +615,7 @@ export default function SubscriptionScreen() {
                       </Text>
                     </View>
                     <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
-                      ${PRICING.proYearly} / year
+                      {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`} / year
                     </Text>
                     <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
                       Early member rate.{"\n"}Regular price: $40 / year.

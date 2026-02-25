@@ -39,7 +39,6 @@ import {
   getOfferingWithFallback,
   purchasePackage,
   restorePurchases,
-  hasEntitlement,
   REVENUECAT_OFFERING_ID,
   RC_PACKAGE_ANNUAL,
   RC_PACKAGE_LIFETIME,
@@ -170,12 +169,17 @@ export default function PaywallScreen() {
     const result = await purchasePackage(packageToPurchase);
 
     if (result.ok) {
-      const entitlementResult = await hasEntitlement("premium");
+      // CANONICAL: Use refreshProContract for SSOT after purchase
+      const { combinedIsPro } = await refreshProContract({ reason: "purchase:paywall" });
 
-      if (entitlementResult.ok && entitlementResult.data) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setShowPremiumSuccessModal(true);
+      if (__DEV__) {
+        devLog("[PRO_SOT] AFTER screen=paywall_purchase combinedIsPro=", combinedIsPro);
       }
+
+      // Show success regardless — purchase succeeded at StoreKit level.
+      // combinedIsPro may lag in simulator; trust the purchase result.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowPremiumSuccessModal(true);
     } else if (result.reason === "sdk_error") {
       // Purchase cancelled or failed silently
     }
