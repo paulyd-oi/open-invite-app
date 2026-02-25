@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
@@ -134,6 +133,15 @@ function toBackendAvatarUrl(url: string | null | undefined): string | undefined 
 type OnboardingSlide = 1 | 2 | 3 | 4;
 
 // ============ SHARED LAYOUT ============
+// [P0_WELCOME_JUMP_PROBE] DEV-only probe state for welcome screen jump diagnostics.
+// Tracks root container layout deltas and insets on cold start.
+// Throttled to max 12 logs per cold start.
+let _welcomeProbeCount = 0;
+const _WELCOME_PROBE_MAX = 12;
+const _welcomeProbeMountTs = Date.now();
+let _welcomeProbeRootPrev = { y: -1, h: -1 };
+let _welcomeProbeHeroPrev = { y: -1, h: -1 };
+
 const OnboardingLayout = ({
   children,
   background,
@@ -143,14 +151,79 @@ const OnboardingLayout = ({
   background: string;
   testID?: string;
 }) => {
+  // [P0_WELCOME_NO_JUMP] FIX: Replace SafeAreaView with useSafeAreaInsets() hook.
+  //
+  // ROOT CAUSE: SafeAreaView is a NATIVE component that re-measures insets
+  // asynchronously, even when SafeAreaProvider has initialWindowMetrics.
+  // This causes a visible layout reflow AFTER the opacity gate has already
+  // revealed content — content shifts down by insetsTop (typically 47px).
+  //
+  // FIX: useSafeAreaInsets() reads from the JS-side insets context, which is
+  // populated synchronously from initialWindowMetrics on first render.
+  // No native measurement, no async reflow, no jump.
+  const insets = useSafeAreaInsets();
+
   // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
   // Prevents visible "jump up" caused by async safe-area / font reflows
   const { isStable, onLayout } = useFirstPaintStable();
+
+  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only)
+  const _probeInsetLoggedRef = React.useRef(false);
+  if (__DEV__ && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
+    _probeInsetLoggedRef.current = true;
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'OnboardingLayout-mount',
+      insetsTop: insets.top,
+      insetsBottom: insets.bottom,
+      isStable,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
+  }
+
+  // [P0_WELCOME_JUMP_PROBE] Root container onLayout handler (DEV-only)
+  const handleRootLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    // Call the stability gate's onLayout first
+    onLayout(e as any);
+    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _welcomeProbeRootPrev.y >= 0 ? y - _welcomeProbeRootPrev.y : 0;
+    const dH = _welcomeProbeRootPrev.h >= 0 ? height - _welcomeProbeRootPrev.h : 0;
+    // Skip if nothing changed after first measurement
+    if (_welcomeProbeRootPrev.y === y && _welcomeProbeRootPrev.h === height && _welcomeProbeRootPrev.y >= 0) return;
+    _welcomeProbeRootPrev = { y, h: height };
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'root-layout',
+      x, y, w: width, h: height,
+      dY, dH,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
+  };
+
   return (
-    <View testID={testID} onLayout={onLayout} style={[styles.layoutContainer, { backgroundColor: background }]}>
-      <SafeAreaView style={[styles.safeArea, { opacity: isStable ? 1 : 0 }]}>
+    <View
+      testID={testID}
+      onLayout={handleRootLayout}
+      style={[
+        styles.layoutContainer,
+        {
+          backgroundColor: background,
+          // [P0_WELCOME_NO_JUMP] Apply insets via padding on a plain View.
+          // useSafeAreaInsets() reads from JS context (synchronous, stable on first render).
+          // This replaces SafeAreaView which measured natively and caused async reflow.
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+        },
+      ]}
+    >
+      <View style={[styles.safeArea, { opacity: isStable ? 1 : 0 }]}>
         {children}
-      </SafeAreaView>
+      </View>
     </View>
   );
 };
@@ -232,6 +305,10 @@ export default function WelcomeOnboardingScreen() {
       if (__DEV__) {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
         devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
+        // [P0_WELCOME_JUMP_PROBE] Mount timestamp (tMs=0 baseline)
+        const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
+        devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+        console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
       }
     }
   }, []);
@@ -1002,10 +1079,33 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ RENDER SLIDES ============
 
+  // [P0_WELCOME_JUMP_PROBE] Hero block onLayout handler (DEV-only)
+  const handleHeroLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    const { x, y, width, height } = e.nativeEvent.layout;
+    const dY = _welcomeProbeHeroPrev.y >= 0 ? y - _welcomeProbeHeroPrev.y : 0;
+    const dH = _welcomeProbeHeroPrev.h >= 0 ? height - _welcomeProbeHeroPrev.h : 0;
+    if (_welcomeProbeHeroPrev.y === y && _welcomeProbeHeroPrev.h === height && _welcomeProbeHeroPrev.y >= 0) return;
+    _welcomeProbeHeroPrev = { y, h: height };
+    _welcomeProbeCount++;
+    const payload = {
+      tMs: Date.now() - _welcomeProbeMountTs,
+      phase: 'hero-layout',
+      x, y, w: width, h: height,
+      dY, dH,
+    };
+    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
+  };
+
   const renderSlide1 = () => (
     <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
-        <Animated.View entering={smoothFadeIn(100)} style={styles.centeredContent}>
+        <Animated.View
+          entering={smoothFadeIn(100)}
+          style={styles.centeredContent}
+          onLayout={__DEV__ ? handleHeroLayout : undefined}
+        >
           <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
             <CalendarIcon size={48} color={themeColor} />
           </View>

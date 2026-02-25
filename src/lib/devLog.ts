@@ -246,6 +246,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P0_WS_READ_APPLY]",
   // P0 layout jump probe (cold-start layout jump diagnostics)
   "[P0_LAYOUT_JUMP_PROBE]",
+  // P0 welcome screen jump probe (cold-start layout jump on /welcome)
+  "[P0_WELCOME_JUMP_PROBE]",
 ];
 
 /**
