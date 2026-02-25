@@ -7,10 +7,10 @@ import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
   Sora_300Light,
@@ -79,6 +79,104 @@ const QueryDebugOverlay = __DEV__
 const LiveRefreshProofOverlay = __DEV__
   ? require('@/dev/LiveRefreshProofOverlay').default
   : () => null;
+
+// =============================================================================
+// [P0_LAYOUT_JUMP_PROBE] DEV-only instrumentation to identify cold-start jump
+// Logs safe-area insets, window dims, and RootLayoutNav container layout deltas.
+// Max 10 layout logs per app start. Does not affect layout (absolute overlay).
+// =============================================================================
+const LayoutJumpProbe = __DEV__
+  ? function LayoutJumpProbeImpl({ children }: { children: React.ReactNode }) {
+      const insets = useSafeAreaInsets();
+      const { width: winW, height: winH } = useWindowDimensions();
+      const prevRef = useRef<{ y: number; h: number }>({ y: -1, h: -1 });
+      const countRef = useRef(0);
+      const mountTs = useRef(Date.now());
+
+      // Log once on mount
+      useEffect(() => {
+        devLog('[P0_LAYOUT_JUMP_PROBE]', 'mounted', {
+          tMs: 0,
+          insetsTop: insets.top,
+          insetsBottom: insets.bottom,
+          winW,
+          winH,
+          initialMetricsTop: initialWindowMetrics?.insets?.top ?? 'null',
+        });
+      }, []);
+
+      // Log when insets change (key signal for SafeArea hydration snap)
+      const prevInsetsRef = useRef({ top: insets.top, bottom: insets.bottom });
+      useEffect(() => {
+        if (
+          prevInsetsRef.current.top !== insets.top ||
+          prevInsetsRef.current.bottom !== insets.bottom
+        ) {
+          devLog('[P0_LAYOUT_JUMP_PROBE]', {
+            tMs: Date.now() - mountTs.current,
+            phase: 'insets-change',
+            insetsTop: insets.top,
+            insetsBottom: insets.bottom,
+            prevInsetsTop: prevInsetsRef.current.top,
+            prevInsetsBottom: prevInsetsRef.current.bottom,
+            winW,
+            winH,
+          });
+          prevInsetsRef.current = { top: insets.top, bottom: insets.bottom };
+        }
+      }, [insets.top, insets.bottom]);
+
+      // Log when window dims change
+      const prevWinRef = useRef({ w: winW, h: winH });
+      useEffect(() => {
+        if (prevWinRef.current.w !== winW || prevWinRef.current.h !== winH) {
+          devLog('[P0_LAYOUT_JUMP_PROBE]', {
+            tMs: Date.now() - mountTs.current,
+            phase: 'window-change',
+            winW,
+            winH,
+            prevWinW: prevWinRef.current.w,
+            prevWinH: prevWinRef.current.h,
+          });
+          prevWinRef.current = { w: winW, h: winH };
+        }
+      }, [winW, winH]);
+
+      const handleLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
+        if (countRef.current >= 10) return; // throttle: max 10 logs
+        const { x, y, width, height } = e.nativeEvent.layout;
+        const dY = prevRef.current.y >= 0 ? y - prevRef.current.y : 0;
+        const dH = prevRef.current.h >= 0 ? height - prevRef.current.h : 0;
+        // Only log if it's the first measurement or something changed
+        if (prevRef.current.y === y && prevRef.current.h === height && prevRef.current.y >= 0) return;
+        countRef.current++;
+        prevRef.current = { y, h: height };
+        devLog('[P0_LAYOUT_JUMP_PROBE]', {
+          tMs: Date.now() - mountTs.current,
+          phase: 'layout',
+          insetsTop: insets.top,
+          insetsBottom: insets.bottom,
+          winW,
+          winH,
+          layoutX: x,
+          layoutY: y,
+          layoutW: width,
+          layoutH: height,
+          dY,
+          dH,
+          measureCount: countRef.current,
+        });
+      };
+
+      return (
+        <View style={{ flex: 1 }} onLayout={handleLayout}>
+          {children}
+        </View>
+      );
+    }
+  : function LayoutJumpProbeNoop({ children }: { children: React.ReactNode }) {
+      return <>{children}</>;
+    };
 
 export const unstable_settings = {
   // [P0_INIT_ROUTE_FIX] Set initialRouteName to 'welcome' directly.
@@ -1042,7 +1140,9 @@ export default function RootLayout() {
                         {/* [P0_FONTS_OVERLAY] Opacity gate: nav content hidden until fonts load.
                             Tree stays mounted — no mount/unmount swap, no layout reflow. */}
                         <View style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}>
-                          <RootLayoutNav />
+                          <LayoutJumpProbe>
+                            <RootLayoutNav />
+                          </LayoutJumpProbe>
                         </View>
                         {/* [P1_TOP_CHROME_JUMP] Top-chrome overlay: absolutely positioned so
                             banners/toasts never participate in layout flow. Prevents content
