@@ -991,16 +991,19 @@ export default function RootLayout() {
     setShowSplash(false);
   };
 
-  // [P1_FONTS_SSOT] Gate entire app on font load — single source of truth.
-  // All child screens (welcome, login, onboarding) can assume fonts are ready.
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator size="large" color="#E85D4C" />
-      </View>
-    );
-  }
-  if (__DEV__) devLog('[P1_FONTS_SSOT] fontsLoaded=true — app gated until now');
+  // [P1_FONTS_SSOT] Proof log when fonts finish loading (fires once)
+  useEffect(() => {
+    if (__DEV__ && fontsLoaded) {
+      devLog('[P1_FONTS_SSOT] fontsLoaded=true — app tree always mounted, overlay hiding');
+    }
+  }, [fontsLoaded]);
+
+  // [P0_FONTS_OVERLAY] Proof log: overlay visibility toggle
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[P0_FONTS_OVERLAY]', { fontsLoaded, overlayVisible: !fontsLoaded });
+    }
+  }, [fontsLoaded]);
 
   const posthogProps = getPostHogProviderProps();
 
@@ -1025,9 +1028,29 @@ export default function RootLayout() {
                         <AnnouncementBanner />
                         <ToastContainer />
                         <BootRouter />
-                        <RootLayoutNav />
+                        {/* [P0_FONTS_OVERLAY] Opacity gate: nav content hidden until fonts load.
+                            Tree stays mounted — no mount/unmount swap, no layout reflow. */}
+                        <View style={{ flex: 1, opacity: fontsLoaded ? 1 : 0 }}>
+                          <RootLayoutNav />
+                        </View>
                         {__DEV__ && <QueryDebugOverlay />}
                         {__DEV__ && <LiveRefreshProofOverlay />}
+                        {/* [P0_FONTS_OVERLAY] Absolute loader overlay — covers nav while fonts load.
+                            Always mounted, toggled via opacity+pointerEvents (no tree swap). */}
+                        <View
+                          pointerEvents={fontsLoaded ? 'none' : 'auto'}
+                          style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor: '#FFFFFF',
+                            opacity: fontsLoaded ? 0 : 1,
+                            zIndex: 1000,
+                          }}
+                        >
+                          <ActivityIndicator size="large" color="#E85D4C" />
+                        </View>
                       {showSplash && <AnimatedSplash onAnimationComplete={handleSplashComplete} />}
                     </View>
                   </ErrorBoundary>
