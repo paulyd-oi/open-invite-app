@@ -11,6 +11,9 @@ import {
   purchasePackage,
   restorePurchases,
   REVENUECAT_ENTITLEMENT_ID,
+  RC_PACKAGE_ANNUAL,
+  RC_PACKAGE_MONTHLY,
+  getKeySource,
 } from "./revenuecatClient";
 import type { PurchasesPackage, PurchasesOfferings } from "react-native-purchases";
 import Purchases from "react-native-purchases";
@@ -145,68 +148,68 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         devLog("[PRO_SOT] source=RevenueCat enabled=", isRevenueCatEnabled());
       }
       
-      // Check RevenueCat first if enabled
+      // Step 1: Check RevenueCat (if enabled). Failure means rcIsPro stays false.
+      let rcIsPro = false;
       if (isRevenueCatEnabled()) {
         const customerInfoResult = await getCustomerInfo();
         if (customerInfoResult.ok) {
-          // Use the canonical entitlement ID
-          const hasPremium = !!customerInfoResult.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
-          computedIsPro = hasPremium;
-          setIsPremium(hasPremium);
-          
-          // [PRO_SOT] Log RevenueCat entitlements
+          rcIsPro = !!customerInfoResult.data.entitlements?.active?.[REVENUECAT_ENTITLEMENT_ID];
+
           if (__DEV__) {
             const activeEntitlements = customerInfoResult.data.entitlements?.active || {};
             const activeKeys = Object.keys(activeEntitlements);
-            devLog("[PRO_SOT] entitlements=", JSON.stringify(activeKeys));
-            devLog("[PRO_SOT] computed isPro=", hasPremium);
-            devLog("[PRO_SOT] expectedEntitlementId=", REVENUECAT_ENTITLEMENT_ID);
-            devLog("[PRO_SOT] rawActiveEntitlements=", JSON.stringify(activeEntitlements, null, 2));
+            const premiumEntitlement = activeEntitlements[REVENUECAT_ENTITLEMENT_ID];
+            const isLifetime =
+              premiumEntitlement?.productIdentifier?.toLowerCase().includes("lifetime") ?? false;
+
+            devLog("[P0_RC_STATE] ENTITLEMENT_CHECK", {
+              keySource: getKeySource(),
+              entitlementId: REVENUECAT_ENTITLEMENT_ID,
+              entitlementActive: rcIsPro,
+              expiresDate: premiumEntitlement?.expirationDate ?? null,
+              isLifetime,
+              activeKeys,
+            });
           }
         } else {
           if (__DEV__) {
-            devLog("[PRO_SOT] RevenueCat getCustomerInfo failed:", customerInfoResult);
+            devLog("[P0_RC_STATE] ENTITLEMENT_CHECK_FAILED", {
+              keySource: getKeySource(),
+              reason: customerInfoResult.reason,
+            });
           }
         }
       }
 
-      // Fetch backend subscription data
+      // Step 2: Always fetch backend subscription data
       const data = await api.get<SubscriptionResponse>("/api/subscription");
       setSubscription(data.subscription);
       setLimits(data.limits);
       setFeatures(data.features);
 
-      // If RevenueCat not enabled, fall back to backend tier
-      // IMPORTANT: Lifetime users must always be treated as premium
-      if (!isRevenueCatEnabled()) {
-        // Cast tier to string for flexible comparison (backend may return various values)
-        const tier = data.subscription?.tier as string | undefined;
-        const backendIsPremium = tier === "premium" || 
-          tier === "pro" ||
-          (data.subscription as any)?.isLifetime === true ||
-          (data.subscription as any)?.isPro === true;
-        computedIsPro = backendIsPremium;
-        setIsPremium(backendIsPremium);
-        if (__DEV__) {
-          devLog("[PRO_SOT] source=backend (RC disabled)");
-          devLog("[PRO_SOT] backend tier=", tier);
-          devLog("[PRO_SOT] computed isPro=", backendIsPremium);
-        }
-      } else {
-        // [PRO_SOT] Log backend data even when RevenueCat is enabled (for debugging)
-        if (__DEV__) {
-          const tier = data.subscription?.tier as string | undefined;
-          devLog("[PRO_SOT] backend data (for reference):", {
-            tier,
-            isLifetime: (data.subscription as any)?.isLifetime,
-            isPro: (data.subscription as any)?.isPro,
-          });
-        }
-      }
-      
-      // [PRO_SOT] Final state update confirmation
+      // Step 3: Always compute backend isPro — never skip this based on RC state.
+      // Backend is the source of truth for promo codes, gifted Pro, lifetime, etc.
+      const tier = data.subscription?.tier as string | undefined;
+      const backendIsPro = tier === "premium" ||
+        tier === "pro" ||
+        (data.subscription as any)?.isLifetime === true ||
+        (data.subscription as any)?.isPro === true;
+
+      // Step 4: OR semantics — Pro if EITHER backend OR RevenueCat says so.
+      // This ensures backend PRO (promo/gift/lifetime) is never masked by RC dev-test failures.
+      computedIsPro = rcIsPro || backendIsPro;
+      setIsPremium(computedIsPro);
+
+      // [PRO_SOT] Canonical combined result — always-on proof log
       if (__DEV__) {
-        devLog("[PRO_SOT] uiState after set= isPremium will re-render, computedIsPro=", computedIsPro);
+        devLog("[PRO_SOT] COMBINED_RESULT", {
+          rcIsPro,
+          backendIsPro,
+          backendTier: tier,
+          backendIsLifetime: (data.subscription as any)?.isLifetime ?? false,
+          combinedIsPro: computedIsPro,
+          source: rcIsPro && backendIsPro ? "both" : rcIsPro ? "revenuecat" : backendIsPro ? "backend" : "none",
+        });
       }
       
       return { isPro: computedIsPro };
@@ -463,18 +466,18 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
       // If user has preference, try that first
       if (preferred === "yearly") {
-        const annual = packages.find((p) => p.identifier === "$rc_annual");
+        const annual = packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL);
         if (annual) return annual;
       } else if (preferred === "monthly") {
-        const monthly = packages.find((p) => p.identifier === "$rc_monthly");
+        const monthly = packages.find((p) => p.identifier === RC_PACKAGE_MONTHLY);
         if (monthly) return monthly;
       }
 
       // Default preference: annual > monthly > any
-      const annual = packages.find((p) => p.identifier === "$rc_annual");
+      const annual = packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL);
       if (annual) return annual;
 
-      const monthly = packages.find((p) => p.identifier === "$rc_monthly");
+      const monthly = packages.find((p) => p.identifier === RC_PACKAGE_MONTHLY);
       if (monthly) return monthly;
 
       return packages[0] ?? null;

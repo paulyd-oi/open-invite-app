@@ -43,6 +43,8 @@ import {
   restorePurchases,
   getCustomerInfo,
   REVENUECAT_OFFERING_ID,
+  RC_PACKAGE_ANNUAL,
+  RC_PACKAGE_LIFETIME,
 } from "@/lib/revenuecatClient";
 import { safeToast } from "@/lib/safeToast";
 import { useSubscription as useSubscriptionData, PRICING } from "@/lib/useSubscription";
@@ -125,8 +127,8 @@ export default function SubscriptionScreen() {
       const result = await getOfferingWithFallback();
       if (result.ok && result.data.offering) {
         const packages = result.data.offering.availablePackages;
-        setYearlyPackage(packages.find((p) => p.identifier === "$rc_annual") ?? null);
-        setLifetimePackage(packages.find((p) => p.identifier === "$rc_lifetime") ?? null);
+        setYearlyPackage(packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL) ?? null);
+        setLifetimePackage(packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME) ?? null);
       }
       // No scary toast — if no offering found, purchase buttons stay disabled
       // and inline copy ("Subscription options unavailable") already handles it.
@@ -280,10 +282,23 @@ export default function SubscriptionScreen() {
     });
   };
 
-  const isPremium = subscriptionData?.subscription.tier === "premium";
+  // [P0_PREMIUM_CONTRACT] Use combined isPremium from SubscriptionContext (OR semantics: backend OR RC).
+  // Do NOT derive from subscriptionData.subscription.tier — backend returns tier="pro" not "premium",
+  // and RC dev-test key is empty in Simulator, so a tier-string check here would show "Free plan" falsely.
+  const isPremium = subscriptionContext.isPremium;
   const isLifetime = subscriptionData?.subscription.isLifetime;
   const isTrial = subscriptionData?.subscription.type === "trial";
   const canUseDiscountCode = subscriptionData?.discountCodes.canUseDiscountCode ?? true;
+
+  if (__DEV__) {
+    devLog("[PRO_SOT] subscription.tsx status", {
+      isPremium,
+      isLifetime: isLifetime ?? false,
+      isTrial,
+      backendTier: subscriptionData?.subscription.tier ?? "loading",
+      rcIsPremium: subscriptionContext.isPremium,
+    });
+  }
 
   // Status-aware header content
   const getStatusContent = () => {
@@ -309,7 +324,7 @@ export default function SubscriptionScreen() {
       return {
         badge: "Pro",
         title: "Pro Member",
-        subtitle: `Renews ${formatDate(subscriptionData?.subscription.expiresAt)}`,
+        subtitle: `Renews ${formatDate(subscriptionData?.subscription.expiresAt ?? null)}`,
         icon: <Crown size={20} color={themeColor} />,
         badgeColor: themeColor,
       };
@@ -594,6 +609,9 @@ export default function SubscriptionScreen() {
                     <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
                       ${PRICING.proYearly} / year
                     </Text>
+                    <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                      Early member rate.{"\n"}Regular price: $40 / year.
+                    </Text>
                     <Text style={{ color: "#10B981" }} className="text-xs mt-1">
                       Unlimited hosting
                     </Text>
@@ -630,7 +648,7 @@ export default function SubscriptionScreen() {
                         Founding Member – Limited
                       </Text>
                       <Text style={{ color: colors.text }} className="text-base font-semibold mt-0.5">
-                        ${PRICING.lifetime}
+                        {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
                       </Text>
                       <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
                         One-time payment. Long-term access.

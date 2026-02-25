@@ -528,6 +528,7 @@ export function usePremiumStatusContract(): PremiumStatusContract {
     isLoading: entitlementsLoading,
     isFetching: entitlementsFetching,
     error: entitlementsError,
+    isPlaceholderData: entitlementsIsPlaceholder,
   } = useEntitlements();
 
   const subscriptionContext = useContext(SubscriptionContext);
@@ -549,14 +550,17 @@ export function usePremiumStatusContract(): PremiumStatusContract {
   const premiumExpiresAt: string | null =
     subscriptionContext?.subscription?.expiresAt ?? null;
 
-  // [P0_PREMIUM_CONTRACT] DEV-only proof log, once per session
-  if (__DEV__ && !isLoading && !_premiumContractProofLogged) {
+  // [P0_PREMIUM_CONTRACT] DEV-only proof log, fires once per session with REAL data.
+  // Guard: !entitlementsIsPlaceholder ensures we log actual backend plan, not the
+  // DEFAULT_FREE_ENTITLEMENTS placeholder that React Query injects while fetching.
+  if (__DEV__ && !isLoading && !entitlementsIsPlaceholder && !_premiumContractProofLogged) {
     _premiumContractProofLogged = true;
     devLog("[P0_PREMIUM_CONTRACT]", {
       isPro: combinedIsPro,
       proSource,
       premiumExpiresAt,
       backendPlan: entitlements?.plan ?? "unknown",
+      backendSource: entitlements?.source ?? "unknown",
       rcEntitled: rcIsPremium,
     });
   }
