@@ -662,9 +662,13 @@ function BootRouter() {
           emailVerified={session?.user?.emailVerified ?? false}
         />
       )}
-      {showBootOverlay && (
-        <BootLoading testID="boot-router-loading" context={`boot-router-${bootStatus}`} />
-      )}
+      {/* [P0_BOOT_OVERLAY] Always mounted — toggled via opacity+pointerEvents
+          to avoid tree-swap reflow that causes cold-start layout jump. */}
+      <BootLoading
+        testID="boot-router-loading"
+        context={`boot-router-${bootStatus}`}
+        visible={showBootOverlay}
+      />
       <EmailVerificationGateModal
         visible={showEmailGateModal}
         onClose={() => setShowEmailGateModal(false)}
