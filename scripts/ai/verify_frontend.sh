@@ -1468,4 +1468,58 @@ fi
 echo ""
 echo "P0_RC_SSOT checks PASS"
 
+# ── Part: P0_PROFILE_BANNER ─────────────────────────────────────────
+echo ""
+echo "=== P0_PROFILE_BANNER ==="
+P0_BANNER_FAIL=0
+
+# 1. user/[id].tsx must import toCloudinaryTransformedUrl (banner rendering)
+if ! grep -q 'toCloudinaryTransformedUrl' src/app/user/\[id\].tsx 2>/dev/null; then
+  echo "  ❌ P0_PROFILE_BANNER FAIL — user/[id].tsx missing toCloudinaryTransformedUrl import"
+  P0_BANNER_FAIL=1
+else
+  echo "  ✓ user/[id].tsx imports toCloudinaryTransformedUrl"
+fi
+
+# 2. user/[id].tsx must use CLOUDINARY_PRESETS.HERO_BANNER (SSOT transform)
+if ! grep -q 'CLOUDINARY_PRESETS.HERO_BANNER' src/app/user/\[id\].tsx 2>/dev/null; then
+  echo "  ❌ P0_PROFILE_BANNER FAIL — user/[id].tsx missing CLOUDINARY_PRESETS.HERO_BANNER"
+  P0_BANNER_FAIL=1
+else
+  echo "  ✓ user/[id].tsx uses CLOUDINARY_PRESETS.HERO_BANNER"
+fi
+
+# 3. user/[id].tsx must have INVARIANT_HERO_USES_TRANSFORM_SSOT comment
+if ! grep -q 'INVARIANT_HERO_USES_TRANSFORM_SSOT' src/app/user/\[id\].tsx 2>/dev/null; then
+  echo "  ❌ P0_PROFILE_BANNER FAIL — user/[id].tsx missing INVARIANT_HERO_USES_TRANSFORM_SSOT marker"
+  P0_BANNER_FAIL=1
+else
+  echo "  ✓ user/[id].tsx has INVARIANT_HERO_USES_TRANSFORM_SSOT"
+fi
+
+# 4. user/[id].tsx must have [P0_PROFILE_BANNER] proof log
+if ! grep -q '\[P0_PROFILE_BANNER\]' src/app/user/\[id\].tsx 2>/dev/null; then
+  echo "  ❌ P0_PROFILE_BANNER FAIL — user/[id].tsx missing [P0_PROFILE_BANNER] proof log"
+  P0_BANNER_FAIL=1
+else
+  echo "  ✓ user/[id].tsx has [P0_PROFILE_BANNER] proof log"
+fi
+
+# 5. user/[id].tsx must import resolveBannerUri from heroSSOT
+if ! grep -q 'resolveBannerUri.*heroSSOT' src/app/user/\[id\].tsx 2>/dev/null; then
+  echo "  ❌ P0_PROFILE_BANNER FAIL — user/[id].tsx missing resolveBannerUri import from heroSSOT"
+  P0_BANNER_FAIL=1
+else
+  echo "  ✓ user/[id].tsx imports resolveBannerUri from heroSSOT"
+fi
+
+if [ "$P0_BANNER_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_PROFILE_BANNER invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_PROFILE_BANNER checks PASS"
+
 echo "PASS: verify_frontend"
