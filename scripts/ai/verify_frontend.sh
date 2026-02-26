@@ -1522,4 +1522,43 @@ fi
 echo ""
 echo "P0_PROFILE_BANNER checks PASS"
 
+# ── Part: P0_SIGNUP_JITTER ──────────────────────────────────────────
+echo ""
+echo "=== P0_SIGNUP_JITTER ==="
+P0_JITTER_FAIL=0
+
+# 1. OnboardingLayout popStyle must NOT contain translateY in actual code (causes keyboard jitter on real iOS)
+# Exclude comments (lines starting with // or *) and string literals from the check
+if grep -v '^\s*//' src/app/welcome.tsx | grep -v '^\s*\*' | grep -v "devLog\|devWarn\|devError" | grep -q 'translateY' 2>/dev/null; then
+  echo "  ❌ P0_SIGNUP_JITTER FAIL — welcome.tsx contains translateY in code (jitter risk)"
+  P0_JITTER_FAIL=1
+else
+  echo "  ✓ welcome.tsx has no translateY in code (comments/logs OK)"
+fi
+
+# 2. Keyboard-interactive slides must use scrollContentKeyboard (not scrollContent with justifyCenter)
+if grep -q 'scrollContentKeyboard' src/app/welcome.tsx 2>/dev/null; then
+  echo "  ✓ welcome.tsx uses scrollContentKeyboard for keyboard slides"
+else
+  echo "  ❌ P0_SIGNUP_JITTER FAIL — welcome.tsx missing scrollContentKeyboard style"
+  P0_JITTER_FAIL=1
+fi
+
+# 3. [P0_SIGNUP_JITTER] proof log must exist
+if grep -q '\[P0_SIGNUP_JITTER\]' src/app/welcome.tsx 2>/dev/null; then
+  echo "  ✓ welcome.tsx has [P0_SIGNUP_JITTER] proof log"
+else
+  echo "  ❌ P0_SIGNUP_JITTER FAIL — welcome.tsx missing [P0_SIGNUP_JITTER] proof log"
+  P0_JITTER_FAIL=1
+fi
+
+if [ "$P0_JITTER_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_SIGNUP_JITTER invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_SIGNUP_JITTER checks PASS"
+
 echo "PASS: verify_frontend"

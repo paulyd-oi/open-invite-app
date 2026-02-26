@@ -164,7 +164,10 @@ const OnboardingLayout = ({
   // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
   const { isStable, onLayout } = useFirstPaintStable();
 
-  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in + small translateY on reveal
+  // [P0_SIGNUP_JITTER] Pop animation: opacity ONLY.
+  // INVARIANT: No transform (translateY / scale) on this wrapper — it parents
+  // KeyboardAvoidingView. Any residual transform (even translateY:0) causes
+  // keyboard-frame measurement drift on real iOS → per-keystroke jitter.
   const revealProgress = useSharedValue(0);
   useEffect(() => {
     if (isStable) {
@@ -174,7 +177,6 @@ const OnboardingLayout = ({
   const popStyle = useAnimatedStyle(() => ({
     flex: 1,
     opacity: revealProgress.value,
-    transform: [{ translateY: (1 - revealProgress.value) * 8 }],
   }));
 
   // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only, gated)
@@ -342,6 +344,21 @@ export default function WelcomeOnboardingScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // [P0_SIGNUP_JITTER] DEV proof: log once when slide 2 is active to confirm
+  // jitter-fix invariants (no translateY transform, no justifyContent:center).
+  const _jitterLoggedRef = useRef(false);
+  useEffect(() => {
+    if (__DEV__ && currentSlide === 2 && !_jitterLoggedRef.current) {
+      _jitterLoggedRef.current = true;
+      devLog("[P0_SIGNUP_JITTER]", {
+        slide: 2,
+        popStyleTransform: "none (opacity only)",
+        scrollLayout: "scrollContentKeyboard (no justifyCenter)",
+        keyboardAvoidBehavior: Platform.OS === "ios" ? "padding" : "height",
+      });
+    }
+  }, [currentSlide]);
 
   // Profile form state (Slide 3)
   const [displayName, setDisplayName] = useState("");
@@ -1145,7 +1162,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentKeyboard}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1274,7 +1291,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentKeyboard}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1459,6 +1476,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+  },
+  // [P0_SIGNUP_JITTER] Keyboard-interactive slides use top padding instead of
+  // justifyContent:center to prevent content position oscillation when
+  // KeyboardAvoidingView adjusts height on real iOS devices.
+  scrollContentKeyboard: {
+    flexGrow: 1,
+    padding: 24,
+    paddingTop: 48,
   },
   centeredContent: {
     alignItems: "center",
