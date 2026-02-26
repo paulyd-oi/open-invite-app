@@ -1561,4 +1561,75 @@ fi
 echo ""
 echo "P0_SIGNUP_JITTER checks PASS"
 
+# ─── P1_WHOSFREE — Single-Day + Time Window + X/Y Availability ───
+echo ""
+echo "=== P1_WHOSFREE invariant checks ==="
+
+P1_WF_FAIL=0
+
+# 1. No date RANGE in whos-free — must be single-day
+if grep -q 'DATE RANGE' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx still has 'DATE RANGE' label"
+  P1_WF_FAIL=1
+else
+  echo "  ✓ whos-free.tsx has no DATE RANGE (single-day picker)"
+fi
+
+# 2. No endDate state in whos-free
+if grep -qE 'useState.*endDate|setEndDate' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx still has endDate state"
+  P1_WF_FAIL=1
+else
+  echo "  ✓ whos-free.tsx has no endDate state"
+fi
+
+# 3. Time window defaults must exist (timeWindowStart, timeWindowEnd)
+if grep -q 'timeWindowStart.*7' src/app/whos-free.tsx 2>/dev/null && grep -q 'timeWindowEnd.*22' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ✓ whos-free.tsx has time window defaults (7 AM – 10 PM)"
+else
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx missing time window defaults"
+  P1_WF_FAIL=1
+fi
+
+# 4. Time window filter must exist
+if grep -q 'time_window_filter' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ✓ whos-free.tsx has time window filter"
+else
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx missing time window filter"
+  P1_WF_FAIL=1
+fi
+
+# 5. X/Y availability display (totalAvailable/totalMembers in JSX)
+if grep -q 'totalAvailable}/{slot.totalMembers' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ✓ whos-free.tsx renders X/Y availability"
+else
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx missing X/Y availability display"
+  P1_WF_FAIL=1
+fi
+
+# 6. Expandable slot detail (expandedSlotIndex state)
+if grep -q 'expandedSlotIndex' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ✓ whos-free.tsx has expandable slot detail"
+else
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx missing expandable slot detail"
+  P1_WF_FAIL=1
+fi
+
+# 7. [P1_WHOSFREE] DEV proof log must exist
+if grep -q '\[P1_WHOSFREE\]' src/app/whos-free.tsx 2>/dev/null; then
+  echo "  ✓ whos-free.tsx has [P1_WHOSFREE] proof log"
+else
+  echo "  ❌ P1_WHOSFREE FAIL — whos-free.tsx missing [P1_WHOSFREE] proof log"
+  P1_WF_FAIL=1
+fi
+
+if [ "$P1_WF_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P1_WHOSFREE invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P1_WHOSFREE checks PASS"
+
 echo "PASS: verify_frontend"
