@@ -29,6 +29,7 @@ import {
 } from "@/lib/refreshAfterMutation";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 
 
 // MoreHorizontal icon using Ionicons
@@ -483,6 +484,20 @@ export default function UserProfileScreen() {
   );
   usePreloadHeroBanners({ uris: heroUri ? [heroUri] : [], enabled: !!heroUri, max: 1 });
 
+  // [P0_PROFILE_BANNER] DEV proof: banner rendering data for viewer profile
+  useEffect(() => {
+    if (__DEV__ && data) {
+      devLog("[P0_PROFILE_BANNER]", {
+        surface: "user/[id]",
+        viewerId: viewerId?.slice(0, 8) ?? null,
+        viewedUserId: id?.slice(0, 8) ?? null,
+        hasBanner: !!heroUri,
+        bannerUrlPresent: !!(user?.Profile?.bannerPhotoUrl ?? user?.Profile?.bannerUrl),
+        resolvedUri: heroUri?.slice(0, 60) ?? null,
+      });
+    }
+  }, [data, heroUri, viewerId, id]);
+
   // [P0_PROFILE_SOT] DEV-only proof log on mount
   useEffect(() => {
     if (__DEV__ && data) {
@@ -800,43 +815,102 @@ export default function UserProfileScreen() {
           <>
             {/* User Info Card */}
             <Animated.View entering={FadeInDown.springify()} className="mb-4">
-              <View className="rounded-2xl p-5 items-center" style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }}>
-                {/* INVARIANT: Badges are pill-only. No badge overlay on avatar. */}
-                <EntityAvatar
-                  photoUrl={user.Profile?.avatarUrl ?? user.image}
-                  initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
-                  size={80}
-                  backgroundColor={(user.Profile?.avatarUrl ?? user.image) ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
-                  foregroundColor={themeColor}
-                />
-                <View className="flex-row items-center mt-3">
-                  <Text className="text-xl font-bold" style={{ color: colors.text }}>
-                    {user.name ?? "No name"}
-                  </Text>
-                </View>
-                {/* @handle */}
-                {user.Profile?.handle && (
-                  <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                    @{user.Profile.handle}
-                  </Text>
+              <View
+                className="rounded-2xl border overflow-hidden"
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  minHeight: heroUri ? 220 : undefined,
+                }}
+              >
+                {/* Banner as full-bleed background — SSOT parity with profile.tsx */}
+                {heroUri && (
+                  <>
+                    {/* INVARIANT_HERO_USES_TRANSFORM_SSOT */}
+                    <Image
+                      source={{ uri: toCloudinaryTransformedUrl(heroUri, CLOUDINARY_PRESETS.HERO_BANNER) }}
+                      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                      resizeMode="cover"
+                    />
+                    {/* Subtle global tint */}
+                    <View style={{
+                      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+                      backgroundColor: isDark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)",
+                    }} />
+                  </>
+                )}
+                {/* Bottom legibility gradient */}
+                {heroUri && (
+                  <View pointerEvents="none" style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0, height: 80,
+                    backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.25)",
+                  }} />
                 )}
 
-                {/* Calendar Bio */}
-                <View className="flex-row items-center mt-2">
-                  <Calendar size={14} color={colors.textSecondary} />
-                  <Text className="ml-1.5 text-sm" style={{ color: colors.textSecondary }}>
-                    My calendar looks like...
-                  </Text>
-                </View>
-                {user.Profile?.calendarBio ? (
-                  <Text className="text-sm mt-1 text-center px-4" style={{ color: colors.text }}>
-                    {user.Profile.calendarBio}
-                  </Text>
-                ) : (
-                  <Text className="text-sm mt-1 italic" style={{ color: colors.textTertiary }}>
-                    Not set yet
-                  </Text>
-                )}
+                {/* Content: centered avatar + text, optionally over glass panel */}
+                <View className="p-5 items-center" style={heroUri ? { justifyContent: "flex-end", flex: 1 } : undefined}>
+                  {/* INVARIANT: Badges are pill-only. No badge overlay on avatar. */}
+                  <EntityAvatar
+                    photoUrl={user.Profile?.avatarUrl ?? user.image}
+                    initials={user.name?.[0] ?? user.email?.[0]?.toUpperCase() ?? "?"}
+                    size={80}
+                    backgroundColor={(user.Profile?.avatarUrl ?? user.image) ? (isDark ? "#2C2C2E" : "#E5E7EB") : themeColor + "30"}
+                    foregroundColor={themeColor}
+                  />
+
+                  {/* Text legibility panel (glass when banner present) */}
+                  <View
+                    style={heroUri ? {
+                      backgroundColor: isDark ? "rgba(0,0,0,0.46)" : "rgba(255,255,255,0.82)",
+                      borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                      borderWidth: 1,
+                      borderRadius: 16,
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      overflow: "hidden",
+                      marginTop: 8,
+                      alignSelf: "stretch",
+                      alignItems: "center",
+                    } : { alignItems: "center" }}
+                  >
+                    {/* Legibility boost — subtle bottom deepening */}
+                    {heroUri && (
+                      <View style={{
+                        position: "absolute", bottom: 0, left: 0, right: 0, height: "50%" as any,
+                        backgroundColor: isDark ? "rgba(0,0,0,0.22)" : "rgba(255,255,255,0.18)",
+                      }} />
+                    )}
+
+                    <View className="flex-row items-center mt-1">
+                      <Text className="text-xl font-bold" style={{ color: heroUri ? (isDark ? "#FFFFFF" : "#111111") : colors.text }}>
+                        {user.name ?? "No name"}
+                      </Text>
+                    </View>
+                    {/* @handle */}
+                    {user.Profile?.handle && (
+                      <Text className="text-sm mt-1" style={{ color: heroUri ? (isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)") : colors.textSecondary }}>
+                        @{user.Profile.handle}
+                      </Text>
+                    )}
+
+                    {/* Calendar Bio */}
+                    <View className="flex-row items-center mt-2">
+                      <Calendar size={14} color={heroUri ? (isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)") : colors.textSecondary} />
+                      <Text className="ml-1.5 text-sm" style={{ color: heroUri ? (isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)") : colors.textSecondary }}>
+                        My calendar looks like...
+                      </Text>
+                    </View>
+                    {user.Profile?.calendarBio ? (
+                      <Text className="text-sm mt-1 text-center px-4" style={{ color: heroUri ? (isDark ? "#FFFFFF" : "#111111") : colors.text }}>
+                        {user.Profile.calendarBio}
+                      </Text>
+                    ) : (
+                      <Text className="text-sm mt-1 italic" style={{ color: heroUri ? (isDark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)") : colors.textTertiary }}>
+                        Not set yet
+                      </Text>
+                    )}
+                  </View>
 
                 {/* Add Friend Button (if not already friends) */}
                 {!isFriend && (
@@ -926,6 +1000,7 @@ export default function UserProfileScreen() {
                     style={{ marginTop: 12 }}
                   />
                 )}
+                </View>
               </View>
             </Animated.View>
 
