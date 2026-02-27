@@ -1632,4 +1632,83 @@ fi
 echo ""
 echo "P1_WHOSFREE checks PASS"
 
+# ─── P0_RC_PURCHASE_CONFIRM — Purchase confirmation SSOT invariants ───
+echo ""
+echo "=== P0_RC_PURCHASE_CONFIRM invariant checks ==="
+
+P0_CONFIRM_FAIL=0
+
+# 1. paywall.tsx must contain refreshProContract with reason "purchase:paywall"
+if grep -q '"purchase:paywall"' src/app/paywall.tsx 2>/dev/null; then
+  echo "  ✓ paywall.tsx calls refreshProContract with reason purchase:paywall"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — paywall.tsx missing refreshProContract reason purchase:paywall"
+  P0_CONFIRM_FAIL=1
+fi
+
+# 2. paywall.tsx must NOT gate success UI on hasEntitlement()
+if grep -q 'hasEntitlement()' src/app/paywall.tsx 2>/dev/null; then
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — paywall.tsx gates success UI on hasEntitlement() (must use StoreKit result)"
+  P0_CONFIRM_FAIL=1
+else
+  echo "  ✓ paywall.tsx does not gate success on hasEntitlement()"
+fi
+
+# 3. paywall.tsx must contain [P0_RC_PURCHASE_CONFIRM] proof log
+if grep -q '\[P0_RC_PURCHASE_CONFIRM\]' src/app/paywall.tsx 2>/dev/null; then
+  echo "  ✓ paywall.tsx has [P0_RC_PURCHASE_CONFIRM] proof log"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — paywall.tsx missing [P0_RC_PURCHASE_CONFIRM] proof log"
+  P0_CONFIRM_FAIL=1
+fi
+
+# 4. subscription.tsx must contain refreshProContract with reason "purchase:subscription"
+if grep -q '"purchase:subscription"' src/app/subscription.tsx 2>/dev/null; then
+  echo "  ✓ subscription.tsx calls refreshProContract with reason purchase:subscription"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — subscription.tsx missing refreshProContract reason purchase:subscription"
+  P0_CONFIRM_FAIL=1
+fi
+
+# 5. subscription.tsx must NOT hardcode "$10" as the yearly price label (must use priceString)
+if grep -qE '"\$10"' src/app/subscription.tsx 2>/dev/null; then
+  echo '  ❌ P0_RC_PURCHASE_CONFIRM FAIL — subscription.tsx hardcodes "$10" as yearly price (use priceString)'
+  P0_CONFIRM_FAIL=1
+else
+  echo '  ✓ subscription.tsx does not hardcode "$10" as yearly price'
+fi
+
+# 6. subscription.tsx yearly price must use priceString
+if grep -q 'yearlyPackage?.product?.priceString' src/app/subscription.tsx 2>/dev/null; then
+  echo "  ✓ subscription.tsx yearly price uses priceString"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — subscription.tsx yearly price does not use priceString"
+  P0_CONFIRM_FAIL=1
+fi
+
+# 7. subscription.tsx must contain [P0_RC_PURCHASE_CONFIRM] proof log
+if grep -q '\[P0_RC_PURCHASE_CONFIRM\]' src/app/subscription.tsx 2>/dev/null; then
+  echo "  ✓ subscription.tsx has [P0_RC_PURCHASE_CONFIRM] proof log"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — subscription.tsx missing [P0_RC_PURCHASE_CONFIRM] proof log"
+  P0_CONFIRM_FAIL=1
+fi
+
+# 8. [P0_RC_PURCHASE_CONFIRM] must be registered as always-on tag in devLog.ts
+if grep -qF '"[P0_RC_PURCHASE_CONFIRM]"' src/lib/devLog.ts 2>/dev/null; then
+  echo "  ✓ [P0_RC_PURCHASE_CONFIRM] registered as always-on proof tag in devLog.ts"
+else
+  echo "  ❌ P0_RC_PURCHASE_CONFIRM FAIL — [P0_RC_PURCHASE_CONFIRM] not registered in ALWAYS_ON_TAG_PREFIXES"
+  P0_CONFIRM_FAIL=1
+fi
+
+if [ "$P0_CONFIRM_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_RC_PURCHASE_CONFIRM invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_RC_PURCHASE_CONFIRM checks PASS"
+
 echo "PASS: verify_frontend"

@@ -223,6 +223,8 @@ const ALWAYS_ON_TAG_PREFIXES = [
   "[P1_HOSTING_INVARIANT]",
   // P0 RevenueCat state (key source, offering, entitlement, lifetime)
   "[P0_RC_STATE]",
+  // P0 purchase confirmation SSOT (StoreKit success → refreshProContract)
+  "[P0_RC_PURCHASE_CONFIRM]",
   // P0 premium status contract (SSOT proof)
   "[P0_PREMIUM_CONTRACT]",
   // P0 premium drift guard (cross-contract consistency)
