@@ -174,6 +174,12 @@ export default function PaywallScreen() {
 
       if (__DEV__) {
         devLog("[PRO_SOT] AFTER screen=paywall_purchase combinedIsPro=", combinedIsPro);
+        devLog("[P0_RC_PURCHASE_CONFIRM]", {
+          surface: "paywall",
+          storekitSuccess: true,
+          didRefresh: true,
+          combinedIsPro,
+        });
       }
 
       // Show success regardless — purchase succeeded at StoreKit level.

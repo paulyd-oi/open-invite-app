@@ -157,6 +157,12 @@ export default function SubscriptionScreen() {
 
       if (__DEV__) {
         devLog("[PRO_SOT] AFTER screen=subscription_purchase combinedIsPro=", combinedIsPro);
+        devLog("[P0_RC_PURCHASE_CONFIRM]", {
+          surface: "subscription",
+          storekitSuccess: true,
+          didRefresh: true,
+          combinedIsPro,
+        });
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
