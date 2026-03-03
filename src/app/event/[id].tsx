@@ -122,7 +122,6 @@ import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
-import { getRsvpPhrase } from "@/lib/smartCopy";
 
 // Helper to open event location using the shared utility
 // Accepts pre-computed query + optional event for lat/lng coords.
@@ -2649,6 +2648,32 @@ export default function EventDetailScreen() {
             );
           }
 
+          // ── Social proof copy ────────────────────────────────
+          const isUserGoing = myRsvpStatus === "going";
+          let socialProofPrimary: string;
+          if (effectiveGoingCount === 0) {
+            socialProofPrimary = "Be the first to join";
+          } else if (effectiveGoingCount === 1) {
+            socialProofPrimary = isUserGoing ? "You\u2019re in" : "1 going";
+          } else {
+            socialProofPrimary = isUserGoing
+              ? `You + ${effectiveGoingCount - 1} going`
+              : `${effectiveGoingCount} going`;
+          }
+
+          // Secondary momentum micro-line
+          const hoursUntilStart = (startDate.getTime() - Date.now()) / (1000 * 60 * 60);
+          let socialProofSecondary: string | null = null;
+          if (effectiveGoingCount >= 10) {
+            socialProofSecondary = "Popular event";
+          } else if (effectiveGoingCount >= 5) {
+            socialProofSecondary = "It\u2019s getting traction";
+          } else if (effectiveGoingCount >= 2 && hoursUntilStart > 0 && hoursUntilStart <= 24) {
+            socialProofSecondary = "Happening soon";
+          } else if (effectiveGoingCount === 0) {
+            socialProofSecondary = "Kick it off";
+          }
+
           // Has attendees: show compact roster preview (1-row avatar stack)
           if (effectiveGoingCount > 0 || attendeesList.length > 0) {
             // Build preview list: host first (if in list), then others, max 5 visible
@@ -2678,18 +2703,13 @@ export default function EventDetailScreen() {
             return (
               <Animated.View entering={FadeInDown.delay(75).springify()}>
                 <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  {/* Header row: title + count + View all */}
+                  {/* Header row: title + View all */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <UserCheck size={20} color="#22C55E" />
                       <Text style={{ fontSize: 17, fontWeight: '600', marginLeft: 8, color: colors.text }}>
                         Who's Coming
                       </Text>
-                      <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
-                        <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
-                          {getRsvpPhrase({ attending: effectiveGoingCount, total: eventMeta.capacity ?? undefined }).headline}
-                        </Text>
-                      </View>
                     </View>
                     <Pressable
                       onPress={() => {
@@ -2704,8 +2724,8 @@ export default function EventDetailScreen() {
                     </Pressable>
                   </View>
 
-                  {/* Compact avatar stack (1 row, overlapping) */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {/* Avatar stack (avatar-first hierarchy) */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                     <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: 'row' }}>
                       {visibleAvatars.map((attendee, idx) => {
                         const isHost = attendee.id === hostId || attendee.isHost;
@@ -2757,13 +2777,17 @@ export default function EventDetailScreen() {
                         </View>
                       )}
                     </View>
-                    {/* Host label inline */}
-                    {event?.user && (
-                      <Text style={{ marginLeft: 12, fontSize: 13, color: colors.textTertiary }}>
-                        Hosted by {isMyEvent ? 'you' : event.user.name?.split(' ')[0] ?? 'Host'}
-                      </Text>
-                    )}
                   </View>
+
+                  {/* Social proof lines */}
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
+                    {socialProofPrimary}
+                  </Text>
+                  {socialProofSecondary && (
+                    <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 2 }}>
+                      {socialProofSecondary}
+                    </Text>
+                  )}
                 </View>
               </Animated.View>
             );
@@ -2803,9 +2827,14 @@ export default function EventDetailScreen() {
 
                 <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <Users size={24} color="#9CA3AF" />
-                  <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No attendees yet
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 8, textAlign: 'center' }}>
+                    {socialProofPrimary}
                   </Text>
+                  {socialProofSecondary && (
+                    <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 2, textAlign: 'center' }}>
+                      {socialProofSecondary}
+                    </Text>
+                  )}
                 </View>
               </View>
             </Animated.View>
