@@ -311,8 +311,8 @@ export function EventPhotoGallery({
     setShowGalleryModal(true);
   };
 
-  // Don't show for future events
-  if (!isPastEvent && photos.length === 0) {
+  // [EVENT_LIVE_UI_2] Hide section entirely when no photos exist
+  if (photos.length === 0 && !isLoading) {
     return null;
   }
 

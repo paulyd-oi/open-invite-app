@@ -57,7 +57,7 @@ import {
   Palette,
   Camera,
 } from "@/ui/icons";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
 import { UserListRow } from "@/components/UserListRow";
 import * as Haptics from "expo-haptics";
@@ -400,6 +400,17 @@ export default function EventDetailScreen() {
 
   // [EVENT_LIVE_UI] Event settings accordion — collapsed by default
   const [settingsExpanded, setSettingsExpanded] = useState(false);
+
+  // [EVENT_LIVE_UI_2] RSVP micro-interaction state
+  const [rsvpSavedVisible, setRsvpSavedVisible] = useState(false);
+  const rsvpSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rsvpButtonScale = useSharedValue(1);
+  const rsvpButtonAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: rsvpButtonScale.value }] }));
+
+  // [EVENT_LIVE_UI_2] Live chip state — shows briefly after RSVP or when recently active
+  const [liveChipText, setLiveChipText] = useState<string | null>(null);
+  const liveChipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevCommentCount = useRef<number | null>(null);
   const { colorOverrides, getOverrideColor, setOverrideColor, resetColor } = useEventColorOverrides();
   const currentColorOverride = id ? getOverrideColor(id) : undefined;
 
@@ -702,6 +713,19 @@ export default function EventDetailScreen() {
   });
 
   const comments = commentsData?.comments ?? [];
+
+  // [EVENT_LIVE_UI_2] Show "Recently active" chip when new comments appear on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const count = comments.length;
+      if (prevCommentCount.current !== null && count > prevCommentCount.current) {
+        setLiveChipText("Recently active");
+        if (liveChipTimer.current) clearTimeout(liveChipTimer.current);
+        liveChipTimer.current = setTimeout(() => setLiveChipText(null), 5000);
+      }
+      prevCommentCount.current = count;
+    }, [comments.length])
+  );
 
   // Fetch event mute status
   const { data: muteData, isLoading: isLoadingMute } = useQuery({
@@ -1398,6 +1422,19 @@ export default function EventDetailScreen() {
       setShowRemoveRsvpConfirm(true);
       return;
     }
+
+    // [EVENT_LIVE_UI_2] RSVP micro-interaction: scale bounce + haptic + saved text + live chip
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    rsvpButtonScale.value = withSpring(1.05, { damping: 8, stiffness: 400 }, () => {
+      rsvpButtonScale.value = withSpring(1, { damping: 12, stiffness: 200 });
+    });
+    setRsvpSavedVisible(true);
+    if (rsvpSavedTimer.current) clearTimeout(rsvpSavedTimer.current);
+    rsvpSavedTimer.current = setTimeout(() => setRsvpSavedVisible(false), 1200);
+    setLiveChipText("Updated just now");
+    if (liveChipTimer.current) clearTimeout(liveChipTimer.current);
+    liveChipTimer.current = setTimeout(() => setLiveChipText(null), 5000);
+
     rsvpMutation.mutate(status);
   };
 
@@ -2103,6 +2140,12 @@ export default function EventDetailScreen() {
                     surface="event_detail_hero"
                     isDark={isDark}
                   />
+                  {/* [EVENT_LIVE_UI_2] Live chip (hero) */}
+                  {liveChipText && (
+                    <View style={{ backgroundColor: "rgba(0,0,0,0.35)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                      <Text style={{ color: "#fff", fontSize: 11 }}>{liveChipText}</Text>
+                    </View>
+                  )}
                   <Text
                     style={{
                       color: getHeroSubTextColor(isDark),
@@ -2185,6 +2228,12 @@ export default function EventDetailScreen() {
                 surface="event_detail"
                 isDark={isDark}
               />
+              {/* [EVENT_LIVE_UI_2] Live chip */}
+              {liveChipText && (
+                <View className="mt-1 px-2.5 py-1 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F0F0F2" }}>
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>{liveChipText}</Text>
+                </View>
+              )}
             </View>
             )}
 
@@ -2671,6 +2720,7 @@ export default function EventDetailScreen() {
 
                 {/* RSVP Options */}
                 {(!myRsvpStatus || showRsvpOptions) && (
+                  <Animated.View style={rsvpButtonAnimStyle}>
                   <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                     {/* Full indicator — [P1_EVENT_META] reads from eventMeta (owner query only) */}
                     {eventMeta.isFull && myRsvpStatus !== "going" && (
@@ -2752,6 +2802,13 @@ export default function EventDetailScreen() {
                       </View>
                       {myRsvpStatus === "not_going" && <Check size={18} color={themeColor} />}
                     </Pressable>
+                  </View>
+                  </Animated.View>
+                )}
+                {/* [EVENT_LIVE_UI_2] Saved confirmation text */}
+                {rsvpSavedVisible && (
+                  <View className="items-center mt-2">
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>Saved</Text>
                   </View>
                 )}
               </View>
