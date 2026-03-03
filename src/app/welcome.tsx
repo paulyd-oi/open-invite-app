@@ -20,7 +20,6 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { DEV_PROBES_ENABLED } from "@/lib/devFlags";
 import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   Easing,
@@ -164,10 +163,7 @@ const OnboardingLayout = ({
   // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
   const { isStable, onLayout } = useFirstPaintStable();
 
-  // [P0_SIGNUP_JITTER] Pop animation: opacity ONLY.
-  // INVARIANT: No transform (translateY / scale) on this wrapper — it parents
-  // KeyboardAvoidingView. Any residual transform (even translateY:0) causes
-  // keyboard-frame measurement drift on real iOS → per-keystroke jitter.
+  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in + small translateY on reveal
   const revealProgress = useSharedValue(0);
   useEffect(() => {
     if (isStable) {
@@ -177,11 +173,12 @@ const OnboardingLayout = ({
   const popStyle = useAnimatedStyle(() => ({
     flex: 1,
     opacity: revealProgress.value,
+    transform: [{ translateY: (1 - revealProgress.value) * 8 }],
   }));
 
-  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only, gated)
+  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only)
   const _probeInsetLoggedRef = React.useRef(false);
-  if (DEV_PROBES_ENABLED && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
+  if (__DEV__ && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
     _probeInsetLoggedRef.current = true;
     _welcomeProbeCount++;
     const payload = {
@@ -192,13 +189,14 @@ const OnboardingLayout = ({
       isStable,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   }
 
   // [P0_WELCOME_JUMP_PROBE] Root container onLayout handler (DEV-only)
   const handleRootLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
     // Call the stability gate's onLayout first
     onLayout(e as any);
-    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
     const { x, y, width, height } = e.nativeEvent.layout;
     const dY = _welcomeProbeRootPrev.y >= 0 ? y - _welcomeProbeRootPrev.y : 0;
     const dH = _welcomeProbeRootPrev.h >= 0 ? height - _welcomeProbeRootPrev.h : 0;
@@ -213,6 +211,7 @@ const OnboardingLayout = ({
       dY, dH,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   return (
@@ -306,10 +305,9 @@ export default function WelcomeOnboardingScreen() {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
         devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
         // [P0_WELCOME_JUMP_PROBE] Mount timestamp (tMs=0 baseline)
-        if (DEV_PROBES_ENABLED) {
-          const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
-          devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-        }
+        const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
+        devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+        console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
       }
     }
   }, []);
@@ -344,21 +342,6 @@ export default function WelcomeOnboardingScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // [P0_SIGNUP_JITTER] DEV proof: log once when slide 2 is active to confirm
-  // jitter-fix invariants (no translateY transform, no justifyContent:center).
-  const _jitterLoggedRef = useRef(false);
-  useEffect(() => {
-    if (__DEV__ && currentSlide === 2 && !_jitterLoggedRef.current) {
-      _jitterLoggedRef.current = true;
-      devLog("[P0_SIGNUP_JITTER]", {
-        slide: 2,
-        popStyleTransform: "none (opacity only)",
-        scrollLayout: "scrollContentKeyboard (no justifyCenter)",
-        keyboardAvoidBehavior: Platform.OS === "ios" ? "padding" : "height",
-      });
-    }
-  }, [currentSlide]);
 
   // Profile form state (Slide 3)
   const [displayName, setDisplayName] = useState("");
@@ -1097,7 +1080,7 @@ export default function WelcomeOnboardingScreen() {
 
   // [P0_WELCOME_JUMP_PROBE] Hero block onLayout handler (DEV-only)
   const handleHeroLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
-    if (!DEV_PROBES_ENABLED || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
+    if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
     const { x, y, width, height } = e.nativeEvent.layout;
     const dY = _welcomeProbeHeroPrev.y >= 0 ? y - _welcomeProbeHeroPrev.y : 0;
     const dH = _welcomeProbeHeroPrev.h >= 0 ? height - _welcomeProbeHeroPrev.h : 0;
@@ -1111,6 +1094,7 @@ export default function WelcomeOnboardingScreen() {
       dY, dH,
     };
     devLog('[P0_WELCOME_JUMP_PROBE]', payload);
+    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   const renderSlide1 = () => (
@@ -1162,7 +1146,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContentKeyboard}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1291,7 +1275,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContentKeyboard}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1476,14 +1460,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
-  },
-  // [P0_SIGNUP_JITTER] Keyboard-interactive slides use top padding instead of
-  // justifyContent:center to prevent content position oscillation when
-  // KeyboardAvoidingView adjusts height on real iOS devices.
-  scrollContentKeyboard: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 48,
   },
   centeredContent: {
     alignItems: "center",
