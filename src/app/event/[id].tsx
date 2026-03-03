@@ -2779,6 +2779,28 @@ export default function EventDetailScreen() {
                     </View>
                   </View>
 
+                  {/* Host presence */}
+                  {event?.user && (() => {
+                    const hostName = isMyEvent ? 'You' : event.user.name?.split(' ')[0] ?? 'Host';
+                    const canTap = !isMyEvent && !!event.user.id;
+                    const inner = (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                          Hosted by{' '}
+                          <Text style={{ fontWeight: '600', color: colors.textSecondary }}>{hostName}</Text>
+                        </Text>
+                        {canTap && <ChevronRight size={14} color={colors.textTertiary} style={{ marginLeft: 2 }} />}
+                      </View>
+                    );
+                    return canTap ? (
+                      <Pressable onPress={() => router.push(`/user/${event.user!.id}` as any)} hitSlop={6} style={{ marginBottom: 6 }}>
+                        {inner}
+                      </Pressable>
+                    ) : (
+                      <View style={{ marginBottom: 6 }}>{inner}</View>
+                    );
+                  })()}
+
                   {/* Social proof lines */}
                   <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>
                     {socialProofPrimary}
