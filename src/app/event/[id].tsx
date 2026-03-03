@@ -2052,13 +2052,15 @@ export default function EventDetailScreen() {
                 isDark={isDark}
                 minHeight={240}
               >
-                <View style={{ alignItems: "center", gap: 6 }}>
+                <View style={{ alignItems: "center", gap: 8 }}>
                   <Text
                     style={{
                       color: getHeroTextColor(isDark),
-                      fontSize: 22,
-                      fontWeight: "700",
+                      fontSize: 26,
+                      fontWeight: "800",
                       textAlign: "center",
+                      lineHeight: 32,
+                      letterSpacing: -0.3,
                     }}
                     numberOfLines={2}
                   >
@@ -2140,11 +2142,11 @@ export default function EventDetailScreen() {
           <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
             {/* Emoji + title card — only when there's NO hero photo */}
             {!(event.eventPhotoUrl && !event.isBusy && event.visibility !== "private") && (
-            <View className="items-center mb-4">
+            <View className="items-center mb-6">
               <View className="w-20 h-20 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
                 <Text className="text-4xl">{event.emoji}</Text>
               </View>
-              <Text className="text-2xl font-bold text-center" style={{ color: colors.text }}>
+              <Text style={{ fontSize: 28, fontWeight: "800", textAlign: "center", color: colors.text, lineHeight: 34, letterSpacing: -0.3 }}>
                 {event.title}
               </Text>
               <EventVisibilityBadge
@@ -2159,10 +2161,20 @@ export default function EventDetailScreen() {
             </View>
             )}
 
-            {/* Host Info */}
+            {/* Host Info — [HERO_ENERGY] tappable for non-self hosts */}
             {event.user && (
-              <View className="border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center py-3">
+              <Pressable
+                className="border-t"
+                style={{ borderColor: colors.border }}
+                onPress={() => {
+                  if (!isMyEvent && event.user?.id) {
+                    Haptics.selectionAsync();
+                    router.push(`/user/${event.user.id}` as any);
+                  }
+                }}
+                disabled={isMyEvent || !event.user?.id}
+              >
+                <View className="flex-row items-center py-4">
                   <EntityAvatar
                     photoUrl={event.user?.image}
                     initials={event.user?.name?.[0] ?? "?"}
@@ -2172,29 +2184,32 @@ export default function EventDetailScreen() {
                     style={{ marginRight: 12 }}
                   />
                   <View className="flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>Hosted by</Text>
+                    <Text style={{ fontWeight: "700", fontSize: 15, color: colors.text }}>
                       {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
                     </Text>
                   </View>
+                  {!isMyEvent && event.user?.id && <ChevronRight size={16} color={colors.textTertiary} />}
                 </View>
-              </View>
+              </Pressable>
             )}
 
-            {/* Date & Time */}
-            <View className="flex-row items-center py-3 border-t" style={{ borderColor: colors.border }}>
-              <Calendar size={20} color={themeColor} />
-              <View className="ml-3">
-                <Text className="text-sm" style={{ color: colors.textTertiary }}>Date & Time</Text>
-                <Text className="font-semibold" style={{ color: colors.text }}>
-                  {dateLabel} at {timeLabel}
+            {/* Date & Time — [HERO_ENERGY] layered hierarchy */}
+            <View className="flex-row items-start py-4 border-t" style={{ borderColor: colors.border }}>
+              <Calendar size={20} color={themeColor} style={{ marginTop: 2 }} />
+              <View className="ml-3 flex-1">
+                <Text style={{ fontWeight: "700", fontSize: 15, color: colors.text }}>
+                  {dateLabel}
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 2 }}>
+                  {timeLabel}
                 </Text>
               </View>
             </View>
 
-            {/* Location */}
+            {/* Location — [HERO_ENERGY] stronger weight + spacing */}
             {locationDisplay && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+              <View className="py-4 border-t" style={{ borderColor: colors.border }}>
                 <Pressable
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -2204,8 +2219,8 @@ export default function EventDetailScreen() {
                 >
                   <MapPin size={20} color="#4ECDC4" />
                   <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Location</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>{locationDisplay}</Text>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>Location</Text>
+                    <Text style={{ fontWeight: "700", fontSize: 15, color: colors.text }}>{locationDisplay}</Text>
                   </View>
                   <ChevronRight
                     size={20}
@@ -2238,9 +2253,25 @@ export default function EventDetailScreen() {
               </View>
             )}
 
+            {/* [HERO_ENERGY] Share event row — visible entry point */}
+            <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  shareEvent({ ...event, location: locationDisplay ?? null });
+                }}
+                className="flex-row items-center"
+              >
+                <Share2 size={20} color={colors.textSecondary} />
+                <Text className="ml-3" style={{ fontSize: 15, fontWeight: "600", color: colors.textSecondary }}>
+                  Share event
+                </Text>
+              </Pressable>
+            </View>
+
             {/* Description */}
             {event.description && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+              <View className="py-4 border-t" style={{ borderColor: colors.border }}>
                 <View className="flex-row items-start">
                   <MessageCircle size={20} color="#9B59B6" />
                   <View className="ml-3 flex-1">
