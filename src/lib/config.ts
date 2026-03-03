@@ -23,6 +23,10 @@ const rawBackendUrl =
 // e.g., "https://api.com" + "/api" = "https://api.com/api" (good)
 export const BACKEND_URL = rawBackendUrl.replace(/\/+$/, "");
 
+/** App Store listing URL — SSOT. Import this instead of hardcoding. */
+export const APP_STORE_URL =
+  "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
+
 // Log configuration in development for debugging
 if (__DEV__) {
   devLog("[config] Backend URL:", BACKEND_URL);

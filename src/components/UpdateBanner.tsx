@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X, RefreshCw } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
-import { APP_STORE_URL } from "@/lib/shareSSOT";
+import { APP_STORE_URL } from "@/lib/config";
 import * as Haptics from "expo-haptics";
 
 // Get current app version from Expo config
@@ -39,7 +39,7 @@ interface AppConfigResponse {
     minSupportedVersion: string | null;
     bannerMessage: string | null;
   };
-  nonIos?: {
+  android?: {
     latestVersion: string | null;
     minSupportedVersion: string | null;
     bannerMessage: string | null;
@@ -58,7 +58,7 @@ export function UpdateBanner() {
   });
 
   // Get platform-specific config
-  const platformConfig = Platform.OS === "ios" ? appConfig?.ios : appConfig?.nonIos;
+  const platformConfig = Platform.OS === "ios" ? appConfig?.ios : appConfig?.android;
   
   const latestVersion = platformConfig?.latestVersion;
   const minVersion = platformConfig?.minSupportedVersion;
@@ -69,7 +69,7 @@ export function UpdateBanner() {
   const isBelowLatest = latestVersion && compareVersions(APP_VERSION, latestVersion) < 0;
   const needsUpdate = isBelowLatest && !isBelowMin;
 
-  // [P0_SHARE_SSOT] App Store URL from SSOT
+  // App Store URL — uses SSOT constant; Android fallback kept inline
   const storeUrl = Platform.OS === "ios"
     ? APP_STORE_URL
     : "https://play.google.com/store/apps/details?id=com.openinvite.app";

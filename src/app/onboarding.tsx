@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { buildReferralSharePayload, buildAppSharePayload } from "@/lib/shareSSOT";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import {
   Calendar,
@@ -40,6 +39,8 @@ import {
   Send,
 } from "@/ui/icons";
 import Animated, {
+  FadeInUp,
+  SlideInRight,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -63,10 +64,10 @@ import { RADIUS } from "@/ui/layout";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
 import { useSession, authClient } from "@/lib/useSession";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
-import { useFirstPaintStable } from "@/hooks/useFirstPaintStable";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { usePremiumStatusContract } from "@/lib/entitlements";
+import { APP_STORE_URL } from "@/lib/config";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -658,7 +659,6 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'onboarding', button: 'SSOT', theme: 'ThemeContext' });
-  if (__DEV__) devLog('[P1_ONBOARD_BOUNCE] onboarding mount — animations: FadeIn only (SlideInRight/FadeInUp removed)');
   const queryClient = useQueryClient();
   const { status: bootStatus } = useBootAuthority();
   const { data: session } = useSession();
@@ -794,18 +794,17 @@ export default function OnboardingScreen() {
 
     try {
       const data = await api.get<{ referralCode: string | null; shareLink: string }>("/api/referral/code");
-      // [P0_SHARE_SSOT] Use SSOT builders — ignore backend shareLink
-      if (data.referralCode) {
-        const p = buildReferralSharePayload(data.referralCode);
-        await Share.share({ message: p.message, title: p.title });
-      } else {
-        const p = buildAppSharePayload();
-        await Share.share({ message: p.message, title: "Join Open Invite!" });
-      }
+      // Handle null referralCode (user hasn't completed profile)
+      const message = data.referralCode
+        ? `Join me on Open Invite! See what your friends are up to and make plans together.\n\nUse my invite code: ${data.referralCode}\n\nDownload: ${data.shareLink}`
+        : `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${data.shareLink}`;
+      await Share.share({ message, title: "Join Open Invite!" });
     } catch (error) {
       devError("Share error:", error);
-      const p = buildAppSharePayload();
-      await Share.share({ message: p.message, title: "Join Open Invite!" });
+      await Share.share({
+        message: `Join me on Open Invite! See what your friends are up to and make plans together.\n\nDownload: ${APP_STORE_URL}`,
+        title: "Join Open Invite!",
+      });
     } finally {
       setIsSharing(false);
     }
@@ -1510,11 +1509,8 @@ export default function OnboardingScreen() {
     );
   }
 
-  // [P1_ONBOARD_STABLE] Opacity-gate: hide until layout stable
-  const { isStable: isOnboardStable, onLayout: onOnboardLayout } = useFirstPaintStable();
-
   return (
-    <View className="flex-1" onLayout={onOnboardLayout} style={{ backgroundColor: colors.background }}>
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
       <LinearGradient
         colors={isDark
           ? [`${currentStep.iconBg}50`, `${currentStep.iconBg}20`, colors.background, colors.background]
@@ -1524,7 +1520,7 @@ export default function OnboardingScreen() {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
-      <SafeAreaView testID="onboarding-screen" className="flex-1" style={{ opacity: isOnboardStable ? 1 : 0 }}>
+      <SafeAreaView testID="onboarding-screen" className="flex-1">
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 pt-2 pb-4">
           <View className="flex-row gap-1.5">
@@ -1544,10 +1540,10 @@ export default function OnboardingScreen() {
           </Pressable>
         </View>
 
-        {/* Mock UI Area — [P1_ONBOARD_BOUNCE] replaced SlideInRight with FadeIn to prevent load bounce */}
+        {/* Mock UI Area */}
         <Animated.View
           key={currentStep.id}
-          entering={FadeIn.duration(250)}
+          entering={SlideInRight.duration(300)}
           className="flex-1"
         >
           <View className="flex-1 relative">
@@ -1557,9 +1553,8 @@ export default function OnboardingScreen() {
 
         {/* Bottom Card */}
         <View className="px-4 pb-4">
-          {/* [P1_ONBOARD_BOUNCE] replaced FadeInUp with FadeIn to prevent bottom card jump */}
           <Animated.View
-            entering={FadeIn.delay(100).duration(300)}
+            entering={FadeInUp.delay(100)}
             className="backdrop-blur-xl rounded-3xl p-5"
             style={{
               backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',

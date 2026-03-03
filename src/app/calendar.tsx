@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -16,6 +16,7 @@ import {
   Layers,
   AlignJustify,
   Users,
+  UserPlus,
   Send,
   Check,
   X,
@@ -48,10 +49,10 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
-import { buildEventSharePayload } from "@/lib/shareSSOT";
+import { getEventShareLink } from "@/lib/deepLinks";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
-import { loadGuidanceState, setGuidanceUserId } from "@/lib/firstSessionGuidance";
+import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
 import { getEventPalette, assertGreyPaletteInvariant } from "@/lib/eventPalette";
 import { getEventDisplayFields } from "@/lib/eventVisibility";
 import { useEventColorOverrides } from "@/hooks/useEventColorOverrides";
@@ -62,10 +63,7 @@ import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@
 import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
-import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
-import { FirstTimeCalendarHint } from "@/components/FirstTimeCalendarHint";
-import { SocialPulseRow } from "@/components/SocialPulseRow";
-import { useWorkSkipDays, addWorkSkipDay, removeWorkSkipDay, formatDayKey, isWorkSkipped } from "@/lib/workSkipDays";
+import { APP_STORE_URL } from "@/lib/config";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -161,21 +159,25 @@ const shareEventFromCalendar = async (event: Event) => {
       minute: "2-digit",
     });
 
-    // [P0_SHARE_SSOT] Use SSOT builder — never raw backend URLs
-    const payload = buildEventSharePayload({
-      id: event.id,
-      title: event.title,
-      emoji: event.emoji,
-      dateStr,
-      timeStr,
-      location: event.location,
-      description: event.description,
-    });
+    const shareUrl = getEventShareLink(event.id);
+
+    let message = `${event.emoji} ${event.title}\n\n`;
+    message += `📅 ${dateStr} at ${timeStr}\n`;
+
+    if (event.location) {
+      message += `📍 ${event.location}\n`;
+    }
+
+    if (event.description) {
+      message += `\n${event.description}\n`;
+    }
+
+    message += `\n🔗 ${shareUrl}`;
 
     await Share.share({
-      message: payload.message,
+      message,
       title: event.title,
-      url: payload.url,
+      url: shareUrl,
     });
   } catch (error) {
     devError("Error sharing event:", error);
@@ -618,7 +620,6 @@ function EventListItem({
   onToggleBusy,
   isOwner,
   colorOverride,
-  onWorkSkip,
 }: {
   event: Event;
   isAttending?: boolean;
@@ -633,7 +634,6 @@ function EventListItem({
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
   isOwner?: boolean;
   colorOverride?: string;
-  onWorkSkip?: (dayKey: string) => void;
 }) {
   const router = useRouter();
   // Track context menu state to prevent navigation when menu was just opened
@@ -766,32 +766,12 @@ function EventListItem({
 
   // For non-interactive items (birthdays, work), just return simple Pressable
   if (!isInteractive) {
-    // [P2_WORK_SKIP] Long-press handler for work blocks
-    const handleWorkLongPress = isWork && onWorkSkip ? () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const dayKey = formatDayKey(startDate);
-      const alreadySkipped = isWorkSkipped(dayKey);
-      Alert.alert(
-        alreadySkipped ? "Restore Work Schedule" : "Mark Day Off",
-        alreadySkipped
-          ? `Restore work blocks for ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}?`
-          : `Remove work blocks for ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: alreadySkipped ? "Restore" : "Day Off",
-            onPress: () => onWorkSkip(dayKey),
-          },
-        ],
-      );
-    } : undefined;
     if (compact) {
       return (
         <Pressable
           className="flex-row items-center py-2"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           style={{ opacity: isWork ? 0.7 : 1 }}
-          onLongPress={handleWorkLongPress}
         >
           <View
             className="w-1 h-full rounded-full mr-3"
@@ -813,8 +793,7 @@ function EventListItem({
     }
 
     return (
-      <Pressable
-        onLongPress={handleWorkLongPress}
+      <View
         className="flex-row items-center rounded-xl p-3 mb-2"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
@@ -851,17 +830,6 @@ function EventListItem({
                 </Text>
               </View>
             )}
-            {!isWork && (
-              <EventVisibilityBadge
-                visibility={event.visibility}
-                circleId={event.circleId}
-                isBusy={event.isBusy}
-                circleName={event.circleName}
-                eventId={event.id}
-                surface="calendar_list"
-                isDark={isDark}
-              />
-            )}
           </View>
           <View className="flex-row items-center mt-1">
             <Clock size={12} color={textColor} />
@@ -877,7 +845,7 @@ function EventListItem({
             </Text>
           )}
         </View>
-      </Pressable>
+      </View>
     );
   }
 
@@ -926,15 +894,6 @@ function EventListItem({
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
             {displayTitle}
           </Text>
-          <EventVisibilityBadge
-            visibility={event.visibility}
-            circleId={event.circleId}
-            isBusy={event.isBusy}
-            circleName={event.circleName}
-            eventId={event.id}
-            surface="calendar_list"
-            isDark={isDark}
-          />
         </View>
         <View className="flex-row items-center mt-1">
           <Clock size={12} color={textColor} />
@@ -1226,11 +1185,8 @@ function ListView({
   onColorChange,
   onDelete,
   onToggleBusy,
-  onWorkSkip,
   session,
   colorOverrides = {},
-  selectedDate,
-  parentScrollRef,
 }: {
   events: Array<Event & { isAttending?: boolean; isBirthday?: boolean }>;
   currentMonth: number;
@@ -1242,16 +1198,10 @@ function ListView({
   onColorChange?: (eventId: string, color: string) => void;
   onDelete?: (eventId: string) => void;
   onToggleBusy?: (eventId: string, isBusy: boolean) => void;
-  onWorkSkip?: (dayKey: string) => void;
   session: any;
   colorOverrides?: Record<string, string>;
-  selectedDate?: Date;
-  parentScrollRef?: React.RefObject<ScrollView | null>;
 }) {
   const router = useRouter();
-
-  // [P1_LIST_SCROLL] Auto-scroll to today/selected day on list entry
-  const didInitialScrollRef = useRef(false);
 
   // Group events by date
   const eventsByDate = useMemo(() => {
@@ -1274,47 +1224,6 @@ function ListView({
       events: dateEvents,
     }));
   }, [events, currentMonth, currentYear]);
-
-  // [P1_LIST_SCROLL] Compute target date key for scroll
-  const targetDateKey = useMemo(() => {
-    const target = selectedDate ?? new Date();
-    return target.toDateString();
-  }, [selectedDate]);
-
-  // [P1_LIST_SCROLL] Find target index
-  const targetIndex = useMemo(() => {
-    // Exact match first
-    const exact = eventsByDate.findIndex(({ date }) => date.toDateString() === targetDateKey);
-    if (exact >= 0) return exact;
-    // Closest future date
-    const targetMs = new Date(targetDateKey).getTime();
-    const future = eventsByDate.findIndex(({ date }) => date.getTime() >= targetMs);
-    return future >= 0 ? future : -1;
-  }, [eventsByDate, targetDateKey]);
-
-  // [P1_LIST_SCROLL] Reset scroll guard when month changes
-  useEffect(() => {
-    didInitialScrollRef.current = false;
-  }, [currentMonth, currentYear]);
-
-  // [P1_LIST_SCROLL] onLayout callback for target section
-  const handleTargetLayout = useCallback((e: { nativeEvent: { layout: { y: number } } }) => {
-    if (didInitialScrollRef.current) return;
-    didInitialScrollRef.current = true;
-    const y = e.nativeEvent.layout.y;
-    if (__DEV__) {
-      devLog('[P1_LIST_SCROLL]', {
-        targetDateKey,
-        targetIndex,
-        scrollY: y,
-        method: 'onLayout',
-      });
-    }
-    // Small delay to let ScrollView measure
-    setTimeout(() => {
-      parentScrollRef?.current?.scrollTo({ y, animated: true });
-    }, 100);
-  }, [targetDateKey, targetIndex, parentScrollRef]);
 
   if (eventsByDate.length === 0) {
     return (
@@ -1349,11 +1258,7 @@ function ListView({
     <View className="px-5">
       {/* INVARIANT_ALLOW_SMALL_MAP */}
       {eventsByDate.map(({ date, events: dateEvents }, idx) => (
-        <Animated.View
-          key={date.toISOString()}
-          entering={FadeInDown.delay(idx * 50)}
-          {...(idx === targetIndex ? { onLayout: handleTargetLayout } : {})}
-        >
+        <Animated.View key={date.toISOString()} entering={FadeInDown.delay(idx * 50)}>
           <View className="flex-row items-center mb-3 mt-5">
             <View
               className="w-10 h-10 rounded-full items-center justify-center mr-3"
@@ -1386,7 +1291,6 @@ function ListView({
               onDelete={onDelete}
               onToggleBusy={onToggleBusy}
               colorOverride={colorOverrides[event.id]}
-              onWorkSkip={onWorkSkip}
             />
           ))}
         </Animated.View>
@@ -1894,20 +1798,6 @@ export default function CalendarScreen() {
   const friendBirthdays = birthdaysData?.birthdays ?? [];
   const workSchedules = workScheduleData?.schedules ?? [];
   const workSettings = workScheduleData?.settings ?? { showOnCalendar: true };
-  const { skipKeys: workSkipKeys, refresh: refreshWorkSkip } = useWorkSkipDays();
-
-  // [P2_WORK_SKIP] Toggle day-off exception for work blocks
-  const handleWorkSkip = useCallback(async (dayKey: string) => {
-    const alreadySkipped = workSkipKeys.has(dayKey);
-    if (alreadySkipped) {
-      await removeWorkSkipDay(dayKey);
-    } else {
-      await addWorkSkipDay(dayKey);
-    }
-    refreshWorkSkip();
-    if (__DEV__) devLog('[P2_WORK_SKIP] toggled', { dayKey, nowSkipped: !alreadySkipped });
-  }, [workSkipKeys, refreshWorkSkip]);
-
   const eventRequests = eventRequestsData?.eventRequests ?? [];
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
@@ -1960,29 +1850,6 @@ export default function CalendarScreen() {
   const isDataSettled = !showCalendarLoading && bootStatus === 'authed';
   const hasEventsForView = myEvents.length > 0 || goingEvents.length > 0 || localEvents.length > 0 || eventRequests.length > 0;
   const shouldShowEmptyPrompt = isDataSettled && !hasEventsForView;
-
-  // Social pulse: read cached feed data (no new fetch) to count open events this week
-  const pulseCount = useMemo(() => {
-    try {
-      const cached = queryClient.getQueryData(eventKeys.feedPaginated()) as any;
-      if (!cached?.pages) return 0;
-      const now = new Date();
-      const endOfWeek = new Date(now);
-      endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-      endOfWeek.setHours(23, 59, 59, 999);
-      let count = 0;
-      for (const page of cached.pages) {
-        if (!page?.events) continue;
-        for (const evt of page.events) {
-          const start = new Date(evt.startTime);
-          if (start >= now && start <= endOfWeek) count++;
-        }
-      }
-      return count;
-    } catch {
-      return 0;
-    }
-  }, [queryClient, myEvents, goingEvents]);
 
   // Aggregate error state for any critical query
   const hasQueryError = isCalendarError || isBirthdaysError;
@@ -2109,11 +1976,8 @@ export default function CalendarScreen() {
       }
     }
 
-    return events.filter((e) => {
-      const dk = formatDayKey(new Date(e.startTime));
-      return !workSkipKeys.has(dk);
-    });
-  }, [workSchedules, currentYear, currentMonth, session?.user?.id, workSkipKeys]);
+    return events;
+  }, [workSchedules, currentYear, currentMonth, session?.user?.id]);
 
   // Combine events (myEvents = created, goingEvents = RSVP going + joined, localEvents = offline created)
   const allEvents = useMemo(() => {
@@ -2312,8 +2176,6 @@ export default function CalendarScreen() {
   const selectedDateEvents = getEventsForDate(selectedDate).sort(
     (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   );
-  // Open Invite events only (excludes work blocks & birthdays) — used for empty-state gating
-  const openInviteEvents = selectedDateEvents.filter((e: any) => !e.isWork && !e.isBirthday);
 
   // Render calendar cell based on view mode
   const renderCell = (day: number | null, index: number) => {
@@ -2615,11 +2477,8 @@ export default function CalendarScreen() {
             onColorChange={handleColorChange}
             onDelete={handleDeleteEvent}
             onToggleBusy={handleToggleBusy}
-            onWorkSkip={handleWorkSkip}
             session={session}
             colorOverrides={colorOverrides}
-            selectedDate={selectedDate}
-            parentScrollRef={scrollViewRef}
           />
         ) : (
           <>
@@ -2719,33 +2578,7 @@ export default function CalendarScreen() {
                 </View>
               </View>
 
-              {/* First-time onboarding hint — auto-dismisses after first event/RSVP or 5 opens */}
-              <FirstTimeCalendarHint
-                createdEventCount={myEvents.length}
-                goingEventCount={goingEvents.length}
-                selectedDayEmpty={openInviteEvents.length === 0}
-                emailVerified={!isEmailGateActive(session)}
-                onCreatePress={() => {
-                  if (!guardEmailVerification(session)) return;
-                  router.push(`/create?date=${selectedDate.toISOString()}`);
-                }}
-              />
-
-              {/* Social pulse — cached feed count, no new fetch */}
-              {!isEmailGateActive(session) && pulseCount > 0 && (
-                <SocialPulseRow
-                  count={pulseCount}
-                  variant="open_events"
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => {
-                    if (!guardEmailVerification(session)) return;
-                    router.push('/social' as any);
-                  }}
-                />
-              )}
-
-              {/* Unified empty-state — shown when no open invite events (work/birthday don't count) */}
-              {openInviteEvents.length === 0 && (
+              {selectedDateEvents.length === 0 ? (
                 <View
                   className="rounded-2xl p-6 items-center"
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -2757,11 +2590,34 @@ export default function CalendarScreen() {
                   }}
                 >
                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text style={{ color: colors.text }} className="font-semibold mb-1">Nothing planned yet</Text>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
-                    You're free this day. Create an invite or check who's free.
-                  </Text>
+                  <Text style={{ color: colors.text }} className="font-semibold mb-1">No upcoming invites yet</Text>
+                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                    <Text style={{ color: colors.textSecondary }} className="text-sm text-center mb-2">
+                      Plans start when someone joins you.
+                    </Text>
+                  )}
+                  {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("create_invite") && shouldShowEmptyPrompt && (
+                    <Button
+                      variant="primary"
+                      label="Invite a friend"
+                      leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={async () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        try {
+                          await Share.share({
+                            message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
+                            url: APP_STORE_URL,
+                          });
+                        } catch (error) {
+                          devError("Error sharing:", error);
+                        }
+                      }}
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ marginBottom: 12 }}
+                    />
+                  )}
                   <View className="flex-row items-center mt-1 gap-4">
                     <Button
                       variant="ghost"
@@ -2787,10 +2643,7 @@ export default function CalendarScreen() {
                     />
                   </View>
                 </View>
-              )}
-
-              {/* Event list — renders work/birthday/open invite items when present */}
-              {selectedDateEvents.length > 0 && (
+              ) : (
                 /* INVARIANT_ALLOW_SMALL_MAP */
                 selectedDateEvents.map((event, idx) => (
                   <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
@@ -2807,7 +2660,6 @@ export default function CalendarScreen() {
                       onDelete={handleDeleteEvent}
                       onToggleBusy={handleToggleBusy}
                       colorOverride={colorOverrides[event.id]}
-                      onWorkSkip={handleWorkSkip}
                     />
                   </Animated.View>
                 ))

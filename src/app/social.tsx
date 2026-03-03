@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
-import { trackEventRsvp, trackRsvpCompleted } from "@/analytics/analyticsEventsSSOT";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { updateWidgetEventsCache } from "@/lib/widgetBridge";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
 import { MapPin, Clock, UserPlus, ChevronRight, Calendar, Share2, Mail, X, Users, Plus, Heart, Check } from "@/ui/icons";
@@ -38,7 +36,6 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoadingCombined } from "@/lib/useStickyLoading";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
-import { buildAppSharePayload } from "@/lib/shareSSOT";
 import { performLogout } from "@/lib/logout";
 import { clearSessionCache } from "@/lib/sessionCache";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -49,9 +46,9 @@ import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type Ge
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
+import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
-import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -276,17 +273,17 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
   const cardContent = (
       <Pressable
         onPress={handlePress}
-        className="rounded-2xl p-4 mb-3"
+        className="rounded-2xl p-4 mb-4"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
         style={{
           backgroundColor: colors.surface,
           ...getBorderStyle(),
-          ...(isDark ? {} : TILE_SHADOW),
+          ...(isDark ? { elevation: 1 } : TILE_SHADOW),
         }}
       >
         {/* [P1_SOCIAL_CARD_CLEAN] Banner overlay removed — image shown via EventPhotoEmoji thumbnail only */}
 
-        <View className="flex-row items-start">
+        <View className="flex-row items-center">
           <View
             className="w-14 h-14 rounded-xl items-center justify-center mr-3"
             /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
@@ -308,15 +305,6 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 <Chip variant="accent" label="You" size="sm" style={{ marginLeft: 8 }} />
               )}
-              <EventVisibilityBadge
-                visibility={displayEvent.visibility}
-                circleId={displayEvent.circleId}
-                isBusy={displayEvent.isBusy}
-                circleName={displayEvent.circleName}
-                eventId={displayEvent.id}
-                surface="social_feed"
-                isDark={isDark}
-              />
             </View>
             {displayEvent.description && !isSeries && (
               <Text
@@ -635,7 +623,6 @@ export default function SocialScreen() {
   const [showFirstValueNudge, setShowFirstValueNudge] = useState(false);
   const [insightDismissed, setInsightDismissed] = useState(false);
   const [guidanceLoaded, setGuidanceLoaded] = useState(false);
-  const [feedFilter, setFeedFilter] = useState<"open" | "group">("open");
   const hasBootstrapped = useRef(false);
 
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Social
@@ -714,7 +701,6 @@ export default function SocialScreen() {
   }, [session?.user?.id]);
 
   const handleDismissInsight = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setInsightDismissed(true);
     try {
       const userId = session?.user?.id;
@@ -881,20 +867,6 @@ export default function SocialScreen() {
       return { previousFeed, _t0 };
     },
     onSuccess: (_, { eventId, status }, context) => {
-      // [P0_ANALYTICS_EVENT] event_rsvp (feed)
-      trackEventRsvp({ rsvpStatus: status, sourceScreen: "feed" });
-      // [P0_POSTHOG_VALUE] rsvp_completed — canonical retention event
-      trackRsvpCompleted({
-        eventId,
-        rsvpStatus: status,
-        isOpenInvite: true, // feed events are all_friends visibility
-        source: "feed",
-        hasGuests: 0,
-        ts: new Date().toISOString(),
-      });
-      if (__DEV__) {
-        devLog("[P0_POSTHOG_VALUE]", { event: "rsvp_completed", eventId: eventId.slice(0, 8) + "..." });
-      }
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {
@@ -1111,32 +1083,6 @@ export default function SocialScreen() {
     return filtered;
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
-  // Circle/group events: events with circleId excluded from open invites feed
-  const circleDiscoveryEvents = useMemo(() => {
-    const feedEvents = feedData?.events ?? [];
-    const myEvents = myEventsData?.events ?? [];
-    const attendingEvents = attendingData?.events ?? [];
-
-    const myEventIds = new Set(myEvents.map(e => e.id));
-    const attendingEventIds = new Set(attendingEvents.map(e => e.id));
-    const viewerUserId = session?.user?.id;
-
-    return feedEvents.filter(event => {
-      if (event.userId === viewerUserId) return false;
-      if (event.viewerRsvpStatus === 'going' || event.viewerRsvpStatus === 'interested') return false;
-      if (myEventIds.has(event.id)) return false;
-      if (attendingEventIds.has(event.id)) return false;
-      // Only circle events (inverse of discoveryEvents circle exclusion)
-      return event.visibility === 'circle_only' || (event.circleId && event.visibility !== 'all_friends');
-    });
-  }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
-
-  // Active discovery events based on feed filter toggle
-  const activeDiscoveryEvents = useMemo(
-    () => feedFilter === "open" ? discoveryEvents : circleDiscoveryEvents,
-    [feedFilter, discoveryEvents, circleDiscoveryEvents]
-  );
-
   // All events for calendar (includes my events + attending + discovery)
   // IMPORTANT: Filter out busy events - they are private and must not appear in social view
   const allEvents = useMemo(() => {
@@ -1179,11 +1125,6 @@ export default function SocialScreen() {
     return result;
   }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
 
-  // Update iOS Lock Screen widget cache whenever allEvents changes
-  useEffect(() => {
-    updateWidgetEventsCache(allEvents);
-  }, [allEvents]);
-
   // Prepare events for calendar with metadata
   const calendarEvents = useMemo(() => {
     const myEventIds = new Set(myEventsData?.events?.map((e) => e.id) ?? []);
@@ -1213,10 +1154,10 @@ export default function SocialScreen() {
     return Array.from(eventMap.values());
   }, [myEventsData?.events, attendingData?.events]);
 
-  // Group discovery events by time (feed sections show ONLY active filter)
+  // Group discovery events by time (feed sections show ONLY discovery)
   const groupedEvents = useMemo(
-    () => groupEventsByTime(activeDiscoveryEvents, session?.user?.id),
-    [activeDiscoveryEvents, session?.user?.id]
+    () => groupEventsByTime(discoveryEvents, session?.user?.id),
+    [discoveryEvents, session?.user?.id]
   );
 
   // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded social feed sections
@@ -1414,13 +1355,6 @@ export default function SocialScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          <FeedCalendar
-            events={calendarEvents}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userId={session?.user?.id}
-          />
           {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
@@ -1431,32 +1365,13 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
-          {/* Segmented Control — always visible */}
-          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="flex-row mt-4 mb-2 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
-            <Pressable
-              className="flex-1 py-2.5 items-center rounded-xl"
-              style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => { Haptics.selectionAsync(); setFeedFilter("open"); }}
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
-                Open Invites
-              </Text>
-            </Pressable>
-            <Pressable
-              className="flex-1 py-2.5 items-center rounded-xl"
-              style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => { Haptics.selectionAsync(); setFeedFilter("group"); }}
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
-                Group Events
-              </Text>
-            </Pressable>
-          </View>
+          <FeedCalendar
+            events={calendarEvents}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            userId={session?.user?.id}
+          />
           <View className="py-12 items-center px-8">
             <Text className="text-5xl mb-4">📅</Text>
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -1466,7 +1381,7 @@ export default function SocialScreen() {
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
               /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
               <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
-                Invite friends to see their plans here.
+                Bring your people in — invites make the feed come alive.
               </Text>
             )}
             {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
@@ -1478,8 +1393,10 @@ export default function SocialScreen() {
                 onPress={async () => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   try {
-                    const p = buildAppSharePayload("Join me on Open Invite - the easiest way to share plans with friends!");
-                    await Share.share({ message: p.message, url: p.url });
+                    await Share.share({
+                      message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
+                      url: APP_STORE_URL,
+                    });
                   } catch (error) {
                     devError("Error sharing:", error);
                   }
@@ -1532,32 +1449,6 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
-          {/* Segmented Control — always visible */}
-          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="flex-row mt-4 mb-2 rounded-xl overflow-hidden" style={{ backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' }}>
-            <Pressable
-              className="flex-1 py-2.5 items-center rounded-xl"
-              style={feedFilter === "open" ? { backgroundColor: themeColor } : undefined}
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => { Haptics.selectionAsync(); setFeedFilter("open"); }}
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold" style={{ color: feedFilter === "open" ? "#FFFFFF" : colors.textSecondary }}>
-                Open Invites
-              </Text>
-            </Pressable>
-            <Pressable
-              className="flex-1 py-2.5 items-center rounded-xl"
-              style={feedFilter === "group" ? { backgroundColor: themeColor } : undefined}
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => { Haptics.selectionAsync(); setFeedFilter("group"); }}
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm font-semibold" style={{ color: feedFilter === "group" ? "#FFFFFF" : colors.textSecondary }}>
-                Group Events
-              </Text>
-            </Pressable>
-          </View>
           <EventSection
             title="Today"
             events={groupedEvents.today}

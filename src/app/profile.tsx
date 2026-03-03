@@ -8,7 +8,6 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
-import { buildProfileSharePayload } from "@/lib/shareSSOT";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
@@ -41,6 +40,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { usePremiumStatusContract } from "@/lib/entitlements";
+import { APP_STORE_URL } from "@/lib/config";
 import { devLog } from "@/lib/devLog";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
@@ -306,8 +306,9 @@ export default function ProfileScreen() {
     if (__DEV__) devLog("[P2_PROFILE_SHARE]", { trigger: "profileCard" });
     try {
       const handle = userHandle ? `@${userHandle}` : displayName;
-      const p = buildProfileSharePayload(handle);
-      await Share.share({ message: p.message });
+      await Share.share({
+        message: `Join ${handle} on Open Invite — turning plans into memories.\n\n${APP_STORE_URL}`,
+      });
     } catch {
       // user cancelled
     }
