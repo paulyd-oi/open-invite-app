@@ -138,7 +138,6 @@ function toBackendAvatarUrl(url: string | null | undefined): string | undefined 
 type OnboardingSlide = 1 | 2 | 3 | 4;
 
 // ============ SHARED LAYOUT ============
-// [P0_WELCOME_JUMP_PROBE] DEV-only probe state for welcome screen jump diagnostics.
 // Tracks root container layout deltas and insets on cold start.
 // Throttled to max 12 logs per cold start.
 let _welcomeProbeCount = 0;
@@ -163,7 +162,8 @@ const OnboardingLayout = ({
   // [P1_ONBOARD_STABLE] Opacity-gate: hide content until layout is stable
   const { isStable, onLayout } = useFirstPaintStable();
 
-  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in + small translateY on reveal
+  // [P0_SAFE_AREA_SSOT] Pop animation: fade-in only (no translate — avoids keyboard jitter)
+  // [P0_SIGNUP_JITTER] translateY removed from popStyle — was causing layout jitter when keyboard appears
   const revealProgress = useSharedValue(0);
   useEffect(() => {
     if (isStable) {
@@ -173,10 +173,8 @@ const OnboardingLayout = ({
   const popStyle = useAnimatedStyle(() => ({
     flex: 1,
     opacity: revealProgress.value,
-    transform: [{ translateY: (1 - revealProgress.value) * 8 }],
   }));
 
-  // [P0_WELCOME_JUMP_PROBE] Log insets on first render (DEV-only)
   const _probeInsetLoggedRef = React.useRef(false);
   if (__DEV__ && !_probeInsetLoggedRef.current && _welcomeProbeCount < _WELCOME_PROBE_MAX) {
     _probeInsetLoggedRef.current = true;
@@ -188,11 +186,8 @@ const OnboardingLayout = ({
       insetsBottom: insets.bottom,
       isStable,
     };
-    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   }
 
-  // [P0_WELCOME_JUMP_PROBE] Root container onLayout handler (DEV-only)
   const handleRootLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
     // Call the stability gate's onLayout first
     onLayout(e as any);
@@ -210,8 +205,6 @@ const OnboardingLayout = ({
       x, y, w: width, h: height,
       dY, dH,
     };
-    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   return (
@@ -304,10 +297,7 @@ export default function WelcomeOnboardingScreen() {
       if (__DEV__) {
         devLog("[ONBOARDING_BOOT] GettingStarted mounted once");
         devLog("[P1_ONBOARD_BOUNCE] welcome mount — animations: smoothFadeIn (opacity only, no translateY)");
-        // [P0_WELCOME_JUMP_PROBE] Mount timestamp (tMs=0 baseline)
         const payload = { tMs: 0, phase: 'WelcomeScreen-mount' };
-        devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-        console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
       }
     }
   }, []);
@@ -1078,7 +1068,6 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ RENDER SLIDES ============
 
-  // [P0_WELCOME_JUMP_PROBE] Hero block onLayout handler (DEV-only)
   const handleHeroLayout = (e: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } }) => {
     if (!__DEV__ || _welcomeProbeCount >= _WELCOME_PROBE_MAX) return;
     const { x, y, width, height } = e.nativeEvent.layout;
@@ -1093,8 +1082,6 @@ export default function WelcomeOnboardingScreen() {
       x, y, w: width, h: height,
       dY, dH,
     };
-    devLog('[P0_WELCOME_JUMP_PROBE]', payload);
-    console.log('[P0_WELCOME_JUMP_PROBE]', JSON.stringify(payload));
   };
 
   const renderSlide1 = () => (
@@ -1139,6 +1126,7 @@ export default function WelcomeOnboardingScreen() {
 
   const renderSlide2 = () => {
     if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/createAccount', input: 'SSOT', button: 'SSOT', card: 'n/a' });
+    if (__DEV__) devLog("[P0_SIGNUP_JITTER]", { slide: currentSlide, fix: "scrollContentKeyboard-no-justifyCenter" });
     return (
     <OnboardingLayout background={colors.background}>
       <KeyboardAvoidingView
@@ -1146,7 +1134,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentKeyboard}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1275,7 +1263,7 @@ export default function WelcomeOnboardingScreen() {
         style={styles.flex1}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={styles.scrollContentKeyboard}
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
@@ -1460,6 +1448,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
+  },
+  // [P0_SIGNUP_JITTER] Keyboard-safe scroll container: no justifyContent center (jitter cause),
+  // uses paddingBottom instead so content stays top-anchored when keyboard appears.
+  scrollContentKeyboard: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 80,
   },
   centeredContent: {
     alignItems: "center",
