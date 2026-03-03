@@ -1711,4 +1711,55 @@ fi
 echo ""
 echo "P0_RC_PURCHASE_CONFIRM checks PASS"
 
+# ── P0_UPLOAD_SIGN_INVARIANT enforcement ────────────────────────────
+echo ""
+echo "Running P0_UPLOAD_SIGN_INVARIANT checks..."
+echo "  Goal: /api/uploads/sign body must never include null/undefined eventId/circleId."
+
+P0_USI_FAIL=0
+
+# 1. VALID_UPLOAD_KINDS constant (or equivalent runtime assertion) must exist in imageUpload.ts
+if grep -q 'VALID_UPLOAD_KINDS' src/lib/imageUpload.ts 2>/dev/null; then
+  echo "  ✓ Part 1: imageUpload.ts contains VALID_UPLOAD_KINDS assertion"
+else
+  echo "  ❌ P0_UPLOAD_SIGN_INVARIANT FAIL — imageUpload.ts missing VALID_UPLOAD_KINDS constant"
+  P0_USI_FAIL=1
+fi
+
+# 2. signBody must NOT spread null/undefined eventId or circleId
+#    Detect: opts?.eventId  being set without a typeof/length guard (the old pattern)
+#    Banned pattern: "if (opts?.eventId) signBody.eventId" — falsy check allows "" edge cases
+#    We look for the old short-circuit spread pattern as a regression guard
+if grep -n 'if (opts?.eventId) signBody\.eventId\|if (opts?.circleId) signBody\.circleId' src/lib/imageUpload.ts 2>/dev/null | grep -qv 'typeof'; then
+  echo "  ❌ P0_UPLOAD_SIGN_INVARIANT FAIL — imageUpload.ts uses falsy-only guard for eventId/circleId (not typeof + length)"
+  P0_USI_FAIL=1
+else
+  echo "  ✓ Part 2: imageUpload.ts does not spread null/undefined eventId/circleId into signBody"
+fi
+
+# 3. [P0_UPLOAD_SIGN_BODY] proof log tag must be present in imageUpload.ts
+if grep -q '\[P0_UPLOAD_SIGN_BODY\]' src/lib/imageUpload.ts 2>/dev/null; then
+  echo "  ✓ Part 3: imageUpload.ts has [P0_UPLOAD_SIGN_BODY] proof log"
+else
+  echo "  ❌ P0_UPLOAD_SIGN_INVARIANT FAIL — imageUpload.ts missing [P0_UPLOAD_SIGN_BODY] proof log"
+  P0_USI_FAIL=1
+fi
+
+# 4. [P0_UPLOAD_SIGN_BODY] must be registered as always-on tag in devLog.ts
+if grep -qF '"[P0_UPLOAD_SIGN_BODY]"' src/lib/devLog.ts 2>/dev/null; then
+  echo "  ✓ Part 4: [P0_UPLOAD_SIGN_BODY] registered as always-on tag in devLog.ts"
+else
+  echo "  ❌ P0_UPLOAD_SIGN_INVARIANT FAIL — [P0_UPLOAD_SIGN_BODY] not registered in ALWAYS_ON_TAG_PREFIXES in devLog.ts"
+  P0_USI_FAIL=1
+fi
+
+if [ "$P0_USI_FAIL" -ne 0 ]; then
+  echo ""
+  echo "FAIL: P0_UPLOAD_SIGN_INVARIANT invariant violated"
+  exit 1
+fi
+
+echo ""
+echo "P0_UPLOAD_SIGN_INVARIANT checks PASS"
+
 echo "PASS: verify_frontend"

@@ -218,9 +218,45 @@ export async function uploadByKind(
       devLog('[P0_UPLOAD_KIND]', 'sign_request', { kind, hasEntityId: !!entityId, endpoint: API_ROUTES.uploads.sign });
     }
 
-    const signBody: Record<string, unknown> = { kind };
-    if (opts?.eventId) signBody.eventId = opts.eventId;
-    if (opts?.circleId) signBody.circleId = opts.circleId;
+    // ── P0_UPLOAD_SIGN_INVARIANT ──────────────────────────────────────────────
+    // Strict SSOT: only known kinds are valid. eventId/circleId are ONLY
+    // included when they are non-empty strings — never null/undefined/"".
+    // Prevents backend 400 from malformed sign-request bodies.
+    const VALID_UPLOAD_KINDS: readonly UploadKind[] = [
+      "avatar",
+      "banner",
+      "event_photo",
+      "circle_photo",
+      "event_memory_photo",
+    ] as const;
+
+    if (!(VALID_UPLOAD_KINDS as readonly string[]).includes(kind)) {
+      throw new Error(
+        `[imageUpload] invariant: invalid signBody — kind=${String(kind)} eventId=${String(opts?.eventId ?? null)} circleId=${String(opts?.circleId ?? null)}`,
+      );
+    }
+
+    const signBody: Record<string, string> = { kind };
+    const _rawEventId = opts?.eventId;
+    const _rawCircleId = opts?.circleId;
+    // Only append entity IDs when they are non-empty strings.
+    // Explicitly guard against null, undefined, and empty string.
+    if (typeof _rawEventId === "string" && _rawEventId.length > 0) {
+      signBody.eventId = _rawEventId;
+    }
+    if (typeof _rawCircleId === "string" && _rawCircleId.length > 0) {
+      signBody.circleId = _rawCircleId;
+    }
+
+    if (__DEV__) {
+      // [P0_UPLOAD_SIGN_BODY] — always-on proof log: keys + kind only, no secrets
+      devLog("[P0_UPLOAD_SIGN_BODY]", "signBody_pre_post", {
+        keys: Object.keys(signBody),
+        kind: signBody.kind,
+        hasEventId: "eventId" in signBody,
+        hasCircleId: "circleId" in signBody,
+      });
+    }
 
     let signed: SignedUploadParams | null = null;
     try {
