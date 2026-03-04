@@ -519,6 +519,129 @@ section("J) iOS version bump guard (WARNING)");
   }
 })();
 
+// ─── K) Backend health check ──────────────────────────────────────────────────
+
+section("K) Backend health check");
+
+await (async () => {
+  // Read EXPO_PUBLIC_API_URL from env or .env
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL ?? (() => {
+    const envContent = readFile(".env");
+    if (!envContent) return undefined;
+    const match = envContent.split("\n").find(l => l.match(/^\s*EXPO_PUBLIC_API_URL\s*=/));
+    return match ? match.split("=").slice(1).join("=").trim().replace(/^["']|["']$/g, "") : undefined;
+  })();
+
+  if (!envApiUrl) {
+    skip("K1: EXPO_PUBLIC_API_URL not set — skipping backend health check");
+    return;
+  }
+
+  const baseUrl = envApiUrl.replace(/\/+$/, "");
+  const healthUrl = `${baseUrl}/health`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(healthUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      pass(`K1: Backend health check passed: ${healthUrl} -> ${res.status}`);
+    } else {
+      if (CI_MODE) {
+        fail(`K1: Backend at ${healthUrl} returned ${res.status}`, "Check backend deployment and logs");
+      } else {
+        warn(`K1: Backend at ${healthUrl} returned ${res.status}`, "Check backend deployment and logs");
+      }
+    }
+  } catch (e) {
+    const reason = e.name === "AbortError" ? "timed out (5s)" : e.message;
+    if (CI_MODE) {
+      fail(`K1: Backend at ${healthUrl} ${reason}`, "Ensure backend is running and reachable");
+    } else {
+      warn(`K1: Backend at ${healthUrl} ${reason}`, "Ensure backend is running and reachable");
+    }
+  }
+})();
+
+// ─── L) Auth session smoke test ───────────────────────────────────────────────
+
+section("L) Auth session smoke test");
+
+await (async () => {
+  const testEmail = process.env.CI_TEST_EMAIL;
+  const testPassword = process.env.CI_TEST_PASSWORD;
+
+  if (!testEmail || !testPassword) {
+    skip("L1: Auth smoke test skipped — CI_TEST_EMAIL/CI_TEST_PASSWORD not set");
+    return;
+  }
+
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL ?? (() => {
+    const envContent = readFile(".env");
+    if (!envContent) return undefined;
+    const match = envContent.split("\n").find(l => l.match(/^\s*EXPO_PUBLIC_API_URL\s*=/));
+    return match ? match.split("=").slice(1).join("=").trim().replace(/^["']|["']$/g, "") : undefined;
+  })();
+
+  if (!envApiUrl) {
+    skip("L1: EXPO_PUBLIC_API_URL not set — skipping auth smoke test");
+    return;
+  }
+
+  const baseUrl = envApiUrl.replace(/\/+$/, "");
+  const signInUrl = `${baseUrl}/api/auth/sign-in/email`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(signInUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: testEmail, password: testPassword }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      // Check for session token in response (cookie or body)
+      const cookies = res.headers.get("set-cookie") ?? "";
+      const hasSession = cookies.includes("session") || cookies.includes("token");
+      let bodyHasToken = false;
+      try {
+        const body = await res.json();
+        bodyHasToken = !!(body?.token || body?.session || body?.user);
+      } catch (_) { /* body parse optional */ }
+
+      if (hasSession || bodyHasToken) {
+        pass("L1: Auth smoke test passed — session token received");
+      } else {
+        if (CI_MODE) {
+          fail("L1: Auth smoke test — 200 but no session token detected", "Check auth endpoint response format");
+        } else {
+          warn("L1: Auth smoke test — 200 but no session token detected", "Check auth endpoint response format");
+        }
+      }
+    } else {
+      const bodyText = await res.text().catch(() => "");
+      const truncated = bodyText.substring(0, 100);
+      if (CI_MODE) {
+        fail(`L1: Auth smoke test FAILED — ${res.status} ${truncated}`, "Check CI_TEST_EMAIL/PASSWORD credentials");
+      } else {
+        warn(`L1: Auth smoke test FAILED — ${res.status} ${truncated}`, "Check CI_TEST_EMAIL/PASSWORD credentials");
+      }
+    }
+  } catch (e) {
+    const reason = e.name === "AbortError" ? "timed out (5s)" : e.message;
+    if (CI_MODE) {
+      fail(`L1: Auth smoke test error: ${reason}`, "Ensure backend is running");
+    } else {
+      warn(`L1: Auth smoke test error: ${reason}`, "Ensure backend is running");
+    }
+  }
+})();
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 const MODE = CI_MODE ? "ci" : "normal";
