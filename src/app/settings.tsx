@@ -57,6 +57,7 @@ import {
   X,
   ImagePlus,
   Trash2,
+  RefreshCw,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -95,7 +96,8 @@ import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
 import { buildDiagnosticsBundle } from "@/lib/devDiagnosticsBundle";
-import { getDeadLetterCount, clearDeadLetterCount } from "@/lib/offlineQueue";
+import { getDeadLetterCount, clearDeadLetterCount, loadQueue } from "@/lib/offlineQueue";
+import { replayQueue } from "@/lib/offlineSync";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -2047,6 +2049,58 @@ export default function SettingsScreen() {
             {/* P0_OFFLINE_DEAD_LETTER: View/clear dead-lettered offline actions (DEV only) */}
             {__DEV__ && (
               <DeadLetterDebugRow isDark={isDark} />
+            )}
+            {/* P0_OFFLINE_QUEUE_REPLAY_MANUAL: Replay offline queue (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<RefreshCw size={20} color="#10B981" />}
+                title="Replay Offline Queue"
+                subtitle="Manually trigger queue replay"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "triggered");
+                  try {
+                    const result = await replayQueue();
+                    devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "done", result);
+                    safeToast.success(
+                      "Queue Replayed",
+                      result.success
+                        ? "All actions synced successfully."
+                        : `Completed with ${result.failed} failed action(s).`,
+                    );
+                  } catch (e) {
+                    devError("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "error", e);
+                    safeToast.error("Replay Failed", String(e));
+                  }
+                }}
+              />
+            )}
+            {/* P0_OFFLINE_QUEUE_EXPORT: Export offline queue JSON (DEV only) */}
+            {__DEV__ && (
+              <SettingItem
+                icon={<Copy size={20} color="#6366F1" />}
+                title="Export Offline Queue JSON"
+                subtitle="Copy queue payload to clipboard"
+                isDark={isDark}
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  devLog("[P0_OFFLINE_QUEUE_EXPORT]", "triggered");
+                  try {
+                    const queue = await loadQueue();
+                    const json = JSON.stringify(queue, null, 2);
+                    await Clipboard.setStringAsync(json);
+                    devLog("[P0_OFFLINE_QUEUE_EXPORT]", "copied", { count: queue.length });
+                    safeToast.success(
+                      "Copied",
+                      `${queue.length} queued action(s) copied to clipboard.`,
+                    );
+                  } catch (e) {
+                    devError("[P0_OFFLINE_QUEUE_EXPORT]", "error", e);
+                    safeToast.error("Export Failed", String(e));
+                  }
+                }}
+              />
             )}
           </View>
         </Animated.View>
