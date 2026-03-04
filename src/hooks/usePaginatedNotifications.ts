@@ -42,14 +42,19 @@ export function usePaginatedNotifications({
 }: UsePaginatedNotificationsParams) {
   const lastEndReachedRef = useRef(0);
 
+  const queryKey = useMemo(
+    () => [...qk.notifications(), { pageSize }] as const,
+    [pageSize],
+  );
+
   const query = useInfiniteQuery<
     PaginatedNotificationsResponse,
     Error,
     InfiniteData<PaginatedNotificationsResponse>,
-    readonly ["notifications"],
+    readonly ["notifications", { pageSize: number }],
     string | undefined
   >({
-    queryKey: qk.notifications(),
+    queryKey,
     queryFn: async ({ pageParam }) => {
       // Build URL with cursor/limit params (backend ignores them until it supports pagination)
       const params = new URLSearchParams();
