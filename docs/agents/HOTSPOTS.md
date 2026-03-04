@@ -41,7 +41,16 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-(no active claims)
+[BATCH11] CLAIMED_BY: [BATCH11]
+  Files:
+    src/lib/api.ts (FE)
+    src/analytics/analyticsEventsSSOT.ts (FE)
+    src/routes/events.ts (BE)
+    src/routes/notifications.ts (BE)
+    src/middleware/rateLimit.ts (BE)
+    docs/HARDENING_SSOT_100K.md (BE)
+  Reason: Batch 11 — API observability + rate guardrails + telemetry
+  Started: 2026-03-04
 
 ---
 

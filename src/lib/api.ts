@@ -14,7 +14,7 @@ import { authClient, getLastServerRequestId } from "./authClient";
 // Import fetch for upload FormData handling
 import { fetch } from "expo/fetch";
 import { devLog, devWarn, devError } from "./devLog";
-import { trackApiError } from "@/analytics/analyticsEventsSSOT";
+import { trackApiError, trackApiRequest } from "@/analytics/analyticsEventsSSOT";
 
 // Import centralized backend URL configuration
 import { BACKEND_URL } from "./config";
@@ -78,6 +78,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     throw err;
   }
 
+  const _t0 = Date.now();
   try {
     // Use authClient.$fetch for all requests - this handles authentication automatically
     // IMPORTANT: Pass body directly, authClient handles JSON serialization
@@ -86,6 +87,8 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
       body: body,
       headers: { "x-request-id": requestId },
     } as any);
+
+    const durationMs = Date.now() - _t0;
 
     if (__DEV__) {
       const serverRequestId = getLastServerRequestId();
@@ -96,10 +99,18 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
         ...(serverRequestId ? { serverRequestId } : {}),
         status: "ok",
       });
+      // [P1_SLOW_API] flag requests over 1200ms
+      if (durationMs > 1200) {
+        devWarn(`[P1_SLOW_API] route=${method} ${path} durationMs=${durationMs}`);
+      }
     }
+
+    // [P1_API_TIMING] PostHog telemetry — fire-and-forget
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: true });
 
     return response as T;
   } catch (error: any) {
+    const durationMs = Date.now() - _t0;
     // Attach requestId to error for downstream debugging
     error.requestId = requestId;
     // Prefer server-echoed request ID when available
@@ -139,6 +150,9 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
         devLog(`  message: ${error.message}`);
       }
     }
+
+    // [P1_API_TIMING] PostHog telemetry for errors too
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: false });
 
     // [P1_POSTHOG_API_ERROR] Emit api_error for HTTP 4xx/5xx
     const httpStatus = error.status;

@@ -33,7 +33,13 @@ export function NetworkStatusBanner() {
     try {
       const online = await refresh();
       if (online) {
-        await queryClient.invalidateQueries();
+        // [P1_REFETCH_GUARD] Scoped invalidation instead of blanket invalidateQueries()
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["events"] }),
+          queryClient.invalidateQueries({ queryKey: ["friends"] }),
+          queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+          queryClient.invalidateQueries({ queryKey: ["profile"] }),
+        ]);
       }
     } finally {
       setIsRetrying(false);

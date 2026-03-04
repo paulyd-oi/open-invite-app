@@ -44,6 +44,7 @@ export const AnalyticsEvent = {
   OFFLINE_QUEUE_REPLAY_RESULT: "offline_queue_replay_result",
   NOTIFICATIONS_PAGE_LOADED: "notifications_page_loaded",
   NOTIFICATION_MARK_READ: "notification_mark_read",
+  API_REQUEST: "api_request",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -381,4 +382,17 @@ export function trackNotificationMarkRead(props: {
   rollbackUsed: boolean;
 }): void {
   track(AnalyticsEvent.NOTIFICATION_MARK_READ, props);
+}
+
+/**
+ * api_request — fires after each API request completes (success or error).
+ * Used for client-side latency observability. No PII.
+ * [P1_API_TIMING]
+ */
+export function trackApiRequest(props: {
+  route: string;
+  durationMs: number;
+  success: boolean;
+}): void {
+  track(AnalyticsEvent.API_REQUEST, props);
 }
