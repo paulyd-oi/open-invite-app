@@ -72,6 +72,7 @@ import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoading } from "@/lib/useStickyLoading";
 import { usePaginatedFriends } from "@/lib/usePaginatedFriends";
+import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
@@ -827,14 +828,14 @@ export default function FriendsScreen() {
   // P1 JITTER FIX: Use sticky loading to prevent flicker
   const isLoading = useStickyLoading(rawIsLoading, 300, __DEV__ ? "friends" : undefined);
 
-  // onEndReached debounce ref (800ms) to avoid rapid pagination calls
+  // onEndReached debounce ref — uses SSOT constant [INFINITE_QUERY_SSOT]
   const endReachedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleEndReached = useCallback(() => {
     if (!hasNextPage || isFetchingNextPage) return;
     if (endReachedTimerRef.current) return; // debounce active
     endReachedTimerRef.current = setTimeout(() => {
       endReachedTimerRef.current = null;
-    }, 800);
+    }, DEFAULT_ENDREACHED_DEBOUNCE_MS);
     fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
