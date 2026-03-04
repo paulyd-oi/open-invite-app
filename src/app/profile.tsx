@@ -134,37 +134,42 @@ export default function ProfileScreen() {
     queryKey: ["profiles"],
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 120_000, // 2 min — stable data
   });
 
   const { data: profileData, refetch: refetchProfile, isError: isProfileError } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    refetchOnMount: "always",
+    staleTime: 60_000, // 1 min — own profile, moderately stable
   });
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60_000, // 1 min
   });
 
   const { data: eventsData, refetch: refetchEvents, isError: isEventsError, isRefetching: isEventsRefetching } = useQuery({
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60_000, // 1 min
   });
 
   const { data: statsData, refetch: refetchStats, isError: isStatsError, isRefetching: isStatsRefetching } = useQuery({
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 120_000, // 2 min — heavy endpoint, most stable
   });
 
   const { data: circlesData, refetch: refetchCircles } = useQuery({
     queryKey: circleKeys.all(),
     queryFn: () => api.get<GetCirclesResponse>("/api/circles"),
     enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60_000, // 1 min
   });
 
   // Load avatar source with auth headers (must be after profileData query)
