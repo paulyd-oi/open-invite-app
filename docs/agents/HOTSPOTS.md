@@ -41,16 +41,7 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-[BATCH11] CLAIMED_BY: [BATCH11]
-  Files:
-    src/lib/api.ts (FE)
-    src/analytics/analyticsEventsSSOT.ts (FE)
-    src/routes/events.ts (BE)
-    src/routes/notifications.ts (BE)
-    src/middleware/rateLimit.ts (BE)
-    docs/HARDENING_SSOT_100K.md (BE)
-  Reason: Batch 11 — API observability + rate guardrails + telemetry
-  Started: 2026-03-04
+(no active claims)
 
 ---
 
@@ -69,6 +60,7 @@ before touching. If another agent is active, wait or coordinate.
   [BATCH7] freed usePaginatedNotifications.ts, analyticsEventsSSOT.ts, notifications.ts(BE), schema.prisma(BE), HARDENING_SSOT_100K.md(BE) — 2026-03-04 (70f5cbe)
   [BATCH8] freed ActivityFeed.tsx, analyticsEventsSSOT.ts, notifications.ts(BE), friends.ts(BE), HARDENING_SSOT_100K.md(BE) — 2026-03-04 (971e4c5)
   [AGENT_F] freed infiniteQuerySSOT.ts, social.tsx, usePaginatedFriends.ts, usePaginatedNotifications.ts — 2026-03-04
+  [BATCH11] freed api.ts, analyticsEventsSSOT.ts, OfflineBanner.tsx(FE), events.ts, notifications.ts, rateLimit.ts, schema.prisma, HARDENING_SSOT_100K.md(BE) — 2026-03-04 (9d48bbd/7044f06)
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234
