@@ -1,7 +1,8 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator } from "react-native";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn } from "@/lib/devLog";
+import { trackNotificationMarkRead } from "@/analytics/analyticsEventsSSOT";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -349,12 +350,61 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     onEndReached();
   }, [isFetchingNextPage, onEndReached]);
 
-  // Mark notification as read (individual)
+  // [P1_NOTIF_OPTIMISTIC_READ] Concurrency guard — prevent duplicate mark-read for same id
+  const markingReadRef = useRef(new Set<string>());
+
+  // Mark notification as read (individual) with optimistic cache update
   const markReadMutation = useMutation({
     mutationFn: (notificationId: string) =>
       api.put(`/api/notifications/${notificationId}/read`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk.notifications() });
+    onMutate: async (notificationId: string) => {
+      if (markingReadRef.current.has(notificationId)) {
+        if (__DEV__) devLog("[P1_NOTIF_OPTIMISTIC_READ]", { id: notificationId, optimisticApplied: false, reason: "duplicate" });
+        return { skipped: true };
+      }
+      markingReadRef.current.add(notificationId);
+
+      await queryClient.cancelQueries({ queryKey: qk.notifications() });
+      const prevData = queryClient.getQueriesData({ queryKey: qk.notifications() });
+
+      // Optimistic: set read=true + decrement unreadCount
+      queryClient.setQueriesData<InfiniteData<{ notifications: Notification[]; unreadCount: number; nextCursor?: string | null }>>(
+        { queryKey: qk.notifications() },
+        (old) => {
+          if (!old) return old;
+          let flipped = false;
+          const pages = old.pages.map((page) => {
+            const notifications = page.notifications.map((n) => {
+              if (n.id === notificationId && !n.read) {
+                flipped = true;
+                return { ...n, read: true };
+              }
+              return n;
+            });
+            return { ...page, notifications };
+          });
+          if (flipped && pages.length > 0 && pages[0].unreadCount > 0) {
+            pages[0] = { ...pages[0], unreadCount: pages[0].unreadCount - 1 };
+          }
+          return { ...old, pages };
+        },
+      );
+
+      if (__DEV__) devLog("[P1_NOTIF_OPTIMISTIC_READ]", { id: notificationId, optimisticApplied: true });
+      trackNotificationMarkRead({ sourceScreen: "activity", optimisticApplied: true, rollbackUsed: false });
+      return { prevData, skipped: false };
+    },
+    onError: (_err, notificationId, context) => {
+      if (context && !context.skipped && context.prevData) {
+        for (const [key, data] of context.prevData) {
+          queryClient.setQueryData(key, data);
+        }
+        if (__DEV__) devLog("[P1_NOTIF_OPTIMISTIC_READ]", { id: notificationId, rollbackUsed: true });
+        trackNotificationMarkRead({ sourceScreen: "activity", optimisticApplied: true, rollbackUsed: true });
+      }
+    },
+    onSettled: (_data, _err, notificationId) => {
+      markingReadRef.current.delete(notificationId);
       queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
     },
   });
