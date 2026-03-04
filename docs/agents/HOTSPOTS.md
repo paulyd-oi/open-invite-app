@@ -55,6 +55,7 @@ before touching. If another agent is active, wait or coordinate.
   [AGENT_B] freed mediaTransformSSOT.ts, EntityAvatar.tsx — 2026-03-04
   [AGENT_C] freed MonthlyRecap.tsx, SwipeableEventRequestCard.tsx — 2026-03-04
   [BATCH3] freed ActivityFeed.tsx, circle/[id].tsx, settings.tsx — 2026-03-04
+  [AGENT_F] freed infiniteQuerySSOT.ts, social.tsx, usePaginatedFriends.ts, usePaginatedNotifications.ts — 2026-03-04
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
+import { capInfinitePages, DEFAULT_MAX_PAGES, DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
@@ -779,12 +780,8 @@ export default function SocialScreen() {
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev, // [PERF_SWEEP] Keep pages visible during refetch
-    // [PERF_SWEEP] Cap in-memory pages to 5 to prevent unbounded growth
-    select: (data: InfiniteData<GetEventsFeedResponse, string | null>) => ({
-      ...data,
-      pages: data.pages.slice(-5),
-      pageParams: data.pageParams.slice(-5),
-    }),
+    // [INFINITE_QUERY_SSOT] Cap in-memory pages via SSOT helper
+    select: (data) => capInfinitePages(data, DEFAULT_MAX_PAGES),
   });
 
   // Auto-pagination: scroll-triggered fetch for feed
@@ -795,7 +792,7 @@ export default function SocialScreen() {
     if (distanceFromBottom > layoutMeasurement.height * 0.5) return;
     if (!hasNextPage || isFetchingNextPage) return;
     const now = Date.now();
-    if (now - lastEndReachedRef.current < 800) return;
+    if (now - lastEndReachedRef.current < DEFAULT_ENDREACHED_DEBOUNCE_MS) return;
     lastEndReachedRef.current = now;
     if (__DEV__) devLog('[P1_FEED_ENDREACHED]', { hasNextPage, isFetchingNextPage });
     fetchNextPage();

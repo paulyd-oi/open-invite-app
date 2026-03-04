@@ -12,13 +12,8 @@ import { useMemo, useRef, useCallback } from "react";
 import { friendKeys } from "@/lib/refreshAfterMutation";
 import { api } from "@/lib/api";
 import { track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
+import { capInfinitePages, DEFAULT_MAX_PAGES, DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import type { GetFriendsResponse, Friendship } from "@/shared/contracts";
-
-// ── Cap in-memory pages to prevent unbounded growth ──────────────
-const MAX_PAGES = 5;
-
-// ── Debounce interval for onEndReached (ms) ──────────────────────
-const END_REACHED_DEBOUNCE = 800;
 
 // ── Response type with cursor field from /api/friends/paginated ──
 type PaginatedFriendsResponse = GetFriendsResponse & {
@@ -72,12 +67,8 @@ export function usePaginatedFriends({
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    // [PERF_SWEEP] Cap in-memory pages to MAX_PAGES to prevent unbounded growth
-    select: (data: InfiniteData<PaginatedFriendsResponse, string | undefined>) => ({
-      ...data,
-      pages: data.pages.slice(-MAX_PAGES),
-      pageParams: data.pageParams.slice(-MAX_PAGES),
-    }),
+    // [INFINITE_QUERY_SSOT] Cap in-memory pages via SSOT helper
+    select: (data) => capInfinitePages(data, DEFAULT_MAX_PAGES),
     enabled,
     staleTime: 5 * 60 * 1000, // 5 min — friends list is stable
     gcTime: 10 * 60 * 1000, // 10 min garbage collection
@@ -94,7 +85,7 @@ export function usePaginatedFriends({
   // Debounced onEndReached handler for FlatList
   const onEndReached = useCallback(() => {
     const now = Date.now();
-    if (now - lastEndReachedRef.current < END_REACHED_DEBOUNCE) return;
+    if (now - lastEndReachedRef.current < DEFAULT_ENDREACHED_DEBOUNCE_MS) return;
     if (!query.hasNextPage || query.isFetchingNextPage) return;
     lastEndReachedRef.current = now;
     query.fetchNextPage();
