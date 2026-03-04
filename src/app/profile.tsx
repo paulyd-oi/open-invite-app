@@ -134,7 +134,7 @@ export default function ProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  const { data: profileData, refetch: refetchProfile } = useQuery({
+  const { data: profileData, refetch: refetchProfile, isError: isProfileError } = useQuery({
     queryKey: ["profile"],
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -382,6 +382,25 @@ export default function ProfileScreen() {
           <Text style={{ color: colors.textSecondary }}>
             Loading profile...
           </Text>
+        </View>
+        <BottomNavigation />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state: profile query settled with an error and no cached data.
+  // Prevents a silent blank screen when the network is down on first load.
+  if (isProfileError && !profileData) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        <View className="flex-1 items-center justify-center gap-6 px-8">
+          <Text
+            className="text-center text-base"
+            style={{ color: colors.textSecondary }}
+          >
+            {"Couldn't load profile.\nCheck your connection and try again."}
+          </Text>
+          <Button variant="secondary" label="Retry" onPress={onRefresh} loading={refreshing} />
         </View>
         <BottomNavigation />
       </SafeAreaView>

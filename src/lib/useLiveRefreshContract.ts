@@ -124,7 +124,8 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
   }, []);
 
   // ── helpers ──
-  const fireAll = useCallback((trigger: "manual" | "foreground" | "focus", reason: string) => {
+  // Returns the settled promises so callers can optionally await them.
+  const fireAll = useCallback((trigger: "manual" | "foreground" | "focus", reason: string): Promise<unknown>[] => {
     const fns = fnsRef.current;
     if (__DEV__) {
       devLog(
@@ -140,11 +141,13 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
         devWarn("[LIVE_REFRESH]", stormWarning);
       }
     }
-    fns.forEach((fn) => {
+    return fns.map((fn) => {
       try {
-        fn();
+        const r = fn();
+        return r instanceof Promise ? r : Promise.resolve();
       } catch {
         // individual refetch failures are handled by React Query
+        return Promise.resolve();
       }
     });
   }, []);
@@ -162,13 +165,16 @@ export function useLiveRefreshContract(opts: LiveRefreshOptions): LiveRefreshRes
     clearInFlight();
     setIsRefreshing(true);
     setInFlight();
-    fireAll("manual", "user_pull");
-    // Allow spinner for a visible minimum then clear.
-    // React Query will keep stale data visible (placeholderData) so no flash.
-    setTimeout(() => {
+    const promises = fireAll("manual", "user_pull");
+    // Spinner dismisses only after:
+    //   a) all refetch promises have settled (success OR error), AND
+    //   b) a minimum 800 ms visible duration (feels responsive, not janky).
+    // This prevents dismissing the spinner while stale data is still in-flight.
+    const minVisible = new Promise<void>((res) => setTimeout(res, 800));
+    Promise.all([Promise.allSettled(promises), minVisible]).then(() => {
       setIsRefreshing(false);
       clearInFlight();
-    }, 800);
+    });
   }, [fireAll, setInFlight, clearInFlight]);
 
   // ── 2. Foreground resume (AppState) ──
