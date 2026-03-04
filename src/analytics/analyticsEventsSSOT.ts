@@ -42,6 +42,7 @@ export const AnalyticsEvent = {
   APP_CRASH: "app_crash",
   FRIENDS_PAGE_LOADED: "friends_page_loaded",
   OFFLINE_QUEUE_REPLAY_RESULT: "offline_queue_replay_result",
+  NOTIFICATIONS_PAGE_LOADED: "notifications_page_loaded",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -355,4 +356,16 @@ export function trackOfflineQueueReplayResult(props: {
   durationMs: number;
 }): void {
   track(AnalyticsEvent.OFFLINE_QUEUE_REPLAY_RESULT, props);
+}
+
+/**
+ * notifications_page_loaded — fires after each notifications page fetch.
+ * [P1_NOTIFS_PAGINATED]
+ */
+export function trackNotificationsPageLoaded(props: {
+  pageSize: number;
+  countLoaded: number;
+  hasNextPage: boolean;
+}): void {
+  track(AnalyticsEvent.NOTIFICATIONS_PAGE_LOADED, props);
 }
