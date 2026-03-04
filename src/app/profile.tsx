@@ -124,7 +124,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (bootStatus === "onboarding") router.replace("/welcome");
     if (bootStatus === "loggedOut" || bootStatus === "error")
-      router.replace("/login");
+      router.replace("/welcome");
   }, [bootStatus, router]);
 
   // Queries (authed only)

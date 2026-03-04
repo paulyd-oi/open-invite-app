@@ -77,7 +77,7 @@ interface Friendship {
     name: string | null;
     email: string | null;
     image: string | null;
-  };
+  } | null;
 }
 
 interface GetFriendsResponse {
@@ -334,8 +334,8 @@ export default function WhosFreeScreen() {
           const friend = allFriends.find((f) => f.friendId === uid);
           return {
             id: uid,
-            name: friend?.friend.name ?? null,
-            image: friend?.friend.image ?? null,
+            name: friend?.friend?.name ?? null,
+            image: friend?.friend?.image ?? null,
           };
         }),
     }));
@@ -498,7 +498,7 @@ export default function WhosFreeScreen() {
               </View>
             ) : (
               <View className="flex-row flex-wrap mb-4">
-                {allFriends.map((friendship: Friendship) => {
+                {allFriends.filter((f) => f.friend != null).map((friendship: Friendship) => {
                   const isSelected = bestTimeFriendIds.includes(friendship.friendId);
                   return (
                     <Pressable
@@ -512,8 +512,8 @@ export default function WhosFreeScreen() {
                       }}
                     >
                       <EntityAvatar
-                        photoUrl={friendship.friend.image}
-                        initials={friendship.friend.name?.[0] ?? "?"}
+                        photoUrl={friendship.friend?.image ?? null}
+                        initials={friendship.friend?.name?.[0] ?? "?"}
                         size={24}
                         backgroundColor={`${themeColor}30`}
                         foregroundColor={themeColor}
@@ -523,7 +523,7 @@ export default function WhosFreeScreen() {
                         className="text-sm font-medium"
                         style={{ color: isSelected ? themeColor : colors.text }}
                       >
-                        {friendship.friend.name?.split(" ")[0] ?? "Friend"}
+                        {friendship.friend?.name?.split(" ")[0] ?? "Friend"}
                       </Text>
                       {isSelected && (
                         <View
@@ -791,18 +791,18 @@ export default function WhosFreeScreen() {
                                     <Text className="text-xs font-semibold mb-1" style={{ color: "#EF4444" }}>
                                       ✗ Busy ({busyFriends.length})
                                     </Text>
-                                    {busyFriends.map((friendship) => (
+                                    {busyFriends.filter((f) => f.friend != null).map((friendship) => (
                                       <View key={friendship.id} className="flex-row items-center mb-1">
                                         <EntityAvatar
-                                          photoUrl={friendship.friend.image}
-                                          initials={friendship.friend.name?.[0] ?? "?"}
+                                          photoUrl={friendship.friend?.image ?? null}
+                                          initials={friendship.friend?.name?.[0] ?? "?"}
                                           size={20}
                                           backgroundColor="#EF444420"
                                           foregroundColor="#EF4444"
                                           style={{ marginRight: 6 }}
                                         />
                                         <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                                          {friendship.friend.name ?? "Friend"}
+                                          {friendship.friend?.name ?? "Friend"}
                                         </Text>
                                       </View>
                                     ))}
