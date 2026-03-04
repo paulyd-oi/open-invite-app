@@ -8,6 +8,7 @@ import {
   Share,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Stack } from "expo-router";
@@ -37,6 +38,7 @@ import { isAuthedForNetwork } from "@/lib/authedGate";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { devLog } from "@/lib/devLog";
 import { usePremiumStatusContract } from "@/lib/entitlements";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 
 /** Normalize backend reward type strings to canonical _pro format for display */
 function normalizeRewardType(type: string): string {
@@ -79,10 +81,16 @@ export default function InviteScreen() {
 
   const { isPro } = usePremiumStatusContract();
 
-  const { data: stats, isLoading } = useQuery<ReferralStats>({
+  const { data: stats, isLoading, refetch: refetchStats } = useQuery<ReferralStats>({
     queryKey: ["referralStats"],
     queryFn: () => api.get<ReferralStats>("/api/referral/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
+  });
+
+  // Pull-to-refresh + focus refresh
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "invite",
+    refetchFns: [refetchStats],
   });
 
   // [P0_REFERRAL_PRO_GATE] DEV proof log
@@ -180,7 +188,13 @@ export default function InviteScreen() {
         }}
       />
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
+        }
+      >
         {/* HERO: Big Reward Tiers Section - THE MAIN ATTRACTION */}
         <Animated.View entering={FadeInDown.delay(100)} className="px-6 pt-4 pb-6">
           <View

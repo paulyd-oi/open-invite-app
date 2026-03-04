@@ -45,6 +45,7 @@ import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dism
 import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
+import { qk } from "@/lib/queryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
@@ -671,7 +672,7 @@ export default function SocialScreen() {
   // Refetch session on app focus to sync emailVerified state
   useFocusEffect(
     useCallback(() => {
-      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: qk.session() });
     }, [queryClient])
   );
 

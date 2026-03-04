@@ -7,6 +7,7 @@ import {
   Image,
   Modal,
   TextInput,
+  RefreshControl,
 } from "react-native";
 import { safeToast } from "@/lib/safeToast";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -35,6 +36,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { Confetti } from "@/components/Confetti";
 import {
   type GetEventRequestResponse,
@@ -69,10 +71,17 @@ export default function EventRequestDetailScreen() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Fetch event request details
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch: refetchRequest } = useQuery({
     queryKey: ["event-request", id],
     queryFn: () => api.get<GetEventRequestResponse>(`/api/event-requests/${id}`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!id,
+  });
+
+  // Pull-to-refresh + focus refresh
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "event-request-detail",
+    refetchFns: [refetchRequest],
+    disableForeground: true,
   });
 
   const eventRequest = data?.eventRequest;
@@ -279,6 +288,9 @@ export default function EventRequestDetailScreen() {
         className="flex-1"
         contentContainerStyle={{ padding: 20 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
+        }
       >
         {/* Status Banner */}
         {eventRequest.status === "confirmed" && (

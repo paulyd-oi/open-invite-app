@@ -54,6 +54,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Contacts from "expo-contacts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/queryKeys";
 
 import { useTheme, LIGHT_COLORS, DARK_COLORS } from "@/lib/ThemeContext";
 import { api } from "@/lib/api";
@@ -963,7 +964,7 @@ export default function OnboardingScreen() {
           safeToast.warning("Couldn't send verification email", "Try again from the banner.");
         }
       }
-      await queryClient.invalidateQueries({ queryKey: ["session"] });
+      await queryClient.invalidateQueries({ queryKey: qk.session() });
       await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
     } catch (error) {
       devError("Failed to complete onboarding:", error);

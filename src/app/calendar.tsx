@@ -1463,7 +1463,6 @@ export default function CalendarScreen() {
       safeToast.success("Busy block added");
       // P0 FIX: Invalidate specific keys instead of wildcard
       queryClient.invalidateQueries({ queryKey: eventKeys.calendar() });
-      queryClient.invalidateQueries({ queryKey: ["calendarEvents"] });
       setShowBusyModal(false);
       setBusyLabel("Busy");
       setBusyStartTime(null);

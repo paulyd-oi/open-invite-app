@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -36,6 +37,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { devLog } from "@/lib/devLog";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { Button } from "@/ui/Button";
 import {
   type GetBlockedContactsResponse,
@@ -63,10 +65,16 @@ export default function BlockedContactsScreen() {
   const [selectedUser, setSelectedUser] = useState<FriendUser | null>(null);
 
   // Fetch blocked contacts
-  const { data: blockedData, isLoading } = useQuery({
+  const { data: blockedData, isLoading, refetch: refetchBlocked } = useQuery({
     queryKey: ["blocked-contacts"],
     queryFn: () => api.get<GetBlockedContactsResponse>("/api/blocked"),
     enabled: isAuthedForNetwork(bootStatus, session),
+  });
+
+  // Pull-to-refresh + focus refresh
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "blocked-contacts",
+    refetchFns: [refetchBlocked],
   });
 
   // Search users to block
@@ -226,6 +234,9 @@ export default function BlockedContactsScreen() {
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
+          }
         >
           {/* Info Banner */}
           <Animated.View entering={FadeInDown.delay(0).springify()} className="mx-4 mt-4">

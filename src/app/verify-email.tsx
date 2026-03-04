@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import { ChevronLeft, Mail, Check } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/queryKeys";
 
 import { useSession } from "@/lib/useSession";
 import { safeToast } from "@/lib/safeToast";
@@ -94,7 +95,7 @@ export default function VerifyEmailScreen() {
 
     try {
       await forceRefreshSession();
-      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: qk.session() });
 
       // Give a moment for React Query to propagate the new session
       await new Promise((r) => setTimeout(r, 600));

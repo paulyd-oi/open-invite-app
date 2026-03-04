@@ -31,6 +31,7 @@ export const qk = {
   friend: friendKeys,
 
   // ── Session / Profile ─────────────────────────────────────────────────
+  session: () => ["session"] as const,
   profile: () => ["profile"] as const,
   profiles: () => ["profiles"] as const,
 
@@ -66,6 +67,7 @@ export const qk = {
  * not produced by a qk.* builder, something is wrong.
  */
 const QK_OWNED_ROOTS = new Set([
+  "session",
   "profile",
   "profiles",
   "entitlements",

@@ -36,6 +36,7 @@ import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { api } from "@/lib/api";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { qk } from "@/lib/queryKeys";
 import { useTheme } from "@/lib/ThemeContext";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
@@ -193,7 +194,7 @@ export default function ProfileScreen() {
         refetchEvents(),
         refetchStats(),
         refetchCircles(),
-        queryClient.invalidateQueries({ queryKey: ["session"] }),
+        queryClient.invalidateQueries({ queryKey: qk.session() }),
       ]);
     } finally {
       setRefreshing(false);

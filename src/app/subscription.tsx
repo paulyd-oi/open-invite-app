@@ -9,6 +9,7 @@ import {
   Platform,
   Linking,
   KeyboardAvoidingView,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ import { safeToast } from "@/lib/safeToast";
 import { useSubscription as useSubscriptionData, PRICING } from "@/lib/useSubscription";
 import { useSubscription as useSubscriptionContext } from "@/lib/SubscriptionContext";
 import { useRefreshProContract } from "@/lib/entitlements";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import type { PurchasesPackage } from "react-native-purchases";
 
 // Types for subscription details from backend
@@ -113,6 +115,12 @@ export default function SubscriptionScreen() {
     queryKey: qk.subscriptionDetails(),
     queryFn: () => api.get<SubscriptionDetails>("/api/subscription/details"),
     enabled: isAuthedForNetwork(bootStatus, session),
+  });
+
+  // Pull-to-refresh + focus refresh
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "subscription",
+    refetchFns: [refetch],
   });
 
   // Fetch RevenueCat offerings with fallback
@@ -452,6 +460,9 @@ export default function SubscriptionScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
+        }
       >
         {/* Status Hero Section */}
         <Animated.View entering={FadeIn.delay(0).duration(400)} className="mx-4 mt-2">

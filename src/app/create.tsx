@@ -523,6 +523,28 @@ export default function CreateEventScreen() {
   // [P0_PREMIUM_DRIFT_GUARD] Cross-contract consistency check (DEV-only)
   usePremiumDriftGuard(premiumStatus, hostingQuota);
 
+  // [P1_CREATE_ENTITLEMENTS_TIMEOUT] Show visible message when entitlements loading stalls
+  const [entitlementsTimedOut, setEntitlementsTimedOut] = useState(false);
+  useEffect(() => {
+    if (!entitlementsLoading && !hostingQuota.isLoading) {
+      setEntitlementsTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (entitlementsLoading || hostingQuota.isLoading) {
+        setEntitlementsTimedOut(true);
+        if (__DEV__) {
+          devLog("[P1_CREATE_ENTITLEMENTS_TIMEOUT]", {
+            entitlementsLoading,
+            quotaLoading: hostingQuota.isLoading,
+            action: "timeout_shown",
+          });
+        }
+      }
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [entitlementsLoading, hostingQuota.isLoading]);
+
   // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
   const BEST_TIME_PICK_KEY = "oi:bestTimePick";
   const BEST_TIME_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -1898,6 +1920,29 @@ export default function CreateEventScreen() {
             >
               {hostingQuota.eventsUsed} of {hostingQuota.monthlyLimit} events hosted this month
             </Text>
+          )}
+
+          {/* [P1_CREATE_ENTITLEMENTS_TIMEOUT] Entitlements loading timeout message */}
+          {entitlementsTimedOut && (entitlementsLoading || hostingQuota.isLoading) && (
+            <View
+              className="rounded-xl p-3 mt-3"
+              style={{ backgroundColor: isDark ? "#332B00" : "#FFFBEB", borderColor: "#F59E0B40", borderWidth: 1 }}
+            >
+              <Text className="text-xs text-center mb-2" style={{ color: isDark ? "#FCD34D" : "#92400E" }}>
+                Still loading your plan details...
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setEntitlementsTimedOut(false);
+                  refetchEntitlements();
+                  hostingQuota.refetch();
+                }}
+                className="self-center px-4 py-1.5 rounded-lg"
+                style={{ backgroundColor: "#F59E0B20" }}
+              >
+                <Text className="text-xs font-semibold" style={{ color: "#F59E0B" }}>Retry</Text>
+              </Pressable>
+            </View>
           )}
 
           {/* Create Button */}
