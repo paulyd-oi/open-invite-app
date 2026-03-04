@@ -71,6 +71,7 @@ import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useStickyLoading } from "@/lib/useStickyLoading";
+import { usePaginatedFriends } from "@/lib/usePaginatedFriends";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { useUnseenNotificationCount } from "@/hooks/useUnseenNotifications";
 import { api } from "@/lib/api";
@@ -86,7 +87,6 @@ import { FriendsActivityPane } from "@/components/friends/FriendsActivityPane";
 import { FriendsChatsPane } from "@/components/friends/FriendsChatsPane";
 import { FriendsPeoplePane } from "@/components/friends/FriendsPeoplePane";
 import {
-  type GetFriendsResponse,
   type GetFriendRequestsResponse,
   type Friendship,
   type FriendRequest,
@@ -804,19 +804,39 @@ export default function FriendsScreen() {
     console.time("[PERF] Friends query");
   }
 
-  const { data: friendsData, isLoading: rawIsLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["friends"],
-    queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
+  // [PAGINATION_GROUNDWORK] Use paginated hook — falls back to full-list when backend has no cursor support
+  const {
+    data: paginatedFriends,
+    isLoading: rawIsLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = usePaginatedFriends({
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 5 * 60 * 1000, // 5 min - friends list is stable
-    gcTime: 10 * 60 * 1000, // 10 min garbage collection
-    refetchOnMount: false, // Don't refetch if data exists
-    refetchOnWindowFocus: false, // Don't refetch on tab focus
-    placeholderData: (prev) => prev, // Keep previous data during refetch
+    pageSize: 20,
   });
-  
+
+  // Wrap into the same shape downstream code expects
+  const friendsData = useMemo(
+    () => (paginatedFriends.length > 0 ? { friends: paginatedFriends } : undefined),
+    [paginatedFriends],
+  );
+
   // P1 JITTER FIX: Use sticky loading to prevent flicker
   const isLoading = useStickyLoading(rawIsLoading, 300, __DEV__ ? "friends" : undefined);
+
+  // onEndReached debounce ref (800ms) to avoid rapid pagination calls
+  const endReachedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleEndReached = useCallback(() => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    if (endReachedTimerRef.current) return; // debounce active
+    endReachedTimerRef.current = setTimeout(() => {
+      endReachedTimerRef.current = null;
+    }, 800);
+    fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // DEV: Log when friends data arrives
   useEffect(() => {
@@ -1424,6 +1444,9 @@ export default function FriendsScreen() {
             friendKeyExtractor={friendKeyExtractor}
             renderFriendListItem={renderFriendListItem}
             renderFriendCard={renderFriendCard}
+            onEndReached={handleEndReached}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
           />
         )}
       </ScrollView>

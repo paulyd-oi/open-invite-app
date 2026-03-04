@@ -8,6 +8,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "./devLog";
 import { trackOfflineActionQueued } from "@/analytics/analyticsEventsSSOT";
+import { getPostHogRef, posthogCapture } from "@/analytics/posthogSSOT";
 
 // Simple UUID generator (no external dependency)
 function generateUUID(): string {
@@ -20,6 +21,48 @@ function generateUUID(): string {
 
 // Storage key for the queue
 const QUEUE_STORAGE_KEY = "offlineQueue:v1";
+
+// Dead-letter counter persistence
+const DEAD_LETTER_STORAGE_KEY = "offlineQueue:deadLetterCount:v1";
+let _deadLetterCount = -1; // -1 = not yet loaded from storage
+
+/**
+ * Get the cumulative count of actions that exceeded MAX_RETRIES and were dropped.
+ * Loads from AsyncStorage on first call, then uses in-memory cache.
+ */
+export async function getDeadLetterCount(): Promise<number> {
+  if (_deadLetterCount >= 0) return _deadLetterCount;
+  try {
+    const stored = await AsyncStorage.getItem(DEAD_LETTER_STORAGE_KEY);
+    _deadLetterCount = stored ? parseInt(stored, 10) || 0 : 0;
+  } catch {
+    _deadLetterCount = 0;
+  }
+  return _deadLetterCount;
+}
+
+/**
+ * Reset the dead-letter counter to zero.
+ */
+export async function clearDeadLetterCount(): Promise<void> {
+  _deadLetterCount = 0;
+  try {
+    await AsyncStorage.setItem(DEAD_LETTER_STORAGE_KEY, "0");
+  } catch {
+    // best-effort
+  }
+}
+
+/** Increment the dead-letter counter by 1 and persist. */
+async function _incrementDeadLetterCount(): Promise<void> {
+  const current = await getDeadLetterCount();
+  _deadLetterCount = current + 1;
+  try {
+    await AsyncStorage.setItem(DEAD_LETTER_STORAGE_KEY, String(_deadLetterCount));
+  } catch {
+    // best-effort
+  }
+}
 
 // Safety rails
 const MAX_QUEUE_SIZE = 50;
@@ -193,11 +236,28 @@ export async function markFailed(id: string, error: string): Promise<void> {
     action.retryCount = (action.retryCount || 0) + 1;
     if (action.retryCount >= MAX_RETRIES) {
       // Permanently failed — remove from queue to prevent unbounded retry loops
-      if (__DEV__) {
-        devWarn("[offlineQueue] Action exceeded maxRetries, dropping:", id, action.type);
-      }
       const newQueue = queue.filter((a) => a.id !== id);
       await saveQueue(newQueue);
+
+      // [P0_OFFLINE_DEAD_LETTER] Log + track dead-lettered action
+      devWarn("[P0_OFFLINE_DEAD_LETTER]", {
+        actionType: action.type,
+        retryCount: action.retryCount,
+        id,
+        error,
+      });
+
+      // Increment persistent dead-letter counter
+      await _incrementDeadLetterCount();
+
+      // Emit PostHog event (bypasses typed catalog — this is a P0 observability signal)
+      posthogCapture(getPostHogRef(), "offline_action_dead_letter", {
+        actionType: action.type,
+        retryCount: action.retryCount,
+        queueSizeAfter: newQueue.length,
+        error,
+      });
+
       return;
     }
     action.status = "failed";

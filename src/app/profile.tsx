@@ -29,6 +29,7 @@ import BottomNavigation from "@/components/BottomNavigation";
 import { StreakCounter } from "@/components/StreakCounter";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
+import { InlineErrorCard } from "@/components/InlineErrorCard";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -148,13 +149,13 @@ export default function ProfileScreen() {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  const { data: eventsData, refetch: refetchEvents } = useQuery({
+  const { data: eventsData, refetch: refetchEvents, isError: isEventsError, isRefetching: isEventsRefetching } = useQuery({
     queryKey: eventKeys.myEvents(),
     queryFn: () => api.get<GetEventsResponse>("/api/events"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
-  const { data: statsData, refetch: refetchStats } = useQuery({
+  const { data: statsData, refetch: refetchStats, isError: isStatsError, isRefetching: isStatsRefetching } = useQuery({
     queryKey: ["profileStats"],
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -836,6 +837,20 @@ export default function ProfileScreen() {
           <Text className="text-xs font-semibold mb-3" style={{ color: colors.textTertiary, letterSpacing: 1 }}>
             YOUR WEEK
           </Text>
+          {isEventsError && !eventsData ? (
+            (() => {
+              if (__DEV__) {
+                console.warn("[P1_PROFILE_PARTIAL_ERROR]", { card: "events", hasData: !!eventsData });
+              }
+              return (
+                <InlineErrorCard
+                  cardName="Events"
+                  onRetry={() => refetchEvents()}
+                  isRetrying={isEventsRefetching}
+                />
+              );
+            })()
+          ) : (
           <View
             className="rounded-xl p-4 border"
             style={{ backgroundColor: colors.surface, borderColor: colors.border, minHeight: 130 }}
@@ -891,15 +906,31 @@ export default function ProfileScreen() {
               style={{ backgroundColor: `${themeColor}15`, borderRadius: 8, paddingVertical: 10 }}
             />
           </View>
+          )}
         </Animated.View>
 
         {/* ═══ Momentum (Streak) ═══ */}
         <Animated.View entering={FadeInDown.delay(120).duration(240)} className="mb-4">
-          <StreakCounter
-            currentStreak={stats?.currentStreak ?? 0}
-            longestStreak={stats?.currentStreak ?? 0}
-            totalHangouts={stats?.attendedCount ?? 0}
-          />
+          {isStatsError && !statsData ? (
+            (() => {
+              if (__DEV__) {
+                console.warn("[P1_PROFILE_PARTIAL_ERROR]", { card: "stats", hasData: !!statsData });
+              }
+              return (
+                <InlineErrorCard
+                  cardName="Stats"
+                  onRetry={() => refetchStats()}
+                  isRetrying={isStatsRefetching}
+                />
+              );
+            })()
+          ) : (
+            <StreakCounter
+              currentStreak={stats?.currentStreak ?? 0}
+              longestStreak={stats?.currentStreak ?? 0}
+              totalHangouts={stats?.attendedCount ?? 0}
+            />
+          )}
         </Animated.View>
 
         {/* ═══ Social Snapshot (2×2 grid) ═══ */}

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, FlatList, Platform } from "react-native";
+import { View, Text, Pressable, FlatList, Platform, ActivityIndicator } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
@@ -180,6 +180,10 @@ export interface FriendsPeoplePaneProps {
   friendKeyExtractor: (item: Friendship) => string;
   renderFriendListItem: (info: { item: Friendship; index: number }) => React.ReactElement | null;
   renderFriendCard: (info: { item: Friendship; index: number }) => React.ReactElement | null;
+  // [PAGINATION_GROUNDWORK] Pagination support
+  onEndReached?: () => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -201,6 +205,9 @@ export function FriendsPeoplePane({
   friendKeyExtractor,
   renderFriendListItem,
   renderFriendCard,
+  onEndReached,
+  hasNextPage,
+  isFetchingNextPage,
 }: FriendsPeoplePaneProps) {
   const { themeColor, isDark, colors } = useTheme();
   const router = useRouter();
@@ -383,6 +390,16 @@ export function FriendsPeoplePane({
               scrollEnabled={false} // Let parent ScrollView handle scrolling
               // Stable list - avoid re-renders
               extraData={pinnedFriendshipIds}
+              // [PAGINATION_GROUNDWORK] Cursor pagination support
+              onEndReached={hasNextPage ? onEndReached : undefined}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <View className="py-4 items-center">
+                    <ActivityIndicator size="small" color={themeColor} />
+                  </View>
+                ) : null
+              }
             />
           )}
         </Animated.View>
