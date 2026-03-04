@@ -55,6 +55,8 @@ export function HeroBannerSurface({
             source={{ uri: bannerRenderUri! }}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
+            priority="normal"
             style={StyleSheet.absoluteFillObject}
           />
         </MotionSurface>

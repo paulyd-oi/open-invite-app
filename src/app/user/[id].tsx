@@ -859,6 +859,8 @@ export default function UserProfileScreen() {
                       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
                       contentFit="cover"
                       transition={200}
+                      cachePolicy="memory-disk"
+                      priority="normal"
                     />
                     {/* Subtle global tint */}
                     <View style={{

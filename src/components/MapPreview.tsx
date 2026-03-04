@@ -217,6 +217,8 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
         style={{ width: "100%", height: "100%" }}
         contentFit="cover"
         transition={200}
+        cachePolicy="memory-disk"
+        priority="normal"
         onError={() => {
           if (__DEV__) devLog("MapPreview: Image failed to load, useFallback:", useFallback);
           if (!useFallback && GOOGLE_API_KEY) {

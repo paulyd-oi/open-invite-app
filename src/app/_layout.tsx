@@ -300,11 +300,11 @@ if (__DEV__) {
  */
 const QUERY_DEFAULTS = {
   queries: {
-    // Don't retry on auth errors (401/403) or not found (404)
+    // Only retry on server errors (5xx); prevent retry storms on client errors
     retry: (failureCount: number, error: any) => {
       const status = error?.status ?? error?.response?.status;
-      if (status === 401 || status === 403 || status === 404) return false;
-      return failureCount < 1; // Max 1 retry
+      if (typeof status === "number" && status >= 500) return failureCount < 2;
+      return false;
     },
     // Exponential backoff: 1s, 2s, 4s... capped at 30s
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -325,7 +325,7 @@ const QUERY_DEFAULTS = {
 // Log defaults once at module load in DEV
 if (__DEV__) {
   devLog('[P1_QUERY_DEFAULTS]', 'QueryClient initialized with:', {
-    'queries.retry': 'max 1 (skip 401/403/404)',
+    'queries.retry': 'max 2 on 5xx only',
     'queries.retryDelay': 'exponential backoff, cap 30s',
     'queries.staleTime': `${QUERY_DEFAULTS.queries.staleTime}ms`,
     'queries.gcTime': `${QUERY_DEFAULTS.queries.gcTime}ms`,

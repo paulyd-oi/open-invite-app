@@ -863,11 +863,25 @@ export default function SocialScreen() {
       const _t0 = Date.now();
       rsvpInflightRef.current.add(eventId);
 
-      // Cancel outgoing feed refetches so they don't overwrite optimistic update
+      // Cancel outgoing feed + detail refetches so they don't overwrite optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.feedPaginated() });
+      await queryClient.cancelQueries({ queryKey: eventKeys.single(eventId) });
 
       // Snapshot previous feed pages for rollback (use EXACT key for infinite query)
       const previousFeed = queryClient.getQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey);
+
+      // Snapshot event detail cache for rollback (if user visited event before)
+      const detailKey = eventKeys.single(eventId);
+      const previousDetail = queryClient.getQueryData<Event>(detailKey);
+
+      // Helper: compute goingCount delta
+      const computeDelta = (prevStatus: string | null | undefined, newStatus: string) => {
+        const wasGoing = prevStatus === "going";
+        const isGoing = newStatus === "going";
+        if (!wasGoing && isGoing) return 1;
+        if (wasGoing && !isGoing) return -1;
+        return 0;
+      };
 
       // Optimistically update viewerRsvpStatus + goingCount in the feed cache
       queryClient.setQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey, (old) => {
@@ -880,11 +894,7 @@ export default function SocialScreen() {
             /* INVARIANT_ALLOW_SMALL_MAP */
             events: page.events.map((ev) => {
               if (ev.id !== eventId) return ev;
-              const wasGoing = ev.viewerRsvpStatus === "going";
-              const isGoing = status === "going";
-              let delta = 0;
-              if (!wasGoing && isGoing) delta = 1;
-              else if (wasGoing && !isGoing) delta = -1;
+              const delta = computeDelta(ev.viewerRsvpStatus, status);
               return {
                 ...ev,
                 viewerRsvpStatus: status,
@@ -895,16 +905,27 @@ export default function SocialScreen() {
         };
       });
 
+      // [PHASE2_CACHE_NORM] Also update event detail cache if it exists
+      if (previousDetail) {
+        const delta = computeDelta(previousDetail.viewerRsvpStatus, status);
+        queryClient.setQueryData<Event>(detailKey, {
+          ...previousDetail,
+          viewerRsvpStatus: status as Event["viewerRsvpStatus"],
+          goingCount: Math.max(0, (previousDetail.goingCount ?? 0) + delta),
+        });
+      }
+
       if (__DEV__) {
         devLog('[P0_SOCIAL_OPTIMISTIC_RSVP]', {
           eventId,
           newStatus: status,
           rollbackUsed: false,
           hasPreviousFeed: !!previousFeed,
+          hasDetailCache: !!previousDetail,
         });
       }
 
-      return { previousFeed, _t0, eventId };
+      return { previousFeed, previousDetail, detailKey, _t0, eventId };
     },
     onSuccess: (_, { eventId, status }, context) => {
       if (__DEV__) {
@@ -923,11 +944,16 @@ export default function SocialScreen() {
       if (context?.previousFeed) {
         queryClient.setQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey, context.previousFeed);
       }
+      // Rollback optimistic event detail cache
+      if (context?.previousDetail && context?.detailKey) {
+        queryClient.setQueryData<Event>(context.detailKey, context.previousDetail);
+      }
       if (__DEV__) {
         devLog('[P0_SOCIAL_OPTIMISTIC_RSVP]', {
           eventId,
           newStatus: status,
           rollbackUsed: !!context?.previousFeed,
+          detailRollback: !!context?.previousDetail,
           errorStatus: error?.status,
         });
       }

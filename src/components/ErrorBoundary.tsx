@@ -1,6 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { View, Text, Pressable } from "react-native";
-import { devError } from "@/lib/devLog";
+import { devError, devLog } from "@/lib/devLog";
+import { trackAppCrash } from "@/analytics/analyticsEventsSSOT";
 
 // IMPORTANT:
 // If an icon export is missing, importing it will be `undefined`.
@@ -50,7 +51,24 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     devError("ErrorBoundary caught an error:", error, errorInfo);
-    
+
+    // [P0_CRASH_CAPTURED] Emit app_crash telemetry via PostHog SSOT — no PII
+    try {
+      const errorMessage = (error?.message ?? "unknown").substring(0, 200);
+      const componentStack = (errorInfo?.componentStack ?? "").substring(0, 500);
+      trackAppCrash({
+        route: typeof window !== "undefined" ? window.location?.pathname ?? "unknown" : "unknown",
+        error_message: errorMessage,
+        component_stack: componentStack,
+        timestamp: new Date().toISOString(),
+      });
+      if (__DEV__) {
+        devLog("[P0_CRASH_CAPTURED]", { error_message: errorMessage });
+      }
+    } catch (_) {
+      // Never let telemetry crash the crash handler
+    }
+
     // DEV-only: Enhanced logging for "Text strings must be rendered" crash
     if (__DEV__ && error?.message?.includes("Text strings must be rendered")) {
       devError("=== TEXT RENDER CRASH DETECTED ===");

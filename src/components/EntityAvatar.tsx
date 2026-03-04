@@ -105,6 +105,8 @@ export function EntityAvatar({
         style={StyleSheet.absoluteFill}
         contentFit="cover"
         transition={200}
+        cachePolicy="memory-disk"
+        priority="normal"
         onError={() => setImageFailed(true)}
       />
     );

@@ -39,6 +39,7 @@ export const AnalyticsEvent = {
   API_ERROR: "api_error",
   OFFLINE_ACTION_QUEUED: "offline_action_queued",
   FEED_LOAD_TIME: "feed_load_time",
+  APP_CRASH: "app_crash",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -326,4 +327,17 @@ export function trackFeedLoadTime(props: {
   itemCount: number;
 }): void {
   track(AnalyticsEvent.FEED_LOAD_TIME, props);
+}
+
+/**
+ * app_crash — fires when ErrorBoundary catches an unhandled error.
+ * No PII: error_message is truncated, component_stack is trimmed.
+ */
+export function trackAppCrash(props: {
+  route: string;
+  error_message: string;
+  component_stack: string;
+  timestamp: string;
+}): void {
+  track(AnalyticsEvent.APP_CRASH, props);
 }
