@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Image,
   Switch,
   Platform,
   Linking,
@@ -13,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1660,10 +1660,13 @@ export default function SettingsScreen() {
                       {showBanner && bannerSource ? (
                         <View>
                           {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — banner preview thumbnail, Cloudinary-transformed when applicable */}
-                          <Image
+                          <ExpoImage
                             source={{ uri: toCloudinaryTransformedUrl(bannerSource, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
                             style={{ width: "100%", height: 80 }}
-                            resizeMode="cover"
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
+                            priority="normal"
                           />
                           {isUploading && (
                             <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>

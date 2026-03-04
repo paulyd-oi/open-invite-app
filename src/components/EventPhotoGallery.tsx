@@ -3,13 +3,13 @@ import {
   View,
   Text,
   Pressable,
-  Image,
   Modal,
   ScrollView,
   ActivityIndicator,
   Dimensions,
   Platform,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Camera, ImagePlus, X, Trash2, ChevronLeft, ChevronRight, Download } from "@/ui/icons";
@@ -386,10 +386,13 @@ export function EventPhotoGallery({
                   onPress={() => openGallery(index)}
                   className="mr-3"
                 >
-                  <Image
+                  <ExpoImage
                     source={{ uri: toCloudinaryTransformedUrl(photo.imageUrl, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
-                    className="w-32 h-32 rounded-xl"
-                    resizeMode="cover"
+                    style={{ width: 128, height: 128, borderRadius: 12 }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                    priority="normal"
                   />
                   <View
                     className="absolute bottom-2 left-2 right-2 flex-row items-center"
@@ -397,7 +400,7 @@ export function EventPhotoGallery({
                   >
                     <View className="w-5 h-5 rounded-full overflow-hidden mr-1">
                       {photo.user?.image ? (
-                        <Image source={{ uri: photo.user?.image }} className="w-full h-full" />
+                        <ExpoImage source={{ uri: photo.user?.image }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" transition={200} priority="normal" />
                       ) : (
                         <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>
                           <Text className="text-white text-xs font-bold">
@@ -604,9 +607,13 @@ export function EventPhotoGallery({
               <View className="flex-row items-center">
                 <View className="w-8 h-8 rounded-full overflow-hidden mr-2">
                   {photos[selectedPhotoIndex]?.user?.image ? (
-                    <Image
+                    <ExpoImage
                       source={{ uri: photos[selectedPhotoIndex]?.user?.image ?? undefined }}
-                      className="w-full h-full"
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                      priority="normal"
                     />
                   ) : (
                     <View className="w-full h-full items-center justify-center" style={{ backgroundColor: themeColor }}>

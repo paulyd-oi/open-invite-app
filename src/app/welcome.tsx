@@ -4,12 +4,12 @@ import {
   Text,
   Pressable,
   TextInput,
-  Image,
   ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1287,7 +1287,7 @@ export default function WelcomeOnboardingScreen() {
               <View style={[styles.photoPlaceholder, { borderColor: themeColor }]}>
                 {avatarLocalUri ? (
                   // INVARIANT_ALLOW_RAW_IMAGE_CONTENT — onboarding avatar local preview (not Cloudinary)
-                  <Image source={{ uri: avatarLocalUri }} style={styles.photoImage} />
+                  <ExpoImage source={{ uri: avatarLocalUri }} style={styles.photoImage} contentFit="cover" cachePolicy="memory-disk" transition={200} priority="normal" />
                 ) : (
                   <Camera size={32} color={themeColor} />
                 )}

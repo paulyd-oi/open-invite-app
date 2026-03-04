@@ -72,9 +72,9 @@ export function EntityAvatar({
   // [P0_ENTITY_AVATAR_ERROR_FALLBACK] Track broken image loads
   const [imageFailed, setImageFailed] = useState(false);
   // Resolve effective photo source: imageSource (pre-built with headers) wins over photoUrl string
-  // [P0_PERF_THUMB_AVATAR_HYGIENE] Transform Cloudinary URIs through THUMBNAIL_SQUARE
+  // [P0_PERF_THUMB_AVATAR_HYGIENE] Transform Cloudinary URIs through AVATAR_THUMB (120x120)
   const rawUri = imageSource?.uri ?? photoUrl ?? null;
-  const thumbUri = rawUri ? toCloudinaryTransformedUrl(rawUri, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) : null;
+  const thumbUri = rawUri ? toCloudinaryTransformedUrl(rawUri, CLOUDINARY_PRESETS.AVATAR_THUMB) : null;
   const effectiveSource = rawUri
     ? (imageSource?.uri
         ? { ...imageSource, uri: thumbUri! }
