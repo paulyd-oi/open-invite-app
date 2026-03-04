@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, Pressable, RefreshControl, FlatList } from "react-native";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { devLog, devWarn, devError } from "@/lib/devLog";
+import React, { useState, useCallback } from "react";
+import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator } from "react-native";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { devLog, devWarn } from "@/lib/devLog";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -13,10 +13,12 @@ import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useMarkAllNotificationsSeen, UNSEEN_COUNT_QUERY_KEY } from "@/hooks/useUnseenNotifications";
+import { usePaginatedNotifications } from "@/hooks/usePaginatedNotifications";
 import { ActivityFeedSkeleton } from "@/components/SkeletonLoader";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { safeToast } from "@/lib/safeToast";
-import { type GetNotificationsResponse, type Notification } from "@/shared/contracts";
+import { qk } from "@/lib/queryKeys";
+import { type Notification } from "@/shared/contracts";
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -272,6 +274,17 @@ function EmptyState() {
   );
 }
 
+// ── Pagination footer ──────────────────────────────────────────
+
+function PaginationFooter({ colors }: { colors: { textTertiary: string } }) {
+  return (
+    <View style={{ paddingVertical: 16, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}>
+      <ActivityIndicator size="small" color={colors.textTertiary} />
+      <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Loading more…</Text>
+    </View>
+  );
+}
+
 // ── Notification target resolver ───────────────────────────────
 
 function resolveNotificationTarget(notification: Notification): string | null {
@@ -314,12 +327,17 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
   const [refreshing, setRefreshing] = useState(false);
   const { markAllSeen } = useMarkAllNotificationsSeen();
 
-  // Fetch notifications
-  const { data: notificationsData, isLoading, refetch } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => api.get<GetNotificationsResponse>("/api/notifications"),
+  // Fetch notifications via paginated hook (fallback-safe)
+  const {
+    notifications: uniqueNotifications,
+    unreadCount,
+    isLoading,
+    refetch,
+    hasNextPage,
+    isFetchingNextPage,
+    onEndReached,
+  } = usePaginatedNotifications({
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 30000,
   });
 
   // Mark notification as read (individual)
@@ -327,7 +345,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     mutationFn: (notificationId: string) =>
       api.put(`/api/notifications/${notificationId}/read`, {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: qk.notifications() });
       queryClient.invalidateQueries({ queryKey: UNSEEN_COUNT_QUERY_KEY });
     },
   });
@@ -335,17 +353,11 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
   // Mark all as seen when visible
   useFocusEffect(
     useCallback(() => {
-      if (notificationsData?.unreadCount && notificationsData.unreadCount > 0) {
+      if (unreadCount > 0) {
         markAllSeen();
       }
-    }, [notificationsData?.unreadCount, markAllSeen])
+    }, [unreadCount, markAllSeen])
   );
-
-  // Defensive de-dupe
-  const uniqueNotifications = useMemo(() => {
-    const notifications = notificationsData?.notifications ?? [];
-    return Array.from(new Map(notifications.map(n => [n.id, n])).values());
-  }, [notificationsData?.notifications]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -402,10 +414,13 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
         flexGrow: uniqueNotifications.length === 0 ? 1 : undefined,
       }}
       ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : <EmptyState />}
+      ListFooterComponent={isFetchingNextPage ? <PaginationFooter colors={colors} /> : null}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />
       }
       showsVerticalScrollIndicator={false}
+      onEndReached={hasNextPage ? onEndReached : undefined}
+      onEndReachedThreshold={0.3}
       // When embedded inside a ScrollView parent, let the parent handle scrolling
       nestedScrollEnabled={embedded}
       scrollEnabled={!embedded}
