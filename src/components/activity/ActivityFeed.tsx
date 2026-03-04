@@ -408,6 +408,8 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
       initialNumToRender={10}
       maxToRenderPerBatch={8}
       windowSize={9}
+      updateCellsBatchingPeriod={50}
+      removeClippedSubviews={true}
       contentContainerStyle={{
         paddingTop: embedded ? 4 : 12,
         paddingBottom: embedded ? 20 : 100,

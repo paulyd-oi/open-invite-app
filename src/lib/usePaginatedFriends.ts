@@ -11,10 +11,16 @@
  */
 
 import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import { friendKeys } from "@/lib/refreshAfterMutation";
 import { api } from "@/lib/api";
 import type { GetFriendsResponse, Friendship } from "@/shared/contracts";
+
+// ── Cap in-memory pages to prevent unbounded growth ──────────────
+const MAX_PAGES = 5;
+
+// ── Debounce interval for onEndReached (ms) ──────────────────────
+const END_REACHED_DEBOUNCE = 800;
 
 // ── Response type with optional cursor field ─────────────────────
 type PaginatedFriendsResponse = GetFriendsResponse & {
@@ -34,6 +40,8 @@ export function usePaginatedFriends({
   enabled,
   pageSize = 20,
 }: UsePaginatedFriendsParams) {
+  const lastEndReachedRef = useRef(0);
+
   const query = useInfiniteQuery<
     PaginatedFriendsResponse,
     Error,
@@ -56,6 +64,12 @@ export function usePaginatedFriends({
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    // [PERF_SWEEP] Cap in-memory pages to MAX_PAGES to prevent unbounded growth
+    select: (data: InfiniteData<PaginatedFriendsResponse, string | undefined>) => ({
+      ...data,
+      pages: data.pages.slice(-MAX_PAGES),
+      pageParams: data.pageParams.slice(-MAX_PAGES),
+    }),
     enabled,
     staleTime: 5 * 60 * 1000, // 5 min — friends list is stable
     gcTime: 10 * 60 * 1000, // 10 min garbage collection
@@ -69,9 +83,20 @@ export function usePaginatedFriends({
     return query.data.pages.flatMap((page) => page.friends ?? []);
   }, [query.data?.pages]);
 
+  // Debounced onEndReached handler for FlatList
+  const onEndReached = useCallback(() => {
+    const now = Date.now();
+    if (now - lastEndReachedRef.current < END_REACHED_DEBOUNCE) return;
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    lastEndReachedRef.current = now;
+    query.fetchNextPage();
+  }, [query.hasNextPage, query.isFetchingNextPage, query.fetchNextPage]);
+
   return {
     /** Flattened friends array across all loaded pages */
     data,
+    /** Debounced end-reached handler — wire to FlatList.onEndReached */
+    onEndReached,
     /** Fetch the next page (no-op if !hasNextPage) */
     fetchNextPage: query.fetchNextPage,
     /** Whether more pages are available */
