@@ -41,7 +41,13 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-(no active claims)
+[BATCH6] CLAIMED_BY: [BATCH6]
+Files:
+  src/app/friends.tsx
+  src/components/activity/ActivityFeed.tsx
+  docs/agents/HOTSPOTS.md
+Reason: Network storm guard sweep — SSOT adoption + endReached guards
+Started: 2026-03-04
 
 ---
 

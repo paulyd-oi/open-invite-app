@@ -340,6 +340,15 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     enabled: isAuthedForNetwork(bootStatus, session),
   });
 
+  // [P1_ENDREACHED_GUARD] Block onEndReached while fetching next page
+  const guardedOnEndReached = useCallback(() => {
+    if (isFetchingNextPage) {
+      if (__DEV__) devLog("[P1_ENDREACHED_GUARD]", "screen=activity", "reason=inflight");
+      return;
+    }
+    onEndReached();
+  }, [isFetchingNextPage, onEndReached]);
+
   // Mark notification as read (individual)
   const markReadMutation = useMutation({
     mutationFn: (notificationId: string) =>
@@ -421,7 +430,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />
       }
       showsVerticalScrollIndicator={false}
-      onEndReached={hasNextPage ? onEndReached : undefined}
+      onEndReached={hasNextPage ? guardedOnEndReached : undefined}
       onEndReachedThreshold={0.3}
       // When embedded inside a ScrollView parent, let the parent handle scrolling
       nestedScrollEnabled={embedded}
