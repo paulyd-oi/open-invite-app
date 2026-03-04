@@ -11,6 +11,7 @@ import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { useMemo, useRef, useCallback } from "react";
 import { friendKeys } from "@/lib/refreshAfterMutation";
 import { api } from "@/lib/api";
+import { track, AnalyticsEvent } from "@/analytics/analyticsEventsSSOT";
 import type { GetFriendsResponse, Friendship } from "@/shared/contracts";
 
 // ── Cap in-memory pages to prevent unbounded growth ──────────────
@@ -59,9 +60,15 @@ export function usePaginatedFriends({
         // eslint-disable-next-line no-console
         console.log(`[P1_FRIENDS_PAGINATION] fetch page cursor=${pageParam ?? "initial"} limit=${pageSize}`);
       }
-      return api.get<PaginatedFriendsResponse>(
+      const result = await api.get<PaginatedFriendsResponse>(
         `/api/friends/paginated?${qs}`,
       );
+      track(AnalyticsEvent.FRIENDS_PAGE_LOADED, {
+        pageSize,
+        hasNextPage: !!result.nextCursor,
+        countLoaded: result.friends?.length ?? 0,
+      });
+      return result;
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,

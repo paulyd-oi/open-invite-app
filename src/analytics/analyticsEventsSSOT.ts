@@ -40,6 +40,7 @@ export const AnalyticsEvent = {
   OFFLINE_ACTION_QUEUED: "offline_action_queued",
   FEED_LOAD_TIME: "feed_load_time",
   APP_CRASH: "app_crash",
+  FRIENDS_PAGE_LOADED: "friends_page_loaded",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
