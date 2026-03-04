@@ -28,6 +28,9 @@ import { devLog } from "@/lib/devLog";
 export const friendKeys = {
   /** All friends list */
   all: () => ["friends"] as const,
+  /** Paginated friends list (cursor-based, future-proof) */
+  paginated: (pageSize?: number) =>
+    ["friends", "paginated", { pageSize: pageSize ?? 20 }] as const,
   /** Pending friend requests (sent + received) */
   requests: () => ["friendRequests"] as const,
   /** Friend suggestions / people you may know */

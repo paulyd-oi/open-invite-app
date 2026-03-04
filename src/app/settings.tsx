@@ -95,6 +95,7 @@ import { useSubscription } from "@/lib/SubscriptionContext";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
 import { getRecentReceipts, clearPushReceipts } from "@/lib/push/pushReceiptStore";
 import { buildDiagnosticsBundle } from "@/lib/devDiagnosticsBundle";
+import { getDeadLetterCount, clearDeadLetterCount } from "@/lib/offlineQueue";
 
 // Allowlist for Push Diagnostics visibility (TestFlight testers)
 const PUSH_DIAG_ALLOWLIST = [
@@ -137,6 +138,32 @@ function SettingItem({ icon, title, subtitle, onPress, rightElement, showArrow =
         <Text style={{ color: isDark ? "#636366" : "#9CA3AF" }} className="text-lg">›</Text>
       )}
     </Pressable>
+  );
+}
+
+// DEV-only: Dead-letter counter row for offline queue diagnostics
+function DeadLetterDebugRow({ isDark }: { isDark: boolean }) {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getDeadLetterCount().then((c) => { if (mounted) setCount(c); });
+    return () => { mounted = false; };
+  }, []);
+
+  return (
+    <SettingItem
+      icon={<Trash2 size={20} color="#F97316" />}
+      title={`Dead Letters: ${count ?? "…"}`}
+      subtitle="Offline actions that exceeded max retries"
+      isDark={isDark}
+      onPress={async () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await clearDeadLetterCount();
+        setCount(0);
+        safeToast.success("Cleared", "Dead letter counter reset to 0.");
+      }}
+    />
   );
 }
 
@@ -2013,6 +2040,10 @@ export default function SettingsScreen() {
                   }
                 }}
               />
+            )}
+            {/* P0_OFFLINE_DEAD_LETTER: View/clear dead-lettered offline actions (DEV only) */}
+            {__DEV__ && (
+              <DeadLetterDebugRow isDark={isDark} />
             )}
           </View>
         </Animated.View>
