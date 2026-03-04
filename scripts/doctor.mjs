@@ -204,9 +204,14 @@ section("C) Expo + dependency sanity (expo-doctor)");
 console.log("  Running npx expo-doctor …");
 const doctor = run("npx expo-doctor", { timeout: 60_000 });
 if (!doctor.ok) {
-  fail("expo-doctor reported issues:");
   const output = (doctor.stdout + doctor.stderr).trim();
   console.log(output.split("\n").map(l => `    ${l}`).join("\n"));
+  // In CI mode expo-doctor issues are hard failures; in normal mode they are warnings.
+  if (CI_MODE) {
+    fail("expo-doctor reported issues (FAIL in CI mode)");
+  } else {
+    warn("expo-doctor reported issues (non-blocking in normal mode — use --ci to gate)");
+  }
 } else {
   const lines = doctor.stdout.trim().split("\n");
   lines.forEach(l => console.log(`    ${l}`));
