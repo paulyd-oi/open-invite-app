@@ -448,7 +448,8 @@ export default function SuggestionsScreen() {
   };
 
   // Add friend from contacts
-  const handleContactSelect = (contact: Contacts.Contact) => {
+  const { mutate: sendEmailPhone } = sendEmailPhoneRequestMutation;
+  const handleContactSelect = useCallback((contact: Contacts.Contact) => {
     if (!guardEmailVerification(session)) {
       return;
     }
@@ -457,16 +458,48 @@ export default function SuggestionsScreen() {
 
     if (email) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendEmailPhoneRequestMutation.mutate({ email });
+      sendEmailPhone({ email });
       setShowContactsModal(false);
     } else if (phone) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendEmailPhoneRequestMutation.mutate({ phone });
+      sendEmailPhone({ phone });
       setShowContactsModal(false);
     } else {
       safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
     }
-  };
+  }, [session, sendEmailPhone]);
+
+  // ── Stable contacts FlatList helpers ──
+  const contactKeyExtractor = useCallback(
+    (item: Contacts.Contact) => item.id ?? `${item.name ?? ""}:${item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "x"}`,
+    [],
+  );
+
+  const renderContactItem = useCallback(
+    ({ item }: { item: Contacts.Contact }) => (
+      <Pressable
+        onPress={() => handleContactSelect(item)}
+        className="flex-row items-center px-4 py-3 border-b"
+        style={{ borderBottomColor: colors.separator }}
+      >
+        <View
+          className="w-10 h-10 rounded-full items-center justify-center mr-3"
+          style={{ backgroundColor: themeColor + "20" }}
+        >
+          <Text className="font-semibold" style={{ color: themeColor }}>
+            {item.name?.[0]?.toUpperCase() ?? "?"}
+          </Text>
+        </View>
+        <View className="flex-1">
+          <Text className="font-medium" style={{ color: colors.text }}>{item.name ?? "Unknown"}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+            {item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "No contact info"}
+          </Text>
+        </View>
+      </Pressable>
+    ),
+    [handleContactSelect, colors.separator, colors.text, colors.textSecondary, themeColor],
+  );
 
   // Filter contacts by search
   const filteredContacts = phoneContacts.filter((contact) => {
@@ -893,29 +926,13 @@ export default function SuggestionsScreen() {
             {/* Contacts List */}
             <FlatList
               data={filteredContacts}
-              keyExtractor={(item, index) => item.id ?? `contact-${index}`}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => handleContactSelect(item)}
-                  className="flex-row items-center px-4 py-3 border-b"
-                  style={{ borderBottomColor: colors.separator }}
-                >
-                  <View
-                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                    style={{ backgroundColor: themeColor + "20" }}
-                  >
-                    <Text className="font-semibold" style={{ color: themeColor }}>
-                      {item.name?.[0]?.toUpperCase() ?? "?"}
-                    </Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="font-medium" style={{ color: colors.text }}>{item.name ?? "Unknown"}</Text>
-                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                      {item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "No contact info"}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
+              keyExtractor={contactKeyExtractor}
+              renderItem={renderContactItem}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              updateCellsBatchingPeriod={50}
+              removeClippedSubviews={true}
               ListEmptyComponent={
                 <View className="py-12 items-center">
                   <Text style={{ color: colors.textSecondary }}>No contacts found</Text>

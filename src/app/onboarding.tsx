@@ -1106,9 +1106,14 @@ export default function OnboardingScreen() {
                 </View>
                 <FlatList
                   data={phoneContacts}
-                  keyExtractor={(item) => item.id ?? item.name ?? "unknown"}
+                  keyExtractor={(item) => item.id ?? `${item.name ?? ""}:${item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "x"}`}
                   style={{ maxHeight: 300 }}
                   showsVerticalScrollIndicator={false}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={10}
+                  windowSize={7}
+                  updateCellsBatchingPeriod={50}
+                  removeClippedSubviews={true}
                   renderItem={({ item, index }) => {
                     const isSelected = item.id ? selectedContacts.has(item.id) : false;
                     const email = item.emails?.[0]?.email;

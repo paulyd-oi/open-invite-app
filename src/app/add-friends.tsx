@@ -19,6 +19,7 @@ import {
   Share,
   ActivityIndicator,
   Platform,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { devLog, devError } from "@/lib/devLog";
@@ -84,6 +85,7 @@ export default function AddFriendsScreen() {
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
+  const [contactsPermissionDenied, setContactsPermissionDenied] = useState(false);
 
   // ── Suggestions state ──
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
@@ -186,10 +188,12 @@ export default function AddFriendsScreen() {
     try {
       const { status } = await Contacts.requestPermissionsAsync();
       if (status !== "granted") {
-        safeToast.warning("Permission Required", "Please allow access to contacts to add friends.");
+        setContactsPermissionDenied(true);
+        setShowContactsModal(true);
         setContactsLoading(false);
         return;
       }
+      setContactsPermissionDenied(false);
       const { data } = await Contacts.getContactsAsync({
         fields: [Contacts.Fields.Name, Contacts.Fields.FirstName, Contacts.Fields.LastName, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails, Contacts.Fields.Image],
         sort: Contacts.SortTypes.FirstName,
@@ -227,6 +231,35 @@ export default function AddFriendsScreen() {
   });
 
   const suggestions = suggestionsData?.suggestions?.slice(0, MAX_SUGGESTIONS) ?? [];
+
+  // ── Stable contacts FlatList helpers ──
+  const contactKeyExtractor = useCallback(
+    (item: Contacts.Contact) => item.id ?? `${item.name ?? ""}:${item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "x"}`,
+    [],
+  );
+
+  const renderContactItem = useCallback(
+    ({ item }: { item: Contacts.Contact }) => (
+      <Pressable
+        onPress={() => handleInviteContact(item)}
+        className="flex-row items-center px-4 py-3 border-b"
+        style={{ borderBottomColor: colors.separator }}
+      >
+        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
+          <Text className="font-semibold" style={{ color: themeColor }}>
+            {item.name?.[0]?.toUpperCase() ?? "?"}
+          </Text>
+        </View>
+        <View className="flex-1">
+          <Text className="font-medium" style={{ color: colors.text }}>{item.name ?? "Unknown"}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>
+            {item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "No contact info"}
+          </Text>
+        </View>
+      </Pressable>
+    ),
+    [handleInviteContact, colors.separator, colors.text, colors.textSecondary, themeColor],
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -607,48 +640,41 @@ export default function AddFriendsScreen() {
             </View>
           </View>
 
-          <FlatList
-            data={filteredContacts}
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            keyExtractor={(item, index) => item.id ?? `contact-${index}`}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            removeClippedSubviews={true}
-            renderItem={({ item }) => (
+          {contactsPermissionDenied ? (
+            <View className="py-16 items-center px-8">
+              <Contact size={40} color={colors.textTertiary} />
+              <Text className="text-base font-semibold mt-4 text-center" style={{ color: colors.text }}>
+                Contacts Access Required
+              </Text>
+              <Text className="text-sm text-center mt-2" style={{ color: colors.textSecondary }}>
+                Allow contacts access in Settings to import friends.
+              </Text>
               <Pressable
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => handleInviteContact(item)}
-                className="flex-row items-center px-4 py-3 border-b"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ borderBottomColor: colors.separator }}
+                onPress={() => Linking.openSettings()}
+                className="mt-4 px-6 py-2.5 rounded-lg"
+                style={{ backgroundColor: themeColor }}
               >
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="font-semibold" style={{ color: themeColor }}>
-                    {item.name?.[0]?.toUpperCase() ?? "?"}
-                  </Text>
-                </View>
-                <View className="flex-1">
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="font-medium" style={{ color: colors.text }}>{item.name ?? "Unknown"}</Text>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                    {item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "No contact info"}
-                  </Text>
-                </View>
+                <Text className="text-sm font-semibold" style={{ color: "#fff" }}>Open Settings</Text>
               </Pressable>
-            )}
-            ListEmptyComponent={
-              <View className="py-12 items-center">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text style={{ color: colors.textSecondary }}>No contacts found</Text>
-              </View>
-            }
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            contentContainerStyle={{ paddingBottom: 40 }}
-          />
+            </View>
+          ) : (
+            <FlatList
+              data={filteredContacts}
+              keyExtractor={contactKeyExtractor}
+              renderItem={renderContactItem}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              updateCellsBatchingPeriod={50}
+              removeClippedSubviews={true}
+              ListEmptyComponent={
+                <View className="py-12 items-center">
+                  <Text style={{ color: colors.textSecondary }}>No contacts found</Text>
+                </View>
+              }
+              contentContainerStyle={{ paddingBottom: 40 }}
+            />
+          )}
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
