@@ -41,13 +41,7 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-[BATCH6] CLAIMED_BY: [BATCH6]
-Files:
-  src/app/friends.tsx
-  src/components/activity/ActivityFeed.tsx
-  docs/agents/HOTSPOTS.md
-Reason: Network storm guard sweep — SSOT adoption + endReached guards
-Started: 2026-03-04
+(no active claims)
 
 ---
 
@@ -62,6 +56,7 @@ Started: 2026-03-04
   [AGENT_C] freed MonthlyRecap.tsx, SwipeableEventRequestCard.tsx — 2026-03-04
   [BATCH3] freed ActivityFeed.tsx, circle/[id].tsx, settings.tsx — 2026-03-04
   [LANE3] freed settings.tsx, analyticsEventsSSOT.ts — 2026-03-04 (8646b9d)
+  [BATCH6] freed friends.tsx, ActivityFeed.tsx — 2026-03-04 (ef0d544)
   [AGENT_F] freed infiniteQuerySSOT.ts, social.tsx, usePaginatedFriends.ts, usePaginatedNotifications.ts — 2026-03-04
 
 Example:
