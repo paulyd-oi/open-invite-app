@@ -23,9 +23,10 @@ let _enabled = true;
 // These endpoints do not require authentication and must remain
 // reachable after logout (sign-in, public event view, health).
 const PUBLIC_PATHS: readonly string[] = [
-  "/api/auth",           // Better Auth sign-in, sign-out, get-session
-  "/api/events/public/", // Public event detail (unauthenticated share links)
-  "/health",             // Health check
+  "/api/auth",                  // Better Auth sign-in, sign-out, get-session
+  "/api/email-verification/",   // Resend/verify code during welcome/login flow
+  "/api/events/public/",        // Public event detail (unauthenticated share links)
+  "/health",                    // Health check
 ];
 
 // ── Public API ──────────────────────────────────────────
