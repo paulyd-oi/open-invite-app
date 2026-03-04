@@ -76,6 +76,7 @@ import { invalidateProfileMedia } from "@/lib/mediaInvalidation";
 import { getProfileDisplay, getProfileInitial } from "@/lib/profileDisplay";
 import { getImageSource } from "@/lib/imageSource";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { trackOfflineQueueReplayResult } from "@/analytics/analyticsEventsSSOT";
 import { type UpdateProfileResponse, type GetProfileResponse } from "@/shared/contracts";
 import { useTheme, THEME_COLORS, type ThemeMode } from "@/lib/ThemeContext";
 import {
@@ -144,6 +145,50 @@ function SettingItem({ icon, title, subtitle, onPress, rightElement, showArrow =
 }
 
 // DEV-only: Dead-letter counter row for offline queue diagnostics
+/** DEV-only replay button with in-flight guard + analytics. Tag: [P0_OFFLINE_QUEUE_REPLAY] */
+function ReplayQueueButton({ isDark }: { isDark: boolean }) {
+  const [replaying, setReplaying] = useState(false);
+
+  return (
+    <SettingItem
+      icon={<RefreshCw size={20} color={replaying ? "#9CA3AF" : "#10B981"} />}
+      title={replaying ? "Replaying…" : "Replay Offline Queue"}
+      subtitle={replaying ? "In progress — please wait" : "Manually trigger queue replay"}
+      isDark={isDark}
+      onPress={async () => {
+        if (replaying) return; // guard against double-tap
+        setReplaying(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "triggered");
+        const t0 = Date.now();
+        try {
+          const result = await replayQueue();
+          const durationMs = Date.now() - t0;
+          devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "done", result);
+          trackOfflineQueueReplayResult({
+            success: result.success,
+            processed: result.failed === 0 ? 1 : 0, // coarse: no per-item count yet
+            failed: result.failed,
+            durationMs,
+          });
+          safeToast.success(
+            "Queue Replayed",
+            result.success
+              ? "All actions synced successfully."
+              : `Completed with ${result.failed} failed action(s).`,
+          );
+        } catch (e) {
+          devError("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "error", e);
+          trackOfflineQueueReplayResult({ success: false, processed: 0, failed: 0, durationMs: Date.now() - t0 });
+          safeToast.error("Replay Failed", String(e));
+        } finally {
+          setReplaying(false);
+        }
+      }}
+    />
+  );
+}
+
 function DeadLetterDebugRow({ isDark }: { isDark: boolean }) {
   const [count, setCount] = useState<number | null>(null);
 
@@ -2052,29 +2097,7 @@ export default function SettingsScreen() {
             )}
             {/* P0_OFFLINE_QUEUE_REPLAY_MANUAL: Replay offline queue (DEV only) */}
             {__DEV__ && (
-              <SettingItem
-                icon={<RefreshCw size={20} color="#10B981" />}
-                title="Replay Offline Queue"
-                subtitle="Manually trigger queue replay"
-                isDark={isDark}
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "triggered");
-                  try {
-                    const result = await replayQueue();
-                    devLog("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "done", result);
-                    safeToast.success(
-                      "Queue Replayed",
-                      result.success
-                        ? "All actions synced successfully."
-                        : `Completed with ${result.failed} failed action(s).`,
-                    );
-                  } catch (e) {
-                    devError("[P0_OFFLINE_QUEUE_REPLAY_MANUAL]", "error", e);
-                    safeToast.error("Replay Failed", String(e));
-                  }
-                }}
-              />
+              <ReplayQueueButton isDark={isDark} />
             )}
             {/* P0_OFFLINE_QUEUE_EXPORT: Export offline queue JSON (DEV only) */}
             {__DEV__ && (

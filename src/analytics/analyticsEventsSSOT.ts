@@ -41,6 +41,7 @@ export const AnalyticsEvent = {
   FEED_LOAD_TIME: "feed_load_time",
   APP_CRASH: "app_crash",
   FRIENDS_PAGE_LOADED: "friends_page_loaded",
+  OFFLINE_QUEUE_REPLAY_RESULT: "offline_queue_replay_result",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -341,4 +342,17 @@ export function trackAppCrash(props: {
   timestamp: string;
 }): void {
   track(AnalyticsEvent.APP_CRASH, props);
+}
+
+/**
+ * offline_queue_replay_result — fires after manual queue replay completes.
+ * [P0_OFFLINE_QUEUE_REPLAY]
+ */
+export function trackOfflineQueueReplayResult(props: {
+  success: boolean;
+  processed: number;
+  failed: number;
+  durationMs: number;
+}): void {
+  track(AnalyticsEvent.OFFLINE_QUEUE_REPLAY_RESULT, props);
 }
