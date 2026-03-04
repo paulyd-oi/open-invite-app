@@ -642,6 +642,109 @@ await (async () => {
   }
 })();
 
+// ─── M) Drift + hygiene checks ────────────────────────────────────────────────
+
+section("M) Drift + hygiene checks");
+
+// M2: Router parity — ensure mandatory routes exist
+(() => {
+  const mandatoryRoutes = [
+    "src/app/welcome.tsx",
+    "src/app/calendar.tsx",
+    "src/app/social.tsx",
+    "src/app/friends.tsx",
+    "src/app/profile.tsx",
+    "src/app/settings.tsx",
+    "src/app/whos-free.tsx",
+  ];
+
+  const missing = mandatoryRoutes.filter(r => !existsSync(resolve(ROOT, r)));
+  if (missing.length === 0) {
+    pass(`M2: All ${mandatoryRoutes.length} mandatory routes exist`);
+  } else {
+    warn(
+      `M2: Missing mandatory route(s): ${missing.join(", ")}`,
+      "Create the missing route files in src/app/"
+    );
+  }
+})();
+
+// M3: Secret scan — grep for common API key prefixes in source files
+(() => {
+  const scanTargets = ["src/", "scripts/", "app.json", "package.json"];
+  const secretPatterns = [
+    { pattern: /sk_live_[a-zA-Z0-9]{10,}/, label: "sk_live_*" },
+    { pattern: /sk_test_[a-zA-Z0-9]{10,}/, label: "sk_test_*" },
+    { pattern: /pk_live_[a-zA-Z0-9]{10,}/, label: "pk_live_*" },
+    { pattern: /pk_test_[a-zA-Z0-9]{10,}/, label: "pk_test_*" },
+    { pattern: /xoxb-[0-9]{10,}/, label: "xoxb-* (Slack bot token)" },
+    { pattern: /xoxp-[0-9]{10,}/, label: "xoxp-* (Slack user token)" },
+    { pattern: /ghp_[a-zA-Z0-9]{36,}/, label: "ghp_* (GitHub PAT)" },
+    { pattern: /gho_[a-zA-Z0-9]{36,}/, label: "gho_* (GitHub OAuth)" },
+    { pattern: /AKIA[0-9A-Z]{16}/, label: "AKIA* (AWS access key)" },
+    { pattern: /AIza[a-zA-Z0-9_-]{35}/, label: "AIza* (Google API key)" },
+  ];
+
+  let found = false;
+
+  for (const target of scanTargets) {
+    const abs = resolve(ROOT, target);
+    if (!existsSync(abs)) continue;
+
+    // For directories, use grep; for files, read directly
+    const result = run(`grep -rnE "(sk_live_|sk_test_|pk_live_|pk_test_|xoxb-[0-9]|xoxp-[0-9]|ghp_[a-zA-Z0-9]|gho_[a-zA-Z0-9]|AKIA[0-9A-Z]|AIza[a-zA-Z0-9])" ${target} --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.json" 2>/dev/null | grep -v "doctor.mjs"`);
+
+    if (result.ok && result.stdout.trim()) {
+      for (const line of result.stdout.trim().split("\n")) {
+        const colonIdx = line.indexOf(":");
+        const secondColon = line.indexOf(":", colonIdx + 1);
+        const fileAndLine = line.substring(0, secondColon);
+        // Redact the actual secret — just show file:line and pattern type
+        const content = line.substring(secondColon + 1);
+        let matchedLabel = "unknown pattern";
+        for (const { pattern, label } of secretPatterns) {
+          if (pattern.test(content)) { matchedLabel = label; break; }
+        }
+        fail(
+          `M3: Potential secret found at ${fileAndLine} (${matchedLabel})`,
+          "Remove the secret and use environment variables instead"
+        );
+        found = true;
+      }
+    }
+  }
+
+  if (!found) {
+    pass("M3: No hardcoded secrets detected in source files");
+  }
+})();
+
+// M4: expo-image dependency check
+(() => {
+  let pkg;
+  try {
+    pkg = JSON.parse(readFile("package.json"));
+  } catch (_) {
+    warn("M4: Could not parse package.json — skipping expo-image check");
+    return;
+  }
+
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  if (!deps["expo-image"]) {
+    warn("M4: expo-image is not in dependencies", "Run: npx expo install expo-image");
+    return;
+  }
+
+  // Check if at least one file imports expo-image
+  const grepResult = run('grep -r "expo-image" src/ --include="*.tsx" --include="*.ts" -l 2>/dev/null');
+  if (grepResult.ok && grepResult.stdout.trim()) {
+    const files = grepResult.stdout.trim().split("\n").length;
+    pass(`M4: expo-image installed and used in ${files} file(s)`);
+  } else {
+    warn("M4: expo-image is installed but not imported in any src/ file", "Import and use expo-image in components");
+  }
+})();
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 const MODE = CI_MODE ? "ci" : "normal";
