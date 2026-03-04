@@ -772,6 +772,12 @@ export default function SocialScreen() {
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev: any) => prev, // [PERF_SWEEP] Keep pages visible during refetch
+    // [PERF_SWEEP] Cap in-memory pages to 5 to prevent unbounded growth
+    select: (data: any) => ({
+      ...data,
+      pages: data.pages.slice(-5),
+      pageParams: data.pageParams.slice(-5),
+    }),
   });
 
   // Flatten paginated feed data for existing consumption

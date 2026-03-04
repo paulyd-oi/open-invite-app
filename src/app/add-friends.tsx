@@ -611,6 +611,10 @@ export default function AddFriendsScreen() {
             data={filteredContacts}
             /* INVARIANT_ALLOW_INLINE_HANDLER */
             keyExtractor={(item, index) => item.id ?? `contact-${index}`}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
             renderItem={({ item }) => (
               <Pressable
                 /* INVARIANT_ALLOW_INLINE_HANDLER */

@@ -9,6 +9,9 @@
 
 import { useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+
+// Module-level debounce timer for reconnect-triggered replay (5s)
+let reconnectDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 import { api } from "./api";
 import { useNetworkStatus, subscribeToNetworkStatus } from "./networkStatus";
 import { devLog, devWarn, devError } from "./devLog";
@@ -252,11 +255,21 @@ export function useOfflineSync(bootStatus?: string) {
       }
     };
 
-    handleOnlineTransition();
+    // Debounce reconnect replay by 5s to avoid rapid-fire triggers on flaky networks
+    if (reconnectDebounceTimer) clearTimeout(reconnectDebounceTimer);
+    reconnectDebounceTimer = setTimeout(() => {
+      reconnectDebounceTimer = null;
+      handleOnlineTransition();
+    }, 5000);
 
     // Track offline state
     if (!isOnline) {
       wasOfflineRef.current = true;
+      // Cancel any pending debounced replay since we went offline again
+      if (reconnectDebounceTimer) {
+        clearTimeout(reconnectDebounceTimer);
+        reconnectDebounceTimer = null;
+      }
     }
   }, [isOnline, bootStatus, queryClient, setSyncing, setSyncProgress, reconcileLocalEvent]);
 

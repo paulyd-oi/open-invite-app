@@ -20,6 +20,10 @@ function generateUUID(): string {
 // Storage key for the queue
 const QUEUE_STORAGE_KEY = "offlineQueue:v1";
 
+// Safety rails
+const MAX_QUEUE_SIZE = 50;
+const MAX_RETRIES = 3;
+
 // Action types that can be queued
 export type QueuedActionType = "CREATE_EVENT" | "UPDATE_EVENT" | "RSVP_CHANGE" | "DELETE_RSVP";
 
@@ -82,7 +86,13 @@ export async function loadQueue(): Promise<QueuedAction[]> {
   try {
     const data = await AsyncStorage.getItem(QUEUE_STORAGE_KEY);
     if (data) {
-      return JSON.parse(data);
+      try {
+        return JSON.parse(data);
+      } catch (parseError) {
+        devLog("[OFFLINE_QUEUE_CORRUPT]", { error: parseError });
+        await AsyncStorage.removeItem(QUEUE_STORAGE_KEY);
+        return [];
+      }
     }
   } catch (error) {
     if (__DEV__) {
@@ -123,7 +133,26 @@ export async function enqueue(
     retryCount: 0,
   };
 
-  const queue = await loadQueue();
+  let queue = await loadQueue();
+
+  // Evict to stay within MAX_QUEUE_SIZE
+  if (queue.length >= MAX_QUEUE_SIZE) {
+    // Drop oldest failed items first
+    const failedIndices = queue
+      .map((a, i) => ({ i, isFailed: a.status === "failed" }))
+      .filter((x) => x.isFailed)
+      .map((x) => x.i);
+    if (failedIndices.length > 0) {
+      queue.splice(failedIndices[0], 1);
+    } else {
+      // Still full: drop oldest overall
+      queue.shift();
+    }
+    if (__DEV__) {
+      devWarn("[offlineQueue] Queue full — evicted oldest item to make room");
+    }
+  }
+
   queue.push(action);
   await saveQueue(queue);
 
@@ -153,9 +182,18 @@ export async function markFailed(id: string, error: string): Promise<void> {
   const queue = await loadQueue();
   const action = queue.find((a) => a.id === id);
   if (action) {
+    action.retryCount = (action.retryCount || 0) + 1;
+    if (action.retryCount >= MAX_RETRIES) {
+      // Permanently failed — remove from queue to prevent unbounded retry loops
+      if (__DEV__) {
+        devWarn("[offlineQueue] Action exceeded maxRetries, dropping:", id, action.type);
+      }
+      const newQueue = queue.filter((a) => a.id !== id);
+      await saveQueue(newQueue);
+      return;
+    }
     action.status = "failed";
     action.error = error;
-    action.retryCount = (action.retryCount || 0) + 1;
     await saveQueue(queue);
   }
 }
