@@ -1,13 +1,11 @@
 /**
  * usePaginatedNotifications — cursor-based paginated notifications hook
  *
- * Uses useInfiniteQuery to fetch notifications with cursor pagination.
- * Currently the backend returns all notifications in a single response (no cursor),
- * so the hook gracefully treats the full response as page 1 with no next page.
- * When the backend adds cursor support (`?cursor=X&limit=Y` returning
- * `{ nextCursor }`), this hook will automatically paginate.
+ * Uses useInfiniteQuery to fetch notifications from
+ * GET /api/notifications/paginated with cursor + limit params.
+ * Backend returns { notifications, nextCursor, unreadCount }.
  *
- * Tag: [PAGINATION_GROUNDWORK]
+ * Tag: [P1_NOTIFS_PAGINATED]
  */
 
 import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
@@ -16,6 +14,8 @@ import { qk } from "@/lib/queryKeys";
 import { api } from "@/lib/api";
 import { capInfinitePages, DEFAULT_MAX_PAGES, DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import type { GetNotificationsResponse, Notification } from "@/shared/contracts";
+import { devLog } from "@/lib/devLog";
+import { trackNotificationsPageLoaded } from "@/analytics/analyticsEventsSSOT";
 
 // ── Response type with optional cursor field ─────────────────────
 type PaginatedNotificationsResponse = GetNotificationsResponse & {
@@ -51,16 +51,21 @@ export function usePaginatedNotifications({
   >({
     queryKey,
     queryFn: async ({ pageParam }) => {
-      // Build URL with cursor/limit params (backend ignores them until it supports pagination)
       const params = new URLSearchParams();
       params.set("limit", String(pageSize));
       if (pageParam) {
         params.set("cursor", pageParam);
       }
       const qs = params.toString();
-      return api.get<PaginatedNotificationsResponse>(
-        `/api/notifications${qs ? `?${qs}` : ""}`,
+      const result = await api.get<PaginatedNotificationsResponse>(
+        `/api/notifications/paginated${qs ? `?${qs}` : ""}`,
       );
+      // [P1_NOTIFS_PAGINATED] telemetry after each page fetch
+      const count = result.notifications?.length ?? 0;
+      const hasNext = !!result.nextCursor;
+      if (__DEV__) devLog("[P1_NOTIFS_PAGINATED]", { pageSize, count, hasNext });
+      trackNotificationsPageLoaded({ pageSize, countLoaded: count, hasNextPage: hasNext });
+      return result;
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
