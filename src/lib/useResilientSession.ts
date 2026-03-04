@@ -12,7 +12,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authClient } from "./authClient";
 import { useNetworkStatus, isNetworkError, shouldLogoutOnError } from "./networkStatus";
-import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
 import { devLog, devWarn, devError } from "./devLog";
 
 // Storage key for cached session
@@ -178,16 +177,9 @@ export function useResilientSession() {
   }, []);
 
   // Provide a way to force refetch the session (for profile updates)
+  // Note: no rate-limit guard here — this is only called from explicit user
+  // actions (save name, save avatar) where stale UI is the worse outcome.
   const forceRefetchSession = useCallback(async () => {
-    // Check circuit breaker before fetching
-    if (isRateLimited()) {
-      const remaining = getRateLimitRemaining();
-      if (__DEV__) {
-        devLog(`[useResilientSession] Skipping refetch: rate-limited for ${remaining} more seconds`);
-      }
-      return; // Don't fetch if rate-limited
-    }
-    
     if (__DEV__) {
       devLog("[useResilientSession] Force refetching session...");
     }
