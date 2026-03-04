@@ -49,6 +49,7 @@ import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
+import { trackFeedLoadTime } from "@/analytics/analyticsEventsSSOT";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -627,6 +628,9 @@ export default function SocialScreen() {
 
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Social
   const didLogCreatePill = useRef(false);
+  const lastEndReachedRef = useRef(0);
+  const feedMountTsRef = useRef(Date.now());
+  const feedLoadTimeFired = useRef(false);
   const socialInsets = useSafeAreaInsets();
   if (__DEV__ && !didLogCreatePill.current) {
     didLogCreatePill.current = true;
@@ -780,12 +784,35 @@ export default function SocialScreen() {
     }),
   });
 
+  // Auto-pagination: scroll-triggered fetch for feed
+  const handleFeedScroll = useCallback((e: { nativeEvent: { layoutMeasurement: { height: number }; contentOffset: { y: number }; contentSize: { height: number } } }) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    // Trigger at ~50% of visible height from bottom
+    if (distanceFromBottom > layoutMeasurement.height * 0.5) return;
+    if (!hasNextPage || isFetchingNextPage) return;
+    const now = Date.now();
+    if (now - lastEndReachedRef.current < 800) return;
+    lastEndReachedRef.current = now;
+    if (__DEV__) devLog('[P1_FEED_ENDREACHED]', { hasNextPage, isFetchingNextPage });
+    fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   // Flatten paginated feed data for existing consumption
   const feedData = useMemo(() => {
     if (!feedPagesData?.pages) return undefined;
     const allEvents = feedPagesData.pages.flatMap(page => page.events);
     return { events: allEvents };
   }, [feedPagesData]);
+
+  // [P1_POSTHOG_FEED_LOAD_TIME] Fire once per mount when feed data first settles
+  useEffect(() => {
+    if (feedLoadTimeFired.current || !feedData?.events) return;
+    feedLoadTimeFired.current = true;
+    const ms = Date.now() - feedMountTsRef.current;
+    trackFeedLoadTime({ ms, itemCount: feedData.events.length });
+    if (__DEV__) devLog('[P1_FEED_LOAD_TIME]', { ms, itemCount: feedData.events.length });
+  }, [feedData]);
 
   // Also fetch user's own events
   const {
@@ -1431,6 +1458,8 @@ export default function SocialScreen() {
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          onScroll={handleFeedScroll}
+          scrollEventThrottle={400}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}

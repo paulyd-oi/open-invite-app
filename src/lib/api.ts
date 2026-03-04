@@ -14,6 +14,7 @@ import { authClient, getLastServerRequestId } from "./authClient";
 // Import fetch for upload FormData handling
 import { fetch } from "expo/fetch";
 import { devLog, devWarn, devError } from "./devLog";
+import { trackApiError } from "@/analytics/analyticsEventsSSOT";
 
 // Import centralized backend URL configuration
 import { BACKEND_URL } from "./config";
@@ -137,6 +138,17 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
         devLog(`  data: ${typeof error.data === 'object' ? JSON.stringify(error.data, null, 2) : error.data || 'none'}`);
         devLog(`  message: ${error.message}`);
       }
+    }
+
+    // [P1_POSTHOG_API_ERROR] Emit api_error for HTTP 4xx/5xx
+    const httpStatus = error.status;
+    if (typeof httpStatus === "number" && httpStatus >= 400) {
+      trackApiError({
+        path,
+        method,
+        status: httpStatus,
+        errorCode: error.data?.code ?? error.code,
+      });
     }
 
     // Special case: Treat 404 on GET requests as empty state (not an error)

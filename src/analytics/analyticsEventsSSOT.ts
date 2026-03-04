@@ -35,6 +35,10 @@ export const AnalyticsEvent = {
   // Canonical VALUE events (retention measurement)
   RSVP_COMPLETED: "rsvp_completed",
   VALUE_EVENT_CREATED: "value_event_created",
+  // Safety / observability events
+  API_ERROR: "api_error",
+  OFFLINE_ACTION_QUEUED: "offline_action_queued",
+  FEED_LOAD_TIME: "feed_load_time",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -281,4 +285,45 @@ export function trackDeepLinkLanded(props: {
   source: "scheme" | "universal";
 }): void {
   track(AnalyticsEvent.DEEP_LINK_LANDED, props);
+}
+
+// ---------------------------------------------------------------------------
+// Safety / observability events
+// ---------------------------------------------------------------------------
+
+/**
+ * api_error — fires on HTTP 4xx/5xx responses (not network errors).
+ * No secrets, no payload bodies.
+ * [P1_POSTHOG_API_ERROR]
+ */
+export function trackApiError(props: {
+  path: string;
+  method: string;
+  status: number;
+  errorCode?: string;
+}): void {
+  track(AnalyticsEvent.API_ERROR, props);
+}
+
+/**
+ * offline_action_queued — fires when an action is enqueued for offline sync.
+ * [P1_POSTHOG_OFFLINE_QUEUED]
+ */
+export function trackOfflineActionQueued(props: {
+  actionType: string;
+  queueSizeAfter: number;
+  retryCount: number;
+}): void {
+  track(AnalyticsEvent.OFFLINE_ACTION_QUEUED, props);
+}
+
+/**
+ * feed_load_time — fires once per Social screen mount when first data settles.
+ * [P1_POSTHOG_FEED_LOAD]
+ */
+export function trackFeedLoadTime(props: {
+  ms: number;
+  itemCount: number;
+}): void {
+  track(AnalyticsEvent.FEED_LOAD_TIME, props);
 }

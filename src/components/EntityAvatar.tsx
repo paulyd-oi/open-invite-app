@@ -1,8 +1,14 @@
 import React, { useState } from "react";
-import { View, Text, Image, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
+import { View, Text, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { EventPhotoEmoji } from "./EventPhotoEmoji";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
+
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log('[P1_EXPO_IMAGE_ENABLED] EntityAvatar using expo-image');
+}
 
 export interface EntityAvatarProps {
   /** Remote image URL (actor avatar or event cover photo) */
@@ -94,9 +100,11 @@ export function EntityAvatar({
   } else if (hasPhoto) {
     // Tier 2 — actor avatar: standalone image (supports auth headers via imageSource)
     content = (
-      <Image
+      <ExpoImage
         source={effectiveSource!}
         style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={200}
         onError={() => setImageFailed(true)}
       />
     );

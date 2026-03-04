@@ -7,6 +7,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "./devLog";
+import { trackOfflineActionQueued } from "@/analytics/analyticsEventsSSOT";
 
 // Simple UUID generator (no external dependency)
 function generateUUID(): string {
@@ -155,6 +156,13 @@ export async function enqueue(
 
   queue.push(action);
   await saveQueue(queue);
+
+  // [P1_POSTHOG_OFFLINE_QUEUED] Emit when action is enqueued
+  trackOfflineActionQueued({
+    actionType: type,
+    queueSizeAfter: queue.length,
+    retryCount: 0,
+  });
 
   if (__DEV__) {
     devLog("[offlineQueue] Enqueued action:", type, action.id);
