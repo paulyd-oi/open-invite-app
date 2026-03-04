@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { getHeroGlassStyle, getGlassBoostStyle } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl } from "@/lib/mediaTransformSSOT";
 import MotionSurface from "@/components/MotionSurface";
@@ -50,9 +51,10 @@ export function HeroBannerSurface({
       {/* Full-bleed banner image */}
       {hasBanner && (
         <MotionSurface preset="media" style={StyleSheet.absoluteFillObject}>
-          <Image
+          <ExpoImage
             source={{ uri: bannerRenderUri! }}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={200}
             style={StyleSheet.absoluteFillObject}
           />
         </MotionSurface>

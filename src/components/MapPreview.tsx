@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, ActivityIndicator, Platform } from "react-native";
+import { View, Text, ActivityIndicator, Platform } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { MapPin } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -211,10 +212,11 @@ export function MapPreview({ location, height = 128 }: MapPreviewProps) {
 
   return (
     <View className="rounded-xl overflow-hidden" style={{ height }}>
-      <Image
+      <ExpoImage
         source={{ uri: mapUrl }}
         style={{ width: "100%", height: "100%" }}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={200}
         onError={() => {
           if (__DEV__) devLog("MapPreview: Image failed to load, useFallback:", useFallback);
           if (!useFallback && GOOGLE_API_KEY) {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { View, Text, ScrollView, Pressable, Image, RefreshControl, Modal, TextInput } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Modal, TextInput } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -853,10 +854,11 @@ export default function UserProfileScreen() {
                 {heroUri && (
                   <>
                     {/* INVARIANT_HERO_USES_TRANSFORM_SSOT */}
-                    <Image
+                    <ExpoImage
                       source={{ uri: toCloudinaryTransformedUrl(heroUri, CLOUDINARY_PRESETS.HERO_BANNER) }}
                       style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      transition={200}
                     />
                     {/* Subtle global tint */}
                     <View style={{

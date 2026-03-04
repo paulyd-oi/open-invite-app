@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";

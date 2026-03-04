@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl, Image } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -358,10 +359,11 @@ export default function PublicProfileScreen() {
                     {pubBannerUri && (
                       <>
                         {/* INVARIANT_HERO_USES_TRANSFORM_SSOT — banner decoded via CLOUDINARY_PRESETS.HERO_BANNER */}
-                        <Image
+                        <ExpoImage
                           source={{ uri: toCloudinaryTransformedUrl(pubBannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
                           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-                          resizeMode="cover"
+                          contentFit="cover"
+                          transition={200}
                         />
                         {/* Subtle global tint */}
                         <View
