@@ -268,6 +268,10 @@ const FriendCard = React.memo(function FriendCard({
   }, [onPin, friendship.id]);
 
   const handlePress = useCallback(() => {
+    if (!friendship.id) {
+      if (__DEV__) console.log('[P0_FRIEND_REDIRECT_GUARD]', { id: friendship.id, reason: 'missing_id' });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/friend/${friendship.id}` as any);
   }, [router, friendship.id]);
@@ -533,6 +537,10 @@ const FriendListItem = React.memo(function FriendListItem({
               bio={friend.Profile?.calendarBio}
               /* INVARIANT_ALLOW_INLINE_HANDLER */
               onPress={() => {
+                if (!friendship.id) {
+                  if (__DEV__) console.log('[P0_FRIEND_REDIRECT_GUARD]', { id: friendship.id, reason: 'missing_id' });
+                  return;
+                }
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/friend/${friendship.id}` as any);
               }}

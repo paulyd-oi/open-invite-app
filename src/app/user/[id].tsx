@@ -763,6 +763,31 @@ export default function UserProfileScreen() {
     );
   }
 
+  // [P0_FRIEND_REDIRECT_GUARD] Early guard: missing or invalid userId
+  if (!id || id.trim().length === 0) {
+    if (__DEV__) console.log('[P0_FRIEND_REDIRECT_GUARD]', { id, reason: 'missing_id' });
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: "Profile", headerStyle: { backgroundColor: colors.background } }} />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-lg font-semibold text-center mb-2" style={{ color: colors.text }}>
+            Something went wrong
+          </Text>
+          <Text className="text-sm text-center mb-6" style={{ color: colors.textSecondary }}>
+            Could not load this profile.
+          </Text>
+          <Pressable
+            onPress={() => router.replace('/friends' as any)}
+            className="px-6 py-3 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white font-semibold">Back to Friends</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // [P0_SELF_PROFILE] While redirect effect fires, render nothing to prevent flash
   if (isSelf) {
     return (

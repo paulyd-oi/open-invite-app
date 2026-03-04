@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery, useQueryClient, useMutation, useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
@@ -771,9 +771,9 @@ export default function SocialScreen() {
     staleTime: 30 * 1000, // 30s - feed changes often but not instantly
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
-    placeholderData: (prev: any) => prev, // [PERF_SWEEP] Keep pages visible during refetch
+    placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev, // [PERF_SWEEP] Keep pages visible during refetch
     // [PERF_SWEEP] Cap in-memory pages to 5 to prevent unbounded growth
-    select: (data: any) => ({
+    select: (data: InfiniteData<GetEventsFeedResponse, string | null>) => ({
       ...data,
       pages: data.pages.slice(-5),
       pageParams: data.pageParams.slice(-5),

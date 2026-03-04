@@ -2260,6 +2260,7 @@ export default function CalendarScreen() {
   }
 
   // Show error UI if queries failed (isCalendarError or isBirthdaysError)
+  if (__DEV__) devLog('[P0_CALENDAR_ERROR_UI]', { isCalendarError, isBirthdaysError, hasQueryError });
   if (hasQueryError) {
     return (
       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */

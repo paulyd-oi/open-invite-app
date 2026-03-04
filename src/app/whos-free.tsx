@@ -5,6 +5,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { useEntitlements, canViewWhosFree, type PaywallContext } from "@/lib/entitlements";
 import { devLog, devError } from "@/lib/devLog";
@@ -138,11 +140,12 @@ export default function WhosFreeScreen() {
         timeWindow: `${timeWindowStart}:00–${timeWindowEnd}:00`,
         selectedDate,
       });
+      devLog('[P0_WHOSFREE_REFRESH]', { status: 'wired', triggers: ['manual', 'focus', 'foreground'] });
     }
   }, []);
 
   // Fetch friends for Find Best Time
-  const { data: allFriendsData } = useQuery({
+  const { data: allFriendsData, refetch: refetchFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -151,7 +154,7 @@ export default function WhosFreeScreen() {
   const allFriends = allFriendsData?.friends ?? [];
 
   // [P0_WORK_HOURS_BLOCK] Fetch current user's work schedule for busy-block SSOT
-  const { data: workScheduleData } = useQuery({
+  const { data: workScheduleData, refetch: refetchWorkSchedule } = useQuery({
     queryKey: ["workSchedule"],
     queryFn: () => api.get<{ schedules: WorkScheduleDay[] }>("/api/work-schedule"),
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -164,7 +167,9 @@ export default function WhosFreeScreen() {
     data: friendEventsData,
     isLoading: isLoadingFriendEvents,
     isError: isFriendEventsError,
+    isSuccess: isFriendEventsSuccess,
     error: friendEventsError,
+    refetch: refetchFriendEvents,
   } = useQuery({
     queryKey: ["best-time-friend-events", bestTimeFriendIds, session?.user?.id],
     enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0 && allFriends.length > 0,
@@ -177,10 +182,13 @@ export default function WhosFreeScreen() {
         });
       }
 
+      let fetchFailCount = 0;
+      let fetchTotalCount = 0;
       const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isBusy?: boolean; isWork?: boolean }> }> = [];
 
       // Include the current user as a "member"
       if (session?.user?.id) {
+        fetchTotalCount++;
         try {
           const myRes = await api.get<{ createdEvents: any[]; goingEvents: any[] }>("/api/events/calendar");
           const myEvents = [
@@ -189,6 +197,7 @@ export default function WhosFreeScreen() {
           ].map((e) => ({ startTime: e.startTime, endTime: e.endTime, isBusy: e.isBusy }));
           results.push({ userId: session.user.id, events: myEvents });
         } catch (err) {
+          fetchFailCount++;
           if (__DEV__) devError("[P1_WHOSFREE] current_user_calendar_error", err);
           // Treat current user as fully free if calendar fetch fails
           results.push({ userId: session.user.id, events: [] });
@@ -202,6 +211,7 @@ export default function WhosFreeScreen() {
           if (__DEV__) devLog("[P1_WHOSFREE] friendship_not_found", { friendId: friendId.slice(0, 8) });
           continue;
         }
+        fetchTotalCount++;
         try {
           const res = await api.get<{ events: any[] }>(`/api/friends/${friendship.id}/events`);
           results.push({
@@ -214,6 +224,7 @@ export default function WhosFreeScreen() {
             })),
           });
         } catch {
+          fetchFailCount++;
           // Friend events unavailable — treat as fully free
           results.push({ userId: friendId, events: [] });
         }
@@ -223,12 +234,30 @@ export default function WhosFreeScreen() {
         devLog("[P1_WHOSFREE] query_response", {
           memberCount: results.length,
           eventCounts: results.map(r => ({ id: r.userId.slice(0, 6), events: r.events.length })),
+          fetchFailCount,
+          fetchTotalCount,
         });
+      }
+
+      // [P0_WHOSFREE_ERROR_TRUTH] If ALL inner fetches failed, data is unreliable — throw to surface error UI
+      if (fetchTotalCount > 0 && fetchFailCount === fetchTotalCount) {
+        throw new Error(`All ${fetchTotalCount} availability fetches failed — data unreliable`);
       }
 
       return results;
     },
   });
+
+  // [P0_WHOSFREE_ERROR_TRUTH] DEV-only diagnostic log for error/truth state
+  React.useEffect(() => {
+    if (__DEV__) {
+      console.log('[P0_WHOSFREE_ERROR_TRUTH]', {
+        isError: isFriendEventsError,
+        isSuccess: isFriendEventsSuccess,
+        dataPresent: !!friendEventsData,
+      });
+    }
+  }, [isFriendEventsError, isFriendEventsSuccess, friendEventsData]);
 
   // [P1_WHOSFREE] Client-side scheduling engine — single-day + time-window filter
   const { suggestedSlots, isLoadingSuggestions } = useMemo(() => {
@@ -419,6 +448,12 @@ export default function WhosFreeScreen() {
     router.setParams({ date: newDate });
   };
 
+  // [P0_WHOSFREE_REFRESH] Pull-to-refresh + focus/foreground refresh via SSOT contract
+  const { isRefreshing, onManualRefresh } = useLiveRefreshContract({
+    screenName: "whos-free",
+    refetchFns: [refetchFriends, refetchWorkSchedule, refetchFriendEvents],
+  });
+
   if (!session) {
     return (
       <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -444,6 +479,13 @@ export default function WhosFreeScreen() {
         className="flex-1"
         contentContainerStyle={{ padding: 20 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onManualRefresh}
+            tintColor={themeColor}
+          />
+        }
       >
         {/* Find Best Time Section */}
         <Animated.View entering={FadeInDown.delay(50).springify()} className="mb-6">
@@ -620,6 +662,7 @@ export default function WhosFreeScreen() {
                   BEST TIMES
                 </Text>
 
+                {/* [P0_WHOSFREE_ERROR_TRUTH] Error → show explicit error + Retry; never fall through to "no conflicts" */}
                 {isFriendEventsError ? (
                   <View
                     className="rounded-xl p-4 items-center"
@@ -632,8 +675,21 @@ export default function WhosFreeScreen() {
                     <Text className="text-center mt-1 text-xs" style={{ color: colors.textSecondary }}>
                       Check your connection and try again
                     </Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        refetchFriendEvents();
+                      }}
+                      className="mt-3 rounded-lg px-5 py-2"
+                      style={{ backgroundColor: `${themeColor}20` }}
+                    >
+                      <Text className="text-sm font-semibold" style={{ color: themeColor }}>
+                        Retry
+                      </Text>
+                    </Pressable>
                   </View>
-                ) : isLoadingSuggestions ? (
+                ) : isLoadingSuggestions || (!isFriendEventsSuccess && !friendEventsData) ? (
+                  /* [P0_WHOSFREE_ERROR_TRUTH] Show loading when query hasn't succeeded yet (idle/fetching/disabled) */
                   <View className="py-6 items-center">
                     <ActivityIndicator size="large" color={themeColor} />
                     <Text className="mt-2 text-sm" style={{ color: colors.textSecondary }}>
@@ -641,6 +697,7 @@ export default function WhosFreeScreen() {
                     </Text>
                   </View>
                 ) : suggestedSlots.length === 0 ? (
+                  /* [P0_WHOSFREE_ERROR_TRUTH] Only reachable when isFriendEventsSuccess=true OR friendEventsData present */
                   <View
                     className="rounded-xl p-4 items-center"
                     style={{ backgroundColor: colors.surface }}

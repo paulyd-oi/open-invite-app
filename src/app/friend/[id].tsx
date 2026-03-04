@@ -9,7 +9,7 @@
  * the canonical profile route with a source param for telemetry.
  */
 import React, { useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, Redirect } from "expo-router";
@@ -40,11 +40,14 @@ export default function FriendProfileRedirect() {
   const router = useRouter();
   const { themeColor, colors } = useTheme();
 
-  // Fetch friend data to get the userId
+  // [P0_FRIEND_REDIRECT_GUARD] Track whether friendshipId is valid
+  const hasValidId = !!friendshipId && friendshipId.trim().length > 0;
+
+  // Fetch friend data to get the userId (disabled when id is missing)
   const { data, isLoading, error } = useQuery({
     queryKey: ["friendshipLookup", friendshipId],
     queryFn: () => api.get<{ events: any[]; friend: FriendUser }>(`/api/friends/${friendshipId}/events`),
-    enabled: isAuthedForNetwork(bootStatus, session) && !!friendshipId,
+    enabled: isAuthedForNetwork(bootStatus, session) && hasValidId,
   });
 
   const friendUserId = data?.friend?.id;
@@ -61,6 +64,31 @@ export default function FriendProfileRedirect() {
       });
     }
   }, [data, friendshipId, friendUserId]);
+
+  // [P0_FRIEND_REDIRECT_GUARD] Show error UI if friendshipId is missing/invalid
+  if (!hasValidId) {
+    if (__DEV__) console.log('[P0_FRIEND_REDIRECT_GUARD]', { id: friendshipId, reason: 'missing_id' });
+    return (
+      <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+        <Stack.Screen options={{ title: "Profile", headerStyle: { backgroundColor: colors.background } }} />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-lg font-semibold text-center mb-2" style={{ color: colors.text }}>
+            Something went wrong
+          </Text>
+          <Text className="text-sm text-center mb-6" style={{ color: colors.textSecondary }}>
+            Could not load this profile.
+          </Text>
+          <Pressable
+            onPress={() => router.replace('/friends' as any)}
+            className="px-6 py-3 rounded-full"
+            style={{ backgroundColor: themeColor }}
+          >
+            <Text className="text-white font-semibold">Back to Friends</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Redirect to canonical profile once we have the userId
   if (friendUserId) {
