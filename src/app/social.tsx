@@ -750,7 +750,7 @@ export default function SocialScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: eventKeys.feedPaginated(),
+    queryKey: [...eventKeys.feedPaginated(), FEED_PAGE_SIZE],
     queryFn: async ({ pageParam }) => {
       const url = pageParam
         ? `/api/events/feed?limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
@@ -909,15 +909,16 @@ export default function SocialScreen() {
   });
 
   // Handle RSVP from swipe action
+  const { mutate: rsvpMutate, isPending: rsvpIsPending } = rsvpMutation;
   const handleSwipeRsvp = useCallback((eventId: string, status: RsvpStatus) => {
     if (!isAuthed) return;
     // [P0_SOCIAL_RSVP_RACE_GUARD] Prevent rapid-tap duplicate mutations
-    if (rsvpMutation.isPending) {
+    if (rsvpIsPending) {
       if (__DEV__) devLog('[P0_SOCIAL_RSVP_RACE_GUARD]', 'swipe ignored (pending), eventId=' + eventId + ' status=' + status);
       return;
     }
-    rsvpMutation.mutate({ eventId, status });
-  }, [isAuthed, rsvpMutation]);
+    rsvpMutate({ eventId, status });
+  }, [isAuthed, rsvpMutate, rsvpIsPending]);
 
   // Fetch friends for first-value nudge eligibility
   const {

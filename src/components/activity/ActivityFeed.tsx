@@ -353,9 +353,11 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     setRefreshing(false);
   }, [refetch]);
 
+  const { mutate: markRead } = markReadMutation;
+
   const handleNotificationPress = useCallback((notification: Notification) => {
     if (!notification.read) {
-      markReadMutation.mutate(notification.id);
+      markRead(notification.id);
     }
 
     const target = resolveNotificationTarget(notification);
@@ -367,7 +369,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
         devWarn("[Activity] Notification has no valid navigation target:", notification.id);
       }
     }
-  }, [markReadMutation, router]);
+  }, [markRead, router]);
 
   const activityKeyExtractor = useCallback((item: Notification) => item.id, []);
   const renderNotificationItem = useCallback(

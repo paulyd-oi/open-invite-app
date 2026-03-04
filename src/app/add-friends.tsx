@@ -160,22 +160,25 @@ export default function AddFriendsScreen() {
     },
   });
 
+  const { mutate: sendRequest } = sendRequestMutation;
+  const { mutate: sendById } = sendByIdMutation;
+
   const handleDirectFriendRequest = useCallback(() => {
     if (!guardEmailVerification(session)) return;
     if (searchEmail.trim()) {
       const cleaned = searchEmail.trim().replace(/[^\d]/g, "");
       if (cleaned.length >= 7 && cleaned.length === searchEmail.trim().replace(/[\s\-\(\)]/g, "").length) {
-        sendRequestMutation.mutate({ phone: searchEmail.trim() });
+        sendRequest({ phone: searchEmail.trim() });
       } else {
-        sendRequestMutation.mutate({ email: searchEmail.trim() });
+        sendRequest({ email: searchEmail.trim() });
       }
     }
-  }, [session, searchEmail, sendRequestMutation]);
+  }, [session, searchEmail, sendRequest]);
 
   const handleAddSuggestion = useCallback((suggestion: FriendSuggestion) => {
     if (!guardEmailVerification(session)) return;
-    sendByIdMutation.mutate(suggestion.user.id);
-  }, [session, sendByIdMutation]);
+    sendById(suggestion.user.id);
+  }, [session, sendById]);
 
   // ── Load contacts ──
   const loadContacts = useCallback(async () => {
@@ -206,14 +209,14 @@ export default function AddFriendsScreen() {
     const phone = contact.phoneNumbers?.[0]?.number;
     if (email) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendRequestMutation.mutate({ email });
+      sendRequest({ email });
     } else if (phone) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      sendRequestMutation.mutate({ phone });
+      sendRequest({ phone });
     } else {
       safeToast.warning("No Contact Info", `${contact.name ?? "This contact"} doesn't have an email or phone.`);
     }
-  }, [session, sendRequestMutation]);
+  }, [session, sendRequest]);
 
   const filteredContacts = phoneContacts.filter((contact) => {
     if (!contactSearch.trim()) return true;

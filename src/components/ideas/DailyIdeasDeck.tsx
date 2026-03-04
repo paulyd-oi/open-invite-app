@@ -686,6 +686,8 @@ export function DailyIdeasDeck({
     },
   });
 
+  const { mutateAsync: createCircle } = createCircleMutation;
+
   // ── ideasReady: all key queries have resolved ──
   const ideasReady = enabled && reconnectFetched && birthdayFetched && feedFetched && myEventsFetched;
 
@@ -966,7 +968,7 @@ export function DailyIdeasDeck({
       } else {
         try {
           const friendName = card.title.replace(/^(Catch up with |Join |Do )/, "").replace(/[?'].*/, "").trim() || "friend";
-          const result = await createCircleMutation.mutateAsync({
+          const result = await createCircle({
             name: friendName,
             emoji: "💬",
             memberIds: [card.friendId],
@@ -989,7 +991,7 @@ export function DailyIdeasDeck({
       getDeckStorageKey(),
       JSON.stringify({ deck, index: next }),
     ).catch(() => {});
-  }, [currentIndex, deck, router, circlesData, session, createCircleMutation, showFeedback, peopleCount]);
+  }, [currentIndex, deck, router, circlesData, session, createCircle, showFeedback, peopleCount]);
 
   // ── Dismiss handler: advance + record dismiss ──
   const handleDismiss = useCallback(() => {

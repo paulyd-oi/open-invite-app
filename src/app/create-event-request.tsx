@@ -150,7 +150,7 @@ export default function CreateEventRequestScreen() {
     data: friendEventsData,
     isLoading: isLoadingFriendEvents,
   } = useQuery({
-    queryKey: ["request-friend-events", selectedFriendIds],
+    queryKey: ["request-friend-events", selectedFriendIds, session?.user?.id],
     queryFn: async () => {
       const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isWork?: boolean }> }> = [];
       if (session?.user?.id) {

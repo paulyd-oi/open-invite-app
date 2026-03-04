@@ -1162,6 +1162,8 @@ export default function FriendsScreen() {
     },
   });
 
+  const { mutate: pinFriendship } = pinFriendshipMutation;
+
   // [LEGACY_GROUPS_PURGED] updateGroupMutation, deleteGroupMutation, removeMemberFromGroupMutation removed
 
   // Filter friends (no group filtering) and sort by pinned status
@@ -1191,8 +1193,8 @@ export default function FriendsScreen() {
   const friendKeyExtractor = useCallback((item: Friendship) => item.id, []);
   
   const handlePinFriend = useCallback((id: string) => {
-    pinFriendshipMutation.mutate(id);
-  }, [pinFriendshipMutation]);
+    pinFriendship(id);
+  }, [pinFriendship]);
   
   const renderFriendListItem = useCallback(({ item, index }: { item: Friendship; index: number }) => (
     <FriendListItem 

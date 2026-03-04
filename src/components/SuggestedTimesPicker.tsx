@@ -103,7 +103,7 @@ export function SuggestedTimesPicker({
     data: friendEventsData,
     isLoading: isLoadingFriendEvents,
   } = useQuery({
-    queryKey: ["picker-friend-events", selectedFriendIds],
+    queryKey: ["picker-friend-events", selectedFriendIds, session?.user?.id],
     queryFn: async () => {
       const results: Array<{ userId: string; events: Array<{ startTime: string; endTime: string | null; isWork?: boolean }> }> = [];
       // Include current user

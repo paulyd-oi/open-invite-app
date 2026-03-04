@@ -398,13 +398,15 @@ export default function SuggestionsScreen() {
     setRefreshing(false);
   }, [refetch]);
 
+  const { mutate: sendRequestById } = sendRequestMutation;
+
   const handleAddFriend = useCallback((suggestion: FriendSuggestion) => {
     // Guard: require email verification
     if (!guardEmailVerification(session)) {
       return;
     }
-    sendRequestMutation.mutate(suggestion.user.id);
-  }, [session, sendRequestMutation]);
+    sendRequestById(suggestion.user.id);
+  }, [session, sendRequestById]);
 
   // Handle direct friend request by email or phone (for Add Friend module)
   const handleDirectFriendRequest = () => {
@@ -508,6 +510,27 @@ export default function SuggestionsScreen() {
     }
   };
 
+  // ─── FlatList callbacks (stable identity — must be above any early return) ──
+  const peopleKeyExtractor = useCallback(
+    (item: FriendSuggestion) => item.user.id,
+    [],
+  );
+  const renderPeopleItem = useCallback(
+    ({ item, index }: { item: FriendSuggestion; index: number }) => (
+      <SuggestionCard
+        suggestion={item}
+        index={index}
+        onAddFriend={() => handleAddFriend(item)}
+        isPending={
+          sendRequestMutation.isPending &&
+          sendRequestMutation.variables === item.user.id
+        }
+        isSuccess={sentRequests.has(item.user.id)}
+      />
+    ),
+    [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests],
+  );
+
   // Show login prompt if not authenticated
   if (!session && !sessionLoading) {
     return (
@@ -537,27 +560,6 @@ export default function SuggestionsScreen() {
       </SafeAreaView>
     );
   }
-
-  // ─── FlatList callbacks (stable identity) ──────────────
-  const peopleKeyExtractor = useCallback(
-    (item: FriendSuggestion) => item.user.id,
-    [],
-  );
-  const renderPeopleItem = useCallback(
-    ({ item, index }: { item: FriendSuggestion; index: number }) => (
-      <SuggestionCard
-        suggestion={item}
-        index={index}
-        onAddFriend={() => handleAddFriend(item)}
-        isPending={
-          sendRequestMutation.isPending &&
-          sendRequestMutation.variables === item.user.id
-        }
-        isSuccess={sentRequests.has(item.user.id)}
-      />
-    ),
-    [handleAddFriend, sendRequestMutation.isPending, sendRequestMutation.variables, sentRequests],
-  );
 
   return (
     <SafeAreaView

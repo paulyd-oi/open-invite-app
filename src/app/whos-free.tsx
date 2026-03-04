@@ -166,7 +166,7 @@ export default function WhosFreeScreen() {
     isError: isFriendEventsError,
     error: friendEventsError,
   } = useQuery({
-    queryKey: ["best-time-friend-events", bestTimeFriendIds],
+    queryKey: ["best-time-friend-events", bestTimeFriendIds, session?.user?.id],
     enabled: isAuthedForNetwork(bootStatus, session) && bestTimeFriendIds.length > 0 && allFriends.length > 0,
     queryFn: async () => {
       if (__DEV__) {
