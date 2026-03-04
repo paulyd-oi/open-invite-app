@@ -1,13 +1,10 @@
 /**
  * usePaginatedFriends — cursor-based paginated friends hook
  *
- * Uses useInfiniteQuery to fetch friends with cursor pagination.
- * Currently the backend returns all friends in a single response (no cursor),
- * so the hook gracefully treats the full response as page 1 with no next page.
- * When the backend adds cursor support (`?cursor=X&limit=Y` returning
- * `{ friends, nextCursor }`), this hook will automatically paginate.
+ * Uses useInfiniteQuery with GET /api/friends/paginated (cursor + limit).
+ * Backend returns { friends, nextCursor } with friendship.id desc ordering.
  *
- * Tag: [PAGINATION_GROUNDWORK]
+ * Tag: [P1_FRIENDS_PAGINATION]
  */
 
 import { useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
@@ -22,23 +19,23 @@ const MAX_PAGES = 5;
 // ── Debounce interval for onEndReached (ms) ──────────────────────
 const END_REACHED_DEBOUNCE = 800;
 
-// ── Response type with optional cursor field ─────────────────────
+// ── Response type with cursor field from /api/friends/paginated ──
 type PaginatedFriendsResponse = GetFriendsResponse & {
-  nextCursor?: string;
+  nextCursor?: string | null;
 };
 
 // ── Hook params ──────────────────────────────────────────────────
 interface UsePaginatedFriendsParams {
   /** Pass false to disable the query (e.g. not yet authed) */
   enabled: boolean;
-  /** Items per page — forwarded to backend when cursor support lands */
+  /** Items per page — forwarded to GET /api/friends/paginated */
   pageSize?: number;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────
 export function usePaginatedFriends({
   enabled,
-  pageSize = 20,
+  pageSize = 50,
 }: UsePaginatedFriendsParams) {
   const lastEndReachedRef = useRef(0);
 
@@ -51,15 +48,19 @@ export function usePaginatedFriends({
   >({
     queryKey: friendKeys.paginated(pageSize),
     queryFn: async ({ pageParam }) => {
-      // Build URL with cursor/limit params (backend ignores them until it supports pagination)
+      // [P1_FRIENDS_PAGINATION] Cursor-paginated friends endpoint
       const params = new URLSearchParams();
       params.set("limit", String(pageSize));
       if (pageParam) {
         params.set("cursor", pageParam);
       }
       const qs = params.toString();
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.log(`[P1_FRIENDS_PAGINATION] fetch page cursor=${pageParam ?? "initial"} limit=${pageSize}`);
+      }
       return api.get<PaginatedFriendsResponse>(
-        `/api/friends${qs ? `?${qs}` : ""}`,
+        `/api/friends/paginated?${qs}`,
       );
     },
     initialPageParam: undefined,
