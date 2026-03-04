@@ -415,6 +415,110 @@ section("H) Env var completeness (WARNING)");
   }
 })();
 
+// ─── I) TypeScript strict mode check ──────────────────────────────────────────
+
+section("I) TypeScript strict mode (REQUIRED)");
+
+(() => {
+  // Detect correct tsconfig: prefer tsconfig.frontend.json, fallback to tsconfig.json
+  const tsconfigName = existsSync(resolve(ROOT, "tsconfig.frontend.json"))
+    ? "tsconfig.frontend.json"
+    : "tsconfig.json";
+  const tsconfigRaw = readFile(tsconfigName);
+  if (!tsconfigRaw) {
+    fail(`I1: ${tsconfigName} not found`, `Create ${tsconfigName} with strict: true`);
+    return;
+  }
+
+  let tsconfig;
+  try {
+    tsconfig = JSON.parse(tsconfigRaw);
+  } catch (e) {
+    fail(`I1: Failed to parse ${tsconfigName}: ${e.message}`);
+    return;
+  }
+
+  // Check strict in this file or in extended config
+  const hasStrict = tsconfig?.compilerOptions?.strict === true;
+  if (hasStrict) {
+    pass(`I1: TypeScript strict mode is enabled in ${tsconfigName}`);
+    return;
+  }
+
+  // Check extended config
+  const extendsPath = tsconfig?.extends;
+  if (extendsPath) {
+    const extFile = extendsPath.startsWith(".")
+      ? resolve(ROOT, extendsPath.endsWith(".json") ? extendsPath : `${extendsPath}.json`)
+      : null;
+    if (extFile) {
+      const extRaw = readFile(extFile.replace(ROOT + "/", ""));
+      if (extRaw) {
+        try {
+          const extConfig = JSON.parse(extRaw);
+          if (extConfig?.compilerOptions?.strict === true) {
+            pass(`I1: TypeScript strict mode is enabled (via extends in ${extendsPath})`);
+            return;
+          }
+        } catch (_) { /* fall through */ }
+      }
+    }
+  }
+
+  // Check individual strict flags as alternative
+  const co = tsconfig?.compilerOptions ?? {};
+  if (co.strictNullChecks === true && co.noImplicitAny === true) {
+    pass("I1: TypeScript strict mode equivalent enabled (strictNullChecks + noImplicitAny)");
+    return;
+  }
+
+  fail(
+    `I1: strict mode not found in ${tsconfigName} or its extended config`,
+    `Add "strict": true to compilerOptions in ${tsconfigName}`
+  );
+})();
+
+// ─── J) iOS version bump guard ────────────────────────────────────────────────
+
+section("J) iOS version bump guard (WARNING)");
+
+(() => {
+  if (!appBuildNumber) {
+    skip("J1: buildNumber not available from app.json — skipping");
+    return;
+  }
+
+  const gitLog = run("git log --oneline -20 -- app.json");
+  if (!gitLog.ok || !gitLog.stdout.trim()) {
+    skip("J1: No git history for app.json — skipping version bump check");
+    return;
+  }
+
+  const lines = gitLog.stdout.trim().split("\n");
+  // Check if any recent commit message references the same buildNumber
+  const dupeCommit = lines.find((line) => {
+    const msg = line.substring(8); // skip short SHA + space
+    // Match patterns like "buildNumber 42" or "bump ios 42" or just the raw number after keywords
+    return (
+      msg.toLowerCase().includes(`buildnumber ${appBuildNumber}`) ||
+      msg.toLowerCase().includes(`buildnumber=${appBuildNumber}`) ||
+      msg.toLowerCase().includes(`bump ios ${appBuildNumber}`) ||
+      msg.toLowerCase().includes(`build ${appBuildNumber}`)
+    );
+  });
+
+  if (dupeCommit) {
+    const sha = dupeCommit.substring(0, 7);
+    const msg = dupeCommit.substring(8);
+    warn(
+      `J1: buildNumber ${appBuildNumber} was referenced in commit ${sha} '${msg}'`,
+      "If intentional (e.g. re-running after a failed build), ignore."
+    );
+  } else {
+    pass(`J1: buildNumber ${appBuildNumber} not seen in last 20 app.json commits — looks fresh`);
+  }
+})();
+
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 const MODE = CI_MODE ? "ci" : "normal";
