@@ -743,6 +743,8 @@ export default function SocialScreen() {
 
   // Pagination constants
   const FEED_PAGE_SIZE = 20;
+  // Exact query key for the infinite feed query (includes page size for cache identity)
+  const feedExactKey = [...eventKeys.feedPaginated(), FEED_PAGE_SIZE] as const;
 
   // Fetch friend events (feed) with pagination
   const {
@@ -754,7 +756,7 @@ export default function SocialScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: [...eventKeys.feedPaginated(), FEED_PAGE_SIZE],
+    queryKey: feedExactKey,
     queryFn: async ({ pageParam }) => {
       const url = pageParam
         ? `/api/events/feed?limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
@@ -850,28 +852,33 @@ export default function SocialScreen() {
     placeholderData: (prev) => prev,
   });
 
-  // RSVP mutation for swipe actions
+  // [P0_SOCIAL_OPTIMISTIC_RSVP] Per-event in-flight guard to allow concurrent RSVPs on different events
+  const rsvpInflightRef = useRef(new Set<string>());
+
+  // RSVP mutation for swipe actions — optimistic with event-scoped rollback
   const rsvpMutation = useMutation({
-    mutationFn: ({ eventId, status }: { eventId: string; status: RsvpStatus }) => 
+    mutationFn: ({ eventId, status }: { eventId: string; status: RsvpStatus }) =>
       api.post(`/api/events/${eventId}/rsvp`, { status }),
     onMutate: async ({ eventId, status }) => {
       const _t0 = Date.now();
+      rsvpInflightRef.current.add(eventId);
+
       // Cancel outgoing feed refetches so they don't overwrite optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.feedPaginated() });
 
-      // Snapshot previous feed pages for rollback
-      const previousFeed = queryClient.getQueryData(eventKeys.feedPaginated());
+      // Snapshot previous feed pages for rollback (use EXACT key for infinite query)
+      const previousFeed = queryClient.getQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey);
 
       // Optimistically update viewerRsvpStatus + goingCount in the feed cache
-      queryClient.setQueryData(eventKeys.feedPaginated(), (old: any) => {
+      queryClient.setQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey, (old) => {
         if (!old?.pages) return old;
         return {
           ...old,
           /* INVARIANT_ALLOW_SMALL_MAP */
-          pages: old.pages.map((page: any) => ({
+          pages: old.pages.map((page) => ({
             ...page,
             /* INVARIANT_ALLOW_SMALL_MAP */
-            events: page.events.map((ev: any) => {
+            events: page.events.map((ev) => {
               if (ev.id !== eventId) return ev;
               const wasGoing = ev.viewerRsvpStatus === "going";
               const isGoing = status === "going";
@@ -889,19 +896,17 @@ export default function SocialScreen() {
       });
 
       if (__DEV__) {
-        devLog('[ACTION_FEEDBACK]', JSON.stringify({
-          action: 'rsvp_swipe',
-          state: 'optimistic',
+        devLog('[P0_SOCIAL_OPTIMISTIC_RSVP]', {
           eventId,
-          status,
-        }));
+          newStatus: status,
+          rollbackUsed: false,
+          hasPreviousFeed: !!previousFeed,
+        });
       }
 
-      return { previousFeed, _t0 };
+      return { previousFeed, _t0, eventId };
     },
     onSuccess: (_, { eventId, status }, context) => {
-      // P0 FIX: Invalidate using SSOT contract
-      invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_${status}`);
       if (__DEV__) {
         const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
         devLog('[ACTION_FEEDBACK]', JSON.stringify({
@@ -914,9 +919,17 @@ export default function SocialScreen() {
       }
     },
     onError: (error: any, { eventId, status }, context) => {
-      // Rollback optimistic feed update
+      // Rollback optimistic feed update using exact key
       if (context?.previousFeed) {
-        queryClient.setQueryData(eventKeys.feedPaginated(), context.previousFeed);
+        queryClient.setQueryData<InfiniteData<GetEventsFeedResponse, string | null>>(feedExactKey, context.previousFeed);
+      }
+      if (__DEV__) {
+        devLog('[P0_SOCIAL_OPTIMISTIC_RSVP]', {
+          eventId,
+          newStatus: status,
+          rollbackUsed: !!context?.previousFeed,
+          errorStatus: error?.status,
+        });
       }
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
@@ -924,34 +937,25 @@ export default function SocialScreen() {
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.");
       }
-      if (__DEV__) {
-        const durationMs = context?._t0 ? Date.now() - context._t0 : 0;
-        devLog('[ACTION_FEEDBACK]', JSON.stringify({
-          action: 'rsvp_swipe',
-          state: 'error',
-          eventId,
-          status,
-          durationMs,
-        }));
-      }
     },
     onSettled: (_, __, { eventId }) => {
+      rsvpInflightRef.current.delete(eventId);
       // Always reconcile with server truth
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(eventId), `rsvp_swipe_settled`);
     },
   });
 
-  // Handle RSVP from swipe action
-  const { mutate: rsvpMutate, isPending: rsvpIsPending } = rsvpMutation;
+  // Handle RSVP from swipe action — per-event guard allows concurrent RSVPs on different events
+  const { mutate: rsvpMutate } = rsvpMutation;
   const handleSwipeRsvp = useCallback((eventId: string, status: RsvpStatus) => {
     if (!isAuthed) return;
-    // [P0_SOCIAL_RSVP_RACE_GUARD] Prevent rapid-tap duplicate mutations
-    if (rsvpIsPending) {
-      if (__DEV__) devLog('[P0_SOCIAL_RSVP_RACE_GUARD]', 'swipe ignored (pending), eventId=' + eventId + ' status=' + status);
+    // [P0_SOCIAL_RSVP_RACE_GUARD] Per-event guard: block duplicate on SAME event, allow different events
+    if (rsvpInflightRef.current.has(eventId)) {
+      if (__DEV__) devLog('[P0_SOCIAL_RSVP_RACE_GUARD]', 'swipe ignored (inflight), eventId=' + eventId + ' status=' + status);
       return;
     }
     rsvpMutate({ eventId, status });
-  }, [isAuthed, rsvpMutate, rsvpIsPending]);
+  }, [isAuthed, rsvpMutate]);
 
   // Fetch friends for first-value nudge eligibility
   const {
