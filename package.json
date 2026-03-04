@@ -14,7 +14,8 @@
     "e2e:build:ios": "detox build --configuration ios.sim.release",
     "e2e:test:ios": "detox test --configuration ios.sim.release --headless",
     "e2e:ios": "npm run e2e:build:ios && npm run e2e:test:ios",
-    "ios:sync-build": "bash scripts/ios/sync_build_numbers.sh"
+    "ios:sync-build": "bash scripts/ios/sync_build_numbers.sh",
+    "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
