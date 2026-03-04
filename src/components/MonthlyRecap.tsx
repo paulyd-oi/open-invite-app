@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, Modal, Share, Dimensions, Image } from "react-native";
+import { View, Text, Pressable, Modal, Share, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   FadeIn,

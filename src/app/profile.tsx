@@ -4,10 +4,10 @@ import {
   Text,
   ScrollView,
   Pressable,
-  Image,
   RefreshControl,
   Share,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
@@ -522,10 +522,13 @@ export default function ProfileScreen() {
             {bannerUri && (
               <>
                 {/* INVARIANT_HERO_USES_TRANSFORM_SSOT — banner decoded via CLOUDINARY_PRESETS.HERO_BANNER */}
-                <Image
+                <ExpoImage
                   source={{ uri: toCloudinaryTransformedUrl(bannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                  priority="normal"
                 />
                 {/* Subtle global tint */}
                 <View

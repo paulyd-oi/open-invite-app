@@ -11,9 +11,9 @@ import {
   View,
   Text,
   Pressable,
-  Image,
   Dimensions,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { devLog } from "@/lib/devLog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
@@ -243,10 +243,13 @@ function DeckCardFace({ card, index, total, onWhyPress }: { card: IdeaCard; inde
       <View style={{ height: HERO_H, position: "relative" }}>
         {hasEventPhoto ? (
           // INVARIANT_HERO_USES_TRANSFORM_SSOT — suggestion hero decoded via CLOUDINARY_PRESETS.HERO_BANNER
-          <Image
+          <ExpoImage
             source={{ uri: toCloudinaryTransformedUrl(card.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
             style={{ width: "100%", height: HERO_H }}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
+            priority="normal"
           />
         ) : (
           <View

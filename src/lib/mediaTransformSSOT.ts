@@ -32,10 +32,12 @@ export type CloudinaryTransform = {
  * Reusable transform presets.
  * HERO_BANNER      - matches HeroBannerSurface render size.
  * THUMBNAIL_SQUARE - event gallery grid thumbnails (128px UI x 3 = 384, rounded to 360).
+ * AVATAR_THUMB     - list-sized avatars (40px UI x 3 = 120).
  */
 export const CLOUDINARY_PRESETS = {
   HERO_BANNER: { w: 1200, h: 600, crop: "fill" } as CloudinaryTransform,
   THUMBNAIL_SQUARE: { w: 360, h: 360, crop: "fill" } as CloudinaryTransform,
+  AVATAR_THUMB: { w: 120, h: 120, crop: "fill" } as CloudinaryTransform,
 } as const;
 
 const UPLOAD_MARKER = "/image/upload/";

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,

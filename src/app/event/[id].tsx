@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Pressable,
-  Image,
   TextInput,
   Linking,
   Platform,
@@ -14,6 +13,7 @@ import {
   Dimensions,
   Animated as RNAnimated,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -2925,10 +2925,13 @@ export default function EventDetailScreen() {
               {commentImage && (
                 <View className="mb-3 relative">
                   {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image preview, Cloudinary-transformed */}
-                  <Image
+                  <ExpoImage
                     source={{ uri: toCloudinaryTransformedUrl(commentImage, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
-                    className="w-full h-40 rounded-xl"
-                    resizeMode="cover"
+                    style={{ width: "100%", height: 160, borderRadius: 12 }}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                    priority="normal"
                   />
                   <Pressable
                     onPress={() => setCommentImage(null)}
@@ -3068,10 +3071,13 @@ export default function EventDetailScreen() {
                           )}
                           {comment.imageUrl && (
                             // INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image display, Cloudinary-transformed
-                            <Image
+                            <ExpoImage
                               source={{ uri: toCloudinaryTransformedUrl(comment.imageUrl, CLOUDINARY_PRESETS.THUMBNAIL_SQUARE) }}
-                              className="w-full h-48 rounded-xl mt-2"
-                              resizeMode="cover"
+                              style={{ width: "100%", height: 192, borderRadius: 12, marginTop: 8 }}
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
+                              transition={200}
+                              priority="normal"
                             />
                           )}
                         </View>
