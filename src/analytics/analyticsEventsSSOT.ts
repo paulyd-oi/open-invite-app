@@ -43,6 +43,7 @@ export const AnalyticsEvent = {
   FRIENDS_PAGE_LOADED: "friends_page_loaded",
   OFFLINE_QUEUE_REPLAY_RESULT: "offline_queue_replay_result",
   NOTIFICATIONS_PAGE_LOADED: "notifications_page_loaded",
+  NOTIFICATION_MARK_READ: "notification_mark_read",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -368,4 +369,16 @@ export function trackNotificationsPageLoaded(props: {
   hasNextPage: boolean;
 }): void {
   track(AnalyticsEvent.NOTIFICATIONS_PAGE_LOADED, props);
+}
+
+/**
+ * notification_mark_read — fires when a notification is marked read.
+ * [P1_NOTIF_OPTIMISTIC_READ]
+ */
+export function trackNotificationMarkRead(props: {
+  sourceScreen: string;
+  optimisticApplied: boolean;
+  rollbackUsed: boolean;
+}): void {
+  track(AnalyticsEvent.NOTIFICATION_MARK_READ, props);
 }
