@@ -743,6 +743,7 @@ export default function WelcomeOnboardingScreen() {
       }
       
       traceLog("token_validated", { reason: tokenValidation.reason, source: tokenSource });
+      if (__DEV__) devLog(`[P0_SIWA_OK] token_valid source=${tokenSource} len=${tokenValue.length}`);
       
       // Store token in SecureStore (via setExplicitCookiePair which formats as cookie pair)
       try {
@@ -845,6 +846,9 @@ export default function WelcomeOnboardingScreen() {
         bucket: errorBucket,
         bucketExplanation: getBucketExplanation(errorBucket),
       });
+
+      // [P0_SIWA_FAIL] Deterministic proof path for Apple Sign-In failures
+      if (__DEV__) devLog(`[P0_SIWA_FAIL] code=${error?.code ?? 'none'} bucket=${errorBucket} httpStatus=${error?.httpStatus ?? 'none'} msg=${error?.message?.slice(0, 80) ?? 'none'}`);
 
       // Decode error to user-friendly message (mom-safe)
       const userMessage = decodeAppleAuthError(error);
