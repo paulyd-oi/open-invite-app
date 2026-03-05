@@ -83,6 +83,9 @@ export const AnalyticsEvent = {
   RSVP_SUCCESS_PROMPT_SHOWN: "rsvp_success_prompt_shown",
   RSVP_SUCCESS_PROMPT_TAP: "rsvp_success_prompt_tap",
   RSVP_ERROR: "rsvp_error",
+
+  // Activation audit — empty state CTAs
+  SOCIAL_EMPTY_CTA_TAP: "social_empty_cta_tap",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -737,4 +740,16 @@ export function trackRsvpError(props: {
   network: boolean;
 }): void {
   track(AnalyticsEvent.RSVP_ERROR, props);
+}
+
+// ---------------------------------------------------------------------------
+// Activation audit — empty state CTAs
+// ---------------------------------------------------------------------------
+
+/** social_empty_cta_tap — fires when user taps a CTA in the social empty state. No PII. */
+export function trackSocialEmptyCtaTap(props: {
+  cta: "find_friends" | "create_plan";
+  source: "social_empty";
+}): void {
+  track(AnalyticsEvent.SOCIAL_EMPTY_CTA_TAP, props);
 }

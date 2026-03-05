@@ -51,7 +51,7 @@ import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
-import { trackFeedLoadTime, trackFeedPageLoaded, trackWeeklyDigestCardShown, trackWeeklyDigestCardTap } from "@/analytics/analyticsEventsSSOT";
+import { trackFeedLoadTime, trackFeedPageLoaded, trackWeeklyDigestCardShown, trackWeeklyDigestCardTap, trackSocialEmptyCtaTap } from "@/analytics/analyticsEventsSSOT";
 import { usePaginatedNotifications } from "@/hooks/usePaginatedNotifications";
 import type { Notification } from "@/shared/contracts";
 
@@ -603,16 +603,32 @@ function EventSection({
 function EmptyFeed() {
   const router = useRouter();
   const { data: session } = useSession();
+  const { colors } = useTheme();
 
   return (
-    <EmptyState
-      type="events"
-      actionLabel="Create Event"
-      onAction={() => {
-        if (!guardEmailVerification(session)) return;
-        router.push("/create");
-      }}
-    />
+    <View>
+      <EmptyState
+        type="events"
+        actionLabel="Create Event"
+        onAction={() => {
+          trackSocialEmptyCtaTap({ cta: "create_plan", source: "social_empty" });
+          if (!guardEmailVerification(session)) return;
+          router.push("/create");
+        }}
+      />
+      <Pressable
+        onPress={() => {
+          trackSocialEmptyCtaTap({ cta: "find_friends", source: "social_empty" });
+          router.push("/add-friends");
+        }}
+        className="self-center mt-3 px-5 py-2.5 rounded-full"
+        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+      >
+        <Text className="text-sm font-medium" style={{ color: colors.text }}>
+          Find Friends
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
