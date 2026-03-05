@@ -62,6 +62,9 @@ export const AnalyticsEvent = {
   REFERRAL_OPENED: "referral_opened",
   // Phase 12 — Notification engagement telemetry
   NOTIFS_ENGAGEMENT: "notifs_engagement",
+  // Phase 14 — Weekly digest surface telemetry
+  WEEKLY_DIGEST_CARD_SHOWN: "weekly_digest_card_shown",
+  WEEKLY_DIGEST_CARD_TAP: "weekly_digest_card_tap",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -566,4 +569,27 @@ export function trackNotifsEngagement(props: {
   routeTargeted: boolean;
 }): void {
   track(AnalyticsEvent.NOTIFS_ENGAGEMENT, props);
+}
+
+/**
+ * weekly_digest_card_shown — fires once per session when digest card renders.
+ * No PII. [GROWTH_P14]
+ */
+export function trackWeeklyDigestCardShown(props: {
+  hasDigest: boolean;
+  sourceScreen: "social";
+}): void {
+  track(AnalyticsEvent.WEEKLY_DIGEST_CARD_SHOWN, props);
+}
+
+/**
+ * weekly_digest_card_tap — fires when user taps the digest card.
+ * No PII. [GROWTH_P14]
+ */
+export function trackWeeklyDigestCardTap(props: {
+  sourceScreen: "social";
+  target: "notifications";
+  hadPreviewText: boolean;
+}): void {
+  track(AnalyticsEvent.WEEKLY_DIGEST_CARD_TAP, props);
 }
