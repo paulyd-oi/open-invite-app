@@ -5,6 +5,7 @@ import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "./devLog";
+import { trackPushTokenRegisterResult } from "@/analytics/analyticsEventsSSOT";
 
 const PUSH_TOKEN_KEY = "expo_push_token";
 
@@ -73,6 +74,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       return undefined;
     }
 
+    const _regT0 = Date.now();
     try {
       // INVARIANT: Prefer easConfig.projectId (set in eas.json), fallback to expoConfig.extra
       // Uses 3-level fallback chain for maximum compatibility across build configurations
@@ -93,9 +95,18 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
         devLog("Push token:", token.substring(0, 30) + "...");
       }
 
+      // [P1_PUSH_CLIENT] Track successful token registration
+      trackPushTokenRegisterResult({ success: true, durationMs: Date.now() - _regT0 });
+
       // Store the token locally
       await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
-    } catch (error) {
+    } catch (error: any) {
+      // [P1_PUSH_CLIENT] Track failed token registration
+      trackPushTokenRegisterResult({
+        success: false,
+        durationMs: Date.now() - _regT0,
+        errorCode: error?.code ?? error?.message?.slice(0, 50),
+      });
       if (__DEV__) {
         devError("Error getting push token:", error);
       }

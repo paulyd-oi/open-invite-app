@@ -16,6 +16,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { trackPushNotificationOpened } from "@/analytics/analyticsEventsSSOT";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
@@ -912,6 +913,12 @@ export function useNotifications() {
           bootStatus,
         })}`);
       }
+
+      // [P1_PUSH_CLIENT] Track notification opened
+      trackPushNotificationOpened({
+        source: source === "cold_start" ? "background" : "foreground",
+        hasRouteTarget: !!route,
+      });
 
       if (!route) {
         if (__DEV__) {

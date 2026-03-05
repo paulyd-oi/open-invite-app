@@ -46,6 +46,8 @@ export const AnalyticsEvent = {
   NOTIFICATION_MARK_READ: "notification_mark_read",
   API_REQUEST: "api_request",
   FEED_PAGE_LOADED: "feed_page_loaded",
+  PUSH_TOKEN_REGISTER_RESULT: "push_token_register_result",
+  PUSH_NOTIFICATION_OPENED: "push_notification_opened",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -383,6 +385,29 @@ export function trackNotificationMarkRead(props: {
   rollbackUsed: boolean;
 }): void {
   track(AnalyticsEvent.NOTIFICATION_MARK_READ, props);
+}
+
+/**
+ * push_token_register_result — fires after push token registration attempt.
+ * [P1_PUSH_CLIENT]
+ */
+export function trackPushTokenRegisterResult(props: {
+  success: boolean;
+  durationMs: number;
+  errorCode?: string;
+}): void {
+  track(AnalyticsEvent.PUSH_TOKEN_REGISTER_RESULT, props);
+}
+
+/**
+ * push_notification_opened — fires when user opens a push notification.
+ * [P1_PUSH_CLIENT]
+ */
+export function trackPushNotificationOpened(props: {
+  source: "foreground" | "background";
+  hasRouteTarget: boolean;
+}): void {
+  track(AnalyticsEvent.PUSH_NOTIFICATION_OPENED, props);
 }
 
 /**
