@@ -41,15 +41,7 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-[GROWTH_P3] CLAIMED_BY: [GROWTH_P3]
-Files:
-  src/lib/pendingRsvp.ts (NEW)
-  src/hooks/useRsvpIntentClaim.ts (NEW)
-  src/lib/deepLinks.ts
-  src/analytics/analyticsEventsSSOT.ts
-  src/app/_layout.tsx
-Reason: Phase 3 — RSVP before signup funnel inversion
-Started: 2026-03-04
+(no active claims)
 
 ---
 
@@ -76,6 +68,7 @@ Started: 2026-03-04
   [BATCH14] freed cache.ts(BE), events.ts(BE), notifications.ts(BE), HARDENING_SSOT_100K.md(BE) — 2026-03-04 (19ba7fc)
   [GROWTH_P1] freed welcome.tsx, analyticsEventsSSOT.ts — 2026-03-04
   [GROWTH_P2] freed welcome.tsx, analyticsEventsSSOT.ts — 2026-03-04
+  [GROWTH_P3] freed pendingRsvp.ts, useRsvpIntentClaim.ts, deepLinks.ts, analyticsEventsSSOT.ts, _layout.tsx — 2026-03-04 (e9933d8)
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234
