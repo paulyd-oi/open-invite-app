@@ -507,6 +507,7 @@ export function trackAppleSignInResult(props: {
  */
 export function trackContactsPermissionResult(props: {
   granted: boolean;
+  source: "onboarding" | "settings" | "unknown";
 }): void {
   track(AnalyticsEvent.CONTACTS_PERMISSION_RESULT, props);
 }
@@ -518,6 +519,7 @@ export function trackContactsPermissionResult(props: {
 export function trackContactsImportResult(props: {
   existingUsersCount: number;
   requestsSentCount: number;
+  source: "onboarding" | "settings" | "unknown";
 }): void {
   track(AnalyticsEvent.CONTACTS_IMPORT_RESULT, props);
 }
