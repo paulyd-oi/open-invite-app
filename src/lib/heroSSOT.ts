@@ -7,6 +7,10 @@ import type { ViewStyle } from "react-native";
  * screen that renders a hero card shares a single source of truth.
  */
 
+// ── Banner aspect ratio (SSOT — matches CLOUDINARY_PRESETS.HERO_BANNER 1200×600) ──
+/** Width ÷ height of the hero banner surface. Keeps preview in sync with the Cloudinary crop. */
+export const HERO_BANNER_ASPECT_RATIO = 2; // 1200 / 600
+
 // ── Banner resolver ──────────────────────────────────────────────
 /**
  * Resolve a banner URI from any profile-like object.
