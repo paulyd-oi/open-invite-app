@@ -424,6 +424,46 @@ export default function EventDetailScreen() {
   const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
 
+  // ── Shared photo-picker logic (used by nudge CTA + bottom sheet) ──
+  const launchEventPhotoPicker = useCallback(async () => {
+    if (uploadingPhoto || pickerLaunching.current) return;
+    pickerLaunching.current = true;
+    try {
+      if (__DEV__) devLog('[EVENT_PHOTO_PICK_START]');
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        safeToast.warning("Permission Required", "Please allow access to your photos.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+      if (result.canceled || !result.assets?.[0]) {
+        if (__DEV__) devLog('[EVENT_PHOTO_PICK_CANCEL]');
+        return;
+      }
+      if (__DEV__) devLog('[EVENT_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
+      setUploadingPhoto(true);
+      if (__DEV__) devLog('[P0_UPLOAD_SIGN_FIX]', { hasEventId: !!id, eventId: id?.slice(0, 8) });
+      const upload = await uploadEventPhoto(result.assets[0].uri, id ?? undefined);
+      await api.put(`/api/events/${id}/photo`, {
+        eventPhotoUrl: upload.url,
+        eventPhotoPublicId: upload.publicId,
+      });
+      invalidateEventMedia(queryClient, id ?? undefined);
+      safeToast.success("Photo added");
+    } catch (e: any) {
+      if (__DEV__) devError("[EVENT_PHOTO_UPLOAD]", e);
+      safeToast.error("Upload failed", e?.message ?? "Please try again.");
+    } finally {
+      setUploadingPhoto(false);
+      pickerLaunching.current = false;
+    }
+  }, [uploadingPhoto, id, queryClient]);
+
   // Hero micro-animation refs (title reveal + edit tap)
   const heroTitleOpacity = useRef(new RNAnimated.Value(0)).current;
   const heroTitleTranslateY = useRef(new RNAnimated.Value(6)).current;
@@ -2231,7 +2271,7 @@ export default function EventDetailScreen() {
               {/* [EVENT_LIVE_UI] Photo nudge moved to compact inline */}
               {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
                 <Pressable
-                  onPress={() => setShowPhotoSheet(true)}
+                  onPress={() => launchEventPhotoPicker()}
                   className="flex-row items-center justify-center rounded-xl p-3 mb-3"
                   style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}
                 >
@@ -4046,45 +4086,11 @@ export default function EventDetailScreen() {
         <View className="px-5 pb-6">
           <Pressable
             onPress={async () => {
-              if (uploadingPhoto || pickerLaunching.current) return; // re-entry guard
-              pickerLaunching.current = true;
               setShowPhotoSheet(false);
               // Wait for sheet dismiss animation before opening picker
               // Prevents iOS gesture/touch blocker overlay freeze
               await new Promise(r => setTimeout(r, 300));
-              try {
-                if (__DEV__) devLog('[EVENT_PHOTO_PICK_START]');
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== "granted") {
-                  safeToast.warning("Permission Required", "Please allow access to your photos.");
-                  return;
-                }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ["images"],
-                  allowsEditing: true,
-                  aspect: [4, 3],
-                  quality: 1,
-                });
-                if (result.canceled || !result.assets?.[0]) {
-                  if (__DEV__) devLog('[EVENT_PHOTO_PICK_CANCEL]');
-                  return;
-                }
-                if (__DEV__) devLog('[EVENT_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
-                setUploadingPhoto(true);
-                const upload = await uploadEventPhoto(result.assets[0].uri);
-                await api.put(`/api/events/${id}/photo`, {
-                  eventPhotoUrl: upload.url,
-                  eventPhotoPublicId: upload.publicId,
-                });
-                invalidateEventMedia(queryClient, id ?? undefined);
-                safeToast.success("Photo added");
-              } catch (e: any) {
-                if (__DEV__) devError("[EVENT_PHOTO_UPLOAD]", e);
-                safeToast.error("Upload failed", e?.message ?? "Please try again.");
-              } finally {
-                setUploadingPhoto(false);
-                pickerLaunching.current = false;
-              }
+              launchEventPhotoPicker();
             }}
             className="flex-row items-center py-3"
           >

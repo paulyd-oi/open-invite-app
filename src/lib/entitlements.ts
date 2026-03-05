@@ -78,6 +78,27 @@ export interface CapabilityResult {
   limit?: number;
 }
 
+// ============================================
+// SSOT Entitlements Fetcher
+// Used by useEntitlements queryFn AND all fetchQuery call sites.
+// This ensures ["entitlements"] queryKey ALWAYS has a queryFn available,
+// preventing the Sentry crash "Missing queryFn: ['entitlements']".
+// ============================================
+
+/** [P0_ENTITLEMENTS_QUERYFN] SSOT fetch function for entitlements. */
+async function entitlementsQueryFn(): Promise<EntitlementsResponse> {
+  if (__DEV__) devLog("[P0_ENTITLEMENTS_QUERYFN]", "fetching /api/entitlements");
+  try {
+    const response = await api.get<EntitlementsResponse>("/api/entitlements");
+    await cacheEntitlements(response);
+    return { ...response, source: "backend" as const };
+  } catch (error) {
+    const cached = await loadCachedEntitlements();
+    if (cached) return cached;
+    throw error;
+  }
+}
+
 // Default free limits (for offline/loading state)
 const FREE_LIMITS: PlanLimits = {
   whosFreeHorizonDays: 7,
@@ -238,19 +259,7 @@ export function useEntitlements(options?: { enabled?: boolean }) {
   
   return useQuery({
     queryKey: qk.entitlements(),
-    queryFn: async () => {
-      try {
-        const response = await api.get<EntitlementsResponse>("/api/entitlements");
-        // Cache the response
-        await cacheEntitlements(response);
-        return { ...response, source: "backend" as const };
-      } catch (error) {
-        // Fall back to cache on error
-        const cached = await loadCachedEntitlements();
-        if (cached) return cached;
-        throw error;
-      }
-    },
+    queryFn: entitlementsQueryFn,
     enabled, // Gate network fetch on bootStatus via caller
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // 30 minutes
@@ -269,9 +278,10 @@ export function useRefreshEntitlements() {
   return useCallback(async (): Promise<{ isPro: boolean }> => {
     // Invalidate to mark stale
     await queryClient.invalidateQueries({ queryKey: qk.entitlements() });
-    // Refetch and get fresh data
+    // Refetch and get fresh data — MUST provide queryFn (observer may not be mounted)
     const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
       queryKey: qk.entitlements(),
+      queryFn: entitlementsQueryFn,
     });
     const backendIsPro = isPro(freshData);
     
@@ -337,10 +347,11 @@ export function useRefreshProContract() {
     }
 
     try {
-      // Step 2: Refresh backend entitlements
+      // Step 2: Refresh backend entitlements — MUST provide queryFn (observer may not be mounted)
       await queryClient.invalidateQueries({ queryKey: qk.entitlements() });
       const freshData = await queryClient.fetchQuery<EntitlementsResponse>({
         queryKey: qk.entitlements(),
+        queryFn: entitlementsQueryFn,
       });
       backendIsPro = isPro(freshData);
       
