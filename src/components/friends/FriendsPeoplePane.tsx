@@ -370,8 +370,18 @@ export function FriendsPeoplePane({
               </Text>
               {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
               <Text className="text-sm text-center leading-5 mb-6" style={{ color: colors.textSecondary }}>
-                Invite friends to see their plans and share yours
+                Find friends already on Open Invite or invite new ones
               </Text>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push("/add-friends" as any);
+                }}
+                className="px-5 py-2.5 rounded-full mb-3"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-sm font-semibold" style={{ color: "#fff" }}>Find Friends</Text>
+              </Pressable>
               <ShareAppButton variant="full" />
             </View>
           ) : (

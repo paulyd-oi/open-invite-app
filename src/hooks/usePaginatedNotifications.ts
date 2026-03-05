@@ -112,5 +112,7 @@ export function usePaginatedNotifications({
     refetch: query.refetch,
     /** True while any refetch is in-flight */
     isRefetching: query.isRefetching,
+    /** True if initial fetch failed */
+    isError: query.isError,
   };
 }

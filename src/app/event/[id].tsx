@@ -1377,6 +1377,8 @@ export default function EventDetailScreen() {
           eventKeys.interests(id ?? ""),
           eventKeys.feed(),
         ], "rsvp_error_409");
+      } else if (isNetwork) {
+        safeToast.error("Offline", "You're offline. Your RSVP will be saved when you reconnect.");
       } else {
         safeToast.error("Oops", "That didn't go through. Please try again.", error);
       }
@@ -1451,6 +1453,11 @@ export default function EventDetailScreen() {
     }
     // Guard: require email verification
     if (!guardEmailVerification(session)) {
+      return;
+    }
+    // Guard: block "going" when event is full (unless already going)
+    if (status === "going" && eventMeta.isFull && myRsvpStatus !== "going") {
+      safeToast.warning("Full", "This invite is full.");
       return;
     }
     // Show confirmation modal when removing RSVP
