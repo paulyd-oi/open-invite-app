@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { View, Text, Pressable, RefreshControl, FlatList, ActivityIndicator } from "react-native";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { devLog, devWarn } from "@/lib/devLog";
-import { trackNotificationMarkRead } from "@/analytics/analyticsEventsSSOT";
+import { trackNotificationMarkRead, trackNotifsEngagement } from "@/analytics/analyticsEventsSSOT";
 import { useRouter, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -412,6 +412,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
   // Mark all as seen when visible
   useFocusEffect(
     useCallback(() => {
+      trackNotifsEngagement({ action: "view_list", routeTargeted: false });
       if (unreadCount > 0) {
         markAllSeen();
       }
@@ -432,6 +433,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     }
 
     const target = resolveNotificationTarget(notification);
+    trackNotifsEngagement({ action: "tap_item", routeTargeted: !!target });
     if (target) {
       router.push(target as any);
     } else {

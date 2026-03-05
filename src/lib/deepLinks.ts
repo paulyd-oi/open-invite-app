@@ -23,7 +23,7 @@ import { setPendingRsvpIntent } from './pendingRsvp';
 import { devLog, devWarn, devError } from './devLog';
 import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
-import { trackDeepLinkLanded, trackRsvpIntentPreauth } from '@/analytics/analyticsEventsSSOT';
+import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened } from '@/analytics/analyticsEventsSSOT';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -270,6 +270,12 @@ export async function handleDeepLink(url: string): Promise<boolean> {
       if (parsed.id) {
         const linkSource = url.startsWith(`${SCHEME}://`) ? 'scheme' as const : 'universal' as const;
         trackDeepLinkLanded({ type: 'event', id: parsed.id, source: linkSource });
+        // [GROWTH_P11] Capture referral param from event share links
+        const hasRefParam = /[?&]ref=/.test(url);
+        if (hasRefParam) {
+          trackReferralOpened({ source: linkSource, hasCode: true });
+          handleReferralUrl(url); // fire-and-forget — stores code for post-auth claim
+        }
         // [GROWTH_P3] Store pending RSVP intent so it survives through signup.
         // The useRsvpIntentClaim hook will auto-apply after auth + onboarding.
         setPendingRsvpIntent({ eventId: parsed.id, status: 'going' });
@@ -292,7 +298,9 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'invite':
       if (parsed.code) {
-        trackDeepLinkLanded({ type: 'invite', id: parsed.code, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
+        const inviteLinkSource = url.startsWith(`${SCHEME}://`) ? 'scheme' as const : 'universal' as const;
+        trackDeepLinkLanded({ type: 'invite', id: parsed.code, source: inviteLinkSource });
+        trackReferralOpened({ source: inviteLinkSource, hasCode: true });
         // Store referral code for later claim after signup/login
         await handleReferralUrl(url);
         // Navigate to calendar (or welcome if not logged in, handled by nav guards)
