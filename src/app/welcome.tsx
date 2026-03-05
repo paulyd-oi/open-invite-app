@@ -20,7 +20,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { trackSignupCompleted } from "@/analytics/analyticsEventsSSOT";
+import { trackSignupCompleted, trackAppleSignInTap, trackAppleSignInResult } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   Easing,
   FadeIn,
@@ -70,9 +70,8 @@ try {
   if (__DEV__) devLog("[Apple Auth] expo-apple-authentication not available - requires native build");
 }
 
-// Feature flag: disable Apple Sign-In for launch build
-// Set to true to re-enable, or wire to EXPO_PUBLIC_ENABLE_APPLE_SIGNIN
-const APPLE_SIGNIN_ENABLED = false;
+// Feature flag: Apple Sign-In enabled for growth phase
+const APPLE_SIGNIN_ENABLED = true;
 
 /**
  * Human-readable explanation for each error bucket.
@@ -520,6 +519,10 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const handleAppleSignIn = async () => {
+    // [GROWTH_APPLE_SIGNIN] Track tap
+    trackAppleSignInTap();
+    const _appleT0 = Date.now();
+
     // Generate unique attempt ID for trace correlation
     const attemptId = `apple_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     
@@ -807,6 +810,8 @@ export default function WelcomeOnboardingScreen() {
       traceLog("final_success", { advancingToSlide: 3 });
       // [P0_ANALYTICS_EVENT] signup_completed (Apple — best-effort, fires on every Apple auth since we can't distinguish new vs returning)
       trackSignupCompleted({ authProvider: "apple", isEmailVerified: true });
+      // [GROWTH_APPLE_SIGNIN] Track success
+      trackAppleSignInResult({ success: true, durationMs: Date.now() - _appleT0 });
       setCurrentSlide(3);
     } catch (error: any) {
       // Classify the error for diagnostics
@@ -815,16 +820,20 @@ export default function WelcomeOnboardingScreen() {
       // User cancelled - no error to show
       if (errorBucket === "user_cancel") {
         traceLog("user_cancelled", { cancelled: true, bucket: errorBucket });
+        trackAppleSignInResult({ success: false, durationMs: Date.now() - _appleT0, errorCode: "user_cancel" });
         return;
       }
-      
+
+      // [GROWTH_APPLE_SIGNIN] Track failure
+      trackAppleSignInResult({ success: false, durationMs: Date.now() - _appleT0, errorCode: errorBucket });
+
       // Log full error with classification for diagnostics
       traceError("final_fail", {
         ...error,
         bucket: errorBucket,
         bucketExplanation: getBucketExplanation(errorBucket),
       });
-      
+
       // Decode error to user-friendly message (mom-safe)
       const userMessage = decodeAppleAuthError(error);
       setErrorBanner(userMessage || "Apple Sign-In failed. Please try again.");
@@ -1184,7 +1193,7 @@ export default function WelcomeOnboardingScreen() {
             </Pressable>
           )}
 
-          {/* Apple Sign In - gated by canShowAppleSignIn (APPLE_SIGNIN_ENABLED=false for launch) */}
+          {/* Apple Sign In - gated by canShowAppleSignIn (iOS + native module available) */}
           {canShowAppleSignIn && (
             <Animated.View entering={smoothFadeIn(100)}>
               <AppleAuthentication.AppleAuthenticationButton

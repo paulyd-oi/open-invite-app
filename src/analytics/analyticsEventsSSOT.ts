@@ -48,6 +48,9 @@ export const AnalyticsEvent = {
   FEED_PAGE_LOADED: "feed_page_loaded",
   PUSH_TOKEN_REGISTER_RESULT: "push_token_register_result",
   PUSH_NOTIFICATION_OPENED: "push_notification_opened",
+  // Growth instrumentation — Apple Sign In
+  APPLE_SIGNIN_TAP: "apple_signin_tap",
+  APPLE_SIGNIN_RESULT: "apple_signin_result",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -435,4 +438,28 @@ export function trackApiRequest(props: {
   requestId?: string;
 }): void {
   track(AnalyticsEvent.API_REQUEST, props);
+}
+
+// ---------------------------------------------------------------------------
+// Growth instrumentation — Apple Sign In
+// ---------------------------------------------------------------------------
+
+/**
+ * apple_signin_tap — fires when user taps Apple Sign In button.
+ * [GROWTH_APPLE_SIGNIN]
+ */
+export function trackAppleSignInTap(): void {
+  track(AnalyticsEvent.APPLE_SIGNIN_TAP);
+}
+
+/**
+ * apple_signin_result — fires after Apple Sign In attempt completes.
+ * No PII. [GROWTH_APPLE_SIGNIN]
+ */
+export function trackAppleSignInResult(props: {
+  success: boolean;
+  durationMs: number;
+  errorCode?: string;
+}): void {
+  track(AnalyticsEvent.APPLE_SIGNIN_RESULT, props);
 }
