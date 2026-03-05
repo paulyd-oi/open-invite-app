@@ -33,6 +33,7 @@ import { BACKEND_URL } from '@/lib/config';
 import { useBootAuthority, hasBootResolvedOnce } from '@/hooks/useBootAuthority';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferralClaim } from '@/hooks/useReferralClaim';
+import { useRsvpIntentClaim } from '@/hooks/useRsvpIntentClaim';
 import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
 import { useRevenueCatSync } from '@/hooks/useRevenueCatSync';
 import { useEntitlementsForegroundRefresh } from '@/hooks/useEntitlementsForegroundRefresh';
@@ -534,6 +535,9 @@ function BootRouter() {
 
   // Claim any pending referral code once authed (one-shot, never blocks UI)
   useReferralClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
+
+  // [GROWTH_P3] Auto-apply pending RSVP intent from shared event deep link
+  useRsvpIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
 
   // Fetch entitlements once authed (one-shot, never blocks UI)
   useEntitlementsSync({ bootStatus });

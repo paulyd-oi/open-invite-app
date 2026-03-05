@@ -54,6 +54,9 @@ export const AnalyticsEvent = {
   // Growth instrumentation — Contacts import
   CONTACTS_PERMISSION_RESULT: "contacts_permission_result",
   CONTACTS_IMPORT_RESULT: "contacts_import_result",
+  // Growth instrumentation — RSVP before signup
+  RSVP_INTENT_PREAUTH: "rsvp_intent_preauth",
+  RSVP_INTENT_APPLIED_POSTAUTH: "rsvp_intent_applied_postauth",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -490,4 +493,31 @@ export function trackContactsImportResult(props: {
   requestsSentCount: number;
 }): void {
   track(AnalyticsEvent.CONTACTS_IMPORT_RESULT, props);
+}
+
+// ---------------------------------------------------------------------------
+// Growth instrumentation — RSVP before signup
+// ---------------------------------------------------------------------------
+
+/**
+ * rsvp_intent_preauth — fires when unauthenticated user opens event deep link.
+ * Intent is stored for post-auth claim. No PII. [GROWTH_P3]
+ */
+export function trackRsvpIntentPreauth(props: {
+  hasEvent: boolean;
+  source: "scheme" | "universal";
+}): void {
+  track(AnalyticsEvent.RSVP_INTENT_PREAUTH, props);
+}
+
+/**
+ * rsvp_intent_applied_postauth — fires after auto-applying stored RSVP intent.
+ * No PII. [GROWTH_P3]
+ */
+export function trackRsvpIntentAppliedPostauth(props: {
+  success: boolean;
+  durationMs: number;
+  failureCode?: string;
+}): void {
+  track(AnalyticsEvent.RSVP_INTENT_APPLIED_POSTAUTH, props);
 }

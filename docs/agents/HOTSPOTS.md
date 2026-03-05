@@ -41,7 +41,15 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-(no active claims)
+[GROWTH_P3] CLAIMED_BY: [GROWTH_P3]
+Files:
+  src/lib/pendingRsvp.ts (NEW)
+  src/hooks/useRsvpIntentClaim.ts (NEW)
+  src/lib/deepLinks.ts
+  src/analytics/analyticsEventsSSOT.ts
+  src/app/_layout.tsx
+Reason: Phase 3 — RSVP before signup funnel inversion
+Started: 2026-03-04
 
 ---
 

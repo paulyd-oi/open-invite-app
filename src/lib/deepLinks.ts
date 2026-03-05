@@ -19,10 +19,11 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { parseICS, isValidICSContent } from './icsParser';
 import { handleReferralUrl } from './referral';
+import { setPendingRsvpIntent } from './pendingRsvp';
 import { devLog, devWarn, devError } from './devLog';
 import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
-import { trackDeepLinkLanded } from '@/analytics/analyticsEventsSSOT';
+import { trackDeepLinkLanded, trackRsvpIntentPreauth } from '@/analytics/analyticsEventsSSOT';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -267,7 +268,12 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'event':
       if (parsed.id) {
-        trackDeepLinkLanded({ type: 'event', id: parsed.id, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
+        const linkSource = url.startsWith(`${SCHEME}://`) ? 'scheme' as const : 'universal' as const;
+        trackDeepLinkLanded({ type: 'event', id: parsed.id, source: linkSource });
+        // [GROWTH_P3] Store pending RSVP intent so it survives through signup.
+        // The useRsvpIntentClaim hook will auto-apply after auth + onboarding.
+        setPendingRsvpIntent({ eventId: parsed.id, status: 'going' });
+        trackRsvpIntentPreauth({ hasEvent: true, source: linkSource });
         router.push(`/event/${parsed.id}`);
         return true;
       }
