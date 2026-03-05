@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { openMaps } from "@/utils/openMaps";
-import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked } from "@/analytics/analyticsEventsSSOT";
+import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -406,6 +406,10 @@ export default function EventDetailScreen() {
   const rsvpSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rsvpButtonScale = useSharedValue(1);
   const rsvpButtonAnimStyle = useAnimatedStyle(() => ({ transform: [{ scale: rsvpButtonScale.value }] }));
+
+  // [RSVP_FRICTION] Inline success prompt state (once per event per session)
+  const [showRsvpSuccessPrompt, setShowRsvpSuccessPrompt] = useState(false);
+  const rsvpSuccessPromptFired = useRef(false);
 
   // [EVENT_LIVE_UI_2] Live chip state — shows briefly after RSVP or when recently active
   const [liveChipText, setLiveChipText] = useState<string | null>(null);
@@ -1161,10 +1165,25 @@ export default function EventDetailScreen() {
         return { ...old, status: nextStatus };
       });
 
-      // Optimistically update attendees totalGoing count
+      // Optimistically update attendees totalGoing count + insert user avatar
       queryClient.setQueryData(eventKeys.attendees(id ?? ""), (old: AttendeesResponse | undefined) => {
         if (!old) return { attendees: [], totalGoing: nextTotalGoing };
-        return { ...old, totalGoing: nextTotalGoing };
+        // [GROWTH_RSVP_FRICTION] Insert current user into roster on "going"
+        let nextAttendees = old.attendees;
+        const uid = session?.user?.id;
+        if (nextStatus === "going" && uid) {
+          const alreadyPresent = old.attendees.some(a => a.id === uid);
+          if (!alreadyPresent) {
+            nextAttendees = [
+              ...old.attendees,
+              { id: uid, name: session?.user?.name ?? null, imageUrl: session?.user?.image ?? null, isHost: false },
+            ];
+          }
+        } else if (prevRsvpStatus === "going" && nextStatus !== "going" && uid) {
+          // Remove user from roster when un-going
+          nextAttendees = old.attendees.filter(a => a.id !== uid);
+        }
+        return { attendees: nextAttendees, totalGoing: nextTotalGoing };
       });
 
       // [P1_EVENT_META] Optimistically update owner query (eventKeys.single) for capacity coherence
@@ -1294,6 +1313,14 @@ export default function EventDetailScreen() {
           // PostValueInvite uses 800ms delay for smoother UX; others show immediately
           // Since choice is already locked, no other prompt can appear in the meantime
         }
+
+        // [GROWTH_RSVP_FRICTION] Show inline success prompt for "going" when no modal chosen
+        // Once per event per session — non-blocking inline card, not a modal
+        if (status === "going" && chosen === "none" && !rsvpSuccessPromptFired.current) {
+          rsvpSuccessPromptFired.current = true;
+          setShowRsvpSuccessPrompt(true);
+          trackRsvpSuccessPromptShown({ source: "event" });
+        }
       }
     },
     onError: (error: any, _nextStatus, context) => {
@@ -1332,6 +1359,14 @@ export default function EventDetailScreen() {
       if (context?.previousSingle !== undefined) {
         queryClient.setQueryData(eventKeys.single(id ?? ""), context.previousSingle);
       }
+
+      // [GROWTH_RSVP_FRICTION] Track RSVP errors for edge-state visibility
+      const httpStatus = error?.response?.status ?? error?.status;
+      const isNetwork = !httpStatus || httpStatus === 0;
+      trackRsvpError({
+        errorCode: httpStatus === 409 ? "EVENT_FULL" : String(httpStatus ?? "unknown"),
+        network: isNetwork,
+      });
 
       // Handle 409 EVENT_FULL error
       if (error?.response?.status === 409 || error?.status === 409) {
@@ -2718,6 +2753,39 @@ export default function EventDetailScreen() {
                       </View>
                     )}
                   </View>
+                )}
+
+                {/* [GROWTH_RSVP_FRICTION] Inline success prompt — "Want to bring someone?" */}
+                {showRsvpSuccessPrompt && myRsvpStatus === "going" && (
+                  <Animated.View entering={FadeInDown.duration(300)} className="mb-3">
+                    <View
+                      className="rounded-2xl p-4 flex-row items-center"
+                      style={{ backgroundColor: isDark ? "#1C2520" : "#F0FDF4", borderWidth: 1, borderColor: "#22C55E40" }}
+                    >
+                      <View className="flex-1">
+                        <Text className="font-semibold text-sm" style={{ color: "#22C55E" }}>You're in!</Text>
+                        <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>Want to bring someone along?</Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          trackRsvpSuccessPromptTap({ source: "event" });
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setShowRsvpSuccessPrompt(false);
+                          if (event) shareEvent({ ...event, location: locationDisplay ?? null });
+                        }}
+                        className="px-3 py-1.5 rounded-full ml-2"
+                        style={{ backgroundColor: "#22C55E" }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: "#FFFFFF" }}>Share</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setShowRsvpSuccessPrompt(false)}
+                        className="ml-2 p-1"
+                      >
+                        <X size={14} color={colors.textTertiary} />
+                      </Pressable>
+                    </View>
+                  </Animated.View>
                 )}
 
                 {/* RSVP Options */}
