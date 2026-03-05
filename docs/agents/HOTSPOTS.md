@@ -63,6 +63,9 @@ before touching. If another agent is active, wait or coordinate.
   [BATCH11] freed api.ts, analyticsEventsSSOT.ts, OfflineBanner.tsx(FE), events.ts, notifications.ts, rateLimit.ts, schema.prisma, HARDENING_SSOT_100K.md(BE) — 2026-03-04 (9d48bbd/7044f06)
   [BATCH9] freed events.ts(BE), social.tsx(FE), analyticsEventsSSOT.ts(FE) — 2026-03-04 (2621cca/647848e)
   [BATCH10] freed events.ts(BE), HARDENING_SSOT_100K.md(BE) — 2026-03-04 (3ded67c)
+  [BATCH12] freed db.ts(BE), middleware/requestId.ts(BE), events.ts(BE), notifications.ts(BE), api.ts(FE), analyticsEventsSSOT.ts(FE) — 2026-03-04 (d9e1759/4aa9f85)
+  [BATCH13] freed expoPush.ts(BE), notifications.ts(FE), useNotifications.ts(FE), analyticsEventsSSOT.ts(FE) — 2026-03-04 (7930589/d2e6def)
+  [BATCH14] freed cache.ts(BE), events.ts(BE), notifications.ts(BE), HARDENING_SSOT_100K.md(BE) — 2026-03-04 (19ba7fc)
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234
