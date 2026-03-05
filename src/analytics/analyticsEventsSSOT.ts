@@ -79,6 +79,10 @@ export const AnalyticsEvent = {
   FIRST_RSVP_GOING: "first_rsvp_going",
   FIRST_FRIEND_ADDED: "first_friend_added",
   FIRST_CIRCLE_JOINED: "first_circle_joined",
+  // RSVP friction phase — success momentum + error clarity
+  RSVP_SUCCESS_PROMPT_SHOWN: "rsvp_success_prompt_shown",
+  RSVP_SUCCESS_PROMPT_TAP: "rsvp_success_prompt_tap",
+  RSVP_ERROR: "rsvp_error",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -705,4 +709,30 @@ export function trackFirstCircleJoined(props: {
   entryPoint: string;
 }): void {
   track(AnalyticsEvent.FIRST_CIRCLE_JOINED, props);
+}
+
+// ---------------------------------------------------------------------------
+// RSVP friction phase — success momentum + error clarity
+// ---------------------------------------------------------------------------
+
+/** rsvp_success_prompt_shown — fires when inline "Want to bring someone?" shows. No PII. */
+export function trackRsvpSuccessPromptShown(props: {
+  source: "event";
+}): void {
+  track(AnalyticsEvent.RSVP_SUCCESS_PROMPT_SHOWN, props);
+}
+
+/** rsvp_success_prompt_tap — fires when user taps invite CTA in success prompt. No PII. */
+export function trackRsvpSuccessPromptTap(props: {
+  source: "event";
+}): void {
+  track(AnalyticsEvent.RSVP_SUCCESS_PROMPT_TAP, props);
+}
+
+/** rsvp_error — fires on RSVP failure for diagnostics. No PII. */
+export function trackRsvpError(props: {
+  errorCode: string;
+  network: boolean;
+}): void {
+  track(AnalyticsEvent.RSVP_ERROR, props);
 }
