@@ -1073,7 +1073,7 @@ export default function WelcomeOnboardingScreen() {
     setContactsLoading(true);
     try {
       const { status } = await Contacts.requestPermissionsAsync();
-      trackContactsPermissionResult({ granted: status === "granted" });
+      trackContactsPermissionResult({ granted: status === "granted", source: "onboarding" });
       if (status !== "granted") {
         setContactsPermissionDenied(true);
         setContactsLoading(false);
@@ -1136,7 +1136,7 @@ export default function WelcomeOnboardingScreen() {
       }
     }
     setSendingInvites(false);
-    trackContactsImportResult({ existingUsersCount: phoneContacts.length, requestsSentCount: sentCount });
+    trackContactsImportResult({ existingUsersCount: phoneContacts.length, requestsSentCount: sentCount, source: "onboarding" });
     if (sentCount > 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refreshAfterFriendRequestSent(queryClient);
