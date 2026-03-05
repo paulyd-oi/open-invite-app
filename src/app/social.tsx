@@ -51,7 +51,7 @@ import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
-import { trackFeedLoadTime } from "@/analytics/analyticsEventsSSOT";
+import { trackFeedLoadTime, trackFeedPageLoaded } from "@/analytics/analyticsEventsSSOT";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -764,13 +764,21 @@ export default function SocialScreen() {
         ? `/api/events/feed?limit=${FEED_PAGE_SIZE}&cursor=${encodeURIComponent(pageParam)}`
         : `/api/events/feed?limit=${FEED_PAGE_SIZE}`;
       const result = await api.get<GetEventsFeedResponse>(url);
-      
+
       // DEV proof log for pagination
       if (__DEV__) {
         const loadedCount = result.events.length;
         devLog('[P1_FEED_PAGINATION]', `cursor=${pageParam ?? 'null'}, loadedCount=${loadedCount}, nextCursor=${result.nextCursor ?? 'null'}`);
       }
-      
+
+      // [P1_FEED_PAGE_LOADED] Per-page telemetry
+      trackFeedPageLoaded({
+        pageIndex: pageParam ? 1 : 0, // 0 = first page, 1 = subsequent
+        itemCount: result.events.length,
+        hasCursor: !!pageParam,
+        hasNextPage: !!result.nextCursor,
+      });
+
       return result;
     },
     initialPageParam: null as string | null,

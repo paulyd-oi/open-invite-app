@@ -45,6 +45,7 @@ export const AnalyticsEvent = {
   NOTIFICATIONS_PAGE_LOADED: "notifications_page_loaded",
   NOTIFICATION_MARK_READ: "notification_mark_read",
   API_REQUEST: "api_request",
+  FEED_PAGE_LOADED: "feed_page_loaded",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -382,6 +383,19 @@ export function trackNotificationMarkRead(props: {
   rollbackUsed: boolean;
 }): void {
   track(AnalyticsEvent.NOTIFICATION_MARK_READ, props);
+}
+
+/**
+ * feed_page_loaded — fires after each feed page fetch completes.
+ * [P1_FEED_PAGE_LOADED]
+ */
+export function trackFeedPageLoaded(props: {
+  pageIndex: number;
+  itemCount: number;
+  hasCursor: boolean;
+  hasNextPage: boolean;
+}): void {
+  track(AnalyticsEvent.FEED_PAGE_LOADED, props);
 }
 
 /**

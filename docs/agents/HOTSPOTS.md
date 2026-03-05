@@ -41,7 +41,14 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-(no active claims)
+[BATCH9] CLAIMED_BY: [BATCH9]
+  Files:
+    src/routes/events.ts (BE)
+    src/app/social.tsx (FE)
+    src/analytics/analyticsEventsSSOT.ts (FE)
+    docs/HARDENING_SSOT_100K.md (BE)
+  Reason: Batch 9 — roster cap + feed telemetry
+  Started: 2026-03-04
 
 ---
 
