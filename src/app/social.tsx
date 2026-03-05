@@ -51,7 +51,9 @@ import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { APP_STORE_URL } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
-import { trackFeedLoadTime, trackFeedPageLoaded } from "@/analytics/analyticsEventsSSOT";
+import { trackFeedLoadTime, trackFeedPageLoaded, trackWeeklyDigestCardShown, trackWeeklyDigestCardTap } from "@/analytics/analyticsEventsSSOT";
+import { usePaginatedNotifications } from "@/hooks/usePaginatedNotifications";
+import type { Notification } from "@/shared/contracts";
 
 // Swipe action threshold (px to reveal actions)
 const SWIPE_THRESHOLD = 60;
@@ -614,6 +616,82 @@ function EmptyFeed() {
   );
 }
 
+// ── Weekly Digest Card [GROWTH_P14] ─────────────────────────────────────────
+
+/** Module-level session gate so we fire shown-telemetry at most once per app session. */
+let _digestShownThisSession = false;
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Find the most recent WEEKLY_DIGEST notification within the last 7 days. */
+function findRecentWeeklyDigest(notifications: Notification[]): Notification | null {
+  const cutoff = Date.now() - SEVEN_DAYS_MS;
+  for (const n of notifications) {
+    if (n.type === "weekly_digest" || n.type === "WEEKLY_DIGEST") {
+      const ts = new Date(n.createdAt).getTime();
+      if (ts >= cutoff) return n;
+    }
+  }
+  return null;
+}
+
+const WeeklyDigestCard = React.memo(function WeeklyDigestCard({
+  digest,
+  colors,
+  themeColor,
+  onTap,
+}: {
+  digest: Notification;
+  colors: { surface: string; text: string; textSecondary: string; border: string };
+  themeColor: string;
+  onTap: () => void;
+}) {
+  // Fire shown telemetry once per session
+  const didFireRef = useRef(false);
+  useEffect(() => {
+    if (!didFireRef.current && !_digestShownThisSession) {
+      didFireRef.current = true;
+      _digestShownThisSession = true;
+      trackWeeklyDigestCardShown({ hasDigest: true, sourceScreen: "social" });
+    }
+  }, []);
+
+  const previewText = digest.body || digest.title || "";
+  return (
+    <Pressable
+      /* INVARIANT_ALLOW_INLINE_HANDLER */
+      onPress={onTap}
+      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+      style={{
+        backgroundColor: colors.surface,
+        borderColor: colors.border,
+        borderWidth: 1,
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 12,
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="This week digest"
+    >
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+      <Text style={{ color: themeColor, fontWeight: "700", fontSize: 15, marginBottom: 4 }}>
+        This week
+      </Text>
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+      <Text
+        numberOfLines={2}
+        style={{ color: colors.textSecondary, fontSize: 13, lineHeight: 18 }}
+      >
+        {previewText}
+      </Text>
+      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+      <Text style={{ color: themeColor, fontWeight: "600", fontSize: 13, marginTop: 8 }}>
+        View
+      </Text>
+    </Pressable>
+  );
+});
+
 export default function SocialScreen() {
   const socialMountTime = useRef(Date.now());
   const { data: session, isPending: sessionLoading } = useSession();
@@ -647,6 +725,21 @@ export default function SocialScreen() {
   
   // Collapse state for sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // [GROWTH_P14] Weekly digest — reuse paginated notifications (first page only)
+  const { notifications: allNotifications } = usePaginatedNotifications({
+    enabled: isAuthedForNetwork(bootStatus, session),
+    pageSize: 30,
+  });
+  const weeklyDigest = useMemo(
+    () => findRecentWeeklyDigest(allNotifications),
+    [allNotifications],
+  );
+  const handleDigestTap = useCallback(() => {
+    const hadPreview = !!(weeklyDigest?.body);
+    trackWeeklyDigestCardTap({ sourceScreen: "social", target: "notifications", hadPreviewText: hadPreview });
+    router.push("/activity");
+  }, [weeklyDigest, router]);
 
   // Auth gating based on boot status AND session userId (SSOT gate)
   const isAuthed = isAuthedForNetwork(bootStatus, session);
@@ -1425,6 +1518,15 @@ export default function SocialScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* [GROWTH_P14] Weekly digest card — empty state feed */}
+          {weeklyDigest && (
+            <WeeklyDigestCard
+              digest={weeklyDigest}
+              colors={colors}
+              themeColor={themeColor}
+              onTap={handleDigestTap}
+            />
+          )}
           {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
@@ -1504,6 +1606,15 @@ export default function SocialScreen() {
             />
           }
         >
+          {/* [GROWTH_P14] Weekly digest card — above feed content */}
+          {weeklyDigest && (
+            <WeeklyDigestCard
+              digest={weeklyDigest}
+              colors={colors}
+              themeColor={themeColor}
+              onTap={handleDigestTap}
+            />
+          )}
           <FeedCalendar
             events={calendarEvents}
             themeColor={themeColor}
