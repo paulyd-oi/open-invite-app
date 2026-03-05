@@ -17,6 +17,7 @@ import { Image as ExpoImage } from "expo-image";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { getDiscussionPrompts, inferEventTags } from "@/lib/discussionPromptSSOT";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -3112,24 +3113,35 @@ export default function EventDetailScreen() {
                 <Text className="text-center text-sm mt-1 mb-4" style={{ color: colors.textSecondary }}>
                   Break the ice! Start a conversation
                 </Text>
-                {/* Conversation starter suggestions */}
+                {/* [DISCUSS_PROMPTS] Smart conversation starters */}
                 <View className="w-full">
                   <Text className="text-xs font-medium mb-2" style={{ color: colors.textTertiary }}>
                     Try asking:
                   </Text>
-                  {[
-                    "What should I bring? 🎒",
-                    "Anyone want to carpool? 🚗",
-                    "Running late, start without me? ⏰",
-                  ].map((suggestion, idx) => (
+                  {(() => {
+                    const prompts = getDiscussionPrompts({
+                      eventId: event?.id,
+                      title: event?.title ?? undefined,
+                      description: event?.description ?? undefined,
+                      locationName: event?.location ?? undefined,
+                      startAt: event?.startTime ?? undefined,
+                      endAt: event?.endTime ?? undefined,
+                      isHost: isMyEvent,
+                      visibility: event?.visibility ?? undefined,
+                    });
+                    if (__DEV__) {
+                      devLog("[DISCUSS_PROMPTS]", `eventId=${event?.id?.slice(0, 8)} tags=${inferEventTags(event?.title ?? undefined, event?.location ?? undefined, event?.description ?? undefined).join(",")||"none"} prompts="${prompts.map(p=>p.text).join("|")}"`);
+                    }
+                    return prompts;
+                  })().map((prompt) => (
                     <Pressable
-                      key={idx}
-                      onPress={() => setCommentText(suggestion)}
+                      key={prompt.id}
+                      onPress={() => setCommentText(prompt.text)}
                       className="rounded-lg p-2 mb-1"
                       style={{ backgroundColor: isDark ? "#3C3C3E" : "#F3F4F6" }}
                     >
                       <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                        {suggestion}
+                        {prompt.text}
                       </Text>
                     </Pressable>
                   ))}
