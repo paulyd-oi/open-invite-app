@@ -13,7 +13,7 @@
       "icon": "./icon.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
-      "buildNumber": "258",
+      "buildNumber": "259",
       "usesAppleSignIn": true,
       "jsEngine": "jsc",
       "infoPlist": {
