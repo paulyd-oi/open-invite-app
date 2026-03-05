@@ -7,8 +7,10 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
+  FlatList,
   StyleSheet,
 } from "react-native";
+import * as Contacts from "expo-contacts";
 import { Image as ExpoImage } from "expo-image";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,7 +22,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
-import { trackSignupCompleted, trackAppleSignInTap, trackAppleSignInResult } from "@/analytics/analyticsEventsSSOT";
+import { trackSignupCompleted, trackAppleSignInTap, trackAppleSignInResult, trackContactsPermissionResult, trackContactsImportResult } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   Easing,
   FadeIn,
@@ -41,6 +43,9 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Users,
+  Check,
+  UserPlus,
 } from "@/ui/icons";
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
@@ -53,6 +58,8 @@ import { safeToast } from "@/lib/safeToast";
 import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, runAppleSignInDiagnostics } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 import { uploadImage } from "@/lib/imageUpload";
+import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
+import { SendFriendRequestResponse } from "@/../shared/contracts";
 import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
@@ -134,7 +141,7 @@ function toBackendAvatarUrl(url: string | null | undefined): string | undefined 
 }
 
 // ============ SLIDE TYPES ============
-type OnboardingSlide = 1 | 2 | 3 | 4;
+type OnboardingSlide = 1 | 2 | 3 | 4 | 5;
 
 // ============ SHARED LAYOUT ============
 // Tracks root container layout deltas and insets on cold start.
@@ -340,7 +347,12 @@ export default function WelcomeOnboardingScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
-  // REMOVED: Notification nudge state - now triggered at Aha moments
+  // Contacts import state (Slide 4)
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
+  const [sendingInvites, setSendingInvites] = useState(false);
+  const [contactsPermissionDenied, setContactsPermissionDenied] = useState(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1055,7 +1067,85 @@ export default function WelcomeOnboardingScreen() {
     }
   };
 
-  // ============ SLIDE 4: FINISH ============
+  // ============ SLIDE 4: FIND FRIENDS (CONTACTS) ============
+
+  const loadContacts = async () => {
+    setContactsLoading(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      trackContactsPermissionResult({ granted: status === "granted" });
+      if (status !== "granted") {
+        setContactsPermissionDenied(true);
+        setContactsLoading(false);
+        return;
+      }
+      const { data } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.FirstName,
+          Contacts.Fields.LastName,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+        ],
+        sort: Contacts.SortTypes.FirstName,
+      });
+      const validContacts = data.filter(
+        (c) => (c.emails && c.emails.length > 0) || (c.phoneNumbers && c.phoneNumbers.length > 0)
+      );
+      setPhoneContacts(validContacts.slice(0, 100));
+    } catch (error) {
+      devError("Error loading contacts:", error);
+    }
+    setContactsLoading(false);
+  };
+
+  const toggleContactSelection = (contactId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedContacts((prev) => {
+      const next = new Set(prev);
+      if (next.has(contactId)) {
+        next.delete(contactId);
+      } else {
+        next.add(contactId);
+      }
+      return next;
+    });
+  };
+
+  const sendSelectedInvites = async () => {
+    if (selectedContacts.size === 0) {
+      setCurrentSlide(5);
+      return;
+    }
+    setSendingInvites(true);
+    const selected = phoneContacts.filter((c) => c.id && selectedContacts.has(c.id));
+    let sentCount = 0;
+    for (const contact of selected) {
+      const email = contact.emails?.[0]?.email;
+      const phone = contact.phoneNumbers?.[0]?.number;
+      try {
+        if (email) {
+          await api.post<SendFriendRequestResponse>("/api/friends/request", { email });
+          sentCount++;
+        } else if (phone) {
+          await api.post<SendFriendRequestResponse>("/api/friends/request", { phone });
+          sentCount++;
+        }
+      } catch {
+        // Continue — partial success is fine
+      }
+    }
+    setSendingInvites(false);
+    trackContactsImportResult({ existingUsersCount: phoneContacts.length, requestsSentCount: sentCount });
+    if (sentCount > 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      refreshAfterFriendRequestSent(queryClient);
+      safeToast.success("Invites Sent!", `Friend requests sent to ${sentCount} contact${sentCount !== 1 ? "s" : ""}`);
+    }
+    setCurrentSlide(5);
+  };
+
+  // ============ SLIDE 5: FINISH ============
 
   const handleFinishOnboarding = async () => {
     if (__DEV__) devLog("[Onboarding] Finishing...");
@@ -1370,6 +1460,146 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const renderSlide4 = () => {
+    if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/findFriends', input: 'n/a', button: 'SSOT', card: 'n/a' });
+    return (
+    <OnboardingLayout background={colors.background}>
+      <View style={styles.slideContent}>
+        <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
+            <Users size={36} color={themeColor} />
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Find Your Friends
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            See who you know on Open Invite
+          </Text>
+        </Animated.View>
+
+        {phoneContacts.length === 0 && !contactsPermissionDenied && (
+          <Animated.View entering={smoothFadeIn(200)} style={{ alignItems: "center", marginBottom: 24 }}>
+            <Button
+              variant="primary"
+              label={contactsLoading ? "Loading..." : "Sync Contacts"}
+              onPress={loadContacts}
+              loading={contactsLoading}
+              leftIcon={<UserPlus size={20} color="#fff" />}
+              style={{ borderRadius: RADIUS.lg }}
+            />
+          </Animated.View>
+        )}
+
+        {contactsPermissionDenied && (
+          <View style={{ alignItems: "center", paddingVertical: 24 }}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary, marginBottom: 16 }]}>
+              Contacts access is needed to find friends.{"\n"}You can add friends later.
+            </Text>
+          </View>
+        )}
+
+        {phoneContacts.length > 0 && (
+          <Animated.View entering={smoothFadeIn(100)} style={{ flex: 1, maxHeight: 320 }}>
+            {selectedContacts.size > 0 && (
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingHorizontal: 4 }}>
+                <Text style={{ color: colors.text, fontFamily: "Sora_600SemiBold", fontSize: 14 }}>
+                  {selectedContacts.size} selected
+                </Text>
+                <Pressable onPress={() => setSelectedContacts(new Set())}>
+                  <Text style={{ color: themeColor, fontSize: 13 }}>Clear</Text>
+                </Pressable>
+              </View>
+            )}
+            <FlatList
+              data={phoneContacts}
+              keyExtractor={(item) => item.id ?? `c-${item.name}`}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              renderItem={({ item }) => {
+                const isSelected = item.id ? selectedContacts.has(item.id) : false;
+                const email = item.emails?.[0]?.email;
+                const phone = item.phoneNumbers?.[0]?.number;
+                return (
+                  <Pressable
+                    onPress={() => item.id && toggleContactSelection(item.id)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      marginBottom: 4,
+                      backgroundColor: isSelected ? `${themeColor}15` : "transparent",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: `${themeColor}20`,
+                        marginRight: 12,
+                      }}
+                    >
+                      <Text style={{ color: themeColor, fontWeight: "600", fontSize: 15 }}>
+                        {item.name?.[0]?.toUpperCase() ?? "?"}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.text, fontSize: 15, fontWeight: "500" }}>
+                        {item.name ?? "Unknown"}
+                      </Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 1 }}>
+                        {email ?? phone ?? ""}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: isSelected ? themeColor : "transparent",
+                        borderWidth: isSelected ? 0 : 2,
+                        borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      {isSelected && <Check size={14} color="#fff" />}
+                    </View>
+                  </Pressable>
+                );
+              }}
+            />
+          </Animated.View>
+        )}
+
+        <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
+          {phoneContacts.length > 0 && selectedContacts.size > 0 ? (
+            <Button
+              variant="primary"
+              label={sendingInvites ? "Sending..." : `Add ${selectedContacts.size} Friend${selectedContacts.size !== 1 ? "s" : ""}`}
+              onPress={sendSelectedInvites}
+              loading={sendingInvites}
+              leftIcon={<UserPlus size={20} color="#fff" />}
+              style={{ borderRadius: RADIUS.lg, marginBottom: 8 }}
+            />
+          ) : null}
+          <Button
+            variant="ghost"
+            label="Skip for now"
+            onPress={() => setCurrentSlide(5)}
+          />
+        </Animated.View>
+      </View>
+    </OnboardingLayout>
+  );
+  };
+
+  const renderSlide5 = () => {
     if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/quote', input: 'n/a', button: 'SSOT', card: 'SSOT' });
     return (
     <OnboardingLayout background={colors.background}>
@@ -1415,6 +1645,8 @@ export default function WelcomeOnboardingScreen() {
         return renderSlide3();
       case 4:
         return renderSlide4();
+      case 5:
+        return renderSlide5();
       default:
         return renderSlide1();
     }

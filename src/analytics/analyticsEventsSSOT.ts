@@ -51,6 +51,9 @@ export const AnalyticsEvent = {
   // Growth instrumentation — Apple Sign In
   APPLE_SIGNIN_TAP: "apple_signin_tap",
   APPLE_SIGNIN_RESULT: "apple_signin_result",
+  // Growth instrumentation — Contacts import
+  CONTACTS_PERMISSION_RESULT: "contacts_permission_result",
+  CONTACTS_IMPORT_RESULT: "contacts_import_result",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -462,4 +465,29 @@ export function trackAppleSignInResult(props: {
   errorCode?: string;
 }): void {
   track(AnalyticsEvent.APPLE_SIGNIN_RESULT, props);
+}
+
+// ---------------------------------------------------------------------------
+// Growth instrumentation — Contacts import
+// ---------------------------------------------------------------------------
+
+/**
+ * contacts_permission_result — fires after contacts permission prompt.
+ * No PII. [GROWTH_CONTACTS]
+ */
+export function trackContactsPermissionResult(props: {
+  granted: boolean;
+}): void {
+  track(AnalyticsEvent.CONTACTS_PERMISSION_RESULT, props);
+}
+
+/**
+ * contacts_import_result — fires after batch friend requests from contacts.
+ * No PII. [GROWTH_CONTACTS]
+ */
+export function trackContactsImportResult(props: {
+  existingUsersCount: number;
+  requestsSentCount: number;
+}): void {
+  track(AnalyticsEvent.CONTACTS_IMPORT_RESULT, props);
 }
