@@ -407,6 +407,7 @@ export function trackApiRequest(props: {
   route: string;
   durationMs: number;
   success: boolean;
+  requestId?: string;
 }): void {
   track(AnalyticsEvent.API_REQUEST, props);
 }

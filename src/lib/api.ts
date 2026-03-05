@@ -106,7 +106,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     }
 
     // [P1_API_TIMING] PostHog telemetry — fire-and-forget
-    trackApiRequest({ route: `${method} ${path}`, durationMs, success: true });
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: true, requestId });
 
     return response as T;
   } catch (error: any) {
@@ -152,7 +152,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     }
 
     // [P1_API_TIMING] PostHog telemetry for errors too
-    trackApiRequest({ route: `${method} ${path}`, durationMs, success: false });
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: false, requestId });
 
     // [P1_POSTHOG_API_ERROR] Emit api_error for HTTP 4xx/5xx
     const httpStatus = error.status;
