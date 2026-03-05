@@ -7,10 +7,12 @@ import { devWarn } from "@/lib/devLog";
 import { Calendar, Users, Clock } from "@/ui/icons";
 import { Button } from "@/ui/Button";
 
-const POST_EVENT_REPEAT_NUDGE_KEY = "postEventRepeatNudge:v1";
+const POST_EVENT_REPEAT_NUDGE_KEY = "postEventRepeatNudge:v2";
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7-day per-event cooldown
 
 interface PostEventRepeatNudgeData {
-  completedEventIds: string[];
+  /** Map of eventId -> timestamp of last shown */
+  shownAt: Record<string, number>;
 }
 
 interface PostEventRepeatNudgeProps {
@@ -94,29 +96,42 @@ export const PostEventRepeatNudge: React.FC<PostEventRepeatNudgeProps> = ({
 };
 
 // AsyncStorage helper functions
+
+/** Check if the recap nudge can be shown for this event (7-day per-event cooldown). */
 export const canShowPostEventRepeatNudge = async (eventId: string): Promise<boolean> => {
   try {
     const stored = await AsyncStorage.getItem(POST_EVENT_REPEAT_NUDGE_KEY);
     if (!stored) return true;
-    
+
     const data: PostEventRepeatNudgeData = JSON.parse(stored);
-    return !data.completedEventIds.includes(eventId);
+    const lastShown = data.shownAt?.[eventId];
+    if (!lastShown) return true;
+    return Date.now() - lastShown >= COOLDOWN_MS;
   } catch {
     return true;
   }
 };
 
+/** Mark the recap nudge as shown for this event (sets 7-day cooldown). */
 export const markPostEventRepeatNudgeCompleted = async (eventId: string): Promise<void> => {
   try {
     const stored = await AsyncStorage.getItem(POST_EVENT_REPEAT_NUDGE_KEY);
-    const data: PostEventRepeatNudgeData = stored 
-      ? JSON.parse(stored) 
-      : { completedEventIds: [] };
-    
-    if (!data.completedEventIds.includes(eventId)) {
-      data.completedEventIds.push(eventId);
-      await AsyncStorage.setItem(POST_EVENT_REPEAT_NUDGE_KEY, JSON.stringify(data));
+    const data: PostEventRepeatNudgeData = stored
+      ? JSON.parse(stored)
+      : { shownAt: {} };
+
+    // Migrate legacy format if needed
+    if (!data.shownAt) data.shownAt = {};
+
+    data.shownAt[eventId] = Date.now();
+
+    // Prune entries older than 30 days to keep storage clean
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    for (const key of Object.keys(data.shownAt)) {
+      if (data.shownAt[key] < cutoff) delete data.shownAt[key];
     }
+
+    await AsyncStorage.setItem(POST_EVENT_REPEAT_NUDGE_KEY, JSON.stringify(data));
   } catch (error) {
     devWarn("Failed to mark post-event repeat nudge as completed:", error);
   }

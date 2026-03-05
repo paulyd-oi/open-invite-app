@@ -88,6 +88,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { performLogout } from "@/lib/logout";
 import { normalizeHandle, validateHandle, formatHandle } from "@/lib/handleUtils";
 import { safeToast } from "@/lib/safeToast";
+import { qk } from "@/lib/queryKeys";
 import { toUserMessage, logError } from "@/lib/errors";
 import { uploadImage, uploadBannerPhoto } from "@/lib/imageUpload";
 import { Button } from "@/ui/Button";
@@ -113,15 +114,17 @@ interface SettingItemProps {
   title: string;
   subtitle?: string;
   onPress?: () => void;
+  onLongPress?: () => void;
   rightElement?: React.ReactNode;
   showArrow?: boolean;
   isDark?: boolean;
 }
 
-function SettingItem({ icon, title, subtitle, onPress, rightElement, showArrow = true, isDark }: SettingItemProps) {
+function SettingItem({ icon, title, subtitle, onPress, onLongPress, rightElement, showArrow = true, isDark }: SettingItemProps) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       disabled={!onPress && !rightElement}
       className="flex-row items-center p-4"
       style={{ borderBottomWidth: 1, borderBottomColor: isDark ? "#38383A" : "#F3F4F6" }}
@@ -2734,6 +2737,33 @@ export default function SettingsScreen() {
                 if (__DEV__) devLog("[DEV_DECISION] app_version", { source: "Constants.expoConfig", version: appVersion });
                 safeToast.info("About Open Invite", `Version ${appVersion} - Share plans with friends!`);
               }}
+              onLongPress={__DEV__ ? () => {
+                // [GROWTH_FULLPHASE_B] DEV-only: inject fake weekly_digest notification for visual testing
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                queryClient.setQueryData(
+                  [...qk.notifications(), { pageSize: 30 }] as const,
+                  (old: any) => {
+                    const fakeDigest = {
+                      id: `dev_digest_${Date.now()}`,
+                      type: "weekly_digest",
+                      title: "Your week ahead",
+                      body: "3 events from friends this week. Sarah's Beach Day on Saturday has 5 friends going.",
+                      data: null,
+                      read: false,
+                      seen: false,
+                      createdAt: new Date().toISOString(),
+                    };
+                    if (!old?.pages?.[0]) {
+                      return { pages: [{ notifications: [fakeDigest], unreadCount: 1 }], pageParams: [undefined] };
+                    }
+                    const firstPage = { ...old.pages[0] };
+                    firstPage.notifications = [fakeDigest, ...(firstPage.notifications ?? [])];
+                    firstPage.unreadCount = (firstPage.unreadCount ?? 0) + 1;
+                    return { ...old, pages: [firstPage, ...old.pages.slice(1)] };
+                  },
+                );
+                safeToast.success("DEV", "Injected weekly_digest notification");
+              } : undefined}
             />
           </View>
         </Animated.View>
