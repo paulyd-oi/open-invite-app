@@ -23,7 +23,8 @@ import { setPendingRsvpIntent } from './pendingRsvp';
 import { devLog, devWarn, devError } from './devLog';
 import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
-import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened } from '@/analytics/analyticsEventsSSOT';
+import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened, trackCircleInviteIntentPreauth } from '@/analytics/analyticsEventsSSOT';
+import { setPendingCircleInvite } from './pendingCircleInvite';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
@@ -311,7 +312,11 @@ export async function handleDeepLink(url: string): Promise<boolean> {
 
     case 'circle':
       if (parsed.id) {
-        trackDeepLinkLanded({ type: 'circle', id: parsed.id, source: url.startsWith(`${SCHEME}://`) ? 'scheme' : 'universal' });
+        const circleLinkSource = url.startsWith(`${SCHEME}://`) ? 'scheme' as const : 'universal' as const;
+        trackDeepLinkLanded({ type: 'circle', id: parsed.id, source: circleLinkSource });
+        // [GROWTH_FULLPHASE_A] Store pending circle invite intent (survives through signup)
+        setPendingCircleInvite({ circleId: parsed.id });
+        trackCircleInviteIntentPreauth({ hasCircle: true, source: circleLinkSource });
         router.push(`/circle/${parsed.id}`);
         return true;
       }

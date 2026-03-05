@@ -65,6 +65,20 @@ export const AnalyticsEvent = {
   // Phase 14 — Weekly digest surface telemetry
   WEEKLY_DIGEST_CARD_SHOWN: "weekly_digest_card_shown",
   WEEKLY_DIGEST_CARD_TAP: "weekly_digest_card_tap",
+  // Fullphase A — Growth loop telemetry
+  CIRCLE_INVITE_INTENT_PREAUTH: "circle_invite_intent_preauth",
+  CIRCLE_INVITE_CLAIM_POSTAUTH: "circle_invite_claim_postauth",
+  SHARE_PLAN_PROMPT_SHOWN: "share_plan_prompt_shown",
+  SHARE_PLAN_PROMPT_TAP: "share_plan_prompt_tap",
+  SHARE_PLAN_RESULT: "share_plan_result",
+  // Fullphase B — Retention telemetry
+  POST_EVENT_RECAP_SHOWN: "post_event_recap_shown",
+  POST_EVENT_RECAP_CTA_TAP: "post_event_recap_cta_tap",
+  // Fullphase C — Activation funnel events
+  FIRST_EVENT_CREATED: "first_event_created",
+  FIRST_RSVP_GOING: "first_rsvp_going",
+  FIRST_FRIEND_ADDED: "first_friend_added",
+  FIRST_CIRCLE_JOINED: "first_circle_joined",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -592,4 +606,102 @@ export function trackWeeklyDigestCardTap(props: {
   hadPreviewText: boolean;
 }): void {
   track(AnalyticsEvent.WEEKLY_DIGEST_CARD_TAP, props);
+}
+
+// ---------------------------------------------------------------------------
+// Fullphase A — Growth loop telemetry
+// ---------------------------------------------------------------------------
+
+/** circle_invite_intent_preauth — fires when circle invite stored pre-auth. [GROWTH_FULLPHASE_A] */
+export function trackCircleInviteIntentPreauth(props: {
+  hasCircle: boolean;
+  source: "scheme" | "universal";
+}): void {
+  track(AnalyticsEvent.CIRCLE_INVITE_INTENT_PREAUTH, props);
+}
+
+/** circle_invite_claim_postauth — fires when circle intent is claimed post-auth. [GROWTH_FULLPHASE_A] */
+export function trackCircleInviteClaimPostauth(props: {
+  success: boolean;
+  durationMs: number;
+  errorCode?: string;
+}): void {
+  track(AnalyticsEvent.CIRCLE_INVITE_CLAIM_POSTAUTH, props);
+}
+
+/** share_plan_prompt_shown — fires when share prompt appears after RSVP. [GROWTH_FULLPHASE_A] */
+export function trackSharePlanPromptShown(props: {
+  source: "rsvp" | "create";
+}): void {
+  track(AnalyticsEvent.SHARE_PLAN_PROMPT_SHOWN, props);
+}
+
+/** share_plan_prompt_tap — fires when user taps share in prompt. [GROWTH_FULLPHASE_A] */
+export function trackSharePlanPromptTap(props: {
+  source: "rsvp" | "create";
+}): void {
+  track(AnalyticsEvent.SHARE_PLAN_PROMPT_TAP, props);
+}
+
+/** share_plan_result — fires after share completes/fails. [GROWTH_FULLPHASE_A] */
+export function trackSharePlanResult(props: {
+  success: boolean;
+  errorCode?: string;
+}): void {
+  track(AnalyticsEvent.SHARE_PLAN_RESULT, props);
+}
+
+// ---------------------------------------------------------------------------
+// Fullphase B — Retention telemetry
+// ---------------------------------------------------------------------------
+
+/** post_event_recap_shown — fires when post-event recap nudge shown. [GROWTH_FULLPHASE_B] */
+export function trackPostEventRecapShown(props: {
+  eventAgeBucket: "1h" | "6h" | "1d" | "3d" | "7d";
+  source: "event_detail";
+}): void {
+  track(AnalyticsEvent.POST_EVENT_RECAP_SHOWN, props);
+}
+
+/** post_event_recap_cta_tap — fires on recap nudge CTA tap. [GROWTH_FULLPHASE_B] */
+export function trackPostEventRecapCtaTap(props: {
+  cta: "invite_again" | "see_next" | "later";
+}): void {
+  track(AnalyticsEvent.POST_EVENT_RECAP_CTA_TAP, props);
+}
+
+// ---------------------------------------------------------------------------
+// Fullphase C — Activation funnel events
+// ---------------------------------------------------------------------------
+
+/** first_event_created — fires on very first event creation per user. [GROWTH_FULLPHASE_C] */
+export function trackFirstEventCreated(props: {
+  sourceScreen: string;
+  hasFriends: boolean;
+}): void {
+  track(AnalyticsEvent.FIRST_EVENT_CREATED, props);
+}
+
+/** first_rsvp_going — fires on very first "going" RSVP per user. [GROWTH_FULLPHASE_C] */
+export function trackFirstRsvpGoing(props: {
+  sourceScreen: string;
+  entryPoint: string;
+}): void {
+  track(AnalyticsEvent.FIRST_RSVP_GOING, props);
+}
+
+/** first_friend_added — fires on first friend request sent. [GROWTH_FULLPHASE_C] */
+export function trackFirstFriendAdded(props: {
+  sourceScreen: string;
+  entryPoint: string;
+}): void {
+  track(AnalyticsEvent.FIRST_FRIEND_ADDED, props);
+}
+
+/** first_circle_joined — fires on first circle joined. [GROWTH_FULLPHASE_C] */
+export function trackFirstCircleJoined(props: {
+  sourceScreen: string;
+  entryPoint: string;
+}): void {
+  track(AnalyticsEvent.FIRST_CIRCLE_JOINED, props);
 }

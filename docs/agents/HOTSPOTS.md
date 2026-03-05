@@ -41,7 +41,19 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-(no active claims)
+[FULLPHASE_ABC] CLAIMED_BY: [FULLPHASE_ABC]
+  Files:
+    src/analytics/analyticsEventsSSOT.ts
+    src/lib/pendingCircleInvite.ts (new)
+    src/hooks/useCircleInviteIntentClaim.ts (new)
+    src/lib/deepLinks.ts
+    src/lib/shareSSOT.ts
+    src/app/_layout.tsx
+    src/app/settings.tsx
+    src/components/PostEventRepeatNudge.tsx
+    src/lib/api.ts
+  Reason: Fullphase growth/retention/analytics (commits A/B/C)
+  Started: 2026-03-04
 
 ---
 

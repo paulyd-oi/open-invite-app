@@ -34,6 +34,7 @@ import { useBootAuthority, hasBootResolvedOnce } from '@/hooks/useBootAuthority'
 import { useNotifications } from '@/hooks/useNotifications';
 import { useReferralClaim } from '@/hooks/useReferralClaim';
 import { useRsvpIntentClaim } from '@/hooks/useRsvpIntentClaim';
+import { useCircleInviteIntentClaim } from '@/hooks/useCircleInviteIntentClaim';
 import { useEntitlementsSync } from '@/hooks/useEntitlementsSync';
 import { useRevenueCatSync } from '@/hooks/useRevenueCatSync';
 import { useEntitlementsForegroundRefresh } from '@/hooks/useEntitlementsForegroundRefresh';
@@ -538,6 +539,9 @@ function BootRouter() {
 
   // [GROWTH_P3] Auto-apply pending RSVP intent from shared event deep link
   useRsvpIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
+
+  // [GROWTH_FULLPHASE_A] Auto-join pending circle from shared circle deep link
+  useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
 
   // Fetch entitlements once authed (one-shot, never blocks UI)
   useEntitlementsSync({ bootStatus });
