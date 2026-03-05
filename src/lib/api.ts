@@ -46,6 +46,25 @@ function generateRequestId(): string {
 }
 
 /**
+ * Derive a route group from API path for analytics bucketing.
+ * Maps /api/events/... -> "events", /api/auth/... -> "auth", etc.
+ * No PII — only uses route prefix. [GROWTH_FULLPHASE_C]
+ */
+function deriveRouteGroup(path: string): string {
+  const match = path.match(/^\/api\/([a-z-]+)/);
+  if (!match) return "other";
+  const prefix = match[1];
+  // Bucket common prefixes
+  if (prefix === "auth" || prefix === "email-verification") return "auth";
+  if (prefix === "events" || prefix === "calendar-events") return "events";
+  if (prefix === "friends" || prefix === "circles") return "social";
+  if (prefix === "notifications") return "notifications";
+  if (prefix === "profile" || prefix === "profiles") return "profile";
+  if (prefix === "upload") return "upload";
+  return prefix;
+}
+
+/**
  * Core Fetch Function
  *
  * A generic, type-safe wrapper around authClient.$fetch for all API requests.
@@ -106,7 +125,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     }
 
     // [P1_API_TIMING] PostHog telemetry — fire-and-forget
-    trackApiRequest({ route: `${method} ${path}`, durationMs, success: true, requestId });
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: true, requestId, routeGroup: deriveRouteGroup(path) });
 
     return response as T;
   } catch (error: any) {
@@ -152,7 +171,7 @@ const fetchFn = async <T>(path: string, options: FetchOptions): Promise<T> => {
     }
 
     // [P1_API_TIMING] PostHog telemetry for errors too
-    trackApiRequest({ route: `${method} ${path}`, durationMs, success: false, requestId });
+    trackApiRequest({ route: `${method} ${path}`, durationMs, success: false, requestId, routeGroup: deriveRouteGroup(path) });
 
     // [P1_POSTHOG_API_ERROR] Emit api_error for HTTP 4xx/5xx
     const httpStatus = error.status;

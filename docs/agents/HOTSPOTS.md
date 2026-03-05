@@ -41,19 +41,7 @@ before touching. If another agent is active, wait or coordinate.
 
 ## Active Claims
 
-[FULLPHASE_ABC] CLAIMED_BY: [FULLPHASE_ABC]
-  Files:
-    src/analytics/analyticsEventsSSOT.ts
-    src/lib/pendingCircleInvite.ts (new)
-    src/hooks/useCircleInviteIntentClaim.ts (new)
-    src/lib/deepLinks.ts
-    src/lib/shareSSOT.ts
-    src/app/_layout.tsx
-    src/app/settings.tsx
-    src/components/PostEventRepeatNudge.tsx
-    src/lib/api.ts
-  Reason: Fullphase growth/retention/analytics (commits A/B/C)
-  Started: 2026-03-04
+(no active claims)
 
 ---
 
@@ -83,6 +71,7 @@ before touching. If another agent is active, wait or coordinate.
   [GROWTH_P3] freed pendingRsvp.ts, useRsvpIntentClaim.ts, deepLinks.ts, analyticsEventsSSOT.ts, _layout.tsx — 2026-03-04 (e9933d8)
   [P11_12_FE] freed analyticsEventsSSOT.ts, shareSSOT.ts, deepLinks.ts, ActivityFeed.tsx — 2026-03-04
   [GROWTH_P14] freed analyticsEventsSSOT.ts, social.tsx — 2026-03-04
+  [FULLPHASE_ABC] freed analyticsEventsSSOT.ts, pendingCircleInvite.ts, useCircleInviteIntentClaim.ts, deepLinks.ts, _layout.tsx, PostEventRepeatNudge.tsx, settings.tsx, api.ts, activationFunnel.ts — 2026-03-04
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234

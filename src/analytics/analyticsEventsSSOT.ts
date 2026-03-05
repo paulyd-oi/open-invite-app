@@ -464,6 +464,7 @@ export function trackApiRequest(props: {
   durationMs: number;
   success: boolean;
   requestId?: string;
+  routeGroup?: string;
 }): void {
   track(AnalyticsEvent.API_REQUEST, props);
 }
