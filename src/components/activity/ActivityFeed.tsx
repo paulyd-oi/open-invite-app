@@ -255,7 +255,8 @@ function NotificationCard({
 // ── EmptyState ─────────────────────────────────────────────────
 
 function EmptyState() {
-  const { colors } = useTheme();
+  const { colors, themeColor } = useTheme();
+  const router = useRouter();
 
   return (
     <View className="flex-1 items-center justify-center px-8 py-20">
@@ -268,9 +269,34 @@ function EmptyState() {
       <Text className="text-lg font-semibold text-center" style={{ color: colors.text }}>
         No notifications yet
       </Text>
-      <Text className="text-sm text-center mt-2" style={{ color: colors.textSecondary }}>
+      <Text className="text-sm text-center mt-2 mb-5" style={{ color: colors.textSecondary }}>
         You'll see friend requests, event updates, and more here
       </Text>
+      <Pressable
+        onPress={() => router.push("/social" as any)}
+        className="px-5 py-2.5 rounded-full"
+        style={{ backgroundColor: themeColor }}
+      >
+        <Text className="text-sm font-semibold" style={{ color: "#fff" }}>Go to Feed</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── ErrorState ───────────────────────────────────────────────
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const { colors, themeColor } = useTheme();
+
+  return (
+    <View className="flex-1 items-center justify-center px-8 py-20">
+      <Ionicons name="cloud-offline-outline" size={36} color={colors.textTertiary} />
+      <Text className="text-sm text-center mt-3 mb-4" style={{ color: colors.textSecondary }}>
+        Couldn't load notifications
+      </Text>
+      <Pressable onPress={onRetry} className="px-5 py-2 rounded-full" style={{ backgroundColor: themeColor }}>
+        <Text className="text-sm font-semibold" style={{ color: "#fff" }}>Try Again</Text>
+      </Pressable>
     </View>
   );
 }
@@ -333,6 +359,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
     notifications: uniqueNotifications,
     unreadCount,
     isLoading,
+    isError,
     refetch,
     hasNextPage,
     isFetchingNextPage,
@@ -476,7 +503,7 @@ export function ActivityFeed({ embedded = false }: ActivityFeedProps) {
         paddingBottom: embedded ? 20 : 100,
         flexGrow: uniqueNotifications.length === 0 ? 1 : undefined,
       }}
-      ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : <EmptyState />}
+      ListEmptyComponent={isLoading ? <ActivityFeedSkeleton /> : isError ? <ErrorState onRetry={onRefresh} /> : <EmptyState />}
       ListFooterComponent={isFetchingNextPage ? <PaginationFooter colors={colors} /> : null}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColor} />
