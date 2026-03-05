@@ -68,12 +68,6 @@ export const AnalyticsEvent = {
   // Fullphase A — Growth loop telemetry
   CIRCLE_INVITE_INTENT_PREAUTH: "circle_invite_intent_preauth",
   CIRCLE_INVITE_CLAIM_POSTAUTH: "circle_invite_claim_postauth",
-  SHARE_PLAN_PROMPT_SHOWN: "share_plan_prompt_shown",
-  SHARE_PLAN_PROMPT_TAP: "share_plan_prompt_tap",
-  SHARE_PLAN_RESULT: "share_plan_result",
-  // Fullphase B — Retention telemetry
-  POST_EVENT_RECAP_SHOWN: "post_event_recap_shown",
-  POST_EVENT_RECAP_CTA_TAP: "post_event_recap_cta_tap",
   // Fullphase C — Activation funnel events
   FIRST_EVENT_CREATED: "first_event_created",
   FIRST_RSVP_GOING: "first_rsvp_going",
@@ -639,46 +633,6 @@ export function trackCircleInviteClaimPostauth(props: {
   track(AnalyticsEvent.CIRCLE_INVITE_CLAIM_POSTAUTH, props);
 }
 
-/** share_plan_prompt_shown — fires when share prompt appears after RSVP. [GROWTH_FULLPHASE_A] */
-export function trackSharePlanPromptShown(props: {
-  source: "rsvp" | "create";
-}): void {
-  track(AnalyticsEvent.SHARE_PLAN_PROMPT_SHOWN, props);
-}
-
-/** share_plan_prompt_tap — fires when user taps share in prompt. [GROWTH_FULLPHASE_A] */
-export function trackSharePlanPromptTap(props: {
-  source: "rsvp" | "create";
-}): void {
-  track(AnalyticsEvent.SHARE_PLAN_PROMPT_TAP, props);
-}
-
-/** share_plan_result — fires after share completes/fails. [GROWTH_FULLPHASE_A] */
-export function trackSharePlanResult(props: {
-  success: boolean;
-  errorCode?: string;
-}): void {
-  track(AnalyticsEvent.SHARE_PLAN_RESULT, props);
-}
-
-// ---------------------------------------------------------------------------
-// Fullphase B — Retention telemetry
-// ---------------------------------------------------------------------------
-
-/** post_event_recap_shown — fires when post-event recap nudge shown. [GROWTH_FULLPHASE_B] */
-export function trackPostEventRecapShown(props: {
-  eventAgeBucket: "1h" | "6h" | "1d" | "3d" | "7d";
-  source: "event_detail";
-}): void {
-  track(AnalyticsEvent.POST_EVENT_RECAP_SHOWN, props);
-}
-
-/** post_event_recap_cta_tap — fires on recap nudge CTA tap. [GROWTH_FULLPHASE_B] */
-export function trackPostEventRecapCtaTap(props: {
-  cta: "invite_again" | "see_next" | "later";
-}): void {
-  track(AnalyticsEvent.POST_EVENT_RECAP_CTA_TAP, props);
-}
 
 // ---------------------------------------------------------------------------
 // Fullphase C — Activation funnel events

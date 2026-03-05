@@ -72,6 +72,7 @@ before touching. If another agent is active, wait or coordinate.
   [P11_12_FE] freed analyticsEventsSSOT.ts, shareSSOT.ts, deepLinks.ts, ActivityFeed.tsx — 2026-03-04
   [GROWTH_P14] freed analyticsEventsSSOT.ts, social.tsx — 2026-03-04
   [FULLPHASE_ABC] freed analyticsEventsSSOT.ts, pendingCircleInvite.ts, useCircleInviteIntentClaim.ts, deepLinks.ts, _layout.tsx, PostEventRepeatNudge.tsx, settings.tsx, api.ts, activationFunnel.ts — 2026-03-04
+  [ACTIVATION_FIXPACK] freed welcome.tsx, social.tsx, analyticsEventsSSOT.ts — 2026-03-05
 
 Example:
   [AGENT_A] freed src/app/friends.tsx after commit abc1234
