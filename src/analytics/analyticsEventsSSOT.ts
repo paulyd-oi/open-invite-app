@@ -57,6 +57,11 @@ export const AnalyticsEvent = {
   // Growth instrumentation — RSVP before signup
   RSVP_INTENT_PREAUTH: "rsvp_intent_preauth",
   RSVP_INTENT_APPLIED_POSTAUTH: "rsvp_intent_applied_postauth",
+  // Phase 11 — Referral attribution telemetry
+  REFERRAL_LINK_CREATED: "referral_link_created",
+  REFERRAL_OPENED: "referral_opened",
+  // Phase 12 — Notification engagement telemetry
+  NOTIFS_ENGAGEMENT: "notifs_engagement",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -520,4 +525,45 @@ export function trackRsvpIntentAppliedPostauth(props: {
   failureCode?: string;
 }): void {
   track(AnalyticsEvent.RSVP_INTENT_APPLIED_POSTAUTH, props);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 11 — Referral attribution telemetry
+// ---------------------------------------------------------------------------
+
+/**
+ * referral_link_created — fires when a share payload includes a referral param.
+ * No PII. [GROWTH_P11]
+ */
+export function trackReferralLinkCreated(props: {
+  source: "event_share" | "circle_invite" | "referral_screen" | "app_share";
+  hasCode: boolean;
+}): void {
+  track(AnalyticsEvent.REFERRAL_LINK_CREATED, props);
+}
+
+/**
+ * referral_opened — fires when incoming deep link contains a referral code.
+ * No PII. [GROWTH_P11]
+ */
+export function trackReferralOpened(props: {
+  source: "scheme" | "universal";
+  hasCode: boolean;
+}): void {
+  track(AnalyticsEvent.REFERRAL_OPENED, props);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 12 — Notification engagement telemetry
+// ---------------------------------------------------------------------------
+
+/**
+ * notifs_engagement — fires on notification list view or item tap.
+ * No PII. [GROWTH_P12]
+ */
+export function trackNotifsEngagement(props: {
+  action: "view_list" | "tap_item";
+  routeTargeted: boolean;
+}): void {
+  track(AnalyticsEvent.NOTIFS_ENGAGEMENT, props);
 }

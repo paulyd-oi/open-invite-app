@@ -30,6 +30,20 @@ const FORBIDDEN_DOMAINS = [
   "openinvite.cloud",
 ] as const;
 
+// ── Referral param SSOT ──────────────────────────────────────────────────────
+
+/**
+ * Append ?ref=CODE to a URL if a referral code is provided.
+ * Safe for URLs that already have query params (uses & in that case).
+ * Returns the URL unchanged if code is null/undefined/empty.
+ * [P0_REFERRAL_PARAM_SSOT]
+ */
+export function appendReferralParam(url: string, referralCode: string | null | undefined): string {
+  if (!referralCode) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}ref=${encodeURIComponent(referralCode)}`;
+}
+
 // ── Deep link builders ───────────────────────────────────────────────────────
 
 /** Build a deep link to an event: open-invite://event/<id> */
@@ -83,12 +97,12 @@ export function getEventUniversalLink(eventId: string): string {
  *   3. App Store download link
  * The Share.share() `url` field is the universal link (rich iMessage previews).
  */
-export function buildEventSharePayload(event: EventShareInput): {
+export function buildEventSharePayload(event: EventShareInput, referralCode?: string | null): {
   message: string;
   url: string;
 } {
   const deepLink = getEventDeepLink(event.id);
-  const universalLink = getEventUniversalLink(event.id);
+  const universalLink = appendReferralParam(getEventUniversalLink(event.id), referralCode);
 
   let msg = `${event.emoji ?? "📅"} ${event.title}\n\n`;
   msg += `📅 ${event.dateStr} at ${event.timeStr}\n`;
@@ -184,7 +198,7 @@ export function buildProfileSharePayload(handle: string): {
  * Build the share payload for a circle/group share.
  * Returns { message, title } ready for Share.share().
  */
-export function buildCircleSharePayload(circleName: string, circleId?: string): {
+export function buildCircleSharePayload(circleName: string, circleId?: string, referralCode?: string | null): {
   message: string;
   title: string;
 } {
