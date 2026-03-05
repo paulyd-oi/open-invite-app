@@ -55,6 +55,7 @@ import { useNetworkStatus } from "@/lib/networkStatus";
 import { safeToast } from "@/lib/safeToast";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { trackFriendAdded } from "@/lib/rateApp";
+import { maybeTrackFirstAction } from "@/lib/activationFunnel";
 import type {
   GetFriendSuggestionsResponse,
   FriendSuggestion,
@@ -140,6 +141,11 @@ export default function AddFriendsScreen() {
       setSearchEmail("");
       refreshAfterFriendRequestSent(queryClient);
       trackFriendAdded();
+      // [GROWTH_FULLPHASE_C] Activation funnel — first friend added
+      const _userId = session?.user?.id;
+      if (_userId) {
+        maybeTrackFirstAction('friend_added', _userId, { sourceScreen: 'add_friends', entryPoint: 'search' });
+      }
     },
     onError: () => {
       safeToast.error("Request Failed", "Failed to send friend request");
@@ -150,11 +156,16 @@ export default function AddFriendsScreen() {
   const sendByIdMutation = useMutation({
     mutationFn: (userId: string) =>
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
-    onSuccess: (_, userId) => {
-      setSentRequests((prev) => new Set(prev).add(userId));
-      refreshAfterFriendRequestSent(queryClient, userId);
+    onSuccess: (_, targetUserId) => {
+      setSentRequests((prev) => new Set(prev).add(targetUserId));
+      refreshAfterFriendRequestSent(queryClient, targetUserId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       safeToast.success("Sent", "Friend request sent!");
+      // [GROWTH_FULLPHASE_C] Activation funnel — first friend added (via suggestion)
+      const _userId = session?.user?.id;
+      if (_userId) {
+        maybeTrackFirstAction('friend_added', _userId, { sourceScreen: 'add_friends', entryPoint: 'suggestion' });
+      }
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

@@ -38,6 +38,7 @@ import * as Haptics from "expo-haptics";
 import * as Contacts from "expo-contacts";
 
 import { useSession } from "@/lib/useSession";
+import { maybeTrackFirstAction } from "@/lib/activationFunnel";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
@@ -360,10 +361,15 @@ export default function SuggestionsScreen() {
   const sendRequestMutation = useMutation({
     mutationFn: (userId: string) =>
       api.post<SendFriendRequestResponse>("/api/friends/request", { userId }),
-    onSuccess: (_, userId) => {
-      setSentRequests((prev) => new Set(prev).add(userId));
-      refreshAfterFriendRequestSent(queryClient, userId);
+    onSuccess: (_, targetUserId) => {
+      setSentRequests((prev) => new Set(prev).add(targetUserId));
+      refreshAfterFriendRequestSent(queryClient, targetUserId);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // [GROWTH_FULLPHASE_C] Activation funnel — first friend added (via suggestion)
+      const _myId = session?.user?.id;
+      if (_myId) {
+        maybeTrackFirstAction('friend_added', _myId, { sourceScreen: 'suggestions', entryPoint: 'suggestion' });
+      }
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -384,6 +390,11 @@ export default function SuggestionsScreen() {
       setSearchEmail("");
       setShowAddFriend(false);
       refreshAfterFriendRequestSent(queryClient);
+      // [GROWTH_FULLPHASE_C] Activation funnel — first friend added (via direct input)
+      const _myId = session?.user?.id;
+      if (_myId) {
+        maybeTrackFirstAction('friend_added', _myId, { sourceScreen: 'suggestions', entryPoint: 'search' });
+      }
     },
     onError: () => {
       safeToast.error("Request Failed", "Failed to send friend request");

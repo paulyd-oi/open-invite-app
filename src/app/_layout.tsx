@@ -541,7 +541,7 @@ function BootRouter() {
   useRsvpIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
 
   // [GROWTH_FULLPHASE_A] Auto-join pending circle from shared circle deep link
-  useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed' });
+  useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete: bootStatus === 'authed', userId });
 
   // Fetch entitlements once authed (one-shot, never blocks UI)
   useEntitlementsSync({ bootStatus });

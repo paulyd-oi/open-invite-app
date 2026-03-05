@@ -15,18 +15,21 @@ import { getPendingCircleInvite, clearPendingCircleInvite } from '@/lib/pendingC
 import { api } from '@/lib/api';
 import { devLog, devError } from '@/lib/devLog';
 import { trackCircleInviteClaimPostauth } from '@/analytics/analyticsEventsSSOT';
+import { maybeTrackFirstAction } from '@/lib/activationFunnel';
 
 interface UseCircleInviteIntentClaimOptions {
   /** bootStatus from useBootAuthority — must be 'authed' */
   bootStatus: string;
   /** Whether onboarding is complete */
   isOnboardingComplete: boolean;
+  /** Current user ID for activation funnel tracking */
+  userId?: string;
 }
 
 /**
  * Auto-joins pending circle after auth + onboarding complete.
  */
-export function useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete }: UseCircleInviteIntentClaimOptions) {
+export function useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete, userId }: UseCircleInviteIntentClaimOptions) {
   const hasAttemptedRef = useRef(false);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -55,6 +58,10 @@ export function useCircleInviteIntentClaim({ bootStatus, isOnboardingComplete }:
           success: true,
           durationMs: Date.now() - t0,
         });
+        // [GROWTH_FULLPHASE_C] Activation funnel — first circle joined
+        if (userId) {
+          maybeTrackFirstAction('circle_joined', userId, { sourceScreen: 'circle_invite_claim', entryPoint: 'deep_link' });
+        }
 
         if (__DEV__) devLog('[useCircleInviteIntentClaim] success');
 

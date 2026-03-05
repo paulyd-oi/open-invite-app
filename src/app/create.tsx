@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { trackEventCreated as trackEventCreatedAnalytics, trackValueEventCreated } from "@/analytics/analyticsEventsSSOT";
+import { maybeTrackFirstAction } from "@/lib/activationFunnel";
 import {
   View,
   Text,
@@ -910,6 +911,11 @@ export default function CreateEventScreen() {
       });
       if (__DEV__) {
         devLog("[P0_POSTHOG_VALUE]", { event: "value_event_created", eventId: (response?.event?.id ?? "").slice(0, 8) + "..." });
+      }
+      // [GROWTH_FULLPHASE_C] Activation funnel — first event created
+      const _userId = session?.user?.id;
+      if (_userId) {
+        maybeTrackFirstAction('event_created', _userId, { sourceScreen: 'create' });
       }
       // Mark guidance complete - user has created their first invite
       markGuidanceComplete("create_invite");

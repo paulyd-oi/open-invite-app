@@ -16,6 +16,7 @@ import {
 import { Image as ExpoImage } from "expo-image";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
+import { maybeTrackFirstAction } from "@/lib/activationFunnel";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
@@ -1229,7 +1230,14 @@ export default function EventDetailScreen() {
       if (__DEV__) {
         devLog("[P0_POSTHOG_VALUE]", { event: "rsvp_completed", eventId: (id ?? "").slice(0, 8) + "..." });
       }
-      
+      // [GROWTH_FULLPHASE_C] Activation funnel — first RSVP going
+      if (status === "going") {
+        const _userId = session?.user?.id;
+        if (_userId) {
+          maybeTrackFirstAction('rsvp_going', _userId, { sourceScreen: 'event_detail', entryPoint: 'rsvp_button' });
+        }
+      }
+
       if (__DEV__) {
         devLog("[P0_RSVP]", "onSuccess", { eventId: id, nextStatus: status });
         devLog('[P0_OPTIMISTIC]', JSON.stringify({
