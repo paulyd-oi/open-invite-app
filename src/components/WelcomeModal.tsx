@@ -19,6 +19,7 @@ import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import { Calendar, Users, Mail, Send } from "@/ui/icons";
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 import { useSession } from "@/lib/useSession";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { authClient } from "@/lib/authClient";
@@ -153,7 +154,7 @@ export function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
         entering={FadeIn.duration(200)}
         exiting={FadeOut.duration(150)}
         className="flex-1 justify-end"
-        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        style={{ backgroundColor: SCRIM.medium }}
       >
         {/* Backdrop tap to close */}
         <Pressable className="flex-1" onPress={handleClose} />

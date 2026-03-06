@@ -23,6 +23,7 @@ import {
   Sparkles,
   Layers,
   CreditCard,
+  Bookmark,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -42,10 +43,12 @@ import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
 import { DiscoverSwipeDeck } from "@/components/discover/DiscoverSwipeDeck";
+import { DiscoverInterestedShelf } from "@/components/discover/DiscoverInterestedShelf";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
 import { Chip } from "@/ui/Chip";
+import { STATUS } from "@/ui/tokens";
 
 interface PopularEvent {
   id: string;
@@ -91,8 +94,8 @@ export default function DiscoverScreen() {
 
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("popular");
-  // ── Browse mode: feed or swipe ──
-  const [browseMode, setBrowseMode] = useState<"feed" | "swipe">("feed");
+  // ── Browse mode: feed, swipe, or interested ──
+  const [browseMode, setBrowseMode] = useState<"feed" | "swipe" | "interested">("feed");
 
   // Surface tokens from theme SSOT
   const tileShadow = !isDark ? TILE_SHADOW : {};
@@ -193,6 +196,16 @@ export default function DiscoverScreen() {
   const forYouSorted = popularSorted; // alias; fallback acknowledged in DEV log
 
   const totalActive = enrichedEvents.length;
+
+  // ── Interested events for shelf (normalized: backend may return "maybe" as string) ──
+  const interestedEvents = useMemo(() => {
+    return enrichedEvents
+      .filter((e) => {
+        const status = e.viewerRsvpStatus as string | null | undefined;
+        return status === "interested" || status === "maybe";
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [enrichedEvents]);
 
   // ── Active lens feed ──
   const lensAll = lens === "popular" ? popularSorted : lens === "best_friends" ? forYouSorted : popularSorted;
@@ -359,13 +372,13 @@ export default function DiscoverScreen() {
           <View className="items-center">
             <Chip
               variant={event.isFull ? "status" : "accent"}
-              color={event.isFull ? "#EF4444" : undefined}
+              color={event.isFull ? STATUS.destructive.fg : undefined}
               label={
                 event.capacity != null
                   ? event.isFull ? "Full" : `${event.attendeeCount}/${event.capacity}`
                   : String(event.attendeeCount)
               }
-              leftIcon={<Users size={14} color={event.isFull ? "#EF4444" : themeColor} />}
+              leftIcon={<Users size={14} color={event.isFull ? STATUS.destructive.fg : themeColor} />}
             />
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
             <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
@@ -523,6 +536,31 @@ export default function DiscoverScreen() {
                 Swipe
               </Text>
             </Pressable>
+
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                if (browseMode !== "interested") {
+                  setBrowseMode("interested");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              className="flex-row items-center px-3 py-1.5 rounded-full"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={browseMode === "interested"
+                ? { backgroundColor: themeColor + "18" }
+                : undefined
+              }
+            >
+              <Bookmark size={14} color={browseMode === "interested" ? themeColor : colors.textTertiary} />
+              <Text
+                className={`text-xs ml-1 ${browseMode === "interested" ? "font-semibold" : "font-normal"}`}
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ color: browseMode === "interested" ? themeColor : colors.textTertiary }}
+              >
+                Shortlist{interestedEvents.length > 0 ? ` (${interestedEvents.length})` : ""}
+              </Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -539,6 +577,29 @@ export default function DiscoverScreen() {
         ) : (
           <DiscoverSwipeDeck
             events={lensAll}
+            onSwitchToFeed={() => {
+              setBrowseMode("feed");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            onSwitchToInterested={() => {
+              setBrowseMode("interested");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+        )
+      ) : browseMode === "interested" ? (
+        /* ═══ Interested Shelf ═══ */
+        showDiscoverLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="small" color={themeColor} />
+          </View>
+        ) : (
+          <DiscoverInterestedShelf
+            events={interestedEvents}
+            onSwitchToSwipe={() => {
+              setBrowseMode("swipe");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }}
             onSwitchToFeed={() => {
               setBrowseMode("feed");
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -26,6 +26,7 @@ import * as Haptics from "expo-haptics";
 
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 import { type UpdateEventSummaryResponse } from "@/shared/contracts";
 import { eventKeys } from "@/lib/eventQueryKeys";
 
@@ -211,7 +212,7 @@ export function EventSummaryModal({
       <Animated.View
         entering={FadeIn.duration(200)}
         className="flex-1 justify-end"
-        style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        style={{ backgroundColor: SCRIM.medium }}
       >
         <Pressable className="flex-1" onPress={onClose} />
 

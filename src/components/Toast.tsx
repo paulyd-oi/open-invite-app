@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { View, Text, Pressable, StyleSheet, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { STATUS } from "@/ui/tokens";
 
 export type ToastVariant = "success" | "info" | "warning" | "error";
 
@@ -17,14 +18,14 @@ export type ToastData = {
 function getToastStyle(variant: ToastVariant) {
   switch (variant) {
     case "success":
-      return { bg: "#16A34A", icon: "checkmark-circle-outline" as const };
+      return { bg: STATUS.going.fg, icon: "checkmark-circle-outline" as const };
     case "warning":
-      return { bg: "#F59E0B", icon: "warning-outline" as const };
+      return { bg: STATUS.warning.fg, icon: "warning-outline" as const };
     case "error":
-      return { bg: "#EF4444", icon: "close-circle-outline" as const };
+      return { bg: STATUS.destructive.fg, icon: "close-circle-outline" as const };
     case "info":
     default:
-      return { bg: "#3B82F6", icon: "information-circle-outline" as const };
+      return { bg: STATUS.info.fg, icon: "information-circle-outline" as const };
   }
 }
 

@@ -13,6 +13,7 @@ import { X, Check, Sparkles, Crown } from "@/ui/icons";
 import { useRouter } from "expo-router";
 
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 import {
   type PaywallContext,
   markPaywallShown,
@@ -223,7 +224,7 @@ export function PaywallModal({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+      <View className="flex-1" style={{ backgroundColor: SCRIM.medium }}>
         <Pressable className="flex-1" onPress={handleSecondary} />
         <Animated.View
           entering={SlideInUp.springify().damping(15)}

@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { Mail, X } from "@/ui/icons";
 import Animated, { FadeIn, FadeInUp, SlideInDown } from "react-native-reanimated";
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 
 interface VerifyEmailModalProps {
   visible: boolean;
@@ -46,7 +47,7 @@ export function VerifyEmailModal({
       <View
         style={{
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.6)",
+          backgroundColor: SCRIM.medium,
           justifyContent: "center",
           alignItems: "center",
           padding: 24,

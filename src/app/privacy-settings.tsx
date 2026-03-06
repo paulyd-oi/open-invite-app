@@ -29,6 +29,7 @@ import * as Haptics from "expo-haptics";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
+import { STATUS } from "@/ui/tokens";
 
 type FriendRequestSetting = "everyone" | "friends_of_friends" | "nobody";
 
@@ -239,7 +240,7 @@ export default function PrivacySettingsScreen() {
                 className="w-10 h-10 rounded-full items-center justify-center mr-3"
                 style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}
               >
-                <Calendar size={20} color="#10B981" />
+                <Calendar size={20} color={STATUS.going.fg} />
               </View>
               <View className="flex-1">
                 <Text style={{ color: colors.text }} className="text-base font-medium">

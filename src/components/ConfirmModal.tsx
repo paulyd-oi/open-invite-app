@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 import { Button } from "@/ui/Button";
 
 interface ConfirmModalProps {
@@ -51,7 +52,7 @@ export function ConfirmModal({
         entering={FadeIn.duration(200)}
         exiting={FadeOut.duration(150)}
         className="flex-1 justify-end"
-        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        style={{ backgroundColor: SCRIM.medium }}
       >
         <Pressable className="flex-1" onPress={onCancel} />
 

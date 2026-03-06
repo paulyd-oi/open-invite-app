@@ -52,6 +52,7 @@ import { useSubscription as useSubscriptionData, PRICING } from "@/lib/useSubscr
 import { useSubscription as useSubscriptionContext } from "@/lib/SubscriptionContext";
 import { useRefreshProContract } from "@/lib/entitlements";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
+import { STATUS } from "@/ui/tokens";
 import type { PurchasesPackage } from "react-native-purchases";
 
 // Types for subscription details from backend
@@ -329,8 +330,8 @@ export default function SubscriptionScreen() {
         badge: "Lifetime Pro",
         title: "Lifetime Pro",
         subtitle: "Thanks for supporting Open Invite.",
-        icon: <Heart size={20} color="#F59E0B" />,
-        badgeColor: "#F59E0B",
+        icon: <Heart size={20} color={STATUS.warning.fg} />,
+        badgeColor: STATUS.warning.fg,
       };
     }
     if (isTrial) {
@@ -338,8 +339,8 @@ export default function SubscriptionScreen() {
         badge: "Pro Trial",
         title: "Pro trial active",
         subtitle: "You're exploring Pro planning tools.",
-        icon: <Crown size={20} color="#10B981" />,
-        badgeColor: "#10B981",
+        icon: <Crown size={20} color={STATUS.going.fg} />,
+        badgeColor: STATUS.going.fg,
       };
     }
     if (isPremium) {
@@ -586,9 +587,9 @@ export default function SubscriptionScreen() {
                     </View>
                     <View className="w-20 items-center">
                       {feature.proValue === "Yes" ? (
-                        <Check size={14} color="#10B981" />
+                        <Check size={14} color={STATUS.going.fg} />
                       ) : feature.proValue === "Unlimited" ? (
-                        <Text style={{ color: "#10B981" }} className="text-xs font-medium">
+                        <Text style={{ color: STATUS.going.fg }} className="text-xs font-medium">
                           Unlimited
                         </Text>
                       ) : (
@@ -637,7 +638,7 @@ export default function SubscriptionScreen() {
                     <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
                       Early member rate.{"\n"}Regular price: $40 / year.
                     </Text>
-                    <Text style={{ color: "#10B981" }} className="text-xs mt-1">
+                    <Text style={{ color: STATUS.going.fg }} className="text-xs mt-1">
                       Unlimited hosting
                     </Text>
                   </View>
@@ -737,9 +738,9 @@ export default function SubscriptionScreen() {
               <View className="items-center py-4">
                 <View
                   className="w-12 h-12 rounded-full items-center justify-center mb-3"
-                  style={{ backgroundColor: "#10B98120" }}
+                  style={{ backgroundColor: STATUS.going.bgSoft }}
                 >
-                  <Check size={24} color="#10B981" />
+                  <Check size={24} color={STATUS.going.fg} />
                 </View>
                 <Text style={{ color: colors.text }} className="text-base font-semibold mb-1">
                   Lifetime Member
@@ -806,7 +807,7 @@ export default function SubscriptionScreen() {
                     {subscriptionData.discountCodes.redemptions.map((redemption, i) => (
                       <View key={i} className="flex-row items-center justify-between py-2">
                         <View className="flex-row items-center">
-                          <Check size={14} color="#10B981" />
+                          <Check size={14} color={STATUS.going.fg} />
                           <Text style={{ color: colors.text }} className="ml-2 font-medium">
                             {redemption.code}
                           </Text>

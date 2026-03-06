@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 
 import { useSession, authClient } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
+import { SCRIM } from "@/ui/tokens";
 import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 
@@ -72,7 +73,7 @@ export function EmailVerificationGateModal({ visible, onClose }: EmailVerificati
       <View
         style={{
           flex: 1,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          backgroundColor: SCRIM.medium,
           justifyContent: "center",
           alignItems: "center",
           padding: 20,

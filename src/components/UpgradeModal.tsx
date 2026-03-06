@@ -23,6 +23,7 @@ import Animated, {
   withDelay,
 } from "react-native-reanimated";
 import { X, Crown, Sparkles, Check, Zap } from "@/ui/icons";
+import { SCRIM } from "@/ui/tokens";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { PRO_FEATURES, type FeatureKey, PRICING } from "@/lib/useSubscription";
@@ -108,7 +109,7 @@ export function UpgradeModal({
           <BlurView
             intensity={30}
             tint="dark"
-            style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
+            style={{ flex: 1, backgroundColor: SCRIM.medium }}
           />
         </Pressable>
 

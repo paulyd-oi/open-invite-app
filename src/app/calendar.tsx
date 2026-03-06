@@ -64,6 +64,7 @@ import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { Chip } from "@/ui/Chip";
 import { APP_STORE_URL } from "@/lib/config";
+import { STATUS } from "@/ui/tokens";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_FULL = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -659,8 +660,8 @@ function EventListItem({
   // INVARIANT: Use single source of truth for event palette (busy/work = grey)
   // Apply user's color override if set
   const palette = getEventPalette({ ...event, isWork }, themeColor, colorOverride);
-  const eventColor = isBirthday ? "#FF69B4" : palette.bar;
-  const bgColor = isBirthday ? "#FF69B420" : palette.bg;
+  const eventColor = isBirthday ? STATUS.birthday.fg : palette.bar;
+  const bgColor = isBirthday ? STATUS.birthday.bgSoft : palette.bg;
   const textColor = getTextColorForBackground(eventColor, isDark);
 
   // DEV assertion: verify grey palette invariant
@@ -1048,15 +1049,15 @@ function UpcomingBirthdaysSection({
         className="flex-row items-center justify-between mb-3"
       >
         <View className="flex-row items-center">
-          <Cake size={18} color="#FF69B4" />
+          <Cake size={18} color={STATUS.birthday.fg} />
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
           <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
             Upcoming Birthdays
           </Text>
           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: "#FF69B420" }}>
+          <View className="ml-2 px-2 py-0.5 rounded-full" style={{ backgroundColor: STATUS.birthday.bgSoft }}>
             {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-xs font-medium" style={{ color: "#FF69B4" }}>
+            <Text className="text-xs font-medium" style={{ color: STATUS.birthday.fg }}>
               {upcomingBirthdays.length}
             </Text>
           </View>
@@ -1105,7 +1106,7 @@ function UpcomingBirthdaysSection({
                   style={{
                     borderTopWidth: idx > 0 ? 1 : 0,
                     borderTopColor: colors.separator,
-                    backgroundColor: isToday ? "#FF69B410" : "transparent",
+                    backgroundColor: isToday ? STATUS.birthday.bgSoft : "transparent",
                   }}
                 >
                   {/* Avatar or cake emoji */}
@@ -1113,7 +1114,7 @@ function UpcomingBirthdaysSection({
                     className="w-10 h-10 rounded-full items-center justify-center mr-3"
                     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                     style={{
-                      backgroundColor: isToday ? "#FF69B430" : "#FF69B415",
+                      backgroundColor: isToday ? STATUS.birthday.border : STATUS.birthday.bgSoft,
                     }}
                   >
                     <Text className="text-lg">🎂</Text>
@@ -1136,19 +1137,19 @@ function UpcomingBirthdaysSection({
                     <View className="items-end">
                       {isToday ? (
                         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B4" }}>
+                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: STATUS.birthday.fg }}>
                           <Text className="text-xs font-bold text-white">TODAY!</Text>
                         </View>
                       ) : isTomorrow ? (
                         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FF69B430" }}>
+                        <View className="px-2 py-1 rounded-full" style={{ backgroundColor: STATUS.birthday.border }}>
                           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                          <Text className="text-xs font-semibold" style={{ color: "#FF69B4" }}>Tomorrow</Text>
+                          <Text className="text-xs font-semibold" style={{ color: STATUS.birthday.fg }}>Tomorrow</Text>
                         </View>
                       ) : (
                         <View className="items-end">
                           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                          <Text className="text-sm font-semibold" style={{ color: "#FF69B4" }}>
+                          <Text className="text-sm font-semibold" style={{ color: STATUS.birthday.fg }}>
                             {bday.nextBirthday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                           </Text>
                           {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
@@ -2680,7 +2681,7 @@ export default function CalendarScreen() {
                       <View
                         className="ml-2 w-5 h-5 rounded-full items-center justify-center"
                         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                        style={{ backgroundColor: "#FF3B30" }}
+                        style={{ backgroundColor: STATUS.destructive.fg }}
                       >
                         <Text className="text-xs text-white font-bold">
                           {pendingEventRequestCount}
@@ -2750,7 +2751,7 @@ export default function CalendarScreen() {
                                 <View
                                   className="px-2 py-0.5 rounded-full"
                                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                  style={{ backgroundColor: "#FF3B30" }}
+                                  style={{ backgroundColor: STATUS.destructive.fg }}
                                 >
                                   <Text className="text-xs text-white font-medium">RSVP</Text>
                                 </View>
@@ -2759,11 +2760,11 @@ export default function CalendarScreen() {
                                 <View
                                   className="px-2 py-0.5 rounded-full flex-row items-center"
                                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                                  style={{ backgroundColor: "#22C55E20" }}
+                                  style={{ backgroundColor: STATUS.going.bgSoft }}
                                 >
-                                  <Check size={10} color="#22C55E" />
+                                  <Check size={10} color={STATUS.going.fg} />
                                   {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                                  <Text className="text-xs font-medium ml-1" style={{ color: "#22C55E" }}>
+                                  <Text className="text-xs font-medium ml-1" style={{ color: STATUS.going.fg }}>
                                     Confirmed
                                   </Text>
                                 </View>

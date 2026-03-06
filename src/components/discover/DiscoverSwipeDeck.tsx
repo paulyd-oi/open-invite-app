@@ -8,7 +8,7 @@
  * Left swipe  → skip locally for session
  * Tap         → open event detail
  */
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { View, Text, Pressable, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
@@ -19,13 +19,17 @@ import Animated, {
   runOnJS,
   interpolate,
   Extrapolation,
+  FadeInUp,
+  FadeOutUp,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, X, RotateCcw } from "@/ui/icons";
+import { Heart, X, RotateCcw, Bookmark, Check } from "@/ui/icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
+import { STATUS } from "@/ui/tokens";
+import { RADIUS } from "@/ui/layout";
 import { MotionDurations } from "@/lib/motionSSOT";
 import { postIdempotent } from "@/lib/idempotencyKey";
 import { eventKeys } from "@/lib/eventQueryKeys";
@@ -51,9 +55,10 @@ const FLY_DURATION = MotionDurations.hero;
 interface Props {
   events: SwipeEvent[];
   onSwitchToFeed: () => void;
+  onSwitchToInterested?: () => void;
 }
 
-export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
+export function DiscoverSwipeDeck({ events, onSwitchToFeed, onSwitchToInterested }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
@@ -65,6 +70,23 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const statsRef = useRef({ cardsViewed: 0, cardsRight: 0, cardsLeft: 0 });
   const thresholdHapticRef = useRef(0);
+
+  // "Saved to Interested" inline banner
+  const [showSavedBanner, setShowSavedBanner] = useState(false);
+  const savedBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashSavedBanner = useCallback(() => {
+    if (savedBannerTimerRef.current) clearTimeout(savedBannerTimerRef.current);
+    setShowSavedBanner(true);
+    savedBannerTimerRef.current = setTimeout(() => setShowSavedBanner(false), 2000);
+  }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (savedBannerTimerRef.current) clearTimeout(savedBannerTimerRef.current);
+    };
+  }, []);
 
   // Compute active deck from events minus dismissed
   const deck = useMemo(() => {
@@ -109,7 +131,8 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
     statsRef.current.cardsViewed++;
     rsvpMutation.mutate(event.id);
     setDismissed((prev) => new Set(prev).add(event.id));
-  }, [deck, rsvpMutation]);
+    flashSavedBanner();
+  }, [deck, rsvpMutation, flashSavedBanner]);
 
   const handleSwipeLeft = useCallback(() => {
     const event = deck[0];
@@ -290,7 +313,7 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
             backgroundColor: themeColor,
             paddingHorizontal: 24,
             paddingVertical: 14,
-            borderRadius: 16,
+            borderRadius: RADIUS.lg,
             marginBottom: 12,
           }}
         >
@@ -321,6 +344,11 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Swipe progress bar */}
+      <View style={{ height: 3, marginHorizontal: 20, marginTop: 8, borderRadius: 2, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+        <View style={{ height: 3, borderRadius: 2, backgroundColor: themeColor, width: `${total > 0 ? ((currentIndex) / total) * 100 : 0}%` }} />
+      </View>
+
       {/* Card stack */}
       <View
         style={{
@@ -329,6 +357,58 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
           justifyContent: "center",
         }}
       >
+        {/* "Saved to Interested" toast overlay */}
+        {showSavedBanner && (
+          <Animated.View
+            entering={FadeInUp.duration(200)}
+            exiting={FadeOutUp.duration(200)}
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 0,
+              right: 0,
+              zIndex: 100,
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: STATUS.interested.bgSoft,
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                borderRadius: 14,
+                gap: 8,
+              }}
+            >
+              <Check size={16} color={STATUS.interested.fg} />
+              <Text style={{ fontSize: 15, fontWeight: "600", color: STATUS.interested.fg }}>
+                Saved to Interested
+              </Text>
+              {onSwitchToInterested && (
+                <Pressable
+                  onPress={() => {
+                    setShowSavedBanner(false);
+                    onSwitchToInterested();
+                  }}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 8,
+                    backgroundColor: STATUS.interested.fg + "18",
+                    marginLeft: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: STATUS.interested.fg }}>
+                    View
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </Animated.View>
+        )}
         {/* Render bottom to top so top card is last (on top in z-order) */}
         {visible.length >= 3 && (
           <Animated.View
@@ -397,10 +477,10 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
                     position: "absolute",
                     top: 20,
                     left: 20,
-                    backgroundColor: "#22C55E",
+                    backgroundColor: STATUS.interested.fg,
                     paddingHorizontal: 16,
                     paddingVertical: 8,
-                    borderRadius: 12,
+                    borderRadius: RADIUS.md,
                     flexDirection: "row",
                     alignItems: "center",
                   },
@@ -423,7 +503,7 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
                     backgroundColor: "rgba(0,0,0,0.6)",
                     paddingHorizontal: 16,
                     paddingVertical: 8,
-                    borderRadius: 12,
+                    borderRadius: RADIUS.md,
                     flexDirection: "row",
                     alignItems: "center",
                   },
@@ -475,16 +555,16 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
             width: 64,
             height: 64,
             borderRadius: 32,
-            backgroundColor: "#EC489920",
+            backgroundColor: STATUS.interested.bgSoft,
             alignItems: "center",
             justifyContent: "center",
             borderWidth: 2,
-            borderColor: "#EC4899",
+            borderColor: STATUS.interested.fg,
           }}
           accessibilityRole="button"
           accessibilityLabel="Mark interested"
         >
-          <Heart size={28} color="#EC4899" />
+          <Heart size={28} color={STATUS.interested.fg} />
         </Pressable>
 
         <Pressable

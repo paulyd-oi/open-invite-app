@@ -25,6 +25,7 @@ import { devLog, devError } from "@/lib/devLog";
 import { safeToast } from "@/lib/safeToast";
 import { trackAnalytics } from "@/lib/entitlements";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { STATUS } from "@/ui/tokens";
 
 interface CircleCardProps {
   circle: Circle;
@@ -50,9 +51,9 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
 
   // [P1_CIRCLES_SWIPE_UI] Define actions in strict order: Pin, Mute, Delete
   const swipeActions = React.useMemo(() => [
-    { type: 'pin' as const, label: circle.isPinned ? 'Unpin' : 'Pin', color: '#10B981' },
-    { type: 'mute' as const, label: circle.isMuted ? 'Unmute' : 'Mute', color: circle.isMuted ? '#10B981' : '#F59E0B' },
-    { type: 'delete' as const, label: 'Delete', color: '#EF4444' },
+    { type: 'pin' as const, label: circle.isPinned ? 'Unpin' : 'Pin', color: STATUS.going.fg },
+    { type: 'mute' as const, label: circle.isMuted ? 'Unmute' : 'Mute', color: circle.isMuted ? STATUS.going.fg : STATUS.warning.fg },
+    { type: 'delete' as const, label: 'Delete', color: STATUS.destructive.fg },
   ], [circle.isPinned, circle.isMuted]);
 
   // [P1_CIRCLES_RENDER] Proof log: card render with state
@@ -261,7 +262,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
           onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerPin(); }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           className="w-14 h-14 rounded-2xl items-center justify-center"
-          style={{ backgroundColor: '#10B981' }}
+          style={{ backgroundColor: STATUS.going.fg }}
           testID={`circle-action-pin-${circle.id}`}
         >
           <Pin size={20} color="#fff" />
@@ -277,7 +278,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
           onPress={() => { translateX.value = withSpring(0, { damping: 20, stiffness: 200 }); triggerDelete(); }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           className="w-14 h-14 rounded-2xl items-center justify-center"
-          style={{ backgroundColor: '#EF4444' }}
+          style={{ backgroundColor: STATUS.destructive.fg }}
           testID={`circle-action-delete-${circle.id}`}
         >
           <Trash2 size={20} color="#fff" />
@@ -323,7 +324,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               {circle.isPinned && (
                 <View
                   className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
-                  style={{ backgroundColor: "#10B981" }}
+                  style={{ backgroundColor: STATUS.going.fg }}
                 >
                   <Pin size={10} color="#fff" />
                 </View>
@@ -349,7 +350,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                     minWidth: circle.isMuted ? 10 : 18,
                     height: circle.isMuted ? 10 : 18,
                     paddingHorizontal: circle.isMuted ? 0 : 4,
-                    backgroundColor: "#EF4444",
+                    backgroundColor: STATUS.destructive.fg,
                     borderWidth: 1.5,
                     borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
                   }}
