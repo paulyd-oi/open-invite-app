@@ -26,7 +26,7 @@ export interface SwipeEvent {
   endTime?: string | null;
   location: string | null;
   visibility?: string;
-  user: { id: string; name: string | null; image: string | null };
+  user: { id: string; name: string | null; image: string | null } | null;
   attendeeCount: number;
   capacity?: number | null;
   isFull?: boolean;
@@ -48,6 +48,11 @@ interface Props {
 export const DiscoverSwipeCard = React.memo(function DiscoverSwipeCard({ event, index, total }: Props) {
   const { themeColor, isDark, colors } = useTheme();
   const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
+
+  // Null-safe host derived values (event.user can be null)
+  const hostImage = event.user?.image ?? null;
+  const hostInitials = event.user?.name?.[0] ?? "?";
+  const hostLabel = event.user?.name?.split(" ")[0] ?? "someone";
 
   const dateStr = new Date(event.startTime).toLocaleDateString([], {
     weekday: "short",
@@ -177,8 +182,8 @@ export const DiscoverSwipeCard = React.memo(function DiscoverSwipeCard({ event, 
               }}
             >
               <EntityAvatar
-                photoUrl={event.user.image}
-                initials={event.user.name?.[0] ?? "?"}
+                photoUrl={hostImage}
+                initials={hostInitials}
                 size={28}
                 backgroundColor="rgba(255,255,255,0.2)"
                 foregroundColor="#FFFFFF"
@@ -240,7 +245,7 @@ export const DiscoverSwipeCard = React.memo(function DiscoverSwipeCard({ event, 
 
           {/* Host label */}
           <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 6 }}>
-            Hosted by {event.user.name?.split(" ")[0] ?? "someone"}
+            Hosted by {hostLabel}
           </Text>
         </View>
       </View>
