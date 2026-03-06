@@ -24,6 +24,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, X, RotateCcw } from "@/ui/icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { MotionDurations } from "@/lib/motionSSOT";
 import { postIdempotent } from "@/lib/idempotencyKey";
@@ -56,6 +57,9 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Bottom nav is absolutely positioned — reserve space so buttons aren't hidden
+  const bottomPad = insets.bottom + 80;
 
   // Session state: track which cards have been acted on
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -251,7 +255,7 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
   if (deck.length === 0) {
     trackDiscoverSwipeSessionEnd(statsRef.current);
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingBottom: bottomPad }}>
         <Text style={{ fontSize: 48, marginBottom: 16 }}>
           {"\u2728"}
         </Text>
@@ -442,7 +446,7 @@ export function DiscoverSwipeDeck({ events, onSwitchToFeed }: Props) {
           flexDirection: "row",
           justifyContent: "center",
           alignItems: "center",
-          paddingBottom: 16,
+          paddingBottom: bottomPad,
           paddingTop: 8,
           gap: 24,
         }}
