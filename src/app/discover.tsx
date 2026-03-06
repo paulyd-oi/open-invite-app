@@ -21,6 +21,8 @@ import {
   Clock,
   Plus,
   Sparkles,
+  Layers,
+  CreditCard,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -39,6 +41,7 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
+import { DiscoverSwipeDeck } from "@/components/discover/DiscoverSwipeDeck";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 import { Button } from "@/ui/Button";
@@ -88,6 +91,8 @@ export default function DiscoverScreen() {
 
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("popular");
+  // ── Browse mode: feed or swipe ──
+  const [browseMode, setBrowseMode] = useState<"feed" | "swipe">("feed");
 
   // Surface tokens from theme SSOT
   const tileShadow = !isDark ? TILE_SHADOW : {};
@@ -465,11 +470,81 @@ export default function DiscoverScreen() {
             );
           })}
         </View>
+
+        {/* ═══ Browse Mode Toggle (Feed / Swipe) ═══ */}
+        {lens !== "ideas" && (
+          <View className="flex-row items-center justify-end mt-2 gap-1">
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                if (browseMode !== "feed") {
+                  setBrowseMode("feed");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              className="flex-row items-center px-3 py-1.5 rounded-full"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={browseMode === "feed"
+                ? { backgroundColor: themeColor + "18" }
+                : undefined
+              }
+            >
+              <Layers size={14} color={browseMode === "feed" ? themeColor : colors.textTertiary} />
+              <Text
+                className={`text-xs ml-1 ${browseMode === "feed" ? "font-semibold" : "font-normal"}`}
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ color: browseMode === "feed" ? themeColor : colors.textTertiary }}
+              >
+                Feed
+              </Text>
+            </Pressable>
+
+            <Pressable
+              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              onPress={() => {
+                if (browseMode !== "swipe") {
+                  setBrowseMode("swipe");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+              }}
+              className="flex-row items-center px-3 py-1.5 rounded-full"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={browseMode === "swipe"
+                ? { backgroundColor: themeColor + "18" }
+                : undefined
+              }
+            >
+              <CreditCard size={14} color={browseMode === "swipe" ? themeColor : colors.textTertiary} />
+              <Text
+                className={`text-xs ml-1 ${browseMode === "swipe" ? "font-semibold" : "font-normal"}`}
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ color: browseMode === "swipe" ? themeColor : colors.textTertiary }}
+              >
+                Swipe
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       {lens === "ideas" ? (
         /* ═══ Ideas Deck (swipeable daily ideas) ═══ */
         <DailyIdeasDeck />
+      ) : browseMode === "swipe" ? (
+        /* ═══ Swipe Deck ═══ */
+        showDiscoverLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="small" color={themeColor} />
+          </View>
+        ) : (
+          <DiscoverSwipeDeck
+            events={lensAll}
+            onSwitchToFeed={() => {
+              setBrowseMode("feed");
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+        )
       ) : (
       <ScrollView
         className="flex-1"
