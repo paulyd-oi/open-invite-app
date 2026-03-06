@@ -424,6 +424,7 @@ export default function EventDetailScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   // ── Shared photo-picker logic (used by nudge CTA + bottom sheet) ──
   const launchEventPhotoPicker = useCallback(async () => {
@@ -2191,14 +2192,14 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Event Header */}
         <Animated.View entering={FadeInDown.springify()}>
           {/* Hero header surface — SSOT via HeroBannerSurface + heroSSOT */}
           {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-            <View style={{ marginBottom: 16 }}>
+            <View style={{ marginBottom: 12 }}>
               <HeroBannerSurface
                 bannerUri={eventBannerUri}
                 isDark={isDark}
@@ -2291,435 +2292,42 @@ export default function EventDetailScreen() {
                   </Pressable>
                 </Pressable>
               )}
-            </>
-          )}
-
-          <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-            {/* Emoji + title card — only when there's NO hero photo */}
-            {!(event.eventPhotoUrl && !event.isBusy && event.visibility !== "private") && (
-            <View className="items-center mb-4">
-              <View className="w-20 h-20 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                <Text className="text-4xl">{event.emoji}</Text>
-              </View>
-              <Text className="text-2xl font-bold text-center" style={{ color: colors.text }}>
-                {event.title}
-              </Text>
-              <EventVisibilityBadge
-                visibility={event.visibility}
-                circleId={event.circleId}
-                isBusy={event.isBusy}
-                circleName={event.circleName}
-                eventId={event.id}
-                surface="event_detail"
-                isDark={isDark}
-              />
-              {/* [EVENT_LIVE_UI_2] Live chip */}
-              {liveChipText && (
-                <View className="mt-1 px-2.5 py-1 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F0F0F2" }}>
-                  <Text className="text-xs" style={{ color: colors.textSecondary }}>{liveChipText}</Text>
+              {/* No-photo hero card */}
+              <View className="rounded-2xl p-6 mb-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="w-24 h-24 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
+                  <Text style={{ fontSize: 48 }}>{event.emoji}</Text>
                 </View>
-              )}
-            </View>
-            )}
-
-            {/* Host Info */}
-            {event.user && (
-              <View className="border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center py-3">
-                  <EntityAvatar
-                    photoUrl={event.user?.image}
-                    initials={event.user?.name?.[0] ?? "?"}
-                    size={40}
-                    backgroundColor={event.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : (isDark ? "#2C2C2E" : "#FFF7ED")}
-                    foregroundColor={themeColor}
-                    style={{ marginRight: 12 }}
-                  />
-                  <View className="flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Hosted by</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>
-                      {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Date & Time */}
-            <View className="flex-row items-center py-3 border-t" style={{ borderColor: colors.border }}>
-              <Calendar size={20} color={themeColor} />
-              <View className="ml-3 flex-1">
-                <Text className="text-sm" style={{ color: colors.textTertiary }}>Date & Time</Text>
-                <Text className="font-semibold" style={{ color: colors.text }}>
+                <Text className="text-2xl font-bold text-center" style={{ color: colors.text }}>
+                  {event.title}
+                </Text>
+                <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
                   {dateLabel} at {timeLabel}
                 </Text>
-                {/* [EVENT_LIVE_UI] Countdown line */}
-                <Text className="text-xs mt-0.5" style={{ color: countdownLabel === "Happening now" ? "#22C55E" : countdownLabel === "Ended" ? colors.textTertiary : themeColor, fontWeight: countdownLabel === "Happening now" ? "600" : "400" }}>
-                  {countdownLabel}
-                </Text>
-              </View>
-            </View>
-
-            {/* Location */}
-            {locationDisplay && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                  }}
-                  className="flex-row items-center"
-                >
-                  <MapPin size={20} color="#4ECDC4" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Location</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>{locationDisplay}</Text>
-                  </View>
-                  <ChevronRight
-                    size={20}
-                    color="#9CA3AF"
-                    style={{
-                      transform: [{ rotate: showMap ? "90deg" : "0deg" }],
-                    }}
-                  />
-                </Pressable>
-                <View className="mt-3 ml-8">
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                    }}
-                    className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
-                    style={{
-                      shadowColor: "#4ECDC4",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                    }}
-                  >
-                    <ArrowRight size={18} color="#fff" />
-                    <Text className="text-white font-semibold ml-2">
-                      Get Directions
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
-            {/* Description */}
-            {event.description && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-start">
-                  <MessageCircle size={20} color="#9B59B6" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Description</Text>
-                    <Text className="mt-1 leading-5" style={{ color: colors.text }}>
-                      {event.description}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Visibility - Host only */}
-            {isMyEvent && (
-            <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-              {(() => {
-                const isCircleTappable = event.visibility === "circle_only" && !!event.circleId;
-                const RowWrapper = isCircleTappable ? Pressable : View;
-                const rowProps = isCircleTappable
-                  ? {
-                      onPress: () => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        devLog("[P0_EVENT_CIRCLE_LINK]", { circleId: event.circleId, eventId: event.id });
-                        router.push(`/circle/${event.circleId}` as any);
-                      },
-                      accessibilityRole: "button" as const,
-                      accessibilityLabel: "Open circle chat",
-                    }
-                  : {};
-                return (
-                  <RowWrapper className="flex-row items-center" {...rowProps}>
-                    {/* Busy blocks always show "Only self" regardless of stored visibility */}
-                    {event.isBusy ? (
-                      <Users size={20} color="#9CA3AF" />
-                    ) : event.visibility === "all_friends" ? (
-                      <Compass size={20} color="#9CA3AF" />
-                    ) : event.visibility === "circle_only" ? (
-                      <Lock size={20} color="#9CA3AF" />
-                    ) : event.visibility === "private" ? (
-                      <Lock size={20} color="#9CA3AF" />
-                    ) : (
-                      <Users size={20} color="#9CA3AF" />
-                    )}
-                    <View className="ml-3 flex-1">
-                      <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
-                      <Text className="font-semibold" style={{ color: colors.text }}>
-                        {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
-                      </Text>
-                    </View>
-                    {isCircleTappable && <ChevronRight size={16} color={colors.textTertiary} />}
-                  </RowWrapper>
-                );
-              })()}
-
-
-              {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
-              {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
-                <View className="mt-3 ml-8">
-                  <View className="flex-row flex-wrap">
-                    {event.groupVisibility.map((gv) => (
-                      <View
-                        key={gv.groupId}
-                        className="rounded-full px-3 py-1.5 mr-2 mb-2 flex-row items-center"
-                        style={{ backgroundColor: gv.group.color + "20" }}
-                      >
-                        <View
-                          className="w-2.5 h-2.5 rounded-full mr-1.5"
-                          style={{ backgroundColor: gv.group.color }}
-                        />
-                        <Text className="font-medium text-xs" style={{ color: gv.group.color }}>
-                          {gv.group.name}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </View>
-            )}
-
-            {/* Spots (Capacity) — [P1_EVENT_META] reads from eventMeta (owner query only) */}
-            {eventMeta.capacity != null && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center">
-                  <Users size={20} color={eventMeta.isFull ? "#EF4444" : "#22C55E"} />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Spots</Text>
-                    <Text className="font-semibold" style={{ color: eventMeta.isFull ? "#EF4444" : colors.text }}>
-                      {eventMeta.goingCount ?? 0} / {eventMeta.capacity} filled
-                    </Text>
-                  </View>
-                  {eventMeta.isFull && (
-                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#EF444420" }}>
-                      <Text className="text-xs font-semibold" style={{ color: "#EF4444" }}>Full</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Category Badge - HIDDEN until create/edit supports category selection
-             * [P0_DEMO_LEAK] The category field exists in schema but no UI to set it.
-             * Showing it leaks demo/seed data to production users.
-             * Re-enable when EventCategoryPicker is integrated into create.tsx and edit/[id].tsx.
-             */}
-            {__DEV__ && event.category && (() => {
-              devLog(`[P0_DEMO_LEAK] suppressedPill key=category reason=unsupported_by_ui eventIdPrefix=${event.id.slice(0, 6)}`);
-              return null;
-            })()}
-          </View>
-        </Animated.View>
-
-        {/* ═══ [EVENT_LIVE_UI] REORDERED: Who's Coming directly under hero ═══ */}
-
-        {/* Who's Coming Section - P0 FIX: Use attendees endpoint */}
-        {(() => {
-          // 403 privacy denied: show privacy message
-          if (attendeesPrivacyDenied) {
-            return (
-              <Animated.View entering={FadeInDown.delay(75).springify()}>
-                <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  <View className="flex-row items-center mb-3">
-                    <Lock size={20} color="#9CA3AF" />
-                    <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                      Who's Coming
-                    </Text>
-                  </View>
-                  <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                    <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
-                      Attendees visible to invited or going members
-                    </Text>
-                  </View>
-                </View>
-              </Animated.View>
-            );
-          }
-
-          // Has attendees: show compact roster preview (1-row avatar stack)
-          if (effectiveGoingCount > 0 || attendeesList.length > 0) {
-            // Build preview list: host first (if in list), then others, max 5 visible
-            const STACK_MAX = 5;
-            const AVATAR_SIZE = 36;
-            const OVERLAP = 10;
-            const hostId = event?.user?.id;
-            const hostInList = attendeesList.find(a => a.id === hostId);
-            const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
-            // Host first, then others
-            const orderedForStack: AttendeeInfo[] = [
-              ...(hostInList ? [hostInList] : []),
-              ...nonHostAttendees,
-            ];
-            // If host not in endpoint list but we know them from event.user, prepend
-            const hostAttendee: AttendeeInfo | null = (!hostInList && event?.user) ? {
-              id: event.user.id ?? 'host',
-              name: event.user.name ?? 'Host',
-              imageUrl: event.user.image ?? null,
-              isHost: true,
-            } : null;
-            const stackSource = hostAttendee ? [hostAttendee, ...orderedForStack] : orderedForStack;
-            const visibleAvatars = stackSource.slice(0, STACK_MAX);
-            const overflowCount = Math.max(0, effectiveGoingCount - visibleAvatars.length);
-            const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
-
-            return (
-              <Animated.View entering={FadeInDown.delay(75).springify()}>
-                <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  {/* Header row: title + count + View all */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                      <UserCheck size={20} color="#22C55E" />
-                      <Text style={{ fontSize: 17, fontWeight: '600', marginLeft: 8, color: colors.text }}>
-                        Who's Coming
-                      </Text>
-                      {/* [EVENT_LIVE_UI] Improved microcopy — social proof */}
-                      <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
-                        <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
-                          {myRsvpStatus === "going" && effectiveGoingCount === 1
-                            ? "You\u2019re in"
-                            : myRsvpStatus === "going" && effectiveGoingCount > 1
-                            ? `You + ${effectiveGoingCount - 1} going`
-                            : effectiveGoingCount > 0
-                            ? `${effectiveGoingCount} going`
-                            : "Be the first"}
-                        </Text>
-                      </View>
-                    </View>
-                    <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setShowAttendeesModal(true);
-                      }}
-                      hitSlop={8}
-                    >
-                      <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
-                        View all
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {/* Compact avatar stack (1 row, overlapping) */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: 'row' }}>
-                      {visibleAvatars.map((attendee, idx) => {
-                        const isHost = attendee.id === hostId || attendee.isHost;
-                        return (
-                          <View
-                            key={attendee.id}
-                            style={{
-                              position: 'absolute',
-                              left: idx * (AVATAR_SIZE - OVERLAP),
-                              width: AVATAR_SIZE,
-                              height: AVATAR_SIZE,
-                              borderRadius: AVATAR_SIZE / 2,
-                              backgroundColor: isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderWidth: 2,
-                              borderColor: isHost ? (isDark ? '#92400E' : '#FDBA74') : '#BBF7D0',
-                              zIndex: visibleAvatars.length - idx,
-                            }}
-                          >
-                            <EntityAvatar
-                              photoUrl={attendee.imageUrl}
-                              initials={attendee.name?.[0] ?? '?'}
-                              size={AVATAR_SIZE - 4}
-                              backgroundColor={isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7'}
-                              foregroundColor={isHost ? '#92400E' : '#166534'}
-                            />
-                          </View>
-                        );
-                      })}
-                      {overflowCount > 0 && (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            left: visibleAvatars.length * (AVATAR_SIZE - OVERLAP),
-                            width: AVATAR_SIZE,
-                            height: AVATAR_SIZE,
-                            borderRadius: AVATAR_SIZE / 2,
-                            backgroundColor: isDark ? '#2C2C2E' : '#F3F4F6',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderWidth: 2,
-                            borderColor: isDark ? '#3C3C3E' : '#E5E7EB',
-                          }}
-                        >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>
-                            +{overflowCount}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {/* Host label inline */}
-                    {event?.user && (
-                      <Text style={{ marginLeft: 12, fontSize: 13, color: colors.textTertiary }}>
-                        Hosted by {isMyEvent ? 'you' : event.user.name?.split(' ')[0] ?? 'Host'}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </Animated.View>
-            );
-          }
-
-          // No one coming yet - show placeholder
-          return (
-            <Animated.View entering={FadeInDown.delay(75).springify()}>
-              <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <View className="flex-row items-center mb-3">
-                  <UserCheck size={20} color="#9CA3AF" />
-                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                    Who's Coming
-                  </Text>
-                </View>
-
-                {/* Show the host */}
-                {event.user && (
-                  <View className="mb-3">
-                    <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
-                    <View className="flex-row items-center">
-                      <View className="rounded-full border-2" style={{ borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                        <EntityAvatar
-                          photoUrl={event.user.image}
-                          initials={event.user.name?.[0] ?? "?"}
-                          size={36}
-                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
-                          foregroundColor={themeColor}
-                        />
-                      </View>
-                      <Text className="ml-3 font-medium" style={{ color: colors.text }}>
-                        {isMyEvent ? "You" : event.user.name ?? "Host"}
-                      </Text>
-                    </View>
+                <EventVisibilityBadge
+                  visibility={event.visibility}
+                  circleId={event.circleId}
+                  isBusy={event.isBusy}
+                  circleName={event.circleName}
+                  eventId={event.id}
+                  surface="event_detail"
+                  isDark={isDark}
+                />
+                {/* [EVENT_LIVE_UI_2] Live chip */}
+                {liveChipText && (
+                  <View className="mt-1 px-2.5 py-1 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F0F0F2" }}>
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>{liveChipText}</Text>
                   </View>
                 )}
-
-                <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Users size={24} color="#9CA3AF" />
-                  <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No attendees yet
-                  </Text>
-                </View>
               </View>
-            </Animated.View>
-          );
-        })()}
+            </>
+          )}
+        </Animated.View>
 
-        {/* Join Request Section (for non-owners) */}
+        {/* ═══ RSVP Strip (non-owners) ═══ */}
         {!isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(100).springify()}>
+          <Animated.View entering={FadeInDown.delay(75).springify()}>
             {hasJoinRequest ? (
-              <View className="rounded-2xl p-5 mb-4 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="rounded-2xl p-5 mb-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-2">
                   <Check size={24} color="#22C55E" />
                 </View>
@@ -2729,7 +2337,7 @@ export default function EventDetailScreen() {
                 </Text>
               </View>
             ) : (
-              <View className="mb-4">
+              <View className="mb-3">
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
                   devLog("[P0_RSVP]", "ui render", {
@@ -2741,7 +2349,7 @@ export default function EventDetailScreen() {
                   });
                   return null;
                 })()}
-                
+
                 {/* Current RSVP status display */}
                 {myRsvpStatus && (
                   <View className="mb-3">
@@ -2840,7 +2448,7 @@ export default function EventDetailScreen() {
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <Animated.View style={rsvpButtonAnimStyle}>
                   <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
-                    {/* Full indicator — [P1_EVENT_META] reads from eventMeta (owner query only) */}
+                    {/* Full indicator */}
                     {eventMeta.isFull && myRsvpStatus !== "going" && (
                       <View className="flex-row items-center justify-center py-3" style={{ backgroundColor: "#EF444415" }}>
                         <Users size={16} color="#EF4444" />
@@ -2854,7 +2462,7 @@ export default function EventDetailScreen() {
                         <Text className="ml-2 text-sm" style={{ color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Going - disabled if full and not already going — [P1_EVENT_META] */}
+                    {/* Going - disabled if full and not already going */}
                     {eventMeta.isFull && myRsvpStatus !== "going" ? (
                       <View
                         className="flex-row items-center p-4"
@@ -2934,9 +2542,397 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
+        {/* ═══ Core Info Card ═══ */}
+        <Animated.View entering={FadeInDown.springify()}>
+          <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            {/* Date & Time */}
+            <View className="flex-row items-center py-3">
+              <Calendar size={20} color={themeColor} />
+              <View className="ml-3 flex-1">
+                <Text className="text-sm" style={{ color: colors.textTertiary }}>Date & Time</Text>
+                <Text className="font-semibold" style={{ color: colors.text }}>
+                  {dateLabel} at {timeLabel}
+                </Text>
+                {/* [EVENT_LIVE_UI] Countdown line */}
+                <Text className="text-xs mt-0.5" style={{ color: countdownLabel === "Happening now" ? "#22C55E" : countdownLabel === "Ended" ? colors.textTertiary : themeColor, fontWeight: countdownLabel === "Happening now" ? "600" : "400" }}>
+                  {countdownLabel}
+                </Text>
+              </View>
+            </View>
+
+            {/* Location */}
+            {locationDisplay && (
+              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    openEventLocation(locationQuery ?? locationDisplay, event, event.id);
+                  }}
+                  className="flex-row items-center"
+                >
+                  <MapPin size={20} color="#4ECDC4" />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Location</Text>
+                    <Text className="font-semibold" style={{ color: colors.text }}>{locationDisplay}</Text>
+                  </View>
+                  <ChevronRight
+                    size={20}
+                    color="#9CA3AF"
+                    style={{
+                      transform: [{ rotate: showMap ? "90deg" : "0deg" }],
+                    }}
+                  />
+                </Pressable>
+                <View className="mt-3 ml-8">
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
+                    }}
+                    className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
+                    style={{
+                      shadowColor: "#4ECDC4",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                    }}
+                  >
+                    <ArrowRight size={18} color="#fff" />
+                    <Text className="text-white font-semibold ml-2">
+                      Get Directions
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {/* Visibility - Host only */}
+            {isMyEvent && (
+            <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+              {(() => {
+                const isCircleTappable = event.visibility === "circle_only" && !!event.circleId;
+                const RowWrapper = isCircleTappable ? Pressable : View;
+                const rowProps = isCircleTappable
+                  ? {
+                      onPress: () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        devLog("[P0_EVENT_CIRCLE_LINK]", { circleId: event.circleId, eventId: event.id });
+                        router.push(`/circle/${event.circleId}` as any);
+                      },
+                      accessibilityRole: "button" as const,
+                      accessibilityLabel: "Open circle chat",
+                    }
+                  : {};
+                return (
+                  <RowWrapper className="flex-row items-center" {...rowProps}>
+                    {event.isBusy ? (
+                      <Users size={20} color="#9CA3AF" />
+                    ) : event.visibility === "all_friends" ? (
+                      <Compass size={20} color="#9CA3AF" />
+                    ) : event.visibility === "circle_only" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : event.visibility === "private" ? (
+                      <Lock size={20} color="#9CA3AF" />
+                    ) : (
+                      <Users size={20} color="#9CA3AF" />
+                    )}
+                    <View className="ml-3 flex-1">
+                      <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
+                      <Text className="font-semibold" style={{ color: colors.text }}>
+                        {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
+                      </Text>
+                    </View>
+                    {isCircleTappable && <ChevronRight size={16} color={colors.textTertiary} />}
+                  </RowWrapper>
+                );
+              })()}
+
+              {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
+              {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
+                <View className="mt-3 ml-8">
+                  <View className="flex-row flex-wrap">
+                    {event.groupVisibility.map((gv) => (
+                      <View
+                        key={gv.groupId}
+                        className="rounded-full px-3 py-1.5 mr-2 mb-2 flex-row items-center"
+                        style={{ backgroundColor: gv.group.color + "20" }}
+                      >
+                        <View
+                          className="w-2.5 h-2.5 rounded-full mr-1.5"
+                          style={{ backgroundColor: gv.group.color }}
+                        />
+                        <Text className="font-medium text-xs" style={{ color: gv.group.color }}>
+                          {gv.group.name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+            )}
+
+            {/* Spots (Capacity) */}
+            {eventMeta.capacity != null && (
+              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+                <View className="flex-row items-center">
+                  <Users size={20} color={eventMeta.isFull ? "#EF4444" : "#22C55E"} />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Spots</Text>
+                    <Text className="font-semibold" style={{ color: eventMeta.isFull ? "#EF4444" : colors.text }}>
+                      {eventMeta.goingCount ?? 0} / {eventMeta.capacity} filled
+                    </Text>
+                  </View>
+                  {eventMeta.isFull && (
+                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#EF444420" }}>
+                      <Text className="text-xs font-semibold" style={{ color: "#EF4444" }}>Full</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* ═══ Host Block ═══ */}
+        {event.user && (
+          <Animated.View entering={FadeInDown.delay(80).springify()}>
+            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <View className="flex-row items-center">
+                <EntityAvatar
+                  photoUrl={event.user?.image}
+                  initials={event.user?.name?.[0] ?? "?"}
+                  size={44}
+                  backgroundColor={event.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : (isDark ? "#2C2C2E" : "#FFF7ED")}
+                  foregroundColor={themeColor}
+                  style={{ marginRight: 12 }}
+                />
+                <View className="flex-1">
+                  <Text className="text-xs" style={{ color: colors.textTertiary }}>Hosted by</Text>
+                  <Text className="font-semibold" style={{ color: colors.text }}>
+                    {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ═══ Who's Coming / Social Proof ═══ */}
+        {(() => {
+          // 403 privacy denied: show privacy message
+          if (attendeesPrivacyDenied) {
+            return (
+              <Animated.View entering={FadeInDown.delay(90).springify()}>
+                <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <View className="flex-row items-center mb-3">
+                    <Lock size={20} color="#9CA3AF" />
+                    <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                      Who's Coming
+                    </Text>
+                  </View>
+                  <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                    <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
+                      Attendees visible to invited or going members
+                    </Text>
+                  </View>
+                </View>
+              </Animated.View>
+            );
+          }
+
+          // Has attendees: show compact roster preview (1-row avatar stack)
+          if (effectiveGoingCount > 0 || attendeesList.length > 0) {
+            const STACK_MAX = 5;
+            const AVATAR_SIZE = 40;
+            const OVERLAP = 10;
+            const hostId = event?.user?.id;
+            const hostInList = attendeesList.find(a => a.id === hostId);
+            const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
+            const orderedForStack: AttendeeInfo[] = [
+              ...(hostInList ? [hostInList] : []),
+              ...nonHostAttendees,
+            ];
+            const hostAttendee: AttendeeInfo | null = (!hostInList && event?.user) ? {
+              id: event.user.id ?? 'host',
+              name: event.user.name ?? 'Host',
+              imageUrl: event.user.image ?? null,
+              isHost: true,
+            } : null;
+            const stackSource = hostAttendee ? [hostAttendee, ...orderedForStack] : orderedForStack;
+            const visibleAvatars = stackSource.slice(0, STACK_MAX);
+            const overflowCount = Math.max(0, effectiveGoingCount - visibleAvatars.length);
+            const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
+
+            return (
+              <Animated.View entering={FadeInDown.delay(90).springify()}>
+                <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  {/* Header row: title + count + View all */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <UserCheck size={20} color="#22C55E" />
+                      <Text style={{ fontSize: 17, fontWeight: '600', marginLeft: 8, color: colors.text }}>
+                        Who's Coming
+                      </Text>
+                      <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
+                        <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
+                          {myRsvpStatus === "going" && effectiveGoingCount === 1
+                            ? "You\u2019re in"
+                            : myRsvpStatus === "going" && effectiveGoingCount > 1
+                            ? `You + ${effectiveGoingCount - 1} going`
+                            : effectiveGoingCount > 0
+                            ? `${effectiveGoingCount} going`
+                            : "Be the first"}
+                        </Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setShowAttendeesModal(true);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
+                        View all
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {/* Compact avatar stack (1 row, overlapping) */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: 'row' }}>
+                      {visibleAvatars.map((attendee, idx) => {
+                        const isHost = attendee.id === hostId || attendee.isHost;
+                        return (
+                          <View
+                            key={attendee.id}
+                            style={{
+                              position: 'absolute',
+                              left: idx * (AVATAR_SIZE - OVERLAP),
+                              width: AVATAR_SIZE,
+                              height: AVATAR_SIZE,
+                              borderRadius: AVATAR_SIZE / 2,
+                              backgroundColor: isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderWidth: 2,
+                              borderColor: isHost ? (isDark ? '#92400E' : '#FDBA74') : '#BBF7D0',
+                              zIndex: visibleAvatars.length - idx,
+                            }}
+                          >
+                            <EntityAvatar
+                              photoUrl={attendee.imageUrl}
+                              initials={attendee.name?.[0] ?? '?'}
+                              size={AVATAR_SIZE - 4}
+                              backgroundColor={isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7'}
+                              foregroundColor={isHost ? '#92400E' : '#166534'}
+                            />
+                          </View>
+                        );
+                      })}
+                      {overflowCount > 0 && (
+                        <View
+                          style={{
+                            position: 'absolute',
+                            left: visibleAvatars.length * (AVATAR_SIZE - OVERLAP),
+                            width: AVATAR_SIZE,
+                            height: AVATAR_SIZE,
+                            borderRadius: AVATAR_SIZE / 2,
+                            backgroundColor: isDark ? '#2C2C2E' : '#F3F4F6',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 2,
+                            borderColor: isDark ? '#3C3C3E' : '#E5E7EB',
+                          }}
+                        >
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>
+                            +{overflowCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    {/* Host label inline */}
+                    {event?.user && (
+                      <Text style={{ marginLeft: 12, fontSize: 13, color: colors.textTertiary }}>
+                        Hosted by {isMyEvent ? 'you' : event.user.name?.split(' ')[0] ?? 'Host'}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </Animated.View>
+            );
+          }
+
+          // No one coming yet - show placeholder
+          return (
+            <Animated.View entering={FadeInDown.delay(90).springify()}>
+              <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="flex-row items-center mb-3">
+                  <UserCheck size={20} color="#9CA3AF" />
+                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+                    Who's Coming
+                  </Text>
+                </View>
+
+                {/* Show the host */}
+                {event.user && (
+                  <View className="mb-3">
+                    <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
+                    <View className="flex-row items-center">
+                      <View className="rounded-full border-2" style={{ borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
+                        <EntityAvatar
+                          photoUrl={event.user.image}
+                          initials={event.user.name?.[0] ?? "?"}
+                          size={40}
+                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
+                          foregroundColor={themeColor}
+                        />
+                      </View>
+                      <Text className="ml-3 font-medium" style={{ color: colors.text }}>
+                        {isMyEvent ? "You" : event.user.name ?? "Host"}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
+                  <Users size={24} color="#9CA3AF" />
+                  <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
+                    No attendees yet
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
+          );
+        })()}
+
+        {/* ═══ Description Block ═══ */}
+        {event.description && (
+          <Animated.View entering={FadeInDown.delay(95).springify()}>
+            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+              <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>About</Text>
+              <Text
+                className="leading-6"
+                style={{ color: colors.text }}
+                numberOfLines={descriptionExpanded ? undefined : 4}
+              >
+                {event.description}
+              </Text>
+              {event.description.length > 200 && (
+                <Pressable onPress={() => setDescriptionExpanded(!descriptionExpanded)} className="mt-2">
+                  <Text className="text-sm font-medium" style={{ color: themeColor }}>
+                    {descriptionExpanded ? "Show less" : "Read more"}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </Animated.View>
+        )}
+
         {/* Interested Users Section */}
         {interests.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(120).springify()} className="mb-4">
+          <Animated.View entering={FadeInDown.delay(110).springify()} className="mb-3">
             <Pressable
               onPress={() => setShowInterestedUsers(!showInterestedUsers)}
               className="flex-row items-center justify-between"
@@ -2981,7 +2977,7 @@ export default function EventDetailScreen() {
 
         {/* Interested Count for Event Owners */}
         {isMyEvent && interests.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-4">
+          <Animated.View entering={FadeInDown.delay(115).springify()} className="mb-3">
             <View
               className="rounded-xl p-4 flex-row items-center"
               style={{ backgroundColor: "#EC489910", borderWidth: 1, borderColor: "#EC489930" }}
@@ -3000,8 +2996,8 @@ export default function EventDetailScreen() {
         )}
 
         {/* Comments Section */}
-        <Animated.View entering={FadeInDown.delay(125).springify()}>
-          <View className="mb-4">
+        <Animated.View entering={FadeInDown.delay(120).springify()}>
+          <View className="mb-3">
             <View className="flex-row items-center mb-2">
               <MessageCircle size={20} color={themeColor} />
               <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
@@ -3037,7 +3033,7 @@ export default function EventDetailScreen() {
             )}
 
             {/* Comment Input */}
-            <View className="rounded-2xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
               {commentImage && (
                 <View className="mb-3 relative">
                   {/* INVARIANT_ALLOW_RAW_IMAGE_CONTENT — comment image preview, Cloudinary-transformed */}
