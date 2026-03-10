@@ -584,7 +584,9 @@ export default function DiscoverScreen() {
 
                 return (
                   <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
-                    <View
+                    <Pressable
+                      testID="discover-card-open"
+                      onPress={() => handleEventPress(event.id)}
                       style={{
                         borderRadius: RADIUS.xl,
                         overflow: "hidden",
@@ -626,7 +628,7 @@ export default function DiscoverScreen() {
                       </Pressable>
 
                       {/* Hero image */}
-                      <Pressable testID="discover-card-open" onPress={() => handleEventPress(event.id)}>
+                      <View>
                         <View style={{ aspectRatio: 4 / 3 }}>
                           {hasPhoto ? (
                             <ExpoImage
@@ -775,28 +777,8 @@ export default function DiscoverScreen() {
                             </View>
                           </View>
                         </View>
-                      </Pressable>
-
-                      {/* CTA row — single centered primary action */}
-                      <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
-                        <Pressable
-                          testID="discover-card-view"
-                          onPress={() => handleEventPress(event.id)}
-                          style={{
-                            width: "100%",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            paddingVertical: 12,
-                            borderRadius: RADIUS.lg,
-                            backgroundColor: themeColor,
-                          }}
-                        >
-                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", letterSpacing: 0.2 }}>
-                            View Event
-                          </Text>
-                        </Pressable>
                       </View>
-                    </View>
+                    </Pressable>
                   </Animated.View>
                 );
               }}
