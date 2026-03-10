@@ -42,6 +42,7 @@ export const RADIUS = {
   /** 12 – medium surfaces */      md: 12,
   /** 16 – Tile default */         lg: 16,
   /** 20 – large cards */          xl: 20,
+  /** 24 – hero cards, swipe */    xxl: 24,
   /** 9999 – pill / chip */        pill: 9999,
 } as const;
 

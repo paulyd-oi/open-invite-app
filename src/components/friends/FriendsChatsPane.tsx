@@ -67,6 +67,7 @@ export function FriendsChatsPane({
             </Pressable>
           )}
           <Pressable
+            testID="friends-create-circle"
             /* INVARIANT_ALLOW_INLINE_HANDLER */
             onPress={(e) => {
               e.stopPropagation();

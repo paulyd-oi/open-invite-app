@@ -1,0 +1,26 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Create event screen opens and has key fields
+# Proves create flow is reachable from Calendar tab
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Navigate to Calendar tab
+- tapOn:
+    id: "app-tab-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Tap create button via testID
+- tapOn:
+    id: "calendar-create-event"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: create-event-opened
+
+# Verify title input exists
+- assertVisible:
+    id: "create-input-title"
+- takeScreenshot: create-event-fields-visible

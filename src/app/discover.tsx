@@ -1,10 +1,10 @@
-import React, { useMemo, useRef, useCallback, useState } from "react";
+import React, { useMemo, useRef, useCallback, useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   Pressable,
-  Image,
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
@@ -13,27 +13,28 @@ import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
   MapPin,
   Users,
   Clock,
-  Plus,
-  Sparkles,
-  Layers,
-  CreditCard,
+  Heart,
+  Check,
   Bookmark,
+  ChevronRight,
 } from "@/ui/icons";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, FadeOutUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { FADE_MS, SHEET_MS } from "@/ui/motion";
+import { LinearGradient } from "expo-linear-gradient";
+import { Image as ExpoImage } from "expo-image";
 
 import { useSession } from "@/lib/useSession";
 import { api } from "@/lib/api";
 import { useTheme, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLoadingTimeout } from "@/hooks/useLoadingTimeout";
+import { safeToast } from "@/lib/safeToast";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
@@ -42,13 +43,54 @@ import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
 import { AppHeader } from "@/components/AppHeader";
 import { HelpSheet, HELP_SHEETS } from "@/components/HelpSheet";
 import { DailyIdeasDeck } from "@/components/ideas/DailyIdeasDeck";
-import { DiscoverSwipeDeck } from "@/components/discover/DiscoverSwipeDeck";
-import { DiscoverInterestedShelf } from "@/components/discover/DiscoverInterestedShelf";
 import { eventKeys, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
-import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
+import { postIdempotent } from "@/lib/idempotencyKey";
+import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { Button } from "@/ui/Button";
-import { Chip } from "@/ui/Chip";
-import { STATUS } from "@/ui/tokens";
+import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
+import { RADIUS } from "@/ui/layout";
+import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
+import type { GetEventsResponse } from "@/shared/contracts";
+
+// ── Urgency helper — derives a human-readable time label from startTime ──
+function getUrgencyLabel(startTime: string): { label: string; tone: "soon" | "warm" | null } {
+  const now = Date.now();
+  const start = new Date(startTime).getTime();
+  const diffMs = start - now;
+  if (diffMs < 0) return { label: "", tone: null }; // past
+  const diffH = diffMs / (1000 * 60 * 60);
+  if (diffH <= 1) return { label: `Starts in ${Math.max(1, Math.round(diffMs / 60000))}m`, tone: "soon" };
+  if (diffH <= 6) return { label: `Starts in ${Math.round(diffH)}h`, tone: "soon" };
+  // Check if today
+  const startDate = new Date(startTime);
+  const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  if (start <= todayEnd.getTime()) return { label: "Tonight", tone: "soon" };
+  // Check if tomorrow
+  const tomorrowEnd = new Date(todayEnd); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  if (start <= tomorrowEnd.getTime()) return { label: "Tomorrow", tone: "warm" };
+  // Within 3 days
+  if (diffH <= 72) return { label: `In ${Math.round(diffH / 24)} days`, tone: "warm" };
+  return { label: "", tone: null };
+}
+
+/** Group label for Saved V2 time sections */
+function getSavedTimeGroup(startTime: string): string {
+  const now = new Date();
+  const start = new Date(startTime);
+  if (start.getTime() < now.getTime()) return ""; // past — filtered out
+
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  if (start <= todayEnd) return "Today";
+
+  const tomorrowEnd = new Date(todayEnd); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  if (start <= tomorrowEnd) return "Tomorrow";
+
+  // This week = within 7 days
+  const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7); weekEnd.setHours(23, 59, 59, 999);
+  if (start <= weekEnd) return "This Week";
+
+  return "Later";
+}
 
 interface PopularEvent {
   id: string;
@@ -75,14 +117,17 @@ interface PopularEvent {
   }>;
 }
 
-/** Max cards rendered per section on Discover (scale-safety invariant). */
-const PREVIEW_LIMIT = 3;
-
-type Lens = "popular" | "best_friends" | "ideas";
+type Lens = "ideas" | "events" | "saved";
 const LENS_OPTIONS: { key: Lens; label: string }[] = [
-  { key: "popular", label: "Popular" },
-  { key: "best_friends", label: "For you" },
   { key: "ideas", label: "Ideas" },
+  { key: "events", label: "Events" },
+  { key: "saved", label: "Saved" },
+];
+
+type EventSort = "popular" | "soon";
+const SORT_OPTIONS: { key: EventSort; label: string }[] = [
+  { key: "popular", label: "Popular" },
+  { key: "soon", label: "Soon" },
 ];
 
 export default function DiscoverScreen() {
@@ -93,9 +138,40 @@ export default function DiscoverScreen() {
   const { themeColor, isDark, colors } = useTheme();
 
   // ── Lens state ──
-  const [lens, setLens] = useState<Lens>("popular");
-  // ── Browse mode: feed, swipe, or interested ──
-  const [browseMode, setBrowseMode] = useState<"feed" | "swipe" | "interested">("feed");
+  const [lens, setLens] = useState<Lens>("events");
+  const [eventSort, setEventSort] = useState<EventSort>("popular");
+  const queryClient = useQueryClient();
+
+  // ── For You: save state + toast ──
+  const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flashSavedToast = useCallback(() => {
+    if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current);
+    setShowSavedToast(true);
+    savedToastTimerRef.current = setTimeout(() => setShowSavedToast(false), 1400);
+  }, []);
+
+  useEffect(() => {
+    return () => { if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current); };
+  }, []);
+
+  const saveMutation = useMutation({
+    mutationFn: (eventId: string) =>
+      postIdempotent(`/api/events/${eventId}/rsvp`, { status: "interested" }),
+    onSuccess: (_data, eventId) => {
+      setSavedEvents((prev) => new Set(prev).add(eventId));
+      queryClient.invalidateQueries({ queryKey: eventKeys.feedPopular() });
+      queryClient.invalidateQueries({ queryKey: eventKeys.myEvents() });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      flashSavedToast();
+    },
+    onError: (err) => {
+      if (__DEV__) devLog("[DISCOVER_SAVE_ERR]", err);
+      safeToast.error("Couldn't save", "Please try again");
+    },
+  });
 
   // Surface tokens from theme SSOT
   const tileShadow = !isDark ? TILE_SHADOW : {};
@@ -119,6 +195,16 @@ export default function DiscoverScreen() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     placeholderData: (prev: { events: PopularEvent[] } | undefined) => prev,
+  });
+
+  // [AVAILABILITY_V1] Fetch attending events for availability signal computation
+  const { data: attendingData } = useQuery({
+    queryKey: eventKeys.attending(),
+    queryFn: () => api.get<GetEventsResponse>("/api/events/attending"),
+    enabled: isAuthedForNetwork(bootStatus, session),
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = loadingFeed || loadingMyEvents;
@@ -185,58 +271,49 @@ export default function DiscoverScreen() {
       });
   }, [feedData?.events, myEventsData?.events]);
 
-  // ── Lens-derived sorted lists (all from enrichedEvents SSOT) ──
+  // [AVAILABILITY_V1] Compute availability signals for all enriched events
+  const calendarEvents = useMemo(() => {
+    const myEvents = myEventsData?.events ?? [];
+    const attending = attendingData?.events ?? [];
+    const eventMap = new Map<string, { id: string; startTime: string; endTime?: string | null }>();
+    [...myEvents, ...attending].forEach((e) => {
+      if (!eventMap.has(e.id)) eventMap.set(e.id, e);
+    });
+    return Array.from(eventMap.values());
+  }, [myEventsData?.events, attendingData?.events]);
+
+  const availabilityMap = useMemo(
+    () => computeAvailabilityBatch(enrichedEvents, calendarEvents.length > 0 ? calendarEvents : undefined),
+    [enrichedEvents, calendarEvents],
+  );
+
+  // ── Sort-derived lists (all from enrichedEvents SSOT) ──
   const popularSorted = useMemo(() => {
     return [...enrichedEvents].sort(
       (a, b) => b.attendeeCount - a.attendeeCount || new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
     );
   }, [enrichedEvents]);
 
-  // best_friends: no friend-signal field exists on events — fallback to "for you" (same popular ranking)
-  const forYouSorted = popularSorted; // alias; fallback acknowledged in DEV log
-
-  const totalActive = enrichedEvents.length;
-
-  // ── Interested events for shelf (normalized: backend may return "maybe" as string) ──
-  const interestedEvents = useMemo(() => {
-    return enrichedEvents
-      .filter((e) => {
-        const status = e.viewerRsvpStatus as string | null | undefined;
-        return status === "interested" || status === "maybe";
-      })
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const soonSorted = useMemo(() => {
+    return [...enrichedEvents].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    );
   }, [enrichedEvents]);
 
-  // ── Active lens feed ──
-  const lensAll = lens === "popular" ? popularSorted : lens === "best_friends" ? forYouSorted : popularSorted;
+  // Active Events feed based on sort control
+  const activeFeed = eventSort === "soon" ? soonSorted : popularSorted;
 
-  // Featured = first event in lens feed
-  const featured = lensAll.length > 0 ? lensAll[0] : null;
-
-  // Preview = remaining events after featured, capped by PREVIEW_LIMIT
-  const lensPreview = useMemo(() => {
-    return lensAll.slice(featured ? 1 : 0, (featured ? 1 : 0) + PREVIEW_LIMIT);
-  }, [lensAll, featured]);
-
-  // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded discover feed
-  const discoverBannerUris = useMemo(() => {
-    const uris: (string | null | undefined)[] = [];
-    if (featured) uris.push(featured.eventPhotoUrl);
-    for (const e of lensPreview) uris.push(e.eventPhotoUrl);
-    return uris;
-  }, [featured, lensPreview]);
-  usePreloadHeroBanners({ uris: discoverBannerUris, enabled: discoverBannerUris.length <= 12, max: 6 });
-
-  const lensTotal = lensAll.length;
-
-  // Lens context labels
-  const lensLabel = lens === "popular" ? "Popular right now" : lens === "best_friends" ? "From your people" : "Popular right now";
-
-  const handleViewAll = () => {
-    if (__DEV__) devLog("[DISCOVER_LENS]", { viewAll: true, lens, total: lensTotal });
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/social" as any);
-  };
+  // Saved events list (interested/maybe from server + locally saved), sorted soonest-first, past filtered
+  const savedEventsList = useMemo(() => {
+    const now = Date.now();
+    return enrichedEvents
+      .filter((e) => {
+        if (new Date(e.startTime).getTime() < now) return false; // filter past
+        const rsvp = e.viewerRsvpStatus as string | null | undefined;
+        return savedEvents.has(e.id) || rsvp === "interested" || rsvp === "maybe";
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [enrichedEvents, savedEvents]);
 
   // [DISCOVER_LENS] DEV proof logs (once per mount)
   // [P0_CREATE_PILL_RENDER] DEV proof log for Create pill on Discover
@@ -259,18 +336,8 @@ export default function DiscoverScreen() {
     devLog("[DISCOVER_LENS]", {
       lens,
       totalEnriched: enrichedEvents.length,
-      previewLimit: PREVIEW_LIMIT,
+      eventSort,
     });
-    devLog("[DISCOVER_LENS]", {
-      bestFriendsFallback: true,
-      reason: "no_friend_signal",
-    });
-  }
-
-  const didLogFeat = useRef(false);
-  if (__DEV__ && !didLogFeat.current && featured && !isLoading) {
-    didLogFeat.current = true;
-    devLog("[DISCOVER_V1_FEEL]", { featuredId: featured.id, source: lens });
   }
 
   const handleEventPress = (eventId: string) => {
@@ -317,115 +384,6 @@ export default function DiscoverScreen() {
     );
   }
 
-  // ── Shared Event Card renderer ──
-  const renderEventCard = (event: PopularEvent & { attendeeCount: number }, index: number, sectionDelay: number) => (
-    <Animated.View
-      key={event.id}
-      entering={FadeInDown.delay(sectionDelay + index * 40).duration(240)}
-      className="mb-3"
-    >
-      <Pressable
-        /* INVARIANT_ALLOW_INLINE_HANDLER */
-        onPress={() => handleEventPress(event.id)}
-        className="rounded-xl p-4"
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
-      >
-        <View className="flex-row items-center">
-          <View
-            className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}
-          >
-            <EventPhotoEmoji
-              photoUrl={event.visibility !== "private" ? event.eventPhotoUrl : undefined}
-              emoji={event.emoji || "📅"}
-              emojiClassName="text-xl"
-            />
-          </View>
-
-          <View className="flex-1">
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="font-semibold text-base" style={{ color: colors.text }} numberOfLines={1}>
-              {event.title}
-            </Text>
-            <View className="flex-row items-center mt-1">
-              <Clock size={12} color={colors.textTertiary} />
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-                {new Date(event.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
-                {" at "}
-                {new Date(event.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-              </Text>
-            </View>
-            {event.location && (
-              <View className="flex-row items-center mt-0.5">
-                <MapPin size={12} color={colors.textTertiary} />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="text-sm ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>
-                  {event.location}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <View className="items-center">
-            <Chip
-              variant={event.isFull ? "status" : "accent"}
-              color={event.isFull ? STATUS.destructive.fg : undefined}
-              label={
-                event.capacity != null
-                  ? event.isFull ? "Full" : `${event.attendeeCount}/${event.capacity}`
-                  : String(event.attendeeCount)
-              }
-              leftIcon={<Users size={14} color={event.isFull ? STATUS.destructive.fg : themeColor} />}
-            />
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-xs mt-1" style={{ color: colors.textTertiary }}>
-              {event.isFull ? `${event.attendeeCount} going` : "going"}
-            </Text>
-          </View>
-        </View>
-
-        {/* Attendee Avatars */}
-        {event.joinRequests && event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length > 0 && (
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          <View className="flex-row items-center mt-3 pt-3 border-t" style={{ borderColor: colors.border }}>
-            <View className="flex-row">
-              {event.joinRequests
-                .filter(r => r.status === "accepted" && r.user != null)
-                .slice(0, 4)
-                .map((request, i) => (
-                  <View
-                    key={request.id}
-                    className="rounded-full border-2"
-                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                    style={{
-                      marginLeft: i > 0 ? -8 : 0,
-                      borderColor: colors.surface,
-                    }}
-                  >
-                    <EntityAvatar
-                      photoUrl={request.user?.image}
-                      initials={request.user?.name?.[0] ?? "?"}
-                      size={24}
-                      backgroundColor={request.user?.image ? colors.avatarBg : themeColor + "30"}
-                      foregroundColor={themeColor}
-                    />
-                  </View>
-                ))}
-            </View>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>
-              {event.joinRequests.filter(r => r.status === "accepted" && r.user != null).slice(0, 2).map(r => r.user?.name?.split(" ")[0] ?? "?").join(", ")}
-              {event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length > 2 && ` +${event.joinRequests.filter(r => r.status === "accepted" && r.user != null).length - 2} more`}
-            </Text>
-          </View>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
@@ -461,12 +419,13 @@ export default function DiscoverScreen() {
             return (
               <Pressable
                 key={opt.key}
+                testID={`discover-tab-${opt.key}`}
                 /* INVARIANT_ALLOW_INLINE_HANDLER */
                 onPress={() => {
                   if (lens !== opt.key) {
                     setLens(opt.key);
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length, previewLimit: PREVIEW_LIMIT });
+                    if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length });
                   }
                 }}
                 className="flex-1 items-center py-2 rounded-full"
@@ -483,259 +442,581 @@ export default function DiscoverScreen() {
             );
           })}
         </View>
-
-        {/* ═══ Browse Mode Toggle (Feed / Swipe) ═══ */}
-        {lens !== "ideas" && (
-          <View className="flex-row items-center justify-end mt-2 gap-1">
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                if (browseMode !== "feed") {
-                  setBrowseMode("feed");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }
-              }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={browseMode === "feed"
-                ? { backgroundColor: themeColor + "18" }
-                : undefined
-              }
-            >
-              <Layers size={14} color={browseMode === "feed" ? themeColor : colors.textTertiary} />
-              <Text
-                className={`text-xs ml-1 ${browseMode === "feed" ? "font-semibold" : "font-normal"}`}
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ color: browseMode === "feed" ? themeColor : colors.textTertiary }}
-              >
-                Feed
-              </Text>
-            </Pressable>
-
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                if (browseMode !== "swipe") {
-                  setBrowseMode("swipe");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                }
-              }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={browseMode === "swipe"
-                ? { backgroundColor: themeColor + "18" }
-                : undefined
-              }
-            >
-              <CreditCard size={14} color={browseMode === "swipe" ? themeColor : colors.textTertiary} />
-              <Text
-                className={`text-xs ml-1 ${browseMode === "swipe" ? "font-semibold" : "font-normal"}`}
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ color: browseMode === "swipe" ? themeColor : colors.textTertiary }}
-              >
-                Swipe
-              </Text>
-            </Pressable>
-
-            <Pressable
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                if (browseMode !== "interested") {
-                  setBrowseMode("interested");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }
-              }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={browseMode === "interested"
-                ? { backgroundColor: themeColor + "18" }
-                : undefined
-              }
-            >
-              <Bookmark size={14} color={browseMode === "interested" ? themeColor : colors.textTertiary} />
-              <Text
-                className={`text-xs ml-1 ${browseMode === "interested" ? "font-semibold" : "font-normal"}`}
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ color: browseMode === "interested" ? themeColor : colors.textTertiary }}
-              >
-                Shortlist{interestedEvents.length > 0 ? ` (${interestedEvents.length})` : ""}
-              </Text>
-            </Pressable>
-          </View>
-        )}
       </View>
 
       {lens === "ideas" ? (
-        /* ═══ Ideas Deck (swipeable daily ideas) ═══ */
+        /* ═══ Ideas Deck ═══ */
         <DailyIdeasDeck />
-      ) : browseMode === "swipe" ? (
-        /* ═══ Swipe Deck ═══ */
-        showDiscoverLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="small" color={themeColor} />
-          </View>
-        ) : (
-          <DiscoverSwipeDeck
-            events={lensAll}
-            onSwitchToFeed={() => {
-              setBrowseMode("feed");
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            onSwitchToInterested={() => {
-              setBrowseMode("interested");
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          />
-        )
-      ) : browseMode === "interested" ? (
-        /* ═══ Interested Shelf ═══ */
-        showDiscoverLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="small" color={themeColor} />
-          </View>
-        ) : (
-          <DiscoverInterestedShelf
-            events={interestedEvents}
-            onSwitchToSwipe={() => {
-              setBrowseMode("swipe");
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }}
-            onSwitchToFeed={() => {
-              setBrowseMode("feed");
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-          />
-        )
-      ) : (
-      <ScrollView
-        className="flex-1"
-        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onManualRefresh}
-            tintColor={themeColor}
-          />
-        }
-      >
-        {showDiscoverLoading ? (
-          <View className="py-12 items-center">
-            <ActivityIndicator size="small" color={themeColor} />
-          </View>
-        ) : (
-          <>
-            {/* ═══ Pulse Row ═══ */}
-            <Animated.View entering={FadeInDown.duration(FADE_MS)} className="mb-4">
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                {totalActive > 0
-                  ? `Your week is taking shape \u2014 ${totalActive} event${totalActive !== 1 ? "s" : ""} active`
-                  : "No events yet \u2014 create one to start the momentum."}
-              </Text>
-            </Animated.View>
-
-            {/* ═══ Featured Module ═══ */}
-            {featured && (
-              <Animated.View entering={FadeInDown.delay(20).duration(SHEET_MS)} className="mb-5">
-                <View className="flex-row items-center mb-2">
-                  <Sparkles size={14} color={themeColor} />
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="font-semibold ml-1.5 text-xs" style={{ color: themeColor, letterSpacing: 0.5 }}>Featured</Text>
-                </View>
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => handleEventPress(featured.id)}
-                  className="rounded-2xl p-5"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: colors.surface, borderColor: themeColor + "30", borderWidth: 1, ...tileShadow }}
-                >
-                  <View className="flex-row items-center">
-                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                    <View className="w-14 h-14 rounded-2xl items-center justify-center mr-4" style={{ backgroundColor: themeColor + "20", overflow: 'hidden' }}>
-                      <EventPhotoEmoji
-                        photoUrl={featured.visibility !== "private" ? featured.eventPhotoUrl : undefined}
-                        emoji={featured.emoji || "\uD83D\uDCC5"}
-                        emojiClassName="text-2xl"
-                      />
-                    </View>
-                    <View className="flex-1">
-                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                      <Text className="font-bold text-lg" style={{ color: colors.text }} numberOfLines={1}>{featured.title}</Text>
-                      <View className="flex-row items-center mt-1">
-                        <Clock size={12} color={colors.textTertiary} />
-                        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                        <Text className="text-sm ml-1" style={{ color: colors.textSecondary }} numberOfLines={1}>
-                          {new Date(featured.startTime).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
-                          {" at "}
-                          {new Date(featured.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                        </Text>
-                      </View>
-                      {featured.location && (
-                        <View className="flex-row items-center mt-0.5">
-                          <MapPin size={12} color={colors.textTertiary} />
-                          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                          <Text className="text-sm ml-1" style={{ color: colors.textTertiary }} numberOfLines={1}>{featured.location}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Chip
-                      variant="accent"
-                      label={String(featured.attendeeCount)}
-                      leftIcon={<Users size={14} color={themeColor} />}
-                    />
-                  </View>
-                </Pressable>
-              </Animated.View>
-            )}
-
-            {/* ═══ Lens Context Label + Count ═══ */}
-            <Animated.View entering={FadeInDown.delay(60).duration(240)} className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="font-semibold text-sm" style={{ color: colors.text }}>{lensLabel}</Text>
-                {lensTotal > 0 && (
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  <Chip variant="accent" label={String(lensTotal)} size="sm" style={{ marginLeft: 8 }} />
-                )}
+      ) : lens === "events" ? (
+        /* ═══ Events Feed ═══ */
+        <View style={{ flex: 1 }}>
+          {/* "Saved" toast */}
+          {showSavedToast && (
+            <Animated.View
+              entering={FadeInUp.duration(260)}
+              exiting={FadeOutUp.duration(180)}
+              pointerEvents="box-none"
+              style={{
+                position: "absolute",
+                top: 12,
+                left: 0,
+                right: 0,
+                zIndex: 100,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: STATUS.interested.bgSoft,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  gap: 6,
+                }}
+              >
+                <Heart size={15} color={STATUS.interested.fg} />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: STATUS.interested.fg }}>
+                  Saved to your list
+                </Text>
               </View>
-              {lensTotal > PREVIEW_LIMIT && (
-                <Pressable onPress={handleViewAll} hitSlop={8}>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-xs" style={{ color: colors.textTertiary }}>View all</Text>
-                </Pressable>
-              )}
             </Animated.View>
+          )}
 
-            {/* ═══ Lens Feed ═══ */}
-            {lensPreview.length > 0 ? (
-              /* INVARIANT_ALLOW_SMALL_MAP */
-              lensPreview.map((e, i) => renderEventCard(e, i, 80))
-            ) : (
-              <Animated.View entering={FadeInDown.delay(80).duration(240)} className="mb-3">
-                <Pressable
-                  /* INVARIANT_ALLOW_INLINE_HANDLER */
-                  onPress={() => {
-                    if (!guardEmailVerification(session)) return;
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push("/create");
-                  }}
-                  className="flex-row items-center rounded-lg px-4 py-3"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: colors.surface, borderColor: colors.borderSubtle, borderWidth: 1, ...tileShadow }}
-                >
-                  <Plus size={14} color={colors.textTertiary} />
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-sm flex-1 ml-2" style={{ color: colors.textTertiary }}>No events yet</Text>
-                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                  <Text className="text-xs font-medium" style={{ color: themeColor }}>Create</Text>
-                </Pressable>
-              </Animated.View>
-            )}
-          </>
-        )}
-      </ScrollView>
+          {showDiscoverLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="small" color={themeColor} />
+            </View>
+          ) : (
+            <FlatList
+              data={activeFeed}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ padding: 20, paddingTop: 12, paddingBottom: 100 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onManualRefresh}
+                  tintColor={themeColor}
+                />
+              }
+              ListHeaderComponent={
+                /* ═══ Sort Chips ═══ */
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                  {SORT_OPTIONS.map((opt) => {
+                    const active = eventSort === opt.key;
+                    return (
+                      <Pressable
+                        key={opt.key}
+                        testID={`discover-sort-${opt.key}`}
+                        onPress={() => {
+                          if (eventSort !== opt.key) {
+                            setEventSort(opt.key);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }
+                        }}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 7,
+                          borderRadius: 20,
+                          backgroundColor: active ? themeColor : (isDark ? "#2C2C2E" : "#F0F0F0"),
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: active ? "600" : "400",
+                            color: active ? "#FFFFFF" : colors.textSecondary,
+                          }}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              }
+              ListEmptyComponent={
+                <View style={{ alignItems: "center", paddingTop: 60 }}>
+                  <Text style={{ fontSize: 40, marginBottom: 12 }}>{"\u2728"}</Text>
+                  <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                    No events yet
+                  </Text>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 20 }}>
+                    Events from your network will appear here.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      if (!guardEmailVerification(session)) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      router.push("/create" as any);
+                    }}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: RADIUS.lg,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>Create an Event</Text>
+                  </Pressable>
+                </View>
+              }
+              renderItem={({ item: event, index }) => {
+                const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
+                const rsvp = event.viewerRsvpStatus as string | null | undefined;
+                const saved = savedEvents.has(event.id) || rsvp === "interested" || rsvp === "maybe";
+                const hostName = event.user?.name?.split(" ")[0] ?? "someone";
+                const dateStr = new Date(event.startTime).toLocaleDateString([], {
+                  weekday: "short", month: "short", day: "numeric",
+                });
+                const timeStr = new Date(event.startTime).toLocaleTimeString([], {
+                  hour: "numeric", minute: "2-digit",
+                });
+                const urgency = getUrgencyLabel(event.startTime);
+                const spotsLeft = event.capacity && event.attendeeCount > 0
+                  ? Math.max(0, event.capacity - event.attendeeCount)
+                  : null;
+                const almostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 3;
+                // [AVAILABILITY_V1] Availability chip for this card
+                const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+
+                return (
+                  <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
+                    <View
+                      style={{
+                        borderRadius: RADIUS.xl,
+                        overflow: "hidden",
+                        backgroundColor: colors.surface,
+                        borderWidth: 1,
+                        borderColor: colors.borderSubtle,
+                        ...tileShadow,
+                      }}
+                    >
+                      {/* Hero image */}
+                      <Pressable testID="discover-card-open" onPress={() => handleEventPress(event.id)}>
+                        <View style={{ aspectRatio: 4 / 3 }}>
+                          {hasPhoto ? (
+                            <ExpoImage
+                              source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
+                              style={{ width: "100%", height: "100%" }}
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
+                              transition={200}
+                            />
+                          ) : (
+                            <View
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED",
+                              }}
+                            >
+                              <Text style={{ fontSize: 56 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
+                            </View>
+                          )}
+
+                          {/* Gradient overlay */}
+                          <LinearGradient
+                            colors={[...HERO_GRADIENT.colors]}
+                            locations={[...HERO_GRADIENT.locations]}
+                            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%" }}
+                          />
+
+                          {/* Overlay content */}
+                          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
+                            <Text
+                              style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", lineHeight: 26 }}
+                              numberOfLines={2}
+                            >
+                              {event.emoji} {event.title}
+                            </Text>
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+                              <Clock size={13} color="rgba(255,255,255,0.8)" />
+                              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginLeft: 5, fontWeight: "500" }}>
+                                {dateStr} at {timeStr}
+                              </Text>
+                            </View>
+                            {event.location && (
+                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
+                                <MapPin size={13} color="rgba(255,255,255,0.7)" />
+                                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginLeft: 5 }} numberOfLines={1}>
+                                  {event.location}
+                                </Text>
+                              </View>
+                            )}
+                            {/* [SOCIAL_PROOF_V2] Host line — prominent, always visible */}
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                              <EntityAvatar
+                                photoUrl={event.user?.image}
+                                initials={event.user?.name?.[0] ?? "?"}
+                                size={22}
+                                backgroundColor="rgba(255,255,255,0.2)"
+                                foregroundColor="#FFFFFF"
+                              />
+                              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500", marginLeft: 6 }}>
+                                Hosted by {hostName}
+                              </Text>
+                            </View>
+
+                            {/* [SOCIAL_PROOF_V2] Momentum + chips row */}
+                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, flexWrap: "wrap", gap: 4 }}>
+                              {/* Momentum-aware attendance copy */}
+                              {(() => {
+                                const count = event.attendeeCount ?? 0;
+                                const cap = event.capacity ?? null;
+                                // No attendees — early traction cue
+                                if (count === 0) return (
+                                  <View style={{ backgroundColor: "rgba(255,255,255,0.12)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>
+                                      Be the first to join
+                                    </Text>
+                                  </View>
+                                );
+                                // Build momentum copy
+                                let label: string;
+                                if (cap && count >= cap) {
+                                  label = `${count} going · Full`;
+                                } else if (count >= 10) {
+                                  label = `${count} going · Popular`;
+                                } else if (count >= 5) {
+                                  label = `${count} going · Filling up`;
+                                } else {
+                                  label = `${count} going`;
+                                }
+                                return (
+                                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                    <Users size={12} color={STATUS.going.fg} />
+                                    <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
+                                      {label}
+                                    </Text>
+                                  </View>
+                                );
+                              })()}
+                              {urgency.label ? (
+                                <View style={{
+                                  backgroundColor: urgency.tone === "soon" ? STATUS.soon.bgSoft : "rgba(255,255,255,0.15)",
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 8,
+                                }}>
+                                  <Text style={{
+                                    fontSize: 11,
+                                    fontWeight: "700",
+                                    color: urgency.tone === "soon" ? STATUS.soon.fg : "rgba(255,255,255,0.8)",
+                                  }}>
+                                    {urgency.label}
+                                  </Text>
+                                </View>
+                              ) : null}
+                              {almostFull && (
+                                <View style={{
+                                  backgroundColor: STATUS.soon.bgSoft,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 8,
+                                }}>
+                                  <Text style={{ fontSize: 11, fontWeight: "700", color: STATUS.soon.fg }}>
+                                    {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
+                                  </Text>
+                                </View>
+                              )}
+                              {/* [AVAILABILITY_V1] Calendar-fit chip */}
+                              {availChip && (
+                                <View style={{
+                                  backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : "rgba(255,255,255,0.15)",
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 8,
+                                }}>
+                                  <Text style={{
+                                    fontSize: 11,
+                                    fontWeight: "600",
+                                    color: availChip.tone ? STATUS[availChip.tone].fg : "rgba(255,255,255,0.8)",
+                                  }}>
+                                    {availChip.label}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      </Pressable>
+
+                      {/* CTA row */}
+                      <View style={{ flexDirection: "row", padding: 12, gap: 10 }}>
+                        <Pressable
+                          testID="discover-card-save"
+                          disabled={saved || saveMutation.isPending}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            saveMutation.mutate(event.id);
+                          }}
+                          style={({ pressed }) => ({
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            paddingVertical: 10,
+                            paddingHorizontal: 16,
+                            borderRadius: RADIUS.sm,
+                            backgroundColor: saved ? STATUS.interested.bgSoft : (isDark ? "#2C2C2E" : "#F5F5F5"),
+                            opacity: (saved || saveMutation.isPending) ? 0.5 : pressed ? 0.7 : 1,
+                          })}
+                        >
+                          <Heart size={16} color={saved ? STATUS.interested.fg : colors.textSecondary} />
+                          <Text style={{ fontSize: 13, fontWeight: "600", marginLeft: 5, color: saved ? STATUS.interested.fg : colors.textSecondary }}>
+                            {saved ? "Saved" : "Save"}
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          testID="discover-card-view"
+                          onPress={() => handleEventPress(event.id)}
+                          style={({ pressed }) => ({
+                            flex: 1,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            paddingVertical: 10,
+                            borderRadius: RADIUS.sm,
+                            backgroundColor: themeColor,
+                            opacity: pressed ? 0.85 : 1,
+                          })}
+                        >
+                          <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>
+                            View
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </Animated.View>
+                );
+              }}
+            />
+          )}
+        </View>
+      ) : (
+        /* ═══ Saved Tab ═══ */
+        <View style={{ flex: 1 }}>
+          {showDiscoverLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <ActivityIndicator size="small" color={themeColor} />
+            </View>
+          ) : savedEventsList.length === 0 ? (
+            /* ═══ Saved V2 — Empty State ═══ */
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
+              <View style={{
+                width: 56, height: 56, borderRadius: 28,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: isDark ? "rgba(236,72,153,0.12)" : "rgba(236,72,153,0.08)",
+                marginBottom: 16,
+              }}>
+                <Bookmark size={24} color={STATUS.interested.fg} />
+              </View>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: colors.text, textAlign: "center", marginBottom: 6 }}>
+                Your shortlist
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", lineHeight: 20, marginBottom: 6 }}>
+                Save events you're considering.{"\n"}They'll be here when you're ready to decide.
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: "center", lineHeight: 18, marginBottom: 24 }}>
+                Tap the heart on any event to save it.
+              </Text>
+              <Pressable
+                testID="discover-saved-empty-browse-events"
+                onPress={() => {
+                  setLens("events");
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={{
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: themeColor,
+                }}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 15 }}>
+                  Browse Events
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            /* ═══ Saved V2 — Event List with Time Groups ═══ */
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 100 }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={onManualRefresh}
+                  tintColor={themeColor}
+                />
+              }
+            >
+              {(() => {
+                let lastGroup = "";
+                let itemIndex = 0;
+                return savedEventsList.map((event) => {
+                  const group = getSavedTimeGroup(event.startTime);
+                  const showHeader = group !== lastGroup;
+                  lastGroup = group;
+                  const idx = itemIndex++;
+
+                  const timeStr = new Date(event.startTime).toLocaleTimeString([], {
+                    hour: "numeric", minute: "2-digit",
+                  });
+                  const dateStr = new Date(event.startTime).toLocaleDateString([], {
+                    weekday: "short", month: "short", day: "numeric",
+                  });
+                  const savedUrgency = getUrgencyLabel(event.startTime);
+                  const savedAvailChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+                  const isToday = group === "Today";
+                  const isTomorrow = group === "Tomorrow";
+
+                  return (
+                    <React.Fragment key={event.id}>
+                      {showHeader && (
+                        <Animated.View entering={FadeInDown.delay(idx * 40).duration(200)} style={{ marginTop: idx > 0 ? 10 : 0, marginBottom: 8 }}>
+                          <Text style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: (isToday || isTomorrow) ? STATUS.soon.fg : colors.textSecondary,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                          }}>
+                            {group}
+                          </Text>
+                        </Animated.View>
+                      )}
+                      <Animated.View
+                        entering={FadeInDown.delay(idx * 40).duration(240)}
+                        style={{ marginBottom: 10 }}
+                      >
+                        <Pressable
+                          testID="discover-saved-row-open"
+                          onPress={() => handleEventPress(event.id)}
+                          style={({ pressed }) => ({
+                            backgroundColor: colors.surface,
+                            borderColor: isToday ? STATUS.soon.fg + "30" : colors.borderSubtle,
+                            borderWidth: 1,
+                            borderRadius: RADIUS.lg,
+                            padding: 14,
+                            opacity: pressed ? 0.85 : 1,
+                            ...tileShadow,
+                          })}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <View
+                              style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.md,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: themeColor + "20",
+                                overflow: "hidden",
+                                marginRight: 12,
+                              }}
+                            >
+                              <EventPhotoEmoji
+                                photoUrl={event.visibility !== "private" ? event.eventPhotoUrl : undefined}
+                                emoji={event.emoji || "\uD83D\uDCC5"}
+                                emojiClassName="text-xl"
+                              />
+                            </View>
+
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                              <Text
+                                style={{ fontWeight: "600", fontSize: 15, color: colors.text }}
+                                numberOfLines={1}
+                              >
+                                {event.title}
+                              </Text>
+                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3, flexWrap: "wrap", gap: 2 }}>
+                                <Clock size={12} color={colors.textTertiary} />
+                                <Text
+                                  style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 4 }}
+                                  numberOfLines={1}
+                                >
+                                  {isToday ? timeStr : isTomorrow ? timeStr : `${dateStr}, ${timeStr}`}
+                                </Text>
+                              </View>
+                              {event.location && (
+                                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                                  <MapPin size={12} color={colors.textTertiary} />
+                                  <Text
+                                    style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}
+                                    numberOfLines={1}
+                                  >
+                                    {event.location}
+                                  </Text>
+                                </View>
+                              )}
+                              {/* Hosted by — social proof for decision making */}
+                              {event.user?.name && (
+                                <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }} numberOfLines={1}>
+                                  Hosted by {event.user.name}
+                                </Text>
+                              )}
+                            </View>
+
+                            <View style={{ alignItems: "flex-end", gap: 4 }}>
+                              {savedUrgency.label ? (
+                                <View style={{
+                                  backgroundColor: savedUrgency.tone === "soon" ? STATUS.soon.bgSoft : STATUS.info.bgSoft,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 2,
+                                  borderRadius: 6,
+                                }}>
+                                  <Text style={{
+                                    fontSize: 11,
+                                    fontWeight: "700",
+                                    color: savedUrgency.tone === "soon" ? STATUS.soon.fg : STATUS.info.fg,
+                                  }}>
+                                    {savedUrgency.label}
+                                  </Text>
+                                </View>
+                              ) : null}
+                              {/* [SAVED_V2] Show availability alongside urgency — both useful for decisions */}
+                              {savedAvailChip && (
+                                <View style={{
+                                  backgroundColor: savedAvailChip.tone ? STATUS[savedAvailChip.tone].bgSoft : undefined,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 2,
+                                  borderRadius: 6,
+                                }}>
+                                  <Text style={{
+                                    fontSize: 11,
+                                    fontWeight: "600",
+                                    color: savedAvailChip.tone ? STATUS[savedAvailChip.tone].fg : colors.textSecondary,
+                                  }}>
+                                    {savedAvailChip.label}
+                                  </Text>
+                                </View>
+                              )}
+                              {event.attendeeCount > 0 && (
+                                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                  <Users size={11} color={STATUS.going.fg} />
+                                  <Text style={{ fontSize: 11, color: STATUS.going.fg, fontWeight: "600", marginLeft: 3 }}>
+                                    {event.attendeeCount}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                        </Pressable>
+                      </Animated.View>
+                    </React.Fragment>
+                  );
+                });
+              })()}
+            </ScrollView>
+          )}
+        </View>
       )}
 
       <BottomNavigation />

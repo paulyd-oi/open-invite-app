@@ -66,6 +66,21 @@ export const HERO_GRADIENT = {
   locations: [0, 0.4, 1] as const,
 } as const;
 
+// ─── No-Photo Hero Wash ─────────────────────────────────
+// Atmospheric gradient for event heroes without a cover photo.
+// Creates an invitation-poster feel instead of a flat fallback.
+
+export const HERO_WASH = {
+  light: {
+    colors: ["rgba(245,240,255,0.9)", "rgba(255,255,255,0)"] as const,
+    locations: [0, 1] as const,
+  },
+  dark: {
+    colors: ["rgba(30,25,50,0.6)", "rgba(0,0,0,0)"] as const,
+    locations: [0, 1] as const,
+  },
+} as const;
+
 // ─── Overlay / Scrim ────────────────────────────────────
 // Semi-transparent backdrops for modals, toasts, etc.
 

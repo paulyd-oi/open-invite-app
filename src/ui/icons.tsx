@@ -164,6 +164,7 @@ export const XCircle = ion("close-circle-outline");
 export const Map = ion("map-outline");
 export const Home = ion("home-outline");
 export const CreditCard = ion("card-outline");
+export const HandCoins = ion("wallet-outline");
 export const ListChecks = ion("checkmark-done-outline");
 export const CalendarClock = ion("calendar-outline");
 export const Pencil = ion("pencil-outline");

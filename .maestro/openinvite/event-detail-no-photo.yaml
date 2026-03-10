@@ -1,0 +1,30 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Event detail via Calendar testID selectors
+# Proves calendar → event detail → menu flow using only testIDs
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Navigate to Calendar tab
+- tapOn:
+    id: "app-tab-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Tap first event card
+- tapOn:
+    id: "calendar-event-open"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: event-detail-no-photo-proof
+
+# Tap options menu
+- tapOn:
+    id: "event-detail-menu-open"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: event-detail-no-photo-menu

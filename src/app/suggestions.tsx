@@ -367,6 +367,7 @@ export default function SuggestionsScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Request failed", "Please try again");
     },
   });
 

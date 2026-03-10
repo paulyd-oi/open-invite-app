@@ -1,0 +1,38 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Host-owned event detail — scroll + options menu
+# Navigates Calendar → event → scroll → options
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Navigate to Calendar tab
+- tapOn:
+    id: "app-tab-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Tap event card (index 1 to skip busy blocks)
+- tapOn:
+    id: "calendar-event-open"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: event-detail-host-top
+
+# Scroll down to see more content
+- swipe:
+    direction: UP
+    duration: 300
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: event-detail-host-scrolled
+
+# Tap options menu via testID
+- tapOn:
+    id: "event-detail-menu-open"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: event-detail-host-options

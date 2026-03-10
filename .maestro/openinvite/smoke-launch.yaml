@@ -1,0 +1,4 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+- launchApp
+- takeScreenshot: openinvite-smoke-launch

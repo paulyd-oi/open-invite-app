@@ -741,9 +741,9 @@ export default function FriendsScreen() {
 
   // Handler for creating circle with gating
   const handleCreateCirclePress = () => {
-    // CRITICAL: Don't gate while entitlements loading - prevents false gates for Pro users
+    // Wait for entitlements to load before allowing creation — prevents bypassing gate
     if (entitlementsLoading) {
-      setShowCreateCircle(true);
+      safeToast.info("Loading…", "Please try again in a moment");
       return;
     }
     
@@ -1333,6 +1333,7 @@ export default function FriendsScreen() {
               </View>
             )}
             <Pressable
+              testID="friends-invite-open"
               /* INVARIANT_ALLOW_INLINE_HANDLER */
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1361,6 +1362,7 @@ export default function FriendsScreen() {
             return (
               <Pressable
                 key={label}
+                testID={`friends-tab-${label.toLowerCase()}`}
                 /* INVARIANT_ALLOW_INLINE_HANDLER */
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

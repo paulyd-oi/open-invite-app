@@ -37,6 +37,7 @@ interface NavButtonProps {
   onLongPress?: () => void;
   customImage?: string | null;
   customInitial?: string;
+  testID?: string;
 }
 
 function NavButton({
@@ -52,6 +53,7 @@ function NavButton({
   onLongPress,
   customImage,
   customInitial,
+  testID,
   bootStatus,
 }: NavButtonProps & { bootStatus: string }) {
   const router = useRouter();
@@ -102,6 +104,7 @@ function NavButton({
     return (
       <View style={{ position: "relative", zIndex: 100 }}>
         <AnimatedPressable
+          testID={testID}
           onPress={handlePress}
           style={[
             animatedStyle,
@@ -132,6 +135,7 @@ function NavButton({
 
   return (
     <AnimatedPressable
+      testID={testID}
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={400}
@@ -279,6 +283,7 @@ export default function BottomNavigation() {
           {navItems.map((item) => (
             <NavButton
               key={item.key}
+              testID={`app-tab-${item.key}`}
               Icon={item.Icon}
               label={item.label}
               href={item.href}

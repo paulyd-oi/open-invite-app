@@ -1,0 +1,7 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+- launchApp
+- tapOn:
+    text: "Saved"
+    optional: true
+- takeScreenshot: openinvite-saved-tab

@@ -597,6 +597,10 @@ export default function UserProfileScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refreshAfterFriendRequestSent(queryClient, id);
     },
+    onError: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Request failed", "Please try again");
+    },
   });
 
   // Accept friend request mutation

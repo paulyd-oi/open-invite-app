@@ -208,6 +208,7 @@ export default function CirclesScreen() {
     },
     onError: (error: any) => {
       devError("Failed to create circle:", error);
+      safeToast.error("Couldn't create circle", "Please try again");
     },
   });
 

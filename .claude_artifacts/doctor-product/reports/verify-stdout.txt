@@ -1,0 +1,139 @@
+== REPO CONFIRMATION ==
+/Users/paulsmbp/Documents/GitHub/open-invite-app
+origin	https://github.com/paulyd-oi/open-invite-app.git (fetch)
+origin	https://github.com/paulyd-oi/open-invite-app.git (push)
+main
+ M app.json
+ M ios/OpenInvite/Images.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
+ M ios/OpenInvite/OpenInvite.entitlements
+ M shared/contracts.ts
+ M src/analytics/analyticsEventsSSOT.ts
+ M src/app/blocked-contacts.tsx
+ M src/app/calendar.tsx
+ M src/app/circles.tsx
+ M src/app/create-event-request.tsx
+ M src/app/create.tsx
+ M src/app/discover.tsx
+ M src/app/event/[id].tsx
+ M src/app/friends.tsx
+ M src/app/suggestions.tsx
+ M src/app/user/[id].tsx
+ M src/components/BottomNavigation.tsx
+ M src/components/OfflineBanner.tsx
+ D src/components/discover/DiscoverSwipeCard.tsx
+ D src/components/discover/DiscoverSwipeDeck.tsx
+ M src/components/friends/FriendsChatsPane.tsx
+ M src/ui/icons.tsx
+ M src/ui/layout.ts
+ M src/ui/tokens.ts
+?? .claude_artifacts/
+?? .maestro/
+?? "Terminal Saved Output.txt"
+?? calendar-before-tap.png
+?? calendar-event-menu.png
+?? calendar-event-opened.png
+?? create-event-fields-visible.png
+?? create-event-opened.png
+?? discover-coord-test.png
+?? discover-events-tab.png
+?? discover-landing.png
+?? discover-nav-test.png
+?? discover-saved-tab.png
+?? docs/VISUAL_SYSTEM.md
+?? event-detail-host-options.png
+?? event-detail-host-scrolled.png
+?? event-detail-host-top.png
+?? event-detail-no-photo-menu.png
+?? event-detail-no-photo-proof.png
+?? openinvite-after-create-tap.png
+?? openinvite-smoke-launch.png
+?? saved-tab-proof.png
+?? scripts/claude/
+?? src/lib/availabilitySignal.ts
+?? tab-proof-calendar.png
+?? tab-proof-discover.png
+?? tab-proof-friends.png
+?? tab-proof-profile.png
+?? tab-proof-social.png
+== INVARIANTS PRESENT ==
+== FRONTEND INVARIANT CHECK ==
+== FRONTEND INVARIANT CHECK ==
+Checking: docs/AUTH_CONTRACT.md exists...
+  ✓ docs/AUTH_CONTRACT.md exists
+Checking: No !!session gating in src/...
+  ✓ No !!session gating found
+Checking: No uppercase Cookie headers in src/...
+  ✓ No uppercase Cookie headers found
+Checking: Guidance keys are user-scoped...
+  ✓ No global guidance patterns found
+
+== INVARIANT CHECK PASSED ==
+== QUERY KEY SSOT CHECK ==
+Checking: Query key SSOT compliance...
+  ✓ Query key SSOT compliance OK
+== ROGUE FETCH PATTERN CHECK ==
+  ✓ No rogue fetch patterns found for authenticated endpoints
+== AUTH HEADER FALLBACK CHECK ==
+  ✓ x-oi-session-token header injection found in authClient.ts
+  ✓ OI_SESSION_TOKEN_KEY constant found in authClient.ts
+== TYPECHECK ==
+
+> template-app-53@1.0.0 typecheck
+> tsc -p tsconfig.frontend.json --noEmit
+
+== P14 ENFORCEMENT ==
+  ✓ P14 Part 1: All useQuery blocks have enabled: guard
+  ✓ P14 Part 2: No router.push('/login') — replace-only invariant holds
+  ✓ P14 Part 3: No inline CTA styling drift detected
+  ✓ P14 Part 4: No literal pressed-opacity values outside motion.ts
+
+P14 enforcement checks PASS
+
+Running P0_SAFE_AREA_SSOT checks…
+  ✓ P0_SAFE_AREA_SSOT: No SafeAreaView in welcome.tsx or login.tsx
+
+P0_SAFE_AREA_SSOT checks PASS
+
+Running P17 enforcement checks…
+  ✓ P17 Part 1: No banned dev/demo route files
+  ✓ P17 Part 2: No banned dev/demo route directories
+
+P17 enforcement checks PASS
+
+Running P0_POST_LOGOUT_NET checks…
+  ✓ Part 1: api.ts contains shouldAllowAuthedRequest gate
+  ✓ Part 2: networkAuthGate.ts exports disableAuthedNetwork
+  ✓ Part 3: src/app/invite.tsx has enabled: guard for referral/stats query
+  ✓ Part 3: src/app/suggestions.tsx has enabled: guard for referral/stats query
+  ✓ Part 3: src/app/settings.tsx has enabled: guard for referral/stats query
+  ✓ Part 3: src/app/referrals.tsx has enabled: guard for referral/stats query
+  ✓ Part 4: useEntitlements gates on auth status
+
+P0_POST_LOGOUT_NET checks PASS
+
+Running P0_MEDIA_IDENTITY_AVATAR_SSOT checks…
+  ✓ P0_MEDIA_IDENTITY Part 1: Zero-tolerance strict files have no raw <Image
+  ✓ P0_MEDIA_IDENTITY Part 2: social.tsx — no identity-avatar raw <Image
+  ✓ P0_MEDIA_IDENTITY Part 3: circle/[id].tsx — no identity-avatar raw <Image
+  ✓ P0_MEDIA_IDENTITY Part 4: event/[id].tsx — no identity-avatar raw <Image
+  ✓ P0_MEDIA_IDENTITY Part 5: EventPhotoGallery.tsx — no uploader-avatar raw <Image
+  ✓ P0_MEDIA_IDENTITY Part 6a: event/[id].tsx imports/uses HeroBannerSurface
+  ✓ P0_MEDIA_IDENTITY Part 6b: event/[id].tsx uses resolveBannerUri for banner URI
+  ✓ P0_MEDIA_IDENTITY Part 6c: event/[id].tsx — no raw <Image eventPhotoUrl (hero goes through HeroBannerSurface)
+  ✓ P0_MEDIA_IDENTITY_RAW_IMAGE_AUDIT: all 0 raw <Image in src/app/ are annotated
+
+P0_MEDIA_IDENTITY_AVATAR_SSOT checks PASS
+
+Running P0_MOTION_SSOT checks…
+  Goal: all imperative Reanimated usage must go through MotionSurface/usePressMotion + motionSSOT tokens.
+  ✓ P0_MOTION_SSOT Part 1: No imperative reanimated primitives outside allowlist
+  ✓ P0_MOTION_SSOT Part 2: motionSSOT.ts exports MotionPresetConfig
+  ✓ P0_MOTION_SSOT Part 3: motionSSOT.ts exports MotionEasings
+  ✓ P0_MOTION_SSOT Part 4: MotionSurface consumes config.easing from SSOT
+
+P0_MOTION_SSOT checks PASS
+
+Running P0_PERF_INVAR_MAP_FEEDS checks…
+  Goal: primary feed screens must not render large lists via .map().
+  Small UI maps allowed only when previous non-empty line is exactly:
+    // INVARIANT_ALLOW_SMALL_MAP

@@ -928,7 +928,7 @@ function EventListItem({
     <>
       <ContextMenu.Root onOpenChange={handleContextMenuOpenChange}>
         <ContextMenu.Trigger>
-          <Pressable onPressIn={handlePressIn} onPress={handlePress}>
+          <Pressable testID="calendar-event-open" onPressIn={handlePressIn} onPress={handlePress}>
             {cardContent}
           </Pressable>
         </ContextMenu.Trigger>
@@ -1486,6 +1486,22 @@ export default function CalendarScreen() {
     setBusyEndTime(end);
     setBusyLabel("Busy");
     setShowBusyModal(true);
+  };
+
+  // Auto-bump end time if start crosses or meets it (minimum 15min gap)
+  const adjustBusyStart = (newStart: Date) => {
+    setBusyStartTime(newStart);
+    if (busyEndTime && newStart >= busyEndTime) {
+      const bumped = new Date(newStart);
+      bumped.setMinutes(bumped.getMinutes() + 15);
+      setBusyEndTime(bumped);
+    }
+  };
+
+  // Prevent end time from going before start time
+  const adjustBusyEnd = (newEnd: Date) => {
+    if (busyStartTime && newEnd <= busyStartTime) return;
+    setBusyEndTime(newEnd);
   };
 
   const handleCreateBusy = () => {
@@ -2327,6 +2343,7 @@ export default function CalendarScreen() {
           left={<HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />}
           right={
             <Button
+              testID="calendar-create-event"
               variant="primary"
               size="sm"
               label="Create"
@@ -3000,7 +3017,7 @@ export default function CalendarScreen() {
                     onPress={() => {
                       const newTime = new Date(busyStartTime ?? selectedDate);
                       newTime.setMinutes(newTime.getMinutes() - 15);
-                      setBusyStartTime(newTime);
+                      adjustBusyStart(newTime);
                     }}
                     className="px-3 py-2"
                   >
@@ -3017,7 +3034,7 @@ export default function CalendarScreen() {
                     onPress={() => {
                       const newTime = new Date(busyStartTime ?? selectedDate);
                       newTime.setMinutes(newTime.getMinutes() + 15);
-                      setBusyStartTime(newTime);
+                      adjustBusyStart(newTime);
                     }}
                     className="px-3 py-2"
                   >
@@ -3032,7 +3049,7 @@ export default function CalendarScreen() {
                     onPress={() => {
                       const newTime = new Date(busyEndTime ?? selectedDate);
                       newTime.setMinutes(newTime.getMinutes() - 15);
-                      setBusyEndTime(newTime);
+                      adjustBusyEnd(newTime);
                     }}
                     className="px-3 py-2"
                   >
@@ -3049,7 +3066,7 @@ export default function CalendarScreen() {
                     onPress={() => {
                       const newTime = new Date(busyEndTime ?? selectedDate);
                       newTime.setMinutes(newTime.getMinutes() + 15);
-                      setBusyEndTime(newTime);
+                      adjustBusyEnd(newTime);
                     }}
                     className="px-3 py-2"
                   >
@@ -3073,11 +3090,12 @@ export default function CalendarScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
+                  testID="calendar-busy-save"
                   onPress={handleCreateBusy}
                   disabled={createBusyMutation.isPending}
                   className="flex-1 py-3 rounded-xl items-center"
                   /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: "#6B7280", opacity: createBusyMutation.isPending ? 0.6 : 1 }}
+                  style={{ backgroundColor: colors.textSecondary, opacity: createBusyMutation.isPending ? 0.6 : 1 }}
                 >
                   <Text className="font-semibold text-white">
                     {createBusyMutation.isPending ? "Adding..." : "Add"}

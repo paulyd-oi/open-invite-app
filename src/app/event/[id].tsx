@@ -59,6 +59,7 @@ import {
   Palette,
   Camera,
   HandCoins,
+  ListChecks,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
@@ -79,7 +80,7 @@ import { once } from "@/lib/runtimeInvariants";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { uploadImage, uploadEventPhoto } from "@/lib/imageUpload";
-import { buildEventSharePayload } from "@/lib/shareSSOT";
+import { buildEventSharePayload, getEventUniversalLink } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
@@ -910,6 +911,9 @@ export default function EventDetailScreen() {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterJoinRequestAction(id ?? ""), "join_request_action");
     },
+    onError: () => {
+      safeToast.error("Couldn't process request", "Please try again.");
+    },
   });
 
   // Comment mutations
@@ -1597,6 +1601,63 @@ export default function EventDetailScreen() {
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Invalidate single event to refresh reflection state
+      queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
+    },
+  });
+
+  // What to Bring V2 — claim/unclaim mutation
+  // Uses optimistic update for instant UI, then refetches server truth.
+  // Race condition note: last-write-wins on the array. Acceptable for V2 —
+  // onSettled always refetches, so stale state self-corrects within seconds.
+  const bringListClaimMutation = useMutation({
+    mutationFn: ({ itemId, action }: { itemId: string; action: "claim" | "unclaim" }) => {
+      const items = event?.bringListItems ?? [];
+      const target = items.find((i) => i.id === itemId);
+      // Guard: don't claim something already claimed by someone else
+      if (action === "claim" && target?.claimedByUserId && target.claimedByUserId !== session?.user?.id) {
+        return Promise.reject(new Error("Already claimed"));
+      }
+      const updated = items.map((item) => {
+        if (item.id !== itemId) return item;
+        if (action === "claim") {
+          return { ...item, claimedByUserId: session?.user?.id ?? null, claimedByName: session?.user?.name ?? "Someone" };
+        }
+        return { ...item, claimedByUserId: null, claimedByName: null };
+      });
+      return api.put(`/api/events/${id}`, { bringListItems: updated });
+    },
+    onMutate: async ({ itemId, action }) => {
+      // Cancel in-flight refetches so optimistic update isn't overwritten
+      await queryClient.cancelQueries({ queryKey: eventKeys.single(id ?? "") });
+      const prev = queryClient.getQueryData(eventKeys.single(id ?? ""));
+      // Optimistic update
+      queryClient.setQueryData(eventKeys.single(id ?? ""), (old: any) => {
+        if (!old?.event?.bringListItems) return old;
+        return {
+          ...old,
+          event: {
+            ...old.event,
+            bringListItems: old.event.bringListItems.map((item: any) => {
+              if (item.id !== itemId) return item;
+              if (action === "claim") {
+                return { ...item, claimedByUserId: session?.user?.id ?? null, claimedByName: session?.user?.name ?? "Someone" };
+              }
+              return { ...item, claimedByUserId: null, claimedByName: null };
+            }),
+          },
+        };
+      });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      // Rollback optimistic update
+      if (context?.prev) {
+        queryClient.setQueryData(eventKeys.single(id ?? ""), context.prev);
+      }
+    },
+    onSettled: () => {
+      // Always refetch server truth — corrects any race condition
       queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
     },
   });
@@ -2324,7 +2385,7 @@ export default function EventDetailScreen() {
             <View style={{ position: "relative" }}>
               <View style={{ width: "100%", aspectRatio: 3 / 4, maxHeight: 480 }}>
                 <ExpoImage
-                  source={{ uri: toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
+                  source={{ uri: toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_DETAIL) }}
                   style={{ width: "100%", height: "100%" }}
                   contentFit="cover"
                   cachePolicy="memory-disk"
@@ -2765,6 +2826,26 @@ export default function EventDetailScreen() {
                   </Animated.View>
                 )}
 
+                {/* [SOCIAL_PROOF_V2] Momentum nudge above action buttons */}
+                {!myRsvpStatus && !eventMeta.isFull && effectiveGoingCount >= 3 && (
+                  <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingVertical: 8,
+                    marginBottom: 4,
+                  }}>
+                    <Users size={13} color={STATUS.going.fg} />
+                    <Text style={{ fontSize: 12, fontWeight: "500", color: STATUS.going.fg, marginLeft: 5 }}>
+                      {effectiveGoingCount >= 10
+                        ? `${effectiveGoingCount} people are going — don\u2019t miss out`
+                        : effectiveGoingCount >= 5
+                        ? `${effectiveGoingCount} people are in — join them`
+                        : `${effectiveGoingCount} people are going`}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <Animated.View style={rsvpButtonAnimStyle}>
@@ -2888,46 +2969,135 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* ═══ [GROWTH_V1] HOST SHARE NUDGE — attendance-aware CTA ═══ */}
-        {isMyEvent && !event?.isBusy && effectiveGoingCount < 5 && (
-          <Animated.View entering={FadeInDown.delay(87).springify()} style={{ marginBottom: 14 }}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
-                shareEvent({ ...event, location: locationDisplay ?? null });
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                padding: 14,
+        {/* ═══ HOST TOOLS V1 — host-only command center ═══ */}
+        {isMyEvent && !event?.isBusy && (() => {
+          const pendingRequests = (event?.joinRequests ?? []).filter((r) => r.status === "pending").length;
+          const spotsLeft = eventMeta.capacity != null ? Math.max(0, eventMeta.capacity - effectiveGoingCount) : null;
+          const hasBringList = event?.bringListEnabled && (event?.bringListItems ?? []).length > 0;
+          const bringItems = event?.bringListItems ?? [];
+          const bringClaimed = bringItems.filter((i) => !!i.claimedByUserId).length;
+          const hasPitchIn = event?.pitchInEnabled && event?.pitchInHandle;
+
+          return (
+            <Animated.View entering={FadeInDown.delay(87).springify()} style={{ marginBottom: 14 }}>
+              <View style={{
                 borderRadius: RADIUS.lg,
-                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
                 borderWidth: 0.5,
                 borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-              }}
-            >
-              <View style={{
-                width: 32, height: 32, borderRadius: 16,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: `${themeColor}18`,
+                padding: 14,
               }}>
-                <Share2 size={16} color={themeColor} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                  {effectiveGoingCount <= 1 ? "Invite friends" : "Invite more friends"}
+                {/* Section title */}
+                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>
+                  Host tools
                 </Text>
-                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>
-                  {effectiveGoingCount <= 1
-                    ? "Share this event to get the group together"
-                    : `${effectiveGoingCount - 1} going so far — share to bring more`}
-                </Text>
+
+                {/* ── Summary row ── */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Users size={13} color={STATUS.going.fg} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 4 }}>
+                      {effectiveGoingCount} going
+                    </Text>
+                  </View>
+                  {spotsLeft !== null && (
+                    <Text style={{ fontSize: 13, color: eventMeta.isFull ? STATUS.destructive.fg : colors.textSecondary }}>
+                      {eventMeta.isFull ? "Full" : `${spotsLeft} spots left`}
+                    </Text>
+                  )}
+                  {pendingRequests > 0 && (
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS.soon.fg, marginRight: 4 }} />
+                      <Text style={{ fontSize: 13, fontWeight: "600", color: STATUS.soon.fg }}>
+                        {pendingRequests} pending
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* ── Quick actions ── */}
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: (hasBringList || hasPitchIn || effectiveGoingCount < 5) ? 14 : 0 }}>
+                  {/* Share */}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
+                      shareEvent({ ...event, location: locationDisplay ?? null });
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: RADIUS.md,
+                      backgroundColor: themeColor,
+                    }}
+                  >
+                    <Share2 size={14} color="#FFFFFF" />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
+                  </Pressable>
+                  {/* Copy link */}
+                  <Pressable
+                    onPress={async () => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      await Clipboard.setStringAsync(getEventUniversalLink(event.id));
+                      safeToast.success("Link copied");
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: RADIUS.md,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <Copy size={14} color={colors.text} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Copy link</Text>
+                  </Pressable>
+                  {/* Edit */}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      router.push(`/event/edit/${id}`);
+                    }}
+                    style={{
+                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                      paddingVertical: 10, borderRadius: RADIUS.md,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <Pencil size={14} color={colors.text} />
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Edit</Text>
+                  </Pressable>
+                </View>
+
+                {/* ── Coordination summaries ── */}
+                {hasBringList && (
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+                    <ListChecks size={13} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                      What to bring: {bringClaimed}/{bringItems.length} claimed
+                    </Text>
+                  </View>
+                )}
+                {hasPitchIn && (
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+                    <HandCoins size={13} color={colors.textSecondary} />
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                      Pitch In: {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : ""} @{event.pitchInHandle}
+                    </Text>
+                  </View>
+                )}
+
+                {/* ── Low-attendance nudge (integrated) ── */}
+                {effectiveGoingCount < 5 && (
+                  <View style={{ marginTop: 4, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
+                    <Text style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 16 }}>
+                      {effectiveGoingCount <= 1
+                        ? "Share your event to get the group together."
+                        : `${effectiveGoingCount - 1} going so far — share to bring more.`}
+                    </Text>
+                  </View>
+                )}
               </View>
-              <ChevronRight size={16} color={colors.textTertiary} />
-            </Pressable>
-          </Animated.View>
-        )}
+            </Animated.View>
+          );
+        })()}
 
         {/* ═══ LIVE ACTIVITY CTA (iOS only) ═══ */}
         {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
@@ -3187,6 +3357,118 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
+        {/* ═══ WHAT TO BRING V2 — Lightweight claim system ═══ */}
+        {event?.bringListEnabled && (event?.bringListItems ?? []).length > 0 && (() => {
+          const items = event.bringListItems ?? [];
+          const unclaimed = items.filter((i) => !i.claimedByUserId);
+          const claimed = items.filter((i) => !!i.claimedByUserId);
+          const myId = session?.user?.id;
+          return (
+            <Animated.View entering={FadeInDown.delay(93).springify()} style={{ marginBottom: 14 }}>
+              <View style={{
+                borderTopWidth: 0.5,
+                borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                paddingTop: 14,
+              }}>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+                  <ListChecks size={16} color={themeColor} />
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+                    What to bring
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 8 }}>
+                    {claimed.length}/{items.length} claimed
+                  </Text>
+                </View>
+                {/* Unclaimed items first */}
+                {unclaimed.length > 0 && (
+                  <View style={{ gap: 6, marginBottom: claimed.length > 0 ? 6 : 0 }}>
+                    {/* INVARIANT_ALLOW_SMALL_MAP */}
+                    {unclaimed.map((item) => (
+                      <View
+                        key={item.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 10,
+                          paddingHorizontal: 12,
+                          borderRadius: RADIUS.md,
+                          backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                        }}
+                      >
+                        <View style={{
+                          width: 6, height: 6, borderRadius: 3,
+                          backgroundColor: colors.textTertiary,
+                          marginRight: 10,
+                        }} />
+                        <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{item.label}</Text>
+                        <Pressable
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            bringListClaimMutation.mutate({ itemId: item.id, action: "claim" });
+                          }}
+                          disabled={bringListClaimMutation.isPending}
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 8,
+                            backgroundColor: `${themeColor}14`,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: themeColor }}>I'll bring this</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Claimed items */}
+                {claimed.length > 0 && (
+                  <View style={{ gap: 6 }}>
+                    {/* INVARIANT_ALLOW_SMALL_MAP */}
+                    {claimed.map((item) => {
+                      const isMine = item.claimedByUserId === myId;
+                      return (
+                        <View
+                          key={item.id}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: 10,
+                            paddingHorizontal: 12,
+                            borderRadius: RADIUS.md,
+                            backgroundColor: isMine
+                              ? (isDark ? "rgba(34,197,94,0.08)" : "rgba(34,197,94,0.05)")
+                              : (isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.01)"),
+                          }}
+                        >
+                          <Check size={14} color={STATUS.going.fg} style={{ marginRight: 10 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 14, color: colors.text }}>{item.label}</Text>
+                            <Text style={{ fontSize: 11, color: isMine ? STATUS.going.fg : colors.textTertiary, marginTop: 1 }}>
+                              {isMine ? "You're bringing this" : `${item.claimedByName ?? "Someone"}`}
+                            </Text>
+                          </View>
+                          {isMine && (
+                            <Pressable
+                              onPress={() => {
+                                Haptics.selectionAsync();
+                                bringListClaimMutation.mutate({ itemId: item.id, action: "unclaim" });
+                              }}
+                              disabled={bringListClaimMutation.isPending}
+                              hitSlop={8}
+                            >
+                              <Text style={{ fontSize: 12, fontWeight: "500", color: colors.textTertiary }}>Unclaim</Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            </Animated.View>
+          );
+        })()}
+
         {/* ═══ Who's Coming / Social Proof (Task 4 — reduced card fatigue) ═══ */}
         {(() => {
           // 403 privacy denied: show privacy message
@@ -3304,9 +3586,15 @@ export default function EventDetailScreen() {
                     </View>
                     <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
                       {myRsvpStatus === "going" && effectiveGoingCount === 1
-                        ? "You\u2019re in"
-                        : myRsvpStatus === "going" && effectiveGoingCount > 1
-                        ? `You + ${effectiveGoingCount - 1} going`
+                        ? "You\u2019re in — be the first to invite friends"
+                        : myRsvpStatus === "going" && effectiveGoingCount === 2
+                        ? "You + 1 other going"
+                        : myRsvpStatus === "going" && effectiveGoingCount > 2
+                        ? `You + ${effectiveGoingCount - 1} others going`
+                        : effectiveGoingCount >= 10
+                        ? `${effectiveGoingCount} going \u00B7 Popular`
+                        : effectiveGoingCount >= 5
+                        ? `${effectiveGoingCount} going \u00B7 Filling up`
                         : `${effectiveGoingCount} going`}
                     </Text>
                   </View>

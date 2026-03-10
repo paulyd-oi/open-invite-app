@@ -16,3 +16,12 @@
 
 // eslint-disable-next-line no-constant-binary-expression
 export const DEV_PROBES_ENABLED = __DEV__ && false;
+
+/**
+ * Show dev debug overlays (QueryDebugOverlay, LiveRefreshProofOverlay).
+ * OFF by default — flip to `true` when actively debugging query freshness.
+ * These overlays are always tree-shaken from production builds via __DEV__,
+ * but this flag prevents them from appearing in Expo Go / dev client.
+ */
+// eslint-disable-next-line no-constant-binary-expression
+export const DEV_OVERLAYS_VISIBLE = __DEV__ && false;

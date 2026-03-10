@@ -17,7 +17,7 @@ import { APP_FONTS } from '@/lib/fonts';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeContext';
 import { SubscriptionProvider } from '@/lib/SubscriptionContext';
 import { devLog } from '@/lib/devLog';
-import { DEV_PROBES_ENABLED } from '@/lib/devFlags';
+import { DEV_PROBES_ENABLED, DEV_OVERLAYS_VISIBLE } from '@/lib/devFlags';
 import { SplashScreen as AnimatedSplash } from '@/components/SplashScreen';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { NetworkStatusBanner } from '@/components/OfflineBanner';
@@ -1183,8 +1183,8 @@ export default function RootLayout() {
                           <AnnouncementBanner />
                           <ToastContainer />
                         </View>
-                        {__DEV__ && <QueryDebugOverlay />}
-                        {__DEV__ && <LiveRefreshProofOverlay />}
+                        {DEV_OVERLAYS_VISIBLE && <QueryDebugOverlay />}
+                        {DEV_OVERLAYS_VISIBLE && <LiveRefreshProofOverlay />}
                         {/* [P0_FONTS_OVERLAY] Absolute loader overlay — covers nav while fonts load.
                             Always mounted, toggled via opacity+pointerEvents (no tree swap). */}
                         <View

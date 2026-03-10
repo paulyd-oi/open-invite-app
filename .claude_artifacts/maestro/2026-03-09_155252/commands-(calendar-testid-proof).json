@@ -1,0 +1,1092 @@
+[ {
+  "command" : {
+    "defineVariablesCommand" : {
+      "env" : {
+        "MAESTRO_FILENAME" : "calendar-testid-proof",
+        "MAESTRO_DEVICE_UDID" : "98D25603-8D69-435C-8B55-31C3947B8123",
+        "MAESTRO_SHARD_ID" : "1",
+        "MAESTRO_SHARD_INDEX" : "0"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1773096778474,
+    "duration" : 2,
+    "sequenceNumber" : 0
+  }
+}, {
+  "command" : {
+    "launchAppCommand" : {
+      "appId" : "com.vibecode.openinvite.0qi5wk",
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1773096778477,
+    "duration" : 687,
+    "sequenceNumber" : 0
+  }
+}, {
+  "command" : {
+    "waitForAnimationToEndCommand" : {
+      "timeout" : 3000,
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1773096779164,
+    "duration" : 3005,
+    "sequenceNumber" : 0
+  }
+}, {
+  "command" : {
+    "tapOnElement" : {
+      "selector" : {
+        "textRegex" : ".*Calendar.*",
+        "optional" : true
+      },
+      "retryIfNoChange" : false,
+      "waitUntilVisible" : false,
+      "longPress" : false,
+      "optional" : true
+    }
+  },
+  "metadata" : {
+    "status" : "FAILED",
+    "timestamp" : 1773096782170,
+    "duration" : 4,
+    "error" : {
+      "cause" : {
+        "stackTrace" : [ {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "pollConnect",
+          "fileName" : "Net.java",
+          "lineNumber" : -2,
+          "nativeMethod" : true,
+          "className" : "sun.nio.ch.Net"
+        }, {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "pollConnectNow",
+          "fileName" : "Net.java",
+          "lineNumber" : 684,
+          "nativeMethod" : false,
+          "className" : "sun.nio.ch.Net"
+        }, {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "timedFinishConnect",
+          "fileName" : "NioSocketImpl.java",
+          "lineNumber" : 547,
+          "nativeMethod" : false,
+          "className" : "sun.nio.ch.NioSocketImpl"
+        }, {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "connect",
+          "fileName" : "NioSocketImpl.java",
+          "lineNumber" : 602,
+          "nativeMethod" : false,
+          "className" : "sun.nio.ch.NioSocketImpl"
+        }, {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "connect",
+          "fileName" : "SocksSocketImpl.java",
+          "lineNumber" : 327,
+          "nativeMethod" : false,
+          "className" : "java.net.SocksSocketImpl"
+        }, {
+          "moduleName" : "java.base",
+          "moduleVersion" : "17.0.18",
+          "methodName" : "connect",
+          "fileName" : "Socket.java",
+          "lineNumber" : 633,
+          "nativeMethod" : false,
+          "className" : "java.net.Socket"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "connectSocket",
+          "fileName" : "Platform.kt",
+          "lineNumber" : 128,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.platform.Platform"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "connectSocket",
+          "fileName" : "RealConnection.kt",
+          "lineNumber" : 295,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.RealConnection"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "connect",
+          "fileName" : "RealConnection.kt",
+          "lineNumber" : 207,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.RealConnection"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findConnection",
+          "fileName" : "ExchangeFinder.kt",
+          "lineNumber" : 226,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.ExchangeFinder"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findHealthyConnection",
+          "fileName" : "ExchangeFinder.kt",
+          "lineNumber" : 106,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.ExchangeFinder"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "find",
+          "fileName" : "ExchangeFinder.kt",
+          "lineNumber" : 74,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.ExchangeFinder"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "initExchange$okhttp",
+          "fileName" : "RealCall.kt",
+          "lineNumber" : 255,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.RealCall"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "intercept",
+          "fileName" : "ConnectInterceptor.kt",
+          "lineNumber" : 32,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.ConnectInterceptor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "proceed",
+          "fileName" : "RealInterceptorChain.kt",
+          "lineNumber" : 109,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.RealInterceptorChain"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "intercept",
+          "fileName" : "CacheInterceptor.kt",
+          "lineNumber" : 95,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.cache.CacheInterceptor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "proceed",
+          "fileName" : "RealInterceptorChain.kt",
+          "lineNumber" : 109,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.RealInterceptorChain"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "intercept",
+          "fileName" : "BridgeInterceptor.kt",
+          "lineNumber" : 83,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.BridgeInterceptor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "proceed",
+          "fileName" : "RealInterceptorChain.kt",
+          "lineNumber" : 109,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.RealInterceptorChain"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "intercept",
+          "fileName" : "RetryAndFollowUpInterceptor.kt",
+          "lineNumber" : 76,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.RetryAndFollowUpInterceptor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "proceed",
+          "fileName" : "RealInterceptorChain.kt",
+          "lineNumber" : 109,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.http.RealInterceptorChain"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "getResponseWithInterceptorChain$okhttp",
+          "fileName" : "RealCall.kt",
+          "lineNumber" : 201,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.RealCall"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "execute",
+          "fileName" : "RealCall.kt",
+          "lineNumber" : 154,
+          "nativeMethod" : false,
+          "className" : "okhttp3.internal.connection.RealCall"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "executeJsonRequest",
+          "fileName" : "XCTestDriverClient.kt",
+          "lineNumber" : 195,
+          "nativeMethod" : false,
+          "className" : "xcuitest.XCTestDriverClient"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo",
+          "fileName" : "XCTestDriverClient.kt",
+          "lineNumber" : 168,
+          "nativeMethod" : false,
+          "className" : "xcuitest.XCTestDriverClient"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo$default",
+          "fileName" : "XCTestDriverClient.kt",
+          "lineNumber" : 167,
+          "nativeMethod" : false,
+          "className" : "xcuitest.XCTestDriverClient"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo$lambda$0",
+          "fileName" : "XCTestIOSDevice.kt",
+          "lineNumber" : 31,
+          "nativeMethod" : false,
+          "className" : "ios.xctest.XCTestIOSDevice"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "execute",
+          "fileName" : "XCTestIOSDevice.kt",
+          "lineNumber" : 235,
+          "nativeMethod" : false,
+          "className" : "ios.xctest.XCTestIOSDevice"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo",
+          "fileName" : "XCTestIOSDevice.kt",
+          "lineNumber" : 30,
+          "nativeMethod" : false,
+          "className" : "ios.xctest.XCTestIOSDevice"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo",
+          "fileName" : "LocalIOSDevice.kt",
+          "lineNumber" : 31,
+          "nativeMethod" : false,
+          "className" : "ios.LocalIOSDevice"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo$lambda$6$lambda$5",
+          "fileName" : "IOSDriver.kt",
+          "lineNumber" : 95,
+          "nativeMethod" : false,
+          "className" : "maestro.drivers.IOSDriver"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runDeviceCall",
+          "fileName" : "IOSDriver.kt",
+          "lineNumber" : 549,
+          "nativeMethod" : false,
+          "className" : "maestro.drivers.IOSDriver"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo$lambda$6",
+          "fileName" : "IOSDriver.kt",
+          "lineNumber" : 95,
+          "nativeMethod" : false,
+          "className" : "maestro.drivers.IOSDriver"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "measured",
+          "fileName" : "Metrics.kt",
+          "lineNumber" : 48,
+          "nativeMethod" : false,
+          "className" : "maestro.utils.Metrics"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "deviceInfo",
+          "fileName" : "IOSDriver.kt",
+          "lineNumber" : 94,
+          "nativeMethod" : false,
+          "className" : "maestro.drivers.IOSDriver"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "from-8JJjmZI",
+          "fileName" : "ViewHierarchy.kt",
+          "lineNumber" : 28,
+          "nativeMethod" : false,
+          "className" : "maestro.ViewHierarchy$Companion"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "viewHierarchy-c1iYVAs",
+          "fileName" : "Maestro.kt",
+          "lineNumber" : 417,
+          "nativeMethod" : false,
+          "className" : "maestro.Maestro"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "viewHierarchy-c1iYVAs$default",
+          "fileName" : "Maestro.kt",
+          "lineNumber" : 416,
+          "nativeMethod" : false,
+          "className" : "maestro.Maestro"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findElementWithTimeout_AE3g2Tc$lambda$9",
+          "fileName" : "Maestro.kt",
+          "lineNumber" : 427,
+          "nativeMethod" : false,
+          "className" : "maestro.Maestro"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "withTimeout",
+          "fileName" : "MaestroTimer.kt",
+          "lineNumber" : 16,
+          "nativeMethod" : false,
+          "className" : "maestro.utils.MaestroTimer"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findElementWithTimeout-AE3g2Tc",
+          "fileName" : "Maestro.kt",
+          "lineNumber" : 426,
+          "nativeMethod" : false,
+          "className" : "maestro.Maestro"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findElementWithTimeout-AE3g2Tc$default",
+          "fileName" : "Maestro.kt",
+          "lineNumber" : 420,
+          "nativeMethod" : false,
+          "className" : "maestro.Maestro"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findElement",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 1326,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "findElement$default",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 1281,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "tapOnElement",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 1190,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "executeCommand",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 330,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "executeCommands",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 263,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runFlow",
+          "fileName" : "Orchestra.kt",
+          "lineNumber" : 181,
+          "nativeMethod" : false,
+          "className" : "maestro.orchestra.Orchestra"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runFlow",
+          "fileName" : "TestSuiteInteractor.kt",
+          "lineNumber" : 243,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.runner.TestSuiteInteractor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runTestSuite",
+          "fileName" : "TestSuiteInteractor.kt",
+          "lineNumber" : 98,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.runner.TestSuiteInteractor"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runMultipleFlows",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 619,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "access$runMultipleFlows",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 80,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "invokeSuspend",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 502,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand$runShardSuite$1$1"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "resumeWith",
+          "fileName" : "ContinuationImpl.kt",
+          "lineNumber" : 34,
+          "nativeMethod" : false,
+          "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "run",
+          "fileName" : "DispatchedTask.kt",
+          "lineNumber" : 104,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.DispatchedTask"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "processNextEvent",
+          "fileName" : "EventLoop.common.kt",
+          "lineNumber" : 277,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.EventLoopImplBase"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "joinBlocking",
+          "fileName" : "Builders.kt",
+          "lineNumber" : 95,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.BlockingCoroutine"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runBlocking",
+          "fileName" : "Builders.kt",
+          "lineNumber" : 69,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.BuildersKt__BuildersKt"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runBlocking",
+          "lineNumber" : 1,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.BuildersKt"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runBlocking$default",
+          "fileName" : "Builders.kt",
+          "lineNumber" : 48,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.BuildersKt__BuildersKt"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runBlocking$default",
+          "lineNumber" : 1,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.BuildersKt"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runShardSuite$lambda$10",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 501,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "newSession",
+          "fileName" : "MaestroSessionManager.kt",
+          "lineNumber" : 132,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.session.MaestroSessionManager"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "newSession$default",
+          "fileName" : "MaestroSessionManager.kt",
+          "lineNumber" : 66,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.session.MaestroSessionManager"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runShardSuite",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 476,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "access$runShardSuite",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 80,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "invokeSuspend",
+          "fileName" : "TestCommand.kt",
+          "lineNumber" : 435,
+          "nativeMethod" : false,
+          "className" : "maestro.cli.command.TestCommand$handleSessions$1$results$1$1"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "resumeWith",
+          "fileName" : "ContinuationImpl.kt",
+          "lineNumber" : 34,
+          "nativeMethod" : false,
+          "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "run",
+          "fileName" : "DispatchedTask.kt",
+          "lineNumber" : 104,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.DispatchedTask"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "run",
+          "fileName" : "LimitedDispatcher.kt",
+          "lineNumber" : 111,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.internal.LimitedDispatcher$Worker"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "run",
+          "fileName" : "Tasks.kt",
+          "lineNumber" : 99,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.scheduling.TaskImpl"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runSafely",
+          "fileName" : "CoroutineScheduler.kt",
+          "lineNumber" : 585,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "executeTask",
+          "fileName" : "CoroutineScheduler.kt",
+          "lineNumber" : 802,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "runWorker",
+          "fileName" : "CoroutineScheduler.kt",
+          "lineNumber" : 706,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+        }, {
+          "classLoaderName" : "app",
+          "methodName" : "run",
+          "fileName" : "CoroutineScheduler.kt",
+          "lineNumber" : 693,
+          "nativeMethod" : false,
+          "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+        } ],
+        "message" : "Connection refused",
+        "localizedMessage" : "Connection refused"
+      },
+      "stackTrace" : [ {
+        "classLoaderName" : "app",
+        "methodName" : "connectSocket",
+        "fileName" : "RealConnection.kt",
+        "lineNumber" : 297,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.RealConnection"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "connect",
+        "fileName" : "RealConnection.kt",
+        "lineNumber" : 207,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.RealConnection"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findConnection",
+        "fileName" : "ExchangeFinder.kt",
+        "lineNumber" : 226,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.ExchangeFinder"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findHealthyConnection",
+        "fileName" : "ExchangeFinder.kt",
+        "lineNumber" : 106,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.ExchangeFinder"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "find",
+        "fileName" : "ExchangeFinder.kt",
+        "lineNumber" : 74,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.ExchangeFinder"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "initExchange$okhttp",
+        "fileName" : "RealCall.kt",
+        "lineNumber" : 255,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.RealCall"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "intercept",
+        "fileName" : "ConnectInterceptor.kt",
+        "lineNumber" : 32,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.ConnectInterceptor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "proceed",
+        "fileName" : "RealInterceptorChain.kt",
+        "lineNumber" : 109,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.RealInterceptorChain"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "intercept",
+        "fileName" : "CacheInterceptor.kt",
+        "lineNumber" : 95,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.cache.CacheInterceptor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "proceed",
+        "fileName" : "RealInterceptorChain.kt",
+        "lineNumber" : 109,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.RealInterceptorChain"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "intercept",
+        "fileName" : "BridgeInterceptor.kt",
+        "lineNumber" : 83,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.BridgeInterceptor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "proceed",
+        "fileName" : "RealInterceptorChain.kt",
+        "lineNumber" : 109,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.RealInterceptorChain"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "intercept",
+        "fileName" : "RetryAndFollowUpInterceptor.kt",
+        "lineNumber" : 76,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.RetryAndFollowUpInterceptor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "proceed",
+        "fileName" : "RealInterceptorChain.kt",
+        "lineNumber" : 109,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.http.RealInterceptorChain"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "getResponseWithInterceptorChain$okhttp",
+        "fileName" : "RealCall.kt",
+        "lineNumber" : 201,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.RealCall"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "execute",
+        "fileName" : "RealCall.kt",
+        "lineNumber" : 154,
+        "nativeMethod" : false,
+        "className" : "okhttp3.internal.connection.RealCall"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeJsonRequest",
+        "fileName" : "XCTestDriverClient.kt",
+        "lineNumber" : 195,
+        "nativeMethod" : false,
+        "className" : "xcuitest.XCTestDriverClient"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo",
+        "fileName" : "XCTestDriverClient.kt",
+        "lineNumber" : 168,
+        "nativeMethod" : false,
+        "className" : "xcuitest.XCTestDriverClient"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo$default",
+        "fileName" : "XCTestDriverClient.kt",
+        "lineNumber" : 167,
+        "nativeMethod" : false,
+        "className" : "xcuitest.XCTestDriverClient"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo$lambda$0",
+        "fileName" : "XCTestIOSDevice.kt",
+        "lineNumber" : 31,
+        "nativeMethod" : false,
+        "className" : "ios.xctest.XCTestIOSDevice"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "execute",
+        "fileName" : "XCTestIOSDevice.kt",
+        "lineNumber" : 235,
+        "nativeMethod" : false,
+        "className" : "ios.xctest.XCTestIOSDevice"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo",
+        "fileName" : "XCTestIOSDevice.kt",
+        "lineNumber" : 30,
+        "nativeMethod" : false,
+        "className" : "ios.xctest.XCTestIOSDevice"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo",
+        "fileName" : "LocalIOSDevice.kt",
+        "lineNumber" : 31,
+        "nativeMethod" : false,
+        "className" : "ios.LocalIOSDevice"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo$lambda$6$lambda$5",
+        "fileName" : "IOSDriver.kt",
+        "lineNumber" : 95,
+        "nativeMethod" : false,
+        "className" : "maestro.drivers.IOSDriver"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runDeviceCall",
+        "fileName" : "IOSDriver.kt",
+        "lineNumber" : 549,
+        "nativeMethod" : false,
+        "className" : "maestro.drivers.IOSDriver"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo$lambda$6",
+        "fileName" : "IOSDriver.kt",
+        "lineNumber" : 95,
+        "nativeMethod" : false,
+        "className" : "maestro.drivers.IOSDriver"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "measured",
+        "fileName" : "Metrics.kt",
+        "lineNumber" : 48,
+        "nativeMethod" : false,
+        "className" : "maestro.utils.Metrics"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "deviceInfo",
+        "fileName" : "IOSDriver.kt",
+        "lineNumber" : 94,
+        "nativeMethod" : false,
+        "className" : "maestro.drivers.IOSDriver"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "from-8JJjmZI",
+        "fileName" : "ViewHierarchy.kt",
+        "lineNumber" : 28,
+        "nativeMethod" : false,
+        "className" : "maestro.ViewHierarchy$Companion"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "viewHierarchy-c1iYVAs",
+        "fileName" : "Maestro.kt",
+        "lineNumber" : 417,
+        "nativeMethod" : false,
+        "className" : "maestro.Maestro"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "viewHierarchy-c1iYVAs$default",
+        "fileName" : "Maestro.kt",
+        "lineNumber" : 416,
+        "nativeMethod" : false,
+        "className" : "maestro.Maestro"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findElementWithTimeout_AE3g2Tc$lambda$9",
+        "fileName" : "Maestro.kt",
+        "lineNumber" : 427,
+        "nativeMethod" : false,
+        "className" : "maestro.Maestro"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "withTimeout",
+        "fileName" : "MaestroTimer.kt",
+        "lineNumber" : 16,
+        "nativeMethod" : false,
+        "className" : "maestro.utils.MaestroTimer"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findElementWithTimeout-AE3g2Tc",
+        "fileName" : "Maestro.kt",
+        "lineNumber" : 426,
+        "nativeMethod" : false,
+        "className" : "maestro.Maestro"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findElementWithTimeout-AE3g2Tc$default",
+        "fileName" : "Maestro.kt",
+        "lineNumber" : 420,
+        "nativeMethod" : false,
+        "className" : "maestro.Maestro"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findElement",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 1326,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "findElement$default",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 1281,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "tapOnElement",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 1190,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeCommand",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 330,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeCommands",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 263,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runFlow",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 181,
+        "nativeMethod" : false,
+        "className" : "maestro.orchestra.Orchestra"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runFlow",
+        "fileName" : "TestSuiteInteractor.kt",
+        "lineNumber" : 243,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.runner.TestSuiteInteractor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runTestSuite",
+        "fileName" : "TestSuiteInteractor.kt",
+        "lineNumber" : 98,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.runner.TestSuiteInteractor"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runMultipleFlows",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 619,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "access$runMultipleFlows",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 80,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "invokeSuspend",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 502,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand$runShardSuite$1$1"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "resumeWith",
+        "fileName" : "ContinuationImpl.kt",
+        "lineNumber" : 34,
+        "nativeMethod" : false,
+        "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "DispatchedTask.kt",
+        "lineNumber" : 104,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.DispatchedTask"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "processNextEvent",
+        "fileName" : "EventLoop.common.kt",
+        "lineNumber" : 277,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.EventLoopImplBase"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "joinBlocking",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 95,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.BlockingCoroutine"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 69,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.BuildersKt__BuildersKt"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking",
+        "lineNumber" : 1,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.BuildersKt"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking$default",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 48,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.BuildersKt__BuildersKt"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking$default",
+        "lineNumber" : 1,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.BuildersKt"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runShardSuite$lambda$10",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 501,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "newSession",
+        "fileName" : "MaestroSessionManager.kt",
+        "lineNumber" : 132,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.session.MaestroSessionManager"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "newSession$default",
+        "fileName" : "MaestroSessionManager.kt",
+        "lineNumber" : 66,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.session.MaestroSessionManager"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runShardSuite",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 476,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "access$runShardSuite",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 80,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "invokeSuspend",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 435,
+        "nativeMethod" : false,
+        "className" : "maestro.cli.command.TestCommand$handleSessions$1$results$1$1"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "resumeWith",
+        "fileName" : "ContinuationImpl.kt",
+        "lineNumber" : 34,
+        "nativeMethod" : false,
+        "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "DispatchedTask.kt",
+        "lineNumber" : 104,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.DispatchedTask"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "LimitedDispatcher.kt",
+        "lineNumber" : 111,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.internal.LimitedDispatcher$Worker"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "Tasks.kt",
+        "lineNumber" : 99,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.scheduling.TaskImpl"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runSafely",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 585,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeTask",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 802,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runWorker",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 706,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 693,
+        "nativeMethod" : false,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker"
+      } ],
+      "message" : "Failed to connect to /127.0.0.1:7001",
+      "localizedMessage" : "Failed to connect to /127.0.0.1:7001"
+    },
+    "sequenceNumber" : 0
+  }
+}, {
+  "command" : {
+    "applyConfigurationCommand" : {
+      "config" : {
+        "appId" : "com.vibecode.openinvite.0qi5wk"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1773096778476,
+    "duration" : 0,
+    "sequenceNumber" : 0
+  }
+} ]

@@ -63,7 +63,7 @@ export const eventSchema = z.object({
   summary: z.string().nullable().optional(), // Host's reflection notes
   summaryRating: z.number().nullable().optional(), // 1-5 star rating
   summaryNotifiedAt: z.string().nullable().optional(), // When host was notified
-  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default true)
+  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -109,6 +109,21 @@ export const eventSchema = z.object({
   // Circle event metadata (present when visibility is circle_only)
   circleId: z.string().nullable().optional(), // Circle this event belongs to
   circleName: z.string().nullable().optional(), // Human-readable circle name for UI labels
+  // Pitch In V1 — external payment link for cost sharing
+  pitchInEnabled: z.boolean().optional(),
+  pitchInTone: z.enum(["optional", "suggested"]).nullable().optional(),
+  pitchInAmount: z.string().nullable().optional(), // Display string e.g. "$10", "£5"
+  pitchInMethod: z.enum(["venmo", "cashapp", "paypal", "other"]).nullable().optional(),
+  pitchInHandle: z.string().nullable().optional(), // Username/handle for the payment method
+  pitchInNote: z.string().nullable().optional(), // Host note e.g. "for food & drinks"
+  // What to Bring V2 — lightweight claim system
+  bringListEnabled: z.boolean().optional(),
+  bringListItems: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+    claimedByUserId: z.string().nullable().optional(),
+    claimedByName: z.string().nullable().optional(),
+  })).optional(),
 });
 export type Event = z.infer<typeof eventSchema>;
 
@@ -151,8 +166,21 @@ export const createEventRequestSchema = z.object({
   circleId: z.string().optional(), // Required if visibility is circle_only
   isPrivateCircleEvent: z.boolean().optional(), // If true, shows as "busy" to non-circle members
   sendNotification: z.boolean().optional(), // Whether to notify friends about this event
-  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default true)
+  reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
   capacity: z.number().min(1).nullable().optional(), // Max guests (null = unlimited)
+  // Pitch In V1
+  pitchInEnabled: z.boolean().optional(),
+  pitchInTone: z.enum(["optional", "suggested"]).optional(),
+  pitchInAmount: z.string().optional(), // Display string e.g. "$10", "£5"
+  pitchInMethod: z.enum(["venmo", "cashapp", "paypal", "other"]).optional(),
+  pitchInHandle: z.string().optional(), // Username/handle for the payment method
+  pitchInNote: z.string().optional(), // Host note
+  // What to Bring V2
+  bringListEnabled: z.boolean().optional(),
+  bringListItems: z.array(z.object({
+    id: z.string(),
+    label: z.string(),
+  })).optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

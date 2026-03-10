@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Switch,
   Alert,
+  Share,
+  Modal,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,6 +36,7 @@ import {
   BellOff,
   Sparkles,
   Lock,
+  Share2,
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
@@ -56,7 +59,7 @@ import { logError, normalizeCreateEventError, type CreateEventErrorReceipt } fro
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
 import { NotificationPrePromptModal } from "@/components/NotificationPrePromptModal";
-import { PostValueInvitePrompt, canShowPostValueInvite } from "@/components/PostValueInvitePrompt";
+// [GROWTH_V1] PostValueInvitePrompt replaced by event-specific share prompt
 import { shouldShowNotificationPrompt } from "@/lib/notificationPrompt";
 import { useEntitlements, canCreateEvent, usePremiumStatusContract, useHostingQuota, usePremiumDriftGuard, type PaywallContext } from "@/lib/entitlements";
 import { SoftLimitModal } from "@/components/SoftLimitModal";
@@ -82,6 +85,8 @@ import {
 import { getPendingIcsImport } from "@/lib/deepLinks";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventCreate } from "@/lib/eventQueryKeys";
 import { postIdempotent } from "@/lib/idempotencyKey";
+import { buildEventSharePayload } from "@/lib/shareSSOT";
+import { trackInviteShared } from "@/analytics/analyticsEventsSSOT";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
 const EMOJI_OPTIONS = [
@@ -122,7 +127,7 @@ interface PlaceSuggestion {
 // DEV-only: last create-event error receipt for inspection
 let __lastCreateEventReceipt: CreateEventErrorReceipt | null = null;
 
-const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number): Promise<PlaceSuggestion[]> => {
+const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number, signal?: AbortSignal): Promise<PlaceSuggestion[]> => {
   if (!query || query.length < 2) return [];
 
   try {
@@ -141,11 +146,15 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
       url += `&lat=${lat}&lon=${lon}`;
     }
 
-    if (__DEV__) devLog("[create.tsx] Searching places:", url);
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "request", { query, url: url.slice(0, 80) });
 
-    // Create AbortController for timeout
+    // Create AbortController for timeout, chained to caller's signal
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    // If caller aborts (e.g. new query supersedes), abort this request too
+    if (signal) {
+      signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
 
     // Use globalThis.fetch explicitly for React Native compatibility
     const response = await globalThis.fetch(url, {
@@ -159,26 +168,27 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number)
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      if (__DEV__) devLog("[create.tsx] Places API error:", response.status, response.statusText);
+      if (__DEV__) devLog("[P0_PLACE_SEARCH]", "http_error", { query, status: response.status });
       return searchPlacesLocal(query);
     }
 
     const data = await response.json();
-    if (__DEV__) devLog("[create.tsx] Places API response:", JSON.stringify(data).slice(0, 200));
 
     if (data.places && data.places.length > 0) {
-      if (__DEV__) devLog("[create.tsx] Found", data.places.length, "places from API");
+      if (__DEV__) devLog("[P0_PLACE_SEARCH]", "results", { query, count: data.places.length });
       return data.places;
     }
 
     // If backend returns no results or error, use local fallback
     if (data.error) {
-      if (__DEV__) devLog("[create.tsx] Places API returned error:", data.error);
+      if (__DEV__) devLog("[P0_PLACE_SEARCH]", "api_error", { query, error: data.error });
     }
-    if (__DEV__) devLog("[create.tsx] No places from API, using local fallback");
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "fallback_local", { query });
     return searchPlacesLocal(query);
   } catch (error: any) {
-    if (__DEV__) devLog("[create.tsx] Places search error:", error?.message || error);
+    // Don't log aborted requests (expected when query changes quickly)
+    if (error?.name === "AbortError") return [];
+    if (__DEV__) devLog("[P0_PLACE_SEARCH]", "fetch_error", { query, message: error?.message });
     return searchPlacesLocal(query);
   }
 };
@@ -295,8 +305,8 @@ const searchPlacesLocal = async (query: string): Promise<PlaceSuggestion[]> => {
 };
 
 // Main search function - uses backend API for Google Places
-const searchPlaces = async (query: string, lat?: number, lon?: number): Promise<PlaceSuggestion[]> => {
-  return searchPlacesViaBackend(query, lat, lon);
+const searchPlaces = async (query: string, lat?: number, lon?: number, signal?: AbortSignal): Promise<PlaceSuggestion[]> => {
+  return searchPlacesViaBackend(query, lat, lon, signal);
 };
 
 /** Parse a route param string into a Date, returning null for any garbage. */
@@ -497,19 +507,34 @@ export default function CreateEventScreen() {
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [customEmojiInput, setCustomEmojiInput] = useState("");
   const [sendNotification, setSendNotification] = useState(true);
-  const [isPrivateCircleEvent, setIsPrivateCircleEvent] = useState(true); // Default to private for circle events
-  const [circleEventMode, setCircleEventMode] = useState<"open_invite" | "set_rsvp">("open_invite"); // Default to Open Invite for lower friction
+  const isPrivateCircleEvent = true; // Circle events are always private
+  const circleEventMode = "open_invite" as const; // Circle events are always open invite
   
   // Capacity state
   const [hasCapacity, setHasCapacity] = useState(false);
   const [capacityInput, setCapacityInput] = useState("");
 
+  // Pitch In V1 state
+  const [pitchInEnabled, setPitchInEnabled] = useState(false);
+  const [pitchInAmount, setPitchInAmount] = useState("");
+  const [pitchInMethod, setPitchInMethod] = useState<"venmo" | "cashapp" | "paypal" | "other">("venmo");
+  const [pitchInHandle, setPitchInHandle] = useState("");
+  const [pitchInNote, setPitchInNote] = useState("");
+
+  // What to Bring V2 state
+  const [bringListEnabled, setBringListEnabled] = useState(false);
+  const [bringListItems, setBringListItems] = useState<string[]>([]);
+  const [bringListInput, setBringListInput] = useState("");
+
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
   // Prompt arbitration: only ONE modal per create success
-  type CreatePromptChoice = "post_value_invite" | "notification" | "none";
+  // [GROWTH_V1] "share_event" takes highest priority — shares the actual event just created
+  type CreatePromptChoice = "share_event" | "post_value_invite" | "notification" | "none";
   const [createPromptChoice, setCreatePromptChoice] = useState<CreatePromptChoice>("none");
+  // [GROWTH_V1] Store created event for post-create share prompt
+  const [createdEvent, setCreatedEvent] = useState<{ id: string; title: string; emoji: string; startTime: string; endTime?: string | null; location?: string | null; description?: string | null } | null>(null);
   const [showSoftLimitModal, setShowSoftLimitModal] = useState(false);
 
   // Fetch entitlements for gating
@@ -547,7 +572,7 @@ export default function CreateEventScreen() {
 
   // [P0_FIND_BEST_TIME_SSOT] Return-flow: pick up time selected in /whos-free
   const BEST_TIME_PICK_KEY = "oi:bestTimePick";
-  const BEST_TIME_TTL_MS = 10 * 60 * 1000; // 10 minutes
+  const BEST_TIME_TTL_MS = 30 * 60 * 1000; // 30 minutes
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -753,7 +778,7 @@ export default function CreateEventScreen() {
     }
   }, [startDate, userModifiedEndTime]);
 
-  // Debounced place search with location biasing
+  // [P0_PLACE_SEARCH] Debounced place search with location biasing + stale-response prevention
   useEffect(() => {
     if (!locationQuery || locationQuery.length < 2) {
       setPlaceSuggestions([]);
@@ -765,23 +790,43 @@ export default function CreateEventScreen() {
       requestAndFetchLocation();
     }
 
+    // AbortController cancels in-flight requests when query changes (prevents stale overwrites)
+    const abortController = new AbortController();
+    let cancelled = false;
+
     const timeoutId = setTimeout(async () => {
       setIsSearchingPlaces(true);
       try {
         const results = await searchPlaces(
           locationQuery,
           userLocation?.lat,
-          userLocation?.lon
+          userLocation?.lon,
+          abortController.signal,
         );
-        setPlaceSuggestions(results);
-      } catch (error) {
-        devError("Error searching places:", error);
+        // [P0_PLACE_SEARCH] Guard: only apply results if this effect instance is still current
+        if (!cancelled) {
+          setPlaceSuggestions(results);
+          if (__DEV__) devLog("[P0_PLACE_SEARCH]", "applied", { query: locationQuery, count: results.length });
+        } else if (__DEV__) {
+          devLog("[P0_PLACE_SEARCH]", "stale_discarded", { query: locationQuery, count: results.length });
+        }
+      } catch (error: any) {
+        // Ignore abort errors (expected when query changes rapidly)
+        if (error?.name !== "AbortError" && !cancelled) {
+          devError("[P0_PLACE_SEARCH] error:", error);
+        }
       } finally {
-        setIsSearchingPlaces(false);
+        if (!cancelled) {
+          setIsSearchingPlaces(false);
+        }
       }
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      cancelled = true;
+      abortController.abort(); // Cancel any in-flight HTTP request
+    };
   }, [locationQuery, userLocation, locationPermissionAsked, requestAndFetchLocation]);
 
   /**
@@ -887,6 +932,12 @@ export default function CreateEventScreen() {
           eventId: response?.event?.id || 'unknown',
           title: response?.event?.title || 'unknown',
         });
+        // [P0_EVENT_CREATE_NOTIFY] Proof: confirm flag was sent with the request
+        devLog('[P0_EVENT_CREATE_NOTIFY]', 'server_accepted', {
+          eventId: response?.event?.id?.slice(0, 8),
+          sendNotification,
+          expected: sendNotification ? 'push_fanout' : 'no_push',
+        });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Track for rate app prompt
@@ -926,34 +977,42 @@ export default function CreateEventScreen() {
         queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
         queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       }
-      // ── Prompt arbitration: at most ONE modal per create success ──
-      // Priority: PostValueInvite > NotificationPrePrompt > none
-      let postValueEligible = false;
+      // ── [GROWTH_V1] Prompt arbitration: at most ONE modal per create success ──
+      // Priority: ShareEvent (always) > NotificationPrePrompt > none
+      // ShareEvent is the highest priority because sharing the just-created event
+      // is the single most valuable growth action after create.
+
+      // Store the created event for the share prompt
+      const evt = response?.event;
+      if (evt?.id) {
+        setCreatedEvent({
+          id: evt.id,
+          title: evt.title ?? title,
+          emoji: evt.emoji ?? emoji,
+          startTime: evt.startTime ?? startDate.toISOString(),
+          endTime: evt.endTime ?? endDate?.toISOString() ?? null,
+          location: evt.location ?? location ?? null,
+          description: evt.description ?? description ?? null,
+        });
+      }
+
       let notifEligible = false;
-
       try {
-        postValueEligible = await canShowPostValueInvite("create", { bypassCooldown: true });
+        notifEligible = await shouldShowNotificationPrompt(session?.user?.id) ?? false;
       } catch {
-        postValueEligible = false;
+        notifEligible = false;
       }
 
-      if (!postValueEligible) {
-        try {
-          notifEligible = await shouldShowNotificationPrompt(session?.user?.id) ?? false;
-        } catch {
-          notifEligible = false;
-        }
-      }
-
+      // [GROWTH_V1] Always show share_event if we have the created event
       let chosen: CreatePromptChoice = "none";
-      if (postValueEligible) {
-        chosen = "post_value_invite";
+      if (evt?.id) {
+        chosen = "share_event";
       } else if (notifEligible) {
         chosen = "notification";
       }
 
       if (__DEV__) {
-        devLog("[P1_PROMPT_ARB_CREATE]", `chosen=${chosen} postValueEligible=${postValueEligible} notifEligible=${notifEligible}`);
+        devLog("[P1_PROMPT_ARB_CREATE]", `chosen=${chosen} hasEvent=${!!evt?.id} notifEligible=${notifEligible}`);
       }
 
       if (chosen !== "none") {
@@ -1126,7 +1185,19 @@ export default function CreateEventScreen() {
       });
     }
 
-    createMutation.mutate({
+    // [P0_EVENT_CREATE_NOTIFY] Proof: log notification flag before submission
+    // This is the canonical proof that frontend sends the correct value.
+    // If push still fires when sendNotification=false, the bug is backend-side.
+    if (__DEV__) {
+      devLog("[P0_EVENT_CREATE_NOTIFY]", "payload", {
+        sendNotification,
+        visibility,
+        isCircleEvent,
+        title: title.trim().slice(0, 20),
+      });
+    }
+
+    const createPayload = {
       title: title.trim(),
       description: description.trim() || undefined,
       location: _normalizedLocation,
@@ -1141,7 +1212,27 @@ export default function CreateEventScreen() {
       recurrence: isRecurring ? frequency : undefined,
       sendNotification,
       capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
-    });
+      reflectionEnabled: false,
+      // Pitch In V1
+      ...(pitchInEnabled && pitchInHandle.trim() ? {
+        pitchInEnabled: true,
+        pitchInTone: pitchInAmount.trim() ? "suggested" as const : "optional" as const,
+        pitchInAmount: pitchInAmount.trim() || undefined,
+        pitchInMethod,
+        pitchInHandle: pitchInHandle.trim(),
+        pitchInNote: pitchInNote.trim() || undefined,
+      } : {}),
+      // What to Bring V2
+      ...(bringListEnabled && bringListItems.length > 0 ? {
+        bringListEnabled: true,
+        bringListItems: bringListItems.map((label, i) => ({
+          id: `item_${i}_${Date.now()}`,
+          label,
+        })),
+      } : {}),
+    };
+    if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "create_payload", { reflectionEnabled: createPayload.reflectionEnabled });
+    createMutation.mutate(createPayload);
   };
 
   // Handle soft-limit modal upgrade action
@@ -1369,7 +1460,7 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(50).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Title *</Text>
             <TextInput
-              testID="event-title-input"
+              testID="create-input-title"
               value={title}
               onChangeText={setTitle}
               placeholder="What are you doing?"
@@ -1383,6 +1474,7 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(100).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Description</Text>
             <TextInput
+              testID="create-input-description"
               value={description}
               onChangeText={setDescription}
               placeholder="Add some details..."
@@ -1434,6 +1526,7 @@ export default function CreateEventScreen() {
                 <View className="rounded-xl flex-row items-center px-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                   <Search size={18} color={colors.textTertiary} />
                   <TextInput
+                    testID="create-input-location"
                     value={showLocationSearch ? locationQuery : location}
                     onChangeText={handleLocationInputChange}
                     onFocus={() => {
@@ -1494,7 +1587,7 @@ export default function CreateEventScreen() {
                     className="mt-2 py-2"
                   >
                     <Text style={{ color: "#4ECDC4" }} className="text-center font-medium">
-                      {locationQuery && !selectedPlace ? "Use this location" : "Close"}
+                      {locationQuery && !selectedPlace ? "Use custom location" : "Close"}
                     </Text>
                   </Pressable>
                 )}
@@ -1576,6 +1669,7 @@ export default function CreateEventScreen() {
           <Animated.View entering={FadeInDown.delay(225).springify()}>
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Frequency</Text>
             <Pressable
+              testID="create-select-frequency"
               onPress={() => setShowFrequencyPicker(!showFrequencyPicker)}
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
@@ -1682,6 +1776,7 @@ export default function CreateEventScreen() {
                 <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Who's Invited?</Text>
                 <View className="flex-row mb-4">
                   <Pressable
+                    testID="create-select-visibility-all"
                     onPress={() => {
                       Haptics.selectionAsync();
                       setVisibility("all_friends");
@@ -1702,6 +1797,7 @@ export default function CreateEventScreen() {
                     </Text>
                   </Pressable>
                   <Pressable
+                    testID="create-select-visibility-circles"
                     onPress={() => {
                       Haptics.selectionAsync();
                       setVisibility("specific_groups");
@@ -1728,9 +1824,17 @@ export default function CreateEventScreen() {
                   <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                     <Text style={{ color: colors.text }} className="text-sm font-medium mb-3">Select Circles</Text>
                     {circles.length === 0 ? (
-                      <Text style={{ color: colors.textTertiary }} className="text-center py-4">
-                        No circles yet. Create circles from Friends tab!
-                      </Text>
+                      <View className="items-center py-4">
+                        <Text style={{ color: colors.textTertiary }} className="text-center mb-3">
+                          No circles yet.
+                        </Text>
+                        <Pressable
+                          onPress={() => router.push("/friends" as any)}
+                          style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: themeColor }}
+                        >
+                          <Text style={{ color: "#FFFFFF", fontSize: 13, fontWeight: "600" }}>Go to Friends</Text>
+                        </Pressable>
+                      </View>
                     ) : (
                       circles.map((circle: Circle) => (
                         <Pressable
@@ -1764,6 +1868,7 @@ export default function CreateEventScreen() {
             <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Send Notification</Text>
             <View className="flex-row mb-4">
               <Pressable
+                testID="create-toggle-notification-yes"
                 onPress={() => {
                   Haptics.selectionAsync();
                   setSendNotification(true);
@@ -1784,6 +1889,7 @@ export default function CreateEventScreen() {
                 </Text>
               </Pressable>
               <Pressable
+                testID="create-toggle-notification-no"
                 onPress={() => {
                   Haptics.selectionAsync();
                   setSendNotification(false);
@@ -1864,6 +1970,230 @@ export default function CreateEventScreen() {
                   </Pressable>
                 </View>
               </View>
+            )}
+          </Animated.View>
+
+          {/* Pitch In V1 — payment handle for cost sharing */}
+          <Animated.View entering={FadeInDown.delay(290).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1">
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Pitch In</Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Let guests chip in for costs.</Text>
+              </View>
+              <Switch
+                value={pitchInEnabled}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setPitchInEnabled(value);
+                  if (!value) {
+                    setPitchInHandle("");
+                    setPitchInAmount("");
+                    setPitchInNote("");
+                  }
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={pitchInEnabled ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {pitchInEnabled && (
+              <Animated.View entering={FadeInDown.delay(50).springify()}>
+                {/* Amount input */}
+                <View className="rounded-xl p-3 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <TextInput
+                    value={pitchInAmount}
+                    onChangeText={setPitchInAmount}
+                    placeholder="Suggested amount (e.g. $10)"
+                    placeholderTextColor={colors.textTertiary}
+                    style={{ fontSize: 14, color: colors.text }}
+                    keyboardType="default"
+                  />
+                </View>
+
+                {/* Payment method picker */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 10 }} contentContainerStyle={{ gap: 6 }}>
+                  {([
+                    { key: "venmo" as const, label: "Venmo" },
+                    { key: "cashapp" as const, label: "Cash App" },
+                    { key: "paypal" as const, label: "PayPal" },
+                    { key: "other" as const, label: "Other" },
+                  ]).map(({ key, label }) => (
+                    <Pressable
+                      key={key}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setPitchInMethod(key);
+                      }}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        backgroundColor: pitchInMethod === key ? `${themeColor}18` : colors.surface,
+                        borderWidth: 1,
+                        borderColor: pitchInMethod === key ? themeColor : colors.border,
+                      }}
+                    >
+                      <Text style={{
+                        fontSize: 13,
+                        fontWeight: pitchInMethod === key ? "600" : "400",
+                        color: pitchInMethod === key ? themeColor : colors.textSecondary,
+                      }}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                {/* Handle input with @ prefix for Venmo/Cash App */}
+                <View className="rounded-xl p-3 mb-3 flex-row items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  {(pitchInMethod === "venmo" || pitchInMethod === "cashapp") && (
+                    <Text style={{ fontSize: 14, color: colors.textTertiary, marginRight: 2 }}>@</Text>
+                  )}
+                  <TextInput
+                    value={pitchInHandle}
+                    onChangeText={setPitchInHandle}
+                    placeholder={pitchInMethod === "venmo" ? "username" : pitchInMethod === "cashapp" ? "cashtag" : pitchInMethod === "paypal" ? "PayPal email or username" : "Handle or username"}
+                    placeholderTextColor={colors.textTertiary}
+                    style={{ fontSize: 14, color: colors.text, flex: 1 }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                {/* Note presets + input */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 8 }} contentContainerStyle={{ gap: 6 }}>
+                  {[
+                    "Help cover snacks and drinks",
+                    "Help cover venue costs",
+                    "Help cover supplies",
+                    "Help support the event",
+                    "Totally optional, but appreciated",
+                  ].map((preset) => (
+                    <Pressable
+                      key={preset}
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setPitchInNote(preset);
+                      }}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 7,
+                        borderRadius: 16,
+                        backgroundColor: pitchInNote === preset ? `${themeColor}18` : colors.surface,
+                        borderWidth: 1,
+                        borderColor: pitchInNote === preset ? themeColor : colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, color: pitchInNote === preset ? themeColor : colors.textSecondary }}>
+                        {preset}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <View className="rounded-xl p-3 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                  <TextInput
+                    value={pitchInNote}
+                    onChangeText={setPitchInNote}
+                    placeholder="Note (e.g. for food & drinks)"
+                    placeholderTextColor={colors.textTertiary}
+                    style={{ fontSize: 14, color: colors.text }}
+                    maxLength={100}
+                  />
+                </View>
+              </Animated.View>
+            )}
+          </Animated.View>
+
+          {/* What to Bring V2 — item list builder */}
+          <Animated.View entering={FadeInDown.delay(295).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1">
+                <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">What to bring</Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Guests can claim items to bring.</Text>
+              </View>
+              <Switch
+                value={bringListEnabled}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setBringListEnabled(value);
+                  if (!value) {
+                    setBringListItems([]);
+                    setBringListInput("");
+                  }
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={bringListEnabled ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {bringListEnabled && (
+              <Animated.View entering={FadeInDown.delay(50).springify()}>
+                {/* Add item row */}
+                <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+                  <View className="flex-1 rounded-xl p-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                    <TextInput
+                      value={bringListInput}
+                      onChangeText={setBringListInput}
+                      placeholder="e.g. Chips, Ice, Cups..."
+                      placeholderTextColor={colors.textTertiary}
+                      style={{ fontSize: 14, color: colors.text }}
+                      maxLength={60}
+                      onSubmitEditing={() => {
+                        const trimmed = bringListInput.trim();
+                        if (trimmed && bringListItems.length < 20) {
+                          setBringListItems((prev) => [...prev, trimmed]);
+                          setBringListInput("");
+                        }
+                      }}
+                      returnKeyType="done"
+                    />
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      const trimmed = bringListInput.trim();
+                      if (trimmed && bringListItems.length < 20) {
+                        Haptics.selectionAsync();
+                        setBringListItems((prev) => [...prev, trimmed]);
+                        setBringListInput("");
+                      }
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: bringListInput.trim() ? themeColor : colors.surface,
+                      borderWidth: 1,
+                      borderColor: bringListInput.trim() ? themeColor : colors.border,
+                    }}
+                  >
+                    <Text style={{ fontSize: 20, fontWeight: "500", color: bringListInput.trim() ? "white" : colors.textTertiary }}>+</Text>
+                  </Pressable>
+                </View>
+                {/* Item list */}
+                {bringListItems.length > 0 && (
+                  <View className="mb-4" style={{ gap: 6 }}>
+                    {/* INVARIANT_ALLOW_SMALL_MAP */}
+                    {bringListItems.map((item, index) => (
+                      <View
+                        key={`${item}-${index}`}
+                        className="flex-row items-center rounded-xl px-3 py-2.5"
+                        style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+                      >
+                        <Text style={{ fontSize: 14, color: colors.text, flex: 1 }}>{item}</Text>
+                        <Pressable
+                          onPress={() => {
+                            Haptics.selectionAsync();
+                            setBringListItems((prev) => prev.filter((_, i) => i !== index));
+                          }}
+                          hitSlop={8}
+                        >
+                          <X size={16} color={colors.textTertiary} />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Animated.View>
             )}
           </Animated.View>
 
@@ -1948,7 +2278,7 @@ export default function CreateEventScreen() {
           {/* Create Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Button
-              testID="create-submit-button"
+              testID="create-submit-event"
               variant="primary"
               label={createMutation.isPending ? "Creating..." : "Create Invite"}
               onPress={handleCreate}
@@ -2014,14 +2344,109 @@ export default function CreateEventScreen() {
         userId={session?.user?.id}
       />
 
-      <PostValueInvitePrompt
-        visible={createPromptChoice === "post_value_invite"}
-        surface="create"
-        onClose={() => {
+      {/* [GROWTH_V1] Post-create event share prompt — shares the actual event */}
+      <Modal
+        visible={createPromptChoice === "share_event"}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
           setCreatePromptChoice("none");
           router.back();
         }}
-      />
+      >
+        <Pressable
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
+          onPress={() => {
+            setCreatePromptChoice("none");
+            router.back();
+          }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingHorizontal: 24,
+              paddingTop: 24,
+              paddingBottom: 40,
+            }}
+          >
+            {/* Handle bar */}
+            <View style={{ alignItems: "center", marginBottom: 20 }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border }} />
+            </View>
+
+            {/* Success header */}
+            <View style={{ alignItems: "center", marginBottom: 20 }}>
+              <Text style={{ fontSize: 28, marginBottom: 4 }}>{createdEvent?.emoji || "🎉"}</Text>
+              <Text style={{ fontSize: 20, fontWeight: "700", color: colors.text, textAlign: "center" }}>
+                Your event is live!
+              </Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+                Share it so friends can join
+              </Text>
+            </View>
+
+            {/* Share CTA — primary */}
+            <Pressable
+              onPress={async () => {
+                if (!createdEvent) return;
+                try {
+                  const startDate = new Date(createdEvent.startTime);
+                  const endDate = createdEvent.endTime ? new Date(createdEvent.endTime) : null;
+                  const dateStr = startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+                  const timeStr = endDate
+                    ? `${startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                    : startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                  const payload = buildEventSharePayload({
+                    id: createdEvent.id,
+                    title: createdEvent.title,
+                    emoji: createdEvent.emoji,
+                    dateStr,
+                    timeStr,
+                    location: createdEvent.location,
+                    description: createdEvent.description,
+                  });
+                  trackInviteShared({ entity: "event", sourceScreen: "create_success" });
+                  await Share.share({ message: payload.message, title: createdEvent.title, url: payload.url });
+                } catch (err) {
+                  devError("[GROWTH_V1] share error:", err);
+                }
+                setCreatePromptChoice("none");
+                router.back();
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 16,
+                borderRadius: 14,
+                backgroundColor: themeColor,
+              }}
+            >
+              <Share2 size={20} color="white" />
+              <Text style={{ fontSize: 16, fontWeight: "600", color: "white", marginLeft: 8 }}>
+                Share Event
+              </Text>
+            </Pressable>
+
+            {/* Skip */}
+            <Pressable
+              onPress={() => {
+                setCreatePromptChoice("none");
+                router.back();
+              }}
+              style={{ alignItems: "center", paddingVertical: 14, marginTop: 4 }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "500", color: colors.textSecondary }}>
+                I'll share later
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Soft-Limit Modal */}
       <SoftLimitModal

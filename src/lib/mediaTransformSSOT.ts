@@ -22,6 +22,8 @@ export type CloudinaryTransform = {
   h?: number;
   /** Crop mode. */
   crop?: "fill" | "fit" | "limit";
+  /** Gravity — focus point for crop. "auto" uses Cloudinary's smart subject detection. */
+  gravity?: "auto" | "center" | "face" | "faces";
   /** Compression quality (1-100). Defaults to "auto" when omitted. */
   quality?: number;
   /** Output format. Defaults to "auto" when omitted. */
@@ -35,7 +37,10 @@ export type CloudinaryTransform = {
  * AVATAR_THUMB     - list-sized avatars (40px UI x 3 = 120).
  */
 export const CLOUDINARY_PRESETS = {
-  HERO_BANNER: { w: 1200, h: 600, crop: "fill" } as CloudinaryTransform,
+  /** Landscape hero for Discover feed cards (4:3 container). */
+  HERO_BANNER: { w: 1200, h: 900, crop: "fill", gravity: "auto" } as CloudinaryTransform,
+  /** Portrait hero for Event Detail screen (3:4 container, maxHeight 480). */
+  HERO_DETAIL: { w: 900, h: 1200, crop: "fill", gravity: "auto" } as CloudinaryTransform,
   THUMBNAIL_SQUARE: { w: 360, h: 360, crop: "fill" } as CloudinaryTransform,
   AVATAR_THUMB: { w: 120, h: 120, crop: "fill" } as CloudinaryTransform,
 } as const;
@@ -98,6 +103,11 @@ export function toCloudinaryTransformedUrl(
   if (t.crop) {
     const cropMap = { fill: "c_fill", fit: "c_fit", limit: "c_limit" } as const;
     parts.push(cropMap[t.crop]);
+  }
+
+  // Gravity (smart subject focus)
+  if (t.gravity) {
+    parts.push(`g_${t.gravity}`);
   }
 
   const segment = parts.join(",");

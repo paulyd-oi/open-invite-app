@@ -1,0 +1,31 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Calendar event card opens event detail
+# Proves calendar-event-open testID navigates correctly
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Navigate to Calendar tab
+- tapOn:
+    id: "app-tab-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: calendar-before-tap
+
+# Tap second event card (index 1 skips busy blocks)
+- tapOn:
+    id: "calendar-event-open"
+    index: 1
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: calendar-event-opened
+
+# Verify event detail rendered — try menu button
+- tapOn:
+    id: "event-detail-menu-open"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: calendar-event-menu

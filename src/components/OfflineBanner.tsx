@@ -9,6 +9,7 @@ import { useNetworkStatus } from "@/lib/networkStatus";
 import { useIsSyncing, useSyncProgress } from "@/lib/offlineStore";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { Button } from "@/ui/Button";
+import { qk } from "@/lib/queryKeys";
 
 /**
  * Unified Network Status Banner
@@ -33,12 +34,12 @@ export function NetworkStatusBanner() {
     try {
       const online = await refresh();
       if (online) {
-        // [P1_REFETCH_GUARD] Scoped invalidation instead of blanket invalidateQueries()
+        // [P1_REFETCH_GUARD] Scoped invalidation using SSOT query key builders
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["events"] }),
-          queryClient.invalidateQueries({ queryKey: ["friends"] }),
-          queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-          queryClient.invalidateQueries({ queryKey: ["profile"] }),
+          queryClient.invalidateQueries({ queryKey: qk.event.all() }),
+          queryClient.invalidateQueries({ queryKey: qk.friend.all() }),
+          queryClient.invalidateQueries({ queryKey: qk.notifications() }),
+          queryClient.invalidateQueries({ queryKey: qk.profile() }),
         ]);
       }
     } finally {

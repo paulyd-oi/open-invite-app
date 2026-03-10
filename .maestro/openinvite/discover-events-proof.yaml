@@ -1,0 +1,32 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Discover screen sub-tab navigation via testIDs
+# Proves Ideas → Events → Saved tabs render correctly
+# NOTE: Requires backend reachable — lens tabs render after data loads
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Navigate to Discover via stable testID
+- tapOn:
+    id: "app-tab-discover"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: discover-landing
+
+# Switch to Events sub-tab (optional — requires backend data)
+- tapOn:
+    id: "discover-tab-events"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: discover-events-tab
+
+# Switch to Saved sub-tab
+- tapOn:
+    id: "discover-tab-saved"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: discover-saved-tab

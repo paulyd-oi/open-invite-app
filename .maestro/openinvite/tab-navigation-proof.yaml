@@ -1,0 +1,43 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# CORE REGRESSION: Tab navigation via stable testIDs
+# Proves all 5 bottom nav tabs are reachable and render
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 1. Discover tab
+- tapOn:
+    id: "app-tab-discover"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: tab-proof-discover
+
+# 2. Calendar tab
+- tapOn:
+    id: "app-tab-calendar"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: tab-proof-calendar
+
+# 3. Friends tab
+- tapOn:
+    id: "app-tab-friends"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: tab-proof-friends
+
+# 4. Profile tab
+- tapOn:
+    id: "app-tab-profile"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: tab-proof-profile
+
+# 5. Social (center) tab — back to home
+- tapOn:
+    id: "app-tab-social"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: tab-proof-social

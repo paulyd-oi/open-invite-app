@@ -1,0 +1,15 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+- launchApp
+- tapOn:
+    text: "Calendar"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: calendar-debug-1
+- swipe:
+    direction: UP
+    duration: 300
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: calendar-debug-2

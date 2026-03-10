@@ -24,6 +24,13 @@ export const APP_STORE_ID = "6757429210";
 /** Custom URL scheme registered in app.json */
 const SCHEME = "open-invite";
 
+/**
+ * Share domain for universal links.
+ * Swap this single constant when moving to a branded domain.
+ * [P0_SHARE_DOMAIN_SSOT]
+ */
+export const SHARE_DOMAIN = "https://open-invite-api.onrender.com";
+
 /** Domains that must NEVER appear in user-facing share text. */
 const FORBIDDEN_DOMAINS = [
   "api.openinvite.cloud",
@@ -80,11 +87,11 @@ interface EventShareInput {
 
 /**
  * Build a universal link for an event (works in browsers AND deep-links into the app).
- * Format: https://open-invite-api.onrender.com/share/event/<id>
+ * Format: ${SHARE_DOMAIN}/share/event/<id>
  * [P0_SHARE_ULINK]
  */
 export function getEventUniversalLink(eventId: string): string {
-  return `https://open-invite-api.onrender.com/share/event/${eventId}`;
+  return `${SHARE_DOMAIN}/share/event/${eventId}`;
 }
 
 /**

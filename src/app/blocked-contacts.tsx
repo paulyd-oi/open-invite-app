@@ -35,6 +35,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog } from "@/lib/devLog";
+import { safeToast } from "@/lib/safeToast";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
@@ -92,6 +93,7 @@ export default function BlockedContactsScreen() {
     onSuccess: (response) => {
       if (response.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        safeToast.success("Blocked", "Contact has been blocked");
         queryClient.invalidateQueries({ queryKey: ["blocked-contacts"] });
         queryClient.invalidateQueries({ queryKey: ["friends"] });
         queryClient.invalidateQueries({ queryKey: eventKeys.feed() });
@@ -102,6 +104,7 @@ export default function BlockedContactsScreen() {
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Block failed", "Please try again");
     },
   });
 
@@ -111,10 +114,12 @@ export default function BlockedContactsScreen() {
       api.delete<UnblockContactResponse>(`/api/blocked/${id}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      safeToast.success("Unblocked", "Contact has been unblocked");
       queryClient.invalidateQueries({ queryKey: ["blocked-contacts"] });
     },
     onError: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Unblock failed", "Please try again");
     },
   });
 

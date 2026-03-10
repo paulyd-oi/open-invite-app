@@ -1,0 +1,7 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+- launchApp
+- tapOn:
+    text: "Events"
+    optional: true
+- takeScreenshot: openinvite-discover-events

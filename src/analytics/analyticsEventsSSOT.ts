@@ -81,12 +81,6 @@ export const AnalyticsEvent = {
   // Activation audit — empty state CTAs
   SOCIAL_EMPTY_CTA_TAP: "social_empty_cta_tap",
 
-  // Discover swipe mode
-  DISCOVER_SWIPE_VIEW: "discover_swipe_view",
-  DISCOVER_SWIPE_RIGHT: "discover_swipe_right",
-  DISCOVER_SWIPE_LEFT: "discover_swipe_left",
-  DISCOVER_SWIPE_OPEN: "discover_swipe_open",
-  DISCOVER_SWIPE_SESSION_END: "discover_swipe_session_end",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
@@ -715,42 +709,3 @@ export function trackSocialEmptyCtaTap(props: {
   track(AnalyticsEvent.SOCIAL_EMPTY_CTA_TAP, props);
 }
 
-// ---------------------------------------------------------------------------
-// Discover swipe mode
-// ---------------------------------------------------------------------------
-
-export function trackDiscoverSwipeView(props: {
-  eventId: string;
-  cardIndex: number;
-}): void {
-  track(AnalyticsEvent.DISCOVER_SWIPE_VIEW, { ...props, mode: "swipe" });
-}
-
-export function trackDiscoverSwipeRight(props: {
-  eventId: string;
-  cardIndex: number;
-}): void {
-  track(AnalyticsEvent.DISCOVER_SWIPE_RIGHT, { ...props, mode: "swipe" });
-}
-
-export function trackDiscoverSwipeLeft(props: {
-  eventId: string;
-  cardIndex: number;
-}): void {
-  track(AnalyticsEvent.DISCOVER_SWIPE_LEFT, { ...props, mode: "swipe" });
-}
-
-export function trackDiscoverSwipeOpen(props: {
-  eventId: string;
-  cardIndex: number;
-}): void {
-  track(AnalyticsEvent.DISCOVER_SWIPE_OPEN, { ...props, mode: "swipe" });
-}
-
-export function trackDiscoverSwipeSessionEnd(props: {
-  cardsViewed: number;
-  cardsRight: number;
-  cardsLeft: number;
-}): void {
-  track(AnalyticsEvent.DISCOVER_SWIPE_SESSION_END, { ...props, mode: "swipe" });
-}

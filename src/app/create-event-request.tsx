@@ -35,6 +35,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { devLog, devError } from "@/lib/devLog";
+import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
@@ -269,6 +270,7 @@ export default function CreateEventRequestScreen() {
     onError: (error) => {
       devError("Failed to create event request:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      safeToast.error("Couldn't send", "Please try again");
     },
   });
 
