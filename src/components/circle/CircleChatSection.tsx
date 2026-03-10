@@ -109,7 +109,7 @@ function MessageBubble({
     const headerLabel = isPast ? "Past Event" : "Upcoming";
     const accentColor = isPast ? colors.textTertiary : themeColor;
     return (
-      <View className="items-center" style={{ marginVertical: isPast ? 10 : 16 }}>
+      <View className="items-center" style={{ marginVertical: isPast ? 10 : 20 }}>
         <Pressable
           onPress={() => onViewEvent?.(systemEventPayload.eventId)}
           style={{
@@ -127,7 +127,7 @@ function MessageBubble({
           <View style={{
             backgroundColor: accentColor + (isPast ? "10" : "18"),
             paddingHorizontal: isPast ? 14 : 16,
-            paddingVertical: isPast ? 8 : 10,
+            paddingVertical: isPast ? 8 : 12,
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
@@ -135,11 +135,11 @@ function MessageBubble({
             <Calendar size={isPast ? 14 : 16} color={accentColor} />
             <Text style={{ fontSize: isPast ? 12 : 13, fontWeight: "700", color: accentColor, letterSpacing: 0.3, textTransform: "uppercase" }}>{headerLabel}</Text>
           </View>
-          <View style={{ paddingHorizontal: isPast ? 14 : 16, paddingTop: isPast ? 10 : 12, paddingBottom: isPast ? 12 : 14 }}>
-            <Text style={{ fontSize: isPast ? 14 : 16, fontWeight: isPast ? "600" : "700", color: isPast ? colors.textSecondary : colors.text }} numberOfLines={2}>
+          <View style={{ paddingHorizontal: isPast ? 14 : 18, paddingTop: isPast ? 10 : 16, paddingBottom: isPast ? 12 : 18 }}>
+            <Text style={{ fontSize: isPast ? 14 : 17, fontWeight: isPast ? "600" : "700", color: isPast ? colors.textSecondary : colors.text }} numberOfLines={2}>
               {systemEventPayload.title}
             </Text>
-            <Text style={{ fontSize: isPast ? 12 : 13, color: isPast ? colors.textTertiary : colors.textSecondary, marginTop: isPast ? 3 : 5 }}>
+            <Text style={{ fontSize: isPast ? 12 : 14, color: isPast ? colors.textTertiary : colors.textSecondary, marginTop: isPast ? 3 : 6 }}>
               {dateStr} · {timeStr}
             </Text>
           </View>
