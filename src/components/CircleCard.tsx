@@ -422,7 +422,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                 numberOfLines={1}
               >
                 {circle.lastMessageText
-                  ? circle.lastMessageSenderName
+                  ? circle.lastMessageSenderName && members.length > 2
                     ? `${circle.lastMessageSenderName}: ${circle.lastMessageText}`
                     : circle.lastMessageText
                   : circle.description
