@@ -4390,6 +4390,26 @@ export default function EventDetailScreen() {
                       </View>
                       <Text style={{ color: colors.text, fontSize: 16 }}>Duplicate Event</Text>
                     </Pressable>
+
+                    <Pressable
+                      className="flex-row items-center py-4"
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      onPress={() => {
+                        setShowEventActionsSheet(false);
+                        Haptics.selectionAsync();
+                        setTimeout(() => launchEventPhotoPicker(), 350);
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                      >
+                        <Camera size={20} color={themeColor} />
+                      </View>
+                      <Text style={{ color: colors.text, fontSize: 16 }}>
+                        {event?.eventPhotoUrl ? "Change Banner Photo" : "Add Banner Photo"}
+                      </Text>
+                    </Pressable>
                   </>
                 )}
 

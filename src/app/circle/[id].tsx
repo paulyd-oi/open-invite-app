@@ -313,6 +313,7 @@ export default function CircleScreen() {
 
   // [P0_WS_TYPING_UI] typingUserIds comes from useTypingRealtime hook above
   const [showCalendar, setShowCalendar] = useState(true);
+  const [upNextExpanded, setUpNextExpanded] = useState(false);
   const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [createEventVisibility, setCreateEventVisibility] = useState<"open_invite" | "circle_only">("circle_only");
   const [showAddMembers, setShowAddMembers] = useState(false);
@@ -1483,6 +1484,24 @@ export default function CircleScreen() {
   // Derive messages safely (circle may be null before loading gate)
   const messages = circle?.messages ?? [];
 
+  // [P1_NEXT_EVENT_ANCHOR] Derive next upcoming circle event from memberEvents
+  const nextCircleEvent = useMemo(() => {
+    if (!circle?.memberEvents) return null;
+    const now = Date.now();
+    let best: { id: string; title: string; startTime: string; endTime?: string | null; emoji?: string; location?: string | null; color?: string; isBusy?: boolean; isPrivate?: boolean } | null = null;
+    let bestTime = Infinity;
+    for (const member of circle.memberEvents) {
+      for (const e of member.events) {
+        const t = new Date(e.startTime).getTime();
+        if (t > now && t < bestTime && !e.isBusy && !e.isPrivate) {
+          bestTime = t;
+          best = e;
+        }
+      }
+    }
+    return best;
+  }, [circle?.memberEvents]);
+
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
   const latestFailed = useMemo(() => {
@@ -2050,6 +2069,97 @@ export default function CircleScreen() {
               </View>
             </Pressable>
           ));
+        })()}
+
+        {/* [P1_NEXT_EVENT_ANCHOR] Collapsible next-event anchor */}
+        {nextCircleEvent && (() => {
+          const eventDate = new Date(nextCircleEvent.startTime);
+          const now = new Date();
+          const diffMs = eventDate.getTime() - now.getTime();
+          const diffDays = Math.floor(diffMs / 86_400_000);
+          const diffHours = Math.floor(diffMs / 3_600_000);
+
+          let relativeLabel = "";
+          if (diffHours < 1) relativeLabel = "Starting soon";
+          else if (diffHours < 24) relativeLabel = `In ${diffHours}h`;
+          else if (diffDays === 1) relativeLabel = "Tomorrow";
+          else relativeLabel = `In ${diffDays} days`;
+
+          const dateStr = eventDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+          const timeStr = eventDate.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+          const accentColor = nextCircleEvent.color || themeColor;
+
+          return (
+            <View
+              style={{
+                marginHorizontal: 16,
+                marginTop: 6,
+                marginBottom: 10,
+                borderRadius: upNextExpanded ? 16 : 12,
+                borderWidth: 1.5,
+                borderColor: isDark ? accentColor + "30" : accentColor + "22",
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Summary row — always visible, toggles expand */}
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setUpNextExpanded((v) => !v);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                  paddingVertical: 9,
+                  backgroundColor: accentColor + "18",
+                }}
+              >
+                <Calendar size={14} color={accentColor} />
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 12, fontWeight: "700", color: accentColor, textTransform: "uppercase", letterSpacing: 0.5, marginLeft: 6, flex: 1 }}
+                >
+                  Up Next · {relativeLabel}
+                </Text>
+                {upNextExpanded ? (
+                  <ChevronUp size={14} color={accentColor} />
+                ) : (
+                  <ChevronDown size={14} color={accentColor} />
+                )}
+              </Pressable>
+
+              {/* Expanded event tile */}
+              {upNextExpanded && (
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/event/${nextCircleEvent.id}` as any);
+                  }}
+                  style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontSize: 16, fontWeight: "700", color: colors.text }}
+                  >
+                    {nextCircleEvent.emoji ? `${nextCircleEvent.emoji} ` : ""}{nextCircleEvent.title}
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                    {dateStr} · {timeStr}
+                  </Text>
+                  {nextCircleEvent.location ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>
+                      <MapPin size={12} color={colors.textTertiary} />
+                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textTertiary, flex: 1 }}>
+                        {nextCircleEvent.location}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              )}
+            </View>
+          );
         })()}
 
         {/* Messages List */}
