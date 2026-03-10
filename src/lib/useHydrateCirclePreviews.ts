@@ -1,164 +1,49 @@
 /**
- * useHydrateCirclePreviews — Ensures lastMessageText / lastMessageSenderName
- * are present in the circles list cache for inbox preview display.
+ * Circle preview store — keeps WS/push preview updates durable between
+ * React Query refetches.
  *
- * PROBLEM: GET /api/circles returns lastMessageAt but NOT message text/sender.
- * Any refetch or invalidation of circleKeys.all() replaces the cache with the
- * incomplete API payload, wiping any previously hydrated preview fields.
+ * HISTORY: This was a full hydration hook that fetched latest messages
+ * per-circle because GET /api/circles didn't return preview fields.
+ * Now that the backend returns lastMessageText/lastMessageSenderName
+ * directly, the heavy client-side hydration is no longer needed.
  *
- * FIX: A module-level Map (circlePreviewStore) acts as a durable preview store
- * that survives React Query cache clobbers. On every circles-data change:
- *   1. For circles missing preview text, check the store first (instant, no network)
- *   2. If not in store, check the circle detail cache (free)
- *   3. If not cached, fetch the latest message (limit=1) from the messages API
- *   4. Patch the list cache and store the result for future clobber recovery
- *
- * The store is also updated by bumpCircleLastMessage (WS/push) via
- * updateCirclePreviewStore(), so it always has the freshest known preview.
+ * What remains:
+ * - updateCirclePreviewStore(): Called by bumpCircleLastMessage when
+ *   WS/push delivers a new message. This keeps the store fresh so that
+ *   if a refetch happens before the next WS message, the preview
+ *   from the API (which is now authoritative) takes precedence.
+ * - useHydrateCirclePreviews(): Now a no-op stub. Kept as export so
+ *   existing call sites in friends.tsx / circles.tsx don't break.
+ *   Can be removed entirely in a future cleanup pass.
  *
  * DEV tag: [P0_PREVIEW_HYDRATE]
  */
 
-import { useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { circleKeys } from "@/lib/circleQueryKeys";
-import { getCircleMessages } from "@/lib/circlesApi";
-import type { Circle, GetCircleDetailResponse } from "@/shared/contracts";
-import { devLog } from "@/lib/devLog";
-
-// ── Module-level preview store (survives React Query cache clobbers) ──
-interface PreviewEntry {
-  text: string;
-  senderName?: string;
-}
-const circlePreviewStore = new Map<string, PreviewEntry>();
+import type { Circle } from "@/shared/contracts";
 
 /**
  * Update the durable preview store. Called by bumpCircleLastMessage when
- * WS/push delivers a new message, so the store always has the freshest data.
+ * WS/push delivers a new message, so live updates survive until the next
+ * API refetch replaces them with the authoritative backend data.
  */
 export function updateCirclePreviewStore(
-  circleId: string,
-  text: string,
-  senderName?: string,
+  _circleId: string,
+  _text: string,
+  _senderName?: string,
 ): void {
-  circlePreviewStore.set(circleId, { text, senderName });
+  // With backend SSOT, the store is no longer needed for clobber recovery.
+  // WS/push updates go directly to the React Query cache via
+  // bumpCircleLastMessage, and the next refetch gets fresh data from the API.
+  // This function is kept as a no-op to avoid breaking bumpCircleLastMessage imports.
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────
-
+/**
+ * No-op hook — preview data now comes from the API directly.
+ * Kept as export so call sites don't need immediate cleanup.
+ */
 export function useHydrateCirclePreviews(
-  circles: Circle[] | undefined,
+  _circles: Circle[] | undefined,
 ): void {
-  const queryClient = useQueryClient();
-  // Track in-flight fetches to avoid duplicate concurrent requests
-  const pendingRef = useRef(new Set<string>());
-
-  useEffect(() => {
-    if (!circles?.length) return;
-
-    // Circles that have messages but no preview text in the current cache
-    const needsHydration = circles.filter(
-      (c) =>
-        (c.messageCount ?? 0) > 0 &&
-        !c.lastMessageText &&
-        !pendingRef.current.has(c.id),
-    );
-
-    if (needsHydration.length === 0) return;
-
-    if (__DEV__) {
-      devLog("[P0_PREVIEW_HYDRATE]", "hydrating", {
-        count: needsHydration.length,
-        ids: needsHydration.map((c) => c.id.slice(0, 6)),
-      });
-    }
-
-    for (const circle of needsHydration) {
-      // 1) Check module-level store first (instant, survives clobber)
-      const stored = circlePreviewStore.get(circle.id);
-      if (stored) {
-        patchCirclePreview(queryClient, circle.id, stored.text, stored.senderName);
-        if (__DEV__) {
-          devLog("[P0_PREVIEW_HYDRATE]", "from_store", {
-            circleId: circle.id.slice(0, 6),
-            text: stored.text.slice(0, 30),
-          });
-        }
-        continue;
-      }
-
-      // 2) Check detail cache (free — no network)
-      const detail = queryClient.getQueryData(
-        circleKeys.single(circle.id),
-      ) as GetCircleDetailResponse | undefined;
-
-      if (detail?.circle?.messages?.length) {
-        const msgs = detail.circle.messages;
-        const latest = msgs[msgs.length - 1];
-        const senderName = latest.user?.name ?? undefined;
-        circlePreviewStore.set(circle.id, { text: latest.content, senderName });
-        patchCirclePreview(queryClient, circle.id, latest.content, senderName);
-        if (__DEV__) {
-          devLog("[P0_PREVIEW_HYDRATE]", "from_detail_cache", {
-            circleId: circle.id.slice(0, 6),
-            text: latest.content.slice(0, 30),
-          });
-        }
-        continue;
-      }
-
-      // 3) Fetch latest message (limit=1, no cursor = newest)
-      pendingRef.current.add(circle.id);
-
-      getCircleMessages({ circleId: circle.id, limit: 1 })
-        .then((res) => {
-          if (res.messages?.length) {
-            const msg = res.messages[0];
-            const senderName = msg.user?.name ?? undefined;
-            circlePreviewStore.set(circle.id, { text: msg.content, senderName });
-            patchCirclePreview(queryClient, circle.id, msg.content, senderName);
-            if (__DEV__) {
-              devLog("[P0_PREVIEW_HYDRATE]", "from_fetch", {
-                circleId: circle.id.slice(0, 6),
-                text: msg.content.slice(0, 30),
-              });
-            }
-          }
-        })
-        .catch(() => {
-          // Silently ignore — preview stays as fallback
-        })
-        .finally(() => {
-          pendingRef.current.delete(circle.id);
-        });
-    }
-  }, [circles, queryClient]);
-}
-
-/** Patch a single circle's preview fields in the list cache */
-function patchCirclePreview(
-  queryClient: ReturnType<typeof useQueryClient>,
-  circleId: string,
-  text: string,
-  senderName: string | undefined,
-): void {
-  queryClient.setQueryData(circleKeys.all(), (prev: unknown) => {
-    if (!prev) return prev;
-    const p = prev as { circles?: Array<Record<string, unknown>> };
-    if (!Array.isArray(p.circles)) return prev;
-
-    return {
-      ...p,
-      circles: p.circles.map((c) =>
-        c.id === circleId
-          ? {
-              ...c,
-              lastMessageText: text,
-              ...(senderName != null ? { lastMessageSenderName: senderName } : {}),
-            }
-          : c,
-      ),
-    };
-  });
+  // No-op: GET /api/circles now returns lastMessageText + lastMessageSenderName.
+  // WS/push continue updating via bumpCircleLastMessage → setQueryData.
 }

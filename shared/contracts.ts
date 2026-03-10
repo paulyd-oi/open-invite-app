@@ -1698,6 +1698,7 @@ export const circleSchema = z.object({
   id: z.string(),
   name: z.string(),
   emoji: z.string(),
+  type: z.enum(["group", "dm"]).optional(), // "group" (default) or "dm" — from DB schema
   description: z.string().nullable().optional(),
   photoUrl: z.string().nullable().optional(),
   createdById: z.string(),
@@ -1708,9 +1709,9 @@ export const circleSchema = z.object({
   members: z.array(circleMemberSchema),
   messageCount: z.number().optional(),
   unreadCount: z.number().optional(),
-  lastMessageAt: z.string().nullable().optional(), // ISO timestamp of latest message (for sort)
-  lastMessageText: z.string().nullable().optional(), // Latest message content (client-patched via WS/push)
-  lastMessageSenderName: z.string().nullable().optional(), // Latest message sender name (client-patched via WS/push)
+  lastMessageAt: z.string().nullable().optional(),        // ISO timestamp of latest message (for sort)
+  lastMessageText: z.string().nullable().optional(),      // Latest message content (from API + WS/push)
+  lastMessageSenderName: z.string().nullable().optional(),// Latest message sender name (from API + WS/push)
 });
 export type Circle = z.infer<typeof circleSchema>;
 
