@@ -181,6 +181,9 @@ export const createEventRequestSchema = z.object({
     id: z.string(),
     label: z.string(),
   })).optional(),
+  // Event cover photo (optional, uploaded before create)
+  eventPhotoUrl: z.string().optional(),
+  eventPhotoPublicId: z.string().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({

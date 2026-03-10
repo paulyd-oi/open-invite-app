@@ -43,6 +43,9 @@ import { trackEventCreated } from "@/lib/rateApp";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "react-native";
+import { uploadEventPhoto } from "@/lib/imageUpload";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import BottomNavigation from "@/components/BottomNavigation";
@@ -518,6 +521,11 @@ export default function CreateEventScreen() {
   const [bringListItems, setBringListItems] = useState<string[]>([]);
   const [bringListInput, setBringListInput] = useState("");
 
+  // Banner photo state
+  const [bannerLocalUri, setBannerLocalUri] = useState<string | null>(null);
+  const [bannerUpload, setBannerUpload] = useState<{ url: string; publicId: string } | null>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+
   // Paywall and notification modal state
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("ACTIVE_EVENTS_LIMIT");
@@ -938,7 +946,7 @@ export default function CreateEventScreen() {
       trackEventCreatedAnalytics({
         visibility: visibility ?? "unknown",
         hasLocation: location ? 1 : 0,
-        hasPhoto: 0,
+        hasPhoto: bannerUpload ? 1 : 0,
         isOpenInvite: visibility === "all_friends" ? 1 : 0,
       });
       // [P0_POSTHOG_VALUE] value_event_created — canonical retention event
@@ -947,7 +955,7 @@ export default function CreateEventScreen() {
         isOpenInvite: visibility === "all_friends",
         source: circleId ? "circle" : "create",
         hasLocation: !!location,
-        hasCoverImage: false,
+        hasCoverImage: !!bannerUpload,
         hasGuests: 0,
         ts: new Date().toISOString(),
       });
@@ -1060,6 +1068,45 @@ export default function CreateEventScreen() {
     setShowFrequencyPicker(false);
   };
 
+  const handlePickBanner = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        safeToast.warning("Permission Required", "Please allow access to your photos.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const uri = result.assets[0].uri;
+      setBannerLocalUri(uri);
+      setBannerUpload(null);
+      setUploadingBanner(true);
+      try {
+        const upload = await uploadEventPhoto(uri);
+        setBannerUpload({ url: upload.url, publicId: upload.publicId ?? "" });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (e: any) {
+        if (__DEV__) devError("[CREATE_BANNER_UPLOAD]", e);
+        safeToast.error("Upload failed", "Please try again.");
+        setBannerLocalUri(null);
+      } finally {
+        setUploadingBanner(false);
+      }
+    } catch (e: any) {
+      if (__DEV__) devError("[CREATE_BANNER_PICK]", e);
+    }
+  };
+
+  const handleRemoveBanner = () => {
+    setBannerLocalUri(null);
+    setBannerUpload(null);
+  };
+
   const handleCreate = () => {
     // [P0_SINGLEFLIGHT] Prevent double-submit while mutation is in-flight
     if (createMutation.isPending) {
@@ -1077,6 +1124,11 @@ export default function CreateEventScreen() {
     
     // Gate: require email verification
     if (!guardEmailVerification(session)) {
+      return;
+    }
+
+    if (uploadingBanner) {
+      safeToast.warning("Please Wait", "Cover photo is still uploading.");
       return;
     }
 
@@ -1222,6 +1274,11 @@ export default function CreateEventScreen() {
           id: `item_${i}_${Date.now()}`,
           label,
         })),
+      } : {}),
+      // Banner photo (pre-uploaded)
+      ...(bannerUpload ? {
+        eventPhotoUrl: bannerUpload.url,
+        eventPhotoPublicId: bannerUpload.publicId,
       } : {}),
     };
     if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "create_payload", { reflectionEnabled: createPayload.reflectionEnabled });
@@ -1461,6 +1518,44 @@ export default function CreateEventScreen() {
               className="rounded-xl p-4 mb-4"
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.text }}
             />
+          </Animated.View>
+
+          {/* Banner Photo */}
+          <Animated.View entering={FadeInDown.delay(75).springify()}>
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Cover Photo</Text>
+            {bannerLocalUri ? (
+              <View className="rounded-xl mb-4 overflow-hidden" style={{ borderWidth: 1, borderColor: colors.border }}>
+                <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: 11 }} />
+                {uploadingBanner && (
+                  <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", borderRadius: 11 }}>
+                    <ActivityIndicator color="#fff" />
+                    <Text style={{ color: "#fff", fontSize: 12, marginTop: 6, fontWeight: "600" }}>Uploading…</Text>
+                  </View>
+                )}
+                <View style={{ position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={handlePickBanner}
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Change</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleRemoveBanner}
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, width: 28, height: 28, alignItems: "center", justifyContent: "center" }}
+                  >
+                    <X size={14} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={handlePickBanner}
+                className="rounded-xl p-4 mb-4 items-center justify-center"
+                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", minHeight: 80 }}
+              >
+                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Tap to add a cover photo</Text>
+              </Pressable>
+            )}
           </Animated.View>
 
           {/* Description */}
