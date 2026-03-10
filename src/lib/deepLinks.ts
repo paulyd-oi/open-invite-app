@@ -25,9 +25,57 @@ import { forceRefreshSession } from './sessionCache';
 import { safeToast } from './safeToast';
 import { trackDeepLinkLanded, trackRsvpIntentPreauth, trackReferralOpened, trackCircleInviteIntentPreauth } from '@/analytics/analyticsEventsSSOT';
 import { setPendingCircleInvite } from './pendingCircleInvite';
+import { getBootStatus } from '@/hooks/useBootAuthority';
 
 // Deep link scheme
 export const SCHEME = 'open-invite';
+
+// ── Pending deep link for deferred navigation ──
+// When a deep link arrives before auth resolves, store the route here.
+// _layout.tsx replays it once bootStatus === 'authed'.
+let pendingDeepLinkRoute: string | null = null;
+
+/** Read and clear the pending deep link route (call from _layout.tsx replay effect). */
+export function consumePendingDeepLinkRoute(): string | null {
+  const route = pendingDeepLinkRoute;
+  pendingDeepLinkRoute = null;
+  return route;
+}
+
+/** Check whether a deep link route is pending (non-destructive). */
+export function hasPendingDeepLinkRoute(): boolean {
+  return pendingDeepLinkRoute !== null;
+}
+
+/**
+ * Auth-gated navigation: push immediately if authed, otherwise defer.
+ * Intents (RSVP, circle invite, referral) are stored BEFORE this call,
+ * so they survive regardless of whether navigation happens now or later.
+ */
+function authedPush(route: string): void {
+  const boot = getBootStatus();
+  if (boot === 'authed') {
+    router.push(route as any);
+  } else {
+    pendingDeepLinkRoute = route;
+    if (__DEV__) {
+      devLog(`[P0_DEEPLINK_DEFER] route=${route} bootStatus=${boot}`);
+    }
+  }
+}
+
+/** Auth-gated replace variant (used for verify-email). */
+function authedReplace(route: string): void {
+  const boot = getBootStatus();
+  if (boot === 'authed') {
+    router.replace(route as any);
+  } else {
+    pendingDeepLinkRoute = route;
+    if (__DEV__) {
+      devLog(`[P0_DEEPLINK_DEFER] replace route=${route} bootStatus=${boot}`);
+    }
+  }
+}
 
 // Storage key for pending ICS import
 const PENDING_ICS_IMPORT_KEY = 'pendingIcsImport';
@@ -281,7 +329,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         // The useRsvpIntentClaim hook will auto-apply after auth + onboarding.
         setPendingRsvpIntent({ eventId: parsed.id, status: 'going' });
         trackRsvpIntentPreauth({ hasEvent: true, source: linkSource });
-        router.push(`/event/${parsed.id}`);
+        authedPush(`/event/${parsed.id}`);
         return true;
       }
       break;
@@ -292,7 +340,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         if (__DEV__) {
           devLog(`[P0_PROFILE_ROUTE] kind=user chosen=user reason=canonical_profile idPrefix=${parsed.id.slice(0, 6)}`);
         }
-        router.push(`/user/${parsed.id}`);
+        authedPush(`/user/${parsed.id}`);
         return true;
       }
       break;
@@ -305,7 +353,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         // Store referral code for later claim after signup/login
         await handleReferralUrl(url);
         // Navigate to calendar (or welcome if not logged in, handled by nav guards)
-        router.push('/calendar');
+        authedPush('/calendar');
         return true;
       }
       break;
@@ -317,7 +365,7 @@ export async function handleDeepLink(url: string): Promise<boolean> {
         // [GROWTH_FULLPHASE_A] Store pending circle invite intent (survives through signup)
         setPendingCircleInvite({ circleId: parsed.id });
         trackCircleInviteIntentPreauth({ hasCircle: true, source: circleLinkSource });
-        router.push(`/circle/${parsed.id}`);
+        authedPush(`/circle/${parsed.id}`);
         return true;
       }
       break;
@@ -329,11 +377,11 @@ export async function handleDeepLink(url: string): Promise<boolean> {
       forceRefreshSession()
         .then(() => {
           safeToast.success('Email verified', "You're all set!");
-          router.replace('/calendar');
+          authedReplace('/calendar');
         })
         .catch(() => {
           // Fallback: still navigate, session will refresh on next query
-          router.replace('/calendar');
+          authedReplace('/calendar');
         });
       return true;
   }

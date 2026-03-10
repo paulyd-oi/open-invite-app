@@ -106,46 +106,57 @@ function MessageBubble({
     const isPast = endTime ? endTime < new Date() : d < new Date();
     const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    const headerLabel = isPast ? "Past Event" : "New Event";
+    const headerLabel = isPast ? "Past Event" : "Upcoming";
     const accentColor = isPast ? colors.textTertiary : themeColor;
     return (
-      <View className="items-center my-3">
+      <View className="items-center" style={{ marginVertical: isPast ? 10 : 16 }}>
         <Pressable
           onPress={() => onViewEvent?.(systemEventPayload.eventId)}
           style={{
-            width: "85%",
-            borderRadius: 16,
+            width: isPast ? "80%" : "88%",
+            borderRadius: isPast ? 14 : 18,
             backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB",
-            borderWidth: 1,
-            borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            borderWidth: isPast ? 1 : 1.5,
+            borderColor: isPast
+              ? (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)")
+              : (isDark ? themeColor + "30" : themeColor + "22"),
             overflow: "hidden",
-            opacity: isPast ? 0.7 : 1,
+            opacity: isPast ? 0.6 : 1,
           }}
         >
-          <View style={{ backgroundColor: accentColor + "18", paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Calendar size={16} color={accentColor} />
-            <Text style={{ fontSize: 13, fontWeight: "600", color: accentColor }}>{headerLabel}</Text>
+          <View style={{
+            backgroundColor: accentColor + (isPast ? "10" : "18"),
+            paddingHorizontal: isPast ? 14 : 16,
+            paddingVertical: isPast ? 8 : 10,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            <Calendar size={isPast ? 14 : 16} color={accentColor} />
+            <Text style={{ fontSize: isPast ? 12 : 13, fontWeight: "700", color: accentColor, letterSpacing: 0.3, textTransform: "uppercase" }}>{headerLabel}</Text>
           </View>
-          <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
-            <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={2}>
+          <View style={{ paddingHorizontal: isPast ? 14 : 16, paddingVertical: isPast ? 10 : 14 }}>
+            <Text style={{ fontSize: isPast ? 14 : 16, fontWeight: isPast ? "600" : "700", color: isPast ? colors.textSecondary : colors.text }} numberOfLines={2}>
               {systemEventPayload.title}
             </Text>
-            <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+            <Text style={{ fontSize: isPast ? 12 : 13, color: isPast ? colors.textTertiary : colors.textSecondary, marginTop: isPast ? 3 : 5 }}>
               {dateStr} · {timeStr}
             </Text>
           </View>
-          <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-            <View
-              style={{
-                borderRadius: 10,
-                paddingVertical: 8,
-                alignItems: "center",
-                backgroundColor: accentColor,
-              }}
-            >
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>View Event</Text>
+          {!isPast && (
+            <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
+              <View
+                style={{
+                  borderRadius: 10,
+                  paddingVertical: 9,
+                  alignItems: "center",
+                  backgroundColor: accentColor,
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>View Event</Text>
+              </View>
             </View>
-          </View>
+          )}
         </Pressable>
       </View>
     );

@@ -282,3 +282,11 @@ export function requestBootstrapRefreshOnce(): void {
 export function getBootstrapRefreshRequestId(): number {
   return refreshRequestId;
 }
+
+/**
+ * Synchronous getter for current boot status.
+ * Used by non-hook code (e.g. deep link handler) to check auth state.
+ */
+export function getBootStatus(): BootStatus {
+  return globalStatus;
+}

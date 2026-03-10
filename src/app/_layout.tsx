@@ -26,7 +26,7 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 import { ToastContainer } from '@/components/Toast';
 import { BootLoading } from '@/components/BootLoading';
 import { AutoSyncProvider } from '@/components/AutoSyncProvider';
-import { setupDeepLinkListener } from '@/lib/deepLinks';
+import { setupDeepLinkListener, consumePendingDeepLinkRoute } from '@/lib/deepLinks';
 import { initNetworkMonitoring } from '@/lib/networkStatus';
 import { useOfflineSync } from '@/lib/offlineSync';
 import { BACKEND_URL } from '@/lib/config';
@@ -554,6 +554,25 @@ function BootRouter() {
   // Register push notifications globally (gates on bootStatus === 'authed' internally)
   // Previously in social.tsx - moved here so tokens register immediately on auth, not tab mount
   useNotifications();
+
+  // [P0_DEEPLINK_DEFER] Replay pending deep link once authed.
+  // When a deep link arrives before boot resolves, deepLinks.ts stores the route
+  // instead of navigating. This effect replays it once auth is confirmed.
+  const deepLinkReplayedRef = useRef(false);
+  useEffect(() => {
+    if (bootStatus !== 'authed') return;
+    if (deepLinkReplayedRef.current) return;
+    const route = consumePendingDeepLinkRoute();
+    if (!route) return;
+    deepLinkReplayedRef.current = true;
+    if (__DEV__) {
+      devLog('[P0_DEEPLINK_DEFER] REPLAY route=' + route);
+    }
+    // Small delay to ensure router is mounted after auth completes
+    setTimeout(() => {
+      router.push(route as any);
+    }, 150);
+  }, [bootStatus, router]);
 
   // [P0_WS_BOOT] Start/stop realtime WS based on boot status (SSOT)
   // Idempotent: wsClient.connect() is a no-op if already connected/connecting or flag off.
