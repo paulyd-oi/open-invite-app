@@ -913,8 +913,8 @@ export default function CircleScreen() {
               nextCount,
               delta: nextCount - prevCount,
             });
-            safeToast.info("Roster updated", `${nextCount} member${nextCount === 1 ? "" : "s"}`);
           }
+          safeToast.info("Roster updated", `${nextCount} member${nextCount === 1 ? "" : "s"}`);
         }
         prevMemberCountRef.current = nextCount;
       });

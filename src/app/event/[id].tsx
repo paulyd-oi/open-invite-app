@@ -125,6 +125,7 @@ import {
   getInvalidateAfterRsvpJoin,
   getInvalidateAfterJoinRequestAction,
   getInvalidateAfterComment,
+  getInvalidateAfterEventDelete,
   deriveAttendeeCount,
   logRsvpMismatch,
 } from "@/lib/eventQueryKeys";
@@ -952,7 +953,7 @@ export default function EventDetailScreen() {
     mutationFn: () => api.delete(`/api/events/${id}`),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      invalidateEventKeys(queryClient, [eventKeys.all()], "event_delete");
+      invalidateEventKeys(queryClient, getInvalidateAfterEventDelete(), "event_delete");
       router.back();
     },
     onError: () => {
