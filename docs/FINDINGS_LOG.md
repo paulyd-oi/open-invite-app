@@ -1630,3 +1630,19 @@ Backend `/api/places/search` builds `fullAddress` by concatenating `name + ", " 
 ### Blast Radius
 - All `fullAddress` references confined to `src/app/create.tsx`. No other files compose location payloads.
 - Event detail render-side dedup (`locationDisplay`/`locationQuery` in `src/app/event/[id].tsx`) remains as defense-in-depth.
+## Discover Card — Pressable Function-Form Style Bug
+
+### Finding
+`Pressable` `style={({ pressed }) => ({ ... })}` function-form does not apply styles on initial render for certain nested/absolute-positioned cases in RN 0.76.7. Styles like `position: "absolute"`, `backgroundColor`, and `width` are silently ignored.
+
+### Evidence
+- Proof marker using plain `View style={{...}}` with `position: "absolute"` rendered correctly
+- Save overlay using `Pressable style={({ pressed }) => ({ position: "absolute", ... })}` did NOT position — Heart fell into document flow
+- Footer CTA using function-form did NOT apply `backgroundColor: "#00CC00"` — rendered as unstyled wrapper
+
+### Fix
+Use plain object `style={{...}}` on Pressable instead of function-form for elements requiring `position: "absolute"` or critical layout styles. Save overlay moved to card-container level (same parent as working proof marker).
+
+### Scope
+- Affects: `src/app/discover.tsx` Discover event cards
+- Does NOT affect: other screens (their function-form Pressables may work due to different nesting)
