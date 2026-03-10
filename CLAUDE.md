@@ -195,8 +195,9 @@ rm -rf /tmp/backend-push && mkdir -p /tmp/backend-push && cp -r /home/user/works
 Wait 2-5 minutes for Render to redeploy.
 
 ### Production URLs
-- Backend API: https://open-invite-api.onrender.com
-- App Store: https://apps.apple.com/app/open-invite/id6740083226
+- Backend API: https://api.openinvite.cloud
+- Share Domain: https://go.openinvite.cloud
+- App Store: https://apps.apple.com/app/id6757429210
 
 ## App Icon Locations
 
@@ -209,7 +210,7 @@ The app icon is used in multiple locations:
 
 2. **Public Folder Icon**: `/public/open-invite-app-icon.png`
    - Used for web sharing, universal links, and backend static serving
-   - Accessible at: `https://open-invite-api.onrender.com/uploads/open-invite-app-icon.png`
+   - Accessible at: `https://api.openinvite.cloud/uploads/open-invite-app-icon.png`
    - Current icon: Updated to new design (1.5MB PNG)
 
 3. **Original Source**: `/assets/icon-1767499672323.png`
@@ -361,7 +362,7 @@ Current server.ts includes:
 - **Code paths**:
   - Production: `/opt/render/project/src/uploads`
   - Development: `./uploads` (relative to cwd)
-- **Static serving**: Files accessible at `https://open-invite-api.onrender.com/uploads/filename.jpg`
+- **Static serving**: Files accessible at `https://api.openinvite.cloud/uploads/filename.jpg`
 
 ### Friend Request Serialization Fix (v2.8)
 - Backend now properly transforms Prisma field names to API contract names
@@ -518,7 +519,7 @@ Current server.ts includes:
 
 ### Delete User by Email
 ```bash
-curl -X DELETE "https://open-invite-api.onrender.com/api/profile/admin/delete-user/EMAIL_HERE"
+curl -X DELETE "https://api.openinvite.cloud/api/profile/admin/delete-user/EMAIL_HERE"
 ```
 This deletes user and all related data (profile, sessions, verification codes, friendships, etc.)
 
@@ -933,7 +934,7 @@ await changeRsvp(eventId, "going");
 - [x] Frontend: Add Pro badges to locked features (`ProBadge`, `UpgradePrompt`, `LimitIndicator`)
 - [x] Database: Subscription model exists (tier, expiresAt, transactionId, purchasedAt)
 - [x] Referral: Update reward tiers (3/10/40) in `freemiumLimits.ts`
-- [x] App Store link: Updated to id6740083226 in referral router
+- [x] App Store link: Updated to id6757429210 in referral router
 
 ## Push Notifications (Expo Push Service)
 

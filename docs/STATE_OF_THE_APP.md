@@ -245,6 +245,8 @@
 - Email verification toast spam: Added 3-second throttle to guardEmailVerification
 - Email verification gate SSOT: Removed legacy alert-based gate path; all active gate callsites now use `src/lib/emailVerificationGate.ts`
 - Auth side-effects SSOT: Resend verification, verify-code, and forgot-password requests now flow through `src/lib/authFlowClient.ts`
+- Query-key SSOT: High-fanout profile/settings/bottom-nav cache roots now use `src/lib/queryKeys.ts` / domain factories instead of inline keys
+- Dead invalidation cleanup: Removed orphan `["onboarding-status"]` invalidation from onboarding completion
 - Post-logout 401 overlays: Changed api.ts to use console.log (not console.error) for auth errors, preventing red overlays
 - Subscription query 401s: Gated useSubscription query with `enabled: bootStatus === 'authed'`
 - API error logging: Reduced noise, expected auth failures logged once without red overlays

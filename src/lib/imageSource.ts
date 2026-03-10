@@ -14,6 +14,17 @@ import { getAuthToken } from "./authClient";
 import { resolveImageUrl } from "./imageUrl";
 import { devLog } from "./devLog";
 
+const CANONICAL_BACKEND_ORIGIN = (() => {
+  try {
+    return new URL(BACKEND_URL).origin;
+  } catch {
+    return BACKEND_URL;
+  }
+})();
+
+// Legacy OnRender hostname retained only to avoid breaking old persisted URLs.
+const LEGACY_BACKEND_HOSTS = ["open-invite-api.onrender.com"] as const;
+
 /**
  * Check if a URL requires authentication headers
  *
@@ -32,7 +43,7 @@ function requiresAuth(url: string | null | undefined): boolean {
   }
 
   // Check if URL contains our backend domain
-  if (trimmed.includes("api.openinvite.cloud") || trimmed.includes("open-invite-api.onrender.com")) {
+  if (trimmed.startsWith(CANONICAL_BACKEND_ORIGIN) || LEGACY_BACKEND_HOSTS.some((host) => trimmed.includes(host))) {
     // Even on backend domain, /uploads/ is public
     if (trimmed.includes("/uploads/")) {
       return false;
@@ -66,7 +77,7 @@ function requiresAuth(url: string | null | undefined): boolean {
  * @example
  * // Protected API URL - adds Authorization header
  * const source = await getImageSource("/api/profile/avatar/abc123");
- * // → { uri: "https://api.openinvite.cloud/api/profile/avatar/abc123", headers: { Authorization: "Bearer ..." } }
+ * // → { uri: `${BACKEND_URL}/api/profile/avatar/abc123`, headers: { Authorization: "Bearer ..." } }
  *
  * // Public URL - no headers
  * const source = await getImageSource("https://example.com/image.jpg");

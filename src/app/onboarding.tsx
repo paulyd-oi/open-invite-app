@@ -962,7 +962,6 @@ export default function OnboardingScreen() {
         }
       }
       await queryClient.invalidateQueries({ queryKey: qk.session() });
-      await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
     } catch (error) {
       devError("Failed to complete onboarding:", error);
     }

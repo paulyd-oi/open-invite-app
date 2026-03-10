@@ -34,6 +34,7 @@ export const qk = {
   session: () => ["session"] as const,
   profile: () => ["profile"] as const,
   profiles: () => ["profiles"] as const,
+  profileStats: () => ["profileStats"] as const,
 
   // ── Entitlements / Subscription ────────────────────────────────────────
   entitlements: () => ["entitlements"] as const,
@@ -43,9 +44,12 @@ export const qk = {
   // ── Notifications ─────────────────────────────────────────────────────
   notifications: () => ["notifications"] as const,
   notificationPreferences: () => ["notificationPreferences"] as const,
+  eventRequests: () => ["event-requests"] as const,
 
   // ── Feed / Discovery ──────────────────────────────────────────────────
   referralStats: () => ["referralStats"] as const,
+  birthdays: () => ["birthdays"] as const,
+  workSchedule: () => ["workSchedule"] as const,
   appConfig: () => ["app-config"] as const,
 
   // ── Admin ─────────────────────────────────────────────────────────────
@@ -70,12 +74,18 @@ const QK_OWNED_ROOTS = new Set([
   "session",
   "profile",
   "profiles",
+  "profileStats",
+  "friends",
+  "friendRequests",
   "entitlements",
   "subscription",
   "subscriptionDetails",
   "notifications",
   "notificationPreferences",
+  "event-requests",
   "referralStats",
+  "birthdays",
+  "workSchedule",
   "app-config",
   "adminStatus",
 ]);

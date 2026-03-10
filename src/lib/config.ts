@@ -7,25 +7,30 @@
 
 import { devLog } from "./devLog";
 
-// Production backend URL (custom domain)
-const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
+/** Canonical production API origin. */
+export const PRODUCTION_BACKEND_ORIGIN = "https://api.openinvite.cloud";
 
-// Use API URL override during development, Render for production
+/** Canonical branded universal-link/share domain. */
+export const SHARE_DOMAIN = "https://go.openinvite.cloud";
+
+/** Canonical App Store ID. */
+export const APP_STORE_ID = "6757429210";
+
+/** Canonical App Store listing URL — country-neutral, id-only form. */
+export const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
+
+// Use API URL override during development, canonical production origin otherwise
 // Check for truthy value (not just undefined) to handle empty string case
 const overrideApiUrl = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
 const rawBackendUrl =
   overrideApiUrl && overrideApiUrl.length > 0
     ? overrideApiUrl
-    : RENDER_BACKEND_URL;
+    : PRODUCTION_BACKEND_ORIGIN;
 
 // Remove trailing slashes to prevent double-slash URLs
 // e.g., "https://api.com/" + "/api" = "https://api.com//api" (bad)
 // e.g., "https://api.com" + "/api" = "https://api.com/api" (good)
 export const BACKEND_URL = rawBackendUrl.replace(/\/+$/, "");
-
-/** App Store listing URL — SSOT. Import this instead of hardcoding. */
-export const APP_STORE_URL =
-  "https://apps.apple.com/us/app/open-invite-social-calendar/id6757429210";
 
 // Log configuration in development for debugging
 if (__DEV__) {

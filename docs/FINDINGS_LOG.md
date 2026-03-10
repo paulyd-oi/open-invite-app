@@ -911,7 +911,7 @@ Business references are now permanently banned from `src/**`. Any future ripgrep
     - Line 212-218: Auth gate message if bootStatus !== 'authed'
 
 **BACKEND CONTRACT**:
-- Endpoint: POST https://open-invite-api.onrender.com/api/promo/redeem
+- Endpoint: POST https://api.openinvite.cloud/api/promo/redeem
 - Request: `{ code: "AWAKEN" }` (normalized: trim + uppercase)
 - Success (200): `{ success: true, entitlement: "premium", expiresAt: "2027-01-29T..." }`
 - Errors:
@@ -1142,6 +1142,8 @@ CODE PATH:
 - **Subscription query gating**: `useSubscription` query must be gated with `enabled: bootStatus === 'authed'` to prevent post-logout 401s.
 - **Email verification gate SSOT**: `src/lib/emailVerificationGate.ts` is the only gate implementation; `guardEmailVerification` throttles toasts to max 1 per 3 seconds to prevent spam.
 - **Auth side-effects SSOT**: resend verification, verify-code, and forgot-password requests go through `src/lib/authFlowClient.ts` via `authClient.$fetch`.
+- **Query-key SSOT**: shared cache roots must use `src/lib/queryKeys.ts` or a domain factory re-exported from it (`qk.friend.*`, `qk.circle.*`, etc.), not inline arrays at high-fanout callsites.
+- **Dead invalidation rule**: invalidations must target a live query root; the orphan `["onboarding-status"]` invalidation was removed.
 - **API 401/403 logging**: Use `console.log` (not `console.error`) for expected auth failures to avoid red console overlays in DEV.
 - **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
 - **Single authority for cookie init**: `ensureCookieInitialized()` is called ONLY from `authBootstrap.ts` Step 0/4. No fire-and-forget calls on module load. This prevents race conditions and ensures deterministic boot order.

@@ -131,21 +131,21 @@ export default function ProfileScreen() {
 
   // Queries (authed only)
   const { data: profilesData, refetch: refetchProfiles } = useQuery({
-    queryKey: ["profiles"],
+    queryKey: qk.profiles(),
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 120_000, // 2 min — stable data
   });
 
   const { data: profileData, refetch: refetchProfile, isError: isProfileError } = useQuery({
-    queryKey: ["profile"],
+    queryKey: qk.profile(),
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60_000, // 1 min — own profile, moderately stable
   });
 
   const { data: friendsData, refetch: refetchFriends } = useQuery({
-    queryKey: ["friends"],
+    queryKey: qk.friend.all(),
     queryFn: () => api.get<GetFriendsResponse>("/api/friends"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60_000, // 1 min
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
   });
 
   const { data: statsData, refetch: refetchStats, isError: isStatsError, isRefetching: isStatsRefetching } = useQuery({
-    queryKey: ["profileStats"],
+    queryKey: qk.profileStats(),
     queryFn: () => api.get<GetProfileStatsResponse>("/api/profile/stats"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 120_000, // 2 min — heavy endpoint, most stable

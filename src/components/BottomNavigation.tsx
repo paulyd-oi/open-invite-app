@@ -21,6 +21,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { type GetFriendRequestsResponse, type GetEventRequestsResponse, type GetProfilesResponse } from "@/shared/contracts";
 import { BOTTOM_NAV_TABS, assertTabOrder, type NavTab } from "@/constants/navigation";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { qk } from "@/lib/queryKeys";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -202,7 +203,7 @@ export default function BottomNavigation() {
 
   // Fetch friend requests count for notification badge
   const { data: friendRequestsData } = useQuery({
-    queryKey: ["friendRequests"],
+    queryKey: qk.friend.requests(),
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
@@ -210,7 +211,7 @@ export default function BottomNavigation() {
 
   // Fetch event requests count for calendar badge
   const { data: eventRequestsData } = useQuery({
-    queryKey: ["event-requests"],
+    queryKey: qk.eventRequests(),
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
@@ -226,7 +227,7 @@ export default function BottomNavigation() {
 
   // Fetch profiles for profile switcher
   const { data: profilesData } = useQuery({
-    queryKey: ["profiles"],
+    queryKey: qk.profiles(),
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
     staleTime: 60000, // Cache for 1 minute

@@ -4,6 +4,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "./api";
+import { qk } from "./queryKeys";
 import type {
   Profile,
   GetProfilesResponse,
@@ -38,7 +39,7 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
 
   // Fetch all profiles
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["profiles"],
+    queryKey: qk.profiles(),
     queryFn: async () => {
       return api.get<GetProfilesResponse>("/api/profile");
     },
@@ -53,8 +54,8 @@ export function ActiveProfileProvider({ children }: { children: React.ReactNode 
     },
     onSuccess: () => {
       // Invalidate and refetch profiles
-      queryClient.invalidateQueries({ queryKey: ["profiles"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: qk.profiles() });
+      queryClient.invalidateQueries({ queryKey: qk.notifications() });
     },
   });
 

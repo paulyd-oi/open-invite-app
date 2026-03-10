@@ -51,6 +51,7 @@ import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
 import { api } from "@/lib/api";
+import { BACKEND_URL } from "@/lib/config";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -131,17 +132,8 @@ const searchPlacesViaBackend = async (query: string, lat?: number, lon?: number,
   if (!query || query.length < 2) return [];
 
   try {
-    // Check for truthy value (not just undefined) to handle empty string case
-    const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
-    const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
-    const rawBackendUrl = apiUrlOverride && apiUrlOverride.length > 0
-      ? apiUrlOverride
-      : RENDER_BACKEND_URL;
-    // Remove trailing slashes to prevent double-slash URLs
-    const backendUrl = rawBackendUrl.replace(/\/+$/, "");
-
     // Build URL with optional location parameters
-    let url = `${backendUrl}/api/places/search?query=${encodeURIComponent(query)}`;
+    let url = `${BACKEND_URL}/api/places/search?query=${encodeURIComponent(query)}`;
     if (lat !== undefined && lon !== undefined) {
       url += `&lat=${lat}&lon=${lon}`;
     }

@@ -3,7 +3,7 @@
  * 
  * INVARIANT: All in-app push notification handling routes through handlePushEvent()
  * INVARIANT: Never invalidates broad roots like ["events"] or ["circles"]
- * INVARIANT: Uses eventKeys.* and circleKeys.* SSOT builders only
+ * INVARIANT: Uses eventKeys.*, circleKeys.*, and friendKeys.* SSOT builders only
  * 
  * Features:
  * - Dedupe: Ignores duplicate events with same (type, entityId, version) for 8s window
@@ -15,6 +15,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { eventKeys } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { friendKeys } from "@/lib/refreshAfterMutation";
 import { refreshCircleListContract } from "@/lib/circleRefreshContract";
 import { bumpCircleLastMessage } from "@/lib/bumpCircleLastMessage";
 import { getActiveCircle } from "@/lib/activeCircle";
@@ -824,8 +825,8 @@ function handleEventComment(payload: Record<string, any>, queryClient: QueryClie
  */
 function handleFriendEvent(payload: Record<string, any>, queryClient: QueryClient): string {
   // Invalidate friends and friend requests
-  queryClient.invalidateQueries({ queryKey: ["friends"] });
-  queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+  queryClient.invalidateQueries({ queryKey: friendKeys.all() });
+  queryClient.invalidateQueries({ queryKey: friendKeys.requests() });
   
   if (__DEV__) {
     devLog(`[P1_PUSH_ROUTER] invalidate keys=[["friends"], ["friendRequests"]]`);
@@ -837,8 +838,8 @@ function handleFriendEvent(payload: Record<string, any>, queryClient: QueryClien
     entityId: payload.userId ?? payload.user_id ?? "unknown",
     queryClient,
     reconciledKeys: [
-      ["friends"],
-      ["friendRequests"],
+      friendKeys.all(),
+      friendKeys.requests(),
     ],
   });
   

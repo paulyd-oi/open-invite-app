@@ -46,6 +46,13 @@ This is the canonical way to gate network requests on authentication state. Neve
 
 **See**: [AUTH_CONTRACT.md](AUTH_CONTRACT.md) Law 3 for complete documentation.
 
+## Query Key SSOT
+
+INVARIANT: Shared cache roots must use `src/lib/queryKeys.ts` or a domain factory re-exported from it (`qk.event.*`, `qk.circle.*`, `qk.friend.*`, etc.).
+
+- High-fanout roots such as `profile`, `profiles`, `profileStats`, `friends`, `friendRequests`, `notifications`, `event-requests`, `referralStats`, `workSchedule`, `birthdays`, and `adminStatus` must not use ad hoc inline keys.
+- Invalidations must target live cache entries only. Dead invalidations such as the removed `["onboarding-status"]` key are forbidden.
+
 ## Auth Expiry SSOT
 
 INVARIANT: `authClient` emits a one-shot auth expiry event on 401/403 responses. The event fires exactly once per session expiry, preventing toast spam.

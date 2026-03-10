@@ -238,7 +238,7 @@ function ReferralCounterSection({
   if (__DEV__ && !authed) devLog('[P13_NET_GATE] tag="referralStats" blocked — not authed');
 
   const { data: referralStats, isLoading } = useQuery({
-    queryKey: ["referralStats"],
+    queryKey: qk.referralStats(),
     queryFn: () => api.get<{
       referralCode: string;
       successfulReferrals: number;
@@ -276,7 +276,7 @@ function ReferralCounterSection({
       );
       setReferrerCodeInput("");
       setShowReferrerInput(false);
-      queryClient.invalidateQueries({ queryKey: ["referralStats"] });
+      queryClient.invalidateQueries({ queryKey: qk.referralStats() });
     } catch (error: any) {
       const message = error?.message || "Failed to apply referral code";
       safeToast.error("Referral Failed", message);
@@ -904,7 +904,7 @@ export default function SettingsScreen() {
   // Fetch work schedule
   // Gate on bootStatus to prevent queries during logout
   const { data: workScheduleData } = useQuery({
-    queryKey: ["workSchedule"],
+    queryKey: qk.workSchedule(),
     queryFn: () => api.get<{ schedules: WorkScheduleDay[]; settings: WorkScheduleSettings }>("/api/work-schedule"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -946,7 +946,7 @@ export default function SettingsScreen() {
   // Fetch current profile to get calendarBio
   // Gate on bootStatus to prevent queries during logout
   const { data: profileData } = useQuery({
-    queryKey: ["profile"],
+    queryKey: qk.profile(),
     queryFn: () => api.get<GetProfileResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
   });
@@ -954,7 +954,7 @@ export default function SettingsScreen() {
   // Check admin status (fail safe - returns isAdmin: false on any error)
   // Gate on bootStatus to prevent queries during logout
   const { data: adminStatus, isLoading: adminStatusLoading } = useQuery({
-    queryKey: ["adminStatus"],
+    queryKey: qk.adminStatus(),
     queryFn: checkAdminStatus,
     enabled: isAuthedForNetwork(bootStatus, session),
     retry: false,
@@ -1101,7 +1101,7 @@ export default function SettingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
       // Update cache immediately with response + variables to ensure both profile and user are patched
-      queryClient.setQueryData(["profile"], (old: any) => ({
+      queryClient.setQueryData(qk.profile(), (old: any) => ({
         ...old,
         profile: {
           ...old?.profile,
@@ -1159,8 +1159,8 @@ export default function SettingsScreen() {
       api.put<UpdateProfileResponse>("/api/profile", data),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      queryClient.invalidateQueries({ queryKey: ["birthdays"] });
+      queryClient.invalidateQueries({ queryKey: qk.profile() });
+      queryClient.invalidateQueries({ queryKey: qk.birthdays() });
     },
     onError: () => {
       safeToast.error("Save Failed", "Failed to update birthday settings");
@@ -1189,7 +1189,7 @@ export default function SettingsScreen() {
           block2EndTime: response.schedule.block2EndTime,
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
+      queryClient.invalidateQueries({ queryKey: qk.workSchedule() });
     },
     onError: () => {
       safeToast.error("Save Failed", "Failed to update work schedule");
@@ -1201,7 +1201,7 @@ export default function SettingsScreen() {
       api.put<{ settings: WorkScheduleSettings }>("/api/work-schedule/settings", { ...data, timezone: deviceTimezone }),
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      queryClient.invalidateQueries({ queryKey: ["workSchedule"] });
+      queryClient.invalidateQueries({ queryKey: qk.workSchedule() });
     },
     onError: () => {
       safeToast.error("Save Failed", "Failed to update work settings");

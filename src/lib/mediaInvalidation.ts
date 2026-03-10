@@ -13,6 +13,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { eventKeys, invalidateEventKeys } from "./eventQueryKeys";
 import { circleKeys } from "./circleQueryKeys";
 import { devLog } from "./devLog";
+import { qk } from "./queryKeys";
 
 // ── Profile media ────────────────────────────────────────────────
 /**
@@ -22,12 +23,12 @@ import { devLog } from "./devLog";
 export function invalidateProfileMedia(qc: QueryClient, userId?: string): void {
   if (__DEV__) devLog("[MEDIA_INVALIDATE] profile", { userId: userId?.slice(0, 8) });
 
-  qc.invalidateQueries({ queryKey: ["profile"] });
-  qc.invalidateQueries({ queryKey: ["profiles"] });
-  qc.invalidateQueries({ queryKey: ["friends"] });
+  qc.invalidateQueries({ queryKey: qk.profile() });
+  qc.invalidateQueries({ queryKey: qk.profiles() });
+  qc.invalidateQueries({ queryKey: qk.friend.all() });
 
   if (userId) {
-    qc.invalidateQueries({ queryKey: ["userProfile", userId] });
+    qc.invalidateQueries({ queryKey: qk.friend.userProfile(userId) });
   }
 }
 

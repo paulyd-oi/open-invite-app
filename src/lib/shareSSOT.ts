@@ -3,50 +3,33 @@
  *
  * RULES (NON-NEGOTIABLE):
  * 1. Every share entrypoint in the app MUST call these helpers.
- * 2. No share message may contain api.openinvite.cloud or openinvite.cloud.
- * 3. The App Store URL is the ONE canonical download link.
+ * 2. No share message may contain the API host or legacy OnRender host.
+ * 3. The App Store URL from config.ts is the ONE canonical download link.
  * 4. Deep links use the custom scheme "open-invite://".
  *
  * [P0_SHARE_SSOT]
  */
 
 import { devLog, devWarn } from "./devLog";
+import { APP_STORE_ID, APP_STORE_URL, SHARE_DOMAIN } from "./config";
+
+export { APP_STORE_ID, APP_STORE_URL, SHARE_DOMAIN } from "./config";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-/** Canonical App Store URL — country-neutral, id-only form. */
-export const APP_STORE_URL =
-  "https://apps.apple.com/app/id6757429210";
-
-/** App Store ID (numeric only — used by rateApp, itms-apps, etc.) */
-export const APP_STORE_ID = "6757429210";
 
 /** Custom URL scheme registered in app.json */
 const SCHEME = "open-invite";
 
 /**
  * Branded share domain for universal links.
- *
- * This is the ONE constant to update when the DNS/domain is configured.
- * All event share links, copy-link buttons, and Share.share() payloads
- * flow through getEventUniversalLink() which reads this value.
- *
- * CUTOVER CHECKLIST (when DNS is ready):
- * 1. Set up go.openinvite.cloud DNS → Render backend
- * 2. Add go.openinvite.cloud to Render custom domains
- * 3. Backend must serve /share/event/:id on the new domain
- * 4. Update apple-app-site-association on the new domain
- * 5. Swap this constant to "https://go.openinvite.cloud"
- * 6. Rebuild & ship frontend
- *
+ * Imported from config.ts so release/runtime constants stay in one place.
  * [P0_SHARE_DOMAIN_SSOT]
  */
-export const SHARE_DOMAIN = "https://go.openinvite.cloud";
 
 /**
  * Domains that must NEVER appear in user-facing share text.
  * Note: go.openinvite.cloud is the branded share domain and is ALLOWED.
- * These patterns are checked with boundary awareness in assertNoForbiddenDomains.
+ * The legacy OnRender hostname is retained only as a regression guard.
  */
 const FORBIDDEN_DOMAINS = [
   "api.openinvite.cloud",

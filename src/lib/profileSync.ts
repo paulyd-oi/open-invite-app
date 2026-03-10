@@ -3,17 +3,17 @@
  *
  * Centralized logic for syncing profile mutations across:
  * - Better Auth session (session.user.name, session.user.image)
- * - React Query ['profile'] cache (handle, bio, avatarUrl)
+ * - React Query qk.profile() cache (handle, bio, avatarUrl)
  *
  * Usage: Call updateProfileAndSync() after any profile mutation
  * to ensure UI updates immediately without app restart.
  */
 
 import { QueryClient } from "@tanstack/react-query";
-import { authClient } from "./authClient";
 import { forceRefreshSession } from "./sessionCache";
 import { isRateLimited, getRateLimitRemaining } from "./rateLimitState";
-import { devLog, devWarn, devError } from "./devLog";
+import { devLog } from "./devLog";
+import { qk } from "./queryKeys";
 
 /**
  * Refresh both Better Auth session AND React Query profile cache
@@ -44,13 +44,13 @@ export async function updateProfileAndSync(queryClient: QueryClient): Promise<vo
     }
   }
 
-  // Step 2: Invalidate React Query ['profile'] cache to refetch handle/bio/avatarUrl
+  // Step 2: Invalidate React Query qk.profile() cache to refetch handle/bio/avatarUrl
   try {
-    devLog("[ProfileSync] Invalidating ['profile'] query cache...");
-    await queryClient.invalidateQueries({ queryKey: ["profile"] });
-    devLog("[ProfileSync] ✓ ['profile'] cache invalidated");
+    devLog("[ProfileSync] Invalidating qk.profile() query cache...");
+    await queryClient.invalidateQueries({ queryKey: qk.profile() });
+    devLog("[ProfileSync] ✓ qk.profile() cache invalidated");
   } catch (error) {
-    devLog("[ProfileSync] ⚠️ ['profile'] invalidation error:", error);
+    devLog("[ProfileSync] ⚠️ qk.profile() invalidation error:", error);
     errors.push("profile");
   }
 
