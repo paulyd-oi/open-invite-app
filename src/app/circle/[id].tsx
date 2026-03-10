@@ -350,7 +350,7 @@ export default function CircleScreen() {
   const [paywallContext, setPaywallContext] = useState<PaywallContext>("CIRCLE_MEMBERS_LIMIT");
 
   // Fetch entitlements for gating
-  const { data: entitlements } = useEntitlements();
+  const { data: entitlements, isLoading: entitlementsLoading } = useEntitlements();
 
   // Auto-collapse calendar when keyboard shows
   useEffect(() => {
@@ -1128,16 +1128,17 @@ export default function CircleScreen() {
       return;
     }
 
-    // Check member limit before adding
+    // Check member limit before adding (fail-open while loading — backend validates)
     const currentMembersCount = circle?.members?.length ?? 0;
     const newTotalCount = currentMembersCount + selectedFriends.length;
-    const check = canAddCircleMember(entitlements, currentMembersCount);
-
-    if (!check.allowed && check.context) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      setPaywallContext(check.context);
-      setShowPaywallModal(true);
-      return;
+    if (!entitlementsLoading) {
+      const check = canAddCircleMember(entitlements, currentMembersCount);
+      if (!check.allowed && check.context) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setPaywallContext(check.context);
+        setShowPaywallModal(true);
+        return;
+      }
     }
 
     addMembersMutation.mutate(selectedFriends);

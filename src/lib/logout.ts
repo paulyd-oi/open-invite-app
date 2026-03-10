@@ -26,6 +26,10 @@ import { resetPushRegistrationState } from "@/hooks/useNotifications";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
 import { disableAuthedNetwork } from "./networkAuthGate";
+import { resetSessionPaywallTracking } from "./entitlements";
+
+// Entitlements AsyncStorage cache key (must match entitlements.ts)
+const ENTITLEMENTS_CACHE_KEY = "entitlements_cache";
 
 // Admin unlock storage key (must match settings.tsx)
 const ADMIN_UNLOCK_KEY = "@oi_admin_unlocked_v1";
@@ -126,6 +130,14 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       if (__DEV__) {
         devLog(`[P0_ADMIN_UNLOCK] cleared on logout`);
       }
+    } catch (e) {
+      // Non-fatal, continue logout
+    }
+
+    // Step 6b: Reset entitlements session state
+    resetSessionPaywallTracking();
+    try {
+      await AsyncStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
     } catch (e) {
       // Non-fatal, continue logout
     }
