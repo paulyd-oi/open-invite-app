@@ -76,7 +76,7 @@ function NavButton({
     }
     if (bootStatus === 'loggedOut' || bootStatus === 'error') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace('/login');
+      router.replace('/welcome');
       return;
     }
 

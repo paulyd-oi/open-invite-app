@@ -10,14 +10,13 @@
  */
 
 import React from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import { devLog } from "@/lib/devLog";
 import { useRouter } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { MapPin, Lock } from "@/ui/icons";
+import { MapPin, Lock, Clock } from "@/ui/icons";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
-import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import type { Circle } from "@/shared/contracts";
 
 // Event type used in DayDetailEventsSection
@@ -28,6 +27,7 @@ type DayDetailEvent = {
   startTime: string;
   endTime: string | null;
   location: string | null;
+  coverUrl?: string | null;
   userId: string;
   color: string;
   userName: string;
@@ -138,12 +138,21 @@ function DayDetailEventsSection({
 
   if (events.length === 0) {
     return (
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8 }}>
-          OPEN EVENTS
+      <View style={{ marginBottom: 28 }}>
+        <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.4, color: colors.text, marginBottom: 12 }}>
+          Events
         </Text>
-        <View style={{ alignItems: "center", paddingVertical: 16, borderRadius: 12, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)" }}>
-          <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>No events on this day</Text>
+        <View style={{
+          alignItems: "center",
+          paddingVertical: 28,
+          paddingHorizontal: 24,
+          borderRadius: 16,
+          backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+        }}>
+          <Text style={{ fontSize: 28, marginBottom: 8 }}>📅</Text>
+          <Text style={{ fontSize: 15, fontWeight: "500", color: colors.textSecondary, marginBottom: 14 }}>
+            Nothing planned yet
+          </Text>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -151,13 +160,13 @@ function DayDetailEventsSection({
               router.push({ pathname: "/create", params: { date: bestTimesDate.toISOString(), circleId } } as any);
             }}
             style={{
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 10,
+              paddingVertical: 10,
+              paddingHorizontal: 24,
+              borderRadius: 12,
               backgroundColor: themeColor,
             }}
           >
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#fff" }}>Create Event</Text>
+            <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>Create Event</Text>
           </Pressable>
         </View>
       </View>
@@ -165,50 +174,47 @@ function DayDetailEventsSection({
   }
 
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8 }}>
-        OPEN EVENTS
+    <View style={{ marginBottom: 28 }}>
+      <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.4, color: colors.text, marginBottom: 12 }}>
+        {`Events · ${events.length}`}
       </Text>
+
       {/* Busy summary rows */}
       {busyGroups.length > 0 && (
-        <>
-          <Text style={{
-            fontSize: 10,
-            fontWeight: "600",
-            letterSpacing: 1,
-            color: colors.textTertiary,
-            marginBottom: 6,
-            marginTop: 2,
-          }}>
-            BUSY BLOCKS
-          </Text>
+        <View style={{ marginBottom: visibleEvents.length > 0 ? 10 : 0 }}>
           {busyGroups.map((group, gIdx) => (
             <View
               key={`busy-group-${gIdx}`}
               style={{
                 borderRadius: 12,
-                padding: 12,
-                marginBottom: 8,
-                backgroundColor: isDark ? "rgba(44,44,46,0.7)" : "rgba(249,250,251,0.8)",
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                marginBottom: 4,
+                backgroundColor: isDark ? "rgba(44,44,46,0.5)" : "rgba(0,0,0,0.025)",
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View style={{ width: 10, height: 10, borderRadius: 5, marginRight: 8, backgroundColor: isDark ? "rgba(156,163,175,0.5)" : "rgba(156,163,175,0.6)" }} />
-                <Text style={{ fontWeight: "500", flex: 1, color: colors.textSecondary }} numberOfLines={1}>
+                <Lock size={12} color={colors.textTertiary} />
+                <Text style={{ fontWeight: "500", flex: 1, marginLeft: 8, color: colors.textSecondary, fontSize: 13 }} numberOfLines={1}>
                   {`${group.ownerName} is busy`}
                 </Text>
-                <Lock size={12} color={colors.textTertiary} />
+                <Text style={{ fontSize: 12, color: colors.textTertiary }}>
+                  {buildRangeString(group.ranges)}
+                </Text>
               </View>
-              <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4, marginLeft: 18 }} numberOfLines={1}>
-                {buildRangeString(group.ranges)}
-              </Text>
             </View>
           ))}
-        </>
+        </View>
       )}
 
-      {/* Visible event rows */}
-      {visibleEvents.map((event, index) => (
+      {/* Visible event cards — thumbnail layout: emoji tile (left) + content (right).
+          Badge truth: no Circle pill. All visible events are either the viewer's
+          own events or other members' non-private events. Private circle events
+          are already in the busy section above. */}
+      {visibleEvents.map((event, index) => {
+        // Derive a soft tint from event color for the emoji tile background
+        const tileColor = event.color || themeColor;
+        return (
         <Pressable
           key={event.id}
           onPress={() => {
@@ -240,59 +246,85 @@ function DayDetailEventsSection({
           }}
         >
           <Animated.View
-            entering={FadeInDown.delay((busyGroups.length + index) * 50).springify()}
+            entering={FadeInDown.delay(index * 40).springify()}
             style={{
-              borderRadius: 12,
+              flexDirection: "row",
+              borderRadius: 14,
               padding: 12,
               marginBottom: 8,
-              backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB"
+              backgroundColor: isDark ? "rgba(44,44,46,0.45)" : "#FFFFFF",
+              borderWidth: 1,
+              borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* Left: Event thumbnail — cover image priority, emoji fallback */}
+            {event.coverUrl ? (
+              <Image
+                source={{ uri: event.coverUrl }}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  marginRight: 12,
+                  flexShrink: 0,
+                  backgroundColor: `${tileColor}18`,
+                }}
+                resizeMode="cover"
+              />
+            ) : (
               <View
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  marginRight: 8,
-                  backgroundColor: event.color || themeColor
+                  width: 48,
+                  height: 48,
+                  borderRadius: 12,
+                  backgroundColor: `${tileColor}18`,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginRight: 12,
+                  flexShrink: 0,
                 }}
-              />
-              <Text style={{ fontWeight: "500", flex: 1, color: colors.text }} numberOfLines={1}>
+              >
+                <Text style={{ fontSize: 22 }}>{event.emoji}</Text>
+              </View>
+            )}
+
+            {/* Right: Content stack */}
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              {/* Title */}
+              <Text style={{ fontWeight: "600", fontSize: 15, color: colors.text, marginBottom: 4 }} numberOfLines={1}>
                 {event.title}
               </Text>
-              <EventVisibilityBadge
-                visibility="circle_only"
-                circleId={circleId}
-                isBusy={event.isBusy}
-                eventId={event.id}
-                surface="circle_day_detail"
-                isDark={isDark}
-              />
-              <Text style={{ fontSize: 11, color: colors.textTertiary }}>
-                {event.endTime
-                  ? `${fmtTime(event.startTime)} \u2013 ${fmtTime(event.endTime)}`
-                  : fmtTime(event.startTime)}
-              </Text>
-            </View>
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginLeft: 18 }}>
-              <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                {event.attendingMemberIds.length > 1
-                  ? `${event.attendingMemberIds.length} attending`
-                  : event.userName}
-              </Text>
-              {event.location && (
-                <View style={{ flexDirection: "row", alignItems: "center", marginLeft: 10, flex: 1 }}>
-                  <MapPin size={10} color={colors.textTertiary} />
-                  <Text style={{ fontSize: 11, marginLeft: 3, color: colors.textTertiary }} numberOfLines={1}>
+
+              {/* Time */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: event.location ? 2 : 0 }}>
+                <Clock size={11} color={colors.textTertiary} />
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginLeft: 4, fontWeight: "500" }}>
+                  {event.endTime
+                    ? `${fmtTime(event.startTime)}\u2009\u2013\u2009${fmtTime(event.endTime)}`
+                    : fmtTime(event.startTime)}
+                </Text>
+                {/* Host / attendees — inline after time */}
+                <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 8 }}>
+                  {event.attendingMemberIds.length > 1
+                    ? `· ${event.attendingMemberIds.length} going`
+                    : `· ${event.userName}`}
+                </Text>
+              </View>
+
+              {/* Location (if present) */}
+              {event.location ? (
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <MapPin size={11} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 12, marginLeft: 4, color: colors.textTertiary }} numberOfLines={1}>
                     {event.location}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           </Animated.View>
         </Pressable>
-      ))}
+        );
+      })}
     </View>
   );
 }

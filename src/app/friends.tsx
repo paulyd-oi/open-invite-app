@@ -1332,20 +1332,17 @@ export default function FriendsScreen() {
                 <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
               </View>
             )}
-            <Pressable
+            <Button
               testID="friends-invite-open"
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
+              variant="primary"
+              size="sm"
+              label="Add"
+              leftIcon={<Plus size={14} color="#fff" />}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push("/add-friends" as any);
               }}
-              className="flex-row items-center px-3 py-1.5 rounded-full"
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={{ backgroundColor: themeColor }}
-            >
-              <Plus size={14} color="#fff" />
-              <Text className="text-xs font-semibold text-white ml-1">Add</Text>
-            </Pressable>
+            />
           </View>
         }
       />

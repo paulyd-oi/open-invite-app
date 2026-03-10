@@ -21,6 +21,10 @@ import {
   Check,
   Trash2,
   ChevronLeft,
+  HandCoins,
+  ListChecks,
+  X,
+  Plus,
 } from "@/ui/icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -83,6 +87,11 @@ export default function EditEventScreen() {
   const [location, setLocation] = useState("");
   const [emoji, setEmoji] = useState("📅");
   const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 2);
+    return d;
+  });
   const [visibility, setVisibility] = useState<"all_friends" | "specific_groups">("all_friends");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -92,6 +101,18 @@ export default function EditEventScreen() {
   // Capacity state
   const [hasCapacity, setHasCapacity] = useState(false);
   const [capacityInput, setCapacityInput] = useState("");
+
+  // Pitch In state
+  const [pitchInEnabled, setPitchInEnabled] = useState(false);
+  const [pitchInAmount, setPitchInAmount] = useState("");
+  const [pitchInMethod, setPitchInMethod] = useState<"venmo" | "cashapp" | "paypal" | "other">("venmo");
+  const [pitchInHandle, setPitchInHandle] = useState("");
+  const [pitchInNote, setPitchInNote] = useState("");
+
+  // What to Bring state
+  const [bringListEnabled, setBringListEnabled] = useState(false);
+  const [bringListItems, setBringListItems] = useState<string[]>([]);
+  const [bringListInput, setBringListInput] = useState("");
 
   // Fetch event data
   const { data: myEventsData } = useQuery({
@@ -110,6 +131,14 @@ export default function EditEventScreen() {
       setLocation(event.location ?? "");
       setEmoji(event.emoji);
       setStartDate(new Date(event.startTime));
+      // Prefill end time: use event.endTime if available, otherwise default to start + 2 hours
+      if (event.endTime) {
+        setEndDate(new Date(event.endTime));
+      } else {
+        const defaultEnd = new Date(event.startTime);
+        defaultEnd.setHours(defaultEnd.getHours() + 2);
+        setEndDate(defaultEnd);
+      }
       setVisibility((event.visibility as "all_friends" | "specific_groups") ?? "all_friends");
       if (event.groupVisibility) {
         setSelectedGroupIds(event.groupVisibility.map((g) => g.groupId));
@@ -118,6 +147,19 @@ export default function EditEventScreen() {
       if (event.capacity != null) {
         setHasCapacity(true);
         setCapacityInput(String(event.capacity));
+      }
+      // Load Pitch In
+      if (event.pitchInEnabled) {
+        setPitchInEnabled(true);
+        setPitchInAmount(event.pitchInAmount ?? "");
+        setPitchInMethod((event.pitchInMethod as "venmo" | "cashapp" | "paypal" | "other") ?? "venmo");
+        setPitchInHandle(event.pitchInHandle ?? "");
+        setPitchInNote(event.pitchInNote ?? "");
+      }
+      // Load What to Bring
+      if (event.bringListEnabled && event.bringListItems && event.bringListItems.length > 0) {
+        setBringListEnabled(true);
+        setBringListItems(event.bringListItems.map((i: { label: string }) => i.label));
       }
       setIsLoaded(true);
     }
@@ -138,6 +180,8 @@ export default function EditEventScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterEventEdit(id ?? ""), "event_update");
+      // P0 FIX: Invalidate circle calendars so updated event reflects in circle views
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       safeToast.success("Updated", "Your event has been updated.");
       router.back();
     },
@@ -153,6 +197,8 @@ export default function EditEventScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterEventDelete(), "event_delete");
+      // P0 FIX: Invalidate circle calendars so deleted event is removed from circle views
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       safeToast.success("Deleted", "Your event has been deleted.");
       router.replace("/calendar");
     },
@@ -194,6 +240,12 @@ export default function EditEventScreen() {
       return;
     }
 
+    // Validate endTime > startTime
+    if (endDate <= startDate) {
+      safeToast.warning("Invalid Time", "End time must be after start time.");
+      return;
+    }
+
     // Normalize location to fix any stored duplicated address segments
     const _normalizedLocation = normalizeLocationString(location) ?? (location.trim() || undefined);
 
@@ -211,9 +263,27 @@ export default function EditEventScreen() {
       location: _normalizedLocation,
       emoji,
       startTime: startDate.toISOString(),
+      endTime: endDate.toISOString(),
       visibility,
       groupIds: visibility === "specific_groups" ? selectedGroupIds : undefined,
       capacity: hasCapacity && capacityInput ? parseInt(capacityInput, 10) : null,
+      // Pitch In V1
+      ...(pitchInEnabled && pitchInHandle.trim() ? {
+        pitchInEnabled: true,
+        pitchInTone: pitchInAmount.trim() ? "suggested" as const : "optional" as const,
+        pitchInAmount: pitchInAmount.trim() || undefined,
+        pitchInMethod,
+        pitchInHandle: pitchInHandle.trim(),
+        pitchInNote: pitchInNote.trim() || undefined,
+      } : { pitchInEnabled: false }),
+      // What to Bring V2
+      ...(bringListEnabled && bringListItems.length > 0 ? {
+        bringListEnabled: true,
+        bringListItems: bringListItems.map((label, i) => ({
+          id: `item_${i}_${Date.now()}`,
+          label,
+        })),
+      } : { bringListEnabled: false }),
     });
   };
 
@@ -418,7 +488,7 @@ export default function EditEventScreen() {
               style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
             >
               {/* Start Row */}
-              <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center justify-between mb-3">
                 <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">START</Text>
                 <View className="flex-row flex-1 items-center justify-end">
                   <DateTimePicker
@@ -437,9 +507,30 @@ export default function EditEventScreen() {
                   />
                 </View>
               </View>
+
+              {/* End Row */}
+              <View className="flex-row items-center justify-between">
+                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium w-12">END</Text>
+                <View className="flex-row flex-1 items-center justify-end">
+                  <DateTimePicker
+                    value={endDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => date && setEndDate(date)}
+                  />
+                  <DateTimePicker
+                    value={endDate}
+                    mode="time"
+                    display={Platform.OS === "ios" ? "compact" : "default"}
+                    themeVariant={isDark ? "dark" : "light"}
+                    onChange={(_, date) => date && setEndDate(date)}
+                  />
+                </View>
+              </View>
             </View>
           </Animated.View>
-          {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_time_ui source=inline_compact_matching_create"); return null; })()}
+          {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_time_ui source=inline_compact_start_end_matching_create"); return null; })()}
 
           {/* Visibility */}
           <Animated.View entering={FadeInDown.delay(250).springify()}>
@@ -555,7 +646,148 @@ export default function EditEventScreen() {
               </View>
             )}
           </Animated.View>
-          {__DEV__ && (() => { devLog("[DEV_DECISION] edit_event_host_section mode=removed_for_consistency"); return null; })()}
+          {/* Pitch In V1 */}
+          <Animated.View entering={FadeInDown.delay(300).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1 flex-row items-center">
+                <HandCoins size={16} color={colors.textSecondary} />
+                <View className="ml-2 flex-1">
+                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">Pitch In</Text>
+                  <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Let guests chip in for costs</Text>
+                </View>
+              </View>
+              <Switch
+                value={pitchInEnabled}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setPitchInEnabled(value);
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={pitchInEnabled ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {pitchInEnabled && (
+              <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <TextInput
+                  value={pitchInAmount}
+                  onChangeText={setPitchInAmount}
+                  placeholder="Suggested amount (e.g. $10)"
+                  placeholderTextColor={colors.textTertiary}
+                  className="rounded-lg p-3 mb-3"
+                  style={{ backgroundColor: colors.surfaceElevated, color: colors.text }}
+                />
+                <Text style={{ color: colors.textSecondary }} className="text-xs font-medium mb-2">Payment method</Text>
+                <View className="flex-row mb-3">
+                  {(["venmo", "cashapp", "paypal", "other"] as const).map((method) => (
+                    <Pressable
+                      key={method}
+                      onPress={() => { Haptics.selectionAsync(); setPitchInMethod(method); }}
+                      className="flex-1 py-2 rounded-lg items-center mr-1.5"
+                      style={{
+                        backgroundColor: pitchInMethod === method ? `${themeColor}20` : colors.surfaceElevated,
+                        borderWidth: 1,
+                        borderColor: pitchInMethod === method ? `${themeColor}60` : "transparent",
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: "600", color: pitchInMethod === method ? themeColor : colors.textSecondary }}>
+                        {method === "venmo" ? "Venmo" : method === "cashapp" ? "Cash App" : method === "paypal" ? "PayPal" : "Other"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  value={pitchInHandle}
+                  onChangeText={setPitchInHandle}
+                  placeholder={pitchInMethod === "venmo" || pitchInMethod === "cashapp" ? "@username" : "Payment handle"}
+                  placeholderTextColor={colors.textTertiary}
+                  className="rounded-lg p-3 mb-3"
+                  style={{ backgroundColor: colors.surfaceElevated, color: colors.text }}
+                />
+                <TextInput
+                  value={pitchInNote}
+                  onChangeText={(text) => setPitchInNote(text.slice(0, 100))}
+                  placeholder="Note (e.g. for food & drinks)"
+                  placeholderTextColor={colors.textTertiary}
+                  className="rounded-lg p-3"
+                  style={{ backgroundColor: colors.surfaceElevated, color: colors.text }}
+                />
+              </View>
+            )}
+          </Animated.View>
+
+          {/* What to Bring V2 */}
+          <Animated.View entering={FadeInDown.delay(320).springify()}>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-1 flex-row items-center">
+                <ListChecks size={16} color={colors.textSecondary} />
+                <View className="ml-2 flex-1">
+                  <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">What to bring</Text>
+                  <Text style={{ color: colors.textTertiary }} className="text-xs mt-0.5">Guests can claim items to bring</Text>
+                </View>
+              </View>
+              <Switch
+                value={bringListEnabled}
+                onValueChange={(value) => {
+                  Haptics.selectionAsync();
+                  setBringListEnabled(value);
+                }}
+                trackColor={{ false: colors.separator, true: `${themeColor}80` }}
+                thumbColor={bringListEnabled ? themeColor : colors.textTertiary}
+              />
+            </View>
+            {bringListEnabled && (
+              <View className="rounded-xl p-4 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <View className="flex-row items-center mb-3">
+                  <TextInput
+                    value={bringListInput}
+                    onChangeText={setBringListInput}
+                    placeholder="e.g. Chips, Ice, Cups..."
+                    placeholderTextColor={colors.textTertiary}
+                    className="flex-1 rounded-lg p-3 mr-2"
+                    style={{ backgroundColor: colors.surfaceElevated, color: colors.text }}
+                    onSubmitEditing={() => {
+                      const trimmed = bringListInput.trim();
+                      if (trimmed && bringListItems.length < 20) {
+                        setBringListItems((prev) => [...prev, trimmed]);
+                        setBringListInput("");
+                      }
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      const trimmed = bringListInput.trim();
+                      if (trimmed && bringListItems.length < 20) {
+                        Haptics.selectionAsync();
+                        setBringListItems((prev) => [...prev, trimmed]);
+                        setBringListInput("");
+                      }
+                    }}
+                    className="w-10 h-10 rounded-lg items-center justify-center"
+                    style={{ backgroundColor: bringListInput.trim() ? themeColor : colors.surfaceElevated }}
+                  >
+                    <Plus size={18} color={bringListInput.trim() ? "#FFFFFF" : colors.textTertiary} />
+                  </Pressable>
+                </View>
+                {bringListItems.map((item, index) => (
+                  <View key={`${item}-${index}`} className="flex-row items-center py-2 px-3 rounded-lg mb-1.5" style={{ backgroundColor: colors.surfaceElevated }}>
+                    <Text className="flex-1" style={{ color: colors.text, fontSize: 14 }}>{item}</Text>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setBringListItems((prev) => prev.filter((_, i) => i !== index));
+                      }}
+                      className="w-7 h-7 rounded-full items-center justify-center"
+                    >
+                      <X size={14} color={colors.textTertiary} />
+                    </Pressable>
+                  </View>
+                ))}
+                {bringListItems.length >= 20 && (
+                  <Text style={{ color: colors.textTertiary, fontSize: 11, marginTop: 4 }}>Maximum 20 items</Text>
+                )}
+              </View>
+            )}
+          </Animated.View>
 
           {/* Save Button */}
           <Animated.View entering={FadeInDown.delay(300).springify()}>

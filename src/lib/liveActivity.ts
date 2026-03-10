@@ -2,19 +2,24 @@
  * Live Activity bridge for iOS event tracking on Lock Screen / Dynamic Island.
  *
  * Privacy: No PII is sent to the Live Activity. Only event title, start time,
- * location name, and RSVP status are displayed.
+ * location name, emoji, going count, and RSVP status are displayed.
  *
  * One-active-activity invariant: Starting a new activity automatically
  * ends any existing one.
  *
  * Timer: The Lock Screen countdown is driven by the OS clock via
  * Text(timerInterval:countsDown:). No periodic app updates needed.
+ *
+ * V2: Auto-start on Going, emoji + goingCount for richer Lock Screen.
  */
 
 import { Platform, NativeModules } from "react-native";
 import { devLog, devWarn } from "@/lib/devLog";
 
 const TAG = "[LiveActivity]";
+
+/** Eligibility window: auto-start only for events starting within this many hours. */
+const AUTO_START_HORIZON_HOURS = 4;
 
 interface LiveActivityBridgeModule {
   startActivity(
@@ -23,11 +28,14 @@ interface LiveActivityBridgeModule {
     startTimeEpoch: number,
     locationName: string | null,
     rsvpStatus: string,
+    emoji: string | null,
+    goingCount: number,
   ): Promise<{ activityId: string }>;
   updateActivity(
     eventId: string,
     rsvpStatus: string,
     ended: boolean,
+    goingCount: number,
   ): Promise<{ updated: boolean }>;
   endActivity(eventId: string | null): Promise<{ ended: number }>;
   getActiveEventId(): Promise<string | null>;
@@ -71,6 +79,8 @@ export async function startLiveActivity(params: {
   startTime: string; // ISO 8601
   locationName?: string | null;
   rsvpStatus: string;
+  emoji?: string | null;
+  goingCount?: number;
 }): Promise<boolean> {
   const bridge = getBridge();
   if (!bridge) return false;
@@ -85,6 +95,8 @@ export async function startLiveActivity(params: {
       startTimeEpoch,
       params.locationName ?? null,
       params.rsvpStatus,
+      params.emoji ?? null,
+      params.goingCount ?? 0,
     );
     devLog(TAG, "Started:", result.activityId);
     return true;
@@ -95,13 +107,14 @@ export async function startLiveActivity(params: {
 }
 
 /**
- * Update the Live Activity state (RSVP status, ended flag).
+ * Update the Live Activity state (RSVP status, ended flag, going count).
  * Countdown is OS-driven — no need to pass time values.
  */
 export async function updateLiveActivity(params: {
   eventId: string;
   rsvpStatus: string;
   ended?: boolean;
+  goingCount?: number;
 }): Promise<boolean> {
   const bridge = getBridge();
   if (!bridge) return false;
@@ -111,6 +124,7 @@ export async function updateLiveActivity(params: {
       params.eventId,
       params.rsvpStatus,
       params.ended ?? false,
+      params.goingCount ?? 0,
     );
     return true;
   } catch {
@@ -143,4 +157,22 @@ export async function getActiveLiveActivityEventId(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Check if an event is eligible for Live Activity auto-start.
+ * Eligible = starts within AUTO_START_HORIZON_HOURS and hasn't ended.
+ */
+export function isEligibleForAutoStart(event: {
+  startTime: string;
+  endTime?: string | null;
+}): boolean {
+  const now = Date.now();
+  const startMs = new Date(event.startTime).getTime();
+  if (Number.isNaN(startMs)) return false;
+  const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+  if (Number.isNaN(endMs)) return false;
+  const startsWithinHorizon = startMs - now < AUTO_START_HORIZON_HOURS * 3600000;
+  const hasEnded = now > endMs;
+  return startsWithinHorizon && !hasEnded;
 }

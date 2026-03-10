@@ -14,6 +14,7 @@ import {
   Pressable,
   FlatList,
   PanResponder,
+  InteractionManager,
 } from "react-native";
 import { devLog } from "@/lib/devLog";
 import { useQuery } from "@tanstack/react-query";
@@ -97,6 +98,9 @@ function MiniCalendar({
   const [showBestTimeSheet, setShowBestTimeSheet] = useState(false);
   const [showAllAvailability, setShowAllAvailability] = useState(false);
   const [showLimitedTimes, setShowLimitedTimes] = useState(false);
+  const [showMoreTimes, setShowMoreTimes] = useState(false);
+  // [PERF] Deferred rendering: false until sheet open animation settles
+  const [isSheetSettled, setIsSheetSettled] = useState(false);
   const [bestTimesDate, setBestTimesDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -104,6 +108,18 @@ function MiniCalendar({
   });
   const [quietPreset, setQuietPreset] = useState<SuggestedHoursPreset>("default");
   const [showPresetPicker, setShowPresetPicker] = useState(false);
+
+  // [PERF] Defer heavy Who's Free content until sheet open animation settles
+  useEffect(() => {
+    if (showBestTimeSheet) {
+      const handle = InteractionManager.runAfterInteractions(() => {
+        setIsSheetSettled(true);
+      });
+      return () => handle.cancel();
+    } else {
+      setIsSheetSettled(false);
+    }
+  }, [showBestTimeSheet]);
 
   // [P0_DAY_DETAIL_SWIPE] Swipe left/right inside unified sheet to change day
   const bestTimesDateRef = useRef(bestTimesDate);
@@ -174,6 +190,7 @@ function MiniCalendar({
       startTime: string;
       endTime: string | null;
       location: string | null;
+      coverUrl?: string | null;
       userId: string;
       color: string;
       userName: string;
@@ -326,7 +343,10 @@ function MiniCalendar({
   // Per-date availability for the "Best time to meet" sheet
   // [P0_DAY_AVAIL_SOT] Uses /availability response as SSOT when available,
   // falls back to client-side memberEvents when the query hasn't resolved yet.
+  // [PERF] Gated behind isSheetSettled to defer heavy computeSchedule() until after open animation.
   const dateScheduleResult = useMemo(() => {
+    if (!isSheetSettled) return null;
+
     let busyWindowsByUserId: Record<string, import("@/lib/scheduling/types").BusyWindow[]>;
 
     if (dayAvailData?.availability) {
@@ -369,9 +389,9 @@ function MiniCalendar({
       rangeEnd: dayAvailRange.end,
       intervalMinutes: 30,
       slotDurationMinutes: 60,
-      maxTopSlots: 1000,
+      maxTopSlots: 50, // [PERF] Day sheet only shows top ~3 + expanded ranges; 1000 was wasteful
     });
-  }, [dayAvailData, memberEvents, members, bestTimesDate, workSchedules, currentUserId, dayAvailRange]);
+  }, [isSheetSettled, dayAvailData, memberEvents, members, bestTimesDate, workSchedules, currentUserId, dayAvailRange]);
 
   // Suggested hours filter + social ranking via SSOT (src/lib/quietHours.ts)
   const quietWindow = getSuggestedHoursForPreset(quietPreset);
@@ -780,7 +800,7 @@ function MiniCalendar({
           {/* Unified Day Detail Sheet (events + who's free) */}
           <BottomSheet
             visible={showBestTimeSheet}
-            onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); }}
+            onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); setShowMoreTimes(false); }}
             title={bestTimesDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
             heightPct={0}
             maxHeightPct={0.85}
@@ -811,19 +831,46 @@ function MiniCalendar({
                 circleId={circleId}
                 currentUserId={currentUserId}
                 members={members}
-                onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); }}
+                onClose={() => { setShowBestTimeSheet(false); setShowAllAvailability(false); setShowLimitedTimes(false); setShowMoreTimes(false); }}
                 router={router}
                 bestTimesDate={bestTimesDate}
               />
 
-              {/* ── Section 2: Who's Free ───────────────────────── */}
-              <Text style={{ fontSize: 12, fontWeight: "700", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 8, marginTop: 4 }}>
-                WHO{"\u2019"}S FREE
+              {/* ── Section 2: Who's Free — distinct module container ── */}
+              <View style={{
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                borderRadius: 16,
+                padding: 16,
+                marginTop: 8,
+                borderWidth: 1,
+                borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+              }}>
+              <Text style={{ fontSize: 13, fontWeight: "700", letterSpacing: 0.4, color: colors.text, marginBottom: 4 }}>
+                Who{"\u2019"}s Free
               </Text>
-              <Text style={{ fontSize: 13, color: colors.textTertiary, marginBottom: 8 }}>
+              <Text style={{ fontSize: 12, color: colors.textTertiary, marginBottom: 14 }}>
                 Based on availability shared in this circle
               </Text>
 
+              {/* [PERF] Skeleton placeholder while schedule computation is deferred */}
+              {!isSheetSettled ? (
+                <View style={{ paddingVertical: 20, alignItems: "center" }}>
+                  {/* Skeleton rows */}
+                  {[0, 1, 2].map((i) => (
+                    <View key={i} style={{
+                      width: "100%",
+                      height: 40,
+                      borderRadius: 10,
+                      backgroundColor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)",
+                      marginBottom: 8,
+                    }} />
+                  ))}
+                  <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 4 }}>
+                    Checking availability…
+                  </Text>
+                </View>
+              ) : (
+              <>
               {/* Suggested hours row */}
               <Pressable
                 onPress={() => {
@@ -929,17 +976,16 @@ function MiniCalendar({
                   <Text style={{ fontSize: 11, fontWeight: "600", letterSpacing: 0.5, color: colors.textTertiary, textTransform: "uppercase", marginBottom: 10 }}>
                     Recommended
                   </Text>
-                  {/* [P0_ALL_AVAIL_FIX] Only show top 3 recommended slots — prevents all-slot render */}
-                  {quietSlots.slice(0, 3).map((slot, idx) => {
+
+                  {/* Best slot — always visible */}
+                  {(() => {
+                    const slot = quietSlots[0];
                     const slotDate = new Date(slot.start);
                     const endDate = new Date(slot.end);
                     const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
                     const endTimeLabel = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-                    const rankLabel = idx === 0 ? "Best" : idx === 1 ? "Good" : "Option";
-                    const rankColor = idx === 0 ? "#10B981" : idx === 1 ? themeColor : colors.textSecondary;
                     return (
                       <Pressable
-                        key={`best-${idx}`}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                           if (__DEV__) devLog('[P1_PREFILL_EVENT]', { slotStart: slot.start, slotEnd: slot.end, circleId });
@@ -947,17 +993,10 @@ function MiniCalendar({
                           setShowAllAvailability(false);
                           router.push({
                             pathname: "/create",
-                            params: {
-                              date: slot.start,
-                              endDate: slot.end,
-                              circleId: circleId,
-                            },
+                            params: { date: slot.start, endDate: slot.end, circleId },
                           } as any);
                         }}
-                        onLongPress={() => {
-                          Haptics.selectionAsync().catch(() => {});
-                          setSelectedSlot(slot);
-                        }}
+                        onLongPress={() => { Haptics.selectionAsync().catch(() => {}); setSelectedSlot(slot); }}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -965,25 +1004,84 @@ function MiniCalendar({
                           paddingHorizontal: 12,
                           marginBottom: 8,
                           borderRadius: 12,
-                          backgroundColor: idx === 0
-                            ? (isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)")
-                            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)"),
+                          backgroundColor: isDark ? "rgba(16,185,129,0.12)" : "rgba(16,185,129,0.08)",
                         }}
                       >
                         <View style={{ width: 48, marginRight: 10 }}>
-                          <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
+                          <Text style={{ fontSize: 11, fontWeight: "700", color: "#10B981" }}>Best</Text>
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
                         </View>
-                        <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#10B981" }}>
                           {formatSlotAvailabilityCompact(slot.availableCount, slot.totalMembers)}
                         </Text>
                       </Pressable>
                     );
-                  })}
+                  })()}
 
-                  {/* View all toggle */}
+                  {/* Good / Option slots — collapsed behind toggle */}
+                  {quietSlots.length > 1 && (
+                    <>
+                      {showMoreTimes && quietSlots.slice(1, 3).map((slot, idx) => {
+                        const actualIdx = idx + 1;
+                        const slotDate = new Date(slot.start);
+                        const endDate = new Date(slot.end);
+                        const timeLabel = slotDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                        const endTimeLabel = endDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+                        const rankLabel = actualIdx === 1 ? "Good" : "Option";
+                        const rankColor = actualIdx === 1 ? themeColor : colors.textSecondary;
+                        return (
+                          <Pressable
+                            key={`best-${actualIdx}`}
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                              if (__DEV__) devLog('[P1_PREFILL_EVENT]', { slotStart: slot.start, slotEnd: slot.end, circleId });
+                              setShowBestTimeSheet(false);
+                              setShowAllAvailability(false);
+                              router.push({
+                                pathname: "/create",
+                                params: { date: slot.start, endDate: slot.end, circleId },
+                              } as any);
+                            }}
+                            onLongPress={() => { Haptics.selectionAsync().catch(() => {}); setSelectedSlot(slot); }}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              paddingVertical: 10,
+                              paddingHorizontal: 12,
+                              marginBottom: 8,
+                              borderRadius: 12,
+                              backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                            }}
+                          >
+                            <View style={{ width: 48, marginRight: 10 }}>
+                              <Text style={{ fontSize: 11, fontWeight: "700", color: rankColor }}>{rankLabel}</Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 14, fontWeight: "500", color: colors.text }}>{timeLabel} {"\u2013"} {endTimeLabel}</Text>
+                            </View>
+                            <Text style={{ fontSize: 13, fontWeight: "600", color: rankColor }}>
+                              {formatSlotAvailabilityCompact(slot.availableCount, slot.totalMembers)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                      <Pressable
+                        onPress={() => {
+                          Haptics.selectionAsync().catch(() => {});
+                          setShowMoreTimes(!showMoreTimes);
+                        }}
+                        style={{ paddingVertical: 6, alignItems: "center", marginBottom: 4 }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: "500", color: themeColor }}>
+                          {showMoreTimes ? "Show less" : `Show ${Math.min(quietSlots.length - 1, 2)} more time${Math.min(quietSlots.length - 1, 2) === 1 ? "" : "s"}`}
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
+
+                  {/* View all availability toggle */}
                   <Pressable
                     onPress={() => {
                       expandTapTsRef.current = Date.now();
@@ -1018,7 +1116,10 @@ function MiniCalendar({
                   </Pressable>
                 </View>
               )}
-              </View>
+              </>
+              )}{/* close isSheetSettled ternary */}
+              </View>{/* close Who's Free container */}
+              </View>{/* close pan handler */}
               </>
               }
               ListFooterComponent={

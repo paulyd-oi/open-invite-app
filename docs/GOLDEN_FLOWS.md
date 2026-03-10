@@ -97,7 +97,7 @@ Cold start -> app shows splash -> resolves boot status.
 
 If authed -> lands in authed shell (no redirect loops).
 
-If loggedOut/error -> router.replace('/login') and no authed queries run.
+If loggedOut/error -> router.replace('/welcome') and no authed queries run.
 
 EDGE CASES:
 
@@ -105,11 +105,11 @@ Network offline:
 Expected: degraded path, no destructive logout, UI explains offline.
 
 401 from session:
-Expected: triggers SSOT logout, returns to /login using replace.
+Expected: triggers SSOT logout, returns to /welcome using replace.
 
 ACCEPTANCE CHECKS:
 
-Cold start loggedOut: lands on /login, no authed API spam.
+Cold start loggedOut: lands on /welcome, no authed API spam.
 
 Cold start authed: lands on main tab, no flicker between routes.
 

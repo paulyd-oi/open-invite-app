@@ -26,6 +26,8 @@ class LiveActivityBridge: NSObject {
         startTimeEpoch: Double,
         locationName: String?,
         rsvpStatus: String,
+        emoji: String?,
+        goingCount: Int,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -50,12 +52,14 @@ class LiveActivityBridge: NSObject {
             eventId: eventId,
             eventTitle: eventTitle,
             startTimeEpoch: startTimeEpoch,
-            locationName: locationName
+            locationName: locationName,
+            emoji: emoji
         )
 
         let state = OpenInviteEventAttributes.ContentState(
             rsvpStatus: rsvpStatus,
-            ended: false
+            ended: false,
+            goingCount: goingCount
         )
 
         do {
@@ -77,6 +81,7 @@ class LiveActivityBridge: NSObject {
         _ eventId: String,
         rsvpStatus: String,
         ended: Bool,
+        goingCount: Int,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -87,7 +92,8 @@ class LiveActivityBridge: NSObject {
 
         let state = OpenInviteEventAttributes.ContentState(
             rsvpStatus: rsvpStatus,
-            ended: ended
+            ended: ended,
+            goingCount: goingCount
         )
 
         var found = false

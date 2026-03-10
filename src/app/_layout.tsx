@@ -642,8 +642,8 @@ function BootRouter() {
   // [P0_INIT_ROUTE_FIX] PRIMARY: BootRouter handles post-boot routing decisions.
   // App starts at /welcome (initialRouteName='welcome'), then this effect redirects
   // based on boot status:
-  // - authed → /calendar
-  // - loggedOut/error/onboarding → stay on /welcome
+      // - authed → /calendar
+      // - loggedOut/error/onboarding → /welcome
   useEffect(() => {
     if (!navigationState?.key) {
       return; // Navigation not ready yet
@@ -712,7 +712,7 @@ function BootRouter() {
         router.replace('/welcome');
       }
     } else if (bootStatus === 'authed') {
-      // Fully authenticated and onboarded - go to Calendar (home/center tab)
+      // Fully authenticated and onboarded - go to Calendar (authenticated default landing)
       if (pathname !== '/calendar') {
         devLog('[ONBOARDING_BOOT]', '→ Routing to /calendar (fully authenticated)');
         router.replace('/calendar');
@@ -798,6 +798,12 @@ function RootLayoutNav() {
         <Stack.Screen name="create" />
         <Stack.Screen name="friends" />
         <Stack.Screen name="circles" />
+        <Stack.Screen
+          name="social"
+          options={{
+            headerShown: false,
+          }}
+        />
         <Stack.Screen name="profile" />
         <Stack.Screen
           name="public-profile"
@@ -849,6 +855,55 @@ function RootLayoutNav() {
             headerBackButtonDisplayMode: 'minimal',
             headerStyle: { backgroundColor: headerBg },
             headerTintColor: headerTint,
+          }}
+        />
+        <Stack.Screen
+          name="verify-email"
+          options={{
+            presentation: 'card',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="add-friends"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="admin"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="admin-reports"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="admin-report-detail"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="redeem-code"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="referrals"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="calendar-import-help"
+          options={{
+            headerShown: false,
           }}
         />
         <Stack.Screen

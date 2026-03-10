@@ -972,10 +972,11 @@ export default function CreateEventScreen() {
       invalidateEventKeys(queryClient, getInvalidateAfterEventCreate(), "event_create");
       // Invalidate entitlements to refresh usage counts
       queryClient.invalidateQueries({ queryKey: qk.entitlements() });
-      // Also invalidate circle queries if this is a circle event
+      // P0 FIX: Always invalidate circle queries so circle calendars reflect new events
+      // (memberEvents includes ALL events by circle members, not just circle-linked ones)
+      queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       if (circleId) {
         queryClient.invalidateQueries({ queryKey: circleKeys.single(circleId) });
-        queryClient.invalidateQueries({ queryKey: circleKeys.all() });
       }
       // ── [GROWTH_V1] Prompt arbitration: at most ONE modal per create success ──
       // Priority: ShareEvent (always) > NotificationPrePrompt > none

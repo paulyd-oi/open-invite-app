@@ -22,9 +22,8 @@ import { useTheme } from "@/lib/ThemeContext";
 import { SCRIM } from "@/ui/tokens";
 import { useSession } from "@/lib/useSession";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
-import { authClient } from "@/lib/authClient";
-import { safeToast } from "@/lib/safeToast";
 import { devWarn } from "@/lib/devLog";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 
 // SecureStore key prefix - MUST be user-scoped
 const WELCOME_MODAL_SHOWN_PREFIX = "openinvite.welcome_modal_shown.";
@@ -110,19 +109,16 @@ export function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    try {
-      await authClient.$fetch("/api/email-verification/resend", {
-        method: "POST",
-        body: { email: userEmail },
-      });
-      triggerVerificationCooldown();
-      safeToast.success("Email Sent", "Check your inbox for the verification email.");
-    } catch (error) {
-      safeToast.error("Verification Failed", "Failed to send verification email. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, userEmail]);
+    await resendVerificationEmail({
+      email: userEmail,
+      name: session?.user?.name || session?.user?.displayName,
+      onSuccess: () => {
+        triggerVerificationCooldown();
+      },
+    });
+
+    setIsLoading(false);
+  }, [isLoading, session?.user?.displayName, session?.user?.name, userEmail]);
 
   // VERIFIED: Primary CTA - Find friends
   const handleFindFriends = useCallback(async () => {

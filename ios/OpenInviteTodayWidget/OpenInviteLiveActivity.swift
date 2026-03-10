@@ -2,8 +2,8 @@
 //  OpenInviteLiveActivity.swift
 //  OpenInviteTodayWidget
 //
-//  Live Activity for tracking an active event on the Lock Screen
-//  and Dynamic Island. Shows event title, live countdown, and RSVP status.
+//  Live Activity V2 for tracking an active event on the Lock Screen
+//  and Dynamic Island. Two-line layout with emoji, attendance, and location.
 //
 //  Countdown uses Text(timerInterval:countsDown:) — the OS clock drives
 //  the display. No app updates needed to keep the timer ticking.
@@ -28,7 +28,7 @@ struct OpenInviteLiveActivity: Widget {
             DynamicIsland {
                 // Expanded regions
                 DynamicIslandExpandedRegion(.leading) {
-                    rsvpDot(status: context.state.rsvpStatus)
+                    emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
@@ -51,58 +51,94 @@ struct OpenInviteLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                rsvpDot(status: context.state.rsvpStatus)
+                emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
             } compactTrailing: {
                 compactCountdown(context: context)
             } minimal: {
-                rsvpDot(status: context.state.rsvpStatus)
+                emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
             }
         }
     }
 
-    // MARK: - Lock Screen View
+    // MARK: - Lock Screen View (V2 — two-line hierarchy)
 
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<OpenInviteEventAttributes>) -> some View {
-        HStack(spacing: 12) {
-            rsvpDot(status: context.state.rsvpStatus)
+        Link(destination: URL(string: "open-invite://event/\(context.attributes.eventId)")!) {
+            HStack(spacing: 12) {
+                // Left: emoji badge or status dot
+                emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(context.state.rsvpStatus == "going" ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
+                    )
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(context.attributes.eventTitle)
-                    .font(.headline)
-                    .lineLimit(1)
+                // Center: two-line info
+                VStack(alignment: .leading, spacing: 3) {
+                    // Line 1: Event title
+                    Text(context.attributes.eventTitle)
+                        .font(.system(.headline, design: .rounded))
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                        .foregroundStyle(.white)
 
-                if context.state.ended {
-                    Text("Event ended")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    HStack(spacing: 4) {
-                        liveCountdown(startDate: context.attributes.startDate)
-                        if let loc = context.attributes.locationName {
-                            Text("•")
+                    // Line 2: Status + location + attendance
+                    if context.state.ended {
+                        Text("Event ended")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        HStack(spacing: 6) {
+                            liveCountdown(startDate: context.attributes.startDate)
+                                .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                            Text(loc)
-                                .lineLimit(1)
+
+                            if let loc = context.attributes.locationName {
+                                Text("•")
+                                    .foregroundStyle(.tertiary)
+                                Text(loc)
+                                    .lineLimit(1)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            if context.state.goingCount > 0 {
+                                Text("•")
+                                    .foregroundStyle(.tertiary)
+                                Text("\(context.state.goingCount) going")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color.green)
+                            }
                         }
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
                 }
-            }
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            // Deep link arrow
-            Link(destination: URL(string: "open-invite://event/\(context.attributes.eventId)")!) {
+                // Right: chevron indicator
                 Image(systemName: "chevron.right.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(0.6))
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .activityBackgroundTint(.black.opacity(0.75))
+        .activityBackgroundTint(.black.opacity(0.8))
+    }
+
+    // MARK: - Emoji or RSVP dot
+
+    @ViewBuilder
+    private func emojiOrDot(emoji: String?, status: String) -> some View {
+        if let emoji = emoji, !emoji.isEmpty {
+            Text(emoji)
+                .font(.system(size: 18))
+        } else {
+            Circle()
+                .fill(status == "going" ? Color.green : Color.orange)
+                .frame(width: 8, height: 8)
+        }
     }
 
     // MARK: - Live Countdown (OS-driven timer)
@@ -118,6 +154,7 @@ struct OpenInviteLiveActivity: Widget {
         } else {
             // Past start time: show "Happening now" (static until next update)
             Text("Happening now")
+                .foregroundStyle(.green)
         }
     }
 
@@ -147,12 +184,5 @@ struct OpenInviteLiveActivity: Widget {
                 .font(.caption2)
                 .foregroundStyle(.green)
         }
-    }
-
-    @ViewBuilder
-    private func rsvpDot(status: String) -> some View {
-        Circle()
-            .fill(status == "going" ? Color.green : Color.orange)
-            .frame(width: 8, height: 8)
     }
 }

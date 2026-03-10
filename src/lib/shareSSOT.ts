@@ -43,10 +43,14 @@ const SCHEME = "open-invite";
  */
 export const SHARE_DOMAIN = "https://go.openinvite.cloud";
 
-/** Domains that must NEVER appear in user-facing share text. */
+/**
+ * Domains that must NEVER appear in user-facing share text.
+ * Note: go.openinvite.cloud is the branded share domain and is ALLOWED.
+ * These patterns are checked with boundary awareness in assertNoForbiddenDomains.
+ */
 const FORBIDDEN_DOMAINS = [
   "api.openinvite.cloud",
-  "openinvite.cloud",
+  "open-invite-api.onrender.com",
 ] as const;
 
 // ── Referral param SSOT ──────────────────────────────────────────────────────

@@ -43,7 +43,7 @@ import { api } from "@/lib/api";
 import { useTheme } from "@/lib/ThemeContext";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
-import { guardEmailVerification } from "@/lib/emailVerification";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { SuggestionsSkeleton } from "@/components/SkeletonLoader";
 
 import { safeToast } from "@/lib/safeToast";

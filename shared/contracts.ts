@@ -1735,6 +1735,7 @@ export const memberEventSchema = z.object({
   startTime: z.string(),
   endTime: z.string().nullable(),
   location: z.string().nullable(),
+  coverUrl: z.string().nullable().optional(),
   isPrivate: z.boolean(),
   isBusy: z.boolean().optional(),
   isWork: z.boolean().optional(),

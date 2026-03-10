@@ -11,8 +11,14 @@
 ## Auth & Logout
 - Cookie/session based (Better Auth). Do not assume Bearer tokens.
 - Logout sequence must remain:
-  cancelQueries -> clear cache -> resetSession -> router.replace('/login')
+  cancelQueries -> clear cache -> resetSession -> router.replace('/welcome')
 - After logout, app must not call authenticated endpoints.
+
+## Routing Contract
+- Authenticated default route is `/calendar`.
+- Unauthenticated root fallback is `/welcome`.
+- `/login` is a leaf auth screen reached by explicit user navigation, not a fallback sink.
+- All live pushed/replaced routes must be explicitly registered/configured in the root stack (`src/app/_layout.tsx`).
 
 ## Guidance & Onboarding
 - Guidance/onboarding helper overlays MUST be scoped per-user-id.
@@ -47,6 +53,14 @@ INVARIANT: `authClient` emits a one-shot auth expiry event on 401/403 responses.
 **Proof tag**: `[AUTH_EXPIRED]` in console logs when triggered.
 
 **Behavior**: On 401/403 from authenticated endpoint, authClient fires expiry event. App shows single toast, clears session, redirects to welcome.
+
+## Email Verification & Auth Side-Effects SSOT
+
+INVARIANT: `src/lib/emailVerificationGate.ts` is the only action-level email verification gate.
+
+- Blocked unverified actions use the gate's throttled toast UX.
+- Explicit verification navigation remains the leaf screen at `/verify-email`.
+- Resend verification, verify-code, and password-reset requests must go through `src/lib/authFlowClient.ts` via `authClient.$fetch`. Screen-local raw fetch/error parsing for these flows is forbidden.
 
 ## UX Jitter Prevention
 

@@ -39,8 +39,8 @@ export type CloudinaryTransform = {
 export const CLOUDINARY_PRESETS = {
   /** Landscape hero for Discover feed cards (4:3 container). */
   HERO_BANNER: { w: 1200, h: 900, crop: "fill", gravity: "auto" } as CloudinaryTransform,
-  /** Portrait hero for Event Detail screen (3:4 container, maxHeight 480). */
-  HERO_DETAIL: { w: 900, h: 1200, crop: "fill", gravity: "auto" } as CloudinaryTransform,
+  /** Event Detail hero (4:3 container, rounded corners). Matches container aspect for optimal delivery. */
+  HERO_DETAIL: { w: 1080, h: 810, crop: "fill", gravity: "auto" } as CloudinaryTransform,
   THUMBNAIL_SQUARE: { w: 360, h: 360, crop: "fill" } as CloudinaryTransform,
   AVATAR_THUMB: { w: 120, h: 120, crop: "fill" } as CloudinaryTransform,
 } as const;

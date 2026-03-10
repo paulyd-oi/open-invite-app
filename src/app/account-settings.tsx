@@ -30,11 +30,11 @@ import * as Sharing from "expo-sharing";
 import { performLogout } from "@/lib/logout";
 import { api } from "@/lib/api";
 import { authClient } from "@/lib/authClient";
-import { BACKEND_URL } from "@/lib/config";
+import { requestPasswordResetEmail } from "@/lib/authFlowClient";
 import { useTheme } from "@/lib/ThemeContext";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { devLog, devError } from "@/lib/devLog";
+import { devError } from "@/lib/devLog";
 
 export default function AccountSettingsScreen() {
   const router = useRouter();
@@ -149,29 +149,14 @@ export default function AccountSettingsScreen() {
     setIsResettingPassword(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/forget-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email: currentEmail,
-          redirectTo: "/reset-password",
-        }),
+      const result = await requestPasswordResetEmail({
+        email: currentEmail,
+        redirectTo: "/reset-password",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        const msg = errorData?.message || errorData?.error || "Failed to send reset email.";
-        if (typeof msg === "string" && msg.includes("EMAIL_PROVIDER_NOT_CONFIGURED")) {
-          throw new Error("Password reset is temporarily unavailable. Please contact support@openinvite.cloud");
-        }
-        throw new Error(msg);
+      if (!result.success && result.error) {
+        devError("[AccountSettings] resetPassword error", result.error);
       }
-
-      safeToast.success("Reset Email Sent", "Check your inbox for a password reset link.");
-    } catch (error: any) {
-      devError("[AccountSettings] resetPassword error", error);
-      safeToast.error("Reset Failed", error?.message || "Unable to send reset email.");
     } finally {
       setIsResettingPassword(false);
     }

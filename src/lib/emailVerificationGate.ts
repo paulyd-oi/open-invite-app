@@ -1,8 +1,9 @@
 /**
- * Email Verification Gate Helper
- * 
- * Manages show-once blocking modal logic and action-level intercepts.
- * Users must verify email to create events or add friends.
+ * Canonical email verification gate helper.
+ *
+ * This is the only action-level guard for unverified users. Blocked actions
+ * use a throttled toast and explicit navigation to `/verify-email` remains a
+ * separate user-driven leaf flow.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";

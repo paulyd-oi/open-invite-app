@@ -42,6 +42,7 @@ import {
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient } from "@/lib/authClient";
+import { requestPasswordResetEmail } from "@/lib/authFlowClient";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
@@ -49,14 +50,6 @@ import { RADIUS } from "@/ui/layout";
 import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// Backend URL
-const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
-const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
-const backendUrl =
-  apiUrlOverride && apiUrlOverride.length > 0
-    ? apiUrlOverride
-    : RENDER_BACKEND_URL;
 
 // ============ ONBOARDING COMPLETION GATE ============
 // Prevent redirect loop: only navigate to "/" if onboarding is complete
@@ -181,48 +174,16 @@ export default function LoginScreen() {
       return;
     }
 
-    devLog("[P0_PW_RESET] forgot password initiated");
     setIsLoading(true);
     try {
-      const response = await fetch(`${backendUrl}/api/auth/forget-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email,
-          redirectTo: "/reset-password",
-        }),
+      const result = await requestPasswordResetEmail({
+        email,
+        redirectTo: "/reset-password",
       });
 
-      if (!response.ok) {
-        // Extract error message from various response shapes
-        const extractErrorMessage = (data: unknown, fallbackText?: string): string => {
-          if (!data) return fallbackText || "Unknown error";
-          const d = data as Record<string, unknown>;
-          if (typeof d.message === "string") return d.message;
-          if (typeof d.error === "object" && d.error && typeof (d.error as Record<string, unknown>).message === "string") return (d.error as Record<string, unknown>).message as string;
-          if (typeof d.error === "string") return d.error;
-          if (typeof d.code === "string") return d.code;
-          return fallbackText || "Unknown error";
-        };
-        
-        const errorData = await response.json().catch(() => null);
-        const responseText = errorData ? null : await response.text().catch(() => null);
-        const extractedMessage = extractErrorMessage(errorData, responseText || undefined);
-        
-        devError("[P0_PW_RESET] backend error", { message: extractedMessage });
-        
-        if (extractedMessage.includes("EMAIL_PROVIDER_NOT_CONFIGURED")) {
-          throw new Error("Password reset is temporarily unavailable. Please contact support@openinvite.cloud");
-        }
-        throw new Error(extractedMessage || "Failed to send reset email");
+      if (result.success) {
+        setResetEmailSent(true);
       }
-
-      devLog("[P0_PW_RESET] reset email request success");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setResetEmailSent(true);
-    } catch (error: any) {
-      safeToast.error("Reset Failed", error?.message || "Unable to send reset email.");
     } finally {
       setIsLoading(false);
     }

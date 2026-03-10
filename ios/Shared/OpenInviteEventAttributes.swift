@@ -17,6 +17,8 @@ struct OpenInviteEventAttributes: ActivityAttributes {
         var rsvpStatus: String
         /// Whether the event has ended
         var ended: Bool
+        /// Current going count (updated with activity)
+        var goingCount: Int
     }
 
     /// Event ID for deep linking back to event detail
@@ -28,6 +30,8 @@ struct OpenInviteEventAttributes: ActivityAttributes {
     var startTimeEpoch: Double
     /// Optional location name
     var locationName: String?
+    /// Event emoji (e.g. "🎉") — shown on Lock Screen for personality
+    var emoji: String?
 
     /// Computed start Date for use in SwiftUI timer views.
     var startDate: Date {

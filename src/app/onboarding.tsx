@@ -63,7 +63,8 @@ import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { requestBootstrapRefreshOnce, useBootAuthority } from "@/hooks/useBootAuthority";
-import { useSession, authClient } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { useOnboardingGuide } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { REFERRAL_TIERS } from "@/lib/freemiumLimits";
@@ -946,21 +947,17 @@ export default function OnboardingScreen() {
       if (session?.user?.email && session?.user?.emailVerified === false && !verificationEmailSent) {
         if (__DEV__) devLog("[onboarding] Auto-sending verification email after signup");
         setVerificationEmailSent(true); // Guard: only send once
-        
-        try {
-          await authClient.$fetch("/api/email-verification/resend", {
-            method: "POST",
-            body: {
-              email: session.user.email.toLowerCase(),
-              name: session.user.name || session.user.displayName || undefined,
-            },
-          });
-          if (__DEV__) devLog("[onboarding] Verification email sent successfully");
-          // Trigger 30-second cooldown in banner
-          triggerVerificationCooldown();
-        } catch (error: any) {
-          devWarn("[onboarding] Failed to auto-send verification email:", error?.message ?? error);
-          // Don't crash or block - just show toast
+        const result = await resendVerificationEmail({
+          email: session.user.email,
+          name: session.user.name || session.user.displayName || undefined,
+          feedback: "silent",
+          onSuccess: () => {
+            if (__DEV__) devLog("[onboarding] Verification email sent successfully");
+            triggerVerificationCooldown();
+          },
+        });
+        if (!result.success) {
+          devWarn("[onboarding] Failed to auto-send verification email:", result.error);
           safeToast.warning("Couldn't send verification email", "Try again from the banner.");
         }
       }
@@ -991,10 +988,10 @@ export default function OnboardingScreen() {
       setShowSetupRetry(false);
       router.replace('/calendar');
     } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      if (__DEV__) devLog('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to login');
+      if (__DEV__) devLog('[Onboarding] Bootstrap refresh failed (' + bootStatus + ') - routing to welcome');
       setPendingCalendarRoute(false);
       setShowSetupRetry(false);
-      router.replace('/login');
+      router.replace('/welcome');
     } else if (bootStatus === 'degraded') {
       // [P0_ONBOARDING_STUCK_GUARD] Degraded = network/timeout issue; show retry
       if (__DEV__) devLog('[P0_ONBOARDING_STUCK_GUARD]', 'bootStatus degraded while pending — showing retry');

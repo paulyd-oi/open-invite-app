@@ -16,9 +16,9 @@ import { Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, FadeOutUp } from "react-native-reanimated";
 
-import { useSession, authClient } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
-import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 
 // Store last resend timestamp to enable cooldown
 let lastResendTimestamp = 0;

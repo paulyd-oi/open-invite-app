@@ -337,16 +337,18 @@ Full walkthrough audit of frontend for launch readiness. No P0 blockers found.
 **Key Screens Verified**:
 | Route | File | Purpose |
 |-------|------|---------|
-| `/` → `/social` | `index.tsx` | Redirect to Social (default tab) |
-| `/login` | `login.tsx` | Authentication |
-| `/welcome` | `welcome.tsx` | Onboarding flow |
+| `/` → `/calendar` | `index.tsx` | Redirect to authenticated default landing |
+| `/login` | `login.tsx` | Explicit leaf auth screen |
+| `/welcome` | `welcome.tsx` | Unauthenticated root fallback + onboarding flow |
 | `/verify-email` | `verify-email.tsx` | Email verification |
-| `/calendar` | `calendar.tsx` | Personal calendar (center tab) |
+| `/calendar` | `calendar.tsx` | Personal calendar (authenticated default landing) |
 | `/social` | `social.tsx` | Social feed |
 | `/discover` | `discover.tsx` | Reconnect/Popular/Streaks |
 | `/friends` | `friends.tsx` | Friends list |
 | `/profile` | `profile.tsx` | User profile |
 | `/settings` | `settings.tsx` | Account settings |
+
+**Root stack parity**: all live pushed/replaced routes are explicitly registered/configured in `src/app/_layout.tsx`.
 
 **Tab Navigation** (`constants/navigation.ts`):
 - Order: Discover → Calendar → Social (center) → Friends → Profile
@@ -1138,7 +1140,8 @@ CODE PATH:
 - In React Native/Expo, the cookie header must be sent as lowercase `cookie` (uppercase `Cookie` can be dropped).
 - Authed React Query calls must be gated on `bootStatus === 'authed'` (not `!!session`) to prevent 401 storms during transitions.
 - **Subscription query gating**: `useSubscription` query must be gated with `enabled: bootStatus === 'authed'` to prevent post-logout 401s.
-- **Email verification toast throttling**: `guardEmailVerification` throttles toasts to max 1 per 3 seconds to prevent spam.
+- **Email verification gate SSOT**: `src/lib/emailVerificationGate.ts` is the only gate implementation; `guardEmailVerification` throttles toasts to max 1 per 3 seconds to prevent spam.
+- **Auth side-effects SSOT**: resend verification, verify-code, and forgot-password requests go through `src/lib/authFlowClient.ts` via `authClient.$fetch`.
 - **API 401/403 logging**: Use `console.log` (not `console.error`) for expected auth failures to avoid red console overlays in DEV.
 - **Session persistence on cold start**: `ensureCookieInitialized()` MUST be awaited before `bootstrapAuth()` to prevent race condition where API call fires before cookie is loaded from SecureStore.
 - **Single authority for cookie init**: `ensureCookieInitialized()` is called ONLY from `authBootstrap.ts` Step 0/4. No fire-and-forget calls on module load. This prevents race conditions and ensures deterministic boot order.
@@ -1454,7 +1457,7 @@ Purpose: Record proven discoveries, pitfalls, and rules learned during debugging
 - Removed EventReactions "maybe" type (EventReactions.tsx)
 - Simplified Circle Create Event: removed Event Mode, Frequency, Send Notification (create.tsx)
 - Reordered bottom nav: Discover | Calendar | Social (CENTER) | Friends | Profile
-- Default landing changed from /calendar to /social
+- Routing contract: authenticated default `/calendar`, unauthenticated fallback `/welcome`, `/login` leaf only
 - CTA copy simplified: "Create Open Invite" → "Create Invite"
 
 ---

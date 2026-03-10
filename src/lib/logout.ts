@@ -11,7 +11,7 @@
  * 4. Cancel queries + clear cache
  * 5. Reset boot authority singleton
  * 6. Clear admin unlock state
- * 7. Navigate to /login
+ * 7. Navigate to /welcome
  *
  * Safe to call multiple times - idempotent via in-flight guard.
  */
@@ -57,7 +57,7 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
   // DEV-only canonical log (single source of truth)
   if (__DEV__) {
     devLog(`[LOGOUT_SSOT] start screen=${screen} reason=${reason}`);
-    devLog(`[P12_NAV_INVAR] action="to_login" reason="${reason}" from="${screen}"`);
+    devLog(`[P12_NAV_INVAR] action="to_welcome" reason="${reason}" from="${screen}"`);
     devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 1, label: "start_logout", screen, reason });
   }
 
@@ -130,11 +130,11 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       // Non-fatal, continue logout
     }
 
-    // Step 7: Navigate to login
+    // Step 7: Navigate to welcome
     if (__DEV__) {
-      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 6, label: "routed_to_login" });
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 6, label: "routed_to_welcome" });
     }
-    router.replace("/login");
+    router.replace("/welcome");
   } catch (error) {
     if (__DEV__) {
       devError(`[LOGOUT_SSOT] error during logout:`, error);
@@ -149,8 +149,8 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       // ignore fallback errors
     }
 
-    // Always navigate to login
-    router.replace("/login");
+    // Always navigate to welcome
+    router.replace("/welcome");
   } finally {
     logoutInFlight = false;
   }

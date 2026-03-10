@@ -27,6 +27,31 @@ import { trackAnalytics } from "@/lib/entitlements";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { STATUS } from "@/ui/tokens";
 
+/** Format timestamp like iMessage: time today, day name this week, date otherwise */
+function formatInboxTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  // Today → "3:42 PM"
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+  // Within 7 days → "Monday"
+  if (diffDays < 7) {
+    return date.toLocaleDateString("en-US", { weekday: "long" });
+  }
+  // Older → "3/10/26"
+  return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
+}
+
 interface CircleCardProps {
   circle: Circle;
   onPin: (circleId: string) => void;
@@ -250,7 +275,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
   return (
     <Animated.View
       entering={FadeIn.delay(index * 50)}
-      className="mb-3 relative overflow-hidden"
+      className="relative overflow-hidden"
       testID={`circle-card-${circle.id}`}
     >
       {/* Right-swipe: Pin action (revealed on the left side) */}
@@ -285,26 +310,17 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
         </Pressable>
       </View>
 
-      {/* Card */}
+      {/* Inbox row */}
       <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedCardStyle}>
           <Pressable
             onPress={handlePress}
-            className="rounded-2xl p-4 flex-row items-center"
-            style={{
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.border,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: isDark ? 0.3 : 0.08,
-              shadowRadius: 8,
-              elevation: 3,
-            }}
+            className="flex-row items-center py-3 px-1"
+            style={{ backgroundColor: colors.background }}
           >
-            {/* Left Side - Circle Icon */}
-            <View 
-              className="mr-4"
+            {/* LEFT — Avatar cluster */}
+            <View
+              className="mr-3"
               accessible={true}
               accessibilityLabel={
                 circle.isMuted && (circle.unreadCount ?? 0) > 0
@@ -315,166 +331,133 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               }
               accessibilityHint={circle.isMuted ? "Swipe right to unmute" : undefined}
             >
-              <View
-                className="w-14 h-14 rounded-2xl items-center justify-center overflow-hidden"
-                style={{ backgroundColor: themeColor + "20" }}
-              >
-                <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-2xl" />
-              </View>
-              {circle.isPinned && (
-                <View
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
-                  style={{ backgroundColor: STATUS.going.fg }}
-                >
-                  <Pin size={10} color="#fff" />
+              {/* Group avatar: stacked member photos or circle photo/emoji */}
+              {circle.photoUrl ? (
+                <View className="w-12 h-12 rounded-full overflow-hidden" style={{ backgroundColor: themeColor + "20" }}>
+                  <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
+                </View>
+              ) : displayedMembers.length >= 2 ? (
+                /* Stacked 2-up group avatar (iMessage-style) */
+                <View style={{ width: 48, height: 48 }}>
+                  <View className="absolute" style={{ bottom: 0, left: 0, zIndex: 1 }}>
+                    <EntityAvatar
+                      photoUrl={displayedMembers[0]?.user?.image}
+                      initials={displayedMembers[0]?.user?.name?.[0] ?? "?"}
+                      size={32}
+                      backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                      foregroundColor={themeColor}
+                      fallbackIcon="person"
+                      style={{ borderWidth: 2, borderColor: colors.background }}
+                    />
+                  </View>
+                  <View className="absolute" style={{ top: 0, right: 0, zIndex: 0 }}>
+                    <EntityAvatar
+                      photoUrl={displayedMembers[1]?.user?.image}
+                      initials={displayedMembers[1]?.user?.name?.[0] ?? "?"}
+                      size={32}
+                      backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                      foregroundColor={themeColor}
+                      fallbackIcon="person"
+                      style={{ borderWidth: 2, borderColor: colors.background }}
+                    />
+                  </View>
+                </View>
+              ) : displayedMembers.length === 1 ? (
+                <EntityAvatar
+                  photoUrl={displayedMembers[0]?.user?.image}
+                  initials={displayedMembers[0]?.user?.name?.[0] ?? "?"}
+                  size={48}
+                  backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                  foregroundColor={themeColor}
+                  fallbackIcon="person"
+                />
+              ) : (
+                <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: themeColor + "20" }}>
+                  <CirclePhotoEmoji photoUrl={null} emoji={circle.emoji} emojiClassName="text-xl" />
                 </View>
               )}
-              {/* [P0_CIRCLE_MUTE_POLISH] Animated muted indicator with crossfade */}
+              {/* Pinned badge */}
+              {circle.isPinned && (
+                <View
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full items-center justify-center"
+                  style={{ backgroundColor: STATUS.going.fg }}
+                >
+                  <Pin size={8} color="#fff" />
+                </View>
+              )}
+              {/* [P0_CIRCLE_MUTE_POLISH] Muted indicator */}
               {circle.isMuted && (
                 <Animated.View
                   entering={FadeInDown.duration(150)}
                   exiting={FadeOutDown.duration(150)}
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
+                  className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full items-center justify-center"
                   style={{ backgroundColor: colors.textTertiary }}
                 >
-                  <BellOff size={10} color="#fff" />
+                  <BellOff size={8} color="#fff" />
                 </Animated.View>
               )}
-              {/* [P1_CIRCLE_BADGE] Unread badge from byCircle SSOT — muted shows dot, unmuted shows count */}
-              {unreadCount > 0 && (
-                <Animated.View
-                  entering={FadeInDown.duration(150)}
-                  exiting={FadeOutDown.duration(150)}
-                  className="absolute -top-1 -left-1 rounded-full items-center justify-center"
+            </View>
+
+            {/* CENTER — Name + preview */}
+            <View className="flex-1 mr-2">
+              <View className="flex-row items-center">
+                <Text
+                  className="flex-1 text-[15px]"
                   style={{
-                    minWidth: circle.isMuted ? 10 : 18,
-                    height: circle.isMuted ? 10 : 18,
-                    paddingHorizontal: circle.isMuted ? 0 : 4,
-                    backgroundColor: STATUS.destructive.fg,
-                    borderWidth: 1.5,
-                    borderColor: isDark ? "#1C1C1E" : "#FFFFFF",
+                    color: colors.text,
+                    fontWeight: unreadCount > 0 ? "700" : "600",
+                  }}
+                  numberOfLines={1}
+                >
+                  {circle.name}
+                </Text>
+              </View>
+              <Text
+                className="text-[13px] mt-0.5"
+                style={{
+                  color: colors.textTertiary,
+                  fontWeight: unreadCount > 0 && !circle.isMuted ? "500" : "400",
+                  opacity: circle.isMuted ? 0.6 : 1,
+                }}
+                numberOfLines={1}
+              >
+                {circle.description
+                  ? circle.description
+                  : (circle.messageCount ?? 0) > 0
+                    ? `${members.length} members · ${circle.messageCount} messages`
+                    : "Start the conversation"}
+              </Text>
+            </View>
+
+            {/* RIGHT — Timestamp + unread */}
+            <View className="items-end ml-1">
+              {circle.lastMessageAt && (
+                <Text className="text-[11px] mb-1" style={{ color: unreadCount > 0 ? themeColor : colors.textTertiary }}>
+                  {formatInboxTime(circle.lastMessageAt)}
+                </Text>
+              )}
+              {/* [P1_CIRCLE_BADGE] Unread badge */}
+              {unreadCount > 0 && (
+                <View
+                  className="rounded-full items-center justify-center"
+                  style={{
+                    minWidth: circle.isMuted ? 8 : 20,
+                    height: circle.isMuted ? 8 : 20,
+                    paddingHorizontal: circle.isMuted ? 0 : 5,
+                    backgroundColor: circle.isMuted ? colors.textTertiary : themeColor,
                   }}
                 >
                   {!circle.isMuted && (
-                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", lineHeight: 12 }}>
+                    <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   )}
-                </Animated.View>
-              )}
-            </View>
-
-            {/* Middle - Circle Info */}
-            <View className="flex-1">
-              <Text className="text-base font-semibold" style={{ color: colors.text }}>
-                {circle.name}
-              </Text>
-              {circle.description && (
-                <Text
-                  className="text-sm mt-0.5"
-                  style={{ 
-                    color: colors.textSecondary,
-                    // [P0_CIRCLE_MUTE_POLISH] Softer subtitle when muted
-                    opacity: circle.isMuted ? 0.6 : 1,
-                  }}
-                  numberOfLines={2}
-                >
-                  {circle.description}
-                </Text>
-              )}
-              <Text 
-                className="text-xs mt-0.5" 
-                style={{ 
-                  color: colors.textTertiary,
-                  // [P0_CIRCLE_MUTE_POLISH] Softer meta text when muted
-                  opacity: circle.isMuted ? 0.6 : 1,
-                }}
-              >
-                {members.length} member{members.length !== 1 ? "s" : ""}
-                {(circle.messageCount ?? 0) > 0 && ` · ${circle.messageCount} messages`}
-              </Text>
-            </View>
-
-            {/* Right Side - Member Avatars arranged in a circle */}
-            <View className="relative" style={{ width: 56, height: 56 }}>
-              {displayedMembers.length === 0 ? null : displayedMembers.length === 1 ? (
-                // Single member - centered
-                <View
-                  className="absolute"
-                  style={{
-                    top: 8,
-                    left: 8,
-                  }}
-                >
-                  <EntityAvatar
-                    photoUrl={displayedMembers[0]?.user?.image}
-                    initials={displayedMembers[0]?.user?.name?.[0] ?? "?"}
-                    size={40}
-                    backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
-                    foregroundColor={themeColor}
-                    fallbackIcon="person"
-                    style={{ borderWidth: 2, borderColor: colors.surface }}
-                  />
-                </View>
-              ) : (
-                // Multiple members - arranged in a circle
-                displayedMembers.map((member, i) => {
-                  // Skip rendering if member or user is missing
-                  if (!member?.user) return null;
-
-                  const memberCount = displayedMembers.length;
-                  const avatarSize = memberCount <= 3 ? 28 : 24;
-                  const radius = memberCount <= 3 ? 14 : 16; // Distance from center
-                  const centerX = 28 - avatarSize / 2;
-                  const centerY = 28 - avatarSize / 2;
-
-                  // Calculate position on circle
-                  // Start from top (-90 degrees) and go clockwise
-                  const angleOffset = -Math.PI / 2;
-                  const angle = angleOffset + (i * 2 * Math.PI) / memberCount;
-                  const x = centerX + radius * Math.cos(angle);
-                  const y = centerY + radius * Math.sin(angle);
-
-                  return (
-                    <View
-                      key={member.userId}
-                      className="absolute"
-                      style={{
-                        top: y,
-                        left: x,
-                        zIndex: memberCount - i,
-                      }}
-                    >
-                      <EntityAvatar
-                        photoUrl={member.user?.image}
-                        initials={member.user?.name?.[0] ?? "?"}
-                        size={avatarSize}
-                        backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
-                        foregroundColor={themeColor}
-                        fallbackIcon="person"
-                        style={{ borderWidth: 2, borderColor: colors.surface }}
-                      />
-                    </View>
-                  );
-                })
-              )}
-              {extraCount > 0 && (
-                <View
-                  className="absolute w-5 h-5 rounded-full items-center justify-center border"
-                  style={{
-                    bottom: -2,
-                    right: -2,
-                    backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text className="text-[8px] font-medium" style={{ color: colors.textSecondary }}>
-                    +{extraCount}
-                  </Text>
                 </View>
               )}
             </View>
           </Pressable>
+          {/* Separator */}
+          <View style={{ height: 0.5, backgroundColor: colors.separator, marginLeft: 64 }} />
         </Animated.View>
       </GestureDetector>
     </Animated.View>

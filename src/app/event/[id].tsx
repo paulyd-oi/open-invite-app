@@ -86,7 +86,7 @@ import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
-import { guardEmailVerification } from "@/lib/emailVerification";
+import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
@@ -1565,7 +1565,7 @@ export default function EventDetailScreen() {
       if (bootStatus === 'onboarding') {
         router.replace('/welcome');
       } else {
-        router.replace('/login');
+        router.replace('/welcome');
       }
       return;
     }

@@ -49,7 +49,7 @@ import { useLoadedOnce } from "@/lib/loadingInvariant";
 import { isEmailGateActive, guardEmailVerification } from "@/lib/emailVerificationGate";
 import { api } from "@/lib/api";
 import { LoadingTimeoutUI } from "@/components/LoadingTimeoutUI";
-import { getEventShareLink } from "@/lib/deepLinks";
+import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { useTheme, DARK_COLORS, TILE_SHADOW } from "@/lib/ThemeContext";
 import { useLocalEvents, isLocalEvent } from "@/lib/offlineStore";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId } from "@/lib/firstSessionGuidance";
@@ -146,7 +146,7 @@ const formatDateForCalendar = (date: Date): string => {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
 };
 
-// Helper to share event via native share sheet
+// Helper to share event via native share sheet — uses shareSSOT for branded domain
 const shareEventFromCalendar = async (event: Event) => {
   try {
     const startDate = new Date(event.startTime);
@@ -160,25 +160,20 @@ const shareEventFromCalendar = async (event: Event) => {
       minute: "2-digit",
     });
 
-    const shareUrl = getEventShareLink(event.id);
-
-    let message = `${event.emoji} ${event.title}\n\n`;
-    message += `📅 ${dateStr} at ${timeStr}\n`;
-
-    if (event.location) {
-      message += `📍 ${event.location}\n`;
-    }
-
-    if (event.description) {
-      message += `\n${event.description}\n`;
-    }
-
-    message += `\n🔗 ${shareUrl}`;
+    const payload = buildEventSharePayload({
+      id: event.id,
+      title: event.title,
+      emoji: event.emoji,
+      dateStr,
+      timeStr,
+      location: event.location,
+      description: event.description,
+    });
 
     await Share.share({
-      message,
+      message: payload.message,
       title: event.title,
-      url: shareUrl,
+      url: payload.url,
     });
   } catch (error) {
     devError("Error sharing event:", error);

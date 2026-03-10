@@ -24,7 +24,7 @@ import { useSession } from "@/lib/useSession";
 import { safeToast } from "@/lib/safeToast";
 import { useTheme } from "@/lib/ThemeContext";
 import { forceRefreshSession } from "@/lib/sessionCache";
-import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 import { devLog, devError } from "@/lib/devLog";
 

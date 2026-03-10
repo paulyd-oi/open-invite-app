@@ -15,12 +15,15 @@ RCT_EXTERN_METHOD(startActivity:(NSString *)eventId
                   startTimeEpoch:(double)startTimeEpoch
                   locationName:(NSString *)locationName
                   rsvpStatus:(NSString *)rsvpStatus
+                  emoji:(NSString *)emoji
+                  goingCount:(NSInteger)goingCount
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(updateActivity:(NSString *)eventId
                   rsvpStatus:(NSString *)rsvpStatus
                   ended:(BOOL)ended
+                  goingCount:(NSInteger)goingCount
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

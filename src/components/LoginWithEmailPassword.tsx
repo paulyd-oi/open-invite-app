@@ -5,24 +5,17 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { ArrowLeft, Mail, CheckCircle, PartyPopper, Eye, EyeOff, ShieldCheck } from "@/ui/icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { devLog, devError } from "@/lib/devLog";
 // CANONICAL_EMAIL_VERIFIED_ONLY: email_verified fires via src/app/_layout.tsx edge-detect (SSOT)
 // import { trackEmailVerified } from "@/analytics/analyticsEventsSSOT";
 
 import { authClient } from "@/lib/authClient";
+import { requestPasswordResetEmail, resendVerificationEmail, verifyEmailCode } from "@/lib/authFlowClient";
 import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { isRateLimited, getRateLimitRemaining } from "@/lib/rateLimitState";
 import { Button } from "@/ui/Button";
 
 type AuthView = "login" | "forgotPassword" | "verifyEmail";
-
-// Get backend URL
-const RENDER_BACKEND_URL = "https://api.openinvite.cloud";
-const apiUrlOverride = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL;
-const backendUrl = apiUrlOverride && apiUrlOverride.length > 0
-  ? apiUrlOverride
-  : RENDER_BACKEND_URL;
 
 export default function LoginWithEmailPassword() {
   const router = useRouter();
@@ -181,23 +174,15 @@ export default function LoginWithEmailPassword() {
     setCodeError(null);
 
     try {
-      const response = await fetch(`${backendUrl}/api/email-verification/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          code: codeToVerify,
-        }),
+      const result = await verifyEmailCode({
+        email,
+        code: codeToVerify,
+        feedback: "silent",
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setCodeError(data.error || "Invalid code. Please try again.");
+        setCodeError(result.error || "Invalid code. Please try again.");
         // Clear the code inputs
         setVerificationCode(["", "", "", "", ""]);
         codeInputRefs.current[0]?.focus();
@@ -253,34 +238,19 @@ export default function LoginWithEmailPassword() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${backendUrl}/api/email-verification/resend`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          name,
-        }),
+      const result = await resendVerificationEmail({
+        email,
+        name,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to resend code");
+      if (!result.success) {
+        return;
       }
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      safeToast.success("Code Sent", "A new verification code has been sent to your email.");
 
       // Clear old code
       setVerificationCode(["", "", "", "", ""]);
       setCodeError(null);
       codeInputRefs.current[0]?.focus();
-    } catch (error: any) {
-      const message = error?.message || "Unable to resend code.";
-      safeToast.error("Resend Failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -292,50 +262,16 @@ export default function LoginWithEmailPassword() {
       return;
     }
 
-    devLog("[P0_PW_RESET] forgot password initiated");
     setIsLoading(true);
     try {
-      const response = await fetch(`${backendUrl}/api/auth/forget-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email,
-          redirectTo: "/reset-password",
-        }),
+      const result = await requestPasswordResetEmail({
+        email,
+        redirectTo: "/reset-password",
       });
 
-      if (!response.ok) {
-        // Extract error message from various response shapes
-        const extractErrorMessage = (data: unknown, fallbackText?: string): string => {
-          if (!data) return fallbackText || "Unknown error";
-          const d = data as Record<string, unknown>;
-          if (typeof d.message === "string") return d.message;
-          if (typeof d.error === "object" && d.error && typeof (d.error as Record<string, unknown>).message === "string") return (d.error as Record<string, unknown>).message as string;
-          if (typeof d.error === "string") return d.error;
-          if (typeof d.code === "string") return d.code;
-          return fallbackText || "Unknown error";
-        };
-        
-        const errorData = await response.json().catch(() => null);
-        const responseText = errorData ? null : await response.text().catch(() => null);
-        const extractedMessage = extractErrorMessage(errorData, responseText || undefined);
-        
-        devError("[P0_PW_RESET] backend error", { message: extractedMessage });
-        
-        if (extractedMessage.includes("EMAIL_PROVIDER_NOT_CONFIGURED")) {
-          throw new Error("Password reset is temporarily unavailable. Please contact support@openinvite.cloud");
-        }
-        throw new Error(extractedMessage || "Failed to send reset email");
+      if (result.success) {
+        setResetEmailSent(true);
       }
-
-      devLog("[P0_PW_RESET] reset email request success");
-      setResetEmailSent(true);
-    } catch (error: any) {
-      const message = error?.message || "Unable to connect to server. Please check your internet connection.";
-      safeToast.error("Reset Failed", message);
     } finally {
       setIsLoading(false);
     }
@@ -357,7 +293,7 @@ export default function LoginWithEmailPassword() {
 
   const handleGetStarted = () => {
     setShowSuccessModal(false);
-    router.replace("/");
+    router.replace("/calendar");
   };
 
   // Success Modal

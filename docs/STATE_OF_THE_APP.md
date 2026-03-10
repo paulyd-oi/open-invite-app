@@ -243,6 +243,8 @@
 
 ## Fixed Previously (P0 Auth/Toast/Logout Noise)
 - Email verification toast spam: Added 3-second throttle to guardEmailVerification
+- Email verification gate SSOT: Removed legacy alert-based gate path; all active gate callsites now use `src/lib/emailVerificationGate.ts`
+- Auth side-effects SSOT: Resend verification, verify-code, and forgot-password requests now flow through `src/lib/authFlowClient.ts`
 - Post-logout 401 overlays: Changed api.ts to use console.log (not console.error) for auth errors, preventing red overlays
 - Subscription query 401s: Gated useSubscription query with `enabled: bootStatus === 'authed'`
 - API error logging: Reduced noise, expected auth failures logged once without red overlays
@@ -296,8 +298,9 @@
 - RSVP simplification: Removed "Maybe" option from UI, maps backend "maybe" to "interested"
 - EventReactions: Removed "Maybe" reaction type
 - Circle Create Event: Removed Event Mode selector, Frequency picker, Send Notification toggle
-- Bottom nav reorder: Social centered as primary tab (index 2, isCenter: true)
-- Default landing: /social instead of /calendar on authenticated boot
+- Bottom nav reorder: Social centered as the emphasized tab (index 2, isCenter: true)
+- Routing contract: authenticated default `/calendar`, unauthenticated fallback `/welcome`, `/login` remains explicit leaf auth screen
+- Root stack parity: all live pushed/replaced routes are explicitly registered in `src/app/_layout.tsx`
 - CTA update: "Create Open Invite" → "Create Invite"
 
 ## Previously Fixed
@@ -358,4 +361,3 @@
 - 2026-02-10: P1_SUGGESTIONS_SWIPE_DECK_V1 — Daily Ideas swipe deck on Suggestions screen (Ideas tab), SSOT in src/lib/suggestionsDeck.ts, 4 rules (low-RSVP events, reconnect, birthday, repeat), AsyncStorage daily persistence
 - 2026-02-09: Event Photo Lite — hero photo on Event Details (host-only nudge + upload + remove), social feed photo thumbnail
 - 2026-01-27: Phase 1 Ruthless Simplicity complete
-

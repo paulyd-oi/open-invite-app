@@ -110,6 +110,26 @@ if (status === 401) showToast("Session expired"); // SPAM
 
 ---
 
+## Law 6: Canonical Auth-Adjacent Flow Path
+
+**Rule:** Resend verification, verify-code, and forgot-password requests MUST go through `src/lib/authFlowClient.ts`, and blocked unverified actions MUST use `src/lib/emailVerificationGate.ts`.
+
+**Why:** These flows drifted when leaf screens owned raw fetch/error parsing and duplicate gate UX. One helper path plus one gate keeps error handling, throttling, and redirects consistent.
+
+**Implementation:**
+```typescript
+// ✅ CORRECT: canonical helper + canonical gate
+await requestPasswordResetEmail({ email });
+await resendVerificationEmail({ email });
+const allowed = guardEmailVerification(session);
+
+// ❌ WRONG: screen-local raw fetch + duplicate gate module
+await fetch("/api/auth/forget-password", { method: "POST" });
+import { guardEmailVerification } from "@/lib/emailVerification";
+```
+
+---
+
 ## Summary (Updated)
 
 | Law | Rule | Reason |
@@ -119,6 +139,7 @@ if (status === 401) showToast("Session expired"); // SPAM
 | 3 | Gate on `bootStatus === 'authed'` | Prevent 401 storms during transitions |
 | 4 | One-shot auth expiry event | Prevent toast spam on session expiry |
 | 5 | Password reset backend guard | Explicit errors vs silent failure |
+| 6 | Use canonical auth-adjacent helper + gate | Prevent UX and error-handling drift |
 
 type: "event_join"
 deepLinkPath: `/event/${eventId}`

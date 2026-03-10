@@ -50,6 +50,7 @@ import {
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
@@ -487,20 +488,17 @@ export default function WelcomeOnboardingScreen() {
         const userEmail = session?.user?.email;
         if (userEmail) {
           if (__DEV__) devLog("[Onboarding] Sending verification email immediately after signup");
-          try {
-            await authClient.$fetch("/api/email-verification/resend", {
-              method: "POST",
-              body: {
-                email: userEmail.toLowerCase(),
-                name: session?.user?.name || session?.user?.displayName || undefined,
-              },
-            });
-            if (__DEV__) devLog("[Onboarding] Verification email sent successfully");
-            // Trigger 30-second cooldown in banner so user doesn't immediately hit resend
-            triggerVerificationCooldown();
-          } catch (verifyErr: any) {
-            // Don't block signup flow - just log warning
-            devWarn("[Onboarding] Failed to send verification email:", verifyErr?.message ?? verifyErr);
+          const result = await resendVerificationEmail({
+            email: userEmail,
+            name: session?.user?.name || session?.user?.displayName || undefined,
+            feedback: "silent",
+            onSuccess: () => {
+              if (__DEV__) devLog("[Onboarding] Verification email sent successfully");
+              triggerVerificationCooldown();
+            },
+          });
+          if (!result.success) {
+            devWarn("[Onboarding] Failed to send verification email:", result.error);
           }
         }
       }

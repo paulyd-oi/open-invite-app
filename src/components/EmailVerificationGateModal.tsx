@@ -17,10 +17,10 @@ import { View, Text, Pressable, Modal } from "react-native";
 import { Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
 
-import { useSession, authClient } from "@/lib/useSession";
+import { useSession } from "@/lib/useSession";
 import { useTheme } from "@/lib/ThemeContext";
 import { SCRIM } from "@/ui/tokens";
-import { resendVerificationEmail } from "@/lib/resendVerificationEmail";
+import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
 
 interface EmailVerificationGateModalProps {

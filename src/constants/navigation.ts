@@ -9,14 +9,15 @@
  * Order (left to right):
  * 1. Discover (Reconnect/Popular/Streaks)
  * 2. Calendar (personal schedule)
- * 3. Social (CENTER - emphasized position, default landing)
+ * 3. Social (CENTER - emphasized position)
  * 4. Friends
  * 5. Profile
  * 
  * Why this order:
  * - Discover is the entry point for exploration
  * - Calendar shows personal schedule
- * - Social is center for quick access to feed (default tab)
+ * - Calendar is the authenticated default landing screen
+ * - Social remains the center tab for quick access to the feed
  * - Friends for social connections
  * - Profile for user settings (standard right position)
  * 
@@ -69,7 +70,7 @@ export const BOTTOM_NAV_TABS: readonly NavTab[] = [
     Icon: List,
     label: "Social",
     href: "/social",
-    isCenter: true, // CENTER POSITION - emphasized with elevation, default landing
+    isCenter: true, // CENTER POSITION - emphasized with elevation
   },
   {
     key: "friends",
