@@ -382,16 +382,29 @@ export default function CircleScreen() {
     queryKey: circleKeys.single(id),
     queryFn: async () => {
       const response = await api.get<GetCircleDetailResponse>(`/api/circles/${id}`);
+      const cached = queryClient.getQueryData(circleKeys.single(id)) as GetCircleDetailResponse | undefined;
       // [P0_MUTE_TOGGLE] Carry forward cached isMuted when backend omits it.
       // The detail endpoint declares isMuted as optional; when it returns undefined
       // the 10s poll (or any invalidation-triggered refetch) would overwrite the
       // optimistic value, causing the toggle to flip back to OFF.
       if (response?.circle && response.circle.isMuted === undefined) {
-        const cached = queryClient.getQueryData(circleKeys.single(id)) as GetCircleDetailResponse | undefined;
         if (cached?.circle?.isMuted !== undefined) {
           if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "carry_forward_isMuted", { circleId: id, cachedValue: cached.circle.isMuted });
-          return { ...response, circle: { ...response.circle, isMuted: cached.circle.isMuted } };
+          (response as any).circle = { ...response.circle, isMuted: cached.circle.isMuted };
         }
+      }
+      // [P0_MSG_RETRY] Carry forward failed optimistic messages across poll refetches.
+      // Without this, the 10s poll replaces the cache and silently wipes failed
+      // messages before the user can retry or dismiss them.
+      const failedMsgs = ((cached as any)?.circle?.messages ?? []).filter(
+        (m: any) => m.status === "failed" && m.id?.startsWith("optimistic-"),
+      );
+      if (failedMsgs.length > 0 && response?.circle?.messages) {
+        (response as any).circle = {
+          ...response.circle,
+          messages: [...response.circle.messages, ...failedMsgs],
+        };
+        if (__DEV__) devLog("[P0_MSG_RETRY]", "carry_forward_failed", { circleId: id, count: failedMsgs.length });
       }
       if (__DEV__) devLog("[P0_MUTE_TOGGLE]", "refetch_settled", { circleId: id, isMuted: response?.circle?.isMuted });
       return response;
