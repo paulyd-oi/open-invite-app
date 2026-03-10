@@ -594,7 +594,7 @@ export default function DiscoverScreen() {
                         ...tileShadow,
                       }}
                     >
-                      {/* Save toggle — plain View overlay on card (not function-form Pressable) */}
+                      {/* Save toggle — card-level overlay */}
                       <Pressable
                         testID="discover-card-save"
                         disabled={saved || saveMutation.isPending}
@@ -777,7 +777,7 @@ export default function DiscoverScreen() {
                         </View>
                       </Pressable>
 
-                      {/* CTA row — TEMP: bright green proof (plain object style, not function-form) */}
+                      {/* CTA row — single centered primary action */}
                       <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
                         <Pressable
                           testID="discover-card-view"
@@ -788,11 +788,11 @@ export default function DiscoverScreen() {
                             justifyContent: "center",
                             paddingVertical: 12,
                             borderRadius: RADIUS.lg,
-                            backgroundColor: "#00CC00",
+                            backgroundColor: themeColor,
                           }}
                         >
-                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "900", letterSpacing: 0.2 }}>
-                            PROOF: VIEW EVENT
+                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", letterSpacing: 0.2 }}>
+                            View Event
                           </Text>
                         </Pressable>
                       </View>
