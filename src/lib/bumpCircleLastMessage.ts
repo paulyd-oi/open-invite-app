@@ -13,6 +13,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { circleKeys } from "@/lib/circleQueryKeys";
 import { devLog } from "@/lib/devLog";
+import { updateCirclePreviewStore } from "@/lib/useHydrateCirclePreviews";
 
 /**
  * Optimistically set `lastMessageAt` (and optionally message preview)
@@ -59,6 +60,11 @@ export function bumpCircleLastMessage(
       return { ...p, circles: updated };
     },
   );
+
+  // Keep the durable preview store in sync so it survives cache clobbers
+  if (preview?.text != null) {
+    updateCirclePreviewStore(circleId, preview.text, preview.senderName ?? undefined);
+  }
 
   if (__DEV__) {
     devLog("[P0_CHAT_BUMP_UI]", { circleId, lastMessageAt: ts, source, preview: !!preview });

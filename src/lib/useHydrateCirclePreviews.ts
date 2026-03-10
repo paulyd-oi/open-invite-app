@@ -1,15 +1,20 @@
 /**
- * useHydrateCirclePreviews — Hydrates lastMessageText / lastMessageSenderName
- * into the circles list cache on initial load.
+ * useHydrateCirclePreviews — Ensures lastMessageText / lastMessageSenderName
+ * are present in the circles list cache for inbox preview display.
  *
- * ROOT CAUSE: GET /api/circles returns lastMessageAt (for sort) but NOT the
- * message text or sender. The WS/push pipeline (bumpCircleLastMessage) only
- * patches the cache for NEW messages arriving after mount. So on cold load,
- * every row falls back to "Start the conversation" even when real messages exist.
+ * PROBLEM: GET /api/circles returns lastMessageAt but NOT message text/sender.
+ * Any refetch or invalidation of circleKeys.all() replaces the cache with the
+ * incomplete API payload, wiping any previously hydrated preview fields.
  *
- * FIX: After circles load, for each circle that has messageCount > 0 but no
- * lastMessageText, fetch the latest message (limit=1) and patch the list cache.
- * Detail caches are checked first to avoid unnecessary network calls.
+ * FIX: A module-level Map (circlePreviewStore) acts as a durable preview store
+ * that survives React Query cache clobbers. On every circles-data change:
+ *   1. For circles missing preview text, check the store first (instant, no network)
+ *   2. If not in store, check the circle detail cache (free)
+ *   3. If not cached, fetch the latest message (limit=1) from the messages API
+ *   4. Patch the list cache and store the result for future clobber recovery
+ *
+ * The store is also updated by bumpCircleLastMessage (WS/push) via
+ * updateCirclePreviewStore(), so it always has the freshest known preview.
  *
  * DEV tag: [P0_PREVIEW_HYDRATE]
  */
@@ -21,22 +26,43 @@ import { getCircleMessages } from "@/lib/circlesApi";
 import type { Circle, GetCircleDetailResponse } from "@/shared/contracts";
 import { devLog } from "@/lib/devLog";
 
+// ── Module-level preview store (survives React Query cache clobbers) ──
+interface PreviewEntry {
+  text: string;
+  senderName?: string;
+}
+const circlePreviewStore = new Map<string, PreviewEntry>();
+
+/**
+ * Update the durable preview store. Called by bumpCircleLastMessage when
+ * WS/push delivers a new message, so the store always has the freshest data.
+ */
+export function updateCirclePreviewStore(
+  circleId: string,
+  text: string,
+  senderName?: string,
+): void {
+  circlePreviewStore.set(circleId, { text, senderName });
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────
+
 export function useHydrateCirclePreviews(
   circles: Circle[] | undefined,
 ): void {
   const queryClient = useQueryClient();
-  // Track which circles we've already attempted hydration for
-  const hydratedRef = useRef(new Set<string>());
+  // Track in-flight fetches to avoid duplicate concurrent requests
+  const pendingRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!circles?.length) return;
 
-    // Circles that have messages but no preview text yet
+    // Circles that have messages but no preview text in the current cache
     const needsHydration = circles.filter(
       (c) =>
         (c.messageCount ?? 0) > 0 &&
         !c.lastMessageText &&
-        !hydratedRef.current.has(c.id),
+        !pendingRef.current.has(c.id),
     );
 
     if (needsHydration.length === 0) return;
@@ -49,25 +75,32 @@ export function useHydrateCirclePreviews(
     }
 
     for (const circle of needsHydration) {
-      hydratedRef.current.add(circle.id);
+      // 1) Check module-level store first (instant, survives clobber)
+      const stored = circlePreviewStore.get(circle.id);
+      if (stored) {
+        patchCirclePreview(queryClient, circle.id, stored.text, stored.senderName);
+        if (__DEV__) {
+          devLog("[P0_PREVIEW_HYDRATE]", "from_store", {
+            circleId: circle.id.slice(0, 6),
+            text: stored.text.slice(0, 30),
+          });
+        }
+        continue;
+      }
 
-      // 1) Check detail cache first (free — no network)
+      // 2) Check detail cache (free — no network)
       const detail = queryClient.getQueryData(
         circleKeys.single(circle.id),
       ) as GetCircleDetailResponse | undefined;
 
       if (detail?.circle?.messages?.length) {
         const msgs = detail.circle.messages;
-        // Messages in detail are typically chronological; last = newest
         const latest = msgs[msgs.length - 1];
-        patchCirclePreview(
-          queryClient,
-          circle.id,
-          latest.content,
-          latest.user?.name ?? undefined,
-        );
+        const senderName = latest.user?.name ?? undefined;
+        circlePreviewStore.set(circle.id, { text: latest.content, senderName });
+        patchCirclePreview(queryClient, circle.id, latest.content, senderName);
         if (__DEV__) {
-          devLog("[P0_PREVIEW_HYDRATE]", "from_cache", {
+          devLog("[P0_PREVIEW_HYDRATE]", "from_detail_cache", {
             circleId: circle.id.slice(0, 6),
             text: latest.content.slice(0, 30),
           });
@@ -75,17 +108,16 @@ export function useHydrateCirclePreviews(
         continue;
       }
 
-      // 2) Fetch latest message (limit=1, no cursor = newest page)
+      // 3) Fetch latest message (limit=1, no cursor = newest)
+      pendingRef.current.add(circle.id);
+
       getCircleMessages({ circleId: circle.id, limit: 1 })
         .then((res) => {
           if (res.messages?.length) {
             const msg = res.messages[0];
-            patchCirclePreview(
-              queryClient,
-              circle.id,
-              msg.content,
-              msg.user?.name ?? undefined,
-            );
+            const senderName = msg.user?.name ?? undefined;
+            circlePreviewStore.set(circle.id, { text: msg.content, senderName });
+            patchCirclePreview(queryClient, circle.id, msg.content, senderName);
             if (__DEV__) {
               devLog("[P0_PREVIEW_HYDRATE]", "from_fetch", {
                 circleId: circle.id.slice(0, 6),
@@ -96,6 +128,9 @@ export function useHydrateCirclePreviews(
         })
         .catch(() => {
           // Silently ignore — preview stays as fallback
+        })
+        .finally(() => {
+          pendingRef.current.delete(circle.id);
         });
     }
   }, [circles, queryClient]);
@@ -120,7 +155,7 @@ function patchCirclePreview(
           ? {
               ...c,
               lastMessageText: text,
-              ...(senderName ? { lastMessageSenderName: senderName } : {}),
+              ...(senderName != null ? { lastMessageSenderName: senderName } : {}),
             }
           : c,
       ),
