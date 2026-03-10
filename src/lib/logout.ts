@@ -152,6 +152,9 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       // Cancel all scheduled local notifications (event reminders etc.)
       await Notifications.cancelAllScheduledNotificationsAsync();
 
+      // [P9_NOTIF] Clear OS badge count so stale badge doesn't persist for next user
+      await Notifications.setBadgeCountAsync(0);
+
       // Clear offline action queue + local placeholder events/RSVPs
       await clearOfflineQueue();
       useOfflineStore.getState().clearLocalEvents();
