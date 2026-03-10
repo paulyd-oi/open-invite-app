@@ -62,6 +62,7 @@ import { type GetEventsResponse, type Event, type GetFriendBirthdaysResponse, ty
 import { eventKeys, invalidateEventKeys, getInvalidateAfterEventDelete } from "@/lib/eventQueryKeys";
 import { Button } from "@/ui/Button";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { Chip } from "@/ui/Chip";
 import { APP_STORE_URL } from "@/lib/config";
 import { STATUS } from "@/ui/tokens";
@@ -854,10 +855,13 @@ function EventListItem({
         style={{ backgroundColor: eventColor, minHeight: 36 }}
       />
       <View className="flex-1">
-        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-        <Text className="font-semibold" style={{ color: colors.text }} numberOfLines={1}>
-          {displayTitle}
-        </Text>
+        <View className="flex-row items-center">
+          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+          <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
+            {displayTitle}
+          </Text>
+          <EventVisibilityBadge visibility={event.visibility} circleId={event.circleId} circleName={event.circleName} isBusy={event.isBusy} eventId={event.id} surface="calendar_compact" isDark={isDark} />
+        </View>
         {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
         <Text className="text-xs" style={{ color: colors.textSecondary }}>
           {timeLabel}
@@ -890,6 +894,7 @@ function EventListItem({
           <Text className="font-semibold flex-1" style={{ color: colors.text }} numberOfLines={1}>
             {displayTitle}
           </Text>
+          <EventVisibilityBadge visibility={event.visibility} circleId={event.circleId} circleName={event.circleName} isBusy={event.isBusy} eventId={event.id} surface="calendar_full" isDark={isDark} />
         </View>
         <View className="flex-row items-center mt-1">
           <Clock size={12} color={textColor} />

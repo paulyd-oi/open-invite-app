@@ -24,6 +24,7 @@ import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { safeToast } from "@/lib/safeToast";
 import { EmptyState } from "@/components/EmptyState";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
+import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import { QuickEventButton } from "@/components/QuickEventButton";
 import { SocialProof } from "@/components/SocialProof";
 import { FeedCalendar, EventListItem } from "@/components/FeedCalendar";
@@ -310,6 +311,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
                 <Chip variant="accent" label="You" size="sm" style={{ marginLeft: 8 }} />
               )}
+              <EventVisibilityBadge visibility={displayEvent.visibility} circleId={displayEvent.circleId} circleName={displayEvent.circleName} isBusy={displayEvent.isBusy} eventId={displayEvent.id} surface="social_feed" isDark={isDark} />
             </View>
             {displayEvent.description && !isSeries && (
               <Text
