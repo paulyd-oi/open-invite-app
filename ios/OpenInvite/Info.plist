@@ -52,7 +52,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>261</string>
+    <string>262</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -80,8 +80,14 @@
     <string>Open Invite accesses your contacts to help you find people you already know inside the app.</string>
     <key>NSIdentityUsageDescription</key>
     <string/>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Open Invite uses your location to show nearby content and services while you use the app.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>Open Invite saves media you export from the app into your photo library.</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -124,16 +130,13 @@
     <false/>
     <key>UIUserInterfaceStyle</key>
     <string>Automatic</string>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
     <key>UTImportedTypeDeclarations</key>
     <array>
       <dict>
-        <key>UTTypeConformsTo</key>
-        <array>
-          <string>public.data</string>
-          <string>public.content</string>
-        </array>
         <key>UTTypeIdentifier</key>
         <string>com.apple.ical.ics</string>
         <key>UTTypeTagSpecification</key>
@@ -147,6 +150,11 @@
             <string>text/calendar</string>
           </array>
         </dict>
+        <key>UTTypeConformsTo</key>
+        <array>
+          <string>public.data</string>
+          <string>public.content</string>
+        </array>
       </dict>
     </array>
   </dict>

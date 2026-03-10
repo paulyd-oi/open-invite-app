@@ -178,6 +178,9 @@ struct OpenInviteTodayWidget: Widget {
 struct OpenInviteTodayWidgetBundle: WidgetBundle {
     var body: some Widget {
         OpenInviteTodayWidget()
+        if #available(iOS 16.1, *) {
+            OpenInviteLiveActivity()
+        }
     }
 }
 

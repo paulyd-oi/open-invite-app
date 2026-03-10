@@ -17,6 +17,11 @@
 		A4EFC30CB11738E79F5772E6 /* WidgetBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 25CD06E25C26FDBC788E0423 /* WidgetBridge.m */; };
 		B60AEF587342B791A5F88D33 /* OpenInviteTodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 788F227A450E3D41A1467BE4 /* OpenInviteTodayWidget.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		D1A1C00100000001AABBCC01 /* OpenInviteLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */; };
+		D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */; };
+		D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */; };
+		D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
+		D1A1C0010000000AAABBCC0A /* OpenInviteEventAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */; };
 		CD53982E7E11FE89E4D9C38B /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED6FA97B6F5957D8F710AC0 /* ExpoModulesProvider.swift */; };
 		EDF538446C3FE4521D9DE233 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 478B501D56DA4877F133DB4B /* Foundation.framework */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
@@ -58,6 +63,10 @@
 		5763BD41EFAA1D7172A64E2E /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7056CE344646ADE333FBB3BC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = OpenInvite/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		788F227A450E3D41A1467BE4 /* OpenInviteTodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteTodayWidget.swift; sourceTree = "<group>"; };
+		D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteLiveActivity.swift; sourceTree = "<group>"; };
+		D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LiveActivityBridge.swift; path = OpenInvite/LiveActivityBridge.swift; sourceTree = "<group>"; };
+		D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; name = LiveActivityBridge.m; path = OpenInvite/LiveActivityBridge.m; sourceTree = "<group>"; };
+		D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenInviteEventAttributes.swift; sourceTree = "<group>"; };
 		92A18D5D282990267E2CB0FF /* OpenInviteTodayWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenInviteTodayWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A73F18C6D4FDB2083269521F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = OpenInvite/SplashScreen.storyboard; sourceTree = "<group>"; };
@@ -102,6 +111,8 @@
 				7056CE344646ADE333FBB3BC /* PrivacyInfo.xcprivacy */,
 				AE60C431AED1B1B3F901C600 /* WidgetBridge.swift */,
 				25CD06E25C26FDBC788E0423 /* WidgetBridge.m */,
+				D1A1C00100000004AABBCC04 /* LiveActivityBridge.swift */,
+				D1A1C00100000006AABBCC06 /* LiveActivityBridge.m */,
 			);
 			name = OpenInvite;
 			sourceTree = "<group>";
@@ -151,6 +162,7 @@
 				6219BBE8B4D37CAFB1CB45EF /* Pods */,
 				A2A42130EC715645180311C3 /* ExpoModulesProviders */,
 				9CC5225A06435F79D7E2DEC9 /* OpenInviteTodayWidget */,
+				D1A1C0010000000BAABBCC0B /* Shared */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -170,6 +182,7 @@
 			isa = PBXGroup;
 			children = (
 				788F227A450E3D41A1467BE4 /* OpenInviteTodayWidget.swift */,
+				D1A1C00100000002AABBCC02 /* OpenInviteLiveActivity.swift */,
 				5763BD41EFAA1D7172A64E2E /* Assets.xcassets */,
 				A73F18C6D4FDB2083269521F /* Info.plist */,
 			);
@@ -199,6 +212,14 @@
 				478B501D56DA4877F133DB4B /* Foundation.framework */,
 			);
 			name = iOS;
+			sourceTree = "<group>";
+		};
+		D1A1C0010000000BAABBCC0B /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D1A1C00100000008AABBCC08 /* OpenInviteEventAttributes.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -445,6 +466,9 @@
 				CD53982E7E11FE89E4D9C38B /* ExpoModulesProvider.swift in Sources */,
 				6C1BBB2C5709CBDD33F80CD9 /* WidgetBridge.swift in Sources */,
 				A4EFC30CB11738E79F5772E6 /* WidgetBridge.m in Sources */,
+				D1A1C00100000003AABBCC03 /* LiveActivityBridge.swift in Sources */,
+				D1A1C00100000005AABBCC05 /* LiveActivityBridge.m in Sources */,
+				D1A1C00100000009AABBCC09 /* OpenInviteEventAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -453,6 +477,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B60AEF587342B791A5F88D33 /* OpenInviteTodayWidget.swift in Sources */,
+				D1A1C00100000001AABBCC01 /* OpenInviteLiveActivity.swift in Sources */,
+				D1A1C0010000000AAABBCC0A /* OpenInviteEventAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -496,7 +522,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.vibecode.openinvite.0qi5wk;
-				PRODUCT_NAME = OpenInvite;
+				PRODUCT_NAME = "OpenInvite";
 				SWIFT_OBJC_BRIDGING_HEADER = "OpenInvite/OpenInvite-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -528,7 +554,7 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.vibecode.openinvite.0qi5wk;
-				PRODUCT_NAME = OpenInvite;
+				PRODUCT_NAME = "OpenInvite";
 				SWIFT_OBJC_BRIDGING_HEADER = "OpenInvite/OpenInvite-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

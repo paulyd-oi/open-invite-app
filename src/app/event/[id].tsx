@@ -14,6 +14,7 @@ import {
   Animated as RNAnimated,
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -57,6 +58,7 @@ import {
   MoreHorizontal,
   Palette,
   Camera,
+  HandCoins,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn, useSharedValue, withSpring, useAnimatedStyle } from "react-native-reanimated";
 import BottomSheet from "@/components/BottomSheet";
@@ -64,6 +66,7 @@ import { UserListRow } from "@/components/UserListRow";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as ExpoCalendar from "expo-calendar";
+import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useSession } from "@/lib/useSession";
@@ -80,6 +83,7 @@ import { buildEventSharePayload } from "@/lib/shareSSOT";
 import { safeToast } from "@/lib/safeToast";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
+import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
 import { guardEmailVerification } from "@/lib/emailVerification";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -126,6 +130,7 @@ import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
+import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
 // Accepts pre-computed query + optional event for lat/lng coords.
@@ -377,6 +382,7 @@ export default function EventDetailScreen() {
   const [showDeleteCommentConfirm, setShowDeleteCommentConfirm] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showRemoveRsvpConfirm, setShowRemoveRsvpConfirm] = useState(false);
+  const [showDeleteEventConfirm, setShowDeleteEventConfirm] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(true);
@@ -398,6 +404,10 @@ export default function EventDetailScreen() {
 
   // Color picker state
   const [showColorPicker, setShowColorPicker] = useState(false);
+
+  // Live Activity state
+  const [liveActivityActive, setLiveActivityActive] = useState(false);
+  const [liveActivitySupported, setLiveActivitySupported] = useState(false);
 
   // [EVENT_LIVE_UI] Event settings accordion — collapsed by default
   const [settingsExpanded, setSettingsExpanded] = useState(false);
@@ -516,6 +526,21 @@ export default function EventDetailScreen() {
       };
 
       recheckSync();
+    }, [id])
+  );
+
+  // Live Activity: check support + active state on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS !== "ios" || !id) return;
+      (async () => {
+        const supported = await areLiveActivitiesEnabled();
+        setLiveActivitySupported(supported);
+        if (supported) {
+          const activeId = await getActiveLiveActivityEventId();
+          setLiveActivityActive(activeId === id);
+        }
+      })();
     }, [id])
   );
 
@@ -704,6 +729,7 @@ export default function EventDetailScreen() {
   const _fbHostFirst: string = _fbHostName ? _fbHostName.split(' ')[0] : 'the host';
 
   const _fbDenyReason: string | undefined = _is403Restricted ? errorBody?.denyReason : undefined;
+  const _fbCircleId: string | undefined = _is403Restricted ? errorBody?.circleId : undefined;
 
   const fb = {
     restricted: !!_is403Restricted,
@@ -713,6 +739,7 @@ export default function EventDetailScreen() {
     hostFirst: _fbHostFirst,                 // first token or "the host"
     hostDisplayName: _fbHostName ?? 'the host',
     denyReason: _fbDenyReason,               // "circle_only" | "friends_only" | undefined
+    circleId: _fbCircleId,                   // string | undefined (if backend includes it)
   };
 
   // Legacy aliases — kept for copy that still references them
@@ -911,6 +938,18 @@ export default function EventDetailScreen() {
     },
     onError: () => {
       safeToast.error("Oops", "That didn't go through. Please try again.");
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: () => api.delete(`/api/events/${id}`),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      invalidateEventKeys(queryClient, [eventKeys.all()], "event_delete");
+      router.back();
+    },
+    onError: () => {
+      safeToast.error("Couldn't delete", "Please try again.");
     },
   });
 
@@ -1304,6 +1343,16 @@ export default function EventDetailScreen() {
       // P0 FIX: Invalidate using SSOT contract
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
       setShowRsvpOptions(false);
+
+      // Live Activity: end if user un-RSVPs, update if still going
+      if (liveActivityActive && event) {
+        if (status === "not_going") {
+          endLiveActivity(event.id);
+          setLiveActivityActive(false);
+        } else {
+          updateLiveActivity({ eventId: event.id, rsvpStatus: status });
+        }
+      }
       
       // ── Prompt arbitration: at most ONE modal per RSVP success ──
       // Priority: PostValueInvite > FirstRsvpNudge > NotificationPrePrompt
@@ -1356,9 +1405,9 @@ export default function EventDetailScreen() {
           // Since choice is already locked, no other prompt can appear in the meantime
         }
 
-        // [GROWTH_RSVP_FRICTION] Show inline success prompt for "going" when no modal chosen
-        // Once per event per session — non-blocking inline card, not a modal
-        if (status === "going" && chosen === "none" && !rsvpSuccessPromptFired.current) {
+        // [GROWTH_V1] Always show inline success prompt for "going" — non-blocking card
+        // Coexists with modal prompts since it's inline, not a modal
+        if (status === "going" && !rsvpSuccessPromptFired.current) {
           rsvpSuccessPromptFired.current = true;
           setShowRsvpSuccessPrompt(true);
           trackRsvpSuccessPromptShown({ source: "event" });
@@ -1541,8 +1590,10 @@ export default function EventDetailScreen() {
 
   // Toggle reflection enabled for event
   const toggleReflectionMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      api.put(`/api/events/${id}`, { reflectionEnabled: enabled }),
+    mutationFn: (enabled: boolean) => {
+      if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "toggle_update", { eventId: id, reflectionEnabled: enabled });
+      return api.put(`/api/events/${id}`, { reflectionEnabled: enabled });
+    },
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Invalidate single event to refresh reflection state
@@ -1953,23 +2004,41 @@ export default function EventDetailScreen() {
                   : `Connect with ${fb.hostFirst} to see this event.`}
               </Text>
 
-              {/* CTA: View profile (primary) or fallback text */}
-              {fb.denyReason !== "circle_only" && hasHostId ? (
+              {/* CTA: View Circle (preferred for circle_only) → View profile → fallback */}
+              {fb.denyReason === "circle_only" && fb.circleId ? (
+                <View className="w-full" style={{ gap: 10 }}>
+                  <Button
+                    variant="primary"
+                    label="View Circle"
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/circle/${fb.circleId}` as any);
+                    }}
+                  />
+                  {hasHostId && (
+                    <Button
+                      variant="secondary"
+                      label="View host profile"
+                      onPress={goToHostProfile}
+                    />
+                  )}
+                </View>
+              ) : hasHostId ? (
                 <View className="w-full">
                   <Button
                     variant="primary"
-                    label="View profile"
+                    label={fb.denyReason === "circle_only" ? "View host profile" : "View profile"}
                     onPress={goToHostProfile}
                   />
                 </View>
-              ) : fb.denyReason !== "circle_only" ? (
+              ) : (
                 <Text
                   className="text-sm text-center"
                   style={{ color: colors.textTertiary }}
                 >
                   Profile unavailable right now.
                 </Text>
-              ) : null}
+              )}
             </View>
           </View>
         </SafeAreaView>
@@ -2067,6 +2136,58 @@ export default function EventDetailScreen() {
       title: event.title,
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // EVENT DETAIL THEMES — keyed map, only "default" renders today.
+  // Future themes (warm, midnight) are real entries, not rendered.
+  // ═══════════════════════════════════════════════════════════════
+  const EVENT_DETAIL_THEMES = {
+    default: {
+      heroGradientColors: isDark
+        ? (["transparent", "rgba(0,0,0,0.35)", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.88)"] as const)
+        : (["transparent", "rgba(0,0,0,0.12)", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.78)"] as const),
+      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
+      heroWashColors: isDark ? HERO_WASH.dark.colors : HERO_WASH.light.colors,
+      heroWashLocations: isDark ? HERO_WASH.dark.locations : HERO_WASH.light.locations,
+      heroFallbackBg: isDark ? colors.surface : "#FAFAFA",
+      accentPrimary: STATUS.going.fg,
+      accentSecondary: STATUS.interested.fg,
+      chipTone: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+      sectionTint: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+    },
+    warm: {
+      heroGradientColors: isDark
+        ? (["transparent", "rgba(30,15,0,0.35)", "rgba(30,15,0,0.6)", "rgba(20,10,0,0.88)"] as const)
+        : (["transparent", "rgba(40,20,0,0.1)", "rgba(40,20,0,0.35)", "rgba(30,15,0,0.72)"] as const),
+      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
+      heroWashColors: isDark
+        ? (["rgba(40,25,15,0.6)", "rgba(0,0,0,0)"] as const)
+        : (["rgba(255,245,230,0.9)", "rgba(255,255,255,0)"] as const),
+      heroWashLocations: [0, 1] as const,
+      heroFallbackBg: isDark ? "#1A1410" : "#FFF8F0",
+      accentPrimary: "#F59E0B",
+      accentSecondary: "#EC4899",
+      chipTone: isDark ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.06)",
+      sectionTint: isDark ? "rgba(245,158,11,0.04)" : "rgba(245,158,11,0.02)",
+    },
+    midnight: {
+      heroGradientColors: isDark
+        ? (["transparent", "rgba(10,10,30,0.4)", "rgba(10,10,30,0.65)", "rgba(5,5,20,0.92)"] as const)
+        : (["transparent", "rgba(15,15,40,0.15)", "rgba(15,15,40,0.45)", "rgba(10,10,30,0.8)"] as const),
+      heroGradientLocations: [0, 0.25, 0.55, 1] as const,
+      heroWashColors: isDark
+        ? (["rgba(15,15,45,0.7)", "rgba(0,0,0,0)"] as const)
+        : (["rgba(230,230,255,0.9)", "rgba(255,255,255,0)"] as const),
+      heroWashLocations: [0, 1] as const,
+      heroFallbackBg: isDark ? "#0D0D1A" : "#F0F0FF",
+      accentPrimary: "#818CF8",
+      accentSecondary: "#A78BFA",
+      chipTone: isDark ? "rgba(129,140,248,0.1)" : "rgba(129,140,248,0.06)",
+      sectionTint: isDark ? "rgba(129,140,248,0.04)" : "rgba(129,140,248,0.02)",
+    },
+  } as const;
+
+  const ET = EVENT_DETAIL_THEMES.default;
 
   const startDate = new Date(event.startTime);
   const endDate = event.endTime ? new Date(event.endTime) : null;
@@ -2178,6 +2299,7 @@ export default function EventDetailScreen() {
           headerStyle: { backgroundColor: colors.background },
           headerRight: () => (
             <Pressable
+              testID="event-detail-menu-open"
               onPress={() => {
                 Haptics.selectionAsync();
                 setShowEventActionsSheet(true);
@@ -2192,57 +2314,107 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Event Header */}
+        {/* ═══ INVITATION HERO (Task 1) ═══ */}
         <Animated.View entering={FadeInDown.springify()}>
-          {/* Hero header surface — SSOT via HeroBannerSurface + heroSSOT */}
           {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-            <View style={{ marginBottom: 12 }}>
-              <HeroBannerSurface
-                bannerUri={eventBannerUri}
-                isDark={isDark}
-                minHeight={240}
-              >
-                <View style={{ alignItems: "center", gap: 6 }}>
+            /* ── Photo hero: full-bleed cinematic invitation ── */
+            <View style={{ position: "relative" }}>
+              <View style={{ width: "100%", aspectRatio: 3 / 4, maxHeight: 480 }}>
+                <ExpoImage
+                  source={{ uri: toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_BANNER) }}
+                  style={{ width: "100%", height: "100%" }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                  priority="high"
+                />
+                {/* Cinematic 4-stop gradient — smooth mid-range protection for busy images */}
+                <LinearGradient
+                  colors={[...ET.heroGradientColors]}
+                  locations={[...ET.heroGradientLocations]}
+                  style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "85%" }}
+                />
+                {/* Overlaid invitation content — bottom-anchored with tight rhythm */}
+                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 22, paddingBottom: 26 }}>
+                  {countdownLabel && (
+                    <View style={{
+                      alignSelf: "flex-start",
+                      backgroundColor: countdownLabel === "Happening now" ? "rgba(34,197,94,0.28)" : "rgba(255,255,255,0.14)",
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 10,
+                      marginBottom: 12,
+                    }}>
+                      <Text style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: countdownLabel === "Happening now" ? "#4ADE80" : "rgba(255,255,255,0.92)",
+                        letterSpacing: 0.2,
+                      }}>
+                        {countdownLabel}
+                      </Text>
+                    </View>
+                  )}
                   <Text
                     style={{
-                      color: getHeroTextColor(isDark),
-                      fontSize: 22,
-                      fontWeight: "700",
-                      textAlign: "center",
+                      color: "#FFFFFF",
+                      fontSize: 28,
+                      fontWeight: "800",
+                      lineHeight: 34,
+                      letterSpacing: -0.2,
+                      textShadowColor: "rgba(0,0,0,0.25)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 3,
                     }}
                     numberOfLines={2}
                   >
                     {event.emoji} {event.title}
                   </Text>
-                  <EventVisibilityBadge
-                    visibility={event.visibility}
-                    circleId={event.circleId}
-                    isBusy={event.isBusy}
-                    circleName={event.circleName}
-                    eventId={event.id}
-                    surface="event_detail_hero"
-                    isDark={isDark}
-                  />
-                  {/* [EVENT_LIVE_UI_2] Live chip (hero) */}
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+                    <Calendar size={14} color="rgba(255,255,255,0.8)" />
+                    <Text style={{
+                      color: "rgba(255,255,255,0.92)",
+                      fontSize: 14,
+                      fontWeight: "500",
+                      marginLeft: 6,
+                      textShadowColor: "rgba(0,0,0,0.2)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 2,
+                    }}>
+                      {dateLabel} · {timeLabel}
+                    </Text>
+                  </View>
+                  {locationDisplay && (
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        openEventLocation(locationQuery ?? locationDisplay, event, event.id);
+                      }}
+                      style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}
+                    >
+                      <MapPin size={14} color="rgba(255,255,255,0.7)" />
+                      <Text style={{
+                        color: "rgba(255,255,255,0.82)",
+                        fontSize: 13,
+                        marginLeft: 6,
+                        textShadowColor: "rgba(0,0,0,0.2)",
+                        textShadowOffset: { width: 0, height: 1 },
+                        textShadowRadius: 2,
+                      }} numberOfLines={1}>
+                        {locationDisplay}
+                      </Text>
+                    </Pressable>
+                  )}
                   {liveChipText && (
-                    <View style={{ backgroundColor: "rgba(0,0,0,0.35)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ color: "#fff", fontSize: 11 }}>{liveChipText}</Text>
+                    <View style={{ backgroundColor: "rgba(255,255,255,0.12)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, alignSelf: "flex-start", marginTop: 8 }}>
+                      <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11 }}>{liveChipText}</Text>
                     </View>
                   )}
-                  <Text
-                    style={{
-                      color: getHeroSubTextColor(isDark),
-                      fontSize: 14,
-                      textAlign: "center",
-                    }}
-                  >
-                    {dateLabel} at {timeLabel}
-                  </Text>
                 </View>
-              </HeroBannerSurface>
+              </View>
               {/* Floating edit button (host only) */}
               {isMyEvent && (
                 <RNAnimated.View style={{ position: "absolute", top: editTop, right: 12, transform: [{ scale: editScale }] }}>
@@ -2258,9 +2430,9 @@ export default function EventDetailScreen() {
                     style={{
                       borderRadius: 20,
                       padding: 8,
-                      backgroundColor: "rgba(0,0,0,0.65)",
+                      backgroundColor: "rgba(0,0,0,0.55)",
                       borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.18)",
+                      borderColor: "rgba(255,255,255,0.15)",
                     }}
                   >
                     <Pencil size={16} color="#fff" />
@@ -2269,13 +2441,13 @@ export default function EventDetailScreen() {
               )}
             </View>
           ) : (
+            /* ── No-photo hero: atmospheric invitation poster ── */
             <>
-              {/* [EVENT_LIVE_UI] Photo nudge moved to compact inline */}
               {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
                 <Pressable
                   onPress={() => launchEventPhotoPicker()}
-                  className="flex-row items-center justify-center rounded-xl p-3 mb-3"
-                  style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed" }}
+                  className="flex-row items-center justify-center p-3 mx-4 mt-2"
+                  style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", borderRadius: RADIUS.lg }}
                 >
                   <Camera size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
                   <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Add a cover photo</Text>
@@ -2292,30 +2464,76 @@ export default function EventDetailScreen() {
                   </Pressable>
                 </Pressable>
               )}
-              {/* No-photo hero card */}
-              <View className="rounded-2xl p-6 mb-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <View className="w-24 h-24 rounded-2xl items-center justify-center mb-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                  <Text style={{ fontSize: 48 }}>{event.emoji}</Text>
-                </View>
-                <Text className="text-2xl font-bold text-center" style={{ color: colors.text }}>
+              <View style={{
+                paddingHorizontal: 24,
+                paddingTop: 48,
+                paddingBottom: 40,
+                alignItems: "center",
+                backgroundColor: ET.heroFallbackBg,
+                overflow: "hidden",
+              }}>
+                {/* Atmospheric wash gradient — invitation poster feel */}
+                <LinearGradient
+                  colors={[...ET.heroWashColors]}
+                  locations={[...ET.heroWashLocations]}
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%" }}
+                />
+                <Text style={{ fontSize: 64 }}>{event.emoji}</Text>
+                <Text
+                  style={{
+                    fontSize: 26,
+                    fontWeight: "800",
+                    textAlign: "center",
+                    color: colors.text,
+                    marginTop: 18,
+                    letterSpacing: -0.2,
+                    lineHeight: 32,
+                  }}
+                  numberOfLines={2}
+                >
                   {event.title}
                 </Text>
-                <Text className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-                  {dateLabel} at {timeLabel}
-                </Text>
-                <EventVisibilityBadge
-                  visibility={event.visibility}
-                  circleId={event.circleId}
-                  isBusy={event.isBusy}
-                  circleName={event.circleName}
-                  eventId={event.id}
-                  surface="event_detail"
-                  isDark={isDark}
-                />
-                {/* [EVENT_LIVE_UI_2] Live chip */}
+                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 16 }}>
+                  <Calendar size={14} color={colors.textSecondary} />
+                  <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "500", marginLeft: 6 }}>
+                    {dateLabel} · {timeLabel}
+                  </Text>
+                </View>
+                {locationDisplay && (
+                  <Pressable
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
+                    }}
+                    style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}
+                  >
+                    <MapPin size={14} color={colors.textTertiary} />
+                    <Text style={{ color: colors.textTertiary, fontSize: 13, marginLeft: 6 }} numberOfLines={1}>
+                      {locationDisplay}
+                    </Text>
+                  </Pressable>
+                )}
+                {countdownLabel && (
+                  <View style={{
+                    marginTop: 14,
+                    paddingHorizontal: 12,
+                    paddingVertical: 5,
+                    borderRadius: 10,
+                    backgroundColor: countdownLabel === "Happening now" ? STATUS.going.bgSoft : ET.chipTone,
+                  }}>
+                    <Text style={{
+                      fontSize: 12,
+                      fontWeight: "600",
+                      color: countdownLabel === "Happening now" ? STATUS.going.fg : colors.textSecondary,
+                      letterSpacing: 0.2,
+                    }}>
+                      {countdownLabel}
+                    </Text>
+                  </View>
+                )}
                 {liveChipText && (
-                  <View className="mt-1 px-2.5 py-1 rounded-full" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F0F0F2" }}>
-                    <Text className="text-xs" style={{ color: colors.textSecondary }}>{liveChipText}</Text>
+                  <View style={{ marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: ET.chipTone }}>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
                   </View>
                 )}
               </View>
@@ -2323,21 +2541,107 @@ export default function EventDetailScreen() {
           )}
         </Animated.View>
 
-        {/* ═══ RSVP Strip (non-owners) ═══ */}
+        {/* ═══ HOST + SOCIAL STRIP ═══ */}
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 0.5,
+            borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+          }}>
+            {/* Host avatar + name */}
+            {event.user && (
+              <Pressable
+                testID="event-detail-host-open"
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  if (isMyEvent) {
+                    router.push("/profile" as any);
+                  } else {
+                    router.push(`/user/${event.user!.id}` as any);
+                  }
+                }}
+                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+              >
+                <View style={{ borderRadius: 17, borderWidth: 1.5, borderColor: isDark ? "#92400E" : "#FDBA74" }}>
+                  <EntityAvatar
+                    photoUrl={event.user.image}
+                    initials={event.user.name?.[0] ?? "?"}
+                    size={30}
+                    backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
+                    foregroundColor="#92400E"
+                  />
+                </View>
+                <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: "600", color: colors.text }}>
+                  {isMyEvent ? "You" : event.user.name?.split(" ")[0] ?? "Host"}
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>hosting</Text>
+              </Pressable>
+            )}
+            {/* Going count + visibility badge */}
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {effectiveGoingCount > 0 && (
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setShowAttendeesModal(true);
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center" }}
+                >
+                  <View style={{
+                    backgroundColor: STATUS.going.bgSoft,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 10,
+                    borderWidth: 0.5,
+                    borderColor: STATUS.going.border,
+                  }}>
+                    <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "700" }}>
+                      {effectiveGoingCount} going
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+              <EventVisibilityBadge
+                visibility={event.visibility}
+                circleId={event.circleId}
+                isBusy={event.isBusy}
+                circleName={event.circleName}
+                eventId={event.id}
+                surface="event_detail"
+                isDark={isDark}
+              />
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ═══ Padded content below hero + strip ═══ */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
+
+        {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
           <Animated.View entering={FadeInDown.delay(75).springify()}>
             {hasJoinRequest ? (
-              <View className="rounded-2xl p-5 mb-3 items-center" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <View className="w-12 h-12 rounded-full bg-green-100 items-center justify-center mb-2">
-                  <Check size={24} color="#22C55E" />
-                </View>
-                <Text className="font-semibold" style={{ color: colors.text }}>You're Attending!</Text>
-                <Text className="text-sm text-center mt-1" style={{ color: colors.textSecondary }}>
-                  This event is on your calendar
-                </Text>
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                marginBottom: 14,
+                borderRadius: RADIUS.xl,
+                backgroundColor: STATUS.going.bgSoft,
+                borderWidth: 0.5,
+                borderColor: STATUS.going.border,
+              }}>
+                <Check size={18} color={STATUS.going.fg} />
+                <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: STATUS.going.fg }}>You're Attending</Text>
+                <Text style={{ marginLeft: 6, fontSize: 13, color: colors.textSecondary }}>· on your calendar</Text>
               </View>
             ) : (
-              <View className="mb-3">
+              <View style={{ marginBottom: 14 }}>
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
                   devLog("[P0_RSVP]", "ui render", {
@@ -2350,93 +2654,110 @@ export default function EventDetailScreen() {
                   return null;
                 })()}
 
-                {/* Current RSVP status display */}
+                {/* Current RSVP status — compact inline */}
                 {myRsvpStatus && (
-                  <View className="mb-3">
+                  <View style={{ marginBottom: 10 }}>
                     <View
-                      className="rounded-2xl p-4 flex-row items-center justify-between"
                       style={{
-                        backgroundColor: myRsvpStatus === "going" ? "#22C55E15" :
-                                         myRsvpStatus === "interested" ? "#EC489915" : colors.surface,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: RADIUS.lg,
+                        backgroundColor: myRsvpStatus === "going" ? STATUS.going.bgSoft :
+                                         myRsvpStatus === "interested" ? STATUS.interested.bgSoft : colors.surface,
                         borderWidth: 1,
-                        borderColor: myRsvpStatus === "going" ? "#22C55E" :
-                                     myRsvpStatus === "interested" ? "#EC4899" : colors.border,
+                        borderColor: myRsvpStatus === "going" ? STATUS.going.border :
+                                     myRsvpStatus === "interested" ? STATUS.interested.border : colors.border,
                       }}
                     >
-                      <View className="flex-row items-center">
-                        {myRsvpStatus === "going" && <Check size={20} color="#22C55E" />}
-                        {myRsvpStatus === "interested" && <Heart size={20} color="#EC4899" />}
-                        {myRsvpStatus === "not_going" && <X size={20} color={colors.textTertiary} />}
-                        <Text className="font-semibold ml-2" style={{
-                          color: myRsvpStatus === "going" ? "#22C55E" :
-                                 myRsvpStatus === "interested" ? "#EC4899" : colors.textSecondary
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        {myRsvpStatus === "going" && <Check size={18} color={STATUS.going.fg} />}
+                        {myRsvpStatus === "interested" && <Heart size={18} color={STATUS.interested.fg} />}
+                        {myRsvpStatus === "not_going" && <X size={18} color={colors.textTertiary} />}
+                        <Text style={{
+                          marginLeft: 8,
+                          fontSize: 15,
+                          fontWeight: "600",
+                          color: myRsvpStatus === "going" ? STATUS.going.fg :
+                                 myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary,
                         }}>
                           {myRsvpStatus === "going" ? "You're In" :
-                           myRsvpStatus === "interested" ? "Interested" : "Not Going"}
+                           myRsvpStatus === "interested" ? "Saved" : "Not Going"}
                         </Text>
                       </View>
                       <Pressable
                         onPress={() => setShowRsvpOptions(!showRsvpOptions)}
                         disabled={rsvpMutation.isPending}
-                        className="px-3 py-1.5 rounded-full"
-                        style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)" }}
                       >
-                        <Text className="text-sm" style={{ color: colors.textSecondary }}>Change</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>Change</Text>
                       </Pressable>
                     </View>
                     {myRsvpStatus === "going" && (
-                      <View className="mt-2 px-4">
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                          On your calendar · You can change this anytime
-                        </Text>
-                        <Pressable
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            trackRsvpShareClicked({
-                              eventId: event.id,
-                              surface: "rsvp_confirmation",
-                              visibility: event.visibility ?? "unknown",
-                              hasCircleId: !!event.circleId,
-                            });
-                            shareEvent({ ...event, location: locationDisplay ?? null });
-                          }}
-                          className="flex-row items-center mt-3 self-start px-4 py-2 rounded-full"
-                          style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}
-                        >
-                          <Share2 size={14} color={themeColor} />
-                          <Text className="text-sm font-medium ml-1.5" style={{ color: themeColor }}>Share with friends</Text>
-                        </Pressable>
-                      </View>
+                      <Pressable
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          trackRsvpShareClicked({
+                            eventId: event.id,
+                            surface: "rsvp_confirmation",
+                            visibility: event.visibility ?? "unknown",
+                            hasCircleId: !!event.circleId,
+                          });
+                          shareEvent({ ...event, location: locationDisplay ?? null });
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          alignSelf: "flex-start",
+                          marginTop: 8,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: 16,
+                          backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        <Share2 size={14} color={themeColor} />
+                        <Text style={{ fontSize: 13, fontWeight: "500", marginLeft: 6, color: themeColor }}>Share with friends</Text>
+                      </Pressable>
                     )}
                   </View>
                 )}
 
-                {/* [GROWTH_RSVP_FRICTION] Inline success prompt — "Want to bring someone?" */}
+                {/* [GROWTH_V1] Inline success prompt — "Want to bring someone?" */}
                 {showRsvpSuccessPrompt && myRsvpStatus === "going" && (
-                  <Animated.View entering={FadeInDown.duration(300)} className="mb-3">
+                  <Animated.View entering={FadeInDown.duration(300)} style={{ marginBottom: 10 }}>
                     <View
-                      className="rounded-2xl p-4 flex-row items-center"
-                      style={{ backgroundColor: isDark ? "#1C2520" : "#F0FDF4", borderWidth: 1, borderColor: "#22C55E40" }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        padding: 14,
+                        borderRadius: RADIUS.lg,
+                        backgroundColor: isDark ? "#1C2520" : "#F0FDF4",
+                        borderWidth: 1,
+                        borderColor: STATUS.going.border,
+                      }}
                     >
-                      <View className="flex-1">
-                        <Text className="font-semibold text-sm" style={{ color: "#22C55E" }}>You're in!</Text>
-                        <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>Want to bring someone along?</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: "600", color: STATUS.going.fg }}>You're in!</Text>
+                        <Text style={{ fontSize: 12, marginTop: 2, color: colors.textSecondary }}>Let friends know — share this event</Text>
                       </View>
                       <Pressable
                         onPress={() => {
                           trackRsvpSuccessPromptTap({ source: "event" });
+                          trackInviteShared({ entity: "event", sourceScreen: "rsvp_success" });
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                           setShowRsvpSuccessPrompt(false);
                           if (event) shareEvent({ ...event, location: locationDisplay ?? null });
                         }}
-                        className="px-3 py-1.5 rounded-full ml-2"
-                        style={{ backgroundColor: "#22C55E" }}
+                        style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, marginLeft: 8, backgroundColor: STATUS.going.fg }}
                       >
-                        <Text className="text-xs font-semibold" style={{ color: "#FFFFFF" }}>Share</Text>
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF" }}>Share</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => setShowRsvpSuccessPrompt(false)}
-                        className="ml-2 p-1"
+                        style={{ marginLeft: 8, padding: 4 }}
                       >
                         <X size={14} color={colors.textTertiary} />
                       </Pressable>
@@ -2444,97 +2765,122 @@ export default function EventDetailScreen() {
                   </Animated.View>
                 )}
 
-                {/* RSVP Options */}
+                {/* Primary action buttons — Going (primary) + Save (secondary) side-by-side */}
                 {(!myRsvpStatus || showRsvpOptions) && (
                   <Animated.View style={rsvpButtonAnimStyle}>
-                  <View className="rounded-2xl overflow-hidden" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
                     {/* Full indicator */}
                     {eventMeta.isFull && myRsvpStatus !== "going" && (
-                      <View className="flex-row items-center justify-center py-3" style={{ backgroundColor: "#EF444415" }}>
-                        <Users size={16} color="#EF4444" />
-                        <Text className="ml-2 text-sm font-medium" style={{ color: "#EF4444" }}>This invite is full</Text>
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 10,
+                        marginBottom: 8,
+                        borderRadius: RADIUS.sm,
+                        backgroundColor: STATUS.destructive.bgSoft,
+                      }}>
+                        <Users size={14} color={STATUS.destructive.fg} />
+                        <Text style={{ marginLeft: 6, fontSize: 13, fontWeight: "500", color: STATUS.destructive.fg }}>This invite is full</Text>
                       </View>
                     )}
                     {/* Pending indicator */}
                     {rsvpMutation.isPending && (
-                      <View className="flex-row items-center justify-center py-2" style={{ backgroundColor: colors.surfaceElevated }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, marginBottom: 6 }}>
                         <ActivityIndicator size="small" color={themeColor} />
-                        <Text className="ml-2 text-sm" style={{ color: colors.textSecondary }}>Updating…</Text>
+                        <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary }}>Updating…</Text>
                       </View>
                     )}
-                    {/* Going - disabled if full and not already going */}
-                    {eventMeta.isFull && myRsvpStatus !== "going" ? (
-                      <View
-                        className="flex-row items-center p-4"
-                        style={{ borderBottomWidth: 1, borderBottomColor: colors.separator, opacity: 0.5 }}
-                      >
-                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: colors.surfaceElevated }}>
-                          <Users size={20} color={colors.textTertiary} />
+                    {/* Two-button action bar */}
+                    <View style={{ flexDirection: "row", gap: 12, opacity: rsvpMutation.isPending ? 0.6 : 1 }}>
+                      {/* Going — Primary */}
+                      {eventMeta.isFull && myRsvpStatus !== "going" ? (
+                        <View style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          paddingVertical: 15,
+                          borderRadius: RADIUS.xl,
+                          backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
+                          opacity: 0.5,
+                        }}>
+                          <Users size={18} color={colors.textTertiary} />
+                          <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: colors.textTertiary }}>Full</Text>
                         </View>
-                        <View className="flex-1">
-                          <Text className="font-semibold" style={{ color: colors.textTertiary }}>Full</Text>
-                          <Text className="text-xs" style={{ color: colors.textTertiary }}>No spots available</Text>
-                        </View>
-                      </View>
-                    ) : (
+                      ) : (
+                        <Pressable
+                          testID="event-detail-action-going"
+                          onPress={() => handleRsvp("going")}
+                          disabled={rsvpMutation.isPending}
+                          style={({ pressed }) => ({
+                            flex: 1,
+                            flexDirection: "row" as const,
+                            alignItems: "center" as const,
+                            justifyContent: "center" as const,
+                            paddingVertical: 15,
+                            borderRadius: RADIUS.xl,
+                            backgroundColor: ET.accentPrimary,
+                            opacity: pressed ? 0.85 : 1,
+                          })}
+                        >
+                          <Check size={18} color="#FFFFFF" />
+                          <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>
+                            {myRsvpStatus === "going" ? "Going" : "I'm In"}
+                          </Text>
+                        </Pressable>
+                      )}
+
+                      {/* Save — Secondary */}
                       <Pressable
-                        testID="rsvp-going-button"
-                        onPress={() => handleRsvp("going")}
+                        testID="event-detail-action-save"
+                        onPress={() => handleRsvp("interested")}
                         disabled={rsvpMutation.isPending}
-                        className="flex-row items-center p-4"
-                        style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
+                        style={({ pressed }) => ({
+                          flex: 1,
+                          flexDirection: "row" as const,
+                          alignItems: "center" as const,
+                          justifyContent: "center" as const,
+                          paddingVertical: 15,
+                          borderRadius: RADIUS.xl,
+                          backgroundColor: myRsvpStatus === "interested"
+                            ? STATUS.interested.bgSoft
+                            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.035)"),
+                          borderWidth: myRsvpStatus === "interested" ? 1 : 0.5,
+                          borderColor: myRsvpStatus === "interested"
+                            ? STATUS.interested.border
+                            : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"),
+                          opacity: pressed ? 0.85 : 1,
+                        })}
                       >
-                        <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#22C55E20" }}>
-                          <Check size={20} color="#22C55E" />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="font-semibold" style={{ color: colors.text }}>You're In</Text>
-                          <Text className="text-xs" style={{ color: colors.textSecondary }}>Added to your calendar</Text>
-                        </View>
-                        {myRsvpStatus === "going" && <Check size={18} color={themeColor} />}
+                        <Heart size={18} color={myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary} />
+                        <Text style={{
+                          marginLeft: 8,
+                          fontSize: 15,
+                          fontWeight: "600",
+                          color: myRsvpStatus === "interested" ? STATUS.interested.fg : colors.text,
+                        }}>
+                          Save
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    {/* Not Going — tertiary text link */}
+                    {myRsvpStatus && myRsvpStatus !== "not_going" && (
+                      <Pressable
+                        testID="event-detail-action-not-going"
+                        onPress={() => handleRsvp("not_going")}
+                        disabled={rsvpMutation.isPending}
+                        style={{ alignSelf: "center", marginTop: 12, paddingVertical: 6 }}
+                      >
+                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>Can't make it</Text>
                       </Pressable>
                     )}
-
-                    {/* Interested */}
-                    <Pressable
-                      testID="rsvp-interested-button"
-                      onPress={() => handleRsvp("interested")}
-                      disabled={rsvpMutation.isPending}
-                      className="flex-row items-center p-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.separator }}
-                    >
-                      <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#EC489920" }}>
-                        <Heart size={20} color="#EC4899" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>Interested</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Save for later (not on calendar)</Text>
-                      </View>
-                      {myRsvpStatus === "interested" && <Check size={18} color={themeColor} />}
-                    </Pressable>
-
-                    {/* Not Going */}
-                    <Pressable
-                      onPress={() => handleRsvp("not_going")}
-                      disabled={rsvpMutation.isPending}
-                      className="flex-row items-center p-4"
-                    >
-                      <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
-                        <X size={20} color={colors.textTertiary} />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="font-semibold" style={{ color: colors.text }}>Can't Make It</Text>
-                        <Text className="text-xs" style={{ color: colors.textSecondary }}>Maybe next time</Text>
-                      </View>
-                      {myRsvpStatus === "not_going" && <Check size={18} color={themeColor} />}
-                    </Pressable>
-                  </View>
                   </Animated.View>
                 )}
                 {/* [EVENT_LIVE_UI_2] Saved confirmation text */}
                 {rsvpSavedVisible && (
-                  <View className="items-center mt-2">
-                    <Text className="text-xs" style={{ color: colors.textSecondary }}>Saved</Text>
+                  <View style={{ alignItems: "center", marginTop: 6 }}>
+                    <Text style={{ fontSize: 12, color: STATUS.interested.fg, fontWeight: "500" }}>Saved — you'll find this in your Saved tab</Text>
                   </View>
                 )}
               </View>
@@ -2542,73 +2888,164 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* ═══ Core Info Card ═══ */}
-        <Animated.View entering={FadeInDown.springify()}>
-          <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-            {/* Date & Time */}
-            <View className="flex-row items-center py-3">
-              <Calendar size={20} color={themeColor} />
-              <View className="ml-3 flex-1">
-                <Text className="text-sm" style={{ color: colors.textTertiary }}>Date & Time</Text>
-                <Text className="font-semibold" style={{ color: colors.text }}>
-                  {dateLabel} at {timeLabel}
+        {/* ═══ [GROWTH_V1] HOST SHARE NUDGE — attendance-aware CTA ═══ */}
+        {isMyEvent && !event?.isBusy && effectiveGoingCount < 5 && (
+          <Animated.View entering={FadeInDown.delay(87).springify()} style={{ marginBottom: 14 }}>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
+                shareEvent({ ...event, location: locationDisplay ?? null });
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 14,
+                borderRadius: RADIUS.lg,
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                borderWidth: 0.5,
+                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              }}
+            >
+              <View style={{
+                width: 32, height: 32, borderRadius: 16,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: `${themeColor}18`,
+              }}>
+                <Share2 size={16} color={themeColor} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+                  {effectiveGoingCount <= 1 ? "Invite friends" : "Invite more friends"}
                 </Text>
-                {/* [EVENT_LIVE_UI] Countdown line */}
-                <Text className="text-xs mt-0.5" style={{ color: countdownLabel === "Happening now" ? "#22C55E" : countdownLabel === "Ended" ? colors.textTertiary : themeColor, fontWeight: countdownLabel === "Happening now" ? "600" : "400" }}>
-                  {countdownLabel}
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>
+                  {effectiveGoingCount <= 1
+                    ? "Share this event to get the group together"
+                    : `${effectiveGoingCount - 1} going so far — share to bring more`}
                 </Text>
               </View>
-            </View>
+              <ChevronRight size={16} color={colors.textTertiary} />
+            </Pressable>
+          </Animated.View>
+        )}
 
-            {/* Location */}
-            {locationDisplay && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                  }}
-                  className="flex-row items-center"
-                >
-                  <MapPin size={20} color="#4ECDC4" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Location</Text>
-                    <Text className="font-semibold" style={{ color: colors.text }}>{locationDisplay}</Text>
-                  </View>
-                  <ChevronRight
-                    size={20}
-                    color="#9CA3AF"
-                    style={{
-                      transform: [{ rotate: showMap ? "90deg" : "0deg" }],
-                    }}
-                  />
-                </Pressable>
-                <View className="mt-3 ml-8">
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                    }}
-                    className="bg-teal-500 rounded-xl py-3 flex-row items-center justify-center"
-                    style={{
-                      shadowColor: "#4ECDC4",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                    }}
-                  >
-                    <ArrowRight size={18} color="#fff" />
-                    <Text className="text-white font-semibold ml-2">
-                      Get Directions
-                    </Text>
-                  </Pressable>
+        {/* ═══ LIVE ACTIVITY CTA (iOS only) ═══ */}
+        {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
+          const startMs = new Date(event.startTime).getTime();
+          const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+          const now = Date.now();
+          const startsWithin4h = startMs - now < 4 * 3600000;
+          const hasEnded = now > endMs;
+          // Show if event starts within 4h and hasn't ended
+          if (!startsWithin4h || hasEnded) return null;
+          return (
+            <Animated.View entering={FadeInDown.delay(92).springify()} style={{ marginBottom: 14 }}>
+              <Pressable
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (liveActivityActive) {
+                    await endLiveActivity(event.id);
+                    setLiveActivityActive(false);
+                  } else {
+                    const ok = await startLiveActivity({
+                      eventId: event.id,
+                      eventTitle: event.title,
+                      startTime: event.startTime,
+                      locationName: locationDisplay,
+                      rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
+                    });
+                    if (ok) setLiveActivityActive(true);
+                    else safeToast.error("Couldn't start", "Check Live Activities in Settings");
+                  }
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: 14,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: liveActivityActive
+                    ? (isDark ? "#1C2520" : "#F0FDF4")
+                    : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
+                  borderWidth: 0.5,
+                  borderColor: liveActivityActive
+                    ? STATUS.going.border
+                    : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                }}
+              >
+                <View style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  alignItems: "center", justifyContent: "center",
+                  backgroundColor: liveActivityActive ? `${STATUS.going.fg}18` : `${themeColor}18`,
+                }}>
+                  <Bell size={16} color={liveActivityActive ? STATUS.going.fg : themeColor} />
                 </View>
-              </View>
-            )}
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+                    {liveActivityActive ? "Tracking on Lock Screen" : "Track on Lock Screen"}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>
+                    {liveActivityActive ? "Tap to stop Live Activity" : "See countdown on your Lock Screen"}
+                  </Text>
+                </View>
+                {liveActivityActive ? (
+                  <X size={16} color={colors.textTertiary} />
+                ) : (
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                )}
+              </Pressable>
+            </Animated.View>
+          );
+        })()}
 
-            {/* Visibility - Host only */}
-            {isMyEvent && (
-            <View className="py-3 border-t" style={{ borderColor: colors.border }}>
+        {/* ═══ DESCRIPTION / VIBE ═══ */}
+        {event.description && (
+          <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginTop: 2, marginBottom: 18 }}>
+            <Text
+              style={{ fontSize: 15, lineHeight: 23, color: colors.text, letterSpacing: 0.1 }}
+              numberOfLines={descriptionExpanded ? undefined : 4}
+            >
+              {event.description}
+            </Text>
+            {event.description.length > 200 && (
+              <Pressable onPress={() => setDescriptionExpanded(!descriptionExpanded)} style={{ marginTop: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: "500", color: themeColor }}>
+                  {descriptionExpanded ? "Show less" : "Read more"}
+                </Text>
+              </Pressable>
+            )}
+          </Animated.View>
+        )}
+
+        {/* ═══ DETAILS BLOCK ═══ */}
+        <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginBottom: 14 }}>
+          {/* Get Directions */}
+          {locationDisplay && (
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                openEventLocation(locationQuery ?? locationDisplay, event, event.id);
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 11,
+                paddingHorizontal: 14,
+                marginBottom: 10,
+                borderRadius: RADIUS.md,
+                backgroundColor: isDark ? "rgba(20,184,166,0.08)" : "rgba(20,184,166,0.05)",
+                borderWidth: 0.5,
+                borderColor: isDark ? "rgba(20,184,166,0.18)" : "rgba(20,184,166,0.15)",
+              }}
+            >
+              <Compass size={16} color="#14B8A6" />
+              <Text style={{ flex: 1, marginLeft: 10, fontSize: 13, fontWeight: "500", color: "#14B8A6" }}>Get Directions</Text>
+              <ArrowRight size={14} color="#14B8A6" />
+            </Pressable>
+          )}
+
+          {/* Visibility - Host only */}
+          {isMyEvent && (
+            <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
               {(() => {
                 const isCircleTappable = event.visibility === "circle_only" && !!event.circleId;
                 const RowWrapper = isCircleTappable ? Pressable : View;
@@ -2624,118 +3061,148 @@ export default function EventDetailScreen() {
                     }
                   : {};
                 return (
-                  <RowWrapper className="flex-row items-center" {...rowProps}>
+                  <RowWrapper className="flex-row items-center flex-1" {...rowProps}>
                     {event.isBusy ? (
-                      <Users size={20} color="#9CA3AF" />
+                      <Users size={16} color={colors.textTertiary} />
                     ) : event.visibility === "all_friends" ? (
-                      <Compass size={20} color="#9CA3AF" />
+                      <Compass size={16} color={colors.textTertiary} />
                     ) : event.visibility === "circle_only" ? (
-                      <Lock size={20} color="#9CA3AF" />
+                      <Lock size={16} color={colors.textTertiary} />
                     ) : event.visibility === "private" ? (
-                      <Lock size={20} color="#9CA3AF" />
+                      <Lock size={16} color={colors.textTertiary} />
                     ) : (
-                      <Users size={20} color="#9CA3AF" />
+                      <Users size={16} color={colors.textTertiary} />
                     )}
-                    <View className="ml-3 flex-1">
-                      <Text className="text-sm" style={{ color: colors.textTertiary }}>Visibility</Text>
-                      <Text className="font-semibold" style={{ color: colors.text }}>
-                        {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
-                      </Text>
-                    </View>
-                    {isCircleTappable && <ChevronRight size={16} color={colors.textTertiary} />}
+                    <Text style={{ fontSize: 13, marginLeft: 8, color: colors.textSecondary }}>
+                      {event.isBusy ? "Only self" : event.visibility === "all_friends" ? "All Friends" : event.visibility === "circle_only" ? (event.circleName ? `Circle: ${event.circleName}` : "Circle Only") : event.visibility === "private" ? "Private" : "Specific Groups"}
+                    </Text>
+                    {isCircleTappable && <ChevronRight size={14} color={colors.textTertiary} style={{ marginLeft: 4 }} />}
                   </RowWrapper>
                 );
               })()}
-
-              {/* Show tagged groups if visibility is specific_groups AND not a busy block */}
-              {!event.isBusy && event.visibility === "specific_groups" && event.groupVisibility && event.groupVisibility.length > 0 && (
-                <View className="mt-3 ml-8">
-                  <View className="flex-row flex-wrap">
-                    {event.groupVisibility.map((gv) => (
-                      <View
-                        key={gv.groupId}
-                        className="rounded-full px-3 py-1.5 mr-2 mb-2 flex-row items-center"
-                        style={{ backgroundColor: gv.group.color + "20" }}
-                      >
-                        <View
-                          className="w-2.5 h-2.5 rounded-full mr-1.5"
-                          style={{ backgroundColor: gv.group.color }}
-                        />
-                        <Text className="font-medium text-xs" style={{ color: gv.group.color }}>
-                          {gv.group.name}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
             </View>
-            )}
+          )}
 
-            {/* Spots (Capacity) */}
-            {eventMeta.capacity != null && (
-              <View className="py-3 border-t" style={{ borderColor: colors.border }}>
-                <View className="flex-row items-center">
-                  <Users size={20} color={eventMeta.isFull ? "#EF4444" : "#22C55E"} />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm" style={{ color: colors.textTertiary }}>Spots</Text>
-                    <Text className="font-semibold" style={{ color: eventMeta.isFull ? "#EF4444" : colors.text }}>
-                      {eventMeta.goingCount ?? 0} / {eventMeta.capacity} filled
+          {/* Spots (Capacity) */}
+          {eventMeta.capacity != null && (() => {
+            const goingNow = eventMeta.goingCount ?? 0;
+            const spotsRemaining = Math.max(0, eventMeta.capacity - goingNow);
+            const almostFull = !eventMeta.isFull && spotsRemaining > 0 && spotsRemaining <= 3;
+            return (
+              <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+                <Users size={16} color={eventMeta.isFull ? STATUS.destructive.fg : almostFull ? STATUS.soon.fg : STATUS.going.fg} />
+                <Text style={{ fontSize: 13, marginLeft: 8, color: eventMeta.isFull ? STATUS.destructive.fg : colors.textSecondary }}>
+                  {goingNow} / {eventMeta.capacity} spots
+                </Text>
+                {eventMeta.isFull ? (
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8, backgroundColor: STATUS.destructive.bgSoft }}>
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: STATUS.destructive.fg }}>Full</Text>
+                  </View>
+                ) : almostFull ? (
+                  <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginLeft: 8, backgroundColor: STATUS.soon.bgSoft }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: STATUS.soon.fg }}>
+                      {spotsRemaining} {spotsRemaining === 1 ? "spot" : "spots"} left
                     </Text>
                   </View>
-                  {eventMeta.isFull && (
-                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: "#EF444420" }}>
-                      <Text className="text-xs font-semibold" style={{ color: "#EF4444" }}>Full</Text>
-                    </View>
-                  )}
-                </View>
+                ) : null}
               </View>
-            )}
-          </View>
+            );
+          })()}
         </Animated.View>
 
-        {/* ═══ Host Block ═══ */}
-        {event.user && (
-          <Animated.View entering={FadeInDown.delay(80).springify()}>
-            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <View className="flex-row items-center">
-                <EntityAvatar
-                  photoUrl={event.user?.image}
-                  initials={event.user?.name?.[0] ?? "?"}
-                  size={44}
-                  backgroundColor={event.user?.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : (isDark ? "#2C2C2E" : "#FFF7ED")}
-                  foregroundColor={themeColor}
-                  style={{ marginRight: 12 }}
-                />
-                <View className="flex-1">
-                  <Text className="text-xs" style={{ color: colors.textTertiary }}>Hosted by</Text>
-                  <Text className="font-semibold" style={{ color: colors.text }}>
-                    {isMyEvent ? "You" : event.user?.name ?? event.user?.email ?? "Guest"}
-                  </Text>
-                </View>
+        {/* ═══ PITCH IN V1 — Payment handle display ═══ */}
+        {event?.pitchInEnabled && event?.pitchInHandle && (
+          <Animated.View entering={FadeInDown.delay(92).springify()} style={{ marginBottom: 14 }}>
+            <View style={{
+              borderTopWidth: 0.5,
+              borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              paddingTop: 14,
+            }}>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                <HandCoins size={16} color={themeColor} />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+                  {event.pitchInAmount ? "Suggested contribution" : "Optional contribution"}
+                </Text>
+                {event.pitchInAmount && (
+                  <View style={{
+                    marginLeft: 8,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 8,
+                    backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.08)",
+                  }}>
+                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#F59E0B" }}>
+                      {event.pitchInAmount}
+                    </Text>
+                  </View>
+                )}
               </View>
+              {event.pitchInNote && (
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 10, lineHeight: 18 }}>
+                  {event.pitchInNote}
+                </Text>
+              )}
+              {/* Handle display row */}
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 10,
+                paddingHorizontal: 14,
+                marginBottom: 10,
+                borderRadius: RADIUS.md,
+                backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+              }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+                  {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : "Send to"}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+                  {(event.pitchInMethod === "venmo" || event.pitchInMethod === "cashapp") ? "@" : ""}{event.pitchInHandle}
+                </Text>
+              </View>
+              {/* Copy handle CTA */}
+              <Pressable
+                onPress={async () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  const handle = (event.pitchInMethod === "venmo" || event.pitchInMethod === "cashapp") ? `@${event.pitchInHandle}` : event.pitchInHandle!;
+                  await Clipboard.setStringAsync(handle);
+                  safeToast.success("Copied to clipboard");
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  borderRadius: RADIUS.md,
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  borderWidth: 0.5,
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                }}
+              >
+                <Copy size={16} color={themeColor} />
+                <Text style={{ fontSize: 14, fontWeight: "600", color: themeColor, marginLeft: 8 }}>
+                  Copy handle
+                </Text>
+              </Pressable>
             </View>
           </Animated.View>
         )}
 
-        {/* ═══ Who's Coming / Social Proof ═══ */}
+        {/* ═══ Who's Coming / Social Proof (Task 4 — reduced card fatigue) ═══ */}
         {(() => {
           // 403 privacy denied: show privacy message
           if (attendeesPrivacyDenied) {
             return (
-              <Animated.View entering={FadeInDown.delay(90).springify()}>
-                <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  <View className="flex-row items-center mb-3">
-                    <Lock size={20} color="#9CA3AF" />
-                    <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+              <Animated.View entering={FadeInDown.delay(95).springify()}>
+                <View style={{ paddingVertical: 14, marginBottom: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Lock size={16} color="#9CA3AF" />
+                    <Text style={{ fontSize: 14, fontWeight: "600", marginLeft: 8, color: colors.text }}>
                       Who's Coming
                     </Text>
                   </View>
-                  <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                    <Text className="text-sm text-center" style={{ color: colors.textSecondary }}>
-                      Attendees visible to invited or going members
-                    </Text>
-                  </View>
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 6 }}>
+                    Attendees visible to invited or going members
+                  </Text>
                 </View>
               </Animated.View>
             );
@@ -2744,7 +3211,7 @@ export default function EventDetailScreen() {
           // Has attendees: show compact roster preview (1-row avatar stack)
           if (effectiveGoingCount > 0 || attendeesList.length > 0) {
             const STACK_MAX = 5;
-            const AVATAR_SIZE = 40;
+            const AVATAR_SIZE = 36;
             const OVERLAP = 10;
             const hostId = event?.user?.id;
             const hostInList = attendeesList.find(a => a.id === hostId);
@@ -2765,68 +3232,51 @@ export default function EventDetailScreen() {
             const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
 
             return (
-              <Animated.View entering={FadeInDown.delay(90).springify()}>
-                <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  {/* Header row: title + count + View all */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                      <UserCheck size={20} color="#22C55E" />
-                      <Text style={{ fontSize: 17, fontWeight: '600', marginLeft: 8, color: colors.text }}>
-                        Who's Coming
-                      </Text>
-                      <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 }}>
-                        <Text style={{ color: '#166534', fontSize: 12, fontWeight: '700' }}>
-                          {myRsvpStatus === "going" && effectiveGoingCount === 1
-                            ? "You\u2019re in"
-                            : myRsvpStatus === "going" && effectiveGoingCount > 1
-                            ? `You + ${effectiveGoingCount - 1} going`
-                            : effectiveGoingCount > 0
-                            ? `${effectiveGoingCount} going`
-                            : "Be the first"}
-                        </Text>
-                      </View>
-                    </View>
-                    <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        setShowAttendeesModal(true);
-                      }}
-                      hitSlop={8}
-                    >
-                      <Text style={{ color: themeColor, fontSize: 14, fontWeight: '500' }}>
-                        View all
-                      </Text>
-                    </Pressable>
-                  </View>
-
-                  {/* Compact avatar stack (1 row, overlapping) */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: 'row' }}>
+              <Animated.View entering={FadeInDown.delay(95).springify()}>
+                <Pressable
+                  testID="event-detail-whos-coming-open"
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setShowAttendeesModal(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingVertical: 14,
+                    marginBottom: 10,
+                    borderTopWidth: 0.5,
+                    borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  }}
+                >
+                  {/* Avatar stack */}
+                  <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                    <View style={{ width: stackWidth, height: AVATAR_SIZE, flexDirection: "row" }}>
                       {visibleAvatars.map((attendee, idx) => {
-                        const isHost = attendee.id === hostId || attendee.isHost;
+                        const isHostAvatar = attendee.id === hostId || attendee.isHost;
                         return (
                           <View
                             key={attendee.id}
                             style={{
-                              position: 'absolute',
+                              position: "absolute",
                               left: idx * (AVATAR_SIZE - OVERLAP),
                               width: AVATAR_SIZE,
                               height: AVATAR_SIZE,
                               borderRadius: AVATAR_SIZE / 2,
-                              backgroundColor: isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7',
-                              alignItems: 'center',
-                              justifyContent: 'center',
+                              backgroundColor: isHostAvatar ? (isDark ? "#3C2A1A" : "#FFF7ED") : "#DCFCE7",
+                              alignItems: "center",
+                              justifyContent: "center",
                               borderWidth: 2,
-                              borderColor: isHost ? (isDark ? '#92400E' : '#FDBA74') : '#BBF7D0',
+                              borderColor: isHostAvatar ? (isDark ? "#92400E" : "#FDBA74") : "#BBF7D0",
                               zIndex: visibleAvatars.length - idx,
                             }}
                           >
                             <EntityAvatar
                               photoUrl={attendee.imageUrl}
-                              initials={attendee.name?.[0] ?? '?'}
+                              initials={attendee.name?.[0] ?? "?"}
                               size={AVATAR_SIZE - 4}
-                              backgroundColor={isHost ? (isDark ? '#3C2A1A' : '#FFF7ED') : '#DCFCE7'}
-                              foregroundColor={isHost ? '#92400E' : '#166534'}
+                              backgroundColor={isHostAvatar ? (isDark ? "#3C2A1A" : "#FFF7ED") : "#DCFCE7"}
+                              foregroundColor={isHostAvatar ? "#92400E" : "#166534"}
                             />
                           </View>
                         );
@@ -2834,101 +3284,58 @@ export default function EventDetailScreen() {
                       {overflowCount > 0 && (
                         <View
                           style={{
-                            position: 'absolute',
+                            position: "absolute",
                             left: visibleAvatars.length * (AVATAR_SIZE - OVERLAP),
                             width: AVATAR_SIZE,
                             height: AVATAR_SIZE,
                             borderRadius: AVATAR_SIZE / 2,
-                            backgroundColor: isDark ? '#2C2C2E' : '#F3F4F6',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
+                            alignItems: "center",
+                            justifyContent: "center",
                             borderWidth: 2,
-                            borderColor: isDark ? '#3C3C3E' : '#E5E7EB',
+                            borderColor: isDark ? "#3C3C3E" : "#E5E7EB",
                           }}
                         >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>
+                          <Text style={{ fontSize: 10, fontWeight: "700", color: colors.textSecondary }}>
                             +{overflowCount}
                           </Text>
                         </View>
                       )}
                     </View>
-                    {/* Host label inline */}
-                    {event?.user && (
-                      <Text style={{ marginLeft: 12, fontSize: 13, color: colors.textTertiary }}>
-                        Hosted by {isMyEvent ? 'you' : event.user.name?.split(' ')[0] ?? 'Host'}
-                      </Text>
-                    )}
+                    <Text style={{ marginLeft: 10, fontSize: 13, fontWeight: "500", color: colors.textSecondary }}>
+                      {myRsvpStatus === "going" && effectiveGoingCount === 1
+                        ? "You\u2019re in"
+                        : myRsvpStatus === "going" && effectiveGoingCount > 1
+                        ? `You + ${effectiveGoingCount - 1} going`
+                        : `${effectiveGoingCount} going`}
+                    </Text>
                   </View>
-                </View>
+                  <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>View all</Text>
+                </Pressable>
               </Animated.View>
             );
           }
 
-          // No one coming yet - show placeholder
+          // No one coming yet - warm, inviting placeholder
           return (
-            <Animated.View entering={FadeInDown.delay(90).springify()}>
-              <View className="rounded-2xl p-5 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <View className="flex-row items-center mb-3">
-                  <UserCheck size={20} color="#9CA3AF" />
-                  <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
-                    Who's Coming
-                  </Text>
-                </View>
-
-                {/* Show the host */}
-                {event.user && (
-                  <View className="mb-3">
-                    <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>HOST</Text>
-                    <View className="flex-row items-center">
-                      <View className="rounded-full border-2" style={{ borderColor: isDark ? "#3C3C3E" : "#FDBA74" }}>
-                        <EntityAvatar
-                          photoUrl={event.user.image}
-                          initials={event.user.name?.[0] ?? "?"}
-                          size={40}
-                          backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
-                          foregroundColor={themeColor}
-                        />
-                      </View>
-                      <Text className="ml-3 font-medium" style={{ color: colors.text }}>
-                        {isMyEvent ? "You" : event.user.name ?? "Host"}
-                      </Text>
-                    </View>
+            <Animated.View entering={FadeInDown.delay(95).springify()}>
+              <View style={{ paddingVertical: 14, marginBottom: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <View style={{
+                    width: 28, height: 28, borderRadius: 14,
+                    alignItems: "center", justifyContent: "center",
+                    backgroundColor: STATUS.going.bgSoft,
+                  }}>
+                    <Users size={14} color={STATUS.going.fg} />
                   </View>
-                )}
-
-                <View className="rounded-xl p-4 items-center" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
-                  <Users size={24} color="#9CA3AF" />
-                  <Text className="text-sm mt-2 text-center" style={{ color: colors.textSecondary }}>
-                    No attendees yet
+                  <Text style={{ fontSize: 13, marginLeft: 8, color: colors.textSecondary }}>
+                    {isMyEvent ? "No one\u2019s joined yet \u2014 share to get the word out" : "Be the first to join this event"}
                   </Text>
                 </View>
               </View>
             </Animated.View>
           );
         })()}
-
-        {/* ═══ Description Block ═══ */}
-        {event.description && (
-          <Animated.View entering={FadeInDown.delay(95).springify()}>
-            <View className="rounded-2xl p-4 mb-3" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <Text className="text-xs mb-2" style={{ color: colors.textTertiary }}>About</Text>
-              <Text
-                className="leading-6"
-                style={{ color: colors.text }}
-                numberOfLines={descriptionExpanded ? undefined : 4}
-              >
-                {event.description}
-              </Text>
-              {event.description.length > 200 && (
-                <Pressable onPress={() => setDescriptionExpanded(!descriptionExpanded)} className="mt-2">
-                  <Text className="text-sm font-medium" style={{ color: themeColor }}>
-                    {descriptionExpanded ? "Show less" : "Read more"}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          </Animated.View>
-        )}
 
         {/* Interested Users Section */}
         {interests.length > 0 && (
@@ -3057,6 +3464,7 @@ export default function EventDetailScreen() {
               <View className="flex-row items-end">
                 <View className="flex-1 rounded-xl mr-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F9FAFB" }}>
                   <TextInput
+                    testID="event-detail-comment-input"
                     value={commentText}
                     onChangeText={setCommentText}
                     placeholder="Add a comment..."
@@ -3079,6 +3487,7 @@ export default function EventDetailScreen() {
                   )}
                 </Pressable>
                 <Pressable
+                  testID="event-detail-comment-submit"
                   onPress={handlePostComment}
                   disabled={createCommentMutation.isPending || isUploadingImage || (!commentText.trim() && !commentImage)}
                   className="w-10 h-10 rounded-full items-center justify-center"
@@ -3358,6 +3767,7 @@ export default function EventDetailScreen() {
                 {/* Post-event reflection toggle (host only) */}
                 {isMyEvent && !event.isBusy && (() => {
                   const reflectionEnabled = event.reflectionEnabled === true;
+                  if (__DEV__) devLog("[P0_EVENT_REFLECTION_DEFAULT]", "toggle_render", { raw: event.reflectionEnabled, resolved: reflectionEnabled, eventId: id });
                   return (
                     <View className="py-3 border-t" style={{ borderColor: colors.border }}>
                       <View className="flex-row items-center justify-between">
@@ -3373,6 +3783,7 @@ export default function EventDetailScreen() {
                           </View>
                         </View>
                         <Switch
+                          testID="event-detail-settings-reflection"
                           value={reflectionEnabled}
                           onValueChange={(value) => toggleReflectionMutation.mutate(value)}
                           trackColor={{ false: isDark ? "#3C3C3E" : "#E5E7EB", true: themeColor + "80" }}
@@ -3484,6 +3895,7 @@ export default function EventDetailScreen() {
           );
         })()}
 
+        </View>{/* close padded content wrapper */}
       </KeyboardAwareScrollView>
 
       {/* Calendar Sync Modal */}
@@ -3612,6 +4024,19 @@ export default function EventDetailScreen() {
         onCancel={() => setShowRemoveRsvpConfirm(false)}
       />
 
+      <ConfirmModal
+        visible={showDeleteEventConfirm}
+        title="Delete Event"
+        message="This will permanently delete the event for everyone. This can't be undone."
+        confirmText="Delete"
+        isDestructive
+        onConfirm={() => {
+          setShowDeleteEventConfirm(false);
+          deleteEventMutation.mutate();
+        }}
+        onCancel={() => setShowDeleteEventConfirm(false)}
+      />
+
       {/* Prompt arbitration: exactly one modal per RSVP success */}
       <FirstRsvpNudge
         visible={rsvpPromptChoice === "first_rsvp_nudge"}
@@ -3646,6 +4071,7 @@ export default function EventDetailScreen() {
                 {isMyEvent && !event?.isBusy && (
                   <>
                     <Pressable
+                      testID="event-detail-menu-edit"
                       className="flex-row items-center py-4"
                       style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
                       onPress={() => {
@@ -3755,6 +4181,28 @@ export default function EventDetailScreen() {
                       />
                     )}
                   </View>
+                </Pressable>
+                )}
+
+                {/* Delete Event - host-only destructive action */}
+                {isMyEvent && !event?.isBusy && (
+                <Pressable
+                  testID="event-detail-menu-delete"
+                  className="flex-row items-center py-4"
+                  style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                  onPress={() => {
+                    setShowEventActionsSheet(false);
+                    Haptics.selectionAsync();
+                    setTimeout(() => setShowDeleteEventConfirm(true), 350);
+                  }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                    style={{ backgroundColor: "rgba(239,68,68,0.12)" }}
+                  >
+                    <Trash2 size={20} color={STATUS.destructive.fg} />
+                  </View>
+                  <Text style={{ color: STATUS.destructive.fg, fontSize: 16, fontWeight: "500" }}>Delete Event</Text>
                 </Pressable>
                 )}
 
