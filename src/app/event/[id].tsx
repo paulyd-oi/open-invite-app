@@ -36,6 +36,7 @@ import {
   X,
   Calendar,
   ArrowRight,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -131,7 +132,8 @@ import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
-import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled } from "@/lib/liveActivity";
+import { InviteFlipCard } from "@/components/InviteFlipCard";
+import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
 // Accepts pre-computed query + optional event for lat/lng coords.
@@ -436,6 +438,7 @@ export default function EventDetailScreen() {
   const pickerLaunching = useRef(false);
   const [photoNudgeDismissed, setPhotoNudgeDismissed] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [showMemoriesExpanded, setShowMemoriesExpanded] = useState(false);
 
   // ── Shared photo-picker logic (used by nudge CTA + bottom sheet) ──
   const launchEventPhotoPicker = useCallback(async () => {
@@ -1348,13 +1351,33 @@ export default function EventDetailScreen() {
       invalidateEventKeys(queryClient, getInvalidateAfterRsvpJoin(id ?? ""), `rsvp_${status}`);
       setShowRsvpOptions(false);
 
-      // Live Activity: end if user un-RSVPs, update if still going
-      if (liveActivityActive && event) {
+      // [LIVE_ACTIVITY_V2] Auto-start on Going, end on un-RSVP, update otherwise
+      if (event && Platform.OS === "ios") {
         if (status === "not_going") {
-          endLiveActivity(event.id);
-          setLiveActivityActive(false);
-        } else {
-          updateLiveActivity({ eventId: event.id, rsvpStatus: status });
+          // End tracking if user un-RSVPs
+          if (liveActivityActive) {
+            await endLiveActivity(event.id);
+            setLiveActivityActive(false);
+          }
+        } else if (status === "going" && !liveActivityActive && liveActivitySupported && isEligibleForAutoStart(event)) {
+          // Auto-start on Going for eligible events
+          const ok = await startLiveActivity({
+            eventId: event.id,
+            eventTitle: event.title,
+            startTime: event.startTime,
+            locationName: locationDisplay,
+            rsvpStatus: "going",
+            emoji: event.emoji,
+            goingCount: effectiveGoingCount,
+          });
+          if (ok) setLiveActivityActive(true);
+        } else if (liveActivityActive) {
+          // Update existing activity with new RSVP status
+          updateLiveActivity({
+            eventId: event.id,
+            rsvpStatus: status,
+            goingCount: effectiveGoingCount,
+          });
         }
       }
       
@@ -2352,319 +2375,188 @@ export default function EventDetailScreen() {
   });
 
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
-      <Stack.Screen
-        options={{
-          title: event.title,
-          headerBackTitle: "Back",
-          headerStyle: { backgroundColor: colors.background },
-          headerRight: () => (
-            <Pressable
-              testID="event-detail-menu-open"
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowEventActionsSheet(true);
-              }}
-              className="p-2 mr-2"
-            >
-              <MoreHorizontal size={24} color={themeColor} />
-            </Pressable>
-          ),
-        }}
-      />
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top", "bottom"]}>
+      <Stack.Screen options={{ headerShown: false }} />
 
       <KeyboardAwareScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══ INVITATION HERO (Task 1) ═══ */}
-        <Animated.View entering={FadeInDown.springify()}>
-          {event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-            /* ── Photo hero: full-bleed cinematic invitation ── */
-            <View style={{ position: "relative" }}>
-              <View style={{ width: "100%", aspectRatio: 3 / 4, maxHeight: 480 }}>
-                <ExpoImage
-                  source={{ uri: toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_DETAIL) }}
-                  style={{ width: "100%", height: "100%" }}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  transition={200}
-                  priority="high"
-                />
-                {/* Cinematic 4-stop gradient — smooth mid-range protection for busy images */}
-                <LinearGradient
-                  colors={[...ET.heroGradientColors]}
-                  locations={[...ET.heroGradientLocations]}
-                  style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "85%" }}
-                />
-                {/* Overlaid invitation content — bottom-anchored with tight rhythm */}
-                <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 22, paddingBottom: 26 }}>
-                  {countdownLabel && (
-                    <View style={{
-                      alignSelf: "flex-start",
-                      backgroundColor: countdownLabel === "Happening now" ? "rgba(34,197,94,0.28)" : "rgba(255,255,255,0.14)",
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: 10,
-                      marginBottom: 12,
-                    }}>
-                      <Text style={{
-                        fontSize: 12,
-                        fontWeight: "600",
-                        color: countdownLabel === "Happening now" ? "#4ADE80" : "rgba(255,255,255,0.92)",
-                        letterSpacing: 0.2,
-                      }}>
-                        {countdownLabel}
-                      </Text>
-                    </View>
-                  )}
-                  <Text
-                    style={{
-                      color: "#FFFFFF",
-                      fontSize: 28,
-                      fontWeight: "800",
-                      lineHeight: 34,
-                      letterSpacing: -0.2,
-                      textShadowColor: "rgba(0,0,0,0.25)",
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 3,
-                    }}
-                    numberOfLines={2}
-                  >
-                    {event.emoji} {event.title}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-                    <Calendar size={14} color="rgba(255,255,255,0.8)" />
-                    <Text style={{
-                      color: "rgba(255,255,255,0.92)",
-                      fontSize: 14,
-                      fontWeight: "500",
-                      marginLeft: 6,
-                      textShadowColor: "rgba(0,0,0,0.2)",
-                      textShadowOffset: { width: 0, height: 1 },
-                      textShadowRadius: 2,
-                    }}>
-                      {dateLabel} · {timeLabel}
-                    </Text>
-                  </View>
-                  {locationDisplay && (
-                    <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                      }}
-                      style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}
-                    >
-                      <MapPin size={14} color="rgba(255,255,255,0.7)" />
-                      <Text style={{
-                        color: "rgba(255,255,255,0.82)",
-                        fontSize: 13,
-                        marginLeft: 6,
-                        textShadowColor: "rgba(0,0,0,0.2)",
-                        textShadowOffset: { width: 0, height: 1 },
-                        textShadowRadius: 2,
-                      }} numberOfLines={1}>
-                        {locationDisplay}
-                      </Text>
-                    </Pressable>
-                  )}
-                  {liveChipText && (
-                    <View style={{ backgroundColor: "rgba(255,255,255,0.12)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, alignSelf: "flex-start", marginTop: 8 }}>
-                      <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 11 }}>{liveChipText}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              {/* Floating edit button (host only) */}
-              {isMyEvent && (
-                <RNAnimated.View style={{ position: "absolute", top: editTop, right: 12, transform: [{ scale: editScale }] }}>
-                  <Pressable
-                    onPress={() => {
-                      if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
-                      RNAnimated.sequence([
-                        RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
-                        RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
-                      ]).start();
-                      setShowPhotoSheet(true);
-                    }}
-                    style={{
-                      borderRadius: 20,
-                      padding: 8,
-                      backgroundColor: "rgba(0,0,0,0.55)",
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.15)",
-                    }}
-                  >
-                    <Pencil size={16} color="#fff" />
-                  </Pressable>
-                </RNAnimated.View>
-              )}
+        {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
+        <View style={{ position: "relative", overflow: "hidden" }}>
+          {/* Ambient blurred background — cinematic atmosphere */}
+          {eventBannerUri && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
+              <ExpoImage
+                source={{ uri: toCloudinaryTransformedUrl(eventBannerUri, CLOUDINARY_PRESETS.AVATAR_THUMB) }}
+                style={{ width: "100%", height: "100%", opacity: isDark ? 0.7 : 0.55 }}
+                contentFit="cover"
+                blurRadius={70}
+                cachePolicy="memory-disk"
+              />
+              {/* Layered scrim: let color through, fade to page bg */}
+              <LinearGradient
+                colors={[
+                  isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)",
+                  isDark ? "rgba(0,0,0,0.15)" : "transparent",
+                  isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.03)",
+                  colors.background,
+                ]}
+                locations={[0, 0.25, 0.7, 1]}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+              />
             </View>
           ) : (
-            /* ── No-photo hero: atmospheric invitation poster ── */
-            <>
-              {isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed && (
-                <Pressable
-                  onPress={() => launchEventPhotoPicker()}
-                  className="flex-row items-center justify-center p-3 mx-4 mt-2"
-                  style={{ backgroundColor: isDark ? "#1C1C1E" : "#F9FAFB", borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", borderRadius: RADIUS.lg }}
-                >
-                  <Camera size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
-                  <Text className="text-sm ml-2" style={{ color: colors.textSecondary }}>Add a cover photo</Text>
-                  <Pressable
-                    onPress={async (e) => {
-                      e.stopPropagation();
-                      setPhotoNudgeDismissed(true);
-                      await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
-                    }}
-                    className="ml-auto p-1"
-                    hitSlop={8}
-                  >
-                    <X size={14} color={colors.textTertiary} />
-                  </Pressable>
-                </Pressable>
-              )}
-              <View style={{
-                paddingHorizontal: 24,
-                paddingTop: 48,
-                paddingBottom: 40,
-                alignItems: "center",
-                backgroundColor: ET.heroFallbackBg,
-                overflow: "hidden",
-              }}>
-                {/* Atmospheric wash gradient — invitation poster feel */}
-                <LinearGradient
-                  colors={[...ET.heroWashColors]}
-                  locations={[...ET.heroWashLocations]}
-                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: "100%" }}
-                />
-                <Text style={{ fontSize: 64 }}>{event.emoji}</Text>
-                <Text
-                  style={{
-                    fontSize: 26,
-                    fontWeight: "800",
-                    textAlign: "center",
-                    color: colors.text,
-                    marginTop: 18,
-                    letterSpacing: -0.2,
-                    lineHeight: 32,
-                  }}
-                  numberOfLines={2}
-                >
-                  {event.title}
-                </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 16 }}>
-                  <Calendar size={14} color={colors.textSecondary} />
-                  <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: "500", marginLeft: 6 }}>
-                    {dateLabel} · {timeLabel}
-                  </Text>
-                </View>
-                {locationDisplay && (
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      openEventLocation(locationQuery ?? locationDisplay, event, event.id);
-                    }}
-                    style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}
-                  >
-                    <MapPin size={14} color={colors.textTertiary} />
-                    <Text style={{ color: colors.textTertiary, fontSize: 13, marginLeft: 6 }} numberOfLines={1}>
-                      {locationDisplay}
-                    </Text>
-                  </Pressable>
-                )}
-                {countdownLabel && (
-                  <View style={{
-                    marginTop: 14,
-                    paddingHorizontal: 12,
-                    paddingVertical: 5,
-                    borderRadius: 10,
-                    backgroundColor: countdownLabel === "Happening now" ? STATUS.going.bgSoft : ET.chipTone,
-                  }}>
-                    <Text style={{
-                      fontSize: 12,
-                      fontWeight: "600",
-                      color: countdownLabel === "Happening now" ? STATUS.going.fg : colors.textSecondary,
-                      letterSpacing: 0.2,
-                    }}>
-                      {countdownLabel}
-                    </Text>
-                  </View>
-                )}
-                {liveChipText && (
-                  <View style={{ marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: ET.chipTone }}>
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
-                  </View>
-                )}
-              </View>
-            </>
+            /* No-photo: warmer gradient atmosphere */
+            <LinearGradient
+              colors={isDark
+                ? [`${themeColor}30`, `${themeColor}12`, colors.background]
+                : [`${themeColor}20`, `${themeColor}0A`, colors.background]
+              }
+              locations={[0, 0.4, 1]}
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+            />
           )}
-        </Animated.View>
 
-        {/* ═══ HOST + SOCIAL STRIP ═══ */}
-        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          {/* Nav bar — glass-effect over atmosphere */}
           <View style={{
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderBottomWidth: 0.5,
-            borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+            justifyContent: "space-between",
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            zIndex: 10,
           }}>
-            {/* Host avatar + name */}
-            {event.user && (
-              <Pressable
-                testID="event-detail-host-open"
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  if (isMyEvent) {
-                    router.push("/profile" as any);
-                  } else {
-                    router.push(`/user/${event.user!.id}` as any);
-                  }
-                }}
-                style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
-              >
-                <View style={{ borderRadius: 17, borderWidth: 1.5, borderColor: isDark ? "#92400E" : "#FDBA74" }}>
-                  <EntityAvatar
-                    photoUrl={event.user.image}
-                    initials={event.user.name?.[0] ?? "?"}
-                    size={30}
-                    backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
-                    foregroundColor="#92400E"
-                  />
-                </View>
-                <Text style={{ marginLeft: 8, fontSize: 14, fontWeight: "600", color: colors.text }}>
-                  {isMyEvent ? "You" : event.user.name?.split(" ")[0] ?? "Host"}
-                </Text>
-                <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>hosting</Text>
-              </Pressable>
-            )}
-            {/* Going count + visibility badge */}
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {effectiveGoingCount > 0 && (
-                <Pressable
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setShowAttendeesModal(true);
-                  }}
-                  style={{ flexDirection: "row", alignItems: "center" }}
-                >
-                  <View style={{
-                    backgroundColor: STATUS.going.bgSoft,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 10,
-                    borderWidth: 0.5,
-                    borderColor: STATUS.going.border,
-                  }}>
-                    <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "700" }}>
-                      {effectiveGoingCount} going
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
+            <Pressable
+              onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: eventBannerUri && event.eventPhotoUrl ? "rgba(0,0,0,0.3)" : "transparent",
+              }}
+            >
+              <ChevronLeft size={26} color={eventBannerUri && event.eventPhotoUrl ? "#FFFFFF" : colors.text} />
+            </Pressable>
+            <Pressable
+              testID="event-detail-menu-open"
+              onPress={() => {
+                Haptics.selectionAsync();
+                setShowEventActionsSheet(true);
+              }}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                alignItems: "center", justifyContent: "center",
+                backgroundColor: eventBannerUri && event.eventPhotoUrl ? "rgba(0,0,0,0.3)" : "transparent",
+              }}
+            >
+              <MoreHorizontal size={24} color={eventBannerUri && event.eventPhotoUrl ? "#FFFFFF" : colors.text} />
+            </Pressable>
+          </View>
+
+          {/* Floating invite card */}
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 4, paddingBottom: 20 }}>
+            <InviteFlipCard
+              title={event.title}
+              imageUri={
+                event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"
+                  ? toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_DETAIL)
+                  : null
+              }
+              emoji={event.emoji}
+              countdownLabel={countdownLabel}
+              dateLabel={dateLabel}
+              timeLabel={timeLabel}
+              locationDisplay={locationDisplay}
+              goingCount={effectiveGoingCount}
+              attendeeAvatars={(() => {
+                const hostId = event?.user?.id;
+                const hostInList = attendeesList.find((a: AttendeeInfo) => a.id === hostId);
+                const nonHost = attendeesList.filter((a: AttendeeInfo) => a.id !== hostId);
+                const ordered: AttendeeInfo[] = [...(hostInList ? [hostInList] : []), ...nonHost];
+                const hostFallback: AttendeeInfo | null = (!hostInList && event?.user)
+                  ? { id: event.user.id ?? "host", name: event.user.name ?? "Host", imageUrl: event.user.image ?? null, isHost: true }
+                  : null;
+                return (hostFallback ? [hostFallback, ...ordered] : ordered).slice(0, 4);
+              })()}
+              description={event.description ?? null}
+              hostName={event.user?.name ?? null}
+              hostImageUrl={event.user?.image ?? null}
+              isMyEvent={isMyEvent}
+              capacity={eventMeta.capacity}
+              currentGoing={effectiveGoingCount}
+              themeColor={themeColor}
+              isDark={isDark}
+              colors={colors}
+              heroFallbackBg={ET.heroFallbackBg}
+              heroWashColors={ET.heroWashColors}
+              heroWashLocations={ET.heroWashLocations}
+              editButton={
+                isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
+                  <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>
+                    <Pressable
+                      onPress={() => {
+                        if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
+                        RNAnimated.sequence([
+                          RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
+                          RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+                        ]).start();
+                        setShowPhotoSheet(true);
+                      }}
+                      style={{
+                        borderRadius: 20,
+                        padding: 8,
+                        backgroundColor: "rgba(0,0,0,0.55)",
+                        borderWidth: 1,
+                        borderColor: "rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <Pencil size={16} color="#fff" />
+                    </Pressable>
+                  </RNAnimated.View>
+                ) : undefined
+              }
+              photoNudge={
+                isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
+                  <Pressable
+                    onPress={() => launchEventPhotoPicker()}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 12,
+                      marginTop: 10,
+                      backgroundColor: isDark ? "rgba(28,28,30,0.8)" : "rgba(255,255,255,0.8)",
+                      borderWidth: 1,
+                      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                      borderStyle: "dashed",
+                      borderRadius: RADIUS.lg,
+                    }}
+                  >
+                    <Camera size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
+                    <Text style={{ fontSize: 14, marginLeft: 8, color: isDark ? "#9CA3AF" : colors.textSecondary }}>Add a cover photo</Text>
+                    <Pressable
+                      onPress={async (e) => {
+                        e.stopPropagation();
+                        setPhotoNudgeDismissed(true);
+                        await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
+                      }}
+                      style={{ marginLeft: "auto", padding: 4 }}
+                      hitSlop={8}
+                    >
+                      <X size={14} color={colors.textTertiary} />
+                    </Pressable>
+                  </Pressable>
+                ) : undefined
+              }
+            />
+          </Animated.View>
+        </View>
+
+        {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <EventVisibilityBadge
                 visibility={event.visibility}
                 circleId={event.circleId}
@@ -2674,12 +2566,27 @@ export default function EventDetailScreen() {
                 surface="event_detail"
                 isDark={isDark}
               />
+              {liveChipText && (
+                <View style={{ marginLeft: 8, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: ET.chipTone }}>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
+                </View>
+              )}
             </View>
+            {/* Share button */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (event) shareEvent({ ...event, location: locationDisplay ?? null });
+              }}
+              style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
+            >
+              <Share2 size={18} color={colors.textSecondary} />
+            </Pressable>
           </View>
         </Animated.View>
 
-        {/* ═══ Padded content below hero + strip ═══ */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
+        {/* ═══ Padded content — RSVP + utility below ═══ */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
@@ -2969,7 +2876,7 @@ export default function EventDetailScreen() {
           </Animated.View>
         )}
 
-        {/* ═══ HOST TOOLS V1 — host-only command center ═══ */}
+        {/* ═══ HOST TOOLS V2 — turnout tools + host guidance ═══ */}
         {isMyEvent && !event?.isBusy && (() => {
           const pendingRequests = (event?.joinRequests ?? []).filter((r) => r.status === "pending").length;
           const spotsLeft = eventMeta.capacity != null ? Math.max(0, eventMeta.capacity - effectiveGoingCount) : null;
@@ -2977,6 +2884,83 @@ export default function EventDetailScreen() {
           const bringItems = event?.bringListItems ?? [];
           const bringClaimed = bringItems.filter((i) => !!i.claimedByUserId).length;
           const hasPitchIn = event?.pitchInEnabled && event?.pitchInHandle;
+
+          // ── Turnout state logic ──
+          const startMs = new Date(event.startTime).getTime();
+          const now = Date.now();
+          const hoursUntil = (startMs - now) / (1000 * 60 * 60);
+          const startsSoon = hoursUntil > 0 && hoursUntil <= 4;
+          const hasStarted = hoursUntil <= 0;
+
+          type TurnoutState = { label: string; tone: "going" | "soon" | "warning" | "neutral" };
+          let turnout: TurnoutState;
+          if (eventMeta.isFull) {
+            turnout = { label: "Full", tone: "going" };
+          } else if (spotsLeft !== null && spotsLeft <= 3 && spotsLeft > 0) {
+            turnout = { label: "Nearly full", tone: "going" };
+          } else if (effectiveGoingCount >= 5) {
+            turnout = { label: "Looking good", tone: "going" };
+          } else if (startsSoon && effectiveGoingCount < 3) {
+            turnout = { label: "Needs a boost", tone: "warning" };
+          } else if (effectiveGoingCount < 3) {
+            turnout = { label: "Getting started", tone: "neutral" };
+          } else {
+            turnout = { label: "Building up", tone: "neutral" };
+          }
+
+          const turnoutColor = turnout.tone === "going" ? STATUS.going.fg
+            : turnout.tone === "soon" ? STATUS.soon.fg
+            : turnout.tone === "warning" ? STATUS.soon.fg
+            : colors.textSecondary;
+          const turnoutBg = turnout.tone === "going" ? STATUS.going.bgSoft
+            : turnout.tone === "soon" ? STATUS.soon.bgSoft
+            : turnout.tone === "warning" ? STATUS.soon.bgSoft
+            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)");
+
+          // ── Next best action logic — one nudge at a time ──
+          let nextAction: { text: string; actionLabel?: string; action?: () => void } | null = null;
+
+          if (hasStarted) {
+            // Event already started — no turnout nudge
+            nextAction = null;
+          } else if (effectiveGoingCount < 3 && startsSoon) {
+            nextAction = {
+              text: "Event starts soon — share to rally the group",
+              actionLabel: "Share",
+              action: () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
+                shareEvent({ ...event, location: locationDisplay ?? null });
+              },
+            };
+          } else if (effectiveGoingCount < 3) {
+            nextAction = {
+              text: "Share your event to get the group together",
+              actionLabel: "Share",
+              action: () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
+                shareEvent({ ...event, location: locationDisplay ?? null });
+              },
+            };
+          } else if (startsSoon && effectiveGoingCount >= 3 && effectiveGoingCount < 10) {
+            nextAction = {
+              text: "Event starts soon — send a quick reminder",
+            };
+          } else if (hasBringList && bringClaimed < bringItems.length && bringItems.length - bringClaimed >= 2) {
+            nextAction = {
+              text: `${bringItems.length - bringClaimed} items still unclaimed — remind guests to help`,
+            };
+          } else if (eventMeta.isFull) {
+            nextAction = { text: "You\u2019re full — looking great" };
+          }
+
+          // ── Build reminder text ──
+          const eventTitle = event.title ?? "the event";
+          const eventLink = getEventUniversalLink(event.id);
+          const reminderText = startsSoon
+            ? `Hey \u2014 ${eventTitle} starts soon! Come through: ${eventLink}`
+            : `${eventTitle} is coming up soon. You in? ${eventLink}`;
 
           return (
             <Animated.View entering={FadeInDown.delay(87).springify()} style={{ marginBottom: 14 }}>
@@ -2992,31 +2976,63 @@ export default function EventDetailScreen() {
                   Host tools
                 </Text>
 
-                {/* ── Summary row ── */}
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Users size={13} color={STATUS.going.fg} />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 4 }}>
+                {/* ── Turnout status row ── */}
+                <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  {/* Turnout badge */}
+                  <View style={{
+                    flexDirection: "row", alignItems: "center",
+                    backgroundColor: turnoutBg,
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+                  }}>
+                    <Users size={12} color={turnoutColor} />
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: turnoutColor, marginLeft: 4 }}>
                       {effectiveGoingCount} going
                     </Text>
+                    <Text style={{ fontSize: 12, color: turnoutColor, marginLeft: 2 }}>
+                      {" \u00B7 "}{turnout.label}
+                    </Text>
                   </View>
-                  {spotsLeft !== null && (
-                    <Text style={{ fontSize: 13, color: eventMeta.isFull ? STATUS.destructive.fg : colors.textSecondary }}>
-                      {eventMeta.isFull ? "Full" : `${spotsLeft} spots left`}
+                  {spotsLeft !== null && !eventMeta.isFull && (
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                      {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
                     </Text>
                   )}
                   {pendingRequests > 0 && (
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS.soon.fg, marginRight: 4 }} />
-                      <Text style={{ fontSize: 13, fontWeight: "600", color: STATUS.soon.fg }}>
+                      <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg }}>
                         {pendingRequests} pending
                       </Text>
                     </View>
                   )}
                 </View>
 
+                {/* ── Next best action nudge ── */}
+                {nextAction && (
+                  <View style={{
+                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+                    backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.025)",
+                    borderRadius: RADIUS.md, padding: 10, marginBottom: 14,
+                  }}>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1, lineHeight: 16 }} numberOfLines={2}>
+                      {nextAction.text}
+                    </Text>
+                    {nextAction.actionLabel && nextAction.action && (
+                      <Pressable
+                        onPress={nextAction.action}
+                        style={{
+                          marginLeft: 10, paddingHorizontal: 12, paddingVertical: 6,
+                          borderRadius: RADIUS.sm, backgroundColor: themeColor,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: "#FFFFFF" }}>{nextAction.actionLabel}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+
                 {/* ── Quick actions ── */}
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: (hasBringList || hasPitchIn || effectiveGoingCount < 5) ? 14 : 0 }}>
+                <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
                   {/* Share */}
                   <Pressable
                     onPress={() => {
@@ -3033,12 +3049,12 @@ export default function EventDetailScreen() {
                     <Share2 size={14} color="#FFFFFF" />
                     <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
                   </Pressable>
-                  {/* Copy link */}
+                  {/* Copy reminder */}
                   <Pressable
                     onPress={async () => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      await Clipboard.setStringAsync(getEventUniversalLink(event.id));
-                      safeToast.success("Link copied");
+                      try { await Clipboard.setStringAsync(reminderText); } catch {}
+                      safeToast.success("Reminder copied");
                     }}
                     style={{
                       flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -3047,7 +3063,7 @@ export default function EventDetailScreen() {
                     }}
                   >
                     <Copy size={14} color={colors.text} />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Copy link</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Reminder</Text>
                   </Pressable>
                   {/* Edit */}
                   <Pressable
@@ -3066,6 +3082,19 @@ export default function EventDetailScreen() {
                   </Pressable>
                 </View>
 
+                {/* ── Copy link (secondary) ── */}
+                <Pressable
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    try { await Clipboard.setStringAsync(getEventUniversalLink(event.id)); } catch {}
+                    safeToast.success("Link copied");
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 4, marginBottom: 6 }}
+                >
+                  <Copy size={12} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>Copy event link</Text>
+                </Pressable>
+
                 {/* ── Coordination summaries ── */}
                 {hasBringList && (
                   <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
@@ -3083,93 +3112,19 @@ export default function EventDetailScreen() {
                     </Text>
                   </View>
                 )}
-
-                {/* ── Low-attendance nudge (integrated) ── */}
-                {effectiveGoingCount < 5 && (
-                  <View style={{ marginTop: 4, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
-                    <Text style={{ fontSize: 12, color: colors.textTertiary, lineHeight: 16 }}>
-                      {effectiveGoingCount <= 1
-                        ? "Share your event to get the group together."
-                        : `${effectiveGoingCount - 1} going so far — share to bring more.`}
-                    </Text>
-                  </View>
-                )}
               </View>
             </Animated.View>
           );
         })()}
 
-        {/* ═══ LIVE ACTIVITY CTA (iOS only) ═══ */}
-        {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
-          const startMs = new Date(event.startTime).getTime();
-          const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
-          const now = Date.now();
-          const startsWithin4h = startMs - now < 4 * 3600000;
-          const hasEnded = now > endMs;
-          // Show if event starts within 4h and hasn't ended
-          if (!startsWithin4h || hasEnded) return null;
-          return (
-            <Animated.View entering={FadeInDown.delay(92).springify()} style={{ marginBottom: 14 }}>
-              <Pressable
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (liveActivityActive) {
-                    await endLiveActivity(event.id);
-                    setLiveActivityActive(false);
-                  } else {
-                    const ok = await startLiveActivity({
-                      eventId: event.id,
-                      eventTitle: event.title,
-                      startTime: event.startTime,
-                      locationName: locationDisplay,
-                      rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
-                    });
-                    if (ok) setLiveActivityActive(true);
-                    else safeToast.error("Couldn't start", "Check Live Activities in Settings");
-                  }
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  padding: 14,
-                  borderRadius: RADIUS.lg,
-                  backgroundColor: liveActivityActive
-                    ? (isDark ? "#1C2520" : "#F0FDF4")
-                    : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)"),
-                  borderWidth: 0.5,
-                  borderColor: liveActivityActive
-                    ? STATUS.going.border
-                    : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
-                }}
-              >
-                <View style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  alignItems: "center", justifyContent: "center",
-                  backgroundColor: liveActivityActive ? `${STATUS.going.fg}18` : `${themeColor}18`,
-                }}>
-                  <Bell size={16} color={liveActivityActive ? STATUS.going.fg : themeColor} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
-                    {liveActivityActive ? "Tracking on Lock Screen" : "Track on Lock Screen"}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }}>
-                    {liveActivityActive ? "Tap to stop Live Activity" : "See countdown on your Lock Screen"}
-                  </Text>
-                </View>
-                {liveActivityActive ? (
-                  <X size={16} color={colors.textTertiary} />
-                ) : (
-                  <ChevronRight size={16} color={colors.textTertiary} />
-                )}
-              </Pressable>
-            </Animated.View>
-          );
-        })()}
+        {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
         {/* ═══ DESCRIPTION / VIBE ═══ */}
         {event.description && (
           <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginTop: 2, marginBottom: 18 }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 6, textTransform: "uppercase" }}>
+              Description
+            </Text>
             <Text
               style={{ fontSize: 15, lineHeight: 23, color: colors.text, letterSpacing: 0.1 }}
               numberOfLines={descriptionExpanded ? undefined : 4}
@@ -3208,7 +3163,10 @@ export default function EventDetailScreen() {
               }}
             >
               <Compass size={16} color="#14B8A6" />
-              <Text style={{ flex: 1, marginLeft: 10, fontSize: 13, fontWeight: "500", color: "#14B8A6" }}>Get Directions</Text>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }} numberOfLines={1}>{locationDisplay}</Text>
+                <Text style={{ fontSize: 11, color: "#14B8A6", marginTop: 1 }}>Open in Maps</Text>
+              </View>
               <ArrowRight size={14} color="#14B8A6" />
             </Pressable>
           )}
@@ -3294,17 +3252,9 @@ export default function EventDetailScreen() {
                   {event.pitchInAmount ? "Suggested contribution" : "Optional contribution"}
                 </Text>
                 {event.pitchInAmount && (
-                  <View style={{
-                    marginLeft: 8,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 8,
-                    backgroundColor: isDark ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.08)",
-                  }}>
-                    <Text style={{ fontSize: 11, fontWeight: "600", color: "#F59E0B" }}>
-                      {event.pitchInAmount}
-                    </Text>
-                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: "600", color: colors.textSecondary, marginLeft: 6 }}>
+                    {/^[\$€£¥]/.test(event.pitchInAmount) ? event.pitchInAmount : `$${event.pitchInAmount}`}
+                  </Text>
                 )}
               </View>
               {event.pitchInNote && (
@@ -3312,47 +3262,42 @@ export default function EventDetailScreen() {
                   {event.pitchInNote}
                 </Text>
               )}
-              {/* Handle display row */}
+              {/* Handle display row with inline copy pill */}
               <View style={{
                 flexDirection: "row",
                 alignItems: "center",
                 paddingVertical: 10,
                 paddingHorizontal: 14,
-                marginBottom: 10,
                 borderRadius: RADIUS.md,
                 backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
               }}>
                 <Text style={{ fontSize: 13, color: colors.textSecondary }}>
                   {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : "Send to"}
                 </Text>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginLeft: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text, marginLeft: 8, flex: 1 }} numberOfLines={1}>
                   {(event.pitchInMethod === "venmo" || event.pitchInMethod === "cashapp") ? "@" : ""}{event.pitchInHandle}
                 </Text>
+                <Pressable
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const handle = (event.pitchInMethod === "venmo" || event.pitchInMethod === "cashapp") ? `@${event.pitchInHandle}` : event.pitchInHandle!;
+                    try { await Clipboard.setStringAsync(handle); } catch {}
+                    safeToast.success("Copied to clipboard");
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginLeft: 8,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 10,
+                    backgroundColor: `${themeColor}14`,
+                  }}
+                >
+                  <Copy size={12} color={themeColor} />
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: themeColor, marginLeft: 4 }}>Copy</Text>
+                </Pressable>
               </View>
-              {/* Copy handle CTA */}
-              <Pressable
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  const handle = (event.pitchInMethod === "venmo" || event.pitchInMethod === "cashapp") ? `@${event.pitchInHandle}` : event.pitchInHandle!;
-                  await Clipboard.setStringAsync(handle);
-                  safeToast.success("Copied to clipboard");
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingVertical: 12,
-                  borderRadius: RADIUS.md,
-                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                  borderWidth: 0.5,
-                  borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                }}
-              >
-                <Copy size={16} color={themeColor} />
-                <Text style={{ fontSize: 14, fontWeight: "600", color: themeColor, marginLeft: 8 }}>
-                  Copy handle
-                </Text>
-              </Pressable>
             </View>
           </Animated.View>
         )}
@@ -3910,15 +3855,88 @@ export default function EventDetailScreen() {
           </View>
         </Animated.View>
 
-        {/* ═══ [EVENT_LIVE_UI] Photo Memories — above settings ═══ */}
-        <Animated.View entering={FadeInDown.delay(130).springify()}>
-          <EventPhotoGallery
-            eventId={event.id}
-            eventTitle={event.title}
-            eventTime={startDate}
-            isOwner={isMyEvent}
-          />
-        </Animated.View>
+        {/* ═══ V4.1 Compact Memories Row — low-emphasis, expandable ═══ */}
+        {(() => {
+          const memoriesPhotos: { imageUrl: string }[] =
+            (queryClient.getQueryData(eventKeys.photos(event.id)) as any)?.photos ?? [];
+          const hasMemories = memoriesPhotos.length > 0;
+          const isPastForMemories = startDate < new Date();
+
+          // 0 photos AND event hasn't happened yet → hide entirely
+          if (!hasMemories && !isPastForMemories) return null;
+
+          return (
+            <Animated.View entering={FadeInDown.delay(130).springify()}>
+              {showMemoriesExpanded ? (
+                <EventPhotoGallery
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  eventTime={startDate}
+                  isOwner={isMyEvent}
+                />
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setShowMemoriesExpanded(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    marginBottom: 10,
+                    borderTopWidth: 0.5,
+                    borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                  }}
+                >
+                  {/* Thumbnail preview (first photo or camera icon) */}
+                  {hasMemories && memoriesPhotos[0]?.imageUrl ? (
+                    <View style={{ width: 36, height: 36, borderRadius: 10, overflow: "hidden", marginRight: 12 }}>
+                      <ExpoImage
+                        source={{ uri: toCloudinaryTransformedUrl(memoriesPhotos[0].imageUrl, CLOUDINARY_PRESETS.AVATAR_THUMB) }}
+                        style={{ width: 36, height: 36 }}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    </View>
+                  ) : (
+                    <View style={{
+                      width: 36, height: 36, borderRadius: 10, marginRight: 12,
+                      alignItems: "center", justifyContent: "center",
+                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                    }}>
+                      <Camera size={16} color={colors.textTertiary} />
+                    </View>
+                  )}
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }}>
+                      {hasMemories ? "Memories" : "Add memories"}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 1 }}>
+                      {hasMemories
+                        ? `${memoriesPhotos.length} photo${memoriesPhotos.length !== 1 ? "s" : ""}`
+                        : "Share moments from this event"}
+                    </Text>
+                  </View>
+
+                  {hasMemories && (
+                    <View style={{
+                      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                      backgroundColor: `${themeColor}14`,
+                      marginRight: 4,
+                    }}>
+                      <Text style={{ fontSize: 11, fontWeight: "700", color: themeColor }}>
+                        {memoriesPhotos.length}
+                      </Text>
+                    </View>
+                  )}
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                </Pressable>
+              )}
+            </Animated.View>
+          );
+        })()}
 
         {/* ═══ [EVENT_LIVE_UI] Collapsed Event Settings ═══ */}
         <Animated.View entering={FadeInDown.delay(140).springify()}>
@@ -4416,6 +4434,60 @@ export default function EventDetailScreen() {
                     <Text style={{ color: colors.text, fontSize: 16 }}>Share Event</Text>
                   </Pressable>
                 )}
+
+                {/* Lock Screen Updates — iOS live activity toggle */}
+                {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
+                  const startMs = new Date(event.startTime).getTime();
+                  const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+                  const now = Date.now();
+                  const startsWithin4h = startMs - now < 4 * 3600000;
+                  const hasEnded = now > endMs;
+                  if (!startsWithin4h || hasEnded) return null;
+                  return (
+                    <Pressable
+                      className="flex-row items-center py-4"
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      onPress={async () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        if (liveActivityActive) {
+                          await endLiveActivity(event.id);
+                          setLiveActivityActive(false);
+                          safeToast.success("Stopped", "Lock Screen updates off");
+                        } else {
+                          const ok = await startLiveActivity({
+                            eventId: event.id,
+                            eventTitle: event.title,
+                            startTime: event.startTime,
+                            locationName: locationDisplay,
+                            rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
+                            emoji: event.emoji,
+                            goingCount: effectiveGoingCount,
+                          });
+                          if (ok) {
+                            setLiveActivityActive(true);
+                            safeToast.success("Started", "Tracking on Lock Screen");
+                          } else {
+                            safeToast.error("Couldn't start", "Check Live Activities in Settings");
+                          }
+                        }
+                        setShowEventActionsSheet(false);
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                        style={{ backgroundColor: liveActivityActive ? `${STATUS.going.fg}12` : (isDark ? "#2C2C2E" : "#F3F4F6") }}
+                      >
+                        <Bell size={20} color={liveActivityActive ? STATUS.going.fg : themeColor} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: 16 }}>Lock Screen Updates</Text>
+                        <Text style={{ color: liveActivityActive ? STATUS.going.fg : colors.textTertiary, fontSize: 12, marginTop: 1 }}>
+                          {liveActivityActive ? "On — tracking countdown" : "Off — tap to start"}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })()}
 
                 {/* Report - only for non-owners, non-busy */}
                 {!isMyEvent && !event?.isBusy && (
