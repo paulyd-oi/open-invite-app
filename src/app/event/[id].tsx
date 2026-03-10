@@ -4422,29 +4422,30 @@ export default function EventDetailScreen() {
                   </Pressable>
                 )}
 
-                {/* Lock Screen Updates — iOS live activity toggle (always visible when eligible, actionable within 4h) */}
-                {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
+                {/* Lock Screen Updates — iOS live activity toggle (always visible on iOS for eligible events) */}
+                {Platform.OS === "ios" && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
                   const startMs = new Date(event.startTime).getTime();
                   const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
                   const now = Date.now();
-                  const startsWithin4h = startMs - now < 4 * 3600000;
                   const hasEnded = now > endMs;
-                  // Hide only if event already ended
                   if (hasEnded) return null;
-                  // Actionable when within 4h window; passive otherwise
-                  const isActionable = startsWithin4h;
+                  const startsWithin4h = startMs - now < 4 * 3600000;
+                  // Can toggle = native module available + within 4h window
+                  const canToggle = liveActivitySupported && startsWithin4h;
                   const subtitle = liveActivityActive
                     ? "On — tracking countdown"
-                    : isActionable
+                    : canToggle
                       ? "Off — tap to start"
-                      : "Available closer to event start";
+                      : !liveActivitySupported
+                        ? "Requires latest app update"
+                        : "Available closer to event start";
                   return (
                     <Pressable
                       className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border, opacity: isActionable ? 1 : 0.55 }}
-                      disabled={!isActionable}
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border, opacity: canToggle || liveActivityActive ? 1 : 0.55 }}
+                      disabled={!canToggle && !liveActivityActive}
                       onPress={async () => {
-                        if (!isActionable) return;
+                        if (!canToggle && !liveActivityActive) return;
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         if (liveActivityActive) {
                           await endLiveActivity(event.id);
