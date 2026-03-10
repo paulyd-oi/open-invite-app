@@ -793,7 +793,7 @@ export default function DiscoverScreen() {
                           })}
                         >
                           <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", letterSpacing: 0.2 }}>
-                            View Event
+                            View Details
                           </Text>
                         </Pressable>
                       </View>

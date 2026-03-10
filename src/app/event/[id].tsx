@@ -4435,19 +4435,29 @@ export default function EventDetailScreen() {
                   </Pressable>
                 )}
 
-                {/* Lock Screen Updates — iOS live activity toggle */}
+                {/* Lock Screen Updates — iOS live activity toggle (always visible when eligible, actionable within 4h) */}
                 {Platform.OS === "ios" && liveActivitySupported && !event?.isBusy && (isMyEvent || myRsvpStatus === "going") && (() => {
                   const startMs = new Date(event.startTime).getTime();
                   const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
                   const now = Date.now();
                   const startsWithin4h = startMs - now < 4 * 3600000;
                   const hasEnded = now > endMs;
-                  if (!startsWithin4h || hasEnded) return null;
+                  // Hide only if event already ended
+                  if (hasEnded) return null;
+                  // Actionable when within 4h window; passive otherwise
+                  const isActionable = startsWithin4h;
+                  const subtitle = liveActivityActive
+                    ? "On — tracking countdown"
+                    : isActionable
+                      ? "Off — tap to start"
+                      : "Available closer to event start";
                   return (
                     <Pressable
                       className="flex-row items-center py-4"
-                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+                      style={{ borderBottomWidth: 1, borderBottomColor: colors.border, opacity: isActionable ? 1 : 0.55 }}
+                      disabled={!isActionable}
                       onPress={async () => {
+                        if (!isActionable) return;
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         if (liveActivityActive) {
                           await endLiveActivity(event.id);
@@ -4482,7 +4492,7 @@ export default function EventDetailScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.text, fontSize: 16 }}>Lock Screen Updates</Text>
                         <Text style={{ color: liveActivityActive ? STATUS.going.fg : colors.textTertiary, fontSize: 12, marginTop: 1 }}>
-                          {liveActivityActive ? "On — tracking countdown" : "Off — tap to start"}
+                          {subtitle}
                         </Text>
                       </View>
                     </Pressable>
