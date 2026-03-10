@@ -87,7 +87,6 @@ import { OnboardingGuideOverlay } from "@/components/OnboardingGuideOverlay";
 import { FriendsActivityPane } from "@/components/friends/FriendsActivityPane";
 import { FriendsChatsPane } from "@/components/friends/FriendsChatsPane";
 import { FriendsPeoplePane } from "@/components/friends/FriendsPeoplePane";
-import { useHydrateCirclePreviews } from "@/lib/useHydrateCirclePreviews";
 import {
   type GetFriendRequestsResponse,
   type Friendship,
@@ -1023,9 +1022,6 @@ export default function FriendsScreen() {
       return bTime > aTime ? 1 : bTime < aTime ? -1 : 0;
     });
   }, [circlesRaw]);
-
-  // [P0_PREVIEW_HYDRATE] Hydrate latest message text for inbox previews on cold load
-  useHydrateCirclePreviews(circles);
 
   // [P0_CIRCLE_LIST_REFRESH] SSOT: circle invalidation now handled by useLiveRefreshContract
   // (Removed duplicate useFocusEffect — refetchCircles is in refetchFns below)
