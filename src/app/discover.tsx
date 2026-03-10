@@ -594,6 +594,37 @@ export default function DiscoverScreen() {
                         ...tileShadow,
                       }}
                     >
+                      {/* Save toggle — plain View overlay on card (not function-form Pressable) */}
+                      <Pressable
+                        testID="discover-card-save"
+                        disabled={saved || saveMutation.isPending}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          saveMutation.mutate(event.id);
+                        }}
+                        hitSlop={10}
+                        style={{
+                          position: "absolute",
+                          top: 10,
+                          right: 10,
+                          zIndex: 999,
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
+                          borderWidth: saved ? 1.5 : 0,
+                          borderColor: saved ? STATUS.interested.fg : "transparent",
+                          opacity: saveMutation.isPending ? 0.5 : 1,
+                        }}
+                      >
+                        <Heart
+                          size={18}
+                          color={saved ? STATUS.interested.fg : "#FFFFFF"}
+                        />
+                      </Pressable>
+
                       {/* Hero image */}
                       <Pressable testID="discover-card-open" onPress={() => handleEventPress(event.id)}>
                         <View style={{ aspectRatio: 4 / 3 }}>
@@ -625,37 +656,6 @@ export default function DiscoverScreen() {
                             locations={[...HERO_GRADIENT.locations]}
                             style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%" }}
                           />
-
-                          {/* Save toggle — lightweight overlay, top-right */}
-                          <Pressable
-                            testID="discover-card-save"
-                            disabled={saved || saveMutation.isPending}
-                            onPress={(e) => {
-                              e.stopPropagation?.();
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                              saveMutation.mutate(event.id);
-                            }}
-                            style={({ pressed }) => ({
-                              position: "absolute",
-                              top: 10,
-                              right: 10,
-                              width: 38,
-                              height: 38,
-                              borderRadius: 19,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
-                              borderWidth: saved ? 1.5 : 0,
-                              borderColor: saved ? STATUS.interested.fg : "transparent",
-                              opacity: saveMutation.isPending ? 0.5 : pressed ? 0.65 : 1,
-                            })}
-                            hitSlop={10}
-                          >
-                            <Heart
-                              size={18}
-                              color={saved ? STATUS.interested.fg : "#FFFFFF"}
-                            />
-                          </Pressable>
 
                           {/* Overlay content */}
                           <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
@@ -777,23 +777,22 @@ export default function DiscoverScreen() {
                         </View>
                       </Pressable>
 
-                      {/* CTA row — single centered primary action */}
+                      {/* CTA row — TEMP: bright green proof (plain object style, not function-form) */}
                       <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
                         <Pressable
                           testID="discover-card-view"
                           onPress={() => handleEventPress(event.id)}
-                          style={({ pressed }) => ({
+                          style={{
                             width: "100%",
                             alignItems: "center",
                             justifyContent: "center",
                             paddingVertical: 12,
                             borderRadius: RADIUS.lg,
-                            backgroundColor: themeColor,
-                            opacity: pressed ? 0.85 : 1,
-                          })}
+                            backgroundColor: "#00CC00",
+                          }}
                         >
-                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", letterSpacing: 0.2 }}>
-                            View Details
+                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "900", letterSpacing: 0.2 }}>
+                            PROOF: VIEW EVENT
                           </Text>
                         </Pressable>
                       </View>
