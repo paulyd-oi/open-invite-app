@@ -33,13 +33,13 @@ function formatDateSeparator(dateStr: string): string {
 }
 
 // -- Parse __system:event_created:{JSON} payload from message content --
-function parseSystemEventPayload(content: string): { eventId: string; title: string; startTime: string; hostId: string } | null {
+function parseSystemEventPayload(content: string): { eventId: string; title: string; startTime: string; endTime?: string; hostId: string } | null {
   const PREFIX = "__system:event_created:";
   if (!content.startsWith(PREFIX)) return null;
   try {
     const raw = JSON.parse(content.slice(PREFIX.length));
     if (raw && typeof raw.eventId === "string" && typeof raw.title === "string" && typeof raw.startTime === "string" && typeof raw.hostId === "string") {
-      return { eventId: raw.eventId, title: raw.title, startTime: raw.startTime, hostId: raw.hostId };
+      return { eventId: raw.eventId, title: raw.title, startTime: raw.startTime, endTime: typeof raw.endTime === "string" ? raw.endTime : undefined, hostId: raw.hostId };
     }
   } catch { /* malformed JSON — fall through */ }
   return null;
@@ -102,8 +102,12 @@ function MessageBubble({
   // Rich event card for __system:event_created messages
   if (systemEventPayload) {
     const d = new Date(systemEventPayload.startTime);
+    const endTime = systemEventPayload.endTime ? new Date(systemEventPayload.endTime) : null;
+    const isPast = endTime ? endTime < new Date() : d < new Date();
     const dateStr = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const headerLabel = isPast ? "Past Event" : "New Event";
+    const accentColor = isPast ? colors.textTertiary : themeColor;
     return (
       <View className="items-center my-3">
         <Pressable
@@ -115,11 +119,12 @@ function MessageBubble({
             borderWidth: 1,
             borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
             overflow: "hidden",
+            opacity: isPast ? 0.7 : 1,
           }}
         >
-          <View style={{ backgroundColor: themeColor + "18", paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Calendar size={16} color={themeColor} />
-            <Text style={{ fontSize: 13, fontWeight: "600", color: themeColor }}>New Event</Text>
+          <View style={{ backgroundColor: accentColor + "18", paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Calendar size={16} color={accentColor} />
+            <Text style={{ fontSize: 13, fontWeight: "600", color: accentColor }}>{headerLabel}</Text>
           </View>
           <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
             <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={2}>
@@ -135,7 +140,7 @@ function MessageBubble({
                 borderRadius: 10,
                 paddingVertical: 8,
                 alignItems: "center",
-                backgroundColor: themeColor,
+                backgroundColor: accentColor,
               }}
             >
               <Text style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>View Event</Text>
