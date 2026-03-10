@@ -637,17 +637,19 @@ export default function DiscoverScreen() {
                             }}
                             style={({ pressed }) => ({
                               position: "absolute",
-                              top: 12,
-                              right: 12,
-                              width: 36,
-                              height: 36,
-                              borderRadius: 18,
+                              top: 10,
+                              right: 10,
+                              width: 38,
+                              height: 38,
+                              borderRadius: 19,
                               alignItems: "center",
                               justifyContent: "center",
-                              backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.35)",
-                              opacity: (saved || saveMutation.isPending) ? 0.7 : pressed ? 0.7 : 1,
+                              backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
+                              borderWidth: saved ? 1.5 : 0,
+                              borderColor: saved ? STATUS.interested.fg : "transparent",
+                              opacity: saveMutation.isPending ? 0.5 : pressed ? 0.65 : 1,
                             })}
-                            hitSlop={8}
+                            hitSlop={10}
                           >
                             <Heart
                               size={18}
@@ -776,20 +778,21 @@ export default function DiscoverScreen() {
                       </Pressable>
 
                       {/* CTA row — single centered primary action */}
-                      <View style={{ padding: 12 }}>
+                      <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
                         <Pressable
                           testID="discover-card-view"
                           onPress={() => handleEventPress(event.id)}
                           style={({ pressed }) => ({
+                            width: "100%",
                             alignItems: "center",
                             justifyContent: "center",
-                            paddingVertical: 11,
-                            borderRadius: RADIUS.sm,
+                            paddingVertical: 12,
+                            borderRadius: RADIUS.lg,
                             backgroundColor: themeColor,
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
-                          <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>
+                          <Text style={{ color: "#FFFFFF", fontSize: 15, fontWeight: "700", letterSpacing: 0.2 }}>
                             View Event
                           </Text>
                         </Pressable>
