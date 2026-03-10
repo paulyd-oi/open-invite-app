@@ -26,7 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { QuickEventButton } from "@/components/QuickEventButton";
 import { SocialProof } from "@/components/SocialProof";
-import { FeedCalendar } from "@/components/FeedCalendar";
+import { FeedCalendar, EventListItem } from "@/components/FeedCalendar";
 import { AuthErrorUI } from "@/components/AuthErrorUI";
 import { useSession } from "@/lib/useSession";
 import { authClient } from "@/lib/authClient";
@@ -742,6 +742,10 @@ export default function SocialScreen() {
   // Collapse state for sections
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
+  // Pane + date selection state for social calendar
+  const [activePane, setActivePane] = useState<"group" | "open">("open");
+  const [selectedCalDate, setSelectedCalDate] = useState<Date | null>(null);
+
   // [GROWTH_P14] Weekly digest — reuse paginated notifications (first page only)
   const { notifications: allNotifications } = usePaginatedNotifications({
     enabled: isAuthedForNetwork(bootStatus, session),
@@ -766,12 +770,12 @@ export default function SocialScreen() {
     loadGuidanceState().then(() => setGuidanceLoaded(true));
   }, [session?.user?.id]);
 
-  // Redirect non-authed users to appropriate auth screen
+  // Redirect non-authed users to the unauthenticated root
   useEffect(() => {
     if (bootStatus === 'onboarding') {
       router.replace('/welcome');
     } else if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      router.replace('/login');
+      router.replace('/welcome');
     }
   }, [bootStatus, router]);
 
@@ -1339,6 +1343,39 @@ export default function SocialScreen() {
     [discoveryEvents, session?.user?.id]
   );
 
+  // "Group" pane events: user's own events + events they're attending (sorted by start time)
+  const groupPaneEvents = useMemo(() => {
+    const myEvents = myEventsData?.events ?? [];
+    const attending = attendingData?.events ?? [];
+    const eventMap = new Map<string, Event>();
+    myEvents.forEach(e => eventMap.set(e.id, { ...e, _isOwn: true } as any));
+    attending.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    return Array.from(eventMap.values())
+      .filter(e => new Date(e.startTime) >= new Date(new Date().setHours(0, 0, 0, 0)))
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [myEventsData?.events, attendingData?.events]);
+
+  // Events for the selected calendar date (from all events)
+  const selectedDateEvents = useMemo(() => {
+    if (!selectedCalDate) return [];
+    return calendarEvents
+      .filter(e => {
+        const d = new Date(e.startTime);
+        return d.toDateString() === selectedCalDate.toDateString();
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [selectedCalDate, calendarEvents]);
+
+  // Handler for calendar date selection
+  const handleCalDateSelect = useCallback((date: Date) => {
+    // Toggle: tap same date again to deselect
+    if (selectedCalDate && date.toDateString() === selectedCalDate.toDateString()) {
+      setSelectedCalDate(null);
+    } else {
+      setSelectedCalDate(date);
+    }
+  }, [selectedCalDate]);
+
   // [P0_PERF_PRELOAD_BOUNDED_HEROES] Prefetch hero banners for bounded social feed sections
   const socialHeroUris = useMemo(() => {
     const uris: (string | null | undefined)[] = [];
@@ -1460,11 +1497,13 @@ export default function SocialScreen() {
     );
   }
 
-  const hasEvents =
+  const hasOpenInviteEvents =
     groupedEvents.today.length > 0 ||
     groupedEvents.tomorrow.length > 0 ||
     groupedEvents.thisWeek.length > 0 ||
     groupedEvents.upcoming.length > 0;
+  const hasGroupEvents = groupPaneEvents.length > 0;
+  const hasEvents = hasOpenInviteEvents || hasGroupEvents;
     
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => {
@@ -1524,87 +1563,9 @@ export default function SocialScreen() {
       {/* Email verification banner - shows when emailVerified === false */}
       <EmailVerificationBanner />
       
-      {/* Filter Pills */}
+      {/* Main content */}
       {isLoading ? (
         <FeedSkeleton />
-      ) : !hasEvents ? (
-        <ScrollView
-          className="flex-1 px-5"
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          contentContainerStyle={{ paddingBottom: 100 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* [GROWTH_P14] Weekly digest card — empty state feed */}
-          {weeklyDigest && (
-            <WeeklyDigestCard
-              digest={weeklyDigest}
-              colors={colors}
-              themeColor={themeColor}
-              onTap={handleDigestTap}
-            />
-          )}
-          {socialMemory && !insightDismissed && (
-            <SocialMemoryCard
-              memory={socialMemory.memory}
-              type={socialMemory.type}
-              themeColor={themeColor}
-              isDark={isDark}
-              colors={colors}
-              onDismiss={handleDismissInsight}
-            />
-          )}
-          <FeedCalendar
-            events={calendarEvents}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userId={session?.user?.id}
-          />
-          <View className="py-12 items-center px-8">
-            <Text className="text-5xl mb-4">📅</Text>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-xl font-semibold text-center mb-2" style={{ color: colors.text }}>
-              Nothing new yet
-            </Text>
-            {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              <Text className="text-center mb-4" style={{ color: colors.textSecondary }}>
-                Bring your people in — invites make the feed come alive.
-              </Text>
-            )}
-            {guidanceLoaded && !isEmailGateActive(session) && shouldShowEmptyGuidanceSync("view_feed") && (
-              <Button
-                variant="primary"
-                label="Invite a friend"
-                leftIcon={<UserPlus size={16} color={colors.buttonPrimaryText} />}
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={async () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  try {
-                    await Share.share({
-                      message: `Join me on Open Invite - the easiest way to share plans with friends!\n\n${APP_STORE_URL}`,
-                      url: APP_STORE_URL,
-                    });
-                  } catch (error) {
-                    devError("Error sharing:", error);
-                  }
-                }}
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ marginBottom: 12 }}
-              />
-            )}
-            <Button
-              variant="ghost"
-              label="Create an Invite"
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                if (!guardEmailVerification(session)) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push("/create");
-              }}
-            />
-          </View>
-        </ScrollView>
       ) : (
         <ScrollView
           testID="social-feed"
@@ -1622,7 +1583,7 @@ export default function SocialScreen() {
             />
           }
         >
-          {/* [GROWTH_P14] Weekly digest card — above feed content */}
+          {/* [GROWTH_P14] Weekly digest card */}
           {weeklyDigest && (
             <WeeklyDigestCard
               digest={weeklyDigest}
@@ -1631,13 +1592,6 @@ export default function SocialScreen() {
               onTap={handleDigestTap}
             />
           )}
-          <FeedCalendar
-            events={calendarEvents}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userId={session?.user?.id}
-          />
           {socialMemory && !insightDismissed && (
             <SocialMemoryCard
               memory={socialMemory.memory}
@@ -1648,85 +1602,260 @@ export default function SocialScreen() {
               onDismiss={handleDismissInsight}
             />
           )}
-          <EventSection
-            title="Today"
-            events={groupedEvents.today}
-            startIndex={0}
-            userId={session?.user?.id}
+          <FeedCalendar
+            events={calendarEvents}
             themeColor={themeColor}
             isDark={isDark}
             colors={colors}
-            userImage={session?.user?.image}
-            userName={session?.user?.name}
-            isCollapsed={collapsedSections.has("today")}
-            onToggle={() => toggleSection("today")}
-            userCalendarEvents={userCalendarEvents}
-            onRsvp={handleSwipeRsvp}
-            isAuthed={isAuthed}
-          />
-          <EventSection
-            title="Tomorrow"
-            events={groupedEvents.tomorrow}
-            startIndex={groupedEvents.today.length}
             userId={session?.user?.id}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userImage={session?.user?.image}
-            userName={session?.user?.name}
-            isCollapsed={collapsedSections.has("tomorrow")}
-            onToggle={() => toggleSection("tomorrow")}
-            userCalendarEvents={userCalendarEvents}
-            onRsvp={handleSwipeRsvp}
-            isAuthed={isAuthed}
+            onDateSelect={handleCalDateSelect}
+            selectedDate={selectedCalDate}
           />
-          <EventSection
-            title="This Week"
-            events={groupedEvents.thisWeek}
-            startIndex={groupedEvents.today.length + groupedEvents.tomorrow.length}
-            userId={session?.user?.id}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userImage={session?.user?.image}
-            userName={session?.user?.name}
-            isCollapsed={collapsedSections.has("thisWeek")}
-            onToggle={() => toggleSection("thisWeek")}
-            userCalendarEvents={userCalendarEvents}
-            onRsvp={handleSwipeRsvp}
-            isAuthed={isAuthed}
-          />
-          <EventSection
-            title="Upcoming"
-            events={groupedEvents.upcoming}
-            startIndex={
-              groupedEvents.today.length +
-              groupedEvents.tomorrow.length +
-              groupedEvents.thisWeek.length
-            }
-            userId={session?.user?.id}
-            themeColor={themeColor}
-            isDark={isDark}
-            colors={colors}
-            userImage={session?.user?.image}
-            userName={session?.user?.name}
-            isCollapsed={collapsedSections.has("upcoming")}
-            onToggle={() => toggleSection("upcoming")}
-            userCalendarEvents={userCalendarEvents}
-            onRsvp={handleSwipeRsvp}
-            isAuthed={isAuthed}
-          />
-          {/* Load more button for feed pagination */}
-          {hasNextPage && (
-            <Button
-              variant="secondary"
-              label="Load more invites"
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => fetchNextPage()}
-              loading={isFetchingNextPage}
-              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-              style={{ marginHorizontal: 16, marginVertical: 24, borderRadius: 12 }}
-            />
+
+          {/* ═══ MODE B: Selected date — inline events ═══ */}
+          {selectedCalDate ? (
+            <View className="mt-4">
+              {/* Selected date header with clear button */}
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center">
+                  <Calendar size={16} color={themeColor} />
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="text-base font-semibold ml-2" style={{ color: colors.text }}>
+                    {selectedCalDate.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                  </Text>
+                </View>
+                <Pressable
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => setSelectedCalDate(null)}
+                  className="w-8 h-8 rounded-full items-center justify-center"
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  style={{ backgroundColor: colors.surface }}
+                >
+                  <X size={16} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <Text className="text-sm mb-3" style={{ color: colors.textSecondary }}>
+                {selectedDateEvents.length} {selectedDateEvents.length === 1 ? "event" : "events"}
+              </Text>
+              {selectedDateEvents.length > 0 ? (
+                // INVARIANT_ALLOW_SMALL_MAP
+                selectedDateEvents.map((event, idx) => (
+                  <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
+                    <EventListItem
+                      event={event}
+                      themeColor={themeColor}
+                      colors={colors}
+                      isDark={isDark}
+                    />
+                  </Animated.View>
+                ))
+              ) : (
+                <View className="py-8 items-center">
+                  <Text className="text-4xl mb-3">📅</Text>
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="text-base font-medium" style={{ color: colors.textSecondary }}>
+                    No events on this day
+                  </Text>
+                  {selectedCalDate >= new Date(new Date().setHours(0, 0, 0, 0)) && (
+                    <Button
+                      variant="ghost"
+                      label="Create an Invite"
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push(`/create?date=${selectedCalDate.toISOString()}`);
+                      }}
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ marginTop: 12 }}
+                    />
+                  )}
+                </View>
+              )}
+            </View>
+          ) : (
+            /* ═══ MODE A: Default — Group | Open Invite pane ═══ */
+            <View className="mt-4">
+              {/* Pane selector */}
+              <View className="flex-row mb-4" style={{ borderRadius: 12, backgroundColor: colors.surface, padding: 4 }}>
+                <Pressable
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => { Haptics.selectionAsync(); setActivePane("group"); }}
+                  className="flex-1 items-center py-2.5 rounded-lg"
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  style={{ backgroundColor: activePane === "group" ? themeColor : "transparent" }}
+                >
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="text-sm font-semibold" style={{ color: activePane === "group" ? "#FFFFFF" : colors.textSecondary }}>
+                    Group
+                  </Text>
+                </Pressable>
+                <Pressable
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => { Haptics.selectionAsync(); setActivePane("open"); }}
+                  className="flex-1 items-center py-2.5 rounded-lg"
+                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                  style={{ backgroundColor: activePane === "open" ? themeColor : "transparent" }}
+                >
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="text-sm font-semibold" style={{ color: activePane === "open" ? "#FFFFFF" : colors.textSecondary }}>
+                    Open Invite
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Pane content */}
+              {activePane === "open" ? (
+                /* Open Invite pane — discovery events by time section */
+                hasOpenInviteEvents ? (
+                  <>
+                    <EventSection
+                      title="Today"
+                      events={groupedEvents.today}
+                      startIndex={0}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("today")}
+                      onToggle={() => toggleSection("today")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="Tomorrow"
+                      events={groupedEvents.tomorrow}
+                      startIndex={groupedEvents.today.length}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("tomorrow")}
+                      onToggle={() => toggleSection("tomorrow")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="This Week"
+                      events={groupedEvents.thisWeek}
+                      startIndex={groupedEvents.today.length + groupedEvents.tomorrow.length}
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("thisWeek")}
+                      onToggle={() => toggleSection("thisWeek")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    <EventSection
+                      title="Upcoming"
+                      events={groupedEvents.upcoming}
+                      startIndex={
+                        groupedEvents.today.length +
+                        groupedEvents.tomorrow.length +
+                        groupedEvents.thisWeek.length
+                      }
+                      userId={session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      isCollapsed={collapsedSections.has("upcoming")}
+                      onToggle={() => toggleSection("upcoming")}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
+                    {/* Load more button for feed pagination */}
+                    {hasNextPage && (
+                      <Button
+                        variant="secondary"
+                        label="Load more invites"
+                        /* INVARIANT_ALLOW_INLINE_HANDLER */
+                        onPress={() => fetchNextPage()}
+                        loading={isFetchingNextPage}
+                        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                        style={{ marginHorizontal: 16, marginVertical: 24, borderRadius: 12 }}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <View className="py-8 items-center px-8">
+                    <Text className="text-4xl mb-3">🎉</Text>
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>
+                      No open invites from friends yet
+                    </Text>
+                    <Button
+                      variant="ghost"
+                      label="Create an Invite"
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push("/create");
+                      }}
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ marginTop: 12 }}
+                    />
+                  </View>
+                )
+              ) : (
+                /* Group pane — user's own events + attending */
+                hasGroupEvents ? (
+                  // INVARIANT_ALLOW_SMALL_MAP
+                  groupPaneEvents.map((event, idx) => (
+                    <Animated.View key={event.id} entering={FadeInDown.delay(idx * 40)}>
+                      <EventListItem
+                        event={{
+                          ...event,
+                          emoji: event.emoji ?? "📅",
+                          isOwn: event.userId === session?.user?.id,
+                          hostName: event.user?.name ?? null,
+                          hostImage: event.user?.image ?? null,
+                        }}
+                        themeColor={themeColor}
+                        colors={colors}
+                        isDark={isDark}
+                      />
+                    </Animated.View>
+                  ))
+                ) : (
+                  <View className="py-8 items-center px-8">
+                    <Text className="text-4xl mb-3">📅</Text>
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>
+                      No upcoming events in your groups
+                    </Text>
+                    <Button
+                      variant="ghost"
+                      label="Create an Invite"
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        if (!guardEmailVerification(session)) return;
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push("/create");
+                      }}
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ marginTop: 12 }}
+                    />
+                  </View>
+                )
+              )}
+            </View>
           )}
         </ScrollView>
       )}

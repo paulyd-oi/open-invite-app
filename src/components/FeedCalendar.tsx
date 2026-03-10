@@ -64,9 +64,13 @@ interface FeedCalendarProps {
   isDark: boolean;
   colors: typeof DARK_COLORS;
   userId?: string;
+  /** When provided, day taps call this instead of opening bottom sheet */
+  onDateSelect?: (date: Date) => void;
+  /** Currently selected date (for highlight) */
+  selectedDate?: Date | null;
 }
 
-function EventListItem({
+export function EventListItem({
   event,
   themeColor,
   colors,
@@ -222,13 +226,16 @@ function EventListItem({
   );
 }
 
-export function FeedCalendar({ events, themeColor, isDark, colors, userId }: FeedCalendarProps) {
+export function FeedCalendar({ events, themeColor, isDark, colors, userId, onDateSelect, selectedDate: externalSelectedDate }: FeedCalendarProps) {
   const router = useRouter();
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  // Use external selected date when provided (inline mode), otherwise internal state (sheet mode)
+  const isInlineMode = !!onDateSelect;
+  const [internalSelectedDate, setInternalSelectedDate] = useState<Date | null>(null);
   const [showDayModal, setShowDayModal] = useState(false);
+  const selectedDate = isInlineMode ? (externalSelectedDate ?? null) : internalSelectedDate;
 
   // User's event color overrides
   const { colorOverrides } = useEventColorOverrides();
@@ -324,8 +331,12 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
   const handleDayPress = (day: number) => {
     Haptics.selectionAsync();
     const date = new Date(currentYear, currentMonth, day);
-    setSelectedDate(date);
-    setShowDayModal(true);
+    if (isInlineMode) {
+      onDateSelect!(date);
+    } else {
+      setInternalSelectedDate(date);
+      setShowDayModal(true);
+    }
   };
 
   const selectedDateEvents = selectedDate
@@ -388,6 +399,7 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
               {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day, dayIndex) => {
                 const index = weekIndex * 7 + dayIndex;
                 const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+                const isSelected = !!(day && selectedDate && day === selectedDate.getDate() && currentMonth === selectedDate.getMonth() && currentYear === selectedDate.getFullYear() && !isToday);
                 const hasEvents = day ? datesWithEvents.has(day) : false;
                 const eventData = day ? eventCountsByDate[day] : null;
                 const dayOfWeek = index % 7;
@@ -407,7 +419,9 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
                           style={{
                             width: 32,
                             height: 32,
-                            backgroundColor: isToday ? themeColor : "transparent",
+                            backgroundColor: isToday ? themeColor : isSelected ? `${themeColor}30` : "transparent",
+                            borderWidth: isSelected ? 1.5 : 0,
+                            borderColor: isSelected ? themeColor : "transparent",
                           }}
                         >
                           <Text
@@ -466,41 +480,43 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId }: Fee
         </View>
       </View>
 
-      {/* Day Agenda – SSOT shared sheet */}
-      <DayAgendaSheet
-        visible={showDayModal}
-        onClose={() => setShowDayModal(false)}
-        selectedDate={selectedDate}
-        eventCount={selectedDateEvents.length}
-        themeColor={themeColor}
-        emptyAction={
-          selectedDate && selectedDate >= new Date(new Date().setHours(0, 0, 0, 0)) ? (
-            <Pressable
-              onPress={() => {
-                setShowDayModal(false);
-                router.push(`/create?date=${selectedDate?.toISOString()}`);
-              }}
-              className="flex-row items-center mt-4 px-5 py-3 rounded-full"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Text className="text-white font-semibold">Create Event</Text>
-            </Pressable>
-          ) : undefined
-        }
-      >
-        {selectedDateEvents.map((event, idx) => (
-          <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
-            <EventListItem
-              event={event}
-              themeColor={themeColor}
-              colors={colors}
-              isDark={isDark}
-              onClose={() => setShowDayModal(false)}
-              colorOverride={colorOverrides[event.id]}
-            />
-          </Animated.View>
-        ))}
-      </DayAgendaSheet>
+      {/* Day Agenda – SSOT shared sheet (only in sheet mode) */}
+      {!isInlineMode && (
+        <DayAgendaSheet
+          visible={showDayModal}
+          onClose={() => setShowDayModal(false)}
+          selectedDate={selectedDate}
+          eventCount={selectedDateEvents.length}
+          themeColor={themeColor}
+          emptyAction={
+            selectedDate && selectedDate >= new Date(new Date().setHours(0, 0, 0, 0)) ? (
+              <Pressable
+                onPress={() => {
+                  setShowDayModal(false);
+                  router.push(`/create?date=${selectedDate?.toISOString()}`);
+                }}
+                className="flex-row items-center mt-4 px-5 py-3 rounded-full"
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white font-semibold">Create Event</Text>
+              </Pressable>
+            ) : undefined
+          }
+        >
+          {selectedDateEvents.map((event, idx) => (
+            <Animated.View key={event.id} entering={FadeInDown.delay(idx * 50)}>
+              <EventListItem
+                event={event}
+                themeColor={themeColor}
+                colors={colors}
+                isDark={isDark}
+                onClose={() => setShowDayModal(false)}
+                colorOverride={colorOverrides[event.id]}
+              />
+            </Animated.View>
+          ))}
+        </DayAgendaSheet>
+      )}
     </View>
   );
 }

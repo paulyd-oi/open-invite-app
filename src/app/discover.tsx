@@ -504,6 +504,7 @@ export default function DiscoverScreen() {
               ListHeaderComponent={
                 /* ═══ Sort Chips ═══ */
                 <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                  {/* INVARIANT_ALLOW_SMALL_MAP */}
                   {SORT_OPTIONS.map((opt) => {
                     const active = eventSort === opt.key;
                     return (
