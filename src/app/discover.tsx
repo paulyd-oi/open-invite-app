@@ -626,6 +626,35 @@ export default function DiscoverScreen() {
                             style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%" }}
                           />
 
+                          {/* Save toggle — lightweight overlay, top-right */}
+                          <Pressable
+                            testID="discover-card-save"
+                            disabled={saved || saveMutation.isPending}
+                            onPress={(e) => {
+                              e.stopPropagation?.();
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              saveMutation.mutate(event.id);
+                            }}
+                            style={({ pressed }) => ({
+                              position: "absolute",
+                              top: 12,
+                              right: 12,
+                              width: 36,
+                              height: 36,
+                              borderRadius: 18,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.35)",
+                              opacity: (saved || saveMutation.isPending) ? 0.7 : pressed ? 0.7 : 1,
+                            })}
+                            hitSlop={8}
+                          >
+                            <Heart
+                              size={18}
+                              color={saved ? STATUS.interested.fg : "#FFFFFF"}
+                            />
+                          </Pressable>
+
                           {/* Overlay content */}
                           <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
                             <Text
@@ -746,48 +775,22 @@ export default function DiscoverScreen() {
                         </View>
                       </Pressable>
 
-                      {/* CTA row */}
-                      <View style={{ flexDirection: "row", padding: 12, gap: 10 }}>
-                        <Pressable
-                          testID="discover-card-save"
-                          disabled={saved || saveMutation.isPending}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            saveMutation.mutate(event.id);
-                          }}
-                          style={({ pressed }) => ({
-                            flexDirection: "row",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            paddingVertical: 10,
-                            paddingHorizontal: 16,
-                            borderRadius: RADIUS.sm,
-                            backgroundColor: saved ? STATUS.interested.bgSoft : (isDark ? "#2C2C2E" : "#F5F5F5"),
-                            opacity: (saved || saveMutation.isPending) ? 0.5 : pressed ? 0.7 : 1,
-                          })}
-                        >
-                          <Heart size={16} color={saved ? STATUS.interested.fg : colors.textSecondary} />
-                          <Text style={{ fontSize: 13, fontWeight: "600", marginLeft: 5, color: saved ? STATUS.interested.fg : colors.textSecondary }}>
-                            {saved ? "Saved" : "Save"}
-                          </Text>
-                        </Pressable>
-
+                      {/* CTA row — single centered primary action */}
+                      <View style={{ padding: 12 }}>
                         <Pressable
                           testID="discover-card-view"
                           onPress={() => handleEventPress(event.id)}
                           style={({ pressed }) => ({
-                            flex: 1,
-                            flexDirection: "row",
                             alignItems: "center",
                             justifyContent: "center",
-                            paddingVertical: 10,
+                            paddingVertical: 11,
                             borderRadius: RADIUS.sm,
                             backgroundColor: themeColor,
                             opacity: pressed ? 0.85 : 1,
                           })}
                         >
                           <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}>
-                            View
+                            View Event
                           </Text>
                         </Pressable>
                       </View>
