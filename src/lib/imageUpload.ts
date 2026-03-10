@@ -32,6 +32,7 @@ export type UploadKind =
   | "avatar"
   | "banner"
   | "event_photo"
+  | "event_cover"
   | "circle_photo"
   | "event_memory_photo";
 
@@ -103,6 +104,7 @@ const COMPRESSION_PROFILES: Record<UploadKind, CompressionProfile> = {
   avatar: { maxWidth: 1200, maxHeight: 1200, quality: 0.7, maxBytes: 1_000_000, filename: "upload.jpg" },
   banner: { maxWidth: 1200, maxHeight: 400, quality: 0.75, maxBytes: 1_000_000, filename: "banner_photo.jpg" },
   event_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_000_000, filename: "event_photo.jpg" },
+  event_cover: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_000_000, filename: "event_cover.jpg" },
   circle_photo: { maxWidth: 512, maxHeight: 512, quality: 0.75, maxBytes: 1_000_000, filename: "circle_photo.jpg" },
   event_memory_photo: { maxWidth: 1280, maxHeight: 960, quality: 0.75, maxBytes: 1_000_000, filename: "memory_photo.jpg" },
 };
@@ -226,6 +228,7 @@ export async function uploadByKind(
       "avatar",
       "banner",
       "event_photo",
+      "event_cover",
       "circle_photo",
       "event_memory_photo",
     ] as const;

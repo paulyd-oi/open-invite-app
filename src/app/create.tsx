@@ -45,7 +45,7 @@ import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "react-native";
-import { uploadEventPhoto } from "@/lib/imageUpload";
+import { uploadByKind } from "@/lib/imageUpload";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 import BottomNavigation from "@/components/BottomNavigation";
@@ -1087,7 +1087,7 @@ export default function CreateEventScreen() {
       setBannerUpload(null);
       setUploadingBanner(true);
       try {
-        const upload = await uploadEventPhoto(uri);
+        const upload = await uploadByKind(uri, "event_cover");
         setBannerUpload({ url: upload.url, publicId: upload.publicId ?? "" });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } catch (e: any) {
