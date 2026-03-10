@@ -1343,17 +1343,19 @@ export default function SocialScreen() {
     [discoveryEvents, session?.user?.id]
   );
 
-  // "Group" pane events: user's own events + events they're attending (sorted by start time)
+  // "Group" pane events: circle events only (own + attending, where circleId is set)
   const groupPaneEvents = useMemo(() => {
     const myEvents = myEventsData?.events ?? [];
     const attending = attendingData?.events ?? [];
+    const viewerUserId = session?.user?.id;
     const eventMap = new Map<string, Event>();
-    myEvents.forEach(e => eventMap.set(e.id, { ...e, _isOwn: true } as any));
+    myEvents.forEach(e => eventMap.set(e.id, e));
     attending.forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
     return Array.from(eventMap.values())
+      .filter(e => !!e.circleId) // Circle events only
       .filter(e => new Date(e.startTime) >= new Date(new Date().setHours(0, 0, 0, 0)))
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  }, [myEventsData?.events, attendingData?.events]);
+  }, [myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // Events for the selected calendar date (from all events)
   const selectedDateEvents = useMemo(() => {
@@ -1814,31 +1816,31 @@ export default function SocialScreen() {
                   </View>
                 )
               ) : (
-                /* Group pane — user's own events + attending */
+                /* Group pane — circle events only */
                 hasGroupEvents ? (
                   // INVARIANT_ALLOW_SMALL_MAP
                   groupPaneEvents.map((event, idx) => (
-                    <Animated.View key={event.id} entering={FadeInDown.delay(idx * 40)}>
-                      <EventListItem
-                        event={{
-                          ...event,
-                          emoji: event.emoji ?? "📅",
-                          isOwn: event.userId === session?.user?.id,
-                          hostName: event.user?.name ?? null,
-                          hostImage: event.user?.image ?? null,
-                        }}
-                        themeColor={themeColor}
-                        colors={colors}
-                        isDark={isDark}
-                      />
-                    </Animated.View>
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      index={idx}
+                      isOwn={event.userId === session?.user?.id}
+                      themeColor={themeColor}
+                      isDark={isDark}
+                      colors={colors}
+                      userImage={session?.user?.image}
+                      userName={session?.user?.name}
+                      userCalendarEvents={userCalendarEvents}
+                      onRsvp={handleSwipeRsvp}
+                      isAuthed={isAuthed}
+                    />
                   ))
                 ) : (
                   <View className="py-8 items-center px-8">
-                    <Text className="text-4xl mb-3">📅</Text>
+                    <Text className="text-4xl mb-3">👥</Text>
                     {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                     <Text className="text-base font-medium text-center" style={{ color: colors.textSecondary }}>
-                      No upcoming events in your groups
+                      No upcoming circle events
                     </Text>
                     <Button
                       variant="ghost"
