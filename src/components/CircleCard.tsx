@@ -324,8 +324,12 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
         <Animated.View style={animatedCardStyle}>
           <Pressable
             onPress={handlePress}
-            className="flex-row items-center py-3 px-1"
-            style={{ backgroundColor: colors.background }}
+            className="flex-row items-center py-2.5 px-1"
+            style={{
+              backgroundColor: unreadCount > 0 && !circle.isMuted
+                ? (isDark ? themeColor + "08" : themeColor + "06")
+                : colors.background,
+            }}
           >
             {/* LEFT — Avatar cluster */}
             <View
@@ -413,9 +417,9 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                 </Text>
               </View>
               <Text
-                className="text-[13px] mt-0.5"
+                className="text-[13px] mt-px"
                 style={{
-                  color: colors.textTertiary,
+                  color: unreadCount > 0 && !circle.isMuted ? colors.textSecondary : colors.textTertiary,
                   fontWeight: unreadCount > 0 && !circle.isMuted ? "500" : "400",
                   opacity: circle.isMuted ? 0.6 : 1,
                 }}
@@ -434,7 +438,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
             {/* RIGHT — Timestamp + unread */}
             <View className="items-end ml-1">
               {circle.lastMessageAt && (
-                <Text className="text-[11px] mb-1" style={{ color: unreadCount > 0 ? themeColor : colors.textTertiary }}>
+                <Text className="text-[11px] mt-0.5 mb-1" style={{ color: unreadCount > 0 ? themeColor : colors.textTertiary }}>
                   {formatInboxTime(circle.lastMessageAt)}
                 </Text>
               )}
@@ -459,7 +463,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
             </View>
           </Pressable>
           {/* Separator */}
-          <View style={{ height: 0.5, backgroundColor: colors.separator, marginLeft: 64 }} />
+          <View style={{ height: 0.5, backgroundColor: colors.separator, marginLeft: 60 }} />
         </Animated.View>
       </GestureDetector>
     </Animated.View>
