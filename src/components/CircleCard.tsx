@@ -52,6 +52,33 @@ function formatInboxTime(iso: string): string {
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
 }
 
+/** Convert raw system message content to human-readable inbox preview text. */
+function humanizePreview(text: string): string {
+  // __system:event_created:{JSON} → "Created event: {title}"
+  if (text.startsWith("__system:event_created:")) {
+    try {
+      const payload = JSON.parse(text.slice("__system:event_created:".length));
+      if (payload?.title) return `Created event: ${payload.title}`;
+    } catch { /* fall through */ }
+    return "New activity";
+  }
+  // __system:member_left:{JSON} → "{name} left" / "{name} was removed"
+  if (text.startsWith("__system:member_left:")) {
+    try {
+      const payload = JSON.parse(text.slice("__system:member_left:".length));
+      if (payload?.name) {
+        return payload.type === "member_removed"
+          ? `${payload.name} was removed`
+          : `${payload.name} left the circle`;
+      }
+    } catch { /* fall through */ }
+    return "New activity";
+  }
+  // Catch-all for any future __system: prefix
+  if (text.startsWith("__system:")) return "New activity";
+  return text;
+}
+
 interface CircleCardProps {
   circle: Circle;
   onPin: (circleId: string) => void;
@@ -427,8 +454,8 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               >
                 {circle.lastMessageText
                   ? circle.lastMessageSenderName && circle.type !== "dm"
-                    ? `${circle.lastMessageSenderName}: ${circle.lastMessageText}`
-                    : circle.lastMessageText
+                    ? `${circle.lastMessageSenderName}: ${humanizePreview(circle.lastMessageText)}`
+                    : humanizePreview(circle.lastMessageText)
                   : circle.description
                     ? circle.description
                     : "Start the conversation"}
