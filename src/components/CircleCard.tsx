@@ -269,8 +269,7 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
   }));
 
   // Calculate stacked bubble positions for members
-  const displayedMembers = members.slice(0, 5);
-  const extraCount = members.length - 5;
+  const displayedMembers = members.slice(0, 2);
 
   return (
     <Animated.View
