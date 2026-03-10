@@ -21,6 +21,7 @@ import {
   markFailed,
   removeAction,
   enqueue,
+  recoverProcessingActions,
   QueuedAction,
   CreateEventPayload,
   RsvpChangePayload,
@@ -111,8 +112,12 @@ async function executeAction(action: QueuedAction): Promise<{ success: boolean; 
  */
 export async function replayQueue(
   onProgress?: (current: number, total: number) => void,
-  onReconcile?: (localId: string, serverId: string) => void
+  onReconcile?: (localId: string, serverId: string) => void,
+  onRsvpSynced?: (eventId: string) => void
 ): Promise<{ success: boolean; failed: number }> {
+  // [P8_OFFLINE] Recover orphaned `processing` actions from prior crash/kill
+  await recoverProcessingActions();
+
   const queue = await loadQueue();
   const pendingActions = queue.filter((a) => a.status === "pending" || a.status === "failed");
 
@@ -142,6 +147,12 @@ export async function replayQueue(
       // Handle reconciliation for CREATE_EVENT
       if (action.type === "CREATE_EVENT" && action.localId && result.data?.id) {
         onReconcile?.(action.localId, result.data.id);
+      }
+
+      // [P8_OFFLINE] Clear local RSVP state after successful sync
+      if (action.type === "RSVP_CHANGE" || action.type === "DELETE_RSVP") {
+        const rsvpPayload = action.payload as RsvpChangePayload | DeleteRsvpPayload;
+        onRsvpSynced?.(rsvpPayload.eventId);
       }
 
       // Remove successful action from queue
@@ -223,9 +234,13 @@ export function useOfflineSync(bootStatus?: string) {
             (current, total) => {
               setSyncProgress({ current, total });
             },
-            // Reconciliation callback
+            // Reconciliation callback for CREATE_EVENT
             (localId, serverId) => {
               reconcileLocalEvent(localId, serverId);
+            },
+            // [P8_OFFLINE] Cleanup callback for RSVP sync
+            (eventId) => {
+              removeLocalRsvp(eventId);
             }
           );
 

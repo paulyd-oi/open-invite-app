@@ -289,10 +289,36 @@ export async function clearFailed(): Promise<void> {
 }
 
 /**
- * Clear the entire queue
+ * Clear the entire queue and reset in-memory dead-letter cache.
  */
 export async function clearQueue(): Promise<void> {
   await AsyncStorage.removeItem(QUEUE_STORAGE_KEY);
+  // [P8_OFFLINE] Reset in-memory dead-letter cache so stale count
+  // from previous user doesn't leak after logout + re-login.
+  _deadLetterCount = -1;
+}
+
+/**
+ * Recover orphaned `processing` actions back to `pending`.
+ * [P8_OFFLINE] After app crash/kill during replay, actions can be stuck
+ * in `processing` forever. Call at replay start to reclaim them.
+ */
+export async function recoverProcessingActions(): Promise<number> {
+  const queue = await loadQueue();
+  let recovered = 0;
+  for (const action of queue) {
+    if (action.status === "processing") {
+      action.status = "pending";
+      recovered++;
+    }
+  }
+  if (recovered > 0) {
+    await saveQueue(queue);
+    if (__DEV__) {
+      devLog(`[P8_OFFLINE] Recovered ${recovered} orphaned processing action(s)`);
+    }
+  }
+  return recovered;
 }
 
 /**
