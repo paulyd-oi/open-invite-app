@@ -1,1 +1,0 @@
-Not enough devices connected (0) to run the requested number of shards (1).

@@ -95,3 +95,6 @@ ios/sentry.properties
 ios/OpenInvite.xcworkspace/
 ios/**/xcuserdata/
 ios/**/.DS_Store
+.claude_artifacts/
+*.png
+Terminal Saved Output.txt

@@ -1,3 +1,0 @@
-
-You have 0 devices connected, which is not enough to run 1 shards. Missing 1 device(s).
-
