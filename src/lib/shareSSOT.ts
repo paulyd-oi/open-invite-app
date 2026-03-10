@@ -25,11 +25,23 @@ export const APP_STORE_ID = "6757429210";
 const SCHEME = "open-invite";
 
 /**
- * Share domain for universal links.
- * Swap this single constant when moving to a branded domain.
+ * Branded share domain for universal links.
+ *
+ * This is the ONE constant to update when the DNS/domain is configured.
+ * All event share links, copy-link buttons, and Share.share() payloads
+ * flow through getEventUniversalLink() which reads this value.
+ *
+ * CUTOVER CHECKLIST (when DNS is ready):
+ * 1. Set up go.openinvite.cloud DNS → Render backend
+ * 2. Add go.openinvite.cloud to Render custom domains
+ * 3. Backend must serve /share/event/:id on the new domain
+ * 4. Update apple-app-site-association on the new domain
+ * 5. Swap this constant to "https://go.openinvite.cloud"
+ * 6. Rebuild & ship frontend
+ *
  * [P0_SHARE_DOMAIN_SSOT]
  */
-export const SHARE_DOMAIN = "https://open-invite-api.onrender.com";
+export const SHARE_DOMAIN = "https://go.openinvite.cloud";
 
 /** Domains that must NEVER appear in user-facing share text. */
 const FORBIDDEN_DOMAINS = [
