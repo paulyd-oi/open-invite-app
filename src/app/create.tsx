@@ -37,6 +37,7 @@ import {
   Sparkles,
   Lock,
   Share2,
+  Camera,
 } from "@/ui/icons";
 
 import { trackEventCreated } from "@/lib/rateApp";
@@ -1506,26 +1507,11 @@ export default function CreateEventScreen() {
             )}
           </Animated.View>
 
-          {/* Title */}
+          {/* Cover Photo — compact idle, full preview when selected */}
           <Animated.View entering={FadeInDown.delay(50).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Title *</Text>
-            <TextInput
-              testID="create-input-title"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="What are you doing?"
-              placeholderTextColor={colors.textTertiary}
-              className="rounded-xl p-4 mb-4"
-              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.text }}
-            />
-          </Animated.View>
-
-          {/* Banner Photo */}
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
-            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Cover Photo</Text>
             {bannerLocalUri ? (
               <View className="rounded-xl mb-4 overflow-hidden" style={{ borderWidth: 1, borderColor: colors.border }}>
-                <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: 11 }} />
+                <Image source={{ uri: bannerLocalUri }} style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 11 }} />
                 {uploadingBanner && (
                   <View style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", borderRadius: 11 }}>
                     <ActivityIndicator color="#fff" />
@@ -1550,12 +1536,37 @@ export default function CreateEventScreen() {
             ) : (
               <Pressable
                 onPress={handlePickBanner}
-                className="rounded-xl p-4 mb-4 items-center justify-center"
-                style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", minHeight: 80 }}
+                className="rounded-xl mb-4"
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderStyle: "dashed",
+                  gap: 8,
+                }}
               >
-                <Text style={{ color: colors.textTertiary, fontSize: 13 }}>Tap to add a cover photo</Text>
+                <Camera size={16} color={colors.textTertiary} />
+                <Text style={{ color: colors.textTertiary, fontSize: 13, fontWeight: "500" }}>Add cover photo</Text>
               </Pressable>
             )}
+          </Animated.View>
+
+          {/* Title */}
+          <Animated.View entering={FadeInDown.delay(75).springify()}>
+            <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-2">Title *</Text>
+            <TextInput
+              testID="create-input-title"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="What are you doing?"
+              placeholderTextColor={colors.textTertiary}
+              className="rounded-xl p-4 mb-4"
+              style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, color: colors.text }}
+            />
           </Animated.View>
 
           {/* Description */}
