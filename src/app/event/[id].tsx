@@ -1629,32 +1629,18 @@ export default function EventDetailScreen() {
     },
   });
 
-  // What to Bring V2 — claim/unclaim mutation
-  // Uses optimistic update for instant UI, then refetches server truth.
-  // Race condition note: last-write-wins on the array. Acceptable for V2 —
-  // onSettled always refetches, so stale state self-corrects within seconds.
+  // What to Bring — atomic claim/unclaim via dedicated backend endpoints.
+  // Uses optimistic update for instant UI; backend enforces concurrency via
+  // row-level lock (SELECT FOR UPDATE). 409 = conflict, 403 = not claimer.
   const bringListClaimMutation = useMutation({
     mutationFn: ({ itemId, action }: { itemId: string; action: "claim" | "unclaim" }) => {
-      const items = event?.bringListItems ?? [];
-      const target = items.find((i) => i.id === itemId);
-      // Guard: don't claim something already claimed by someone else
-      if (action === "claim" && target?.claimedByUserId && target.claimedByUserId !== session?.user?.id) {
-        return Promise.reject(new Error("Already claimed"));
-      }
-      const updated = items.map((item) => {
-        if (item.id !== itemId) return item;
-        if (action === "claim") {
-          return { ...item, claimedByUserId: session?.user?.id ?? null, claimedByName: session?.user?.name ?? "Someone" };
-        }
-        return { ...item, claimedByUserId: null, claimedByName: null };
-      });
-      return api.put(`/api/events/${id}`, { bringListItems: updated });
+      return api.post<{ ok: boolean; item: any; alreadyClaimed?: boolean; alreadyUnclaimed?: boolean }>(
+        `/api/events/${id}/bring-list/${itemId}/${action}`
+      );
     },
     onMutate: async ({ itemId, action }) => {
-      // Cancel in-flight refetches so optimistic update isn't overwritten
       await queryClient.cancelQueries({ queryKey: eventKeys.single(id ?? "") });
       const prev = queryClient.getQueryData(eventKeys.single(id ?? ""));
-      // Optimistic update
       queryClient.setQueryData(eventKeys.single(id ?? ""), (old: any) => {
         if (!old?.event?.bringListItems) return old;
         return {
@@ -1674,14 +1660,19 @@ export default function EventDetailScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       return { prev };
     },
-    onError: (_err, _vars, context) => {
-      // Rollback optimistic update
+    onError: (err: any, _vars, context) => {
       if (context?.prev) {
         queryClient.setQueryData(eventKeys.single(id ?? ""), context.prev);
       }
+      if (err?.status === 409) {
+        safeToast.warning("Already Claimed", "Someone else just claimed this item.");
+      } else if (err?.status === 403) {
+        safeToast.warning("Can\u2019t Unclaim", "Only the person who claimed it or the host can unclaim.");
+      } else {
+        safeToast.error("Something went wrong", "Please try again.", err);
+      }
     },
     onSettled: () => {
-      // Always refetch server truth — corrects any race condition
       queryClient.invalidateQueries({ queryKey: eventKeys.single(id ?? "") });
     },
   });
