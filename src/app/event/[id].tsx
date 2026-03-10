@@ -3082,19 +3082,6 @@ export default function EventDetailScreen() {
                   </Pressable>
                 </View>
 
-                {/* ── Copy link (secondary) ── */}
-                <Pressable
-                  onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    try { await Clipboard.setStringAsync(getEventUniversalLink(event.id)); } catch {}
-                    safeToast.success("Link copied");
-                  }}
-                  style={{ flexDirection: "row", alignItems: "center", alignSelf: "flex-start", paddingVertical: 4, marginBottom: 6 }}
-                >
-                  <Copy size={12} color={colors.textTertiary} />
-                  <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>Copy event link</Text>
-                </Pressable>
-
                 {/* ── Coordination summaries ── */}
                 {hasBringList && (
                   <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
