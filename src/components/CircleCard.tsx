@@ -268,8 +268,18 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
     transform: [{ translateX: translateX.value }],
   }));
 
-  // Calculate stacked bubble positions for members
-  const displayedMembers = members.slice(0, 2);
+  // Circular arrangement: up to 5 members positioned around a ring
+  const displayedMembers = members.slice(0, 5);
+  const AVATAR_CONTAINER = 48;
+  const AVATAR_SIZE = displayedMembers.length <= 2 ? 24 : displayedMembers.length <= 3 ? 20 : 16;
+  const RING_RADIUS = displayedMembers.length <= 2 ? 10 : 12;
+  const memberPositions = displayedMembers.map((_, i) => {
+    const angle = (2 * Math.PI * i) / displayedMembers.length - Math.PI / 2;
+    return {
+      left: AVATAR_CONTAINER / 2 + RING_RADIUS * Math.cos(angle) - AVATAR_SIZE / 2,
+      top: AVATAR_CONTAINER / 2 + RING_RADIUS * Math.sin(angle) - AVATAR_SIZE / 2,
+    };
+  });
 
   return (
     <Animated.View
@@ -330,36 +340,27 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
               }
               accessibilityHint={circle.isMuted ? "Swipe right to unmute" : undefined}
             >
-              {/* Group avatar: stacked member photos or circle photo/emoji */}
+              {/* Group avatar: circle photo or circular member arrangement */}
               {circle.photoUrl ? (
                 <View className="w-12 h-12 rounded-full overflow-hidden" style={{ backgroundColor: themeColor + "20" }}>
                   <CirclePhotoEmoji photoUrl={circle.photoUrl} emoji={circle.emoji} emojiClassName="text-xl" />
                 </View>
               ) : displayedMembers.length >= 2 ? (
-                /* Stacked 2-up group avatar (iMessage-style) */
-                <View style={{ width: 48, height: 48 }}>
-                  <View className="absolute" style={{ bottom: 0, left: 0, zIndex: 1 }}>
-                    <EntityAvatar
-                      photoUrl={displayedMembers[0]?.user?.image}
-                      initials={displayedMembers[0]?.user?.name?.[0] ?? "?"}
-                      size={32}
-                      backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
-                      foregroundColor={themeColor}
-                      fallbackIcon="person"
-                      style={{ borderWidth: 2, borderColor: colors.background }}
-                    />
-                  </View>
-                  <View className="absolute" style={{ top: 0, right: 0, zIndex: 0 }}>
-                    <EntityAvatar
-                      photoUrl={displayedMembers[1]?.user?.image}
-                      initials={displayedMembers[1]?.user?.name?.[0] ?? "?"}
-                      size={32}
-                      backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
-                      foregroundColor={themeColor}
-                      fallbackIcon="person"
-                      style={{ borderWidth: 2, borderColor: colors.background }}
-                    />
-                  </View>
+                /* Circular member arrangement scaled for inbox */
+                <View style={{ width: AVATAR_CONTAINER, height: AVATAR_CONTAINER }}>
+                  {displayedMembers.map((member, i) => (
+                    <View key={member.userId ?? i} style={{ position: "absolute", left: memberPositions[i].left, top: memberPositions[i].top, zIndex: displayedMembers.length - i }}>
+                      <EntityAvatar
+                        photoUrl={member.user?.image}
+                        initials={member.user?.name?.[0] ?? "?"}
+                        size={AVATAR_SIZE}
+                        backgroundColor={isDark ? "#2C2C2E" : themeColor + "30"}
+                        foregroundColor={themeColor}
+                        fallbackIcon="person"
+                        style={{ borderWidth: 1.5, borderColor: colors.background }}
+                      />
+                    </View>
+                  ))}
                 </View>
               ) : displayedMembers.length === 1 ? (
                 <EntityAvatar
@@ -420,10 +421,12 @@ export function CircleCard({ circle, onPin, onDelete, onMute, index, unreadCount
                 }}
                 numberOfLines={1}
               >
-                {circle.description
-                  ? circle.description
-                  : (circle.messageCount ?? 0) > 0
-                    ? `${members.length} members · ${circle.messageCount} messages`
+                {circle.lastMessageText
+                  ? circle.lastMessageSenderName
+                    ? `${circle.lastMessageSenderName}: ${circle.lastMessageText}`
+                    : circle.lastMessageText
+                  : circle.description
+                    ? circle.description
                     : "Start the conversation"}
               </Text>
             </View>

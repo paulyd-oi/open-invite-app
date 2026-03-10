@@ -34,6 +34,7 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { devLog, devError } from "@/lib/devLog";
 import { refreshAfterCircleLeave, refreshAfterCircleCreate } from "@/lib/refreshAfterMutation";
 import { safeToast } from "@/lib/safeToast";
+import { useHydrateCirclePreviews } from "@/lib/useHydrateCirclePreviews";
 
 export default function CirclesScreen() {
   const router = useRouter();
@@ -182,6 +183,8 @@ export default function CirclesScreen() {
   });
 
   const circles = data?.circles ?? [];
+  // [P0_PREVIEW_HYDRATE] Hydrate latest message text for inbox previews on cold load
+  useHydrateCirclePreviews(circles);
   const friends = friendsData?.friends ?? [];
 
   // [P1_CIRCLES_RENDER] Proof log: render with current circles state

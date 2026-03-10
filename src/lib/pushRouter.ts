@@ -501,8 +501,11 @@ function handleCircleMessage(payload: Record<string, any>, queryClient: QueryCli
     reconciledKeys: [circleKeys.single(circleId), circleKeys.messages(circleId)],
   });
 
-  // ── Bump lastMessageAt in circle list cache (sort key for chat list) ──
-  bumpCircleLastMessage(circleId, message?.createdAt, "push", queryClient);
+  // ── Bump lastMessageAt + preview in circle list cache ──
+  bumpCircleLastMessage(circleId, message?.createdAt, "push", queryClient, {
+    text: message?.content as string | undefined,
+    senderName: message?.user?.name as string | undefined,
+  });
 
   // [P0_CIRCLE_LIST_REFRESH] SSOT contract: invalidate circle list on push message
   refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });

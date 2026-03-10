@@ -1709,6 +1709,8 @@ export const circleSchema = z.object({
   messageCount: z.number().optional(),
   unreadCount: z.number().optional(),
   lastMessageAt: z.string().nullable().optional(), // ISO timestamp of latest message (for sort)
+  lastMessageText: z.string().nullable().optional(), // Latest message content (client-patched via WS/push)
+  lastMessageSenderName: z.string().nullable().optional(), // Latest message sender name (client-patched via WS/push)
 });
 export type Circle = z.infer<typeof circleSchema>;
 

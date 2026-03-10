@@ -130,8 +130,11 @@ export function useCircleRealtime(
         );
       }
 
-      // ── Bump lastMessageAt in circle list cache (sort key for chat list) ──
-      bumpCircleLastMessage(circleId, message.createdAt, "ws", queryClient);
+      // ── Bump lastMessageAt + preview in circle list cache ──
+      bumpCircleLastMessage(circleId, message.createdAt, "ws", queryClient, {
+        text: (message as any).content as string | undefined,
+        senderName: (message as any).user?.name as string | undefined,
+      });
 
       // ── Circle list refresh (SSOT contract) ──
       refreshCircleListContract({ reason: "push_circle_message", circleId, queryClient });
