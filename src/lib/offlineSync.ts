@@ -68,7 +68,13 @@ async function executeAction(action: QueuedAction): Promise<{ success: boolean; 
     switch (action.type) {
       case "CREATE_EVENT": {
         const payload = action.payload as CreateEventPayload;
-        const response = await api.post<CreateEventResponse>("/api/events", payload);
+        // [P8_IDEMPOTENT] Send action.id as idempotencyKey so replay after
+        // crash/reconnect returns the original event instead of creating a duplicate.
+        // action.id is a stable UUID generated once at enqueue time and persisted in AsyncStorage.
+        const response = await api.post<CreateEventResponse>("/api/events", {
+          ...payload,
+          idempotencyKey: action.id,
+        });
         return { success: true, data: response };
       }
 
