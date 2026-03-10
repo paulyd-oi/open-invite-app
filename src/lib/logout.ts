@@ -10,7 +10,7 @@
  * 3. Reset session (clear tokens + sign out)
  * 4. Cancel queries + clear cache
  * 5. Reset boot authority singleton
- * 6. Clear admin unlock state
+ * 6. Clear admin unlock + entitlements + user-scoped local state
  * 7. Navigate to /welcome
  *
  * Safe to call multiple times - idempotent via in-flight guard.
@@ -19,6 +19,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { Router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 import { resetSession } from "./authBootstrap";
 import { setLogoutIntent } from "./logoutIntent";
 import { deactivatePushTokenOnLogout } from "./pushTokenManager";
@@ -27,6 +28,8 @@ import { resetBootAuthority } from "@/hooks/useBootAuthority";
 import { devLog, devError } from "./devLog";
 import { disableAuthedNetwork } from "./networkAuthGate";
 import { resetSessionPaywallTracking } from "./entitlements";
+import { clearQueue as clearOfflineQueue } from "./offlineQueue";
+import { useOfflineStore } from "./offlineStore";
 
 // Entitlements AsyncStorage cache key (must match entitlements.ts)
 const ENTITLEMENTS_CACHE_KEY = "entitlements_cache";
@@ -140,6 +143,60 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       await AsyncStorage.removeItem(ENTITLEMENTS_CACHE_KEY);
     } catch (e) {
       // Non-fatal, continue logout
+    }
+
+    // Step 6c: Clear user-scoped local state to prevent cross-user leakage.
+    // [P7_USER_SCOPING] Offline queue/store, scheduled notifications, nudge flags,
+    // ideas personalization, engagement tracking, and dismissal state.
+    try {
+      // Cancel all scheduled local notifications (event reminders etc.)
+      await Notifications.cancelAllScheduledNotificationsAsync();
+
+      // Clear offline action queue + local placeholder events/RSVPs
+      await clearOfflineQueue();
+      useOfflineStore.getState().clearLocalEvents();
+      useOfflineStore.getState().clearLocalRsvps();
+
+      // Bulk-remove user-scoped AsyncStorage keys
+      await AsyncStorage.multiRemove([
+        // Offline
+        "offlineQueue:deadLetterCount:v1",
+        // Notification reminders map
+        "event_reminders",
+        // Nudge / dismissal flags
+        "firstValueNudge:v1",
+        "firstRsvpNudge:v1",
+        "secondOrderSocialNudge:v1",
+        "postEventRepeatNudge:v2",
+        "notification_nudge_count",
+        "oi:first_time_hint_dismissed",
+        "oi:app_open_count",
+        "postValueInvite:lastShownAt",
+        "@oi_circle_notif_info_dismissed",
+        // Ideas personalization
+        "ideasExposureMap",
+        "ideasAcceptStats",
+        "ideasStatsResetMonth",
+        "ideasPatternMemory",
+        // User preferences
+        "oi_quiet_hours_preset_v1",
+        "oi:workSkipDateKeys",
+        // Calendar sync
+        "calendarSync:calendarId",
+        // Engagement tracking
+        "app_review_data",
+        // Ephemeral state
+        "oi:bestTimePick",
+      ]);
+
+      if (__DEV__) {
+        devLog("[P7_USER_SCOPING] user-scoped local state cleared");
+      }
+    } catch (e) {
+      // Non-fatal, continue logout
+      if (__DEV__) {
+        devError("[P7_USER_SCOPING] error clearing user state:", e);
+      }
     }
 
     // Step 7: Navigate to welcome
