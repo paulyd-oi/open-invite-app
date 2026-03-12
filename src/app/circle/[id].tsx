@@ -1484,23 +1484,34 @@ export default function CircleScreen() {
   // Derive messages safely (circle may be null before loading gate)
   const messages = circle?.messages ?? [];
 
-  // [P1_NEXT_EVENT_ANCHOR] Derive next upcoming circle event from memberEvents
+  // [P1_NEXT_EVENT_ANCHOR] Derive next upcoming event that belongs to THIS circle
   const nextCircleEvent = useMemo(() => {
-    if (!circle?.memberEvents) return null;
+    if (!circle?.circleEvents) return null;
     const now = Date.now();
-    let best: { id: string; title: string; startTime: string; endTime?: string | null; emoji?: string; location?: string | null; color?: string; coverUrl?: string | null; isBusy?: boolean; isPrivate?: boolean } | null = null;
+    let best: { id: string; title: string; startTime: string; endTime?: string | null; emoji?: string; location?: string | null; color?: string; coverUrl?: string | null; eventPhotoUrl?: string | null; description?: string | null } | null = null;
     let bestTime = Infinity;
-    for (const member of circle.memberEvents) {
-      for (const e of member.events) {
-        const t = new Date(e.startTime).getTime();
-        if (t > now && t < bestTime && !e.isBusy && !e.isPrivate) {
-          bestTime = t;
-          best = e;
-        }
+    for (const ce of circle.circleEvents) {
+      const ev = ce.event;
+      if (!ev) continue;
+      const t = new Date(ev.startTime).getTime();
+      if (t > now && t < bestTime) {
+        bestTime = t;
+        best = {
+          id: ev.id,
+          title: ev.title,
+          startTime: ev.startTime,
+          endTime: ev.endTime ?? null,
+          emoji: ev.emoji,
+          location: ev.location ?? null,
+          color: ev.color ?? undefined,
+          coverUrl: ev.eventPhotoUrl ?? null,
+          eventPhotoUrl: ev.eventPhotoUrl ?? null,
+          description: ev.description ?? null,
+        };
       }
     }
     return best;
-  }, [circle?.memberEvents]);
+  }, [circle?.circleEvents]);
 
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
