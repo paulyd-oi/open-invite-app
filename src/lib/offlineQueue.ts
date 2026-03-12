@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "./devLog";
 import { trackOfflineActionQueued } from "@/analytics/analyticsEventsSSOT";
 import { getPostHogRef, posthogCapture } from "@/analytics/posthogSSOT";
+import { type EventVisibility } from "@/shared/contracts";
 
 // Simple UUID generator (no external dependency)
 function generateUUID(): string {
@@ -95,7 +96,7 @@ export interface CreateEventPayload {
   endTime?: string;
   location?: string;
   description?: string;
-  visibility?: string;
+  visibility?: EventVisibility;
   inviteOnly?: boolean;
   color?: string;
   recurring?: {

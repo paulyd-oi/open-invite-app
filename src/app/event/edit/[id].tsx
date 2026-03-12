@@ -45,6 +45,7 @@ import {
   type GetCirclesResponse,
   type Circle,
   type DeleteEventResponse,
+  type EventVisibility,
 } from "@/shared/contracts";
 import {
   eventKeys,
@@ -92,7 +93,7 @@ export default function EditEventScreen() {
     d.setHours(d.getHours() + 2);
     return d;
   });
-  const [visibility, setVisibility] = useState<"all_friends" | "specific_groups">("all_friends");
+  const [visibility, setVisibility] = useState<EventVisibility>("all_friends");
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -139,7 +140,7 @@ export default function EditEventScreen() {
         defaultEnd.setHours(defaultEnd.getHours() + 2);
         setEndDate(defaultEnd);
       }
-      setVisibility((event.visibility as "all_friends" | "specific_groups") ?? "all_friends");
+      setVisibility((event.visibility as EventVisibility) ?? "all_friends");
       if (event.groupVisibility) {
         setSelectedGroupIds(event.groupVisibility.map((g) => g.groupId));
       }

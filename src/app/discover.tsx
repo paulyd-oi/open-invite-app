@@ -106,7 +106,7 @@ interface PopularEvent {
   goingCount?: number;
   displayGoingCount?: number;
   isFull?: boolean;
-  viewerRsvpStatus?: "going" | "not_going" | "interested" | null;
+  viewerRsvpStatus?: "going" | "not_going" | "interested" | "maybe" | null;
   createdAt?: string;
   eventPhotoUrl?: string | null;
   joinRequests?: Array<{
@@ -309,8 +309,7 @@ export default function DiscoverScreen() {
     return enrichedEvents
       .filter((e) => {
         if (new Date(e.startTime).getTime() < now) return false; // filter past
-        const rsvp = e.viewerRsvpStatus as string | null | undefined;
-        return savedEvents.has(e.id) || rsvp === "interested" || rsvp === "maybe";
+        return savedEvents.has(e.id) || e.viewerRsvpStatus === "interested" || e.viewerRsvpStatus === "maybe";
       })
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }, [enrichedEvents, savedEvents]);

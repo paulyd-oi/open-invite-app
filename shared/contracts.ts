@@ -127,6 +127,14 @@ export const eventSchema = z.object({
 });
 export type Event = z.infer<typeof eventSchema>;
 
+// ── Reusable sub-types extracted from schemas ──────────────────────
+/** Canonical visibility values accepted by create/update and returned by read. */
+export type EventVisibility = "all_friends" | "specific_groups" | "circle_only" | "open_invite" | "private";
+/** RSVP status values the viewer can set (outbound mutations). */
+export type RsvpStatusMutation = "going" | "interested" | "not_going";
+/** RSVP status values the server may return (includes legacy "maybe"). */
+export type RsvpStatusResponse = "going" | "interested" | "not_going" | "maybe";
+
 // GET /api/events - Get user's events
 export const getEventsResponseSchema = z.object({
   events: z.array(eventSchema),

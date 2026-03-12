@@ -98,6 +98,7 @@ import {
   type CreateCommentResponse,
   type EventReportReason,
   type SendFriendRequestResponse,
+  type RsvpStatusMutation,
 } from "@/shared/contracts";
 import { EventReminderPicker } from "@/components/EventReminderPicker";
 import { EventPhotoGallery } from "@/components/EventPhotoGallery";
@@ -971,7 +972,7 @@ export default function EventDetailScreen() {
   // Fetch current user's RSVP status
   const { data: myRsvpData } = useQuery({
     queryKey: eventKeys.rsvp(id ?? ""),
-    queryFn: () => api.get<{ status: string | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
+    queryFn: () => api.get<{ status: "going" | "interested" | "not_going" | "maybe" | "invited" | null; rsvpId: string | null }>(`/api/events/${id}/rsvp`),
     enabled: isAuthedForNetwork(bootStatus, session) && !!id && !isBusyBlock,
   });
 
@@ -1180,7 +1181,7 @@ export default function EventDetailScreen() {
   }
 
   // RSVP mutation (unified)
-  type RsvpStatus = "going" | "interested" | "not_going";
+  type RsvpStatus = RsvpStatusMutation;
 
   const rsvpMutation = useMutation({
     mutationFn: (status: RsvpStatus) => {

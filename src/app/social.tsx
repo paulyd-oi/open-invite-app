@@ -44,7 +44,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { FirstValueNudge, canShowFirstValueNudge, markFirstValueNudgeDismissed } from "@/components/FirstValueNudge";
 import { SocialMemoryCard } from "@/components/SocialMemoryCard";
 import { loadGuidanceState, shouldShowEmptyGuidanceSync, setGuidanceUserId, dismissAllGuidance } from "@/lib/firstSessionGuidance";
-import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse } from "@/shared/contracts";
+import { type GetEventsFeedResponse, type GetEventsResponse, type Event, type GetFriendsResponse, type RsvpStatusMutation } from "@/shared/contracts";
 import { groupEventsIntoSeries, type EventSeries } from "@/lib/recurringEventsGrouping";
 import { eventKeys, invalidateEventKeys, getInvalidateAfterRsvpJoin, deriveAttendeeCount, logRsvpMismatch } from "@/lib/eventQueryKeys";
 import { qk } from "@/lib/queryKeys";
@@ -67,7 +67,7 @@ const AVAILABILITY_COLORS = {
 } as const;
 
 type AvailabilityStatus = "free" | "busy" | "unknown";
-type RsvpStatus = "going" | "interested" | "not_going";
+type RsvpStatus = RsvpStatusMutation;
 
 /**
  * Compute availability for a feed event against user's calendar.
