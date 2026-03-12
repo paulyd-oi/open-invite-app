@@ -348,13 +348,15 @@ function ReferralCounterSection({
         </View>
         <View
           className="px-3 py-1 rounded-full"
-          style={{ backgroundColor: successfulCount >= 3 ? "#10B98120" : `${themeColor}20` }}
+          style={{ backgroundColor: (isPro || successfulCount >= 3) ? "#10B98120" : `${themeColor}20` }}
         >
           <Text
-            style={{ color: successfulCount >= REFERRAL_TIERS.MONTH_PRO.count ? "#10B981" : themeColor }}
+            style={{ color: (isPro || successfulCount >= REFERRAL_TIERS.MONTH_PRO.count) ? "#10B981" : themeColor }}
             className="text-xs font-bold"
           >
-            {successfulCount < REFERRAL_TIERS.MONTH_PRO.count
+            {isPro
+              ? "Pro Active"
+              : successfulCount < REFERRAL_TIERS.MONTH_PRO.count
               ? `${successfulCount}/${REFERRAL_TIERS.MONTH_PRO.count}`
               : successfulCount < REFERRAL_TIERS.YEAR_PRO.count
               ? `${successfulCount}/${REFERRAL_TIERS.YEAR_PRO.count}`
@@ -374,7 +376,9 @@ function ReferralCounterSection({
           className="h-full rounded-full"
           style={{
             width: `${
-              successfulCount < REFERRAL_TIERS.MONTH_PRO.count
+              isPro
+                ? 100
+                : successfulCount < REFERRAL_TIERS.MONTH_PRO.count
                 ? (successfulCount / REFERRAL_TIERS.MONTH_PRO.count) * 100
                 : successfulCount < REFERRAL_TIERS.YEAR_PRO.count
                 ? ((successfulCount - REFERRAL_TIERS.MONTH_PRO.count) / (REFERRAL_TIERS.YEAR_PRO.count - REFERRAL_TIERS.MONTH_PRO.count)) * 100
@@ -382,7 +386,7 @@ function ReferralCounterSection({
                 ? ((successfulCount - REFERRAL_TIERS.YEAR_PRO.count) / (REFERRAL_TIERS.LIFETIME_PRO.count - REFERRAL_TIERS.YEAR_PRO.count)) * 100
                 : 100
             }%`,
-            backgroundColor: successfulCount >= REFERRAL_TIERS.MONTH_PRO.count ? "#10B981" : themeColor,
+            backgroundColor: (isPro || successfulCount >= REFERRAL_TIERS.MONTH_PRO.count) ? "#10B981" : themeColor,
           }}
         />
       </View>
