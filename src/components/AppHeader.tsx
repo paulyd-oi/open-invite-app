@@ -109,8 +109,16 @@ export function AppHeader({
       {/* ── Subtitle ── */}
       {subtitle ? (
         <Text
-          className="mt-1 font-sora"
-          style={{ color: colors.textSecondary }}
+          style={{
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: "400",
+            letterSpacing: 0.6,
+            marginTop: 1,
+            marginBottom: 2,
+            opacity: 0.72,
+            textTransform: "lowercase",
+          }}
         >
           {subtitle}
         </Text>
