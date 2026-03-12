@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Pressable, Text } from "react-native";
+import React from "react";
+import { View, Pressable, Platform } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { type LucideIcon } from "../ui/icons";
 import Animated, {
@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { useQuery } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/lib/ThemeContext";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
@@ -24,6 +25,19 @@ import { circleKeys } from "@/lib/circleQueryKeys";
 import { qk } from "@/lib/queryKeys";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// ─── Floating island layout constants ───────────────────────
+// Total visual footprint from bottom of screen: inset.bottom + ISLAND_BOTTOM + ISLAND_HEIGHT
+// Screens should use FLOATING_TAB_INSET for contentContainerStyle paddingBottom.
+const ISLAND_HEIGHT = 56;
+const ISLAND_BOTTOM = 8; // gap between island and safe area bottom
+const ISLAND_HORIZONTAL = 16; // left/right margin
+const ISLAND_RADIUS = 28; // pill shape
+
+/** Minimum paddingBottom screens need to clear the floating tab bar. */
+export const FLOATING_TAB_INSET = ISLAND_HEIGHT + ISLAND_BOTTOM + 20;
+
+// ─── NavButton ──────────────────────────────────────────────
 
 interface NavButtonProps {
   Icon: LucideIcon;
@@ -65,30 +79,17 @@ function NavButton({
   }));
 
   const handlePress = () => {
-    // Auth guard: explicit bootStatus handling (matches BootRouter behavior)
-    if (bootStatus === 'loading') {
-      // Ignore tap during boot - don't redirect, let boot complete
-      return;
-    }
-    if (bootStatus === 'onboarding') {
+    if (bootStatus === "loading") return;
+    if (bootStatus === "onboarding" || bootStatus === "loggedOut" || bootStatus === "error") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace('/welcome');
+      router.replace("/welcome");
       return;
     }
-    if (bootStatus === 'loggedOut' || bootStatus === 'error') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      router.replace('/welcome');
-      return;
-    }
-
-    // Don't navigate if already on this page
-    if (isActive) {
-      return;
-    }
+    if (isActive) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scale.value = withSequence(
-      withTiming(0.9, { duration: 50 }),
+      withTiming(0.85, { duration: 50 }),
       withSpring(1, { damping: 15 })
     );
     router.push(href as any);
@@ -101,38 +102,8 @@ function NavButton({
     }
   };
 
-  if (isCenter) {
-    return (
-      <View style={{ position: "relative", zIndex: 100 }}>
-        <AnimatedPressable
-          testID={testID}
-          onPress={handlePress}
-          style={[
-            animatedStyle,
-            {
-              width: 64,
-              height: 64,
-              borderRadius: 32,
-              backgroundColor: accentColor,
-              alignItems: "center",
-              justifyContent: "center",
-              marginTop: -20,
-              shadowColor: accentColor,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: isDark ? 0.6 : 0.4,
-              shadowRadius: 8,
-              elevation: 12,
-            },
-          ]}
-        >
-          <Icon size={28} color="#fff" />
-        </AnimatedPressable>
-      </View>
-    );
-  }
-
-  // Special rendering for profile with custom avatar
   const showCustomImage = customImage && label === "Profile";
+  const iconSize = isCenter ? 26 : 24;
 
   return (
     <AnimatedPressable
@@ -140,63 +111,75 @@ function NavButton({
       onPress={handlePress}
       onLongPress={handleLongPress}
       delayLongPress={400}
-      style={animatedStyle}
-      className="flex-1 items-center justify-center py-2"
+      style={[
+        animatedStyle,
+        {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          height: ISLAND_HEIGHT,
+        },
+      ]}
     >
-      <View className="relative">
+      {/* Active indicator pill behind icon */}
+      {isActive && !showCustomImage && (
         <View
-          style={
-            isActive && !showCustomImage
-              ? { backgroundColor: accentColor + "15", borderRadius: 12, padding: 8 }
-              : { padding: 8 }
-          }
+          style={{
+            position: "absolute",
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: accentColor + "18",
+          }}
+        />
+      )}
+
+      {showCustomImage ? (
+        <View
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            borderWidth: isActive ? 2 : 1.5,
+            borderColor: isActive ? accentColor : (isDark ? "#48484A" : "#D1D5DB"),
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {showCustomImage ? (
-            <View className="relative">
-              <View
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 14,
-                  borderWidth: isActive ? 2 : 1,
-                  borderColor: isActive ? accentColor : (isDark ? "#48484A" : "#D1D5DB"),
-                  padding: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <EntityAvatar
-                  photoUrl={customImage}
-                  initials={customInitial}
-                  size={isActive ? 20 : 22}
-                  foregroundColor={accentColor}
-                  backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
-                  fallbackIcon="person-outline"
-                />
-              </View>
-            {/* Business profile indicator hidden for now */}
-          </View>
-        ) : (
-          <View className="relative">
-            <Icon size={24} color={isActive ? accentColor : inactiveColor} />
-            {/* Business profile indicator hidden for now */}
-          </View>
-        )}
+          <EntityAvatar
+            photoUrl={customImage}
+            initials={customInitial}
+            size={isActive ? 22 : 24}
+            foregroundColor={accentColor}
+            backgroundColor={isDark ? "#2C2C2E" : "#E5E7EB"}
+            fallbackIcon="person-outline"
+          />
         </View>
-        {/* [UNREAD_DOTS_REMOVED_P2.3] Badge indicators removed pre-launch */}
-      </View>
-      <Text
-        className="text-xs mt-1 font-medium"
-        style={{ color: isActive ? accentColor : inactiveColor }}
-      >
-        {label}
-      </Text>
+      ) : isCenter ? (
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: isActive ? accentColor : (isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)"),
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon size={iconSize} color={isActive ? "#FFFFFF" : inactiveColor} />
+        </View>
+      ) : (
+        <Icon size={iconSize} color={isActive ? accentColor : inactiveColor} />
+      )}
     </AnimatedPressable>
   );
 }
 
+// ─── BottomNavigation ───────────────────────────────────────
+
 export default function BottomNavigation() {
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const { themeColor, isDark, colors } = useTheme();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
@@ -206,7 +189,7 @@ export default function BottomNavigation() {
     queryKey: qk.friend.requests(),
     queryFn: () => api.get<GetFriendRequestsResponse>("/api/friends/requests"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
+    staleTime: 300000,
   });
 
   // Fetch event requests count for calendar badge
@@ -214,7 +197,7 @@ export default function BottomNavigation() {
     queryKey: qk.eventRequests(),
     queryFn: () => api.get<GetEventRequestsResponse>("/api/event-requests"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
+    staleTime: 300000,
   });
 
   // Fetch circle unread count for friends badge
@@ -222,7 +205,7 @@ export default function BottomNavigation() {
     queryKey: circleKeys.unreadCount(),
     queryFn: () => api.get<{ totalUnread: number; byCircle: Record<string, number> }>("/api/circles/unread/count"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 300000, // Cache for 5 minutes to reduce query spam on tab switch
+    staleTime: 300000,
   });
 
   // Fetch profiles for profile switcher
@@ -230,7 +213,7 @@ export default function BottomNavigation() {
     queryKey: qk.profiles(),
     queryFn: () => api.get<GetProfilesResponse>("/api/profile"),
     enabled: isAuthedForNetwork(bootStatus, session),
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 60000,
   });
 
   const friendRequestCount = Array.isArray(friendRequestsData?.received) ? friendRequestsData.received.length : 0;
@@ -238,69 +221,67 @@ export default function BottomNavigation() {
   const friendsBadgeCount = friendRequestCount + circleUnreadCount;
   const pendingEventRequestCount = eventRequestsData?.pendingCount ?? 0;
 
-  // Get active profile info
   const activeProfile = profilesData?.activeProfile;
-  // Canonical avatar precedence: profile.image → session.user.image
-  // Use resolveImageUrl to handle both absolute Cloudinary URLs and legacy /uploads/ paths
   const rawProfileImage = activeProfile?.image ?? (session?.user as any)?.image;
   const profileImage = resolveImageUrl(rawProfileImage);
   const profileInitial = (activeProfile?.name ?? session?.user?.name)?.[0]?.toUpperCase() ?? "?";
 
-  // Check if user has multiple profiles (show indicator)
-  const hasMultipleProfiles = (profilesData?.profiles?.length ?? 0) > 1;
-
-  // Map badge counts to tabs based on badgeKey
   const badgeCounts: Record<string, number> = {
     eventRequests: pendingEventRequestCount,
     friendRequests: friendsBadgeCount,
   };
 
-  // Build navItems from canonical source with badge counts
   const navItems = BOTTOM_NAV_TABS.map(tab => ({
     ...tab,
     badgeCount: tab.badgeKey ? badgeCounts[tab.badgeKey] : undefined,
   }));
 
-  // Dev-only: Assert tab order matches canonical
   assertTabOrder(navItems);
 
-  return (
-      <View
-        className="absolute bottom-0 left-0 right-0"
-        style={{
-          backgroundColor: colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          paddingBottom: 20,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: isDark ? 0.2 : 0.05,
-          shadowRadius: 12,
-          elevation: 12,
-          overflow: "visible",
-        }}
-      >
-        <View className="flex-row items-end justify-around px-2 pt-2" style={{ overflow: "visible" }}>
-          {navItems.map((item) => (
-            <NavButton
-              key={item.key}
-              testID={`app-tab-${item.key}`}
-              Icon={item.Icon}
-              label={item.label}
-              href={item.href}
-              isCenter={item.isCenter}
-              isActive={pathname === item.href}
-              accentColor={themeColor}
-              isDark={isDark}
-              inactiveColor={colors.textTertiary}
-              badgeCount={item.badgeCount}
-              customImage={item.label === "Profile" ? profileImage : undefined}
-              customInitial={item.label === "Profile" ? profileInitial : undefined}
-              bootStatus={bootStatus}
-            />
-          ))}
-        </View>
-      </View>
+  // Safe area bottom: at least 8 on devices without home indicator
+  const safeBottom = Math.max(insets.bottom, 8);
 
+  return (
+    <View
+      style={{
+        position: "absolute",
+        bottom: safeBottom + ISLAND_BOTTOM,
+        left: ISLAND_HORIZONTAL,
+        right: ISLAND_HORIZONTAL,
+        height: ISLAND_HEIGHT,
+        borderRadius: ISLAND_RADIUS,
+        backgroundColor: isDark ? "rgba(28,28,30,0.92)" : "rgba(255,255,255,0.92)",
+        flexDirection: "row",
+        alignItems: "center",
+        // Soft shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDark ? 0.35 : 0.12,
+        shadowRadius: 16,
+        elevation: 16,
+        // Subtle border for definition
+        borderWidth: isDark ? 0.5 : 0.5,
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+      }}
+    >
+      {navItems.map((item) => (
+        <NavButton
+          key={item.key}
+          testID={`app-tab-${item.key}`}
+          Icon={item.Icon}
+          label={item.label}
+          href={item.href}
+          isCenter={item.isCenter}
+          isActive={pathname === item.href}
+          accentColor={themeColor}
+          isDark={isDark}
+          inactiveColor={isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.35)"}
+          badgeCount={item.badgeCount}
+          customImage={item.label === "Profile" ? profileImage : undefined}
+          customInitial={item.label === "Profile" ? profileInitial : undefined}
+          bootStatus={bootStatus}
+        />
+      ))}
+    </View>
   );
 }
