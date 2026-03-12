@@ -2153,7 +2153,7 @@ export default function CircleScreen() {
                 )}
               </Pressable>
 
-              {/* Expanded event tile */}
+              {/* Expanded event tile — matches UPCOMING thread card style */}
               {upNextExpanded && (
                 <Pressable
                   onPress={() => {
@@ -2162,21 +2162,26 @@ export default function CircleScreen() {
                   }}
                 >
                   {/* Banner photo strip */}
-                  {nextCircleEvent.coverUrl ? (
+                  {nextCircleEvent.eventPhotoUrl ? (
                     <Image
-                      source={{ uri: nextCircleEvent.coverUrl }}
-                      style={{ width: "100%", height: 80, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
+                      source={{ uri: nextCircleEvent.eventPhotoUrl }}
+                      style={{ width: "100%", height: 72, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
                       resizeMode="cover"
                     />
                   ) : null}
-                  <View style={{ paddingHorizontal: 16, paddingTop: nextCircleEvent.coverUrl ? 10 : 12, paddingBottom: 14 }}>
+                  <View style={{ paddingHorizontal: 18, paddingTop: nextCircleEvent.eventPhotoUrl ? 10 : 16, paddingBottom: 18 }}>
                     <Text
-                      numberOfLines={1}
-                      style={{ fontSize: 16, fontWeight: "700", color: colors.text }}
+                      numberOfLines={2}
+                      style={{ fontSize: 17, fontWeight: "700", color: colors.text }}
                     >
                       {nextCircleEvent.emoji ? `${nextCircleEvent.emoji} ` : ""}{nextCircleEvent.title}
                     </Text>
-                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                    {nextCircleEvent.description ? (
+                      <Text numberOfLines={2} style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 }}>
+                        {nextCircleEvent.description}
+                      </Text>
+                    ) : null}
+                    <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 6 }}>
                       {dateStr} · {timeStr}
                     </Text>
                     {nextCircleEvent.location ? (
