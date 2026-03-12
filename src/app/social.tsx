@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
-import { capInfinitePages, DEFAULT_MAX_PAGES, DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
+import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { useRouter, usePathname, useFocusEffect } from "expo-router";
@@ -903,8 +903,7 @@ export default function SocialScreen() {
     refetchOnMount: false, // Don't refetch if we have recent data
     refetchOnWindowFocus: false, // Don't refetch on tab focus
     placeholderData: (prev: InfiniteData<GetEventsFeedResponse, string | null> | undefined) => prev, // [PERF_SWEEP] Keep pages visible during refetch
-    // [INFINITE_QUERY_SSOT] Cap in-memory pages via SSOT helper
-    select: (data) => capInfinitePages(data, DEFAULT_MAX_PAGES),
+    // [INFINITE_QUERY_SSOT] Removed capInfinitePages to fix "Load More" button bug - React Query manages pagination state
   });
 
   // Auto-pagination: scroll-triggered fetch for feed
