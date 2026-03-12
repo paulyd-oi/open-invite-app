@@ -161,7 +161,7 @@ export const createEventRequestSchema = z.object({
   endTime: z.string().optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().optional(),
-  visibility: z.enum(["all_friends", "specific_groups", "circle_only", "private"]),
+  visibility: z.enum(["all_friends", "specific_groups", "circle_only", "open_invite", "private"]),
   groupIds: z.array(z.string()).optional(), // Required if visibility is specific_groups
   circleId: z.string().optional(), // Required if visibility is circle_only
   isPrivateCircleEvent: z.boolean().optional(), // If true, shows as "busy" to non-circle members

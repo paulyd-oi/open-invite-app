@@ -104,6 +104,9 @@ export interface CreateEventPayload {
     endDate?: string;
     daysOfWeek?: number[];
   };
+  // Cover photo (uploaded before create, URL persisted through offline queue)
+  eventPhotoUrl?: string;
+  eventPhotoPublicId?: string;
 }
 
 // Event payload for UPDATE_EVENT
