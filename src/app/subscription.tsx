@@ -4,11 +4,9 @@ import {
   Text,
   ScrollView,
   Pressable,
-  TextInput,
   ActivityIndicator,
   Platform,
   Linking,
-  KeyboardAvoidingView,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -101,8 +99,6 @@ export default function SubscriptionScreen() {
   const { status: bootStatus } = useBootAuthority();
 
   const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
-  const [promoCode, setPromoCode] = useState("");
-  const [isPromoLoading, setIsPromoLoading] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
@@ -230,69 +226,6 @@ export default function SubscriptionScreen() {
     }
   };
 
-  // Handle promo code redemption - CANONICAL SSOT
-  const handleApplyPromoCode = async () => {
-    if (!promoCode.trim()) return;
-
-    setIsPromoLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // [PRO_SOT] Log BEFORE state
-    if (__DEV__) {
-      devLog("[PRO_SOT] BEFORE screen=subscription_promo isPremium=", subscriptionContext.isPremium);
-      devLog("[P0_DISCOUNT_APPLY] START screen=subscription code=", promoCode.trim().toUpperCase().slice(0, 4) + "…");
-    }
-
-    try {
-      const response = await api.post<{ success: boolean; benefit?: string; error?: string }>(
-        "/api/discount/redeem",
-        { code: promoCode.trim().toUpperCase() }
-      );
-
-      if (response.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setPromoCode("");
-        
-        // CANONICAL: Use refreshProContract for SSOT after promo redemption
-        const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:subscription" });
-        
-        // [PRO_SOT] Log AFTER state
-        if (__DEV__) {
-          devLog("[PRO_SOT] AFTER screen=subscription_promo combinedIsPro=", combinedIsPro);
-          devLog("[P0_DISCOUNT_APPLY] OK screen=subscription combinedIsPro=", combinedIsPro);
-        }
-        
-        // Invalidate queries for UI refresh
-        refetch();
-        queryClient.invalidateQueries({ queryKey: qk.subscription() });
-        queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
-        
-        // Show toast based on combined result
-        if (combinedIsPro) {
-          safeToast.success("Pro Active!", response.benefit || "Promo code applied!");
-        } else {
-          safeToast.success("Success!", response.benefit || "Promo code applied!");
-        }
-      } else {
-        if (__DEV__) {
-          devLog("[PRO_SOT] ERROR screen=subscription_promo invalid_code");
-          devLog("[P0_DISCOUNT_APPLY] ERROR screen=subscription invalid_code");
-        }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        safeToast.error("Invalid Code", response.error || "This code is not valid.");
-      }
-    } catch (error: unknown) {
-      if (__DEV__) {
-        devLog("[PRO_SOT] ERROR screen=subscription_promo", error);
-        devLog("[P0_DISCOUNT_APPLY] ERROR screen=subscription", error);
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const errorMessage = error instanceof Error ? error.message : "Could not validate code.";
-      safeToast.error("Redeem Failed", errorMessage);
-    } finally {
-      setIsPromoLoading(false);
-    }
-  };
 
   // Format date for display
   const formatDate = (dateString: string | null): string => {
@@ -311,7 +244,6 @@ export default function SubscriptionScreen() {
   const isPremium = subscriptionContext.isPremium;
   const isLifetime = subscriptionData?.subscription.isLifetime;
   const isTrial = subscriptionData?.subscription.type === "trial";
-  const canUseDiscountCode = subscriptionData?.discountCodes.canUseDiscountCode ?? true;
 
   if (__DEV__) {
     devLog("[PRO_SOT] subscription.tsx status", {
@@ -451,16 +383,10 @@ export default function SubscriptionScreen() {
         </Text>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
-      >
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onManualRefresh} tintColor={themeColor} />
         }
@@ -728,101 +654,6 @@ export default function SubscriptionScreen() {
           </Animated.View>
         )}
 
-        {/* Discount Code Section */}
-        <Animated.View entering={FadeInDown.delay(300).springify()} className="mx-4 mt-6">
-          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-3 ml-2">
-            DISCOUNT CODE
-          </Text>
-          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
-            {!canUseDiscountCode ? (
-              <View className="items-center py-4">
-                <View
-                  className="w-12 h-12 rounded-full items-center justify-center mb-3"
-                  style={{ backgroundColor: STATUS.going.bgSoft }}
-                >
-                  <Check size={24} color={STATUS.going.fg} />
-                </View>
-                <Text style={{ color: colors.text }} className="text-base font-semibold mb-1">
-                  Lifetime Member
-                </Text>
-                <Text style={{ color: colors.textSecondary }} className="text-sm text-center">
-                  You already have the best deal!{"\n"}No more discount codes needed.
-                </Text>
-              </View>
-            ) : (
-              <>
-                <View className="flex-row items-center mb-3">
-                  <Gift size={18} color={themeColor} />
-                  <Text style={{ color: colors.text }} className="ml-2 text-sm font-medium">
-                    Have a promo code?
-                  </Text>
-                </View>
-                <View className="flex-row items-center">
-                  <TextInput
-                    value={promoCode}
-                    onChangeText={(text) => setPromoCode(text.toUpperCase())}
-                    placeholder="Enter code"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="characters"
-                    style={{
-                      flex: 1,
-                      backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6",
-                      borderRadius: 12,
-                      padding: 14,
-                      color: colors.text,
-                      fontSize: 16,
-                      fontWeight: "600",
-                      letterSpacing: 1,
-                    }}
-                  />
-                  <Pressable
-                    onPress={handleApplyPromoCode}
-                    disabled={isPromoLoading || !promoCode.trim()}
-                    className="ml-3 px-5 py-3.5 rounded-xl"
-                    style={{
-                      backgroundColor: promoCode.trim() ? themeColor : isDark ? "#2C2C2E" : "#E5E7EB",
-                      opacity: isPromoLoading ? 0.7 : 1,
-                    }}
-                  >
-                    {isPromoLoading ? (
-                      <ActivityIndicator color="#fff" size="small" />
-                    ) : (
-                      <Text
-                        className="font-semibold"
-                        style={{ color: promoCode.trim() ? "#fff" : colors.textTertiary }}
-                      >
-                        Apply
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
-
-                {/* Previously used codes */}
-                {subscriptionData?.discountCodes.redemptions &&
-                 subscriptionData.discountCodes.redemptions.length > 0 && (
-                  <View className="mt-4 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.separator }}>
-                    <Text style={{ color: colors.textSecondary }} className="text-xs font-medium mb-2">
-                      PREVIOUSLY USED CODES
-                    </Text>
-                    {subscriptionData.discountCodes.redemptions.map((redemption, i) => (
-                      <View key={i} className="flex-row items-center justify-between py-2">
-                        <View className="flex-row items-center">
-                          <Check size={14} color={STATUS.going.fg} />
-                          <Text style={{ color: colors.text }} className="ml-2 font-medium">
-                            {redemption.code}
-                          </Text>
-                        </View>
-                        <Text style={{ color: colors.textTertiary }} className="text-xs">
-                          {new Date(redemption.redeemedAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </>
-            )}
-          </View>
-        </Animated.View>
 
         {/* Restore Purchases */}
         <Animated.View entering={FadeInDown.delay(400).springify()} className="mx-4 mt-6">
@@ -859,7 +690,6 @@ export default function SubscriptionScreen() {
           Manage your subscription in your device settings.
         </Text>
       </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

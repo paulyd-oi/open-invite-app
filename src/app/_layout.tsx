@@ -908,12 +908,6 @@ function RootLayoutNav() {
           }}
         />
         <Stack.Screen
-          name="redeem-code"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
           name="referrals"
           options={{
             headerShown: false,

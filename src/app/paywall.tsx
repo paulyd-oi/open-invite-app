@@ -5,9 +5,6 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -19,7 +16,6 @@ import {
   X,
   Sparkles,
   Gift,
-  Ticket,
   ChevronRight,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -79,32 +75,21 @@ export default function PaywallScreen() {
   const [lifetimePackage, setLifetimePackage] = useState<PurchasesPackage | null>(null);
   const [revenueCatEnabled, setRevenueCatEnabled] = useState(false);
 
-  // Discount code state
-  const [showDiscountInput, setShowDiscountInput] = useState(false);
-  const [discountCode, setDiscountCode] = useState("");
-  const scrollViewRef = useRef<ScrollView>(null);
-  const discountInputY = useRef(0);
-  const [isValidatingCode, setIsValidatingCode] = useState(false);
-  const [isRedeemingCode, setIsRedeemingCode] = useState(false);
-
   // Modal state
   const [showPremiumSuccessModal, setShowPremiumSuccessModal] = useState(false);
   const [showRestoreSuccessModal, setShowRestoreSuccessModal] = useState(false);
-  const [showCodeRedeemedModal, setShowCodeRedeemedModal] = useState(false);
-  const [redeemedBenefit, setRedeemedBenefit] = useState("");
 
   useEffect(() => {
     loadOfferings();
   }, []);
 
   // Redirect premium users back - they shouldn't see paywall
-  // Guard: skip redirect while code-redeemed modal is showing (let user see success first)
   useEffect(() => {
-    if (isPremium && !isLoading && !showCodeRedeemedModal) {
+    if (isPremium && !isLoading) {
       if (__DEV__) devLog("[Paywall] Premium user detected, redirecting back");
       router.back();
     }
-  }, [isPremium, isLoading, showCodeRedeemedModal, router]);
+  }, [isPremium, isLoading, router]);
 
   // Refresh subscription status on mount to ensure fresh premium check
   useEffect(() => {
@@ -229,83 +214,6 @@ export default function PaywallScreen() {
     setIsPurchasing(false);
   };
 
-  // CANONICAL SSOT: Use refreshProContract for promo code redemption
-  const handleRedeemCode = async () => {
-    if (!discountCode.trim()) {
-      safeToast.warning("Error", "Please enter a discount code");
-      return;
-    }
-
-    setIsRedeemingCode(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // [PRO_SOT] Log BEFORE state
-    if (__DEV__) {
-      devLog("[PRO_SOT] BEFORE screen=paywall_promo isPremium=", isPremium);
-    }
-
-    try {
-      const data = await api.post<{ success: boolean; benefit: string }>("/api/discount/redeem", {
-        code: discountCode.trim().toUpperCase(),
-      });
-
-      // [P0_DISCOUNT_APPLY] Guard: backend may return 200 with success=false
-      if (!data.success) {
-        if (__DEV__) {
-          devLog("[P0_DISCOUNT_APPLY] ERROR screen=paywall success=false");
-        }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        safeToast.error("Invalid Code", "This code is not valid.");
-        return;
-      }
-
-      // [P0_DISCOUNT_APPLY] Code accepted — refresh pro state
-      // Wrap in its own try/catch so refresh failures don't show "Invalid Code"
-      try {
-        const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "promo_redeem:paywall" });
-
-        // [PRO_SOT] Log AFTER state
-        if (__DEV__) {
-          devLog("[PRO_SOT] AFTER screen=paywall_promo combinedIsPro=", combinedIsPro);
-          devLog("[P0_DISCOUNT_APPLY] OK screen=paywall combinedIsPro=", combinedIsPro);
-        }
-      } catch (refreshErr) {
-        if (__DEV__) {
-          devLog("[P0_DISCOUNT_APPLY] REFRESH_ERROR screen=paywall (code was accepted)", refreshErr);
-        }
-      }
-
-      // Invalidate subscription queries for UI sync across screens
-      queryClient.invalidateQueries({ queryKey: qk.subscription() });
-      queryClient.invalidateQueries({ queryKey: qk.subscriptionDetails() });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setRedeemedBenefit(data.benefit);
-      setShowCodeRedeemedModal(true);
-    } catch (error: any) {
-      if (__DEV__) {
-        devLog("[PRO_SOT] ERROR screen=paywall_promo", error?.message);
-        devLog("[P0_DISCOUNT_APPLY] ERROR screen=paywall", error?.message);
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Parse the error message from the API error format
-      let errorMessage = "This code is not valid.";
-      if (error.message) {
-        try {
-          const match = error.message.match(/\{.*\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            errorMessage = parsed.error || errorMessage;
-          }
-        } catch {
-          // Use default error message
-        }
-      }
-      safeToast.error("Invalid Code", errorMessage);
-    } finally {
-      setIsRedeemingCode(false);
-    }
-  };
 
   const getSelectedPrice = () => {
     if (selectedPlan === "lifetime") {
@@ -370,18 +278,10 @@ export default function PaywallScreen() {
         </Animated.View>
       </LinearGradient>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-      >
       <ScrollView
-        ref={scrollViewRef}
         className="flex-1"
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
       >
         {/* Beta Banner */}
         {BETA_MODE && (
@@ -405,85 +305,6 @@ export default function PaywallScreen() {
           </Animated.View>
         )}
 
-        {/* Discount Code Card */}
-        <Animated.View
-          entering={FadeInUp.delay(150)}
-          onLayout={(e) => { discountInputY.current = e.nativeEvent.layout.y; }}
-        >
-          <Pressable
-            onPress={() => setShowDiscountInput(!showDiscountInput)}
-            className="rounded-2xl p-4 mb-6"
-            style={{
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: showDiscountInput ? themeColor : colors.border,
-            }}
-          >
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{ backgroundColor: `${themeColor}20` }}
-                >
-                  <Ticket size={20} color={themeColor} />
-                </View>
-                <View>
-                  <Text style={{ color: colors.text }} className="font-semibold">
-                    Have a discount code?
-                  </Text>
-                  <Text style={{ color: colors.textSecondary }} className="text-sm">
-                    Tap to enter your code
-                  </Text>
-                </View>
-              </View>
-              <ChevronRight
-                size={20}
-                color={colors.textTertiary}
-                style={{ transform: [{ rotate: showDiscountInput ? "90deg" : "0deg" }] }}
-              />
-            </View>
-
-            {showDiscountInput && (
-              <View className="mt-4">
-                <View
-                  className="flex-row items-center rounded-xl px-4"
-                  style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border }}
-                >
-                  <TextInput
-                    value={discountCode}
-                    onChangeText={(text) => setDiscountCode(text.toUpperCase())}
-                    placeholder="Enter code (e.g., MONTH1FREE)"
-                    placeholderTextColor={colors.textTertiary}
-                    autoCapitalize="characters"
-                    autoCorrect={false}
-                    className="flex-1 py-3"
-                    style={{ color: colors.text, fontSize: 16, fontWeight: "600", letterSpacing: 1 }}
-                    onFocus={() => {
-                      // Scroll discount input into view above keyboard
-                      setTimeout(() => {
-                        scrollViewRef.current?.scrollTo({ y: discountInputY.current, animated: true });
-                      }, 300);
-                    }}
-                  />
-                </View>
-                <Pressable
-                  onPress={handleRedeemCode}
-                  disabled={isRedeemingCode || !discountCode.trim()}
-                  className="mt-3 rounded-xl py-3 items-center"
-                  style={{
-                    backgroundColor: isRedeemingCode || !discountCode.trim() ? colors.border : themeColor,
-                  }}
-                >
-                  {isRedeemingCode ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text className="text-white font-semibold">Redeem Code</Text>
-                  )}
-                </Pressable>
-              </View>
-            )}
-          </Pressable>
-        </Animated.View>
 
         {/* Plans Side by Side */}
         <Animated.View entering={FadeInUp.delay(200)} className="flex-row gap-3 mb-6">
@@ -656,7 +477,6 @@ export default function PaywallScreen() {
           </View>
         )}
       </ScrollView>
-      </KeyboardAvoidingView>
 
       {/* Bottom CTA */}
       <SafeAreaView edges={["bottom"]} style={{ backgroundColor: colors.background }}>
@@ -772,21 +592,6 @@ export default function PaywallScreen() {
         }}
       />
 
-      {/* Code Redeemed Modal */}
-      <ConfirmModal
-        visible={showCodeRedeemedModal}
-        title="Code Redeemed!"
-        message={`You've unlocked ${redeemedBenefit}! Enjoy your premium features.`}
-        confirmText="Awesome!"
-        onConfirm={() => {
-          setShowCodeRedeemedModal(false);
-          router.back();
-        }}
-        onCancel={() => {
-          setShowCodeRedeemedModal(false);
-          router.back();
-        }}
-      />
     </View>
   );
 }
