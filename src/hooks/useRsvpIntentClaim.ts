@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getPendingRsvpIntent, clearPendingRsvpIntent } from '@/lib/pendingRsvp';
 import { postIdempotent } from '@/lib/idempotencyKey';
 import { devLog, devError } from '@/lib/devLog';
+import { safeToast } from '@/lib/safeToast';
 import { trackRsvpIntentAppliedPostauth } from '@/analytics/analyticsEventsSSOT';
 
 interface UseRsvpIntentClaimOptions {
@@ -58,11 +59,18 @@ export function useRsvpIntentClaim({ bootStatus, isOnboardingComplete }: UseRsvp
         // Invalidate event queries so the RSVP shows up
         queryClient.invalidateQueries({ queryKey: ['event', intent.eventId] });
         queryClient.invalidateQueries({ queryKey: ['events'] });
-      } catch (err) {
+      } catch (err: any) {
+        const msg = err?.message ?? '';
+        const is409 = msg.includes('409') || msg.toLowerCase().includes('full') || msg.toLowerCase().includes('capacity');
+        if (is409) {
+          safeToast.info('Event Full', 'This event has reached capacity.');
+        } else {
+          safeToast.error('RSVP Failed', 'Something went wrong. Try again from the event page.');
+        }
         trackRsvpIntentAppliedPostauth({
           success: false,
           durationMs: Date.now() - t0,
-          failureCode: (err as Error).message?.slice(0, 60),
+          failureCode: msg.slice(0, 60),
         });
         if (__DEV__) devError('[useRsvpIntentClaim] failed', err);
       } finally {

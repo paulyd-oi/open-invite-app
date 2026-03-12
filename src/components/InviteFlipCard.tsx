@@ -712,8 +712,8 @@ export function InviteFlipCard({
                       {currentGoing} going
                     </Text>
                     {capacity != null && (
-                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 1 }}>
-                        {Math.max(0, capacity - currentGoing)} spots remaining
+                      <Text style={{ fontSize: 13, color: capacity - currentGoing <= 0 ? "#EF4444" : colors.textSecondary, fontWeight: capacity - currentGoing <= 0 ? "600" : "400", marginTop: 1 }}>
+                        {capacity - currentGoing <= 0 ? "Full" : `${capacity - currentGoing} spots remaining`}
                       </Text>
                     )}
                   </View>
