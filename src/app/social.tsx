@@ -1864,8 +1864,7 @@ export default function SocialScreen() {
         </ScrollView>
       )}
 
-      {/* Quick Event Floating Button */}
-      {session && <QuickEventButton />}
+      {/* Quick Plan button removed from Social screen — component preserved for future use */}
 
       {/* First-Value Nudge for Brand New Users */}
       <FirstValueNudge
