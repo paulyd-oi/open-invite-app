@@ -1513,6 +1513,18 @@ export default function CircleScreen() {
     return best;
   }, [circle?.circleEvents]);
 
+  // Lookup map: eventId → { eventPhotoUrl, description } from circleEvents for thread card enrichment
+  const circleEventMetaMap = useMemo(() => {
+    const map: Record<string, { eventPhotoUrl?: string | null; description?: string | null }> = {};
+    if (!circle?.circleEvents) return map;
+    for (const ce of circle.circleEvents) {
+      if (ce.event) {
+        map[ce.eventId] = { eventPhotoUrl: ce.event.eventPhotoUrl, description: ce.event.description };
+      }
+    }
+    return map;
+  }, [circle?.circleEvents]);
+
   // [P1_CHAT_SEND_UI] Derive send-status flags for pending/failed indicators
   const hasPending = messages.some((m: any) => m.status === "sending");
   const latestFailed = useMemo(() => {
@@ -2469,6 +2481,10 @@ export default function CircleScreen() {
                 reactions={stableId ? reactionsByStableId[stableId] : undefined}
                 editedContent={stableId ? editedContentByStableId[stableId]?.content : undefined}
                 isDeleted={stableId ? !!deletedStableIds[stableId] : false}
+                eventMeta={(() => {
+                  const parsed = parseSystemEventPayload(item.content);
+                  return parsed ? circleEventMetaMap[parsed.eventId] ?? null : null;
+                })()}
                 onViewEvent={(eventId) => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/event/${eventId}` as any);

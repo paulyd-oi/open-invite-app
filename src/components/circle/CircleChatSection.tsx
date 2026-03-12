@@ -10,7 +10,7 @@
  */
 
 import React, { useRef } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, Image } from "react-native";
 import { devLog } from "@/lib/devLog";
 import * as Haptics from "expo-haptics";
 import { Calendar, RefreshCw } from "@/ui/icons";
@@ -74,6 +74,7 @@ function MessageBubble({
   editedContent,
   isDeleted,
   onViewEvent,
+  eventMeta,
 }: {
   message: CircleMessage & { status?: string; retryCount?: number; clientMessageId?: string };
   isOwn: boolean;
@@ -89,6 +90,8 @@ function MessageBubble({
   editedContent?: string;
   isDeleted?: boolean;
   onViewEvent?: (eventId: string) => void;
+  /** Extra event metadata from circleEvents lookup (photo, description) */
+  eventMeta?: { eventPhotoUrl?: string | null; description?: string | null } | null;
 }) {
   const isLegacySystemMessage = message.content.startsWith("📅");
   const systemEventPayload = parseSystemEventPayload(message.content);
@@ -135,10 +138,23 @@ function MessageBubble({
             <Calendar size={isPast ? 14 : 16} color={accentColor} />
             <Text style={{ fontSize: isPast ? 12 : 13, fontWeight: "700", color: accentColor, letterSpacing: 0.3, textTransform: "uppercase" }}>{headerLabel}</Text>
           </View>
-          <View style={{ paddingHorizontal: isPast ? 14 : 18, paddingTop: isPast ? 10 : 16, paddingBottom: isPast ? 12 : 18 }}>
+          {/* Banner image strip */}
+          {!isPast && eventMeta?.eventPhotoUrl ? (
+            <Image
+              source={{ uri: eventMeta.eventPhotoUrl }}
+              style={{ width: "100%", height: 72, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
+              resizeMode="cover"
+            />
+          ) : null}
+          <View style={{ paddingHorizontal: isPast ? 14 : 18, paddingTop: isPast ? 10 : (eventMeta?.eventPhotoUrl ? 10 : 16), paddingBottom: isPast ? 12 : 18 }}>
             <Text style={{ fontSize: isPast ? 14 : 17, fontWeight: isPast ? "600" : "700", color: isPast ? colors.textSecondary : colors.text }} numberOfLines={2}>
               {systemEventPayload.title}
             </Text>
+            {!isPast && eventMeta?.description ? (
+              <Text numberOfLines={2} style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 }}>
+                {eventMeta.description}
+              </Text>
+            ) : null}
             <Text style={{ fontSize: isPast ? 12 : 14, color: isPast ? colors.textTertiary : colors.textSecondary, marginTop: isPast ? 3 : 6 }}>
               {dateStr} · {timeStr}
             </Text>
