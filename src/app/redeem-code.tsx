@@ -25,7 +25,7 @@ export default function RedeemCodeScreen() {
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Text style={{ color: colors.text }} className="text-xl font-bold">
-          Redeem Code
+          Feature Unavailable
         </Text>
       </View>
 
@@ -41,7 +41,7 @@ export default function RedeemCodeScreen() {
           className="text-center text-base leading-relaxed"
           style={{ color: colors.textSecondary }}
         >
-          Code redemption is no longer available through this screen.
+          This feature is no longer available.
         </Text>
       </View>
     </SafeAreaView>
