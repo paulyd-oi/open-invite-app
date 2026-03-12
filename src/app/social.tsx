@@ -1528,7 +1528,7 @@ export default function SocialScreen() {
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title="Open Invites"
-          subtitle="See what's happening"
+          subtitle=""
           left={<HelpSheet screenKey="social" config={HELP_SHEETS.social} />}
           right={
             <View className="flex-row items-center">
@@ -1549,20 +1549,6 @@ export default function SocialScreen() {
             </View>
           }
         />
-
-      {/* Micro Social Proof Line */}
-      {!isLoading && plansIn14Days > 0 && (
-        <View className="px-5 pb-3">
-          <Text
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ color: colors.textSecondary }}
-            className="text-sm"
-            accessibilityLabel={`${plansIn14Days} ${plansIn14Days === 1 ? 'plan' : 'plans'} in the next 14 days`}
-          >
-            {plansIn14Days} {plansIn14Days === 1 ? 'plan' : 'plans'} in the next 14 days
-          </Text>
-        </View>
-      )}
 
       {/* Email verification banner - shows when emailVerified === false */}
       <EmailVerificationBanner />
