@@ -1488,7 +1488,7 @@ export default function CircleScreen() {
   const nextCircleEvent = useMemo(() => {
     if (!circle?.memberEvents) return null;
     const now = Date.now();
-    let best: { id: string; title: string; startTime: string; endTime?: string | null; emoji?: string; location?: string | null; color?: string; isBusy?: boolean; isPrivate?: boolean } | null = null;
+    let best: { id: string; title: string; startTime: string; endTime?: string | null; emoji?: string; location?: string | null; color?: string; coverUrl?: string | null; isBusy?: boolean; isPrivate?: boolean } | null = null;
     let bestTime = Infinity;
     for (const member of circle.memberEvents) {
       for (const e of member.events) {
@@ -2137,25 +2137,34 @@ export default function CircleScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     router.push(`/event/${nextCircleEvent.id}` as any);
                   }}
-                  style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}
                 >
-                  <Text
-                    numberOfLines={1}
-                    style={{ fontSize: 16, fontWeight: "700", color: colors.text }}
-                  >
-                    {nextCircleEvent.emoji ? `${nextCircleEvent.emoji} ` : ""}{nextCircleEvent.title}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
-                    {dateStr} · {timeStr}
-                  </Text>
-                  {nextCircleEvent.location ? (
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>
-                      <MapPin size={12} color={colors.textTertiary} />
-                      <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textTertiary, flex: 1 }}>
-                        {nextCircleEvent.location}
-                      </Text>
-                    </View>
+                  {/* Banner photo strip */}
+                  {nextCircleEvent.coverUrl ? (
+                    <Image
+                      source={{ uri: nextCircleEvent.coverUrl }}
+                      style={{ width: "100%", height: 80, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
+                      resizeMode="cover"
+                    />
                   ) : null}
+                  <View style={{ paddingHorizontal: 16, paddingTop: nextCircleEvent.coverUrl ? 10 : 12, paddingBottom: 14 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontSize: 16, fontWeight: "700", color: colors.text }}
+                    >
+                      {nextCircleEvent.emoji ? `${nextCircleEvent.emoji} ` : ""}{nextCircleEvent.title}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4 }}>
+                      {dateStr} · {timeStr}
+                    </Text>
+                    {nextCircleEvent.location ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 4 }}>
+                        <MapPin size={12} color={colors.textTertiary} />
+                        <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textTertiary, flex: 1 }}>
+                          {nextCircleEvent.location}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </Pressable>
               )}
             </View>
