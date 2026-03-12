@@ -1528,7 +1528,7 @@ export default function SocialScreen() {
       <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
         <AppHeader
           title="Open Invites"
-          subtitle=""
+          subtitle="Your social calendar"
           left={<HelpSheet screenKey="social" config={HELP_SHEETS.social} />}
           right={
             <View className="flex-row items-center">
