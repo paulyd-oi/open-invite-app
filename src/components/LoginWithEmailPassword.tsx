@@ -133,16 +133,8 @@ export default function LoginWithEmailPassword() {
 
     setIsLoading(true);
     try {
-      let result: any;
-      try {
-        const data = await authClient.$fetch('/api/auth/sign-up/email', {
-          method: 'POST',
-          body: { email, password, name },
-        });
-        result = { data };
-      } catch (e: any) {
-        result = { error: { message: e?.message || String(e) } };
-      }
+      // Use enhanced authClient.signUp.email() for proper session bootstrap
+      const result = await authClient.signUp.email({ email, password, name });
 
       if (result.error) {
         safeToast.error("Sign Up Failed", result.error.message || "Please try again");
