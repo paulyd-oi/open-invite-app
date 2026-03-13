@@ -770,6 +770,14 @@ export default function WelcomeOnboardingScreen() {
       // CRITICAL: Store OI session token for header fallback (iOS cookie jar is unreliable)
       await setOiSessionToken(tokenValue);
       traceLog("oi_token_stored", { tokenLength: tokenValue.length });
+
+      // TEMP DEBUG: Verify token is set in memory immediately
+      const { getOiSessionTokenCached } = await import("@/lib/authClient");
+      const verifyToken = getOiSessionTokenCached();
+      traceLog("oi_token_verify", {
+        immediatelyAvailable: !!verifyToken,
+        lengthMatches: verifyToken?.length === tokenValue.length
+      });
       
       // NOTE: We deliberately do NOT call refreshExplicitCookie() here!
       // The memory cache is already set by setExplicitCookieValueDirectly.

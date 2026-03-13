@@ -810,9 +810,18 @@ export type SessionReadyResult = {
 export async function ensureSessionReady(): Promise<SessionReadyResult> {
   const RETRY_DELAY_MS = 300;
   const MAX_ATTEMPTS = 2;
-  
+
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
+      // TEMP DEBUG: Log token state before session verification
+      const tokenState = {
+        hasOiToken: !!oiSessionToken,
+        oiTokenLen: oiSessionToken?.length ?? 0,
+        hasCookie: !!explicitCookieValue,
+        cookieLen: explicitCookieValue?.length ?? 0,
+      };
+      devLog(`[SESSION_READY_DEBUG] attempt=${attempt} tokens=${JSON.stringify(tokenState)}`);
+
       const sessionData = await $fetch<{ user?: { id: string }; session?: { userId: string } }>('/api/auth/session', {
         method: 'GET',
       });
