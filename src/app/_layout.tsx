@@ -394,16 +394,50 @@ function PostHogLifecycle({ bootStatus, userId, emailVerified }: {
     if (posthog) trackAppOpened();
   }, [posthog]);
 
+  // Split effects: identify vs reset to avoid race conditions
+
+  // Effect 1: Identify user when authed (depends on userId)
   useEffect(() => {
+    if (__DEV__) {
+      console.log("[POSTHOG_IDENTIFY_DECISION]", {
+        bootStatus,
+        userId: userId?.substring(0, 8) + "..." || "undefined",
+        posthogExists: !!posthog,
+        identifiedRef: identifiedRef.current,
+        emailVerified
+      });
+    }
+
     if (bootStatus === 'authed' && userId && posthog && !identifiedRef.current) {
       identifiedRef.current = true;
       posthogIdentify(posthog, userId, { emailVerified });
     }
-    if ((bootStatus === 'loggedOut' || bootStatus === 'error') && identifiedRef.current) {
+  }, [bootStatus, userId, posthog, emailVerified]);
+
+  // Effect 2: Reset PostHog on logout (ONLY depends on bootStatus + posthog)
+  useEffect(() => {
+    const isLoggedOutState = bootStatus === 'loggedOut' || bootStatus === 'error';
+
+    if (__DEV__) {
+      console.log("[POSTHOG_RESET_DECISION]", {
+        bootStatus,
+        isLoggedOutState,
+        identifiedRef: identifiedRef.current,
+        posthogExists: !!posthog,
+        trigger: "bootStatus_change_only"
+      });
+    }
+
+    // Reset whenever we transition to logged-out state, regardless of ref state
+    // PostHog.reset() is idempotent and safe to call multiple times
+    if (isLoggedOutState && posthog) {
+      if (__DEV__) {
+        console.log("[POSTHOG_RESET_FORCED]", "calling_posthogReset_due_to_logout");
+      }
       identifiedRef.current = false;
       posthogReset(posthog);
     }
-  }, [bootStatus, userId, posthog, emailVerified]);
+  }, [bootStatus, posthog]); // Removed userId from dependencies to prevent race
 
   // [P0_ANALYTICS_EVENT] email_verified — edge detection (false → true)
   useEffect(() => {

@@ -202,9 +202,16 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       }
     }
 
-    // Step 7: Navigate to welcome
+    // Step 7: Allow PostHog reset to complete, then navigate to welcome
     if (__DEV__) {
-      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 6, label: "routed_to_welcome" });
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 7, label: "waiting_for_analytics_reset" });
+    }
+
+    // Small delay to ensure PostHog reset useEffect runs before navigation
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    if (__DEV__) {
+      devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 8, label: "routed_to_welcome" });
     }
     router.replace("/welcome");
   } catch (error) {
