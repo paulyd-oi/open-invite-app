@@ -139,9 +139,10 @@ export default function LoginWithEmailPassword() {
       if (result.error) {
         safeToast.error("Sign Up Failed", result.error.message || "Please try again");
       } else if (result.data) {
-        // Show verification code screen
+        // Session established successfully - continue to authenticated flow like Apple auth
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setAuthView("verifyEmail");
+        setShowSuccessModal(true);
+        resetForm();
       } else {
         // Handle edge case where neither error nor data is present
         setAuthView("verifyEmail");
