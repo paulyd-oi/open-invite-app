@@ -48,10 +48,10 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
-import { useTheme } from "@/hooks/useTheme";
-import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useTheme } from "@/lib/ThemeContext";
+import { useNetworkStatus } from "@/lib/networkStatus";
 import { api } from "@/lib/api";
-import type { SearchUsersRankedResponse, GetFriendSuggestionsResponse } from "@/lib/api";
+import type { SearchUsersRankedResponse, GetFriendSuggestionsResponse } from "@/shared/contracts";
 
 interface FriendDiscoverySurfaceProps {
   showSkipButton?: boolean;
