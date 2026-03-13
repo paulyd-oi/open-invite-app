@@ -977,19 +977,32 @@ export const authClient = {
         const mobileSessionToken = (result.data as any)?.mobileSessionToken;
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
           if (__DEV__) {
-            devLog('[authClient.signIn] mobileSessionToken received');
+            devLog('[authClient.signIn] mobileSessionToken received - applying Apple auth pattern');
           }
+
+          // Apply same pattern as Apple auth for session bootstrap
           await setExplicitCookiePair(mobileSessionToken);
+
+          // Set immediate cache (prevents race conditions)
+          setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${mobileSessionToken}`);
+
+          // Store as legacy auth token
+          await setAuthToken(mobileSessionToken);
+
+          // CRITICAL: Store OI session token for header fallback (mobile auth barrier)
+          await setOiSessionToken(mobileSessionToken);
+
+          // Use robust session barrier like Apple auth
+          const barrierResult = await ensureSessionReady();
+          if (!barrierResult.ok) {
+            throw new Error(`Session establishment failed after email sign-in: ${barrierResult.status}`);
+          }
         } else {
           // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
+          await refreshExplicitCookie();
+          await verifySessionAfterAuth('signIn');
         }
-        
-        // Refresh cookie cache so subsequent requests include the cookie
-        await refreshExplicitCookie();
-        
-        // Verify session is valid by calling /api/auth/session
-        await verifySessionAfterAuth('signIn');
         
         return { data: result.data } as any;
       } catch (e: any) {
@@ -1032,17 +1045,32 @@ export const authClient = {
         const mobileSessionToken = (result.data as any)?.mobileSessionToken;
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
           if (__DEV__) {
-            devLog('[authClient.signUp] mobileSessionToken received');
+            devLog('[authClient.signUp] mobileSessionToken received - applying Apple auth pattern');
           }
+
+          // Apply same pattern as Apple auth for session bootstrap
           await setExplicitCookiePair(mobileSessionToken);
+
+          // Set immediate cache (prevents race conditions)
+          setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${mobileSessionToken}`);
+
+          // Store as legacy auth token
+          await setAuthToken(mobileSessionToken);
+
+          // CRITICAL: Store OI session token for header fallback (mobile auth barrier)
+          await setOiSessionToken(mobileSessionToken);
+
+          // Use robust session barrier like Apple auth
+          const barrierResult = await ensureSessionReady();
+          if (!barrierResult.ok) {
+            throw new Error(`Session establishment failed after email sign-up: ${barrierResult.status}`);
+          }
         } else {
           // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
+          await refreshExplicitCookie();
+          await verifySessionAfterAuth('signUp');
         }
-                // Refresh cookie cache so subsequent requests include the cookie
-        await refreshExplicitCookie();
-                // Verify session is valid by calling /api/auth/session
-        await verifySessionAfterAuth('signUp');
         
         return { data: result.data } as any;
       } catch (e: any) {
