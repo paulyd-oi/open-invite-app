@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { FriendDiscoverySurface } from "@/components/FriendDiscoverySurface";
 import {
   Calendar,
   Users,
@@ -1047,137 +1048,14 @@ export default function OnboardingScreen() {
 
       case "contacts":
         return (
-          <View className="flex-1 mx-4 mt-4">
-            {!contactsSynced ? (
-              // Show sync contacts prompt
-              <View
-                className="rounded-2xl p-6 items-center"
-                style={{
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-                }}
-              >
-                <View
-                  className="w-20 h-20 rounded-full items-center justify-center mb-4"
-                  style={{ backgroundColor: "#3B82F620" }}
-                >
-                  <Contact size={40} color="#3B82F6" />
-                </View>
-                <Text className="font-bold text-xl text-center mb-2" style={{ color: colors.text }}>
-                  Find Friends Faster
-                </Text>
-                <Text className="text-center mb-6" style={{ color: colors.textSecondary }}>
-                  We'll check if any of your contacts are already on Open Invite
-                </Text>
-                <Button
-                  variant="primary"
-                  label="Sync Contacts"
-                  onPress={loadContacts}
-                  disabled={contactsLoading}
-                  loading={contactsLoading}
-                  leftIcon={!contactsLoading ? <Contact size={20} color="#fff" /> : undefined}
-                  style={{ backgroundColor: "#3B82F6", width: "100%", borderRadius: RADIUS.md }}
-                />
-                <Pressable onPress={goToNext} className="mt-4">
-                  <Text className="text-sm" style={{ color: colors.textTertiary }}>Skip for now</Text>
-                </Pressable>
-              </View>
-            ) : (
-              // Show contacts list
-              <View className="flex-1">
-                <View className="flex-row items-center justify-between mb-3">
-                  <Text className="font-semibold" style={{ color: colors.text }}>
-                    {selectedContacts.size > 0
-                      ? `${selectedContacts.size} selected`
-                      : "Select contacts to invite"}
-                  </Text>
-                  {selectedContacts.size > 0 && (
-                    <Pressable
-                      onPress={() => setSelectedContacts(new Set())}
-                    >
-                      <Text className="text-blue-400 text-sm">Clear all</Text>
-                    </Pressable>
-                  )}
-                </View>
-                <FlatList
-                  data={phoneContacts}
-                  keyExtractor={(item) => item.id ?? `${item.name ?? ""}:${item.emails?.[0]?.email ?? item.phoneNumbers?.[0]?.number ?? "x"}`}
-                  style={{ maxHeight: 300 }}
-                  showsVerticalScrollIndicator={false}
-                  initialNumToRender={15}
-                  maxToRenderPerBatch={10}
-                  windowSize={7}
-                  updateCellsBatchingPeriod={50}
-                  removeClippedSubviews={true}
-                  renderItem={({ item, index }) => {
-                    const isSelected = item.id ? selectedContacts.has(item.id) : false;
-                    const email = item.emails?.[0]?.email;
-                    const phone = item.phoneNumbers?.[0]?.number;
-
-                    return (
-                      <Animated.View entering={FadeIn.delay(index * 30)}>
-                        <Pressable
-                          onPress={() => item.id && toggleContactSelection(item.id)}
-                          className="flex-row items-center py-3 px-3 rounded-xl mb-2"
-                          style={{
-                            backgroundColor: isSelected ? "#3B82F630" : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"),
-                            borderWidth: isSelected ? 1 : 0,
-                            borderColor: "#3B82F6",
-                          }}
-                        >
-                          <View className="mr-3">
-                            <EntityAvatar
-                              photoUrl={item.imageAvailable && item.image?.uri ? item.image.uri : undefined}
-                              initials={item.name?.[0]?.toUpperCase() ?? "?"}
-                              size={40}
-                              borderRadius={20}
-                              backgroundColor={isSelected ? "#3B82F640" : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)")}
-                              foregroundColor={colors.text}
-                              fallbackIcon="person-outline"
-                            />
-                          </View>
-                          <View className="flex-1">
-                            <Text className="font-medium" style={{ color: colors.text }}>
-                              {item.name ?? "Unknown"}
-                            </Text>
-                            <View className="flex-row items-center mt-0.5">
-                              {email ? (
-                                <>
-                                  <Mail size={10} color={colors.textTertiary} />
-                                  <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>{email}</Text>
-                                </>
-                              ) : phone ? (
-                                <>
-                                  <Phone size={10} color={colors.textTertiary} />
-                                  <Text className="text-xs ml-1" style={{ color: colors.textTertiary }}>{phone}</Text>
-                                </>
-                              ) : null}
-                            </View>
-                          </View>
-                          <View
-                            className="w-6 h-6 rounded-full items-center justify-center"
-                            style={{
-                              backgroundColor: isSelected ? "#3B82F6" : "transparent",
-                              borderWidth: isSelected ? 0 : 2,
-                              borderColor: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)",
-                            }}
-                          >
-                            {isSelected && <Check size={14} color="#fff" />}
-                          </View>
-                        </Pressable>
-                      </Animated.View>
-                    );
-                  }}
-                />
-                {phoneContacts.length === 0 && (
-                  <View className="items-center py-8">
-                    <Text style={{ color: colors.textTertiary }}>No contacts with email or phone found</Text>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
+          <FriendDiscoverySurface
+            showSkipButton={true}
+            onSkip={goToNext}
+            onFriendAdded={() => {
+              // Optionally trigger refresh or analytics tracking
+              devLog("Friend added during onboarding");
+            }}
+          />
         );
 
       case "settings":
