@@ -1045,8 +1045,8 @@ export const authClient = {
         }
 
         if (result.error) {
-          // PROOF: Taking error branch
-          if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] Taking error branch: ${result.error.message}`);
+          // PROOF: Taking error branch (console.log always shows)
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up ERROR BRANCH: ${result.error.message || 'unknown error'}`);
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
 
