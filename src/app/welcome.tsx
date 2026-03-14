@@ -1355,55 +1355,28 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const renderSlide4 = () => {
-    if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/findFriends', input: 'n/a', button: 'SSOT', card: 'n/a' });
+    if (__DEV__) {
+      devLog('[ONBOARDING_CONTACTS_BRANCH]', { screen: 'welcome/findFriends', legacyFlow: false, sharedComponent: true });
+      devLog('[ONBOARDING_CONTACTS_RENDER_SHARED]', { using: 'FriendDiscoverySurface' });
+    }
     return (
     <OnboardingLayout background={colors.background}>
       <View style={styles.slideContent}>
-        <Animated.View entering={smoothFadeIn()} style={styles.formHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
-            <Users size={36} color={themeColor} />
-          </View>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Find Your Friends
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            See who you know on Open Invite
-          </Text>
-        </Animated.View>
+        <FriendDiscoverySurface
+          showSkipButton={true}
+          onSkip={() => {
+            if (__DEV__) {
+              devLog('[ONBOARDING_CONTACTS_SKIP]', { action: 'skip', nextSlide: currentSlide + 1 });
+            }
+            setCurrentSlide(currentSlide + 1);
+          }}
+          onFriendAdded={() => {
+            // Optionally trigger refresh or analytics tracking
+            devLog("Friend added during onboarding");
+          }}
+        />
 
-        {phoneContacts.length === 0 && !contactsPermissionDenied && (
-          <Animated.View entering={smoothFadeIn(200)} style={{ alignItems: "center", marginBottom: 24 }}>
-            <Button
-              variant="primary"
-              label={contactsLoading ? "Loading..." : "Sync Contacts"}
-              onPress={loadContacts}
-              loading={contactsLoading}
-              leftIcon={<UserPlus size={20} color="#fff" />}
-              style={{ borderRadius: RADIUS.lg }}
-            />
-          </Animated.View>
-        )}
 
-        {contactsPermissionDenied && (
-          <View style={{ alignItems: "center", paddingVertical: 24 }}>
-            <Text style={[styles.subtitle, { color: colors.textSecondary, marginBottom: 16 }]}>
-              Contacts access is needed to find friends.{"\n"}You can add friends later.
-            </Text>
-          </View>
-        )}
-
-        {phoneContacts.length > 0 && (
-          <Animated.View entering={smoothFadeIn(100)} style={{ flex: 1, maxHeight: 320 }}>
-            {selectedContacts.size > 0 && (
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingHorizontal: 4 }}>
-                <Text style={{ color: colors.text, fontFamily: "Sora_600SemiBold", fontSize: 14 }}>
-                  {selectedContacts.size} selected
-                </Text>
-                <Pressable onPress={() => setSelectedContacts(new Set())}>
-                  <Text style={{ color: themeColor, fontSize: 13 }}>Clear</Text>
-                </Pressable>
-              </View>
-            )}
             <FlatList
               data={phoneContacts}
               keyExtractor={(item) => item.id ?? `c-${item.name}`}
