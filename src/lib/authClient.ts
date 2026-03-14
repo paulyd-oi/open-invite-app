@@ -974,8 +974,12 @@ export const authClient = {
         }
         
         // Check for backend-provided mobileSessionToken (preferred method)
-        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        const rawMobileSessionToken = (result.data as any)?.mobileSessionToken;
+        // CRITICAL: Decode URL-encoded token for session validation
+        const mobileSessionToken = rawMobileSessionToken ? decodeURIComponent(rawMobileSessionToken) : rawMobileSessionToken;
+
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (decoded from URL encoding)`);
           if (__DEV__) {
             devLog('[authClient.signIn] mobileSessionToken received - applying Apple auth pattern');
           }
@@ -1044,9 +1048,12 @@ export const authClient = {
         }
         
         // Check for backend-provided mobileSessionToken (preferred method)
-        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        const rawMobileSessionToken = (result.data as any)?.mobileSessionToken;
+        // CRITICAL: Decode URL-encoded token for session validation
+        const mobileSessionToken = rawMobileSessionToken ? decodeURIComponent(rawMobileSessionToken) : rawMobileSessionToken;
+
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}...`);
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (decoded from URL encoding)`);
           if (__DEV__) {
             devLog('[authClient.signUp] mobileSessionToken received - applying Apple auth pattern');
           }
