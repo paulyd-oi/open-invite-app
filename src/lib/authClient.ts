@@ -1017,6 +1017,7 @@ export const authClient = {
   // Sign up - uses Better Auth client with explicit cookie capture
   signUp: {
     async email(opts: { email: string; password: string; name?: string }) {
+      console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up method called with email: ${opts.email}`);
       try {
         // Better Auth requires name to be a non-empty string
         // [P0_SIGNUP_FIX] Ensure name is never empty — backend rejects ""
@@ -1026,7 +1027,8 @@ export const authClient = {
           name: opts.name && opts.name.trim().length > 0 ? opts.name.trim() : 'New User',
         };
         const result = await betterAuthClient.signUp.email(signUpOpts);
-        
+        console.log(`🔐 [FRONTEND_BOOTSTRAP] Better Auth response:`, JSON.stringify(result).substring(0, 200));
+
         if (__DEV__) {
           devLog('[authClient.signUp] Result:', { 
             hasData: !!result.data, 
@@ -1044,6 +1046,7 @@ export const authClient = {
         // Check for backend-provided mobileSessionToken (preferred method)
         const mobileSessionToken = (result.data as any)?.mobileSessionToken;
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}...`);
           if (__DEV__) {
             devLog('[authClient.signUp] mobileSessionToken received - applying Apple auth pattern');
           }
