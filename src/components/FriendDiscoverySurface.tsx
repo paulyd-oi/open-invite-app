@@ -95,9 +95,12 @@ export function FriendDiscoverySurface({
   const enabled = isAuthedForNetwork(bootStatus, session?.data);
   const themeColor = "#3B82F6";
 
-  // *** PROOF LOG: Always log enabled state and session structure ***
+  // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
+  const sessionUserId = session?.data?.user?.id || 'none';
+  const sessionEffectiveUserId = session?.data?.effectiveUserId || 'none';
+  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveUserId} networkOnline=${networkStatus.isOnline}`);
+
   if (__DEV__) {
-    const sessionUserId = session?.data?.user?.id || 'none';
     devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
   }
 
@@ -151,6 +154,7 @@ export function FriendDiscoverySurface({
   });
 
   // ── Friend suggestions (people you may know + default suggestions) ──
+  console.log(`[FRIEND_DISCOVERY_QUERY_FIRE suggestions] enabled=${enabled}`);
   if (__DEV__) {
     devLog(`[FRIEND_DISCOVERY_QUERY_FIRE suggestions] enabled=${enabled}`);
   }
@@ -158,10 +162,12 @@ export function FriendDiscoverySurface({
   const { data: suggestionsData, isLoading: suggestionsLoading, refetch: refetchSuggestions } = useQuery({
     queryKey: ["friendSuggestions"],
     queryFn: async () => {
+      console.log(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
       if (__DEV__) {
         devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
       }
       const result = await api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions");
+      console.log(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
       if (__DEV__) {
         devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
       }
