@@ -1,0 +1,35 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Verify session SSOT fix for friend discovery
+- launchApp:
+    clearState: true
+
+- waitForAnimationToEnd
+
+# Complete email auth flow first
+- tapOn:
+    text: "Continue with Email"
+
+- inputText: "test@example.com"
+- tapOn:
+    text: "Continue"
+
+- waitForAnimationToEnd
+
+# Navigate to Add Friends to test session auth
+- tapOn:
+    id: "Friends_Tab_Button"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Add"
+
+- waitForAnimationToEnd
+
+# Should see Add Friends header
+- assertVisible: "Add Friends"
+
+# Wait for component to mount and auth check to complete
+- waitForAnimationToEnd:
+    timeout: 3000
