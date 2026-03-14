@@ -1,0 +1,63 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Email Authentication End-to-End Test
+# Tests the full email sign-in flow after JWT token truncation fix
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-app-start"
+
+# Connect to development server
+- tapOn: "http://localhost:8081"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-dev-connected"
+
+# Wait for app to fully load and show login screen
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-login-screen"
+
+# Tap Email button to access email sign-in
+- tapOn: "Email"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "04-email-form"
+
+# Enter test credentials
+- tapOn:
+    text: "Email"
+
+- inputText: "testemail@gmail.com"
+
+- tapOn:
+    text: "Password"
+
+- inputText: "testpassword123"
+
+- takeScreenshot: "05-credentials-filled"
+
+# Submit sign-in form
+- tapOn: "Sign In"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "06-after-signin-submit"
+
+# Wait for authentication and navigation
+- waitForAnimationToEnd
+
+- takeScreenshot: "07-post-auth"
+
+# Verify authentication succeeded - look for calendar view
+- assertVisible: "Create"
+
+- takeScreenshot: "08-SUCCESS-authenticated"
+
+- stopApp

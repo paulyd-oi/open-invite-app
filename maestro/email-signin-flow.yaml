@@ -1,0 +1,36 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-dev-server-screen"
+
+# Connect to localhost development server
+- tapOn: "http://localhost:8081"
+
+# Wait for connection and app load
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-app-loaded"
+
+# Dismiss the developer modal - try the X button
+- tapOn:
+    id: "X"
+    optional: true
+
+# Also try the Continue button
+- tapOn: "Continue"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-after-modal-dismiss"
+
+# Assert we can see calendar elements (authentication successful)
+- assertVisible: "March"
+
+- takeScreenshot: "04-SUCCESS-authenticated"
+
+- stopApp

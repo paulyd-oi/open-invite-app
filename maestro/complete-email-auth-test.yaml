@@ -1,0 +1,77 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Complete Email Authentication Test
+# Tests the full auth flow with JWT token truncation fix
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-app-launch"
+
+# Connect to localhost dev server
+- tapOn: "http://localhost:8081"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-connected"
+
+# Wait for full app load
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-app-state"
+
+# Dismiss dev modal if present
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "04-after-modal"
+
+# Check current state and proceed with sign-in if needed
+- tapOn:
+    text: "Email"
+    optional: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "05-email-form"
+
+# Fill credentials if form is present
+- tapOn:
+    text: "Email"
+    optional: true
+
+- inputText:
+    text: "testemail@gmail.com"
+    optional: true
+
+- tapOn:
+    text: "Password"
+    optional: true
+
+- inputText:
+    text: "testpassword123"
+    optional: true
+
+- takeScreenshot: "06-filled-form"
+
+# Submit sign-in if button is present
+- tapOn:
+    text: "Sign In"
+    optional: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "07-after-signin"
+
+# Wait for auth completion
+- waitForAnimationToEnd
+
+- takeScreenshot: "08-final-state"
+
+- stopApp

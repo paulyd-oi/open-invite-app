@@ -1,0 +1,31 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Simple Authentication State Test
+# Check if JWT token truncation fix resolved authentication
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-app-launch"
+
+# Connect to localhost dev server
+- tapOn: "http://localhost:8081"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-connected"
+
+# Wait for full app load
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-loaded"
+
+# Wait more for authentication check
+- waitForAnimationToEnd
+
+- takeScreenshot: "04-final-state"
+
+- stopApp

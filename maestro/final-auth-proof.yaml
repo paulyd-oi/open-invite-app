@@ -1,0 +1,32 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Final Authentication Proof Test
+# Verifies JWT token truncation fix (commit bc47eae)
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-launch"
+
+# Connect to localhost dev server
+- tapOn: "http://localhost:8081"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-connected"
+
+# Wait for authentication check
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-auth-checked"
+
+# Verify successful authentication state
+# Should see calendar (authenticated) not login screen
+- assertVisible: "March"
+
+- takeScreenshot: "04-SUCCESS-authenticated"
+
+- stopApp

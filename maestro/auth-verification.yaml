@@ -1,0 +1,32 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Authentication State Verification Test
+# Verifies that the backend fix allows proper authentication
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "01-initial-state"
+
+# Connect to development server
+- tapOn: "http://localhost:8081"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-connected-to-server"
+
+# Wait for app to fully load
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-app-loaded"
+
+# Check if we can see calendar elements (indicates successful authentication)
+# The presence of calendar UI means authentication worked
+- assertVisible: "March"
+
+- takeScreenshot: "04-SUCCESS-authenticated-calendar-visible"
+
+- stopApp

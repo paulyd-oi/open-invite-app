@@ -62,58 +62,8 @@ try {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// ============ ONBOARDING COMPLETION GATE ============
-// Prevent redirect loop: only navigate to "/" if onboarding is complete
-// Otherwise redirect to "/welcome" to complete onboarding flow
-async function routeAfterAuthSuccess(router: any): Promise<void> {
-  try {
-    // Cookie-based auth: Session is established via Set-Cookie header.
-    // Token in SecureStore is optional (backward compat) - don't gate on it.
-    // Instead, we trust that signIn.email() succeeded and proceed to bootstrap.
-    
-    if (__DEV__) {
-      devLog("[P0_BOOT_CONTRACT] Auth success, proceeding with cookie-based session");
-    }
-
-    // ✅ CRITICAL: Force bootstrap re-run after login
-    // Singleton bootstrap won't re-run automatically - must explicitly trigger it
-    // This ensures bootStatus updates from 'loggedOut' to 'authed'/'onboarding'
-    const { rebootstrapAfterLogin } = await import("@/hooks/useBootAuthority");
-    if (__DEV__) {
-      devLog("[P0_BOOT_CONTRACT] Forcing bootstrap re-run after login...");
-    }
-    const finalStatus = await rebootstrapAfterLogin();
-
-    // ✅ FIX: Route directly to the correct destination based on bootstrap result
-    // This prevents white screen from navigating to "/" which returns null during loading
-    if (__DEV__) {
-      devLog("[P0_BOOT_CONTRACT] Bootstrap complete, finalStatus:", finalStatus);
-      devLog('[P0_AUTH_JITTER]', 'post-login-route', {
-        surface: 'login/routeAfterAuthSuccess',
-        finalStatus,
-        decision: finalStatus === 'authed' ? 'calendar' : 'welcome',
-      });
-    }
-    
-    if (finalStatus === 'authed') {
-      // [P0_BOOT_CONTRACT] Proof log: deterministic route to calendar
-      devLog('[P0_BOOT_CONTRACT]', 'finalStatus=authed → /calendar');
-      devLog("[P0_BOOT_CONTRACT] → Routing directly to /calendar (fully authenticated)");
-      router.replace("/calendar");
-    } else if (finalStatus === 'onboarding') {
-      devLog("[P0_BOOT_CONTRACT] → Routing to /welcome (onboarding incomplete)");
-      router.replace("/welcome");
-    } else {
-      // error or degraded - stay on current screen or go to welcome
-      devWarn("[P0_BOOT_CONTRACT] Unexpected status after login:", finalStatus);
-      router.replace("/welcome");
-    }
-  } catch (error) {
-    devError("[P0_BOOT_CONTRACT] Error during post-login routing:", error);
-    // On error, stay on login (fail safe to avoid blocking user with redirects)
-    devLog("[P0_BOOT_CONTRACT] Staying on login screen due to error");
-  }
-}
+// ============ SHARED AUTH ROUTING IMPORT ============
+import { routeAfterAuthSuccess, assertAuthRoutingSSoT } from "@/lib/authRouting";
 
 type AuthView = "login" | "forgotPassword" | "success";
 
@@ -123,6 +73,9 @@ export default function LoginScreen() {
   const { themeColor, isDark, colors } = useTheme();
   // [P0_SAFE_AREA_SSOT] Insets now handled by SafeAreaScreen component
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'login', button: 'SSOT', theme: 'ThemeContext' });
+
+  // ✅ AUTH ROUTING SSOT: Assert this screen uses shared auth routing
+  assertAuthRoutingSSoT('login');
 
   // [P1_FONTS_SSOT] useFonts removed — _layout.tsx gates app on font load
 
@@ -166,7 +119,7 @@ export default function LoginScreen() {
         // Route to success and then authenticate (same flow as email login)
         setAuthView("success");
         setTimeout(() => {
-          routeAfterAuthSuccess(router);
+          routeAfterAuthSuccess(router, { source: 'login' });
         }, 1500);
       },
     });
@@ -201,7 +154,7 @@ export default function LoginScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setAuthView("success");
         setTimeout(() => {
-          routeAfterAuthSuccess(router);
+          routeAfterAuthSuccess(router, { source: 'login' });
         }, 1500);
       }
     } catch (error: any) {

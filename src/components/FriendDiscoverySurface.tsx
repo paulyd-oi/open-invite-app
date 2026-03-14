@@ -97,18 +97,17 @@ export function FriendDiscoverySurface({
 
   // *** PROOF LOG: Always log enabled state and session structure ***
   if (__DEV__) {
-    const sessionUserId = session?.data?.user?.id || session?.user?.id || 'none';
-    const sessionEffectiveId = session?.data?.effectiveUserId || session?.effectiveUserId || 'none';
-    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveId} networkOnline=${networkStatus.isOnline}`);
+    const sessionUserId = session?.data?.user?.id || 'none';
+    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
   }
 
   // DEV: Proof logs for friend discovery debugging
   useEffect(() => {
     if (__DEV__) {
-      const sessionUserId = session?.data?.user?.id || session?.user?.id || 'none';
+      const sessionUserId = session?.data?.user?.id || 'none';
       devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${sessionUserId} showSkipButton=${!!showSkipButton}`);
     }
-  }, [enabled, bootStatus, session?.data?.user?.id, session?.user?.id, showSkipButton]);
+  }, [enabled, bootStatus, session?.data?.user?.id, showSkipButton]);
 
   const queryClient = useQueryClient();
 
@@ -388,8 +387,8 @@ export function FriendDiscoverySurface({
                   </Text>
                 </View>
               ) : showSearchResults ? (
-                searchResultsList.map((result, index) => {
-                  const user = result.user;
+                searchResultsList.map((result: any, index: any) => {
+                  const user = result.user || result;
                   const isSent = sentRequests.has(user.id);
                   const isPending = sendByIdMutation.isPending && sendByIdMutation.variables === user.id;
 
@@ -397,11 +396,11 @@ export function FriendDiscoverySurface({
                     <Animated.View key={user.id} entering={FadeInDown.delay(index * 100)}>
                       <Pressable
                         className="flex-row items-center py-2 px-3 rounded-lg"
-                        style={{ backgroundColor: colors.surfaceSecondary }}
+                        style={{ backgroundColor: colors.surface }}
                         onPress={() => sendByIdMutation.mutate(user.id)}
                         disabled={isSent || isPending}
                       >
-                        <EntityAvatar entity={user} size={40} />
+                        <EntityAvatar user={user} size={40} />
                         <View className="flex-1 ml-3">
                           <Text className="font-medium" style={{ color: colors.text }}>
                             {user.name || "Open Invite User"}

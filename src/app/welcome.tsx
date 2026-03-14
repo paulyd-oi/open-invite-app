@@ -63,18 +63,20 @@ import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
 import { safeToast } from "@/lib/safeToast";
-import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, runAppleSignInDiagnostics } from "@/lib/appleSignIn";
+import { isAppleSignInAvailable, runAppleSignInDiagnostics, classifyAppleAuthError, decodeAppleAuthError } from "@/lib/appleSignIn";
+import { handleSharedAppleSignIn } from "@/lib/sharedAppleAuth";
+import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 import { uploadImage } from "@/lib/imageUpload";
 import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { SendFriendRequestResponse } from "@/../shared/contracts";
 import { buildGuideKey, GUIDE_FORCE_SHOW_PREFIX } from "@/hooks/useOnboardingGuide";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
-import type { AppleAuthErrorBucket } from "@/lib/appleSignIn";
 import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
+import { routeAfterAuthSuccess, assertAuthRoutingSSoT } from "@/lib/authRouting";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,10 +90,7 @@ try {
 // Feature flag: Apple Sign-In enabled for growth phase
 const APPLE_SIGNIN_ENABLED = true;
 
-/**
- * Human-readable explanation for each error bucket.
- * Used in diagnostic logs to help interpret failure mode.
- */
+// ⚠️ TEMPORARY: getBucketExplanation until Apple auth consolidation complete
 function getBucketExplanation(bucket: AppleAuthErrorBucket): string {
   switch (bucket) {
     case "user_cancel":
@@ -301,6 +300,9 @@ export default function WelcomeOnboardingScreen() {
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
   if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome', button: 'SSOT', theme: 'ThemeContext' });
+
+  // ✅ AUTH ROUTING SSOT: Assert this screen uses shared auth routing
+  assertAuthRoutingSSoT('welcome');
   const isMountedRef = useRef(true);
   const hasLoggedMountRef = useRef(false);
 
@@ -1051,10 +1053,9 @@ export default function WelcomeOnboardingScreen() {
     // Notify backend (fire and forget)
     api.post("/api/onboarding/complete", {}).catch(() => {});
 
-    // REMOVED: Early notification nudge prompt
-    // Notifications will be prompted after Aha moments (create event, RSVP)
-    // Navigate to calendar - use replace to prevent back nav
-    router.replace("/calendar");
+    // ✅ AUTH ROUTING SSOT: Use shared post-onboarding routing
+    // This ensures consistent routing logic with login.tsx
+    await routeAfterAuthSuccess(router, { source: 'signup' });
   };
 
   // REMOVED: handleNotificationNudgeClose - no longer needed
