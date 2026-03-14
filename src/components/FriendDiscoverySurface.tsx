@@ -92,12 +92,12 @@ export function FriendDiscoverySurface({
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  const enabled = isAuthedForNetwork(bootStatus, session?.data);
+  const enabled = isAuthedForNetwork(bootStatus, session);
   const themeColor = "#3B82F6";
 
   // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
-  const sessionUserId = session?.data?.user?.id || 'none';
-  const sessionEffectiveUserId = session?.data?.effectiveUserId || 'none';
+  const sessionUserId = session?.user?.id || 'none';
+  const sessionEffectiveUserId = session?.effectiveUserId || 'none';
   console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveUserId} networkOnline=${networkStatus.isOnline}`);
 
   if (__DEV__) {
@@ -107,10 +107,10 @@ export function FriendDiscoverySurface({
   // DEV: Proof logs for friend discovery debugging
   useEffect(() => {
     if (__DEV__) {
-      const sessionUserId = session?.data?.user?.id || 'none';
+      const sessionUserId = session?.user?.id || 'none';
       devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${sessionUserId} showSkipButton=${!!showSkipButton}`);
     }
-  }, [enabled, bootStatus, session?.data?.user?.id, showSkipButton]);
+  }, [enabled, bootStatus, session?.user?.id, showSkipButton]);
 
   const queryClient = useQueryClient();
 
