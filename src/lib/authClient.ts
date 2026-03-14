@@ -974,12 +974,10 @@ export const authClient = {
         }
         
         // Check for backend-provided mobileSessionToken (preferred method)
-        const rawMobileSessionToken = (result.data as any)?.mobileSessionToken;
-        // CRITICAL: Decode URL-encoded token for session validation
-        const mobileSessionToken = rawMobileSessionToken ? decodeURIComponent(rawMobileSessionToken) : rawMobileSessionToken;
+        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
 
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (decoded from URL encoding)`);
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (backend now returns raw token)`);
           if (__DEV__) {
             devLog('[authClient.signIn] mobileSessionToken received - applying Apple auth pattern');
           }
@@ -1048,12 +1046,10 @@ export const authClient = {
         }
         
         // Check for backend-provided mobileSessionToken (preferred method)
-        const rawMobileSessionToken = (result.data as any)?.mobileSessionToken;
-        // CRITICAL: Decode URL-encoded token for session validation
-        const mobileSessionToken = rawMobileSessionToken ? decodeURIComponent(rawMobileSessionToken) : rawMobileSessionToken;
+        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
 
         if (mobileSessionToken && typeof mobileSessionToken === 'string') {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (decoded from URL encoding)`);
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (backend now returns raw token)`);
           if (__DEV__) {
             devLog('[authClient.signUp] mobileSessionToken received - applying Apple auth pattern');
           }
