@@ -64,6 +64,11 @@ export function FriendDiscoverySurface({
   onSkip,
   onFriendAdded
 }: FriendDiscoverySurfaceProps) {
+  // *** PROOF LOG: Component entry ***
+  if (__DEV__) {
+    devLog(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
+  }
+
   const { colors, isDark } = useTheme();
   const networkStatus = useNetworkStatus();
   const session = useSession();
@@ -89,12 +94,20 @@ export function FriendDiscoverySurface({
   const enabled = isAuthedForNetwork(bootStatus, session);
   const themeColor = "#3B82F6";
 
+  // *** PROOF LOG: Always log enabled state and session structure ***
+  if (__DEV__) {
+    const sessionUserId = session?.user?.id || session?.data?.user?.id || 'none';
+    const sessionEffectiveId = session?.effectiveUserId || 'none';
+    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveId} networkOnline=${networkStatus.isOnline}`);
+  }
+
   // DEV: Proof logs for friend discovery debugging
   useEffect(() => {
     if (__DEV__) {
-      devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${session?.data?.user?.id?.slice(0, 8) || 'none'} showSkipButton=${!!showSkipButton}`);
+      const sessionUserId = session?.user?.id || session?.data?.user?.id || 'none';
+      devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${sessionUserId} showSkipButton=${!!showSkipButton}`);
     }
-  }, [enabled, bootStatus, session?.data?.user?.id, showSkipButton]);
+  }, [enabled, bootStatus, session?.user?.id, session?.data?.user?.id, showSkipButton]);
 
   const queryClient = useQueryClient();
 
@@ -116,6 +129,11 @@ export function FriendDiscoverySurface({
   }, [searchEmail]);
 
   // ── Live search query ──
+  const searchQueryEnabled = enabled && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline;
+  if (__DEV__) {
+    devLog(`[FRIEND_DISCOVERY_QUERY_FIRE search] enabled=${searchQueryEnabled} (enabled=${enabled} debouncedQuery="${debouncedQuery}" networkOnline=${networkStatus.isOnline})`);
+  }
+
   const { data: searchResults, isLoading: isSearching } = useQuery({
     queryKey: ["userSearch", debouncedQuery],
     queryFn: async () => {
@@ -128,11 +146,15 @@ export function FriendDiscoverySurface({
       }
       return result;
     },
-    enabled: enabled && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
+    enabled: searchQueryEnabled,
     staleTime: 30000,
   });
 
   // ── Friend suggestions (people you may know + default suggestions) ──
+  if (__DEV__) {
+    devLog(`[FRIEND_DISCOVERY_QUERY_FIRE suggestions] enabled=${enabled}`);
+  }
+
   const { data: suggestionsData, isLoading: suggestionsLoading, refetch: refetchSuggestions } = useQuery({
     queryKey: ["friendSuggestions"],
     queryFn: async () => {
@@ -186,6 +208,17 @@ export function FriendDiscoverySurface({
   });
 
   const suggestions = suggestionsData?.data?.suggestions || [];
+
+  // *** PROOF LOG: Log suggestions state and empty state reasoning ***
+  if (__DEV__) {
+    if (suggestionsLoading) {
+      devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions still loading...`);
+    } else if (suggestions.length === 0) {
+      devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions empty, suggestionsData=${!!suggestionsData}, enabled=${enabled}`);
+    } else {
+      devLog(`[FRIEND_DISCOVERY_EMPTY_STATE_REASON] suggestions loaded: ${suggestions.length} items`);
+    }
+  }
 
   // ── Load phone contacts ──
   const loadContacts = useCallback(async () => {

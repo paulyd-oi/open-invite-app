@@ -17,6 +17,11 @@ export default function AddFriendsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
 
+  // *** PROOF LOG: Confirm screen renders ***
+  if (__DEV__) {
+    console.log(`[ADD_FRIENDS_BRANCH] AddFriendsScreen rendering, about to render FriendDiscoverySurface`);
+  }
+
   return (
     <SafeAreaView className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
       {/* Header */}
