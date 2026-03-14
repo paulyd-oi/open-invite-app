@@ -94,12 +94,25 @@ export function FriendDiscoverySurface({
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  // *** CANONICAL AUTH CHECK - Uses standardized session data format ***
-  const enabled = isAuthedForNetwork(bootStatus, session);
+  // *** LOCAL AUTH CHECK - Allow both authed and onboarding states ***
+  // Friend discovery works during onboarding since it's part of the onboarding flow
+  const isAuthedOrOnboarding = (bootStatus: string | undefined, session: any): boolean => {
+    // Must be authed or onboarding (user authenticated but flow incomplete)
+    if (bootStatus !== "authed" && bootStatus !== "onboarding") {
+      return false;
+    }
+
+    // Must have valid session with user ID
+    const sessionUserId = session?.user?.id;
+    return !!sessionUserId;
+  };
+
+  const enabled = isAuthedOrOnboarding(bootStatus, session);
   const themeColor = "#3B82F6";
 
   // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
   const sessionUserId = session?.user?.id || 'none';
+  const onboardingAllowed = bootStatus === "onboarding" && !!sessionUserId;
 
   // *** SESSION CONTRACT VALIDATION ***
   if (bootStatus === "authed" && !sessionUserId) {
@@ -114,10 +127,10 @@ export function FriendDiscoverySurface({
       devLog(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
     }
   }
-  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
+  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline} onboardingAllowed=${onboardingAllowed}`);
 
   if (__DEV__) {
-    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
+    devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline} onboardingAllowed=${onboardingAllowed}`);
   }
 
   // DEV: Proof logs for friend discovery debugging
