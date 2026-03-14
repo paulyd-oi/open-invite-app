@@ -16,6 +16,7 @@ import {
 } from "./sessionCookie";
 import { debugDumpBetterAuthCookieOnce } from "./debugCookie";
 import { emitAuthExpiry } from "./authExpiry";
+import { bootstrapPostAuthSession } from "./postAuthBootstrap";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
@@ -973,37 +974,19 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign in failed' } } as any;
         }
         
-        // Check for backend-provided mobileSessionToken (preferred method)
-        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        // Use shared post-auth bootstrap helper (SSOT with Apple auth)
+        const bootstrapResult = await bootstrapPostAuthSession(result.data, "🔐 [Email Sign-In]");
 
-        if (mobileSessionToken && typeof mobileSessionToken === 'string') {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (backend now returns raw token)`);
+        if (!bootstrapResult.ok) {
+          // For email auth, try fallback to Better Auth's expo storage if shared bootstrap fails
           if (__DEV__) {
-            devLog('[authClient.signIn] mobileSessionToken received - applying Apple auth pattern');
+            devLog('[authClient.signIn] Shared bootstrap failed, trying fallback...');
           }
-
-          // Apply same pattern as Apple auth for session bootstrap
-          await setExplicitCookiePair(mobileSessionToken);
-
-          // Set immediate cache (prevents race conditions)
-          setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${mobileSessionToken}`);
-
-          // Store as legacy auth token
-          await setAuthToken(mobileSessionToken);
-
-          // CRITICAL: Store OI session token for header fallback (mobile auth barrier)
-          await setOiSessionToken(mobileSessionToken);
-
-          // Use robust session barrier like Apple auth
-          const barrierResult = await ensureSessionReady();
-          if (!barrierResult.ok) {
-            throw new Error(`Session establishment failed after email sign-in: ${barrierResult.status}`);
-          }
-        } else {
-          // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
           await refreshExplicitCookie();
           await verifySessionAfterAuth('signIn');
+        } else {
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in using shared SSOT helper - bootstrap successful`);
         }
         
         return { data: result.data } as any;
@@ -1045,37 +1028,19 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
         
-        // Check for backend-provided mobileSessionToken (preferred method)
-        const mobileSessionToken = (result.data as any)?.mobileSessionToken;
+        // Use shared post-auth bootstrap helper (SSOT with Apple auth)
+        const bootstrapResult = await bootstrapPostAuthSession(result.data, "🔐 [Email Sign-Up]");
 
-        if (mobileSessionToken && typeof mobileSessionToken === 'string') {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up applying Apple auth pattern - token: ${mobileSessionToken.substring(0, 8)}... (backend now returns raw token)`);
+        if (!bootstrapResult.ok) {
+          // For email auth, try fallback to Better Auth's expo storage if shared bootstrap fails
           if (__DEV__) {
-            devLog('[authClient.signUp] mobileSessionToken received - applying Apple auth pattern');
+            devLog('[authClient.signUp] Shared bootstrap failed, trying fallback...');
           }
-
-          // Apply same pattern as Apple auth for session bootstrap
-          await setExplicitCookiePair(mobileSessionToken);
-
-          // Set immediate cache (prevents race conditions)
-          setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${mobileSessionToken}`);
-
-          // Store as legacy auth token
-          await setAuthToken(mobileSessionToken);
-
-          // CRITICAL: Store OI session token for header fallback (mobile auth barrier)
-          await setOiSessionToken(mobileSessionToken);
-
-          // Use robust session barrier like Apple auth
-          const barrierResult = await ensureSessionReady();
-          if (!barrierResult.ok) {
-            throw new Error(`Session establishment failed after email sign-up: ${barrierResult.status}`);
-          }
-        } else {
-          // Fallback: Capture cookie from Better Auth's expo storage (if accessible)
           await captureAndStoreCookie();
           await refreshExplicitCookie();
           await verifySessionAfterAuth('signUp');
+        } else {
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up using shared SSOT helper - bootstrap successful`);
         }
         
         return { data: result.data } as any;

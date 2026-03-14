@@ -50,6 +50,7 @@ import {
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
+import { bootstrapPostAuthSession } from "@/lib/postAuthBootstrap";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
@@ -669,150 +670,27 @@ export default function WelcomeOnboardingScreen() {
         throw error;
       }
 
-      // CRITICAL: Store session cookie for React Native
-      // Backend should return mobileSessionToken (preferred) or token/session.token
-      // We store in SESSION_COOKIE_KEY and set module cache directly for immediate use
-      
-      let tokenValue: string | null = null;
-      let tokenSource: string = "none";
-      
-      // Priority 1: mobileSessionToken (canonical Better Auth format)
-      if (data.mobileSessionToken && typeof data.mobileSessionToken === 'string') {
-        tokenValue = data.mobileSessionToken;
-        tokenSource = "mobileSessionToken";
-      }
-      // Priority 2: token field
-      else if (data.token && typeof data.token === 'string') {
-        tokenValue = data.token;
-        tokenSource = "token";
-      }
-      // Priority 3: session.token field
-      else if (data.session?.token && typeof data.session.token === 'string') {
-        tokenValue = data.session.token;
-        tokenSource = "session.token";
-      }
-      // Priority 4: sessionToken field (alternate shape)
-      else if (data.sessionToken && typeof data.sessionToken === 'string') {
-        tokenValue = data.sessionToken;
-        tokenSource = "sessionToken";
-      }
-      // Priority 5: session.sessionToken field (alternate shape)
-      else if (data.session?.sessionToken && typeof data.session.sessionToken === 'string') {
-        tokenValue = data.session.sessionToken;
-        tokenSource = "session.sessionToken";
-      }
-      // Priority 6: Extract from Set-Cookie header (if accessible in RN)
-      else if (setCookieHeader) {
-        const sessionMatch = setCookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
-        if (sessionMatch && sessionMatch[1]) {
-          tokenValue = sessionMatch[1];
-          tokenSource = "Set-Cookie";
-        }
-      }
-      
-      traceLog("token_extraction", {
-        found: !!tokenValue,
-        source: tokenSource,
-        tokenLength: tokenValue?.length || 0,
-        responseKeys: Object.keys(data || {}),
-      });
-      
-      // PROOF LOG: Token extraction result (never log token value)
-      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] ok=true tokenFound=${!!tokenValue} keys=${JSON.stringify(Object.keys(data || {}))}`);
-      
-      if (!tokenValue) {
-        traceError("token_missing", {
-          message: "No session token in response",
-          responseKeys: Object.keys(data || {}),
-          hasSetCookie: !!setCookieHeader,
-        });
-        throw new Error("Apple Sign-In succeeded but no session token was returned. Please try again.");
-      }
-      
-      // CRITICAL: Validate token before storing to prevent UUID/invalid values
-      const tokenValidation = isValidBetterAuthToken(tokenValue);
-      if (!tokenValidation.isValid) {
-        traceError("token_validation_failed", {
-          reason: tokenValidation.reason,
-          source: tokenSource,
-          tokenLength: tokenValue.length,
-        });
-        throw new Error("Apple Sign-In returned an invalid session token. Please try again.");
-      }
-      
-      traceLog("token_validated", { reason: tokenValidation.reason, source: tokenSource });
-      if (__DEV__) devLog(`[P0_SIWA_OK] token_valid source=${tokenSource} len=${tokenValue.length}`);
-      
-      // Store token in SecureStore (via setExplicitCookiePair which formats as cookie pair)
-      try {
-        const stored = await setExplicitCookiePair(tokenValue);
-        if (!stored) {
-          traceError("cookie_persist_rejected", { message: "setExplicitCookiePair rejected token" });
-          throw new Error("Failed to store session token. Please try again.");
-        }
-        traceLog("cookie_persist_securestore", { success: true, key: "SESSION_COOKIE_KEY" });
-      } catch (storeErr: any) {
-        traceError("cookie_persist_securestore_fail", storeErr);
-        throw storeErr;
-      }
-      
-      // Set module cache directly for immediate use (no read-back delay)
-      const cacheSet = setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
-      if (!cacheSet) {
-        traceError("cookie_cache_rejected", { message: "setExplicitCookieValueDirectly rejected token" });
-        throw new Error("Failed to cache session token. Please try again.");
-      }
-      traceLog("cookie_cache_set", { success: true });
-      
-      // Also store as legacy auth token (for any code still using token auth)
-      await setAuthToken(tokenValue);
-      
-      // CRITICAL: Store OI session token for header fallback (iOS cookie jar is unreliable)
-      await setOiSessionToken(tokenValue);
-      traceLog("oi_token_stored", { tokenLength: tokenValue.length });
+      // Use shared post-auth bootstrap helper (SSOT with email auth)
+      traceLog("bootstrap_start", { responseKeys: Object.keys(data || {}), hasSetCookie: !!setCookieHeader });
 
-      // TEMP DEBUG: Verify token is set in memory immediately
-      const { getOiSessionTokenCached } = await import("@/lib/authClient");
-      const verifyToken = getOiSessionTokenCached();
-      traceLog("oi_token_verify", {
-        immediatelyAvailable: !!verifyToken,
-        lengthMatches: verifyToken?.length === tokenValue.length
-      });
-      
-      // NOTE: We deliberately do NOT call refreshExplicitCookie() here!
-      // The memory cache is already set by setExplicitCookieValueDirectly.
-      // Calling refreshExplicitCookie() can CLEAR the cache if SecureStore read
-      // happens before the write is committed (race condition).
-      
-      // ============ SESSION BARRIER ============
-      // CRITICAL: Use ensureSessionReady() to verify session works BEFORE proceeding.
-      // This blocks until we have proof that x-oi-session-token is working.
-      traceLog("session_barrier_start", { tokenLength: tokenValue.length });
-      const barrierResult = await ensureSessionReady();
-      
-      // Log the AUTH_BARRIER result explicitly
-      if (__DEV__) devLog(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);
-      
-      if (!barrierResult.ok) {
-        traceError("session_barrier_fail", { 
-          status: barrierResult.status,
-          attempt: barrierResult.attempt,
-          error: barrierResult.error,
-        });
-        // Log clearly and throw - do NOT proceed silently
-        devError("[APPLE_AUTH] Session barrier FAILED - cannot proceed:", barrierResult);
-        throw new Error("Session verification failed after Apple Sign-In. Please try again.");
+      const bootstrapResult = await bootstrapPostAuthSession(data, "🍎 [Apple Auth]", setCookieHeader);
+
+      if (!bootstrapResult.ok) {
+        traceError("bootstrap_fail", { error: bootstrapResult.error });
+        throw new Error(`Apple Sign-In session bootstrap failed: ${bootstrapResult.error}`);
       }
-      
-      // PROOF LOG with required format
-      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${tokenValue.length} barrier200=true userIdPresent=true`);
-      traceLog("session_barrier_success", { userId: barrierResult.userId?.substring(0, 8) });
-      // ============ END SESSION BARRIER ============
-      
-      // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
-      // Without this, BootRouter may redirect to /login because bootStatus is stale
-      requestBootstrapRefreshOnce();
-      traceLog("bootstrap_refresh_requested", { success: true });
+
+      traceLog("bootstrap_success", {
+        userId: bootstrapResult.sessionReady?.userId?.substring(0, 8),
+        attempt: bootstrapResult.sessionReady?.attempt
+      });
+
+      // PROOF LOG with required format (maintain compatibility with existing logs)
+      if (__DEV__) {
+        const sessionReady = bootstrapResult.sessionReady;
+        devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=validated barrier200=true userIdPresent=true`);
+        devLog(`[AUTH_BARRIER_RESULT] ok=${sessionReady?.ok} status=${sessionReady?.status} userId=${sessionReady?.userId ? sessionReady.userId.substring(0, 8) + '...' : 'null'} attempt=${sessionReady?.attempt}`);
+      }
 
       // Pre-populate name from Apple
       if (credential.fullName?.givenName) {
