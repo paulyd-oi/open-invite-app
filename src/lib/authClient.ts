@@ -984,7 +984,13 @@ export const authClient = {
           devError(`🔐 [EMAIL_SIGNIN_APPLE_BOOTSTRAP] ${stage}:`, error);
         };
 
+        // PROOF: About to call exact Apple bootstrap function
+        if (__DEV__) devLog(`[EMAIL_SIGNIN_DEBUG] About to call runExactAppleAuthBootstrap with data keys: ${JSON.stringify(Object.keys(result.data || {}))}`);
+
         const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+
+        // PROOF: Function returned
+        if (__DEV__) devLog(`[EMAIL_SIGNIN_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
 
         if (!appleBootstrapResult.success) {
           // For email auth, try fallback to Better Auth's expo storage if exact Apple bootstrap fails
@@ -1047,7 +1053,13 @@ export const authClient = {
           devError(`🔐 [EMAIL_SIGNUP_APPLE_BOOTSTRAP] ${stage}:`, error);
         };
 
+        // PROOF: About to call exact Apple bootstrap function
+        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] About to call runExactAppleAuthBootstrap with data keys: ${JSON.stringify(Object.keys(result.data || {}))}`);
+
         const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+
+        // PROOF: Function returned
+        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
 
         if (!appleBootstrapResult.success) {
           // For email auth, try fallback to Better Auth's expo storage if exact Apple bootstrap fails

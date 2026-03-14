@@ -44,6 +44,9 @@ export async function runExactAppleAuthBootstrap(
   traceLog: (stage: string, data: Record<string, unknown>) => void,
   traceError: (stage: string, error: any) => void
 ): Promise<AppleAuthBootstrapResult> {
+  // FIRST LOG: Prove function entry immediately
+  if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] ENTRY - function called with data keys: ${JSON.stringify(Object.keys(data || {}))}`);
+
   try {
     // CRITICAL: Store session cookie for React Native
     // Backend should return mobileSessionToken (preferred) or token/session.token
@@ -97,6 +100,7 @@ export async function runExactAppleAuthBootstrap(
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] tokenExtracted=${!!tokenValue} source=${tokenSource} responseKeys=${JSON.stringify(Object.keys(data || {}))}`);
 
     if (!tokenValue) {
+      if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] EARLY_RETURN - no token found in response with keys: ${JSON.stringify(Object.keys(data || {}))}`);
       traceError("token_missing", {
         message: "No session token in response",
         responseKeys: Object.keys(data || {}),
@@ -108,6 +112,7 @@ export async function runExactAppleAuthBootstrap(
     // CRITICAL: Validate token before storing to prevent UUID/invalid values
     const tokenValidation = isValidBetterAuthToken(tokenValue);
     if (!tokenValidation.isValid) {
+      if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] EARLY_RETURN - token validation failed: ${tokenValidation.reason}`);
       traceError("token_validation_failed", {
         reason: tokenValidation.reason,
         source: tokenSource,
