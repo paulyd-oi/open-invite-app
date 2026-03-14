@@ -1066,10 +1066,13 @@ export const authClient = {
           devError(`🔐 [EMAIL_SIGNUP_APPLE_BOOTSTRAP] ${stage}:`, error);
         };
 
-        // PROOF: About to call exact Apple bootstrap function
-        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] About to call runExactAppleAuthBootstrap with data keys: ${JSON.stringify(Object.keys(result.data || {}))}`);
+        // PROOF: About to call exact Apple bootstrap function (console.log always shows)
+        console.log(`🔐 [EMAIL_SIGNUP_DEBUG] About to call runExactAppleAuthBootstrap`);
 
         const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+
+        // PROOF: Function returned (console.log always shows)
+        console.log(`🔐 [EMAIL_SIGNUP_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
 
         // PROOF: Function returned
         if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
