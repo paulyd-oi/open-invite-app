@@ -48,10 +48,8 @@ import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
-import { trackAppleSignInTap, trackAppleSignInResult } from "@/analytics/analyticsEventsSSOT";
-import { runExactAppleAuthBootstrap } from "@/lib/exactAppleAuthBootstrap";
-import { isAppleSignInAvailable, isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError } from "@/lib/appleSignIn";
-import { safeToast } from "@/lib/safeToast";
+import { isAppleSignInAvailable } from "@/lib/appleSignIn";
+import { handleSharedAppleSignIn } from "@/lib/sharedAppleAuth";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 let AppleAuthentication: any = null;
@@ -61,7 +59,6 @@ try {
   if (__DEV__) devLog("[Apple Auth] expo-apple-authentication not available - requires native build");
 }
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -158,90 +155,21 @@ export default function LoginScreen() {
   // NOTE: Removed auto-redirect based on session.user - BootRouter handles all auth routing.
   // login.tsx should only redirect after explicit login success, not on mount.
 
-  // Handle Apple Sign-In (reused from welcome.tsx)
+  // Handle Apple Sign-In using shared implementation
   const handleAppleSignIn = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    trackAppleSignInTap();
-    const _appleT0 = Date.now();
 
-    if (!isAppleSignInReady || !AppleAuthentication) {
-      safeToast.warning("Apple Sign-In unavailable", "Use email to continue.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Request Apple credentials
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential?.identityToken) {
-        throw new Error("Apple Sign-In did not return required credentials. Please try again.");
-      }
-
-      // Send to backend for validation
-      const backendUrl = `${BACKEND_URL}/api/auth/apple`;
-      const response = await fetch(backendUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identityToken: credential.identityToken,
-          user: credential.user,
-          fullName: credential.fullName,
-          email: credential.email,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Backend validation failed: ${response.status} ${errorData}`);
-      }
-
-      // Run exact Apple auth bootstrap logic (same as signup flow)
-      const appleBootstrapResult = await runExactAppleAuthBootstrap({
-        step: "login_apple_signin",
-        identityToken: credential.identityToken,
-        requireSecureStore: Platform.OS === "ios",
-      });
-
-      if (!appleBootstrapResult.success) {
-        throw new Error(`Apple Sign-In session bootstrap failed: ${appleBootstrapResult.error}`);
-      }
-
-      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${appleBootstrapResult.tokenLength} barrier200=true userIdPresent=true`);
-
-      trackAppleSignInResult({ success: true, durationMs: Date.now() - _appleT0 });
-
-      // Route to success and then authenticate (same flow as email login)
-      setAuthView("success");
-      setTimeout(() => {
-        routeAfterAuthSuccess(router);
-      }, 1500);
-
-    } catch (error: any) {
-      const errorBucket = classifyAppleAuthError(error);
-
-      if (isAppleAuthCancellation(error)) {
-        // User cancelled - no error message needed
-        trackAppleSignInResult({ success: false, durationMs: Date.now() - _appleT0, errorCode: "user_cancel" });
-        return;
-      }
-
-      trackAppleSignInResult({ success: false, durationMs: Date.now() - _appleT0, errorCode: errorBucket });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const userMessage = decodeAppleAuthError(error);
-      safeToast.error("Apple Sign-In Failed", userMessage || "Apple Sign-In failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    await handleSharedAppleSignIn({
+      isAppleSignInReady,
+      setIsLoading,
+      onSuccess: () => {
+        // Route to success and then authenticate (same flow as email login)
+        setAuthView("success");
+        setTimeout(() => {
+          routeAfterAuthSuccess(router);
+        }, 1500);
+      },
+    });
   };
 
   // Handle email sign-in
