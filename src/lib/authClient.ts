@@ -1042,7 +1042,10 @@ export const authClient = {
         if (result.error) {
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
-        
+
+        // PROOF: Execution reached after error check
+        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] Past error check, proceeding to Apple bootstrap`);
+
         // Use EXACT Apple auth bootstrap logic (same function Apple uses)
         const emailTraceLog = (stage: string, data: Record<string, unknown>) => {
           devLog(`🔐 [EMAIL_SIGNUP_APPLE_BOOTSTRAP] ${stage}`);
