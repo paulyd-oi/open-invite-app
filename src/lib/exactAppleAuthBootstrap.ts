@@ -9,26 +9,37 @@
 
 import { devLog, devError } from "./devLog";
 import { safeGetItemAsync } from "./safeSecureStore";
-import { SESSION_COOKIE_KEY } from "./sessionCookie";
 import {
   setExplicitCookiePair,
-  setExplicitCookieValueDirectly,
-  setAuthToken,
-  setOiSessionToken,
-  ensureSessionReady,
+  SESSION_COOKIE_KEY,
+} from "./sessionCookie";
+import {
+  BETTER_AUTH_SESSION_COOKIE_NAME,
   isValidBetterAuthToken,
-  getOiSessionTokenCached,
-} from "./authClient";
+} from "./authSessionToken";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
 
 const BETTER_AUTH_EXPO_COOKIE_KEY = "open-invite_cookie";
-const BETTER_AUTH_SESSION_COOKIE_NAME = "__Secure-better-auth.session_token";
 
 export interface AppleAuthBootstrapResult {
   success: boolean;
   error?: string;
   tokenLength?: number;
   barrierResult?: any;
+}
+
+export interface ExactAppleAuthBootstrapDeps {
+  setExplicitCookieValueDirectly: (cookiePair: string) => boolean;
+  setAuthToken: (token: string) => Promise<void>;
+  setOiSessionToken: (token: string) => Promise<void>;
+  ensureSessionReady: () => Promise<{
+    ok: boolean;
+    status: number | null;
+    userId: string | null;
+    attempt: number;
+    error?: string;
+  }>;
+  getOiSessionTokenCached: () => string | null;
 }
 
 /**
@@ -47,7 +58,8 @@ export async function runExactAppleAuthBootstrap(
   data: any,
   setCookieHeader: string | null,
   traceLog: (stage: string, data: Record<string, unknown>) => void,
-  traceError: (stage: string, error: any) => void
+  traceError: (stage: string, error: any) => void,
+  deps: ExactAppleAuthBootstrapDeps
 ): Promise<AppleAuthBootstrapResult> {
   // FIRST LOG: Prove function entry immediately
   if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] ENTRY - function called with data keys: ${JSON.stringify(Object.keys(data || {}))}`);
@@ -196,7 +208,7 @@ export async function runExactAppleAuthBootstrap(
     }
 
     // Set module cache directly for immediate use (no read-back delay)
-    const cacheSet = setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
+    const cacheSet = deps.setExplicitCookieValueDirectly(`${BETTER_AUTH_SESSION_COOKIE_NAME}=${tokenValue}`);
     if (!cacheSet) {
       console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] cookie_cache_rejected - setExplicitCookieValueDirectly returned false`);
       traceError("cookie_cache_rejected", { message: "setExplicitCookieValueDirectly rejected token" });
@@ -206,16 +218,16 @@ export async function runExactAppleAuthBootstrap(
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] cookieCached=true`);
 
     // Also store as legacy auth token (for any code still using token auth)
-    await setAuthToken(tokenValue);
+    await deps.setAuthToken(tokenValue);
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] legacyTokenStored=true`);
 
     // CRITICAL: Store OI session token for header fallback (iOS cookie jar is unreliable)
-    await setOiSessionToken(tokenValue);
+    await deps.setOiSessionToken(tokenValue);
     traceLog("oi_token_stored", { tokenLength: tokenValue.length });
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] oiTokenStored=true`);
 
     // TEMP DEBUG: Verify token is set in memory immediately
-    const verifyToken = getOiSessionTokenCached();
+    const verifyToken = deps.getOiSessionTokenCached();
     traceLog("oi_token_verify", {
       immediatelyAvailable: !!verifyToken,
       lengthMatches: verifyToken?.length === tokenValue.length
@@ -233,7 +245,7 @@ export async function runExactAppleAuthBootstrap(
     traceLog("session_barrier_start", { tokenLength: tokenValue.length });
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] sessionBarrierStarting=true`);
 
-    const barrierResult = await ensureSessionReady();
+    const barrierResult = await deps.ensureSessionReady();
 
     // Log the AUTH_BARRIER result explicitly
     if (__DEV__) devLog(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);

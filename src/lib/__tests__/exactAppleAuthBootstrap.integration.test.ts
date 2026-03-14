@@ -7,14 +7,9 @@ jest.mock("../devLog", () => ({
   devError: jest.fn(),
 }));
 
-jest.mock("../authClient", () => ({
+jest.mock("../sessionCookie", () => ({
   setExplicitCookiePair: jest.fn(),
-  setExplicitCookieValueDirectly: jest.fn(),
-  setAuthToken: jest.fn(),
-  setOiSessionToken: jest.fn(),
-  ensureSessionReady: jest.fn(),
-  isValidBetterAuthToken: jest.fn(),
-  getOiSessionTokenCached: jest.fn(),
+  SESSION_COOKIE_KEY: "open-invite_session_cookie",
 }));
 
 jest.mock("@/hooks/useBootAuthority", () => ({
@@ -23,6 +18,13 @@ jest.mock("@/hooks/useBootAuthority", () => ({
 
 describe("runExactAppleAuthBootstrap", () => {
   const recoveredToken = "header.payload.signature";
+  const deps = {
+    setExplicitCookieValueDirectly: jest.fn(),
+    setAuthToken: jest.fn(),
+    setOiSessionToken: jest.fn(),
+    ensureSessionReady: jest.fn(),
+    getOiSessionTokenCached: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -40,27 +42,23 @@ describe("runExactAppleAuthBootstrap", () => {
       return null;
     });
 
-    const authClient = require("../authClient");
-    authClient.setExplicitCookiePair.mockResolvedValue(true);
-    authClient.setExplicitCookieValueDirectly.mockReturnValue(true);
-    authClient.setAuthToken.mockResolvedValue(undefined);
-    authClient.setOiSessionToken.mockResolvedValue(undefined);
-    authClient.ensureSessionReady.mockResolvedValue({
+    const sessionCookie = require("../sessionCookie");
+    sessionCookie.setExplicitCookiePair.mockResolvedValue(true);
+    deps.setExplicitCookieValueDirectly.mockReturnValue(true);
+    deps.setAuthToken.mockResolvedValue(undefined);
+    deps.setOiSessionToken.mockResolvedValue(undefined);
+    deps.ensureSessionReady.mockResolvedValue({
       ok: true,
       status: 200,
       userId: "user_12345678",
       attempt: 1,
     });
-    authClient.isValidBetterAuthToken.mockReturnValue({
-      isValid: true,
-      reason: "valid",
-    });
-    authClient.getOiSessionTokenCached.mockReturnValue(recoveredToken);
+    deps.getOiSessionTokenCached.mockReturnValue(recoveredToken);
   });
 
   it("recovers the token from Better Auth expo storage when email auth has no response token or set-cookie header", async () => {
     const { runExactAppleAuthBootstrap } = require("../exactAppleAuthBootstrap");
-    const { setExplicitCookiePair } = require("../authClient");
+    const { setExplicitCookiePair } = require("../sessionCookie");
     const { requestBootstrapRefreshOnce } = require("@/hooks/useBootAuthority");
     const traceLog = jest.fn();
     const traceError = jest.fn();
@@ -69,7 +67,8 @@ describe("runExactAppleAuthBootstrap", () => {
       { user: { id: "user_12345678" } },
       null,
       traceLog,
-      traceError
+      traceError,
+      deps
     );
 
     expect(result).toEqual(

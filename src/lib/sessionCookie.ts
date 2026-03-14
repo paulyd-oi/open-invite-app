@@ -11,36 +11,16 @@
 
 import { safeGetItemAsync, safeSetItemAsync, safeDeleteItemAsync } from "./safeSecureStore";
 import { devLog } from "./devLog";
+import {
+  BETTER_AUTH_SESSION_COOKIE_NAME,
+  isValidBetterAuthToken,
+} from "./authSessionToken";
 
 // Storage key for the session cookie
 export const SESSION_COOKIE_KEY = "open-invite_session_cookie";
 
 // Cookie name used by Better Auth
-const COOKIE_NAME = "__Secure-better-auth.session_token";
-
-// UUID regex pattern for rejection (same as authClient.ts)
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Validate that a token is a plausible Better Auth session token.
- * DUPLICATE: Same logic as authClient.ts isValidBetterAuthToken (avoid circular imports)
- */
-function isValidSessionToken(token: string): { isValid: boolean; reason: string } {
-  if (!token || typeof token !== "string") {
-    return { isValid: false, reason: "empty_or_not_string" };
-  }
-  const trimmed = token.trim();
-  if (trimmed.length < 20) {
-    return { isValid: false, reason: "too_short" };
-  }
-  if (UUID_PATTERN.test(trimmed)) {
-    return { isValid: false, reason: "uuid_pattern" };
-  }
-  if (!trimmed.includes(".")) {
-    return { isValid: false, reason: "no_dot_not_signed" };
-  }
-  return { isValid: true, reason: "valid" };
-}
+const COOKIE_NAME = BETTER_AUTH_SESSION_COOKIE_NAME;
 
 /**
  * Get the stored session cookie pair
@@ -139,7 +119,7 @@ export async function setExplicitCookiePair(tokenValue: string): Promise<boolean
   }
   
   // CRITICAL: Validate token before storing
-  const validation = isValidSessionToken(tokenValue);
+  const validation = isValidBetterAuthToken(tokenValue);
   if (!validation.isValid) {
     if (__DEV__) {
       devLog(`[AUTH_TRACE] setExplicitCookiePair: rejected token, reason=${validation.reason}`);

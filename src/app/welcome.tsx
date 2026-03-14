@@ -49,10 +49,16 @@ import {
 } from "@/ui/icons";
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
-import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
+import {
+  authClient,
+  setAuthToken,
+  setExplicitCookieValueDirectly,
+  setOiSessionToken,
+  ensureSessionReady,
+  getOiSessionTokenCached,
+} from "@/lib/authClient";
 import { runExactAppleAuthBootstrap } from "@/lib/exactAppleAuthBootstrap";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
-import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
 import { api } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/config";
@@ -671,7 +677,19 @@ export default function WelcomeOnboardingScreen() {
       }
 
       // Run exact Apple auth bootstrap logic (will be reused by email auth)
-      const appleBootstrapResult = await runExactAppleAuthBootstrap(data, setCookieHeader, traceLog, traceError);
+      const appleBootstrapResult = await runExactAppleAuthBootstrap(
+        data,
+        setCookieHeader,
+        traceLog,
+        traceError,
+        {
+          setExplicitCookieValueDirectly,
+          setAuthToken,
+          setOiSessionToken,
+          ensureSessionReady,
+          getOiSessionTokenCached,
+        }
+      );
 
       if (!appleBootstrapResult.success) {
         throw new Error(`Apple Sign-In session bootstrap failed: ${appleBootstrapResult.error}`);

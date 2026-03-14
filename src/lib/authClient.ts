@@ -8,10 +8,12 @@ import { BACKEND_URL } from "./config";
 import { AUTH_TOKEN_KEY } from "./authKeys";
 import { devLog, devWarn, devError, devLogOnce } from "./devLog";
 import {
-  getSessionCookie,
+  BETTER_AUTH_SESSION_COOKIE_NAME,
+  isValidBetterAuthToken,
+} from "./authSessionToken";
+import {
   setSessionCookie,
   clearSessionCookie,
-  setExplicitCookiePair,
   SESSION_COOKIE_KEY,
 } from "./sessionCookie";
 import { debugDumpBetterAuthCookieOnce } from "./debugCookie";
@@ -73,43 +75,6 @@ const AUTH_DEBUG = __DEV__ && process.env.EXPO_PUBLIC_AUTH_DEBUG === "1";
 function authTrace(event: string, data: Record<string, boolean | string | number>): void {
   if (!AUTH_DEBUG) return;
   devLog(`[AUTH_TRACE] ${event}`, data);
-}
-
-// UUID regex pattern for rejection
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Validate that a token is a plausible Better Auth session token.
- * Rejects UUIDs, short strings, and strings without a dot (not signed JWT-like).
- * 
- * CRITICAL: Used to prevent storing invalid values (e.g., session IDs) as session tokens.
- * 
- * @param token The token value to validate
- * @returns Object with isValid boolean and reason string
- */
-export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reason: string } {
-  if (!token || typeof token !== "string") {
-    return { isValid: false, reason: "empty_or_not_string" };
-  }
-  
-  const trimmed = token.trim();
-  
-  // Minimum length check (Better Auth tokens are typically much longer)
-  if (trimmed.length < 20) {
-    return { isValid: false, reason: "too_short" };
-  }
-  
-  // Reject UUID pattern (session IDs are UUIDs, not session tokens)
-  if (UUID_PATTERN.test(trimmed)) {
-    return { isValid: false, reason: "uuid_pattern" };
-  }
-  
-  // Better Auth tokens are signed and contain at least one dot (like JWTs)
-  if (!trimmed.includes(".")) {
-    return { isValid: false, reason: "no_dot_not_signed" };
-  }
-  
-  return { isValid: true, reason: "valid" };
 }
 
 // Prefer explicit EXPO_PUBLIC_API_URL, then fall back to the centralized BACKEND_URL
@@ -529,7 +494,7 @@ export async function refreshExplicitCookie(): Promise<void> {
   if (rawCookie && rawCookie !== '{}') {
     try {
       const parsed = JSON.parse(rawCookie);
-      const targetCookieName = '__Secure-better-auth.session_token';
+      const targetCookieName = BETTER_AUTH_SESSION_COOKIE_NAME;
       
       if (parsed[targetCookieName]?.value) {
         const token = parsed[targetCookieName].value;
@@ -548,7 +513,7 @@ export async function refreshExplicitCookie(): Promise<void> {
   
   // Priority 2: Fallback to SESSION_COOKIE_KEY (used by Apple Sign-In)
   const explicitCookie = await safeGetItemAsync(SESSION_COOKIE_KEY);
-  if (explicitCookie && explicitCookie.includes('__Secure-better-auth.session_token=')) {
+  if (explicitCookie && explicitCookie.includes(`${BETTER_AUTH_SESSION_COOKIE_NAME}=`)) {
     explicitCookieValue = explicitCookie;
     if (AUTH_DEBUG) {
       devLog('[refreshExplicitCookie] Cookie cached from SESSION_COOKIE_KEY (Apple Sign-In path)');
@@ -680,7 +645,7 @@ async function captureAndStoreCookie(): Promise<void> {
     
     if (rawCookie && rawCookie !== '{}') {
       // Target cookie name - EXACT match only, no fallbacks
-      const targetCookieName = '__Secure-better-auth.session_token';
+      const targetCookieName = BETTER_AUTH_SESSION_COOKIE_NAME;
       let tokenValue: string | null = null;
       
       try {
@@ -987,7 +952,19 @@ export const authClient = {
         // PROOF: About to call exact Apple bootstrap function
         if (__DEV__) devLog(`[EMAIL_SIGNIN_DEBUG] About to call runExactAppleAuthBootstrap with data keys: ${JSON.stringify(Object.keys(result.data || {}))}`);
 
-        const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+        const appleBootstrapResult = await runExactAppleAuthBootstrap(
+          result.data,
+          null,
+          emailTraceLog,
+          emailTraceError,
+          {
+            setExplicitCookieValueDirectly,
+            setAuthToken,
+            setOiSessionToken,
+            ensureSessionReady,
+            getOiSessionTokenCached,
+          }
+        );
 
         // PROOF: Function returned
         if (__DEV__) devLog(`[EMAIL_SIGNIN_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
@@ -1069,7 +1046,19 @@ export const authClient = {
         // PROOF: About to call exact Apple bootstrap function (console.log always shows)
         console.log(`🔐 [EMAIL_SIGNUP_DEBUG] About to call runExactAppleAuthBootstrap`);
 
-        const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+        const appleBootstrapResult = await runExactAppleAuthBootstrap(
+          result.data,
+          null,
+          emailTraceLog,
+          emailTraceError,
+          {
+            setExplicitCookieValueDirectly,
+            setAuthToken,
+            setOiSessionToken,
+            ensureSessionReady,
+            getOiSessionTokenCached,
+          }
+        );
 
         // PROOF: Function returned (console.log always shows)
         console.log(`🔐 [EMAIL_SIGNUP_DEBUG] runExactAppleAuthBootstrap returned: ${appleBootstrapResult.success}`);
