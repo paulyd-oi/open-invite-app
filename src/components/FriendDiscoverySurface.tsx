@@ -89,6 +89,13 @@ export function FriendDiscoverySurface({
   const enabled = isAuthedForNetwork(bootStatus, session);
   const themeColor = "#3B82F6";
 
+  // DEV: Proof logs for friend discovery debugging
+  useEffect(() => {
+    if (__DEV__) {
+      devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${session?.data?.user?.id?.slice(0, 8) || 'none'} showSkipButton=${!!showSkipButton}`);
+    }
+  }, [enabled, bootStatus, session?.data?.user?.id, showSkipButton]);
+
   const queryClient = useQueryClient();
 
   // ── Debounce search input ──
@@ -111,7 +118,16 @@ export function FriendDiscoverySurface({
   // ── Live search query ──
   const { data: searchResults, isLoading: isSearching } = useQuery({
     queryKey: ["userSearch", debouncedQuery],
-    queryFn: () => api.get<SearchUsersRankedResponse>(`/api/profile/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`),
+    queryFn: async () => {
+      if (__DEV__) {
+        devLog(`[FRIEND_DISCOVERY_SEARCH] firing request for query: "${debouncedQuery}"`);
+      }
+      const result = await api.get<SearchUsersRankedResponse>(`/api/profile/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`);
+      if (__DEV__) {
+        devLog(`[FRIEND_DISCOVERY_SEARCH] returned ${result?.data?.users?.length || 0} users for "${debouncedQuery}"`);
+      }
+      return result;
+    },
     enabled: enabled && !!debouncedQuery && debouncedQuery.length >= 2 && networkStatus.isOnline,
     staleTime: 30000,
   });
@@ -119,7 +135,16 @@ export function FriendDiscoverySurface({
   // ── Friend suggestions (people you may know + default suggestions) ──
   const { data: suggestionsData, isLoading: suggestionsLoading, refetch: refetchSuggestions } = useQuery({
     queryKey: ["friendSuggestions"],
-    queryFn: () => api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions"),
+    queryFn: async () => {
+      if (__DEV__) {
+        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] firing request to /api/friends/suggestions`);
+      }
+      const result = await api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions");
+      if (__DEV__) {
+        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.data?.suggestions?.length || 0} suggestions`);
+      }
+      return result;
+    },
     enabled,
     staleTime: 60000,
   });
