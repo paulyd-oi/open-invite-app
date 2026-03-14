@@ -23,3 +23,11 @@ export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reas
 
   return { isValid: true, reason: "valid" };
 }
+
+export function formatReactNativeCookieHeader(cookiePair: string): string {
+  if (!cookiePair) {
+    return "";
+  }
+
+  return cookiePair.startsWith("; ") ? cookiePair : `; ${cookiePair.replace(/^;\s*/, "")}`;
+}

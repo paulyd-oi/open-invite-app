@@ -9,6 +9,7 @@ import { AUTH_TOKEN_KEY } from "./authKeys";
 import { devLog, devWarn, devError, devLogOnce } from "./devLog";
 import {
   BETTER_AUTH_SESSION_COOKIE_NAME,
+  formatReactNativeCookieHeader,
   isValidBetterAuthToken,
 } from "./authSessionToken";
 import {
@@ -291,8 +292,7 @@ async function $fetch<T = any>(
     // where the cookie jar may not work reliably across domains
     const hadCookie = !!explicitCookieValue;
     if (explicitCookieValue) {
-      // Standard cookie format: "name=value" (no leading semicolon)
-      finalHeaders.set("cookie", explicitCookieValue);
+      finalHeaders.set("cookie", formatReactNativeCookieHeader(explicitCookieValue));
     }
     
     // DEV-only: Log auth header state (never log token values)
