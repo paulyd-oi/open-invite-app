@@ -1,0 +1,25 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Quick test to verify friend discovery fix
+- launchApp:
+    clearState: true
+
+- waitForAnimationToEnd
+
+# Navigate to Add Friends
+- tapOn:
+    id: "Friends_Tab_Button"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Add"
+
+- waitForAnimationToEnd
+
+# Should see friend discovery logs now
+- runFlow:
+    when:
+      visible: "Add Friends"
+    commands:
+      - assertVisible: "Add Friends"
