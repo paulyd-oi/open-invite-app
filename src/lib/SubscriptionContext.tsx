@@ -215,12 +215,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       return { isPro: computedIsPro };
     } catch (error: any) {
       if (__DEV__) {
-        // [P0_SUB_FETCH_GATE] Use devLog (not devError) for expected auth failures — no red overlay
+        // [P0_SUB_FETCH_GATE] Use devLog (not devError) for all subscription errors on logged-out screens — no red overlay
         const status = error?.status || error?.response?.status;
         if (status === 401 || status === 403) {
           devLog("[P0_SUB_FETCH_GATE] fetchSubscription auth_expected:", status);
         } else {
-          devError("[PRO_SOT] fetchSubscription error:", error);
+          devLog("[PRO_SOT] fetchSubscription non_auth_error (logged_out_suppress):", error);
         }
       }
       // On error, set to free tier defaults
