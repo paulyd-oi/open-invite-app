@@ -1029,25 +1029,28 @@ export const authClient = {
         const result = await betterAuthClient.signUp.email(signUpOpts);
         console.log(`🔐 [FRONTEND_BOOTSTRAP] Better Auth response:`, JSON.stringify(result).substring(0, 200));
 
-        // PROOF: Check if result.error exists before dev block
-        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] result.error exists: ${!!result.error}`);
+        try {
+          // PROOF: Very next line after response log
+          console.log(`🔐 [EMAIL_SIGNUP_DEBUG] Next line after response log executed`);
 
-        if (__DEV__) {
-          devLog('[authClient.signUp] Result:', {
-            hasData: !!result.data,
-            hasError: !!result.error,
-            hasUser: !!result.data?.user,
-            hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
-          });
-          authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
-          // PROOF: Dev block completed
-          devLog(`[EMAIL_SIGNUP_DEBUG] Dev block completed`);
-        }
+          if (__DEV__) {
+            devLog('[authClient.signUp] Result:', {
+              hasData: !!result.data,
+              hasError: !!result.error,
+              hasUser: !!result.data?.user,
+              hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
+            });
+            authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
+          }
 
-        if (result.error) {
-          // PROOF: Taking error branch (console.log always shows)
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up ERROR BRANCH: ${result.error.message || 'unknown error'}`);
-          return { error: { message: result.error.message || 'Sign up failed' } } as any;
+          if (result.error) {
+            console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up ERROR BRANCH: ${result.error.message || 'unknown error'}`);
+            return { error: { message: result.error.message || 'Sign up failed' } } as any;
+          }
+        } catch (e: any) {
+          // PROOF: Catch thrown exception immediately after response log
+          console.log(`🔐 [EMAIL_SIGNUP_THROW] ${e?.message || String(e)}`);
+          return { error: { message: 'Sign up threw exception: ' + (e?.message || String(e)) } } as any;
         }
 
         // PROOF: Execution reached after error check
