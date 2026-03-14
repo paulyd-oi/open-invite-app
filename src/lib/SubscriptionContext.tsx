@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import { useSession } from "./useSession";
 import { devLog, devWarn, devError } from "./devLog";
+import { useBootAuthority } from "../hooks/useBootAuthority";
 import { qk } from "./queryKeys";
 import {
   getCustomerInfo,
@@ -80,6 +81,7 @@ interface SubscriptionResponse {
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const { status: bootStatus } = useBootAuthority();
   const queryClient = useQueryClient();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [limits, setLimits] = useState<SubscriptionLimits | null>(null);
@@ -123,10 +125,11 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   }, [queryClient]);
 
   const fetchSubscription = useCallback(async (): Promise<{ isPro: boolean }> => {
-    // [P0_SUB_FETCH_GATE] Only fetch subscription when we have a session (user is authed)
-    if (!session?.user?.id) {
+    // [P0_SUB_FETCH_GATE] Only fetch subscription when fully authenticated
+    if (!session?.user?.id || bootStatus === 'loggedOut' || bootStatus === 'loading') {
       if (__DEV__) {
-        devLog("[P0_SUB_FETCH_GATE] bootStatus=not_authed allowed=false reason=no_session_user");
+        devLog("[P0_SUB_FETCH_GATE] bootStatus=" + bootStatus + " allowed=false reason=" +
+          (!session?.user?.id ? "no_session_user" : "boot_state_guard"));
       }
       // Settle as Free without hitting backend
       setIsPremium(false);
@@ -232,7 +235,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, bootStatus]);
 
   // Register customerInfo update listener (handles promo codes + purchases from external sources)
   useEffect(() => {
