@@ -72,7 +72,7 @@ export function FriendDiscoverySurface({
 
   const { colors, isDark } = useTheme();
   const networkStatus = useNetworkStatus();
-  const session = useSession();
+  const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
 
   // ── Search state ──
@@ -92,13 +92,27 @@ export function FriendDiscoverySurface({
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
+  // *** CANONICAL AUTH CHECK - Uses standardized session data format ***
   const enabled = isAuthedForNetwork(bootStatus, session);
   const themeColor = "#3B82F6";
 
   // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
   const sessionUserId = session?.user?.id || 'none';
-  const sessionEffectiveUserId = session?.effectiveUserId || 'none';
-  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveUserId} networkOnline=${networkStatus.isOnline}`);
+
+  // *** SESSION CONTRACT VALIDATION ***
+  if (bootStatus === "authed" && !sessionUserId) {
+    const sessionShape = {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: sessionUserId,
+      userEmail: session?.user?.email ?? "none",
+    };
+    console.log(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
+    if (__DEV__) {
+      devLog(`[AUTH_SOT_VIOLATION] FriendDiscoverySurface: bootStatus='authed' but no session userId`, sessionShape);
+    }
+  }
+  console.log(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
 
   if (__DEV__) {
     devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} networkOnline=${networkStatus.isOnline}`);
