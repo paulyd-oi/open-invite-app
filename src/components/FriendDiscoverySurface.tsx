@@ -64,7 +64,8 @@ export function FriendDiscoverySurface({
   onSkip,
   onFriendAdded
 }: FriendDiscoverySurfaceProps) {
-  // *** PROOF LOG: Component entry ***
+  // *** PROOF LOG: Component entry - ALWAYS LOG ***
+  console.log(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
   if (__DEV__) {
     devLog(`[ADD_FRIENDS_ENTRY] FriendDiscoverySurface component starting render`);
   }
@@ -91,23 +92,23 @@ export function FriendDiscoverySurface({
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  const enabled = isAuthedForNetwork(bootStatus, session);
+  const enabled = isAuthedForNetwork(bootStatus, session?.data);
   const themeColor = "#3B82F6";
 
   // *** PROOF LOG: Always log enabled state and session structure ***
   if (__DEV__) {
-    const sessionUserId = session?.user?.id || session?.data?.user?.id || 'none';
-    const sessionEffectiveId = session?.effectiveUserId || 'none';
+    const sessionUserId = session?.data?.user?.id || session?.user?.id || 'none';
+    const sessionEffectiveId = session?.data?.effectiveUserId || session?.effectiveUserId || 'none';
     devLog(`[FRIEND_DISCOVERY_ENABLED_STATE] enabled=${enabled} bootStatus=${bootStatus} sessionUserId=${sessionUserId} effectiveUserId=${sessionEffectiveId} networkOnline=${networkStatus.isOnline}`);
   }
 
   // DEV: Proof logs for friend discovery debugging
   useEffect(() => {
     if (__DEV__) {
-      const sessionUserId = session?.user?.id || session?.data?.user?.id || 'none';
+      const sessionUserId = session?.data?.user?.id || session?.user?.id || 'none';
       devLog(`[FRIEND_DISCOVERY_MOUNT] enabled=${enabled} bootStatus=${bootStatus} userId=${sessionUserId} showSkipButton=${!!showSkipButton}`);
     }
-  }, [enabled, bootStatus, session?.user?.id, session?.data?.user?.id, showSkipButton]);
+  }, [enabled, bootStatus, session?.data?.user?.id, session?.user?.id, showSkipButton]);
 
   const queryClient = useQueryClient();
 
@@ -142,7 +143,7 @@ export function FriendDiscoverySurface({
       }
       const result = await api.get<SearchUsersRankedResponse>(`/api/profile/search?q=${encodeURIComponent(debouncedQuery)}&limit=15`);
       if (__DEV__) {
-        devLog(`[FRIEND_DISCOVERY_SEARCH] returned ${result?.data?.users?.length || 0} users for "${debouncedQuery}"`);
+        devLog(`[FRIEND_DISCOVERY_SEARCH] returned ${result?.users?.length || 0} users for "${debouncedQuery}"`);
       }
       return result;
     },
@@ -163,7 +164,7 @@ export function FriendDiscoverySurface({
       }
       const result = await api.get<GetFriendSuggestionsResponse>("/api/friends/suggestions");
       if (__DEV__) {
-        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.data?.suggestions?.length || 0} suggestions`);
+        devLog(`[FRIEND_DISCOVERY_SUGGESTIONS] returned ${result?.suggestions?.length || 0} suggestions`);
       }
       return result;
     },
@@ -207,7 +208,7 @@ export function FriendDiscoverySurface({
     },
   });
 
-  const suggestions = suggestionsData?.data?.suggestions || [];
+  const suggestions = suggestionsData?.suggestions || [];
 
   // *** PROOF LOG: Log suggestions state and empty state reasoning ***
   if (__DEV__) {
@@ -296,7 +297,7 @@ export function FriendDiscoverySurface({
     return contact.name?.toLowerCase().includes(query);
   });
 
-  const searchResultsList = searchResults?.data?.results || [];
+  const searchResultsList = searchResults?.users || [];
   const isValidSearchInput = searchEmail.trim().length >= 2;
   const showSearchResults = isValidSearchInput && searchResultsList.length > 0;
   const showSearchEmpty = isValidSearchInput && !isSearching && searchResultsList.length === 0;

@@ -13,13 +13,23 @@ import * as Haptics from "expo-haptics";
 import { FriendDiscoverySurface } from "@/components/FriendDiscoverySurface";
 import { useTheme } from "@/lib/ThemeContext";
 
+// *** PROOF LOG: Top of file ***
+if (__DEV__) {
+  console.log(`[ADD_FRIENDS_TOP] add-friends.tsx loaded, FriendDiscoverySurface imported from: @/components/FriendDiscoverySurface`);
+}
+
 export default function AddFriendsScreen() {
+  // *** PROOF LOG: Top of function ***
+  if (__DEV__) {
+    console.log(`[ADD_FRIENDS_BRANCH] AddFriendsScreen function executing`);
+  }
+
   const router = useRouter();
   const { colors } = useTheme();
 
-  // *** PROOF LOG: Confirm screen renders ***
+  // *** PROOF LOG: Before JSX return ***
   if (__DEV__) {
-    console.log(`[ADD_FRIENDS_BRANCH] AddFriendsScreen rendering, about to render FriendDiscoverySurface`);
+    console.log(`[ADD_FRIENDS_RETURN] About to return JSX with FriendDiscoverySurface`);
   }
 
   return (
@@ -42,7 +52,12 @@ export default function AddFriendsScreen() {
       </View>
 
       {/* Shared Friend Discovery Surface */}
-      <FriendDiscoverySurface />
+      {(() => {
+        if (__DEV__) {
+          console.log(`[ADD_FRIENDS_RENDERING_SHARED_COMPONENT] About to render <FriendDiscoverySurface />`);
+        }
+        return <FriendDiscoverySurface />;
+      })()}
     </SafeAreaView>
   );
 }
