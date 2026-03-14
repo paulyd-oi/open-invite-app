@@ -101,6 +101,7 @@ export async function runExactAppleAuthBootstrap(
 
     if (!tokenValue) {
       if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] EARLY_RETURN - no token found in response with keys: ${JSON.stringify(Object.keys(data || {}))}`);
+      console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] token_missing - responseKeys=${JSON.stringify(Object.keys(data || {}))}`);
       traceError("token_missing", {
         message: "No session token in response",
         responseKeys: Object.keys(data || {}),
@@ -113,6 +114,7 @@ export async function runExactAppleAuthBootstrap(
     const tokenValidation = isValidBetterAuthToken(tokenValue);
     if (!tokenValidation.isValid) {
       if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] EARLY_RETURN - token validation failed: ${tokenValidation.reason}`);
+      console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] token_validation_failed - reason=${tokenValidation.reason} source=${tokenSource} tokenLength=${tokenValue.length}`);
       traceError("token_validation_failed", {
         reason: tokenValidation.reason,
         source: tokenSource,
@@ -128,12 +130,14 @@ export async function runExactAppleAuthBootstrap(
     try {
       const stored = await setExplicitCookiePair(tokenValue);
       if (!stored) {
+        console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] cookie_persist_rejected - setExplicitCookiePair returned false`);
         traceError("cookie_persist_rejected", { message: "setExplicitCookiePair rejected token" });
         return { success: false, error: "Failed to store session token" };
       }
       traceLog("cookie_persist_securestore", { success: true, key: "SESSION_COOKIE_KEY" });
       if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] cookiePersisted=true`);
     } catch (storeErr: any) {
+      console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] cookie_persist_exception - ${storeErr?.message || 'unknown error'}`);
       traceError("cookie_persist_securestore_fail", storeErr);
       return { success: false, error: `Failed to store session token: ${storeErr.message}` };
     }
@@ -141,6 +145,7 @@ export async function runExactAppleAuthBootstrap(
     // Set module cache directly for immediate use (no read-back delay)
     const cacheSet = setExplicitCookieValueDirectly(`__Secure-better-auth.session_token=${tokenValue}`);
     if (!cacheSet) {
+      console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] cookie_cache_rejected - setExplicitCookieValueDirectly returned false`);
       traceError("cookie_cache_rejected", { message: "setExplicitCookieValueDirectly rejected token" });
       return { success: false, error: "Failed to cache session token" };
     }
@@ -181,6 +186,7 @@ export async function runExactAppleAuthBootstrap(
     if (__DEV__) devLog(`[AUTH_BARRIER_RESULT] ok=${barrierResult.ok} status=${barrierResult.status} userId=${barrierResult.userId ? barrierResult.userId.substring(0, 8) + '...' : 'null'} attempt=${barrierResult.attempt}${barrierResult.error ? ' error=' + barrierResult.error : ''}`);
 
     if (!barrierResult.ok) {
+      console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] session_barrier_failed - status=${barrierResult.status} attempt=${barrierResult.attempt} error=${barrierResult.error || 'none'}`);
       traceError("session_barrier_fail", {
         status: barrierResult.status,
         attempt: barrierResult.attempt,
@@ -207,6 +213,7 @@ export async function runExactAppleAuthBootstrap(
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.log(`[EXACT_APPLE_BOOTSTRAP_FAIL] unexpected_exception - ${message}`);
     devError("[EXACT_APPLE_BOOTSTRAP] UNEXPECTED ERROR:", message);
     return { success: false, error: message };
   }
