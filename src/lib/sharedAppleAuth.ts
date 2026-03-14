@@ -12,6 +12,7 @@ import { runExactAppleAuthBootstrap } from "./exactAppleAuthBootstrap";
 import { isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, type AppleAuthErrorBucket } from "./appleSignIn";
 import { safeToast } from "./safeToast";
 import * as Haptics from "expo-haptics";
+import { BACKEND_URL } from "./config";
 
 // Dynamically load Apple Authentication
 let AppleAuthentication: any = null;
@@ -20,8 +21,6 @@ try {
 } catch {
   if (__DEV__) devLog("[Apple Auth] expo-apple-authentication not available - requires native build");
 }
-
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 function getBucketExplanation(bucket: AppleAuthErrorBucket): string {
   switch (bucket) {
