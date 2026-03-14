@@ -50,7 +50,7 @@ import {
 // [P1_FONTS_SSOT] Font imports removed — fonts loaded once in _layout.tsx
 
 import { authClient, hasAuthToken, setAuthToken, refreshExplicitCookie, setExplicitCookieValueDirectly, isValidBetterAuthToken, setOiSessionToken, ensureSessionReady } from "@/lib/authClient";
-import { bootstrapPostAuthSession } from "@/lib/postAuthBootstrap";
+import { runExactAppleAuthBootstrap } from "@/lib/exactAppleAuthBootstrap";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { setExplicitCookiePair } from "@/lib/sessionCookie";
 import { getSessionCached } from "@/lib/sessionCache";
@@ -670,27 +670,15 @@ export default function WelcomeOnboardingScreen() {
         throw error;
       }
 
-      // Use shared post-auth bootstrap helper (SSOT with email auth)
-      traceLog("bootstrap_start", { responseKeys: Object.keys(data || {}), hasSetCookie: !!setCookieHeader });
+      // Run exact Apple auth bootstrap logic (will be reused by email auth)
+      const appleBootstrapResult = await runExactAppleAuthBootstrap(data, setCookieHeader, traceLog, traceError);
 
-      const bootstrapResult = await bootstrapPostAuthSession(data, "🍎 [Apple Auth]", setCookieHeader);
-
-      if (!bootstrapResult.ok) {
-        traceError("bootstrap_fail", { error: bootstrapResult.error });
-        throw new Error(`Apple Sign-In session bootstrap failed: ${bootstrapResult.error}`);
+      if (!appleBootstrapResult.success) {
+        throw new Error(`Apple Sign-In session bootstrap failed: ${appleBootstrapResult.error}`);
       }
-
-      traceLog("bootstrap_success", {
-        userId: bootstrapResult.sessionReady?.userId?.substring(0, 8),
-        attempt: bootstrapResult.sessionReady?.attempt
-      });
 
       // PROOF LOG with required format (maintain compatibility with existing logs)
-      if (__DEV__) {
-        const sessionReady = bootstrapResult.sessionReady;
-        devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=validated barrier200=true userIdPresent=true`);
-        devLog(`[AUTH_BARRIER_RESULT] ok=${sessionReady?.ok} status=${sessionReady?.status} userId=${sessionReady?.userId ? sessionReady.userId.substring(0, 8) + '...' : 'null'} attempt=${sessionReady?.attempt}`);
-      }
+      if (__DEV__) devLog(`[APPLE_TOKEN_PROOF] tokenFound=true tokenLen=${appleBootstrapResult.tokenLength} barrier200=true userIdPresent=true`);
 
       // Pre-populate name from Apple
       if (credential.fullName?.givenName) {

@@ -16,7 +16,7 @@ import {
 } from "./sessionCookie";
 import { debugDumpBetterAuthCookieOnce } from "./debugCookie";
 import { emitAuthExpiry } from "./authExpiry";
-import { bootstrapPostAuthSession } from "./postAuthBootstrap";
+import { runExactAppleAuthBootstrap } from "./exactAppleAuthBootstrap";
 
 // Use canonical bearer auth token key (single source of truth from authKeys.ts)
 const TOKEN_KEY = AUTH_TOKEN_KEY;
@@ -974,19 +974,28 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign in failed' } } as any;
         }
         
-        // Use shared post-auth bootstrap helper (SSOT with Apple auth)
-        const bootstrapResult = await bootstrapPostAuthSession(result.data, "🔐 [Email Sign-In]");
+        // Use EXACT Apple auth bootstrap logic (same function Apple uses)
+        const emailTraceLog = (stage: string, data: Record<string, unknown>) => {
+          devLog(`🔐 [EMAIL_SIGNIN_APPLE_BOOTSTRAP] ${stage}`);
+          if (__DEV__) devLog(JSON.stringify({ emailSignIn: stage, ...data }));
+        };
 
-        if (!bootstrapResult.ok) {
-          // For email auth, try fallback to Better Auth's expo storage if shared bootstrap fails
+        const emailTraceError = (stage: string, error: any) => {
+          devError(`🔐 [EMAIL_SIGNIN_APPLE_BOOTSTRAP] ${stage}:`, error);
+        };
+
+        const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+
+        if (!appleBootstrapResult.success) {
+          // For email auth, try fallback to Better Auth's expo storage if exact Apple bootstrap fails
           if (__DEV__) {
-            devLog('[authClient.signIn] Shared bootstrap failed, trying fallback...');
+            devLog('[authClient.signIn] Exact Apple bootstrap failed, trying fallback...');
           }
           await captureAndStoreCookie();
           await refreshExplicitCookie();
           await verifySessionAfterAuth('signIn');
         } else {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in using shared SSOT helper - bootstrap successful`);
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-in using EXACT Apple auth function - bootstrap successful`);
         }
         
         return { data: result.data } as any;
@@ -1028,19 +1037,28 @@ export const authClient = {
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
         
-        // Use shared post-auth bootstrap helper (SSOT with Apple auth)
-        const bootstrapResult = await bootstrapPostAuthSession(result.data, "🔐 [Email Sign-Up]");
+        // Use EXACT Apple auth bootstrap logic (same function Apple uses)
+        const emailTraceLog = (stage: string, data: Record<string, unknown>) => {
+          devLog(`🔐 [EMAIL_SIGNUP_APPLE_BOOTSTRAP] ${stage}`);
+          if (__DEV__) devLog(JSON.stringify({ emailSignUp: stage, ...data }));
+        };
 
-        if (!bootstrapResult.ok) {
-          // For email auth, try fallback to Better Auth's expo storage if shared bootstrap fails
+        const emailTraceError = (stage: string, error: any) => {
+          devError(`🔐 [EMAIL_SIGNUP_APPLE_BOOTSTRAP] ${stage}:`, error);
+        };
+
+        const appleBootstrapResult = await runExactAppleAuthBootstrap(result.data, null, emailTraceLog, emailTraceError);
+
+        if (!appleBootstrapResult.success) {
+          // For email auth, try fallback to Better Auth's expo storage if exact Apple bootstrap fails
           if (__DEV__) {
-            devLog('[authClient.signUp] Shared bootstrap failed, trying fallback...');
+            devLog('[authClient.signUp] Exact Apple bootstrap failed, trying fallback...');
           }
           await captureAndStoreCookie();
           await refreshExplicitCookie();
           await verifySessionAfterAuth('signUp');
         } else {
-          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up using shared SSOT helper - bootstrap successful`);
+          console.log(`🔐 [FRONTEND_BOOTSTRAP] Email sign-up using EXACT Apple auth function - bootstrap successful`);
         }
         
         return { data: result.data } as any;
