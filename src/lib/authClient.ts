@@ -1040,7 +1040,7 @@ export const authClient = {
               hasUser: !!result.data?.user,
               hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
             });
-            authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
+            // authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error }); // DISABLED - was blocking execution
           }
 
           if (result.error) {
