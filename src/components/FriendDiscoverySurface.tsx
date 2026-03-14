@@ -407,10 +407,21 @@ export function FriendDiscoverySurface({
                   </Text>
                 </View>
               ) : showSearchResults ? (
-                searchResultsList.map((result: any, index: any) => {
-                  const user = result.user || result;
+                searchResultsList.map((user: any, index: any) => {
                   const isSent = sentRequests.has(user.id);
                   const isPending = sendByIdMutation.isPending && sendByIdMutation.variables === user.id;
+
+                  // *** PROOF LOG: First search result data structure ***
+                  if (index === 0) {
+                    console.log(`[SEARCH_RESULT_RENDER] id=${user.id} name=${user.name} handle=${user.handle} avatarPresent=${!!user.avatarUrl}`);
+                  }
+
+                  // Generate initials for avatar fallback
+                  const initials = user.name
+                    ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                    : user.handle
+                    ? user.handle.slice(0, 2).toUpperCase()
+                    : "??";
 
                   return (
                     <Animated.View key={user.id} entering={FadeInDown.delay(index * 100)}>
@@ -420,14 +431,23 @@ export function FriendDiscoverySurface({
                         onPress={() => sendByIdMutation.mutate(user.id)}
                         disabled={isSent || isPending}
                       >
-                        <EntityAvatar user={user} size={40} />
+                        <EntityAvatar
+                          photoUrl={user.avatarUrl}
+                          initials={initials}
+                          size={40}
+                        />
                         <View className="flex-1 ml-3">
                           <Text className="font-medium" style={{ color: colors.text }}>
                             {user.name || "Open Invite User"}
                           </Text>
-                          {result.mutualFriendCount > 0 && (
+                          {user.handle && (
                             <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                              {result.mutualFriendCount} mutual friend{result.mutualFriendCount !== 1 ? "s" : ""}
+                              @{user.handle}
+                            </Text>
+                          )}
+                          {user.mutualCount > 0 && (
+                            <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                              {user.mutualCount} mutual friend{user.mutualCount !== 1 ? "s" : ""}
                             </Text>
                           )}
                         </View>
