@@ -14,6 +14,7 @@ import { registerForPushNotificationsAsync } from "@/lib/notifications";
 import { api } from "@/lib/api";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
+import { isLogoutInProgress } from "@/lib/logoutIntent";
 import { isValidExpoPushToken, getTokenPrefix } from "@/lib/push/validatePushToken";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { trackPushNotificationOpened } from "@/analytics/analyticsEventsSSOT";
@@ -82,6 +83,14 @@ async function verifyPushMe(): Promise<{
   totalCount: number;
   lastSeenAt: string | null;
 } | null> {
+  // [P0_POST_LOGOUT_NET] Block push verification during logout
+  if (isLogoutInProgress()) {
+    if (__DEV__) {
+      devLog(`[POST_LOGOUT_NET_BLOCK] route=GET /api/push/me reason=logout_in_progress`);
+    }
+    return null;
+  }
+
   try {
     const response = await api.get<{
       activeCount?: number;
@@ -155,6 +164,11 @@ function resolveProjectId(): string | undefined {
 async function runPushRegistrationProof(): Promise<void> {
   if (!__DEV__) return;
   if (pushProofDiagnosticRan) return;
+  // [P0_POST_LOGOUT_NET] Skip diagnostic during logout
+  if (isLogoutInProgress()) {
+    devLog("[POST_LOGOUT_NET_BLOCK] runPushRegistrationProof skipped - logout in progress");
+    return;
+  }
   pushProofDiagnosticRan = true;
 
   const LOG_PREFIX = "[PUSH_PROOF]";
@@ -459,11 +473,15 @@ export function useNotifications() {
     const userId = session?.user?.id;
     const userIdPrefix = userId?.substring(0, 8) ?? "none";
     
-    // INVARIANT: Only register when fully authenticated
-    if (bootStatus !== 'authed' || !session?.user) {
+    // INVARIANT: Only register when fully authenticated AND logout not in progress
+    if (bootStatus !== 'authed' || !session?.user || isLogoutInProgress()) {
       if (__DEV__) {
-        devLog(`[P0_PUSH_REG] SKIP reason=NOT_AUTHED bootStatus=${bootStatus} hasUser=${!!session?.user}`);
-        recordPushReceipt("register_skip", userIdPrefix, { reason: "NOT_AUTHED", bootStatus });
+        const reason = isLogoutInProgress() ? "LOGOUT_IN_PROGRESS" : "NOT_AUTHED";
+        devLog(`[P0_PUSH_REG] SKIP reason=${reason} bootStatus=${bootStatus} hasUser=${!!session?.user} logoutInProgress=${isLogoutInProgress()}`);
+        recordPushReceipt("register_skip", userIdPrefix, { reason, bootStatus, logoutInProgress: isLogoutInProgress() });
+        if (isLogoutInProgress()) {
+          devLog(`[POST_LOGOUT_PUSH_BLOCK] reason=logout_in_progress userId=${userIdPrefix}`);
+        }
       }
       return;
     }
@@ -504,9 +522,14 @@ export function useNotifications() {
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] PERMISSION_REVOKED userId=${userIdPrefix}...`);
         }
-        await api.post("/api/notifications/status", {
-          pushPermissionStatus: "denied",
-        });
+        // [P0_POST_LOGOUT_NET] Block notifications status during logout
+        if (!isLogoutInProgress()) {
+          await api.post("/api/notifications/status", {
+            pushPermissionStatus: "denied",
+          });
+        } else if (__DEV__) {
+          devLog(`[POST_LOGOUT_NET_BLOCK] route=POST /api/notifications/status reason=logout_in_progress`);
+        }
         lastPermissionStatus.current = status;
         return;
       }
@@ -516,9 +539,14 @@ export function useNotifications() {
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] SKIP reason=PERMISSION_${status.toUpperCase()} userId=${userIdPrefix}...`);
         }
-        await api.post("/api/notifications/status", {
-          pushPermissionStatus: status === "denied" ? "denied" : "undetermined",
-        }).catch(() => {});
+        // [P0_POST_LOGOUT_NET] Block notifications status during logout
+        if (!isLogoutInProgress()) {
+          await api.post("/api/notifications/status", {
+            pushPermissionStatus: status === "denied" ? "denied" : "undetermined",
+          }).catch(() => {});
+        } else if (__DEV__) {
+          devLog(`[POST_LOGOUT_NET_BLOCK] route=POST /api/notifications/status reason=logout_in_progress`);
+        }
         lastPermissionStatus.current = status;
         return;
       }
@@ -661,9 +689,14 @@ export function useNotifications() {
         }
 
         // Update backend with permission status
-        await api.post("/api/notifications/status", {
-          pushPermissionStatus: "granted",
-        }).catch(() => {});
+        // [P0_POST_LOGOUT_NET] Block notifications status during logout
+        if (!isLogoutInProgress()) {
+          await api.post("/api/notifications/status", {
+            pushPermissionStatus: "granted",
+          }).catch(() => {});
+        } else if (__DEV__) {
+          devLog(`[POST_LOGOUT_NET_BLOCK] route=POST /api/notifications/status reason=logout_in_progress`);
+        }
 
         // Mark as registered for throttling
         await markTokenRegistered();
@@ -689,9 +722,14 @@ export function useNotifications() {
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] TOKEN_INVALID userId=${userIdPrefix}... tokenPrefix=${getTokenPrefix(token)}`);
         }
-        await api.post("/api/notifications/status", {
-          pushPermissionStatus: "granted",
-        }).catch(() => {});
+        // [P0_POST_LOGOUT_NET] Block notifications status during logout
+        if (!isLogoutInProgress()) {
+          await api.post("/api/notifications/status", {
+            pushPermissionStatus: "granted",
+          }).catch(() => {});
+        } else if (__DEV__) {
+          devLog(`[POST_LOGOUT_NET_BLOCK] route=POST /api/notifications/status reason=logout_in_progress`);
+        }
       } else {
         // No token (simulator or unsupported device)
         if (__DEV__) {
@@ -761,13 +799,15 @@ export function useNotifications() {
     // Re-check permission when app comes to foreground (throttled)
     // [P0_PUSH_TWO_ENDED] Also invalidate circle unread counts on foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (nextAppState === "active" && bootStatus === 'authed') {
+      if (nextAppState === "active" && bootStatus === 'authed' && !isLogoutInProgress()) {
         if (__DEV__) {
           devLog(`[P0_PUSH_REG] APP_ACTIVE userId=${userIdPrefix}...`);
         }
         checkAndRegisterToken(); // Will be throttled unless backend empty
         // [P0_CIRCLE_LIST_REFRESH] SSOT contract: self-heal circles + unread on foreground
         refreshCircleListContract({ reason: "app_active", queryClient });
+      } else if (nextAppState === "active" && isLogoutInProgress() && __DEV__) {
+        devLog(`[POST_LOGOUT_FOCUS_BLOCK] source=foreground - logout in progress, skipping push registration`);
       }
     };
 
@@ -1042,6 +1082,19 @@ export function useNotifications() {
     exceptionStack?: string;
   }> => {
     const startedAt = new Date().toISOString();
+
+    // [P0_POST_LOGOUT_NET] Block diagnostics during logout
+    if (isLogoutInProgress()) {
+      devLog("[POST_LOGOUT_NET_BLOCK] runPushDiagnostics skipped - logout in progress");
+      return {
+        ok: false,
+        reason: "logout_in_progress",
+        startedAt,
+        platform: "unknown",
+        isPhysicalDevice: false,
+      };
+    }
+
     devLog("[PUSH_DIAG] start at " + startedAt);
 
     // A) Check physical device and platform
@@ -1300,8 +1353,12 @@ export function useNotifications() {
   }> => {
     devLog("[PUSH_DIAG] clearMyPushTokens start");
     
-    if (bootStatus !== 'authed' || !session?.user) {
-      return { ok: false, error: "not_authed" };
+    if (bootStatus !== 'authed' || !session?.user || isLogoutInProgress()) {
+      const reason = isLogoutInProgress() ? "logout_in_progress" : "not_authed";
+      if (isLogoutInProgress() && __DEV__) {
+        devLog(`[POST_LOGOUT_NET_BLOCK] clearMyPushTokens skipped - logout in progress`);
+      }
+      return { ok: false, error: reason };
     }
 
     try {

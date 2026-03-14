@@ -21,7 +21,7 @@ import { Router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { resetSession } from "./authBootstrap";
-import { setLogoutIntent } from "./logoutIntent";
+import { setLogoutIntent, clearLogoutInProgress } from "./logoutIntent";
 import { deactivatePushTokenOnLogout } from "./pushTokenManager";
 import { resetPushRegistrationState } from "@/hooks/useNotifications";
 import { resetBootAuthority } from "@/hooks/useBootAuthority";
@@ -104,6 +104,9 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     // [P0_PUSH_TWO_ENDED] Clears lastRegisteredUserId + throttle stamp
     try {
       await resetPushRegistrationState();
+      if (__DEV__) {
+        devLog(`[LOGOUT_SOT] push_effects_disabled`);
+      }
     } catch (e) {
       // Non-fatal, continue logout
     }
@@ -123,9 +126,15 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
     // Step 4: Cancel queries + clear cache
     await queryClient.cancelQueries();
     queryClient.clear();
+    if (__DEV__) {
+      devLog(`[LOGOUT_SOT] cancel_queries_done`);
+    }
 
     // Step 5: Reset boot authority singleton
     resetBootAuthority();
+    if (__DEV__) {
+      devLog(`[LOGOUT_SOT] auth_reset_done`);
+    }
 
     // Step 6: Clear admin unlock state
     try {
@@ -214,6 +223,9 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
       devLog("[P0_LOGOUT_DEACTIVATE_ORDER]", { step: 8, label: "routed_to_welcome" });
     }
     router.replace("/welcome");
+
+    // [P0_POST_LOGOUT_NET] Clear logout in progress flag after successful navigation
+    clearLogoutInProgress();
   } catch (error) {
     if (__DEV__) {
       devError(`[LOGOUT_SSOT] error during logout:`, error);
@@ -230,6 +242,9 @@ export async function performLogout(options: PerformLogoutOptions): Promise<void
 
     // Always navigate to welcome
     router.replace("/welcome");
+
+    // [P0_POST_LOGOUT_NET] Clear logout in progress flag even on error
+    clearLogoutInProgress();
   } finally {
     logoutInFlight = false;
   }
