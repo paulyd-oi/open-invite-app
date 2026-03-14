@@ -649,6 +649,8 @@ export const searchUserResultSchema = z.object({
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   handle: z.string().nullable(),
+  bio: z.string().nullable().optional(),
+  calendarBio: z.string().nullable().optional(),
   mutualCount: z.number().optional(),
   isFriend: z.boolean().optional(),
 });

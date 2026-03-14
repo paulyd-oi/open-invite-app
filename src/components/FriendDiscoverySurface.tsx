@@ -423,14 +423,21 @@ export function FriendDiscoverySurface({
                   // Canonical profile navigation path
                   const profileRoute = `/user/${user.id}`;
 
-                  // Preview field selection (using available fields from search response)
-                  const previewText = user.mutualCount > 0
+                  // Preview field selection (priority: calendarBio ?? bio ?? mutualCount text)
+                  const previewText = user.calendarBio
+                    ? user.calendarBio
+                    : user.bio
+                    ? user.bio
+                    : user.mutualCount > 0
                     ? `${user.mutualCount} mutual friend${user.mutualCount !== 1 ? "s" : ""}`
                     : null;
 
                   // *** PROOF LOGS ***
                   if (index === 0) {
-                    console.log(`[SEARCH_ROW_RENDER_FIELDS] id=${user.id} name=${user.name} handle=${user.handle} bioPresent=false calendarBioPresent=false chosenPreviewField=mutualCount`);
+                    const bioPresent = !!user.bio;
+                    const calendarBioPresent = !!user.calendarBio;
+                    const chosenField = user.calendarBio ? 'calendarBio' : user.bio ? 'bio' : user.mutualCount > 0 ? 'mutualCount' : 'none';
+                    console.log(`[SEARCH_ROW_RENDER_FIELDS] id=${user.id} name=${user.name} handle=${user.handle} bioPresent=${bioPresent} calendarBioPresent=${calendarBioPresent} chosenPreviewField=${chosenField}`);
                     console.log(`[SEARCH_ROW_PRESS_READY] id=${user.id} hasOnPress=true routeTarget=${profileRoute}`);
                   }
 
