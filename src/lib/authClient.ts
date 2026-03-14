@@ -1029,17 +1029,24 @@ export const authClient = {
         const result = await betterAuthClient.signUp.email(signUpOpts);
         console.log(`🔐 [FRONTEND_BOOTSTRAP] Better Auth response:`, JSON.stringify(result).substring(0, 200));
 
+        // PROOF: Check if result.error exists before dev block
+        if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] result.error exists: ${!!result.error}`);
+
         if (__DEV__) {
-          devLog('[authClient.signUp] Result:', { 
-            hasData: !!result.data, 
+          devLog('[authClient.signUp] Result:', {
+            hasData: !!result.data,
             hasError: !!result.error,
             hasUser: !!result.data?.user,
             hasMobileSessionToken: !!(result.data as any)?.mobileSessionToken,
           });
           authTrace("signUp:complete", { hasUser: !!result.data?.user, success: !result.error });
+          // PROOF: Dev block completed
+          devLog(`[EMAIL_SIGNUP_DEBUG] Dev block completed`);
         }
-        
+
         if (result.error) {
+          // PROOF: Taking error branch
+          if (__DEV__) devLog(`[EMAIL_SIGNUP_DEBUG] Taking error branch: ${result.error.message}`);
           return { error: { message: result.error.message || 'Sign up failed' } } as any;
         }
 
