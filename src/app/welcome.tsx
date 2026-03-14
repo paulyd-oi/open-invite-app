@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as SecureStore from "expo-secure-store";
 import { devLog, devWarn, devError } from "@/lib/devLog";
+import { FriendDiscoverySurface } from "@/components/FriendDiscoverySurface";
 import { trackSignupCompleted, trackAppleSignInTap, trackAppleSignInResult, trackContactsPermissionResult, trackContactsImportResult } from "@/analytics/analyticsEventsSSOT";
 import Animated, {
   Easing,
@@ -1366,9 +1367,9 @@ export default function WelcomeOnboardingScreen() {
           showSkipButton={true}
           onSkip={() => {
             if (__DEV__) {
-              devLog('[ONBOARDING_CONTACTS_SKIP]', { action: 'skip', nextSlide: currentSlide + 1 });
+              devLog('[ONBOARDING_CONTACTS_SKIP]', { action: 'skip', nextSlide: 5 });
             }
-            setCurrentSlide(currentSlide + 1);
+            setCurrentSlide(5);
           }}
           onFriendAdded={() => {
             // Optionally trigger refresh or analytics tracking
