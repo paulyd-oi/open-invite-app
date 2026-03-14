@@ -8,6 +8,8 @@
  */
 
 import { devLog, devError } from "./devLog";
+import { safeGetItemAsync } from "./safeSecureStore";
+import { SESSION_COOKIE_KEY } from "./sessionCookie";
 import {
   setExplicitCookiePair,
   setExplicitCookieValueDirectly,
@@ -18,6 +20,9 @@ import {
   getOiSessionTokenCached,
 } from "./authClient";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
+
+const BETTER_AUTH_EXPO_COOKIE_KEY = "open-invite_cookie";
+const BETTER_AUTH_SESSION_COOKIE_NAME = "__Secure-better-auth.session_token";
 
 export interface AppleAuthBootstrapResult {
   success: boolean;
@@ -98,6 +103,54 @@ export async function runExactAppleAuthBootstrap(
 
     // PROOF LOG: Token extraction result (never log token value)
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] tokenExtracted=${!!tokenValue} source=${tokenSource} responseKeys=${JSON.stringify(Object.keys(data || {}))}`);
+
+    if (!tokenValue) {
+      const betterAuthCookie = await safeGetItemAsync(BETTER_AUTH_EXPO_COOKIE_KEY);
+      if (betterAuthCookie && betterAuthCookie !== "{}") {
+        try {
+          const parsedCookie = JSON.parse(betterAuthCookie);
+          const storedCookie = parsedCookie?.[BETTER_AUTH_SESSION_COOKIE_NAME];
+          const storedToken = typeof storedCookie === "string"
+            ? storedCookie.split(";")[0].split(",")[0].trim()
+            : storedCookie?.value ?? null;
+          if (typeof storedToken === "string" && storedToken.trim().length > 0) {
+            tokenValue = storedToken.trim();
+            tokenSource = "expoSecureStore";
+          }
+        } catch {
+          const storedMatch = betterAuthCookie.match(
+            new RegExp(`${BETTER_AUTH_SESSION_COOKIE_NAME}=([^;]+)`)
+          );
+          if (storedMatch?.[1]) {
+            tokenValue = storedMatch[1].trim();
+            tokenSource = "expoSecureStoreRaw";
+          }
+        }
+      }
+
+      if (!tokenValue) {
+        const explicitCookie = await safeGetItemAsync(SESSION_COOKIE_KEY);
+        const explicitMatch = explicitCookie?.match(
+          new RegExp(`${BETTER_AUTH_SESSION_COOKIE_NAME}=([^;]+)`)
+        );
+        if (explicitMatch?.[1]) {
+          tokenValue = explicitMatch[1].trim();
+          tokenSource = "explicitSessionCookie";
+        }
+      }
+
+      if (tokenValue) {
+        traceLog("token_recovered_from_storage", {
+          source: tokenSource,
+          tokenLength: tokenValue.length,
+        });
+        if (__DEV__) {
+          devLog(
+            `[EXACT_APPLE_BOOTSTRAP] tokenRecoveredFromStorage=true source=${tokenSource} tokenLength=${tokenValue.length}`
+          );
+        }
+      }
+    }
 
     if (!tokenValue) {
       if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] EARLY_RETURN - no token found in response with keys: ${JSON.stringify(Object.keys(data || {}))}`);
