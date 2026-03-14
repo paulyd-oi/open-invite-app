@@ -67,7 +67,7 @@ export function FriendDiscoverySurface({
   const { colors, isDark } = useTheme();
   const networkStatus = useNetworkStatus();
   const session = useSession();
-  const bootStatus = useBootAuthority();
+  const { status: bootStatus } = useBootAuthority();
 
   // ── Search state ──
   const [searchEmail, setSearchEmail] = useState("");
