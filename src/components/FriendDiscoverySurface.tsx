@@ -48,6 +48,7 @@ import { ShareAppButton } from "@/components/ShareApp";
 import { useSession } from "@/lib/useSession";
 import { useBootAuthority } from "@/hooks/useBootAuthority";
 import { isAuthedForNetwork } from "@/lib/authedGate";
+import { useRouter } from "expo-router";
 import { useTheme } from "@/lib/ThemeContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { api } from "@/lib/api";
@@ -74,6 +75,7 @@ export function FriendDiscoverySurface({
   const networkStatus = useNetworkStatus();
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
+  const router = useRouter();
 
   // ── Search state ──
   const [searchEmail, setSearchEmail] = useState("");
@@ -411,11 +413,6 @@ export function FriendDiscoverySurface({
                   const isSent = sentRequests.has(user.id);
                   const isPending = sendByIdMutation.isPending && sendByIdMutation.variables === user.id;
 
-                  // *** PROOF LOG: First search result data structure ***
-                  if (index === 0) {
-                    console.log(`[SEARCH_RESULT_RENDER] id=${user.id} name=${user.name} handle=${user.handle} avatarPresent=${!!user.avatarUrl}`);
-                  }
-
                   // Generate initials for avatar fallback
                   const initials = user.name
                     ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -423,48 +420,83 @@ export function FriendDiscoverySurface({
                     ? user.handle.slice(0, 2).toUpperCase()
                     : "??";
 
+                  // Canonical profile navigation path
+                  const profileRoute = `/user/${user.id}`;
+
+                  // Preview field selection (using available fields from search response)
+                  const previewText = user.mutualCount > 0
+                    ? `${user.mutualCount} mutual friend${user.mutualCount !== 1 ? "s" : ""}`
+                    : null;
+
+                  // *** PROOF LOGS ***
+                  if (index === 0) {
+                    console.log(`[SEARCH_ROW_RENDER_FIELDS] id=${user.id} name=${user.name} handle=${user.handle} bioPresent=false calendarBioPresent=false chosenPreviewField=mutualCount`);
+                    console.log(`[SEARCH_ROW_PRESS_READY] id=${user.id} hasOnPress=true routeTarget=${profileRoute}`);
+                  }
+
+                  const handleRowPress = () => {
+                    console.log(`[SEARCH_ROW_NAVIGATE] id=${user.id} route=${profileRoute}`);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(profileRoute as any);
+                  };
+
+                  const handleAddPress = () => {
+                    sendByIdMutation.mutate(user.id);
+                  };
+
                   return (
                     <Animated.View key={user.id} entering={FadeInDown.delay(index * 100)}>
-                      <Pressable
+                      <View
                         className="flex-row items-center py-2 px-3 rounded-lg"
                         style={{ backgroundColor: colors.surface }}
-                        onPress={() => sendByIdMutation.mutate(user.id)}
-                        disabled={isSent || isPending}
                       >
-                        <EntityAvatar
-                          photoUrl={user.avatarUrl}
-                          initials={initials}
-                          size={40}
-                        />
-                        <View className="flex-1 ml-3">
-                          <Text className="font-medium" style={{ color: colors.text }}>
-                            {user.name || "Open Invite User"}
-                          </Text>
-                          {user.handle && (
-                            <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                              @{user.handle}
+                        {/* Tappable profile content area */}
+                        <Pressable
+                          className="flex-row items-center flex-1"
+                          onPress={handleRowPress}
+                        >
+                          <EntityAvatar
+                            photoUrl={user.avatarUrl}
+                            initials={initials}
+                            size={40}
+                          />
+                          <View className="flex-1 ml-3">
+                            <Text className="font-medium" style={{ color: colors.text }}>
+                              {user.name || "Open Invite User"}
                             </Text>
-                          )}
-                          {user.mutualCount > 0 && (
-                            <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                              {user.mutualCount} mutual friend{user.mutualCount !== 1 ? "s" : ""}
-                            </Text>
-                          )}
-                        </View>
+                            {user.handle && (
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                @{user.handle}
+                              </Text>
+                            )}
+                            {previewText && (
+                              <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                                {previewText}
+                              </Text>
+                            )}
+                          </View>
+                        </Pressable>
+
+                        {/* Separate add button */}
                         {isSent ? (
-                          <View className="w-8 h-8 rounded-full bg-green-500 items-center justify-center">
+                          <View className="w-8 h-8 rounded-full bg-green-500 items-center justify-center ml-2">
                             <Check size={16} color="#fff" />
                           </View>
                         ) : (
-                          <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: themeColor }}>
+                          <Pressable
+                            className="w-8 h-8 rounded-full items-center justify-center ml-2"
+                            style={{ backgroundColor: themeColor }}
+                            onPress={handleAddPress}
+                            disabled={isPending}
+                          >
                             {isPending ? (
                               <ActivityIndicator size="small" color="#fff" />
                             ) : (
                               <UserPlus size={16} color="#fff" />
                             )}
-                          </View>
+                          </Pressable>
                         )}
-                      </Pressable>
+                      </View>
                     </Animated.View>
                   );
                 })
@@ -525,7 +557,11 @@ export function FriendDiscoverySurface({
                     onPress={() => sendByIdMutation.mutate(user.id)}
                     disabled={isSent || isPending}
                   >
-                    <EntityAvatar entity={user} size={48} />
+                    <EntityAvatar
+                      photoUrl={user.avatarUrl}
+                      initials={user.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "??"}
+                      size={48}
+                    />
                     <View className="flex-1 ml-3">
                       <Text className="font-medium text-base" style={{ color: colors.text }}>
                         {user.name || "Open Invite User"}
