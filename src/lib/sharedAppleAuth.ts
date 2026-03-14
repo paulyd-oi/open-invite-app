@@ -13,6 +13,13 @@ import { isAppleAuthCancellation, decodeAppleAuthError, classifyAppleAuthError, 
 import { safeToast } from "./safeToast";
 import * as Haptics from "expo-haptics";
 import { BACKEND_URL } from "./config";
+import {
+  setAuthToken,
+  setExplicitCookieValueDirectly,
+  setOiSessionToken,
+  ensureSessionReady,
+  getOiSessionTokenCached,
+} from "./authClient";
 
 // Dynamically load Apple Authentication
 let AppleAuthentication: any = null;
@@ -44,13 +51,6 @@ interface AppleAuthContext {
   setIsLoading: (loading: boolean) => void;
   setErrorBanner?: (error: string | null) => void;
   setAppleAuthDebug?: (debug: { attemptId: string; stage: string; error: string | null; timestamp: number }) => void;
-
-  // Bootstrap context functions (from welcome.tsx)
-  setExplicitCookieValueDirectly?: (value: string) => void;
-  setAuthToken?: (token: string) => void;
-  setOiSessionToken?: (token: string) => void;
-  ensureSessionReady?: () => Promise<void>;
-  getOiSessionTokenCached?: () => string | null;
   setDisplayName?: (name: string) => void;
 
   // Success callback - different for welcome vs login
@@ -198,6 +198,15 @@ export async function handleSharedAppleSignIn(context: AppleAuthContext): Promis
       throw error;
     }
 
+    // Add proof log showing which deps are present before bootstrap
+    traceLog("bootstrap_deps_check", {
+      hasSetExplicitCookieValueDirectly: typeof setExplicitCookieValueDirectly === "function",
+      hasSetAuthToken: typeof setAuthToken === "function",
+      hasSetOiSessionToken: typeof setOiSessionToken === "function",
+      hasEnsureSessionReady: typeof ensureSessionReady === "function",
+      hasGetOiSessionTokenCached: typeof getOiSessionTokenCached === "function",
+    });
+
     // Run exact Apple auth bootstrap logic (will be reused by email auth)
     const appleBootstrapResult = await runExactAppleAuthBootstrap(
       data,
@@ -205,11 +214,11 @@ export async function handleSharedAppleSignIn(context: AppleAuthContext): Promis
       traceLog,
       traceError,
       {
-        setExplicitCookieValueDirectly: context.setExplicitCookieValueDirectly,
-        setAuthToken: context.setAuthToken,
-        setOiSessionToken: context.setOiSessionToken,
-        ensureSessionReady: context.ensureSessionReady,
-        getOiSessionTokenCached: context.getOiSessionTokenCached,
+        setExplicitCookieValueDirectly,
+        setAuthToken,
+        setOiSessionToken,
+        ensureSessionReady,
+        getOiSessionTokenCached,
       }
     );
 
