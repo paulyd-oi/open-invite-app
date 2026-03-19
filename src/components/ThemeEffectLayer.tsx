@@ -8,6 +8,8 @@
  * Active effects:
  *   worship_night → warm candlelight dust drifting upward
  *   winter_glow   → soft snowfall drifting downward
+ *   chill_hang    → coastal haze (slow aqua mist rising)
+ *   game_night    → arcade sparkle (violet/white sparks rising with pulse)
  *
  * Effect preset mapping lives in eventThemes.ts (effectPreset field).
  * Absolutely positioned at the SafeAreaView level for full-page coverage.
@@ -64,6 +66,10 @@ interface EffectConfig {
   /** Blur sigma for soft edges (0 = sharp) */
   blurSigma: number;
   colors: string[];
+  /** Optional per-particle opacity pulse (null = static opacity) */
+  pulseRange?: [number, number];
+  /** Pulse cycle period range in seconds */
+  pulsePeriodRange?: [number, number];
 }
 
 // ─── Effect presets ──────────────────────────────────────────
@@ -109,6 +115,48 @@ const EFFECT_CONFIGS = {
       "rgba(200, 215, 255, 1)",   // cornflower frost
     ],
   },
+  coastal_haze: {
+    particleCount: 18,
+    minSize: 12,
+    maxSize: 22,
+    minOpacity: 0.07,
+    maxOpacity: 0.14,
+    minSpeed: 4,
+    maxSpeed: 7,
+    swayAmplitude: 26,
+    minSwayPeriod: 6,
+    maxSwayPeriod: 12,
+    direction: -1,
+    blurSigma: 11,
+    colors: [
+      "rgba(20, 184, 166, 1)",    // teal / chill_hang accent
+      "rgba(110, 220, 200, 1)",   // seafoam
+      "rgba(160, 240, 225, 1)",   // light aqua
+      "rgba(220, 255, 245, 1)",   // soft white-mint
+    ],
+  },
+  arcade_sparkle: {
+    particleCount: 28,
+    minSize: 3,
+    maxSize: 6,
+    minOpacity: 0.18,
+    maxOpacity: 0.30,
+    minSpeed: 8,
+    maxSpeed: 13,
+    swayAmplitude: 15,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 6,
+    direction: -1,
+    blurSigma: 1.8,
+    colors: [
+      "rgba(139, 92, 246, 1)",    // game_night violet
+      "rgba(167, 139, 250, 1)",   // lavender
+      "rgba(196, 181, 253, 1)",   // pale violet
+      "rgba(240, 240, 255, 1)",   // soft white
+    ],
+    pulseRange: [0.70, 1.15],
+    pulsePeriodRange: [2.2, 4.5],
+  },
 } as const satisfies Record<string, EffectConfig>;
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
@@ -125,22 +173,42 @@ interface ParticleSeed {
   swayPeriod: number;
   swayOffset: number;
   color: string;
+  /** Pulse: multiplier amplitude (0 = no pulse) */
+  pulseAmp: number;
+  /** Pulse: cycle period in seconds */
+  pulsePeriod: number;
+  /** Pulse: phase offset in radians */
+  pulsePhase: number;
 }
 
 function seedParticles(config: EffectConfig, width: number, height: number): ParticleSeed[] {
   const particles: ParticleSeed[] = [];
+  const hasPulse = !!(config.pulseRange && config.pulsePeriodRange);
   for (let i = 0; i < config.particleCount; i++) {
     const r = Math.random;
+    const baseOpacity = config.minOpacity + r() * (config.maxOpacity - config.minOpacity);
+    // Pulse amplitude: half the range between pulseRange[0] and pulseRange[1] scaled by baseOpacity
+    let pulseAmp = 0;
+    let pulsePeriod = 1;
+    if (hasPulse) {
+      const [pMin, pMax] = config.pulseRange!;
+      pulseAmp = baseOpacity * (pMax - pMin) / 2;
+      const [tMin, tMax] = config.pulsePeriodRange!;
+      pulsePeriod = tMin + r() * (tMax - tMin);
+    }
     particles.push({
       x: r() * width,
       y: r() * height,
       radius: config.minSize + r() * (config.maxSize - config.minSize),
-      opacity: config.minOpacity + r() * (config.maxOpacity - config.minOpacity),
+      opacity: baseOpacity,
       speed: config.minSpeed + r() * (config.maxSpeed - config.minSpeed),
       swayAmplitude: (0.4 + r() * 0.6) * config.swayAmplitude,
       swayPeriod: config.minSwayPeriod + r() * (config.maxSwayPeriod - config.minSwayPeriod),
       swayOffset: r() * Math.PI * 2,
       color: config.colors[Math.floor(r() * config.colors.length)],
+      pulseAmp,
+      pulsePeriod,
+      pulsePhase: r() * Math.PI * 2,
     });
   }
   return particles;
@@ -174,13 +242,22 @@ const SkiaParticle = memo(function SkiaParticle({
     return particles.value[index]?.y ?? 0;
   });
 
+  const opacity = useDerivedValue(() => {
+    const p = particles.value[index];
+    if (!p || p.pulseAmp === 0) return seed.opacity;
+    const pulse = Math.sin(
+      elapsed.value * (Math.PI * 2 / p.pulsePeriod) + p.pulsePhase
+    );
+    return Math.max(0, p.opacity + pulse * p.pulseAmp);
+  });
+
   return (
     <Circle
       cx={cx}
       cy={cy}
       r={seed.radius}
       color={seed.color}
-      opacity={seed.opacity}
+      opacity={opacity}
     >
       <BlurMask blur={blurSigma} />
     </Circle>
