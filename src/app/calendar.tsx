@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Modal, Share, Linking, Platform, TextInput, RefreshControl } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useFocusEffect } from "expo-router";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -1305,6 +1306,8 @@ export default function CalendarScreen() {
   const { status: bootStatus, retry: retryBootstrap } = useBootAuthority();
   const router = useRouter();
   const { themeColor, isDark, colors } = useTheme();
+  const calendarInsets = useSafeAreaInsets();
+  const [chromeHeight, setChromeHeight] = useState<number>(160);
   const calendarMountTime = useRef(Date.now()); // [PERF_SWEEP] render timing
 
   // DEV-only proof log for P0 white screen fix
@@ -2311,178 +2314,197 @@ export default function CalendarScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
-      <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <AppHeader
-          title={`${MONTHS[currentMonth]} ${currentYear}`}
-          variant="calendar"
-          titleContent={
-            <Animated.View
-              key={`${currentYear}-${currentMonth}`}
-              entering={
-                monthNavDirRef.current === "next"
-                  ? FadeInRight.duration(240).withInitialValues({ transform: [{ translateX: 10 }] })
-                  : FadeInLeft.duration(240).withInitialValues({ transform: [{ translateX: -10 }] })
-              }
-              exiting={
-                monthNavDirRef.current === "next"
-                  ? FadeOutLeft.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
-                  : FadeOutRight.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
-              }
-              className="flex-row items-center"
-            >
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="font-sora-bold" style={{ color: themeColor, fontSize: HEADER_TITLE_SIZE }}>
-                {MONTHS[currentMonth]}
-              </Text>
-              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-              <Text className="font-sora-bold ml-2" style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}>
-                {currentYear}
-              </Text>
-            </Animated.View>
-          }
-          left={<HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />}
-          right={
-            <Button
-              testID="calendar-create-event"
-              variant="primary"
-              size="sm"
-              label="Create"
-              /* INVARIANT_ALLOW_INLINE_HANDLER */
-              onPress={() => {
-                if (!guardEmailVerification(session)) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/create");
-              }}
-            />
-          }
-          bottom={
-            <View className="flex-row items-center justify-between mt-3">
-              <Pressable onPress={goToPrevMonth} className="flex-row items-center p-2">
-                <ChevronLeft size={20} color={themeColor} />
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="font-bold ml-1" style={{ color: themeColor, fontSize: 15 }}>
-                  {MONTHS[(currentMonth - 1 + 12) % 12].slice(0, 3)}
-                </Text>
-              </Pressable>
+      <SafeAreaView testID="calendar-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
 
-              {/* View Mode Selector - Calendar modes + separate List button */}
-              <View className="flex-row items-center">
-                {/* Calendar view modes (pinch-to-zoom) */}
-                <View
-                  className="flex-row rounded-full p-1"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ backgroundColor: colors.segmentBg }}
+      {/* ═══ Floating translucent top chrome ═══ */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ paddingTop: calendarInsets.top, overflow: "hidden" }}
+        >
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+            <AppHeader
+              title={`${MONTHS[currentMonth]} ${currentYear}`}
+              variant="calendar"
+              titleContent={
+                <Animated.View
+                  key={`${currentYear}-${currentMonth}`}
+                  entering={
+                    monthNavDirRef.current === "next"
+                      ? FadeInRight.duration(240).withInitialValues({ transform: [{ translateX: 10 }] })
+                      : FadeInLeft.duration(240).withInitialValues({ transform: [{ translateX: -10 }] })
+                  }
+                  exiting={
+                    monthNavDirRef.current === "next"
+                      ? FadeOutLeft.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
+                      : FadeOutRight.duration(180).withInitialValues({ transform: [{ translateX: 0 }] })
+                  }
+                  className="flex-row items-center"
                 >
-                  {/* INVARIANT_ALLOW_SMALL_MAP */}
-                  {CALENDAR_VIEW_MODES.map((mode) => {
-                    const Icon = mode.icon;
-                    const isActive = !isListView && viewMode === mode.id;
-                    return (
-                      <Pressable
-                        key={mode.id}
-                        /* INVARIANT_ALLOW_INLINE_HANDLER */
-                        onPress={() => {
-                          setIsListView(false);
-                          setViewModeManually(mode.id);
-                        }}
-                        className="px-3 py-1.5 rounded-full"
-                        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                        style={{
-                          backgroundColor: isActive ? colors.segmentActive : "transparent",
-                        }}
-                      >
-                        <Icon size={16} color={isActive ? themeColor : colors.textTertiary} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                {/* List view - separate button */}
-                <Pressable
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="font-sora-bold" style={{ color: themeColor, fontSize: HEADER_TITLE_SIZE }}>
+                    {MONTHS[currentMonth]}
+                  </Text>
+                  {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                  <Text className="font-sora-bold ml-2" style={{ color: colors.text, fontSize: HEADER_TITLE_SIZE }}>
+                    {currentYear}
+                  </Text>
+                </Animated.View>
+              }
+              left={<HelpSheet screenKey="calendar" config={HELP_SHEETS.calendar} />}
+              right={
+                <Button
+                  testID="calendar-create-event"
+                  variant="primary"
+                  size="sm"
+                  label="Create"
                   /* INVARIANT_ALLOW_INLINE_HANDLER */
                   onPress={() => {
-                    Haptics.selectionAsync();
-                    setIsListView(true);
+                    if (!guardEmailVerification(session)) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push("/create");
                   }}
-                  className="w-8 h-8 rounded-full items-center justify-center ml-2"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{
-                    backgroundColor: isListView
-                      ? colors.segmentActive
-                      : colors.segmentBg,
-                  }}
-                >
-                  <List size={16} color={isListView ? themeColor : colors.textTertiary} />
-                </Pressable>
-              </View>
+                />
+              }
+              bottom={
+                <View className="flex-row items-center justify-between mt-3">
+                  <Pressable onPress={goToPrevMonth} className="flex-row items-center p-2">
+                    <ChevronLeft size={20} color={themeColor} />
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="font-bold ml-1" style={{ color: themeColor, fontSize: 15 }}>
+                      {MONTHS[(currentMonth - 1 + 12) % 12].slice(0, 3)}
+                    </Text>
+                  </Pressable>
 
-              <Pressable onPress={goToNextMonth} className="flex-row items-center p-2">
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <Text className="font-bold mr-1" style={{ color: themeColor, fontSize: 15 }}>
-                  {MONTHS[(currentMonth + 1) % 12].slice(0, 3)}
-                </Text>
-                <ChevronRight size={20} color={themeColor} />
-              </Pressable>
-            </View>
-          }
-        />
+                  {/* View Mode Selector - Calendar modes + separate List button */}
+                  <View className="flex-row items-center">
+                    {/* Calendar view modes (pinch-to-zoom) */}
+                    <View
+                      className="flex-row rounded-full p-1"
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ backgroundColor: colors.segmentBg }}
+                    >
+                      {/* INVARIANT_ALLOW_SMALL_MAP */}
+                      {CALENDAR_VIEW_MODES.map((mode) => {
+                        const Icon = mode.icon;
+                        const isActive = !isListView && viewMode === mode.id;
+                        return (
+                          <Pressable
+                            key={mode.id}
+                            /* INVARIANT_ALLOW_INLINE_HANDLER */
+                            onPress={() => {
+                              setIsListView(false);
+                              setViewModeManually(mode.id);
+                            }}
+                            className="px-3 py-1.5 rounded-full"
+                            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                            style={{
+                              backgroundColor: isActive ? colors.segmentActive : "transparent",
+                            }}
+                          >
+                            <Icon size={16} color={isActive ? themeColor : colors.textTertiary} />
+                          </Pressable>
+                        );
+                      })}
+                    </View>
 
-      {/* Calendar Import Nudge Banner - shown if permission not granted and not dismissed */}
-      {showCalendarImportNudge && (
-        <Animated.View
-          entering={FadeInDown.springify()}
-          className="mx-4 mb-3 p-4 rounded-2xl flex-row items-center"
-          /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          style={{ backgroundColor: themeColor + "15", borderWidth: 1, borderColor: themeColor + "30" }}
-        >
-          {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-          <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
-            <CalendarDays size={20} color={themeColor} />
+                    {/* List view - separate button */}
+                    <Pressable
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        setIsListView(true);
+                      }}
+                      className="w-8 h-8 rounded-full items-center justify-center ml-2"
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{
+                        backgroundColor: isListView
+                          ? colors.segmentActive
+                          : colors.segmentBg,
+                      }}
+                    >
+                      <List size={16} color={isListView ? themeColor : colors.textTertiary} />
+                    </Pressable>
+                  </View>
+
+                  <Pressable onPress={goToNextMonth} className="flex-row items-center p-2">
+                    {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                    <Text className="font-bold mr-1" style={{ color: themeColor, fontSize: 15 }}>
+                      {MONTHS[(currentMonth + 1) % 12].slice(0, 3)}
+                    </Text>
+                    <ChevronRight size={20} color={themeColor} />
+                  </Pressable>
+                </View>
+              }
+            />
           </View>
-          <View className="flex-1 mr-2">
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="font-semibold text-sm" style={{ color: colors.text }}>
-              Import your calendar
-            </Text>
-            {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-            <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
-              One-time import. Your data stays private.
-            </Text>
-          </View>
-          <Pressable
-            onPress={handleCalendarImportNudgePress}
-            className="px-3 py-1.5 rounded-full mr-1"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            style={{ backgroundColor: themeColor }}
-          >
-            <Text className="text-white text-xs font-semibold">Import</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleDismissCalendarImportNudge}
-            className="p-1.5"
-            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <X size={16} color={colors.textTertiary} />
-          </Pressable>
-        </Animated.View>
-      )}
+        </BlurView>
+      </View>
 
       {/* Global Empty State - When user has no events at all */}
       <ScrollView
           ref={scrollViewRef}
           className="flex-1"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={calendarIsRefreshing}
               onRefresh={onCalendarManualRefresh}
               tintColor={themeColor}
+              progressViewOffset={chromeHeight}
             />
           }
         >
+          {/* Calendar Import Nudge Banner - shown if permission not granted and not dismissed */}
+          {showCalendarImportNudge && (
+            <Animated.View
+              entering={FadeInDown.springify()}
+              className="mx-4 mb-3 p-4 rounded-2xl flex-row items-center"
+              /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+              style={{ backgroundColor: themeColor + "15", borderWidth: 1, borderColor: themeColor + "30" }}
+            >
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: themeColor + "20" }}>
+                <CalendarDays size={20} color={themeColor} />
+              </View>
+              <View className="flex-1 mr-2">
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                <Text className="font-semibold text-sm" style={{ color: colors.text }}>
+                  Import your calendar
+                </Text>
+                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
+                  One-time import. Your data stays private.
+                </Text>
+              </View>
+              <Pressable
+                onPress={handleCalendarImportNudgePress}
+                className="px-3 py-1.5 rounded-full mr-1"
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                style={{ backgroundColor: themeColor }}
+              >
+                <Text className="text-white text-xs font-semibold">Import</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleDismissCalendarImportNudge}
+                className="p-1.5"
+                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <X size={16} color={colors.textTertiary} />
+              </Pressable>
+            </Animated.View>
+          )}
           {isListView ? (
           <ListView
             events={allEvents}

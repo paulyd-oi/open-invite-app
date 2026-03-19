@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { View, Text, ScrollView, Pressable, RefreshControl, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient, useMutation, useInfiniteQuery, type InfiniteData } from "@tanstack/react-query";
 import { DEFAULT_ENDREACHED_DEBOUNCE_MS } from "@/lib/infiniteQuerySSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -730,6 +731,7 @@ export default function SocialScreen() {
   const feedMountTsRef = useRef(Date.now());
   const feedLoadTimeFired = useRef(false);
   const socialInsets = useSafeAreaInsets();
+  const [chromeHeight, setChromeHeight] = useState<number>(160);
   if (__DEV__ && !didLogCreatePill.current) {
     didLogCreatePill.current = true;
     devLog('[P0_CREATE_PILL_RENDER]', {
@@ -1524,33 +1526,49 @@ export default function SocialScreen() {
     <AuthProvider state="authed">
       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       {/* INVARIANT_ALLOW_INLINE_ARRAY_PROP */}
-      <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top"]}>
-        <AppHeader
-          title="Open Invites"
-          left={<HelpSheet screenKey="social" config={HELP_SHEETS.social} />}
-          right={
-            <View className="flex-row items-center">
-              <ShareAppButton variant="icon" />
-              <Button
-                variant="primary"
-                size="sm"
-                label="Create"
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => {
-                  if (!guardEmailVerification(session)) return;
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push("/create");
-                }}
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ marginLeft: 8 }}
-              />
-            </View>
-          }
-        />
+      <SafeAreaView testID="social-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
 
-      {/* Email verification banner - shows when emailVerified === false */}
-      <EmailVerificationBanner />
-      
+      {/* ═══ Floating translucent top chrome ═══ */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ paddingTop: socialInsets.top, overflow: "hidden" }}
+        >
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+            <AppHeader
+              title="Open Invites"
+              left={<HelpSheet screenKey="social" config={HELP_SHEETS.social} />}
+              right={
+                <View className="flex-row items-center">
+                  <ShareAppButton variant="icon" />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    label="Create"
+                    /* INVARIANT_ALLOW_INLINE_HANDLER */
+                    onPress={() => {
+                      if (!guardEmailVerification(session)) return;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push("/create");
+                    }}
+                    /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                    style={{ marginLeft: 8 }}
+                  />
+                </View>
+              }
+            />
+          </View>
+        </BlurView>
+      </View>
+
       {/* Main content */}
       {isLoading ? (
         <FeedSkeleton />
@@ -1559,7 +1577,7 @@ export default function SocialScreen() {
           testID="social-feed"
           className="flex-1 px-5"
           /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingTop: chromeHeight, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleFeedScroll}
           scrollEventThrottle={400}
@@ -1568,9 +1586,13 @@ export default function SocialScreen() {
               refreshing={isRefreshing}
               onRefresh={onManualRefresh}
               tintColor={themeColor}
+              progressViewOffset={chromeHeight}
             />
           }
         >
+          {/* Email verification banner - shows when emailVerified === false */}
+          <EmailVerificationBanner />
+
           {/* [GROWTH_P14] Weekly digest card */}
           {weeklyDigest && (
             <WeeklyDigestCard
@@ -1578,16 +1600,6 @@ export default function SocialScreen() {
               colors={colors}
               themeColor={themeColor}
               onTap={handleDigestTap}
-            />
-          )}
-          {socialMemory && !insightDismissed && (
-            <SocialMemoryCard
-              memory={socialMemory.memory}
-              type={socialMemory.type}
-              themeColor={themeColor}
-              isDark={isDark}
-              colors={colors}
-              onDismiss={handleDismissInsight}
             />
           )}
           <FeedCalendar
@@ -1599,6 +1611,16 @@ export default function SocialScreen() {
             onDateSelect={handleCalDateSelect}
             selectedDate={selectedCalDate}
           />
+          {socialMemory && !insightDismissed && (
+            <SocialMemoryCard
+              memory={socialMemory.memory}
+              type={socialMemory.type}
+              themeColor={themeColor}
+              isDark={isDark}
+              colors={colors}
+              onDismiss={handleDismissInsight}
+            />
+          )}
 
           {/* ═══ MODE B: Selected date — inline events ═══ */}
           {selectedCalDate ? (
