@@ -17,6 +17,7 @@ RCT_EXTERN_METHOD(startActivity:(NSString *)eventId
                   rsvpStatus:(NSString *)rsvpStatus
                   emoji:(NSString *)emoji
                   goingCount:(NSInteger)goingCount
+                  themeAccentColor:(NSString *)themeAccentColor
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

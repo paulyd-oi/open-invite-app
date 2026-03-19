@@ -1376,6 +1376,7 @@ export default function EventDetailScreen() {
             rsvpStatus: "going",
             emoji: event.emoji,
             goingCount: effectiveGoingCount,
+            themeAccentColor: resolveEventTheme(event.themeId).backAccent,
           });
           if (ok) setLiveActivityActive(true);
         } else if (liveActivityActive) {
@@ -2400,6 +2401,7 @@ export default function EventDetailScreen() {
           rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
           emoji: event.emoji,
           goingCount: effectiveGoingCount,
+          themeAccentColor: resolveEventTheme(event.themeId).backAccent,
         });
         if (ok) {
           setLiveActivityActive(true);
@@ -4451,6 +4453,7 @@ export default function EventDetailScreen() {
                             rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
                             emoji: event.emoji,
                             goingCount: effectiveGoingCount,
+                            themeAccentColor: resolveEventTheme(event.themeId).backAccent,
                           });
                           if (ok) {
                             setLiveActivityActive(true);
