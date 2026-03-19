@@ -82,7 +82,7 @@
 - Busy blocks render grey: ALL isBusy events (self-created or masked) render grey in calendar month grid + day list
 - Busy event details: Shows "Only self" for visibility, hides Post-event reflection section
 - Friend profile badge: Uses embedded featuredBadge from friend data, fallback query if not embedded
-- InviteFlipCard premium polish: Deeper shadow (opacity 0.22, radius 36), smoother flip (480ms, refined bezier), host attribution on front face (photo + no-photo), larger title (32px), richer gradient overlay, bigger avatars (28px), refined back face (theme-colored host ring, divider before social proof, consistent 38px icon boxes). Card-to-actions transition tightened (reduced dead space below card).
+- InviteFlipCard V5 with card themes: Deterministic emoji→vibe mapping (8 vibes: chill, party, active, food, nature, creative, nightlife, formal) tints card gradients, back-face backgrounds, and accent colors per event mood. Front face: emoji badge (BlurView), vibe-tinted 6-stop gradient overlay, vibe labels on no-photo cards ("You're Invited" / "Game On" etc.), capacity in social proof, 5 visible avatars. Back face: themed backgrounds per vibe, emoji in "The Details" header, "About" label for description, themed accent strip/icon boxes/host ring, capacity shows "X of Y spots left". Social energy pulse below card: attendee names + mini avatars ("Alex, Sarah + 3 going").
 - Host tools cleanup: Removed "Host tools" heading, removed next-best-action nudge row, removed floating share circle below card. Host actions (Share/Reminder/Edit) remain as one compact action row with turnout badge above. Coordination summaries (bring list, pitch in) preserved inline.
 
 ## Unstable / Regressions

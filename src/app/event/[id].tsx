@@ -2489,7 +2489,7 @@ export default function EventDetailScreen() {
                 const hostFallback: AttendeeInfo | null = (!hostInList && event?.user)
                   ? { id: event.user.id ?? "host", name: event.user.name ?? "Host", imageUrl: event.user.image ?? null, isHost: true }
                   : null;
-                return (hostFallback ? [hostFallback, ...ordered] : ordered).slice(0, 4);
+                return (hostFallback ? [hostFallback, ...ordered] : ordered).slice(0, 5);
               })()}
               description={event.description ?? null}
               hostName={event.user?.name ?? null}
@@ -2564,6 +2564,31 @@ export default function EventDetailScreen() {
             />
           </Animated.View>
         </View>
+
+        {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
+        {effectiveGoingCount > 0 && attendeesList.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(45).springify()}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 22, paddingTop: 2, paddingBottom: 2 }}>
+              {attendeesList.slice(0, 3).map((a: AttendeeInfo, i: number) => (
+                <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
+                  <EntityAvatar
+                    photoUrl={a.imageUrl ?? null}
+                    initials={a.name ? a.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
+                    size={20}
+                  />
+                </View>
+              ))}
+              <Text style={{ marginLeft: 8, fontSize: 13, color: colors.textSecondary, flex: 1 }} numberOfLines={1}>
+                {(() => {
+                  const names = attendeesList.slice(0, 2).map((a: AttendeeInfo) => a.name?.split(" ")[0] ?? "Someone");
+                  const remaining = effectiveGoingCount - names.length;
+                  if (remaining > 0) return `${names.join(", ")} + ${remaining} going`;
+                  return `${names.join(" & ")} going`;
+                })()}
+              </Text>
+            </View>
+          </Animated.View>
+        )}
 
         {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
         <Animated.View entering={FadeInDown.delay(55).springify()}>

@@ -1,16 +1,17 @@
 /**
- * InviteFlipCard V4.2 — 3D tap-to-flip invite card for Event Detail.
+ * InviteFlipCard V5 — Premium 3D tap-to-flip invite card for Event Detail.
  *
- * Front: hero image + title + countdown + location + date + social proof.
- *        Self-explanatory at a glance — feels like an invitation poster.
- * Back:  host, full date/time, capacity, add-to-calendar hint.
+ * Front: hero image + title + host + countdown + date + location + social proof.
+ *        Reads as a crafted invitation at a glance.
+ * Back:  the details side — host, date/time, location, description, capacity.
  *
- * Card floats with shadow + depth. Tap to flip with premium 3D rotation.
+ * Card themes: deterministic emoji→vibe mapping tints the card per event mood.
+ * Card floats with depth shadow. Tap to flip with premium 3D rotation.
  *
- * Proof tag: [EVENT_DETAIL_V4_FLIP_CARD]
+ * Proof tag: [EVENT_DETAIL_V5_FLIP_CARD]
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -80,6 +81,129 @@ export interface InviteFlipCardProps {
   photoNudge?: React.ReactNode;
 }
 
+// ─── Card Theme System ──────────────────────────────────
+// Deterministic emoji→vibe mapping. Each theme tints the card.
+// No backend changes — purely visual, inferred from emoji.
+
+type CardVibe = "party" | "food" | "outdoors" | "sports" | "chill" | "nightlife" | "games" | "neutral";
+
+interface CardThemeTokens {
+  /** Gradient tint mixed into photo overlay bottom */
+  gradientTint: string;
+  /** Back-face accent color (overrides themeColor for back) */
+  backAccent: string;
+  /** Back-face background */
+  backBgDark: string;
+  backBgLight: string;
+  /** No-photo front label color */
+  vibeLabel: string | null;
+}
+
+const VIBE_THEMES: Record<CardVibe, CardThemeTokens> = {
+  party: {
+    gradientTint: "rgba(255,80,60,0.12)",
+    backAccent: "#FF6B4A",
+    backBgDark: "#1E1614",
+    backBgLight: "#FFF8F6",
+    vibeLabel: "You're Invited",
+  },
+  food: {
+    gradientTint: "rgba(255,152,0,0.10)",
+    backAccent: "#FF9800",
+    backBgDark: "#1E1A14",
+    backBgLight: "#FFFAF5",
+    vibeLabel: "You're Invited",
+  },
+  outdoors: {
+    gradientTint: "rgba(0,188,212,0.08)",
+    backAccent: "#00ACC1",
+    backBgDark: "#14191E",
+    backBgLight: "#F5FBFC",
+    vibeLabel: "You're Invited",
+  },
+  sports: {
+    gradientTint: "rgba(76,175,80,0.08)",
+    backAccent: "#43A047",
+    backBgDark: "#141E15",
+    backBgLight: "#F5FAF5",
+    vibeLabel: "Game On",
+  },
+  chill: {
+    gradientTint: "rgba(156,39,176,0.08)",
+    backAccent: "#AB47BC",
+    backBgDark: "#1A141E",
+    backBgLight: "#FAF5FC",
+    vibeLabel: "You're Invited",
+  },
+  nightlife: {
+    gradientTint: "rgba(99,102,241,0.10)",
+    backAccent: "#7C3AED",
+    backBgDark: "#16141E",
+    backBgLight: "#F8F5FF",
+    vibeLabel: "You're Invited",
+  },
+  games: {
+    gradientTint: "rgba(99,102,241,0.08)",
+    backAccent: "#6366F1",
+    backBgDark: "#14141E",
+    backBgLight: "#F5F5FF",
+    vibeLabel: "Game Night",
+  },
+  neutral: {
+    gradientTint: "transparent",
+    backAccent: "",  // falls back to themeColor
+    backBgDark: "#1C1C1E",
+    backBgLight: "#FAF9F7",
+    vibeLabel: "You're Invited",
+  },
+};
+
+// Emoji → vibe mapping (covers common event emojis)
+const EMOJI_VIBE_MAP: Record<string, CardVibe> = {
+  // Party
+  "🎉": "party", "🥳": "party", "🎊": "party", "🎂": "party", "🍾": "party",
+  "🎁": "party", "🎈": "party", "💃": "party", "🕺": "party", "✨": "party",
+  // Food
+  "🍽️": "food", "🍕": "food", "🌮": "food", "🍔": "food", "☕": "food",
+  "🍣": "food", "🍝": "food", "🥘": "food", "🧁": "food", "🍻": "food",
+  "🍷": "food", "🥂": "food", "🍜": "food", "🍱": "food", "🥡": "food",
+  // Outdoors
+  "🏕️": "outdoors", "🏖️": "outdoors", "🌊": "outdoors", "⛰️": "outdoors",
+  "🥾": "outdoors", "🚴": "outdoors", "🏄": "outdoors", "🌳": "outdoors",
+  "☀️": "outdoors", "🌅": "outdoors", "🏞️": "outdoors", "🎣": "outdoors",
+  // Sports
+  "⚽": "sports", "🏀": "sports", "🏈": "sports", "⚾": "sports", "🎾": "sports",
+  "🏐": "sports", "🏓": "sports", "🏸": "sports", "🥊": "sports", "🏋️": "sports",
+  "🧘": "sports", "🏊": "sports", "🎳": "sports", "🥏": "sports",
+  // Chill / study / worship
+  "📖": "chill", "✝️": "chill", "⛪": "chill", "🕌": "chill", "🕍": "chill",
+  "🙏": "chill", "📚": "chill", "🎧": "chill", "🧘‍♀️": "chill", "🎨": "chill",
+  "🎹": "chill", "🎵": "chill", "🎶": "chill",
+  // Nightlife
+  "🍸": "nightlife", "🪩": "nightlife", "🎤": "nightlife", "🌙": "nightlife",
+  "🥃": "nightlife", "🫧": "nightlife",
+  // Games
+  "🎮": "games", "🎲": "games", "🃏": "games", "🎯": "games", "🎰": "games",
+  "♟️": "games", "🎱": "games", "🕹️": "games",
+};
+
+function inferCardVibe(emoji: string, title: string): CardVibe {
+  // Direct emoji match first
+  if (EMOJI_VIBE_MAP[emoji]) return EMOJI_VIBE_MAP[emoji];
+
+  // Keyword fallback from title
+  const t = title.toLowerCase();
+  if (/party|birthday|celebration|kickback|hangout/.test(t)) return "party";
+  if (/dinner|lunch|brunch|bbq|cookout|potluck|coffee/.test(t)) return "food";
+  if (/hike|beach|camping|surf|park|outdoor|lake/.test(t)) return "outdoors";
+  if (/soccer|basketball|tennis|pickleball|football|gym|workout/.test(t)) return "sports";
+  if (/bible|study|church|worship|prayer|book club/.test(t)) return "chill";
+  if (/bar|club|drinks|happy hour|brewery|cocktail/.test(t)) return "nightlife";
+  if (/game night|board game|trivia|poker/.test(t)) return "games";
+
+  return "neutral";
+}
+
 // ─── Constants ───────────────────────────────────────────
 const FLIP_DURATION = 480;
 const FLIP_EASING = Easing.bezier(0.32, 0.0, 0.14, 1);
@@ -88,7 +212,6 @@ const MINI_AV = 28;
 const MINI_OVERLAP = 8;
 
 // ─── Shadow style (cross-platform) ──────────────────────
-// Two-layer shadow: tight contact shadow + broad ambient glow
 const CARD_SHADOW = Platform.select({
   ios: {
     shadowColor: "#000",
@@ -131,6 +254,11 @@ export function InviteFlipCard({
 }: InviteFlipCardProps) {
   const flipProgress = useSharedValue(0);
 
+  // ── Card theme ──
+  const vibe = useMemo(() => inferCardVibe(emoji, title), [emoji, title]);
+  const ct = VIBE_THEMES[vibe];
+  const backAccent = ct.backAccent || themeColor;
+
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const target = flipProgress.value < 0.5 ? 1 : 0;
@@ -168,7 +296,7 @@ export function InviteFlipCard({
     return { opacity };
   });
 
-  const visibleAvatars = attendeeAvatars.slice(0, 4);
+  const visibleAvatars = attendeeAvatars.slice(0, 5);
   const avatarStackWidth = visibleAvatars.length > 0
     ? visibleAvatars.length * (MINI_AV - MINI_OVERLAP) + MINI_OVERLAP
     : 0;
@@ -177,6 +305,13 @@ export function InviteFlipCard({
   const compactDate = dateLabel.length > 20
     ? dateLabel.replace(/^(\w+),\s*(\w+)\s+(\d+).*$/, "$1, $2 $3")
     : dateLabel;
+
+  const hostFirst = hostName ? hostName.split(" ")[0] : null;
+
+  // Capacity status text
+  const capacityText = capacity != null
+    ? (capacity - currentGoing <= 0 ? "Full" : `${capacity - currentGoing} spots left`)
+    : null;
 
   return (
     <View style={{ paddingHorizontal: 16 }}>
@@ -205,16 +340,18 @@ export function InviteFlipCard({
                     transition={200}
                     priority="high"
                   />
-                  {/* Rich gradient overlay — soft top vignette + deep bottom for legibility */}
+
+                  {/* Gradient overlay — vibe-tinted bottom for theme warmth */}
                   <LinearGradient
                     colors={[
-                      "rgba(0,0,0,0.18)",
+                      "rgba(0,0,0,0.15)",
                       "transparent",
                       "transparent",
-                      "rgba(0,0,0,0.45)",
-                      "rgba(0,0,0,0.92)",
+                      ct.gradientTint !== "transparent" ? ct.gradientTint : "rgba(0,0,0,0.35)",
+                      "rgba(0,0,0,0.55)",
+                      "rgba(0,0,0,0.94)",
                     ]}
-                    locations={[0, 0.1, 0.35, 0.6, 1]}
+                    locations={[0, 0.08, 0.3, 0.52, 0.68, 1]}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -264,7 +401,30 @@ export function InviteFlipCard({
                     </View>
                   )}
 
-                  {/* ── Bottom info block ── */}
+                  {/* ── Top-right: emoji badge ── */}
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: editButton ? 52 : 16,
+                      borderRadius: 14,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <BlurView
+                      intensity={30}
+                      tint="dark"
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        backgroundColor: "rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+                    </BlurView>
+                  </View>
+
+                  {/* ── Bottom info block — the invitation ── */}
                   <View
                     style={{
                       position: "absolute",
@@ -272,13 +432,13 @@ export function InviteFlipCard({
                       left: 0,
                       right: 0,
                       padding: 22,
-                      paddingBottom: 24,
+                      paddingBottom: 22,
                     }}
                   >
-                    {/* Host attribution — small, above title */}
+                    {/* Host attribution */}
                     {hostName && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.25)", overflow: "hidden" }}>
+                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
                           <EntityAvatar
                             photoUrl={hostImageUrl}
                             initials={hostName?.[0] ?? "?"}
@@ -287,8 +447,8 @@ export function InviteFlipCard({
                             foregroundColor="#FFFFFF"
                           />
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.75)", marginLeft: 7 }}>
-                          {isMyEvent ? "Your event" : `Hosted by ${hostName.split(" ")[0]}`}
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)", marginLeft: 7 }}>
+                          {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
                     )}
@@ -301,9 +461,9 @@ export function InviteFlipCard({
                         color: "#FFFFFF",
                         letterSpacing: -0.8,
                         lineHeight: 38,
-                        textShadowColor: "rgba(0,0,0,0.5)",
+                        textShadowColor: "rgba(0,0,0,0.6)",
                         textShadowOffset: { width: 0, height: 1 },
-                        textShadowRadius: 8,
+                        textShadowRadius: 10,
                         marginBottom: 14,
                       }}
                       numberOfLines={3}
@@ -311,7 +471,7 @@ export function InviteFlipCard({
                       {title}
                     </Text>
 
-                    {/* Date + Time line */}
+                    {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
                       <Calendar size={14} color="rgba(255,255,255,0.7)" />
                       <Text
@@ -328,7 +488,7 @@ export function InviteFlipCard({
                       </Text>
                     </View>
 
-                    {/* Location line */}
+                    {/* Location */}
                     {locationDisplay && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
                         <MapPin size={14} color="rgba(255,255,255,0.7)" />
@@ -347,7 +507,7 @@ export function InviteFlipCard({
                       </View>
                     )}
 
-                    {/* Social proof row — separator + avatar stack */}
+                    {/* Social proof row */}
                     <View style={{ borderTopWidth: 0.5, borderTopColor: "rgba(255,255,255,0.15)", paddingTop: 12 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         {visibleAvatars.length > 0 && (
@@ -369,7 +529,7 @@ export function InviteFlipCard({
                                   height: MINI_AV,
                                   borderRadius: MINI_AV / 2,
                                   borderWidth: 1.5,
-                                  borderColor: "rgba(255,255,255,0.25)",
+                                  borderColor: "rgba(255,255,255,0.3)",
                                   zIndex: visibleAvatars.length - i,
                                 }}
                               >
@@ -385,15 +545,22 @@ export function InviteFlipCard({
                         </View>
                       )}
                         {goingCount > 0 ? (
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "700",
-                              color: "rgba(255,255,255,0.95)",
-                            }}
-                          >
-                            {goingCount} going
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "700",
+                                color: "rgba(255,255,255,0.95)",
+                              }}
+                            >
+                              {goingCount} going
+                            </Text>
+                            {capacityText && (
+                              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginLeft: 6 }}>
+                                · {capacityText}
+                              </Text>
+                            )}
+                          </View>
                         ) : (
                           <Text
                             style={{
@@ -428,10 +595,24 @@ export function InviteFlipCard({
                       justifyContent: "center",
                       alignItems: "center",
                       paddingHorizontal: 26,
-                      paddingTop: 32,
+                      paddingTop: 28,
                     }}
                   >
-                    <Text style={{ fontSize: 72, marginBottom: 20 }}>{emoji}</Text>
+                    {/* Vibe label */}
+                    {ct.vibeLabel && (
+                      <Text style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        letterSpacing: 1.5,
+                        textTransform: "uppercase",
+                        color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.22)",
+                        marginBottom: 16,
+                      }}>
+                        {ct.vibeLabel}
+                      </Text>
+                    )}
+
+                    <Text style={{ fontSize: 72, marginBottom: 18 }}>{emoji}</Text>
                     <Text
                       style={{
                         fontSize: 30,
@@ -460,7 +641,7 @@ export function InviteFlipCard({
                           />
                         </View>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginLeft: 7 }}>
-                          {isMyEvent ? "Your event" : `Hosted by ${hostName.split(" ")[0]}`}
+                          {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
                     )}
@@ -496,7 +677,7 @@ export function InviteFlipCard({
                       </View>
                     )}
 
-                    {/* Date + location on no-photo */}
+                    {/* Date + location */}
                     <View style={{ alignItems: "center", gap: 5, marginBottom: 12 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Calendar size={13} color={colors.textSecondary} />
@@ -521,13 +702,17 @@ export function InviteFlipCard({
                     </View>
 
                     {/* Social proof */}
-                    {goingCount > 0 && (
+                    {goingCount > 0 ? (
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Users size={14} color={STATUS.going.fg} />
                         <Text style={{ fontSize: 14, fontWeight: "600", color: STATUS.going.fg, marginLeft: 6 }}>
                           {goingCount} going
                         </Text>
                       </View>
+                    ) : (
+                      <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                        Be the first to join
+                      </Text>
                     )}
                   </View>
                 </>
@@ -564,16 +749,16 @@ export function InviteFlipCard({
                 aspectRatio: 3 / 4,
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
-                backgroundColor: isDark ? "#1C1C1E" : "#FAF9F7",
+                backgroundColor: isDark ? ct.backBgDark : ct.backBgLight,
                 borderWidth: 0.5,
                 borderColor: isDark
                   ? "rgba(255,255,255,0.1)"
                   : "rgba(0,0,0,0.06)",
               }}
             >
-              {/* Warm accent strip — thicker, more present */}
+              {/* Accent strip — themed */}
               <LinearGradient
-                colors={[themeColor, `${themeColor}66`]}
+                colors={[backAccent, `${backAccent}55`]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{
@@ -582,31 +767,33 @@ export function InviteFlipCard({
                 }}
               />
 
-              <View style={{ flex: 1, padding: 24, paddingTop: 22, justifyContent: "center" }}>
-                {/* Section label */}
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: "800",
-                    color: themeColor,
-                    letterSpacing: 2,
-                    textTransform: "uppercase",
-                    marginBottom: 22,
-                  }}
-                >
-                  The Details
-                </Text>
+              <View style={{ flex: 1, padding: 24, paddingTop: 20 }}>
+                {/* Section label + emoji */}
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "800",
+                      color: backAccent,
+                      letterSpacing: 2,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    The Details
+                  </Text>
+                  <Text style={{ fontSize: 16, marginLeft: 8 }}>{emoji}</Text>
+                </View>
 
-                {/* Host — prominent on back */}
+                {/* Host — prominent */}
                 {hostName && (
-                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
-                    <View style={{ borderRadius: 24, borderWidth: 2.5, borderColor: isDark ? `${themeColor}60` : `${themeColor}40` }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+                    <View style={{ borderRadius: 24, borderWidth: 2.5, borderColor: isDark ? `${backAccent}60` : `${backAccent}40` }}>
                       <EntityAvatar
                         photoUrl={hostImageUrl}
                         initials={hostName?.[0] ?? "?"}
-                        size={44}
+                        size={42}
                         backgroundColor={isDark ? "#2C2C2E" : "#FFF7ED"}
-                        foregroundColor={themeColor}
+                        foregroundColor={backAccent}
                       />
                     </View>
                     <View style={{ marginLeft: 14, flex: 1 }}>
@@ -621,22 +808,22 @@ export function InviteFlipCard({
                 )}
 
                 {/* Divider */}
-                <View style={{ height: 0.5, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", marginBottom: 18 }} />
+                <View style={{ height: 0.5, backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", marginBottom: 16 }} />
 
                 {/* Date + Time */}
-                <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 18 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 16 }}>
                   <View
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 11,
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: `${themeColor}14`,
+                      backgroundColor: `${backAccent}14`,
                       marginRight: 12,
                     }}
                   >
-                    <Calendar size={17} color={themeColor} />
+                    <Calendar size={16} color={backAccent} />
                   </View>
                   <View style={{ flex: 1, justifyContent: "center" }}>
                     <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text, marginBottom: 2 }} numberOfLines={1}>
@@ -648,21 +835,21 @@ export function InviteFlipCard({
                   </View>
                 </View>
 
-                {/* Location — labeled detail row */}
+                {/* Location */}
                 {locationDisplay && (
-                  <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 18 }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 16 }}>
                     <View
                       style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 11,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
                         alignItems: "center",
                         justifyContent: "center",
                         backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
                         marginRight: 12,
                       }}
                     >
-                      <MapPin size={17} color={colors.textSecondary} />
+                      <MapPin size={16} color={colors.textSecondary} />
                     </View>
                     <View style={{ flex: 1, justifyContent: "center" }}>
                       <Text style={{ fontSize: 11, color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>
@@ -675,25 +862,25 @@ export function InviteFlipCard({
                   </View>
                 )}
 
-                {/* Description — structured detail row */}
+                {/* Description */}
                 {description ? (
-                  <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 18 }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 16 }}>
                     <View
                       style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 11,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
                         alignItems: "center",
                         justifyContent: "center",
                         backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
                         marginRight: 12,
                       }}
                     >
-                      <FileText size={17} color={colors.textSecondary} />
+                      <FileText size={16} color={colors.textSecondary} />
                     </View>
                     <View style={{ flex: 1, justifyContent: "center" }}>
                       <Text style={{ fontSize: 11, color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>
-                        Description
+                        About
                       </Text>
                       <Text
                         style={{ fontSize: 14, lineHeight: 20, color: colors.text, fontWeight: "500" }}
@@ -705,78 +892,87 @@ export function InviteFlipCard({
                   </View>
                 ) : null}
 
-                {/* Divider before social proof */}
-                <View style={{ height: 0.5, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", marginBottom: 16 }} />
+                {/* Bottom section: capacity + social proof */}
+                <View style={{ marginTop: "auto" }}>
+                  <View style={{ height: 0.5, backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)", marginBottom: 14 }} />
 
-                {/* Social proof — avatar parity with front face */}
-                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                  {visibleAvatars.length > 0 ? (
-                    <View
-                      style={{
-                        width: avatarStackWidth,
-                        height: MINI_AV,
-                        flexDirection: "row",
-                        marginRight: 10,
-                      }}
-                    >
-                      {visibleAvatars.map((a, i) => (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                    {/* Avatars + count */}
+                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                      {visibleAvatars.length > 0 ? (
                         <View
-                          key={a.id}
                           style={{
-                            position: "absolute",
-                            left: i * (MINI_AV - MINI_OVERLAP),
-                            width: MINI_AV,
+                            width: avatarStackWidth,
                             height: MINI_AV,
-                            borderRadius: MINI_AV / 2,
-                            borderWidth: 1.5,
-                            borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
-                            zIndex: visibleAvatars.length - i,
+                            flexDirection: "row",
+                            marginRight: 10,
                           }}
                         >
-                          <EntityAvatar
-                            photoUrl={a.imageUrl}
-                            initials={a.name?.[0] ?? "?"}
-                            size={MINI_AV - 3}
-                            backgroundColor={isDark ? "#2C2C2E" : "#F0F0F0"}
-                            foregroundColor={colors.textSecondary}
-                          />
+                          {visibleAvatars.map((a, i) => (
+                            <View
+                              key={a.id}
+                              style={{
+                                position: "absolute",
+                                left: i * (MINI_AV - MINI_OVERLAP),
+                                width: MINI_AV,
+                                height: MINI_AV,
+                                borderRadius: MINI_AV / 2,
+                                borderWidth: 1.5,
+                                borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)",
+                                zIndex: visibleAvatars.length - i,
+                              }}
+                            >
+                              <EntityAvatar
+                                photoUrl={a.imageUrl}
+                                initials={a.name?.[0] ?? "?"}
+                                size={MINI_AV - 3}
+                                backgroundColor={isDark ? "#2C2C2E" : "#F0F0F0"}
+                                foregroundColor={colors.textSecondary}
+                              />
+                            </View>
+                          ))}
                         </View>
-                      ))}
+                      ) : (
+                        <View
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: STATUS.going.bgSoft,
+                            marginRight: 10,
+                          }}
+                        >
+                          <Users size={16} color={STATUS.going.fg} />
+                        </View>
+                      )}
+                      <View>
+                        <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text }}>
+                          {currentGoing} going
+                        </Text>
+                        {capacity != null && (
+                          <Text style={{
+                            fontSize: 12,
+                            color: capacity - currentGoing <= 0 ? "#EF4444" : colors.textSecondary,
+                            fontWeight: capacity - currentGoing <= 0 ? "600" : "400",
+                            marginTop: 1,
+                          }}>
+                            {capacity - currentGoing <= 0 ? "Full" : `${capacity - currentGoing} of ${capacity} spots left`}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  ) : (
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 11,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backgroundColor: STATUS.going.bgSoft,
-                        marginRight: 12,
-                      }}
-                    >
-                      <Users size={17} color={STATUS.going.fg} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: "700", color: colors.text }}>
-                      {currentGoing} going
-                    </Text>
-                    {capacity != null && (
-                      <Text style={{ fontSize: 13, color: capacity - currentGoing <= 0 ? "#EF4444" : colors.textSecondary, fontWeight: capacity - currentGoing <= 0 ? "600" : "400", marginTop: 2 }}>
-                        {capacity - currentGoing <= 0 ? "Full" : `${capacity - currentGoing} spots remaining`}
-                      </Text>
-                    )}
                   </View>
-                </View>
 
-                {/* Flip-back hint */}
-                <View style={{ alignItems: "center", marginTop: "auto", paddingTop: 6 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", opacity: 0.6 }}>
-                    <RefreshCw size={11} color={colors.textTertiary} />
-                    <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
-                      Tap to flip back
-                    </Text>
+                  {/* Flip-back hint */}
+                  <View style={{ alignItems: "center", paddingTop: 10 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", opacity: 0.5 }}>
+                      <RefreshCw size={10} color={colors.textTertiary} />
+                      <Text style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 5, fontWeight: "500" }}>
+                        Tap to flip back
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
