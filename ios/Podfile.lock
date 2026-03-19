@@ -1859,6 +1859,31 @@ PODS:
     - React-Core
   - react-native-segmented-control (2.5.7):
     - React-Core
+  - react-native-skia (2.0.0-next.4):
+    - DoubleConversion
+    - glog
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React
+    - React-callinvoker
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsc
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-slider (4.5.6):
     - DoubleConversion
     - glog
@@ -2629,6 +2654,7 @@ DEPENDENCIES:
   - react-native-pager-view (from `../node_modules/react-native-pager-view`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-segmented-control (from `../node_modules/@react-native-segmented-control/segmented-control`)"
+  - "react-native-skia (from `../node_modules/@shopify/react-native-skia`)"
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
   - react-native-view-shot (from `../node_modules/react-native-view-shot`)
   - react-native-webview (from `../node_modules/react-native-webview`)
@@ -2916,6 +2942,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-segmented-control:
     :path: "../node_modules/@react-native-segmented-control/segmented-control"
+  react-native-skia:
+    :path: "../node_modules/@shopify/react-native-skia"
   react-native-slider:
     :path: "../node_modules/@react-native-community/slider"
   react-native-view-shot:
@@ -3130,6 +3158,7 @@ SPEC CHECKSUMS:
   react-native-pager-view: be1e1b0b36826b000534038e970004fea258bc2e
   react-native-safe-area-context: 9d72abf6d8473da73033b597090a80b709c0b2f1
   react-native-segmented-control: bf6e0032726727498e18dd437ae88afcdbc18e99
+  react-native-skia: ca28e396cb6ca5e0f8f7e6380d21a8bce3be12ba
   react-native-slider: d853d69db89298316b79bb3476fbaa1245e96845
   react-native-view-shot: 4da305fac8f70d41e6ffb12eb023288789fcd28e
   react-native-webview: 3df1192782174d1bd23f6a0f5a4fec3cdcca9954

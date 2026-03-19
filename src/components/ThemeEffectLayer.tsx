@@ -17,7 +17,16 @@
 
 import React, { memo, useMemo } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
-import { Canvas, Circle, Group, BlurMask } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  Circle,
+  Group,
+  BlurMask,
+  Mask,
+  Rect,
+  LinearGradient as SkiaLinearGradient,
+  vec,
+} from "@shopify/react-native-skia";
 import {
   useDerivedValue,
   useSharedValue,
@@ -230,10 +239,13 @@ const ParticleField = memo(function ParticleField({
 
 interface ThemeEffectLayerProps {
   themeId: string | null | undefined;
+  /** Height of the bottom fade zone in points (default 150) */
+  fadeHeight?: number;
 }
 
 export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
+  fadeHeight = 150,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
@@ -248,7 +260,21 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
 
   return (
     <Canvas style={styles.container} pointerEvents="none">
-      <ParticleField config={config} width={width} height={height} />
+      <Mask
+        mode="alpha"
+        mask={
+          <Rect x={0} y={0} width={width} height={height}>
+            <SkiaLinearGradient
+              start={vec(0, 0)}
+              end={vec(0, height)}
+              colors={["white", "white", "transparent"]}
+              positions={[0, Math.max(0, (height - fadeHeight) / height), 1]}
+            />
+          </Rect>
+        }
+      >
+        <ParticleField config={config} width={width} height={height} />
+      </Mask>
     </Canvas>
   );
 });

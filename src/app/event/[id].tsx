@@ -2596,10 +2596,11 @@ export default function EventDetailScreen() {
             />
           </Animated.View>
 
-          {/* Canvas → standard background transition */}
+          {/* Canvas → standard background transition (150px eased multi-stop) */}
           <LinearGradient
-            colors={[canvasColor, colors.background]}
-            style={{ height: 60 }}
+            colors={[canvasColor, canvasColor, colors.background, colors.background]}
+            locations={[0, 0.2, 0.75, 1]}
+            style={{ height: 150 }}
           />
         </View>
 
