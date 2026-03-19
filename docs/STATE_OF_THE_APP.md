@@ -82,6 +82,7 @@
 - Busy blocks render grey: ALL isBusy events (self-created or masked) render grey in calendar month grid + day list
 - Busy event details: Shows "Only self" for visibility, hides Post-event reflection section
 - Friend profile badge: Uses embedded featuredBadge from friend data, fallback query if not embedded
+- InviteFlipCard premium polish: Deeper shadow (opacity 0.22, radius 36), smoother flip (480ms, refined bezier), host attribution on front face (photo + no-photo), larger title (32px), richer gradient overlay, bigger avatars (28px), refined back face (theme-colored host ring, divider before social proof, consistent 38px icon boxes). Card-to-actions transition tightened (reduced dead space below card).
 
 ## Unstable / Regressions
 - None currently known

@@ -2467,7 +2467,7 @@ export default function EventDetailScreen() {
           </View>
 
           {/* Floating invite card */}
-          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 4, paddingBottom: 20 }}>
+          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 2, paddingBottom: 14 }}>
             <InviteFlipCard
               title={event.title}
               imageUri={
@@ -2567,7 +2567,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
         <Animated.View entering={FadeInDown.delay(55).springify()}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 }}>
             <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <EventVisibilityBadge
                 visibility={event.visibility}
@@ -2598,7 +2598,7 @@ export default function EventDetailScreen() {
         </Animated.View>
 
         {/* ═══ Padded content — RSVP + utility below ═══ */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
+        <View style={{ paddingHorizontal: 18, paddingTop: 6 }}>
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
@@ -3128,12 +3128,12 @@ export default function EventDetailScreen() {
 
         {/* ═══ DESCRIPTION / VIBE ═══ */}
         {event.description && (
-          <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginTop: 4, marginBottom: 20 }}>
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginTop: 6, marginBottom: 20 }}>
             <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.6, marginBottom: 10, textTransform: "uppercase" }}>
               About
             </Text>
             <Text
-              style={{ fontSize: 16, lineHeight: 25, color: colors.text, letterSpacing: 0.05 }}
+              style={{ fontSize: 15, lineHeight: 24, color: colors.text, letterSpacing: 0.05 }}
               numberOfLines={descriptionExpanded ? undefined : 4}
             >
               {event.description}
