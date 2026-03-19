@@ -54,6 +54,10 @@ import {
   getInvalidateAfterEventDelete,
 } from "@/lib/eventQueryKeys";
 import { circleKeys } from "@/lib/circleQueryKeys";
+import { ALL_THEME_IDS, EVENT_THEMES, isPremiumTheme, isValidThemeId, type ThemeId } from "@/lib/eventThemes";
+import { usePremiumStatusContract } from "@/lib/entitlements";
+import { useSubscription } from "@/lib/SubscriptionContext";
+import { Lock } from "@/ui/icons";
 
 // Comprehensive emoji preset list - frequently used, well-supported across devices
 const EMOJI_OPTIONS = [
@@ -115,6 +119,12 @@ export default function EditEventScreen() {
   const [bringListItems, setBringListItems] = useState<string[]>([]);
   const [bringListInput, setBringListInput] = useState("");
 
+  // Event Themes V1
+  const [selectedThemeId, setSelectedThemeId] = useState<ThemeId | null>(null);
+  const premiumStatus = usePremiumStatusContract();
+  const { isPro: userIsPro } = premiumStatus;
+  const { openPaywall } = useSubscription();
+
   // Fetch event data
   const { data: myEventsData } = useQuery({
     queryKey: eventKeys.mine(),
@@ -161,6 +171,11 @@ export default function EditEventScreen() {
       if (event.bringListEnabled && event.bringListItems && event.bringListItems.length > 0) {
         setBringListEnabled(true);
         setBringListItems(event.bringListItems.map((i: { label: string }) => i.label));
+      }
+      // Load Event Theme
+      const evtThemeId = (event as any).themeId;
+      if (isValidThemeId(evtThemeId)) {
+        setSelectedThemeId(evtThemeId);
       }
       setIsLoaded(true);
     }
@@ -285,6 +300,8 @@ export default function EditEventScreen() {
           label,
         })),
       } : { bringListEnabled: false }),
+      // Event Themes V1
+      themeId: selectedThemeId ?? null,
     });
   };
 
@@ -435,6 +452,57 @@ export default function EditEventScreen() {
                 </ScrollView>
               </View>
             )}
+          </Animated.View>
+
+          {/* Event Theme Picker V1 */}
+          <Animated.View entering={FadeInDown.delay(25).springify()}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500", marginBottom: 8, marginTop: 4 }}>Event Theme</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 16 }}>
+              <View style={{ flexDirection: "row", gap: 8, paddingRight: 16 }}>
+                {ALL_THEME_IDS.map((tid) => {
+                  const t = EVENT_THEMES[tid];
+                  const selected = selectedThemeId === tid;
+                  const premium = isPremiumTheme(tid);
+                  const locked = premium && !userIsPro;
+                  return (
+                    <Pressable
+                      key={tid}
+                      onPress={() => {
+                        if (locked) {
+                          openPaywall?.({ source: "theme_picker" });
+                          return;
+                        }
+                        Haptics.selectionAsync();
+                        setSelectedThemeId(selected ? null : tid);
+                      }}
+                      style={{
+                        width: 72,
+                        alignItems: "center",
+                        paddingVertical: 10,
+                        paddingHorizontal: 4,
+                        borderRadius: 14,
+                        borderWidth: selected ? 2 : 1,
+                        borderColor: selected ? t.backAccent : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                        backgroundColor: selected
+                          ? (isDark ? `${t.backAccent}18` : `${t.backAccent}0C`)
+                          : (isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)"),
+                        opacity: locked ? 0.65 : 1,
+                      }}
+                    >
+                      <Text style={{ fontSize: 22, marginBottom: 4 }}>{t.swatch}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: "600", color: selected ? t.backAccent : colors.textSecondary, textAlign: "center" }} numberOfLines={1}>
+                        {t.label}
+                      </Text>
+                      {locked && (
+                        <View style={{ position: "absolute", top: 4, right: 4 }}>
+                          <Lock size={10} color={colors.textTertiary} />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </Animated.View>
 
           {/* Title */}

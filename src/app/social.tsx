@@ -341,7 +341,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 +{(event as EventSeries).occurrenceCount - 1} more
               </Text>
             )}
-            {!isSeries && (
+            {!isSeries && (isOwn || displayEvent.user?.name) && (
               <View className="flex-row items-center mt-1">
                 <EntityAvatar
                   photoUrl={displayImage}
@@ -354,7 +354,7 @@ function EventCard({ event, index, isOwn, themeColor, isDark, colors, userImage,
                 />
                 {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
                 <Text style={{ color: colors.textSecondary }} className="text-sm">
-                  {isOwn ? "Your event" : displayEvent.user?.name ?? "Someone"}
+                  {isOwn ? "Your event" : displayEvent.user?.name}
                 </Text>
               </View>
             )}

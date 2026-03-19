@@ -64,6 +64,8 @@ export const eventSchema = z.object({
   summaryRating: z.number().nullable().optional(), // 1-5 star rating
   summaryNotifiedAt: z.string().nullable().optional(), // When host was notified
   reflectionEnabled: z.boolean().optional(), // Whether to prompt for reflection after event (default false)
+  // Event Themes V1
+  themeId: z.string().nullable().optional(),
   userId: z.string(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -192,6 +194,8 @@ export const createEventRequestSchema = z.object({
   // Event cover photo (optional, uploaded before create)
   eventPhotoUrl: z.string().optional(),
   eventPhotoPublicId: z.string().optional(),
+  // Event Themes V1
+  themeId: z.string().nullable().optional(),
 });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
 export const createEventResponseSchema = z.object({
