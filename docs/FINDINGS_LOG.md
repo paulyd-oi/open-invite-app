@@ -1,5 +1,19 @@
 # Findings Log — Frontend
 
+## Live Activity Auto-On V1 — Focus-Based Auto-Start (2026-03-19)
+
+### Finding
+Live Activity auto-start was previously RSVP-trigger-only (status change to "going"). Users who were already RSVP'd going had to manually toggle via the event actions sheet. This meant most returning users never saw the Lock Screen countdown.
+
+### Change
+Added a `useFocusEffect` in event/[id].tsx that silently starts a Live Activity when the screen gains focus, using a tighter 60-minute eligibility window (vs 4h for RSVP trigger). The auto-start is gated on: iOS platform, liveActivitySupported, no existing active activity, user is host or going, event within 60min/ongoing, and user hasn't manually dismissed this session.
+
+### Session-Scoped Dismiss
+`liveActivityManuallyDismissed` ref (not state) prevents auto-restart after manual toggle-off. Resets on manual toggle-on. Session-scoped (not persisted) so fresh app opens can re-auto-start.
+
+### Placement Note
+The auto-start `useFocusEffect` is placed late in the component (just before `return`) because it depends on derived variables (`event`, `isMyEvent`, `myRsvpStatus`, `effectiveGoingCount`, `locationDisplay`) that are declared mid-component. TypeScript enforces block-scoped variable ordering.
+
 ## Hermes Enablement V2 — Native File Preservation (2026-03-19)
 
 ### Finding
