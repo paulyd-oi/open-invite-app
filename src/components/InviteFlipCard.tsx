@@ -346,8 +346,8 @@ export function InviteFlipCard({
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
                 backgroundColor: themedCardBg,
-                borderWidth: explicitTheme ? 1.5 : 0,
-                borderColor: explicitTheme ? `${backAccent}30` : "transparent",
+                borderWidth: explicitTheme ? 2 : 0,
+                borderColor: explicitTheme ? `${backAccent}40` : "transparent",
               }}
             >
               {imageUri ? (
@@ -361,7 +361,7 @@ export function InviteFlipCard({
                     priority="high"
                   />
 
-                  {/* Gradient overlay — theme-tinted mid zone + dark scrim bottom */}
+                  {/* Gradient overlay — dark scrim for readability */}
                   <LinearGradient
                     colors={[
                       explicitTheme ? `${backAccent}28` : "rgba(0,0,0,0.15)",
@@ -380,6 +380,21 @@ export function InviteFlipCard({
                       bottom: 0,
                     }}
                   />
+
+                  {/* Theme bottom wash — opaque accent survives strong photos */}
+                  {explicitTheme && (
+                    <LinearGradient
+                      colors={["transparent", `${backAccent}3A`]}
+                      locations={[0.35, 1]}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                      }}
+                    />
+                  )}
 
                   {/* ── Top-left: countdown chip (frosted glass) ── */}
                   {countdownLabel && (
@@ -402,7 +417,7 @@ export function InviteFlipCard({
                             countdownLabel === "Happening now"
                               ? "rgba(34,197,94,0.3)"
                               : explicitTheme
-                                ? `${backAccent}35`
+                                ? `${backAccent}50`
                                 : "rgba(0,0,0,0.25)",
                         }}
                       >
@@ -457,6 +472,31 @@ export function InviteFlipCard({
                       paddingBottom: 22,
                     }}
                   >
+                    {/* Theme label stamp — opaque surface the photo can't overpower */}
+                    {explicitTheme && explicitTheme.label !== "Classic" && (
+                      <View style={{
+                        backgroundColor: `${backAccent}65`,
+                        paddingHorizontal: 10,
+                        paddingVertical: 3,
+                        borderRadius: 8,
+                        alignSelf: "flex-start",
+                        marginBottom: 8,
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: "800",
+                          color: "#FFFFFF",
+                          letterSpacing: 1.2,
+                          textTransform: "uppercase",
+                          textShadowColor: "rgba(0,0,0,0.4)",
+                          textShadowOffset: { width: 0, height: 1 },
+                          textShadowRadius: 3,
+                        }}>
+                          {explicitTheme.label}
+                        </Text>
+                      </View>
+                    )}
+
                     {/* Host attribution */}
                     {hostName && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>

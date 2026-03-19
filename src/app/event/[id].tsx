@@ -2401,6 +2401,18 @@ export default function EventDetailScreen() {
                 locations={[0, 0.25, 0.7, 1]}
                 style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
               />
+              {/* Theme tint wash over photo backdrop */}
+              {(() => {
+                const et = resolveEventTheme(event.themeId);
+                const tint = et ? (isDark ? et.pageTintDark : et.pageTintLight) : undefined;
+                return tint && tint !== "transparent" ? (
+                  <LinearGradient
+                    colors={[tint, "transparent"]}
+                    locations={[0, 0.65]}
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                  />
+                ) : null;
+              })()}
             </View>
           ) : (
             /* No-photo: warmer gradient atmosphere (theme-aware) */

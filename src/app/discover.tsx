@@ -670,6 +670,14 @@ export default function DiscoverScreen() {
                             locations={[0, 0.18, 0.42, 0.70, 1]}
                             style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "75%" }}
                           />
+                          {/* Theme bottom wash — accent color layer for photo cards */}
+                          {cardAccent && (
+                            <LinearGradient
+                              colors={["transparent", `${cardAccent}3A`]}
+                              locations={[0.35, 1]}
+                              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                            />
+                          )}
 
                           {/* Overlay content */}
                           <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
