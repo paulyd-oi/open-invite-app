@@ -2567,33 +2567,21 @@ export default function EventDetailScreen() {
 
         {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
         <Animated.View entering={FadeInDown.delay(55).springify()}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-              <EventVisibilityBadge
-                visibility={event.visibility}
-                circleId={event.circleId}
-                isBusy={event.isBusy}
-                circleName={event.circleName}
-                eventId={event.id}
-                surface="event_detail"
-                isDark={isDark}
-              />
-              {liveChipText && (
-                <View style={{ marginLeft: 8, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: ET.chipTone }}>
-                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
-                </View>
-              )}
-            </View>
-            {/* Share button */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (event) shareEvent({ ...event, location: locationDisplay ?? null });
-              }}
-              style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderWidth: 0.5, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
-            >
-              <Share2 size={18} color={colors.textSecondary} />
-            </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 }}>
+            <EventVisibilityBadge
+              visibility={event.visibility}
+              circleId={event.circleId}
+              isBusy={event.isBusy}
+              circleName={event.circleName}
+              eventId={event.id}
+              surface="event_detail"
+              isDark={isDark}
+            />
+            {liveChipText && (
+              <View style={{ marginLeft: 8, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: ET.chipTone }}>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -2910,7 +2898,6 @@ export default function EventDetailScreen() {
           const now = Date.now();
           const hoursUntil = (startMs - now) / (1000 * 60 * 60);
           const startsSoon = hoursUntil > 0 && hoursUntil <= 4;
-          const hasStarted = hoursUntil <= 0;
 
           type TurnoutState = { label: string; tone: "going" | "soon" | "warning" | "neutral" };
           let turnout: TurnoutState;
@@ -2937,44 +2924,6 @@ export default function EventDetailScreen() {
             : turnout.tone === "warning" ? STATUS.soon.bgSoft
             : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)");
 
-          // ── Next best action logic — one nudge at a time ──
-          let nextAction: { text: string; actionLabel?: string; action?: () => void } | null = null;
-
-          if (hasStarted) {
-            // Event already started — no turnout nudge
-            nextAction = null;
-          } else if (effectiveGoingCount < 3 && startsSoon) {
-            nextAction = {
-              text: "Event starts soon — share to rally the group",
-              actionLabel: "Share",
-              action: () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
-                shareEvent({ ...event, location: locationDisplay ?? null });
-              },
-            };
-          } else if (effectiveGoingCount < 3) {
-            nextAction = {
-              text: "Share your event to get the group together",
-              actionLabel: "Share",
-              action: () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                trackInviteShared({ entity: "event", sourceScreen: "host_nudge" });
-                shareEvent({ ...event, location: locationDisplay ?? null });
-              },
-            };
-          } else if (startsSoon && effectiveGoingCount >= 3 && effectiveGoingCount < 10) {
-            nextAction = {
-              text: "Event starts soon — send a quick reminder",
-            };
-          } else if (hasBringList && bringClaimed < bringItems.length && bringItems.length - bringClaimed >= 2) {
-            nextAction = {
-              text: `${bringItems.length - bringClaimed} items still unclaimed — remind guests to help`,
-            };
-          } else if (eventMeta.isFull) {
-            nextAction = { text: "You\u2019re full — looking great" };
-          }
-
           // ── Build reminder text ──
           const eventTitle = event.title ?? "the event";
           const eventLink = getEventUniversalLink(event.id);
@@ -2983,143 +2932,109 @@ export default function EventDetailScreen() {
             : `${eventTitle} is coming up soon. You in? ${eventLink}`;
 
           return (
-            <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginBottom: 18 }}>
-              <View style={{
-                borderRadius: RADIUS.lg,
-                backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
-                borderWidth: 0.5,
-                borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
-                padding: 14,
-              }}>
-                {/* Section title */}
-                <Text style={{ fontSize: 13, fontWeight: "700", color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>
-                  Host tools
-                </Text>
-
-                {/* ── Turnout status row ── */}
-                <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  {/* Turnout badge */}
-                  <View style={{
-                    flexDirection: "row", alignItems: "center",
-                    backgroundColor: turnoutBg,
-                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
-                  }}>
-                    <Users size={12} color={turnoutColor} />
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: turnoutColor, marginLeft: 4 }}>
-                      {effectiveGoingCount} going
-                    </Text>
-                    <Text style={{ fontSize: 12, color: turnoutColor, marginLeft: 2 }}>
-                      {" \u00B7 "}{turnout.label}
-                    </Text>
-                  </View>
-                  {spotsLeft !== null && !eventMeta.isFull && (
-                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>
-                      {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
-                    </Text>
-                  )}
-                  {pendingRequests > 0 && (
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS.soon.fg, marginRight: 4 }} />
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg }}>
-                        {pendingRequests} pending
-                      </Text>
-                    </View>
-                  )}
+            <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginBottom: 16 }}>
+              {/* ── Turnout status + pending ── */}
+              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <View style={{
+                  flexDirection: "row", alignItems: "center",
+                  backgroundColor: turnoutBg,
+                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+                }}>
+                  <Users size={12} color={turnoutColor} />
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: turnoutColor, marginLeft: 4 }}>
+                    {effectiveGoingCount} going
+                  </Text>
+                  <Text style={{ fontSize: 12, color: turnoutColor, marginLeft: 2 }}>
+                    {" \u00B7 "}{turnout.label}
+                  </Text>
                 </View>
-
-                {/* ── Next best action nudge ── */}
-                {nextAction && (
-                  <View style={{
-                    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-                    backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.025)",
-                    borderRadius: RADIUS.md, padding: 10, marginBottom: 14,
-                  }}>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1, lineHeight: 16 }} numberOfLines={2}>
-                      {nextAction.text}
-                    </Text>
-                    {nextAction.actionLabel && nextAction.action && (
-                      <Pressable
-                        onPress={nextAction.action}
-                        style={{
-                          marginLeft: 10, paddingHorizontal: 12, paddingVertical: 6,
-                          borderRadius: RADIUS.sm, backgroundColor: themeColor,
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: "#FFFFFF" }}>{nextAction.actionLabel}</Text>
-                      </Pressable>
-                    )}
-                  </View>
+                {spotsLeft !== null && !eventMeta.isFull && (
+                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+                    {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
+                  </Text>
                 )}
-
-                {/* ── Quick actions ── */}
-                <View style={{ flexDirection: "row", gap: 8, marginBottom: 14 }}>
-                  {/* Share */}
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
-                      shareEvent({ ...event, location: locationDisplay ?? null });
-                    }}
-                    style={{
-                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      paddingVertical: 10, borderRadius: RADIUS.md,
-                      backgroundColor: themeColor,
-                    }}
-                  >
-                    <Share2 size={14} color="#FFFFFF" />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
-                  </Pressable>
-                  {/* Copy reminder */}
-                  <Pressable
-                    onPress={async () => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      try { await Clipboard.setStringAsync(reminderText); } catch {}
-                      safeToast.success("Reminder copied");
-                    }}
-                    style={{
-                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      paddingVertical: 10, borderRadius: RADIUS.md,
-                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                    }}
-                  >
-                    <Copy size={14} color={colors.text} />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Reminder</Text>
-                  </Pressable>
-                  {/* Edit */}
-                  <Pressable
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      router.push(`/event/edit/${id}`);
-                    }}
-                    style={{
-                      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-                      paddingVertical: 10, borderRadius: RADIUS.md,
-                      backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                    }}
-                  >
-                    <Pencil size={14} color={colors.text} />
-                    <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Edit</Text>
-                  </Pressable>
-                </View>
-
-                {/* ── Coordination summaries ── */}
-                {hasBringList && (
-                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
-                    <ListChecks size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
-                      What to bring: {bringClaimed}/{bringItems.length} claimed
-                    </Text>
-                  </View>
-                )}
-                {hasPitchIn && (
-                  <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
-                    <HandCoins size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
-                      Pitch In: {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : ""} @{event.pitchInHandle}
+                {pendingRequests > 0 && (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS.soon.fg, marginRight: 4 }} />
+                    <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg }}>
+                      {pendingRequests} pending
                     </Text>
                   </View>
                 )}
               </View>
+
+              {/* ── Compact action row ── */}
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {/* Share */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    trackInviteShared({ entity: "event", sourceScreen: "host_tools" });
+                    shareEvent({ ...event, location: locationDisplay ?? null });
+                  }}
+                  style={{
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    paddingVertical: 10, borderRadius: RADIUS.md,
+                    backgroundColor: themeColor,
+                  }}
+                >
+                  <Share2 size={14} color="#FFFFFF" />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: "#FFFFFF", marginLeft: 6 }}>Share</Text>
+                </Pressable>
+                {/* Copy reminder */}
+                <Pressable
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    try { await Clipboard.setStringAsync(reminderText); } catch {}
+                    safeToast.success("Reminder copied");
+                  }}
+                  style={{
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    paddingVertical: 10, borderRadius: RADIUS.md,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  }}
+                >
+                  <Copy size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Reminder</Text>
+                </Pressable>
+                {/* Edit */}
+                <Pressable
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    router.push(`/event/edit/${id}`);
+                  }}
+                  style={{
+                    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+                    paddingVertical: 10, borderRadius: RADIUS.md,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  }}
+                >
+                  <Pencil size={14} color={colors.text} />
+                  <Text style={{ fontSize: 13, fontWeight: "600", color: colors.text, marginLeft: 6 }}>Edit</Text>
+                </Pressable>
+              </View>
+
+              {/* ── Coordination summaries ── */}
+              {(hasBringList || hasPitchIn) && (
+                <View style={{ marginTop: 10 }}>
+                  {hasBringList && (
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
+                      <ListChecks size={13} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                        What to bring: {bringClaimed}/{bringItems.length} claimed
+                      </Text>
+                    </View>
+                  )}
+                  {hasPitchIn && (
+                    <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6 }}>
+                      <HandCoins size={13} color={colors.textSecondary} />
+                      <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>
+                        Pitch In: {event.pitchInMethod === "venmo" ? "Venmo" : event.pitchInMethod === "cashapp" ? "Cash App" : event.pitchInMethod === "paypal" ? "PayPal" : ""} @{event.pitchInHandle}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </Animated.View>
           );
         })()}

@@ -83,6 +83,7 @@
 - Busy event details: Shows "Only self" for visibility, hides Post-event reflection section
 - Friend profile badge: Uses embedded featuredBadge from friend data, fallback query if not embedded
 - InviteFlipCard premium polish: Deeper shadow (opacity 0.22, radius 36), smoother flip (480ms, refined bezier), host attribution on front face (photo + no-photo), larger title (32px), richer gradient overlay, bigger avatars (28px), refined back face (theme-colored host ring, divider before social proof, consistent 38px icon boxes). Card-to-actions transition tightened (reduced dead space below card).
+- Host tools cleanup: Removed "Host tools" heading, removed next-best-action nudge row, removed floating share circle below card. Host actions (Share/Reminder/Edit) remain as one compact action row with turnout badge above. Coordination summaries (bring list, pitch in) preserved inline.
 
 ## Unstable / Regressions
 - None currently known
