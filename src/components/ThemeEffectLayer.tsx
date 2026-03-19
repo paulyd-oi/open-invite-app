@@ -348,7 +348,7 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   const { width, height } = useWindowDimensions();
 
   const theme = resolveEventTheme(themeId);
-  const presetId = theme?.effectPreset as EffectPresetId | undefined;
+  const presetId = theme.effectPreset as EffectPresetId | undefined;
   const config = presetId && presetId in EFFECT_CONFIGS
     ? EFFECT_CONFIGS[presetId]
     : null;

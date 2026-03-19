@@ -4,7 +4,7 @@
  * 10 themes: 5 basic (free) + 5 premium (Pro).
  * Each theme defines minimal styling tokens for flip card + page chrome.
  *
- * Priority: explicit event.themeId > inferred vibe fallback.
+ * Priority: explicit event.themeId > neutral fallback.
  * Proof tag: [EVENT_THEMES_V1_SSOT]
  */
 
@@ -201,11 +201,11 @@ export function isPremiumTheme(id: ThemeId): boolean {
 
 /**
  * Resolve theme tokens for an event.
- * Priority: explicit themeId > null (returns null for legacy fallback).
+ * Priority: explicit themeId > neutral fallback.
  */
-export function resolveEventTheme(themeId: string | null | undefined): EventThemeTokens | null {
+export function resolveEventTheme(themeId: string | null | undefined): EventThemeTokens {
   if (isValidThemeId(themeId)) {
     return EVENT_THEMES[themeId];
   }
-  return null;
+  return EVENT_THEMES.neutral;
 }

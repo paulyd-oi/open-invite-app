@@ -609,10 +609,8 @@ export default function DiscoverScreen() {
                 // [AVAILABILITY_V1] Availability chip for this card
                 const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
                 const cardTheme = resolveEventTheme(event.themeId);
-                const cardAccent = cardTheme?.backAccent;
-                const plaqueBg = cardTheme
-                  ? (isDark ? cardTheme.backBgDark : cardTheme.backBgLight)
-                  : (isDark ? "#1C1C1E" : "#FAF9F7");
+                const cardAccent = cardTheme.backAccent;
+                const plaqueBg = isDark ? cardTheme.backBgDark : cardTheme.backBgLight;
 
                 return (
                   <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
