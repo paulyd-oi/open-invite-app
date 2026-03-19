@@ -82,7 +82,6 @@
 - Busy blocks render grey: ALL isBusy events (self-created or masked) render grey in calendar month grid + day list
 - Busy event details: Shows "Only self" for visibility, hides Post-event reflection section
 - Friend profile badge: Uses embedded featuredBadge from friend data, fallback query if not embedded
-- Event detail immersive hero: InviteFlipCard replaced with edge-to-edge EventHero component (src/components/EventHero.tsx). Photo variant: full-bleed image at ~115% screen width, gradient overlays, embedded metadata (host, title, date, location, social proof). No-photo variant: atmospheric gradient with emoji at ~85% screen width. Nav bar overlaid on hero. No flip interaction — back-face details surfaced inline in page body. Hero fades seamlessly into page background.
 
 ## Unstable / Regressions
 - None currently known
