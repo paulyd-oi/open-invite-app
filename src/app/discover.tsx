@@ -24,6 +24,7 @@ import {
   Check,
   Bookmark,
   ChevronRight,
+  Calendar,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp, FadeOutUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -143,7 +144,7 @@ export default function DiscoverScreen() {
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("events");
   const [eventSort, setEventSort] = useState<EventSort>("popular");
-  const [chromeHeight, setChromeHeight] = useState<number>(0);
+  const [chromeHeight, setChromeHeight] = useState<number>(160);
   const queryClient = useQueryClient();
 
   // ── For You: save state + toast ──
@@ -517,7 +518,7 @@ export default function DiscoverScreen() {
               data={activeFeed}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 12, paddingBottom: 100 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 16, paddingBottom: 100 }}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}
@@ -609,6 +610,9 @@ export default function DiscoverScreen() {
                 const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
                 const cardTheme = resolveEventTheme(event.themeId);
                 const cardAccent = cardTheme?.backAccent;
+                const plaqueBg = cardTheme
+                  ? (isDark ? cardTheme.backBgDark : cardTheme.backBgLight)
+                  : (isDark ? "#1C1C1E" : "#FAF9F7");
 
                 return (
                   <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
@@ -618,210 +622,199 @@ export default function DiscoverScreen() {
                       style={{
                         borderRadius: RADIUS.xl,
                         overflow: "hidden",
-                        backgroundColor: colors.surface,
+                        backgroundColor: plaqueBg,
                         borderWidth: cardAccent ? 1.5 : 1,
                         borderColor: cardAccent ? `${cardAccent}30` : colors.borderSubtle,
                         ...tileShadow,
                       }}
                     >
-                      {/* Save toggle — card-level overlay */}
-                      <Pressable
-                        testID="discover-card-save"
-                        disabled={saved || saveMutation.isPending}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          saveMutation.mutate(event.id);
-                        }}
-                        hitSlop={10}
-                        style={{
-                          position: "absolute",
-                          top: 10,
-                          right: 10,
-                          zIndex: 999,
-                          width: 38,
-                          height: 38,
-                          borderRadius: 19,
-                          alignItems: "center",
-                          justifyContent: "center",
-                          backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
-                          borderWidth: saved ? 1.5 : 0,
-                          borderColor: saved ? STATUS.interested.fg : "transparent",
-                          opacity: saveMutation.isPending ? 0.5 : 1,
-                        }}
-                      >
-                        <Heart
-                          size={18}
-                          color={saved ? STATUS.interested.fg : "#FFFFFF"}
-                        />
-                      </Pressable>
-
-                      {/* Hero image */}
-                      <View>
-                        <View style={{ aspectRatio: 4 / 3 }}>
-                          {hasPhoto ? (
-                            <ExpoImage
-                              source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
-                              style={{ width: "100%", height: "100%" }}
-                              contentFit="cover"
-                              cachePolicy="memory-disk"
-                              transition={200}
-                            />
-                          ) : (
-                            <View
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                backgroundColor: cardTheme
-                                  ? (isDark ? cardTheme.backBgDark : cardTheme.backBgLight)
-                                  : isDark ? "#2C2C2E" : "#FFF7ED",
-                              }}
-                            >
-                              <Text style={{ fontSize: 56 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
-                            </View>
-                          )}
-
-                          {/* Gradient overlay — theme-tinted scrim for text zone */}
-                          <LinearGradient
-                            colors={[
-                              cardTheme ? `${cardAccent}18` : "rgba(0,0,0,0.0)",
-                              cardTheme ? cardTheme.gradientTint : "rgba(0,0,0,0.03)",
-                              cardTheme ? cardTheme.gradientTint : "rgba(0,0,0,0.25)",
-                              "rgba(0,0,0,0.65)",
-                              "rgba(0,0,0,0.88)",
-                            ]}
-                            locations={[0, 0.18, 0.42, 0.70, 1]}
-                            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "75%" }}
+                      {/* ── Photo zone ── */}
+                      <View style={{ aspectRatio: 2, position: "relative" }}>
+                        {hasPhoto ? (
+                          <ExpoImage
+                            source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
+                            style={{ width: "100%", height: "100%" }}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
                           />
-                          {/* Theme bottom wash — accent color layer for photo cards */}
-                          {cardAccent && (
-                            <LinearGradient
-                              colors={["transparent", `${cardAccent}3A`]}
-                              locations={[0.35, 1]}
-                              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-                            />
-                          )}
+                        ) : (
+                          <View
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              backgroundColor: cardTheme
+                                ? (isDark ? cardTheme.pageTintDark : cardTheme.pageTintLight)
+                                : isDark ? "#2C2C2E" : "#FFF7ED",
+                            }}
+                          >
+                            <Text style={{ fontSize: 48 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
+                          </View>
+                        )}
 
-                          {/* Overlay content */}
-                          <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
-                            <Text
-                              style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", lineHeight: 26, textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }}
-                              numberOfLines={2}
-                            >
-                              {event.emoji} {event.title}
+                        {/* Light vignette at top for save button readability */}
+                        <LinearGradient
+                          colors={["rgba(0,0,0,0.35)", "transparent"]}
+                          locations={[0, 0.6]}
+                          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 60 }}
+                        />
+
+                        {/* Save toggle — photo zone overlay */}
+                        <Pressable
+                          testID="discover-card-save"
+                          disabled={saved || saveMutation.isPending}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            saveMutation.mutate(event.id);
+                          }}
+                          hitSlop={10}
+                          style={{
+                            position: "absolute",
+                            top: 10,
+                            right: 10,
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
+                            borderWidth: saved ? 1.5 : 0,
+                            borderColor: saved ? STATUS.interested.fg : "transparent",
+                            opacity: saveMutation.isPending ? 0.5 : 1,
+                          }}
+                        >
+                          <Heart
+                            size={17}
+                            color={saved ? STATUS.interested.fg : "#FFFFFF"}
+                          />
+                        </Pressable>
+
+                        {/* Urgency chip — photo zone */}
+                        {urgency.label ? (
+                          <View style={{
+                            position: "absolute",
+                            top: 10,
+                            left: 10,
+                            backgroundColor: urgency.tone === "soon"
+                              ? STATUS.soon.bgSoft
+                              : cardAccent ? `${cardAccent}50` : "rgba(0,0,0,0.25)",
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 8,
+                          }}>
+                            <Text style={{
+                              fontSize: 11,
+                              fontWeight: "700",
+                              color: urgency.tone === "soon" ? STATUS.soon.fg : "#FFFFFF",
+                            }}>
+                              {urgency.label}
                             </Text>
-                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
-                              <Clock size={13} color="rgba(255,255,255,0.8)" />
-                              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginLeft: 5, fontWeight: "500", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
-                                {dateStr} at {timeStr}
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {/* ── Plaque — solid themed surface ── */}
+                      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}>
+                        {/* Theme label pill */}
+                        {cardTheme && cardTheme.label !== "Classic" && (
+                          <View style={{
+                            backgroundColor: `${cardAccent}18`,
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            borderRadius: 6,
+                            alignSelf: "flex-start",
+                            marginBottom: 6,
+                          }}>
+                            <Text style={{
+                              fontSize: 9,
+                              fontWeight: "800",
+                              color: cardAccent,
+                              letterSpacing: 1,
+                              textTransform: "uppercase",
+                            }}>
+                              {cardTheme.label}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* Title */}
+                        <Text
+                          style={{ color: colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 }}
+                          numberOfLines={2}
+                        >
+                          {event.emoji} {event.title}
+                        </Text>
+
+                        {/* Date + Time */}
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+                          <Calendar size={13} color={cardAccent ?? colors.textSecondary} />
+                          <Text style={{ color: colors.textSecondary, fontSize: 13, marginLeft: 5, fontWeight: "500" }}>
+                            {dateStr} at {timeStr}
+                          </Text>
+                        </View>
+
+                        {/* Social proof + chips row */}
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, flexWrap: "wrap", gap: 4 }}>
+                          {/* Momentum-aware attendance */}
+                          {(() => {
+                            const count = event.attendeeCount ?? 0;
+                            const cap = event.capacity ?? null;
+                            if (count === 0) return (
+                              <View style={{
+                                backgroundColor: cardAccent ? `${cardAccent}15` : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
+                                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                              }}>
+                                <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textTertiary }}>
+                                  Be the first to join
+                                </Text>
+                              </View>
+                            );
+                            let label: string;
+                            if (cap && count >= cap) {
+                              label = `${count} going · Full`;
+                            } else if (count >= 10) {
+                              label = `${count} going · Popular`;
+                            } else if (count >= 5) {
+                              label = `${count} going · Filling up`;
+                            } else {
+                              label = `${count} going`;
+                            }
+                            return (
+                              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                <Users size={12} color={STATUS.going.fg} />
+                                <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
+                                  {label}
+                                </Text>
+                              </View>
+                            );
+                          })()}
+                          {almostFull && (
+                            <View style={{
+                              backgroundColor: STATUS.soon.bgSoft,
+                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                            }}>
+                              <Text style={{ fontSize: 11, fontWeight: "700", color: STATUS.soon.fg }}>
+                                {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
                               </Text>
                             </View>
-                            {event.location && (
-                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
-                                <MapPin size={13} color="rgba(255,255,255,0.7)" />
-                                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginLeft: 5, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1}>
-                                  {event.location}
-                                </Text>
-                              </View>
-                            )}
-                            {/* [SOCIAL_PROOF_V2] Host line — only when real name available */}
-                            {hostName && (
-                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                                <EntityAvatar
-                                  photoUrl={event.user?.image}
-                                  initials={event.user?.name?.[0] ?? "?"}
-                                  size={22}
-                                  backgroundColor="rgba(255,255,255,0.2)"
-                                  foregroundColor="#FFFFFF"
-                                />
-                                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500", marginLeft: 6, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
-                                  Hosted by {hostName}
-                                </Text>
-                              </View>
-                            )}
-
-                            {/* [SOCIAL_PROOF_V2] Momentum + chips row */}
-                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, flexWrap: "wrap", gap: 4 }}>
-                              {/* Momentum-aware attendance copy */}
-                              {(() => {
-                                const count = event.attendeeCount ?? 0;
-                                const cap = event.capacity ?? null;
-                                // No attendees — early traction cue
-                                if (count === 0) return (
-                                  <View style={{ backgroundColor: "rgba(255,255,255,0.12)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
-                                    <Text style={{ fontSize: 11, fontWeight: "600", color: "rgba(255,255,255,0.7)" }}>
-                                      Be the first to join
-                                    </Text>
-                                  </View>
-                                );
-                                // Build momentum copy
-                                let label: string;
-                                if (cap && count >= cap) {
-                                  label = `${count} going · Full`;
-                                } else if (count >= 10) {
-                                  label = `${count} going · Popular`;
-                                } else if (count >= 5) {
-                                  label = `${count} going · Filling up`;
-                                } else {
-                                  label = `${count} going`;
-                                }
-                                return (
-                                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                    <Users size={12} color={STATUS.going.fg} />
-                                    <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
-                                      {label}
-                                    </Text>
-                                  </View>
-                                );
-                              })()}
-                              {urgency.label ? (
-                                <View style={{
-                                  backgroundColor: urgency.tone === "soon" ? STATUS.soon.bgSoft : "rgba(255,255,255,0.15)",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: 8,
-                                }}>
-                                  <Text style={{
-                                    fontSize: 11,
-                                    fontWeight: "700",
-                                    color: urgency.tone === "soon" ? STATUS.soon.fg : "rgba(255,255,255,0.8)",
-                                  }}>
-                                    {urgency.label}
-                                  </Text>
-                                </View>
-                              ) : null}
-                              {almostFull && (
-                                <View style={{
-                                  backgroundColor: STATUS.soon.bgSoft,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: 8,
-                                }}>
-                                  <Text style={{ fontSize: 11, fontWeight: "700", color: STATUS.soon.fg }}>
-                                    {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
-                                  </Text>
-                                </View>
-                              )}
-                              {/* [AVAILABILITY_V1] Calendar-fit chip */}
-                              {availChip && (
-                                <View style={{
-                                  backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : "rgba(255,255,255,0.15)",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: 8,
-                                }}>
-                                  <Text style={{
-                                    fontSize: 11,
-                                    fontWeight: "600",
-                                    color: availChip.tone ? STATUS[availChip.tone].fg : "rgba(255,255,255,0.8)",
-                                  }}>
-                                    {availChip.label}
-                                  </Text>
-                                </View>
-                              )}
+                          )}
+                          {/* [AVAILABILITY_V1] Calendar-fit chip */}
+                          {availChip && (
+                            <View style={{
+                              backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
+                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+                            }}>
+                              <Text style={{
+                                fontSize: 11,
+                                fontWeight: "600",
+                                color: availChip.tone ? STATUS[availChip.tone].fg : colors.textSecondary,
+                              }}>
+                                {availChip.label}
+                              </Text>
                             </View>
-                          </View>
+                          )}
                         </View>
                       </View>
                     </Pressable>
