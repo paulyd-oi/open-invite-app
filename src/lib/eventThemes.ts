@@ -52,6 +52,8 @@ export interface EventThemeTokens {
   pageTintLight: string;
   /** Chip/badge accent */
   chipAccent: string;
+  /** Ambient effect preset identifier (null = no effect) */
+  effectPreset?: string | null;
 }
 
 // ─── Theme Catalog ───────────────────────────────────────
@@ -117,6 +119,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(156,124,99,0.20)",
     pageTintLight: "rgba(156,124,99,0.10)",
     chipAccent: "#9C7C63",
+    effectPreset: "ambient_dust",
   },
 
   // ── Premium (Pro) ──
@@ -155,6 +158,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(100,149,237,0.30)",
     pageTintLight: "rgba(100,149,237,0.18)",
     chipAccent: "#6495ED",
+    effectPreset: "snowfall",
   },
   game_day: {
     label: "Game Day",

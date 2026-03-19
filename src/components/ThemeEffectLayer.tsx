@@ -1,33 +1,30 @@
 /**
  * ThemeEffectLayer — Ambient particle effects for themed event pages.
  *
- * V1 engine: supports per-theme effect presets with configurable
- * particle behavior (direction, speed, palette, density, sway).
+ * V1 engine powered by @shopify/react-native-skia Canvas.
+ * GPU-accelerated particle rendering with soft-edged circles.
  *
  * Active effects:
  *   worship_night → warm candlelight dust drifting upward
  *   winter_glow   → soft snowfall drifting downward
  *
+ * Effect preset mapping lives in eventThemes.ts (effectPreset field).
  * Renders behind the card (absolutely positioned in the atmospheric zone).
  * Returns null for themes with no effect or when reduced motion is enabled.
  *
- * Uses react-native-reanimated for animation (no external deps).
  * Proof tag: [THEME_EFFECT_ENGINE_V1]
  */
 
 import React, { memo, useMemo } from "react";
-import { View, StyleSheet } from "react-native";
-import Animated, {
+import { StyleSheet, useWindowDimensions } from "react-native";
+import { Canvas, Circle, Group, BlurMask } from "@shopify/react-native-skia";
+import {
+  useDerivedValue,
   useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  withDelay,
-  withSequence,
-  Easing,
+  useFrameCallback,
   useReducedMotion,
 } from "react-native-reanimated";
-import type { ThemeId } from "@/lib/eventThemes";
+import { resolveEventTheme } from "@/lib/eventThemes";
 
 // ─── Effect preset config ────────────────────────────────────
 
@@ -37,19 +34,18 @@ interface EffectConfig {
   maxSize: number;
   minOpacity: number;
   maxOpacity: number;
-  /** Milliseconds for one full vertical cycle */
-  minDuration: number;
-  maxDuration: number;
-  /** Horizontal sway range in points */
-  swayRange: number;
+  /** Pixels per second — vertical drift speed range */
+  minSpeed: number;
+  maxSpeed: number;
+  /** Horizontal sway amplitude in points */
+  swayAmplitude: number;
+  /** Sway period range in seconds */
+  minSwayPeriod: number;
+  maxSwayPeriod: number;
   /** +1 = fall down, -1 = rise up */
   direction: 1 | -1;
-  /** Vertical travel distance in points */
-  travelDistance: number;
-  /** Max stagger delay for initial start (ms) */
-  staggerMs: number;
-  /** Fade-in duration (ms) */
-  fadeInMs: number;
+  /** Blur sigma for soft edges (0 = sharp) */
+  blurSigma: number;
   colors: string[];
 }
 
@@ -62,13 +58,13 @@ const EFFECT_CONFIGS = {
     maxSize: 6,
     minOpacity: 0.15,
     maxOpacity: 0.45,
-    minDuration: 8000,
-    maxDuration: 15000,
-    swayRange: 30,
+    minSpeed: 12,
+    maxSpeed: 25,
+    swayAmplitude: 30,
+    minSwayPeriod: 4,
+    maxSwayPeriod: 8,
     direction: -1,
-    travelDistance: 600,
-    staggerMs: 4000,
-    fadeInMs: 2000,
+    blurSigma: 1.5,
     colors: [
       "rgba(255, 244, 220, 1)", // warm white
       "rgba(255, 223, 170, 1)", // soft gold
@@ -77,18 +73,18 @@ const EFFECT_CONFIGS = {
     ],
   },
   snowfall: {
-    particleCount: 28,
+    particleCount: 40,
     minSize: 3,
     maxSize: 8,
-    minOpacity: 0.2,
-    maxOpacity: 0.55,
-    minDuration: 10000,
-    maxDuration: 18000,
-    swayRange: 45,
+    minOpacity: 0.3,
+    maxOpacity: 0.7,
+    minSpeed: 18,
+    maxSpeed: 40,
+    swayAmplitude: 35,
+    minSwayPeriod: 3,
+    maxSwayPeriod: 6,
     direction: 1,
-    travelDistance: 700,
-    staggerMs: 5000,
-    fadeInMs: 2500,
+    blurSigma: 2,
     colors: [
       "rgba(255, 255, 255, 1)",   // pure white
       "rgba(230, 240, 255, 1)",   // ice blue
@@ -100,123 +96,133 @@ const EFFECT_CONFIGS = {
 
 type EffectPresetId = keyof typeof EFFECT_CONFIGS;
 
-// ─── Theme → effect mapping ─────────────────────────────────
-
-const THEME_EFFECTS: Partial<Record<ThemeId, EffectPresetId>> = {
-  worship_night: "ambient_dust",
-  winter_glow: "snowfall",
-};
-
-// ─── Particle seed ──────────────────────────────────────────
+// ─── Particle state ─────────────────────────────────────────
 
 interface ParticleSeed {
   x: number;
-  startY: number;
-  size: number;
+  y: number;
+  radius: number;
   opacity: number;
-  duration: number;
-  delay: number;
-  swayAmount: number;
+  speed: number;
+  swayAmplitude: number;
+  swayPeriod: number;
+  swayOffset: number;
   color: string;
 }
 
-function seedParticles(config: EffectConfig): ParticleSeed[] {
+function seedParticles(config: EffectConfig, width: number, height: number): ParticleSeed[] {
   const particles: ParticleSeed[] = [];
   for (let i = 0; i < config.particleCount; i++) {
-    const rand = () => Math.random();
+    const r = Math.random;
     particles.push({
-      x: rand(),
-      startY: rand(),
-      size: config.minSize + rand() * (config.maxSize - config.minSize),
-      opacity: config.minOpacity + rand() * (config.maxOpacity - config.minOpacity),
-      duration: config.minDuration + rand() * (config.maxDuration - config.minDuration),
-      delay: rand() * config.staggerMs,
-      swayAmount: (rand() - 0.5) * 2 * config.swayRange,
-      color: config.colors[Math.floor(rand() * config.colors.length)],
+      x: r() * width,
+      y: r() * height,
+      radius: config.minSize + r() * (config.maxSize - config.minSize),
+      opacity: config.minOpacity + r() * (config.maxOpacity - config.minOpacity),
+      speed: config.minSpeed + r() * (config.maxSpeed - config.minSpeed),
+      swayAmplitude: (0.4 + r() * 0.6) * config.swayAmplitude,
+      swayPeriod: config.minSwayPeriod + r() * (config.maxSwayPeriod - config.minSwayPeriod),
+      swayOffset: r() * Math.PI * 2,
+      color: config.colors[Math.floor(r() * config.colors.length)],
     });
   }
   return particles;
 }
 
-// ─── Single particle ────────────────────────────────────────
+// ─── Single animated particle ───────────────────────────────
 
-const Particle = memo(function Particle({
+const SkiaParticle = memo(function SkiaParticle({
+  index,
   seed,
-  config,
+  particles,
+  elapsed,
+  blurSigma,
 }: {
+  index: number;
   seed: ParticleSeed;
-  config: EffectConfig;
+  particles: { value: ParticleSeed[] };
+  elapsed: { value: number };
+  blurSigma: number;
 }) {
-  const translateY = useSharedValue(0);
-  const translateX = useSharedValue(0);
-  const particleOpacity = useSharedValue(0);
+  const cx = useDerivedValue(() => {
+    const p = particles.value[index];
+    if (!p) return 0;
+    const sway = Math.sin(
+      elapsed.value * (Math.PI * 2 / p.swayPeriod) + p.swayOffset
+    ) * p.swayAmplitude;
+    return p.x + sway;
+  });
 
-  React.useEffect(() => {
-    // Vertical drift: direction determines up (-1) or down (+1)
-    translateY.value = withDelay(
-      seed.delay,
-      withRepeat(
-        withTiming(config.direction * 1.2, {
-          duration: seed.duration,
-          easing: Easing.linear,
-        }),
-        -1,
-        false
-      )
-    );
-
-    // Horizontal sway
-    translateX.value = withDelay(
-      seed.delay,
-      withRepeat(
-        withSequence(
-          withTiming(seed.swayAmount, {
-            duration: seed.duration * 0.5,
-            easing: Easing.inOut(Easing.sin),
-          }),
-          withTiming(-seed.swayAmount, {
-            duration: seed.duration * 0.5,
-            easing: Easing.inOut(Easing.sin),
-          })
-        ),
-        -1,
-        true
-      )
-    );
-
-    // Fade in gently
-    particleOpacity.value = withDelay(
-      seed.delay,
-      withTiming(seed.opacity, {
-        duration: config.fadeInMs,
-        easing: Easing.out(Easing.quad),
-      })
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: particleOpacity.value,
-    transform: [
-      { translateY: translateY.value * config.travelDistance },
-      { translateX: translateX.value },
-    ],
-  }));
+  const cy = useDerivedValue(() => {
+    return particles.value[index]?.y ?? 0;
+  });
 
   return (
-    <Animated.View
-      style={[
-        {
-          position: "absolute",
-          left: `${seed.x * 100}%` as any,
-          top: `${seed.startY * 100}%` as any,
-          width: seed.size,
-          height: seed.size,
-          borderRadius: seed.size / 2,
-          backgroundColor: seed.color,
-        },
-        animatedStyle,
-      ]}
-    />
+    <Circle
+      cx={cx}
+      cy={cy}
+      r={seed.radius}
+      color={seed.color}
+      opacity={seed.opacity}
+    >
+      <BlurMask blur={blurSigma} />
+    </Circle>
+  );
+});
+
+// ─── Animated particle field ────────────────────────────────
+
+const ParticleField = memo(function ParticleField({
+  config,
+  width,
+  height,
+}: {
+  config: EffectConfig;
+  width: number;
+  height: number;
+}) {
+  const initialSeeds = useMemo(
+    () => seedParticles(config, width, height),
+    [config, width, height]
+  );
+
+  const particles = useSharedValue(initialSeeds);
+  const elapsed = useSharedValue(0);
+
+  useFrameCallback((frameInfo) => {
+    "worklet";
+    const dt = (frameInfo.timeSincePreviousFrame ?? 16) / 1000;
+    elapsed.value += dt;
+
+    const updated = particles.value.map((p) => {
+      let newY = p.y + p.speed * config.direction * dt;
+
+      // Respawn at opposite edge when leaving bounds
+      if (config.direction === 1 && newY > height + p.radius * 2) {
+        newY = -p.radius * 2;
+      } else if (config.direction === -1 && newY < -p.radius * 2) {
+        newY = height + p.radius * 2;
+      }
+
+      return { ...p, y: newY };
+    });
+
+    particles.value = updated;
+  });
+
+  return (
+    <Group>
+      {initialSeeds.map((seed, i) => (
+        <SkiaParticle
+          key={i}
+          index={i}
+          seed={seed}
+          particles={particles}
+          elapsed={elapsed}
+          blurSigma={config.blurSigma}
+        />
+      ))}
+    </Group>
   );
 });
 
@@ -230,32 +236,25 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
+  const { width, height } = useWindowDimensions();
 
-  const presetId = themeId
-    ? THEME_EFFECTS[themeId as ThemeId] ?? null
+  const theme = resolveEventTheme(themeId);
+  const presetId = theme?.effectPreset as EffectPresetId | undefined;
+  const config = presetId && presetId in EFFECT_CONFIGS
+    ? EFFECT_CONFIGS[presetId]
     : null;
-
-  const config = presetId ? EFFECT_CONFIGS[presetId] : null;
-
-  const particles = useMemo(
-    () => (config ? seedParticles(config) : []),
-    [config]
-  );
 
   if (!config || reducedMotion) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
-      {particles.map((seed, i) => (
-        <Particle key={i} seed={seed} config={config} />
-      ))}
-    </View>
+    <Canvas style={styles.container} pointerEvents="none">
+      <ParticleField config={config} width={width} height={height} />
+    </Canvas>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    overflow: "hidden",
   },
 });
