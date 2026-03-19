@@ -556,7 +556,7 @@ export function InviteFlipCard({
                   </View>
                 </>
               ) : (
-                /* ── No-photo: atmospheric emoji poster ── */
+                /* ── No-photo: invitation poster ── */
                 <>
                   <LinearGradient
                     colors={(explicitTheme
@@ -574,109 +574,78 @@ export function InviteFlipCard({
                   <View
                     style={{
                       flex: 1,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      paddingHorizontal: 26,
+                      justifyContent: "space-between",
+                      paddingHorizontal: 24,
                       paddingTop: 28,
+                      paddingBottom: 24,
                     }}
                   >
-                    {/* Vibe label */}
-                    {ct.vibeLabel && (
-                      <Text style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        letterSpacing: 1.5,
-                        textTransform: "uppercase",
-                        color: explicitTheme
-                          ? `${backAccent}90`
-                          : isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.22)",
-                        marginBottom: 16,
-                      }}>
-                        {ct.vibeLabel}
-                      </Text>
-                    )}
-
-                    <Text style={{ fontSize: 72, marginBottom: 18 }}>{emoji}</Text>
-                    <Text
-                      style={{
-                        fontSize: 30,
-                        fontWeight: "800",
-                        color: colors.text,
-                        textAlign: "center",
-                        letterSpacing: -0.7,
-                        lineHeight: 36,
-                        marginBottom: 14,
-                      }}
-                      numberOfLines={3}
-                    >
-                      {title}
-                    </Text>
-
-                    {/* Host attribution */}
-                    {hostName && (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)", overflow: "hidden" }}>
-                          <EntityAvatar
-                            photoUrl={hostImageUrl}
-                            initials={hostName?.[0] ?? "?"}
-                            size={22}
-                            backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
-                            foregroundColor={colors.textSecondary}
-                          />
+                    {/* ── Poster top: theme label + emoji + title ── */}
+                    <View>
+                      {/* Theme label pill */}
+                      {explicitTheme && ct.vibeLabel && explicitTheme.label !== "Classic" && (
+                        <View style={{
+                          backgroundColor: `${backAccent}18`,
+                          paddingHorizontal: 10,
+                          paddingVertical: 3,
+                          borderRadius: 8,
+                          alignSelf: "flex-start",
+                          marginBottom: 16,
+                        }}>
+                          <Text style={{
+                            fontSize: 10,
+                            fontWeight: "800",
+                            color: backAccent,
+                            letterSpacing: 1.2,
+                            textTransform: "uppercase",
+                          }}>
+                            {explicitTheme.label}
+                          </Text>
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginLeft: 7 }}>
-                          {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
-                        </Text>
-                      </View>
-                    )}
+                      )}
 
-                    {countdownLabel && (
-                      <View
+                      <Text style={{ fontSize: 56, marginBottom: 14 }}>{emoji}</Text>
+
+                      <Text
                         style={{
-                          backgroundColor:
-                            countdownLabel === "Happening now"
-                              ? STATUS.going.bgSoft
-                              : explicitTheme
-                                ? `${backAccent}18`
-                                : isDark
-                                  ? "rgba(255,255,255,0.08)"
-                                  : "rgba(0,0,0,0.04)",
-                          paddingHorizontal: 14,
-                          paddingVertical: 6,
-                          borderRadius: 12,
-                          marginBottom: 12,
+                          fontSize: 32,
+                          fontWeight: "800",
+                          color: colors.text,
+                          letterSpacing: -0.8,
+                          lineHeight: 38,
                         }}
+                        numberOfLines={3}
                       >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: "600",
-                            color:
-                              countdownLabel === "Happening now"
-                                ? STATUS.going.fg
-                                : colors.textSecondary,
-                            letterSpacing: 0.3,
-                          }}
-                        >
-                          {countdownLabel}
-                        </Text>
-                      </View>
-                    )}
+                        {title}
+                      </Text>
+                    </View>
 
-                    {/* Date + location */}
-                    <View style={{ alignItems: "center", gap: 5, marginBottom: 12 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Calendar size={13} color={colors.textSecondary} />
+                    {/* ── Poster bottom: details ── */}
+                    <View>
+                      {/* Accent divider */}
+                      <View style={{
+                        width: 32,
+                        height: 3,
+                        borderRadius: 1.5,
+                        backgroundColor: explicitTheme ? `${backAccent}50` : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"),
+                        marginBottom: 14,
+                      }} />
+
+                      {/* Date + Time */}
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                        <Calendar size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
                         <Text
-                          style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "500" }}
+                          style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "600" }}
                           numberOfLines={1}
                         >
                           {compactDate} · {timeLabel}
                         </Text>
                       </View>
+
+                      {/* Location */}
                       {locationDisplay && (
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <MapPin size={13} color={colors.textSecondary} />
+                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                          <MapPin size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
                           <Text
                             style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "500" }}
                             numberOfLines={1}
@@ -685,21 +654,71 @@ export function InviteFlipCard({
                           </Text>
                         </View>
                       )}
-                    </View>
 
-                    {/* Social proof */}
-                    {goingCount > 0 ? (
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Users size={14} color={STATUS.going.fg} />
-                        <Text style={{ fontSize: 14, fontWeight: "600", color: STATUS.going.fg, marginLeft: 6 }}>
-                          {goingCount} going
-                        </Text>
+                      {/* Host attribution */}
+                      {hostName && (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+                          <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: explicitTheme ? `${backAccent}30` : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"), overflow: "hidden" }}>
+                            <EntityAvatar
+                              photoUrl={hostImageUrl}
+                              initials={hostName?.[0] ?? "?"}
+                              size={22}
+                              backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
+                              foregroundColor={explicitTheme ? backAccent : colors.textSecondary}
+                            />
+                          </View>
+                          <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginLeft: 7 }}>
+                            {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
+                          </Text>
+                        </View>
+                      )}
+
+                      {/* Social proof + countdown */}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        {goingCount > 0 ? (
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <Users size={13} color={STATUS.going.fg} />
+                            <Text style={{ fontSize: 13, fontWeight: "600", color: STATUS.going.fg, marginLeft: 5 }}>
+                              {goingCount} going
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={{ fontSize: 12, color: colors.textTertiary }}>
+                            Be the first to join
+                          </Text>
+                        )}
+                        {countdownLabel && (
+                          <View
+                            style={{
+                              backgroundColor:
+                                countdownLabel === "Happening now"
+                                  ? STATUS.going.bgSoft
+                                  : explicitTheme
+                                    ? `${backAccent}18`
+                                    : isDark
+                                      ? "rgba(255,255,255,0.08)"
+                                      : "rgba(0,0,0,0.04)",
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 10,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: "600",
+                                color:
+                                  countdownLabel === "Happening now"
+                                    ? STATUS.going.fg
+                                    : colors.textSecondary,
+                              }}
+                            >
+                              {countdownLabel}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    ) : (
-                      <Text style={{ fontSize: 13, color: colors.textTertiary }}>
-                        Be the first to join
-                      </Text>
-                    )}
+                    </View>
                   </View>
                 </>
               )}
