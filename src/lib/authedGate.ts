@@ -49,14 +49,21 @@ interface SessionHookResult {
  *
  * @param bootStatus - Current boot authority status
  * @param session - Session data OR useSession() hook result
+ * @param options - Optional configuration
+ * @param options.allowOnboarding - If true, onboarding state may pass the gate (for friend discovery during onboarding flow)
  * @returns true if safe to make authed network calls
  */
 export function isAuthedForNetwork(
   bootStatus: BootStatus | string | undefined,
-  session: SessionForGate | SessionHookResult | null | undefined
+  session: SessionForGate | SessionHookResult | null | undefined,
+  options?: { allowOnboarding?: boolean }
 ): boolean {
-  // Must be fully authed
-  if (bootStatus !== "authed") {
+  // Must be fully authed or onboarding (if explicitly allowed)
+  if (bootStatus === "authed") {
+    // Standard authed state - proceed with session validation
+  } else if (bootStatus === "onboarding" && options?.allowOnboarding) {
+    // Onboarding state allowed for specific flows like friend discovery
+  } else {
     return false;
   }
 

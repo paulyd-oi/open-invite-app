@@ -94,20 +94,8 @@ export function FriendDiscoverySurface({
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
 
-  // *** LOCAL AUTH CHECK - Allow both authed and onboarding states ***
-  // Friend discovery works during onboarding since it's part of the onboarding flow
-  const isAuthedOrOnboarding = (bootStatus: string | undefined, session: any): boolean => {
-    // Must be authed or onboarding (user authenticated but flow incomplete)
-    if (bootStatus !== "authed" && bootStatus !== "onboarding") {
-      return false;
-    }
-
-    // Must have valid session with user ID
-    const sessionUserId = session?.user?.id;
-    return !!sessionUserId;
-  };
-
-  const enabled = isAuthedOrOnboarding(bootStatus, session);
+  // Use canonical auth gate with onboarding allowance for friend discovery flow
+  const enabled = isAuthedForNetwork(bootStatus, session, { allowOnboarding: true });
   const themeColor = "#3B82F6";
 
   // *** PROOF LOG: Always log enabled state - PRODUCTION VISIBLE ***
