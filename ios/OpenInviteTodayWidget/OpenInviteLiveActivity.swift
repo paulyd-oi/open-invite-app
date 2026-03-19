@@ -2,8 +2,9 @@
 //  OpenInviteLiveActivity.swift
 //  OpenInviteTodayWidget
 //
-//  Live Activity V2 for tracking an active event on the Lock Screen
-//  and Dynamic Island. Two-line layout with emoji, attendance, and location.
+//  Live Activity V3 — premium themed Lock Screen and Dynamic Island.
+//  Dark gradient background with theme accent tint, status pill,
+//  dominant title, and clean metadata hierarchy.
 //
 //  Countdown uses Text(timerInterval:countsDown:) — the OS clock drives
 //  the display. No app updates needed to keep the timer ticking.
@@ -32,99 +33,162 @@ struct OpenInviteLiveActivity: Widget {
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(alignment: .center, spacing: 2) {
+                    VStack(alignment: .center, spacing: 3) {
                         Text(context.attributes.eventTitle)
-                            .font(.headline)
+                            .font(.system(.headline, design: .rounded))
+                            .fontWeight(.semibold)
                             .lineLimit(1)
                         expandedCountdown(context: context)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        if let loc = context.attributes.locationName {
+                            Text(loc)
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if let loc = context.attributes.locationName {
-                        Text(loc)
-                            .font(.caption2)
-                            .lineLimit(1)
-                            .foregroundStyle(.secondary)
+                    if context.state.goingCount > 0 {
+                        Text("\(context.state.goingCount)")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.medium)
+                            .foregroundStyle(context.attributes.accentColor)
                             .padding(.trailing, 4)
                     }
                 }
             } compactLeading: {
                 emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
             } compactTrailing: {
-                compactCountdown(context: context)
+                compactCountdown(context: context, accent: context.attributes.accentColor)
             } minimal: {
                 emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
             }
         }
     }
 
-    // MARK: - Lock Screen View (V2 — two-line hierarchy)
+    // MARK: - Lock Screen View (V3 — premium themed card)
 
     @ViewBuilder
     private func lockScreenView(context: ActivityViewContext<OpenInviteEventAttributes>) -> some View {
+        let accent = context.attributes.accentColor
+
         Link(destination: URL(string: "open-invite://event/\(context.attributes.eventId)")!) {
-            HStack(spacing: 12) {
-                // Left: emoji badge or status dot
-                emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        Circle()
-                            .fill(context.state.rsvpStatus == "going" ? Color.green.opacity(0.15) : Color.orange.opacity(0.15))
-                    )
-
-                // Center: two-line info
-                VStack(alignment: .leading, spacing: 3) {
-                    // Line 1: Event title
-                    Text(context.attributes.eventTitle)
-                        .font(.system(.headline, design: .rounded))
-                        .fontWeight(.semibold)
-                        .lineLimit(1)
-                        .foregroundStyle(.white)
-
-                    // Line 2: Status + location + attendance
-                    if context.state.ended {
-                        Text("Event ended")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        HStack(spacing: 6) {
-                            liveCountdown(startDate: context.attributes.startDate)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-
-                            if let loc = context.attributes.locationName {
-                                Text("•")
-                                    .foregroundStyle(.tertiary)
-                                Text(loc)
-                                    .lineLimit(1)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            if context.state.goingCount > 0 {
-                                Text("•")
-                                    .foregroundStyle(.tertiary)
-                                Text("\(context.state.goingCount) going")
-                                    .font(.subheadline)
-                                    .foregroundStyle(Color.green)
-                            }
-                        }
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                // Row 1: Status pill
+                HStack {
+                    statusPill(context: context, accent: accent)
+                    Spacer(minLength: 0)
+                    // Emoji badge (top-right)
+                    emojiOrDot(emoji: context.attributes.emoji, status: context.state.rsvpStatus)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            Circle()
+                                .fill(accent.opacity(0.15))
+                        )
                 }
 
-                Spacer(minLength: 0)
+                // Row 2: Event title (dominant)
+                Text(context.attributes.eventTitle)
+                    .font(.system(.title3, design: .rounded))
+                    .fontWeight(.bold)
+                    .lineLimit(2)
+                    .foregroundStyle(.white)
 
-                // Right: chevron indicator
-                Image(systemName: "chevron.right.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.6))
+                // Row 3: Secondary metadata
+                HStack(spacing: 6) {
+                    if let loc = context.attributes.locationName {
+                        Image(systemName: "mappin")
+                            .font(.caption2)
+                            .foregroundStyle(accent.opacity(0.8))
+                        Text(loc)
+                            .lineLimit(1)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+
+                    if context.state.goingCount > 0 {
+                        if context.attributes.locationName != nil {
+                            Text("·")
+                                .foregroundStyle(.white.opacity(0.35))
+                        }
+                        Image(systemName: "person.2.fill")
+                            .font(.caption2)
+                            .foregroundStyle(accent.opacity(0.8))
+                        Text("\(context.state.goingCount) going")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                // Dark gradient with theme accent tint at top
+                LinearGradient(
+                    colors: [
+                        accent.opacity(0.18),
+                        Color.black.opacity(0.85),
+                        Color.black.opacity(0.92)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
         }
-        .activityBackgroundTint(.black.opacity(0.8))
+        .activityBackgroundTint(.black)
+    }
+
+    // MARK: - Status Pill
+
+    @ViewBuilder
+    private func statusPill(context: ActivityViewContext<OpenInviteEventAttributes>, accent: Color) -> some View {
+        if context.state.ended {
+            pillLabel(text: "Ended", accent: .white.opacity(0.5))
+        } else if context.attributes.startDate > Date.now {
+            // Future: show countdown in pill
+            HStack(spacing: 4) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(timerInterval: Date.now...context.attributes.startDate, countsDown: true)
+                    .monospacedDigit()
+                    .font(.system(.caption2, design: .rounded))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(accent.opacity(0.35), lineWidth: 0.5)
+                    )
+            )
+        } else {
+            pillLabel(text: "Happening now", accent: .green)
+        }
+    }
+
+    @ViewBuilder
+    private func pillLabel(text: String, accent: Color) -> some View {
+        Text(text)
+            .font(.system(.caption2, design: .rounded))
+            .fontWeight(.semibold)
+            .foregroundStyle(accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(accent.opacity(0.35), lineWidth: 0.5)
+                    )
+            )
     }
 
     // MARK: - Emoji or RSVP dot
@@ -141,36 +205,23 @@ struct OpenInviteLiveActivity: Widget {
         }
     }
 
-    // MARK: - Live Countdown (OS-driven timer)
-
-    /// Uses Text(timerInterval:countsDown:) — the OS clock auto-decrements
-    /// the display without any app updates. Stops at 0:00 when the event starts.
-    @ViewBuilder
-    private func liveCountdown(startDate: Date) -> some View {
-        if startDate > Date.now {
-            // Future: show live countdown driven by OS clock
-            Text(timerInterval: Date.now...startDate, countsDown: true)
-                .monospacedDigit()
-        } else {
-            // Past start time: show "Happening now" (static until next update)
-            Text("Happening now")
-                .foregroundStyle(.green)
-        }
-    }
-
     // MARK: - Dynamic Island Helpers
 
     @ViewBuilder
     private func expandedCountdown(context: ActivityViewContext<OpenInviteEventAttributes>) -> some View {
         if context.state.ended {
             Text("Ended")
+        } else if context.attributes.startDate > Date.now {
+            Text(timerInterval: Date.now...context.attributes.startDate, countsDown: true)
+                .monospacedDigit()
         } else {
-            liveCountdown(startDate: context.attributes.startDate)
+            Text("Happening now")
+                .foregroundStyle(.green)
         }
     }
 
     @ViewBuilder
-    private func compactCountdown(context: ActivityViewContext<OpenInviteEventAttributes>) -> some View {
+    private func compactCountdown(context: ActivityViewContext<OpenInviteEventAttributes>, accent: Color) -> some View {
         if context.state.ended {
             Text("Done")
                 .font(.caption2)
@@ -181,8 +232,9 @@ struct OpenInviteLiveActivity: Widget {
                 .frame(width: 40)
         } else {
             Text("Now")
-                .font(.caption2)
-                .foregroundStyle(.green)
+                .font(.system(.caption2, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundStyle(accent)
         }
     }
 }

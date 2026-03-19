@@ -33,6 +33,7 @@ interface LiveActivityBridgeModule {
     rsvpStatus: string,
     emoji: string | null,
     goingCount: number,
+    themeAccentColor: string | null,
   ): Promise<{ activityId: string }>;
   updateActivity(
     eventId: string,
@@ -84,6 +85,7 @@ export async function startLiveActivity(params: {
   rsvpStatus: string;
   emoji?: string | null;
   goingCount?: number;
+  themeAccentColor?: string | null;
 }): Promise<boolean> {
   const bridge = getBridge();
   if (!bridge) return false;
@@ -100,6 +102,7 @@ export async function startLiveActivity(params: {
       params.rsvpStatus,
       params.emoji ?? null,
       params.goingCount ?? 0,
+      params.themeAccentColor ?? null,
     );
     devLog(TAG, "Started:", result.activityId);
     return true;

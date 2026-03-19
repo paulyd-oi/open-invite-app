@@ -1,5 +1,19 @@
 # Findings Log — Frontend
 
+## Live Activity Premium UI V1 — Themed Lock Screen Card (2026-03-19)
+
+### Finding
+The original Live Activity Lock Screen was a basic system-style horizontal row (emoji | title+subtitle | chevron) with flat black.opacity(0.8) background. No theme color, no visual hierarchy, no glass effects. The Dynamic Island expanded view showed location in the trailing region with no accent coloring.
+
+### Change
+Lock Screen redesigned to vertical card layout: status pill (glass material + accent border + OS countdown timer), dominant title (.title3 bold rounded), secondary metadata row with SF Symbol icons (mappin, person.2.fill) and going count. Background changed from flat tint to diagonal LinearGradient with theme accent at 18% opacity fading to near-black. Emoji badge moved to top-right with accent-tinted circle background.
+
+### Theme Color Bridge
+Added `themeAccentColor: String?` to OpenInviteEventAttributes (shared between app + widget extension). Hex string parsed to SwiftUI Color with fallback to #FF6B4A (app primary). Bridge extended with one new parameter. JS callers pass `resolveEventTheme(event.themeId).backAccent`. Minimal payload impact — one short string, well within ActivityKit's 4KB dynamic content limit.
+
+### Banner Image Decision
+Plan B (themed gradient without remote image) chosen. ActivityKit widget extensions cannot perform network requests during SwiftUI rendering, and the 4KB payload limit makes base64 image data impractical. The gradient + accent color approach provides visual richness without the complexity.
+
 ## Live Activity Auto-On V1 — Focus-Based Auto-Start (2026-03-19)
 
 ### Finding

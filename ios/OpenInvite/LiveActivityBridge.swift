@@ -28,6 +28,7 @@ class LiveActivityBridge: NSObject {
         rsvpStatus: String,
         emoji: String?,
         goingCount: Int,
+        themeAccentColor: String?,
         resolver resolve: @escaping RCTPromiseResolveBlock,
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
@@ -53,7 +54,8 @@ class LiveActivityBridge: NSObject {
             eventTitle: eventTitle,
             startTimeEpoch: startTimeEpoch,
             locationName: locationName,
-            emoji: emoji
+            emoji: emoji,
+            themeAccentColor: themeAccentColor
         )
 
         let state = OpenInviteEventAttributes.ContentState(
