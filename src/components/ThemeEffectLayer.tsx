@@ -245,7 +245,7 @@ interface ThemeEffectLayerProps {
 
 export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
-  fadeHeight = 150,
+  fadeHeight = 80,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
