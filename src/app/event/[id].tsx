@@ -137,6 +137,7 @@ import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTrans
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { resolveEventTheme } from "@/lib/eventThemes";
+import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2432,6 +2433,9 @@ export default function EventDetailScreen() {
               );
             })()
           )}
+
+          {/* Ambient theme effect — behind card and nav, on top of canvas */}
+          <ThemeEffectLayer themeId={event.themeId} />
 
           {/* Nav bar — glass-effect over atmosphere */}
           <View style={{
