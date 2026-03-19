@@ -28,6 +28,7 @@ import { MapPin, Calendar, Users, RefreshCw, FileText } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { RADIUS } from "@/ui/layout";
 import { STATUS } from "@/ui/tokens";
+import { resolveEventTheme } from "@/lib/eventThemes";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -73,6 +74,9 @@ export interface InviteFlipCardProps {
   heroFallbackBg: string;
   heroWashColors: readonly string[];
   heroWashLocations: readonly number[];
+
+  // Event Themes V1 — explicit theme overrides inferred vibe
+  themeId?: string | null;
 
   // Host edit button (rendered on front)
   editButton?: React.ReactNode;
@@ -249,14 +253,27 @@ export function InviteFlipCard({
   heroFallbackBg,
   heroWashColors,
   heroWashLocations,
+  themeId,
   editButton,
   photoNudge,
 }: InviteFlipCardProps) {
   const flipProgress = useSharedValue(0);
 
-  // ── Card theme ──
+  // ── Card theme: explicit themeId wins, then inferred vibe fallback ──
+  const explicitTheme = useMemo(() => resolveEventTheme(themeId), [themeId]);
   const vibe = useMemo(() => inferCardVibe(emoji, title), [emoji, title]);
-  const ct = VIBE_THEMES[vibe];
+  const vibeTokens = VIBE_THEMES[vibe];
+  // Merge: explicit theme overrides vibe tokens
+  const ct = useMemo(() => {
+    if (!explicitTheme) return vibeTokens;
+    return {
+      gradientTint: explicitTheme.gradientTint,
+      backAccent: explicitTheme.backAccent,
+      backBgDark: explicitTheme.backBgDark,
+      backBgLight: explicitTheme.backBgLight,
+      vibeLabel: explicitTheme.vibeLabel,
+    };
+  }, [explicitTheme, vibeTokens]);
   const backAccent = ct.backAccent || themeColor;
 
   const handleFlip = useCallback(() => {

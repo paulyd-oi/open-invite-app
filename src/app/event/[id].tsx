@@ -136,6 +136,7 @@ import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
 import { InviteFlipCard } from "@/components/InviteFlipCard";
+import { resolveEventTheme } from "@/lib/eventThemes";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2402,15 +2403,22 @@ export default function EventDetailScreen() {
               />
             </View>
           ) : (
-            /* No-photo: warmer gradient atmosphere */
-            <LinearGradient
-              colors={isDark
-                ? [`${themeColor}30`, `${themeColor}12`, colors.background]
-                : [`${themeColor}20`, `${themeColor}0A`, colors.background]
-              }
-              locations={[0, 0.4, 1]}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-            />
+            /* No-photo: warmer gradient atmosphere (theme-aware) */
+            (() => {
+              const et = resolveEventTheme((event as any).themeId);
+              const tint = et ? (isDark ? et.pageTintDark : et.pageTintLight) : undefined;
+              const baseTint = tint && tint !== "transparent" ? tint : undefined;
+              return (
+                <LinearGradient
+                  colors={isDark
+                    ? [baseTint ?? `${themeColor}30`, baseTint ? "transparent" : `${themeColor}12`, colors.background]
+                    : [baseTint ?? `${themeColor}20`, baseTint ? "transparent" : `${themeColor}0A`, colors.background]
+                  }
+                  locations={[0, 0.4, 1]}
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                />
+              );
+            })()
           )}
 
           {/* Nav bar — glass-effect over atmosphere */}
@@ -2503,6 +2511,7 @@ export default function EventDetailScreen() {
               heroFallbackBg={ET.heroFallbackBg}
               heroWashColors={ET.heroWashColors}
               heroWashLocations={ET.heroWashLocations}
+              themeId={(event as any).themeId ?? null}
               editButton={
                 isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
                   <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>
