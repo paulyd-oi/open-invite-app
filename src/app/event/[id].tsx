@@ -2599,13 +2599,10 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* ═══ Padded content — RSVP + utility below ═══ */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 6, backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
-
         {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
         {effectiveGoingCount > 0 && attendeesList.length > 0 && (
           <Animated.View entering={FadeInDown.delay(45).springify()}>
-            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 4, paddingTop: 2, paddingBottom: 2 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 2, paddingBottom: 2 }}>
               {attendeesList.slice(0, 3).map((a: AttendeeInfo, i: number) => (
                 <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
                   <EntityAvatar
@@ -2629,7 +2626,7 @@ export default function EventDetailScreen() {
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(80).springify()}>
+          <Animated.View entering={FadeInDown.delay(80).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
             {hasJoinRequest ? (
               <Animated.View entering={FadeInDown.duration(300)}>
                 <View style={{
@@ -2925,43 +2922,15 @@ export default function EventDetailScreen() {
 
         {/* ═══ HOST TOOLS V2 — turnout tools + host guidance ═══ */}
         {isMyEvent && !event?.isBusy && (() => {
-          const pendingRequests = (event?.joinRequests ?? []).filter((r) => r.status === "pending").length;
-          const spotsLeft = eventMeta.capacity != null ? Math.max(0, eventMeta.capacity - effectiveGoingCount) : null;
           const hasBringList = event?.bringListEnabled && (event?.bringListItems ?? []).length > 0;
           const bringItems = event?.bringListItems ?? [];
           const bringClaimed = bringItems.filter((i) => !!i.claimedByUserId).length;
           const hasPitchIn = event?.pitchInEnabled && event?.pitchInHandle;
 
-          // ── Turnout state logic ──
           const startMs = new Date(event.startTime).getTime();
           const now = Date.now();
           const hoursUntil = (startMs - now) / (1000 * 60 * 60);
           const startsSoon = hoursUntil > 0 && hoursUntil <= 4;
-
-          type TurnoutState = { label: string; tone: "going" | "soon" | "warning" | "neutral" };
-          let turnout: TurnoutState;
-          if (eventMeta.isFull) {
-            turnout = { label: "Full", tone: "going" };
-          } else if (spotsLeft !== null && spotsLeft <= 3 && spotsLeft > 0) {
-            turnout = { label: "Nearly full", tone: "going" };
-          } else if (effectiveGoingCount >= 5) {
-            turnout = { label: "Looking good", tone: "going" };
-          } else if (startsSoon && effectiveGoingCount < 3) {
-            turnout = { label: "Needs a boost", tone: "warning" };
-          } else if (effectiveGoingCount < 3) {
-            turnout = { label: "Getting started", tone: "neutral" };
-          } else {
-            turnout = { label: "Building up", tone: "neutral" };
-          }
-
-          const turnoutColor = turnout.tone === "going" ? STATUS.going.fg
-            : turnout.tone === "soon" ? STATUS.soon.fg
-            : turnout.tone === "warning" ? STATUS.soon.fg
-            : colors.textSecondary;
-          const turnoutBg = turnout.tone === "going" ? STATUS.going.bgSoft
-            : turnout.tone === "soon" ? STATUS.soon.bgSoft
-            : turnout.tone === "warning" ? STATUS.soon.bgSoft
-            : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)");
 
           // ── Build reminder text ──
           const eventTitle = event.title ?? "the event";
@@ -2971,37 +2940,7 @@ export default function EventDetailScreen() {
             : `${eventTitle} is coming up soon. You in? ${eventLink}`;
 
           return (
-            <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginBottom: 16 }}>
-              {/* ── Turnout status + pending ── */}
-              <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <View style={{
-                  flexDirection: "row", alignItems: "center",
-                  backgroundColor: turnoutBg,
-                  paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
-                }}>
-                  <Users size={12} color={turnoutColor} />
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: turnoutColor, marginLeft: 4 }}>
-                    {effectiveGoingCount} going
-                  </Text>
-                  <Text style={{ fontSize: 12, color: turnoutColor, marginLeft: 2 }}>
-                    {" \u00B7 "}{turnout.label}
-                  </Text>
-                </View>
-                {spotsLeft !== null && !eventMeta.isFull && (
-                  <Text style={{ fontSize: 12, color: colors.textSecondary }}>
-                    {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
-                  </Text>
-                )}
-                {pendingRequests > 0 && (
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: STATUS.soon.fg, marginRight: 4 }} />
-                    <Text style={{ fontSize: 12, fontWeight: "600", color: STATUS.soon.fg }}>
-                      {pendingRequests} pending
-                    </Text>
-                  </View>
-                )}
-              </View>
-
+            <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 4 }}>
               {/* ── Compact action row ── */}
               <View style={{ flexDirection: "row", gap: 8 }}>
                 {/* Share */}
@@ -3080,9 +3019,12 @@ export default function EventDetailScreen() {
 
         {/* Live Activity CTA moved to overflow menu — see Event Options sheet */}
 
+        {/* ═══ ABOUT CARD — description + details + pitch-in + bring list ═══ */}
+        <View style={{ backgroundColor: colors.background, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12 }}>
+
         {/* ═══ DESCRIPTION / VIBE ═══ */}
         {event.description && (
-          <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginTop: 6, marginBottom: 20 }}>
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginBottom: 16 }}>
             <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.6, marginBottom: 10, textTransform: "uppercase" }}>
               About
             </Text>
@@ -3377,6 +3319,11 @@ export default function EventDetailScreen() {
           );
         })()}
 
+        </View>{/* close About card */}
+
+        {/* ═══ WHO'S COMING CARD ═══ */}
+        <View style={{ backgroundColor: colors.background, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12 }}>
+
         {/* ═══ Who's Coming / Social Proof (Task 4 — reduced card fatigue) ═══ */}
         {(() => {
           // 403 privacy denied: show privacy message
@@ -3605,6 +3552,11 @@ export default function EventDetailScreen() {
             </View>
           </Animated.View>
         )}
+
+        </View>{/* close Who's Coming card */}
+
+        {/* ═══ DISCUSSION CARD ═══ */}
+        <View style={{ backgroundColor: colors.background, borderRadius: 16, padding: 16, marginHorizontal: 16, marginBottom: 12 }}>
 
         {/* Comments Section */}
         <Animated.View entering={FadeInDown.delay(130).springify()}>
@@ -3908,9 +3860,11 @@ export default function EventDetailScreen() {
           );
         })()}
 
+        </View>{/* close Discussion card */}
+
         {/* ═══ [EVENT_LIVE_UI] Collapsed Event Settings ═══ */}
-        <Animated.View entering={FadeInDown.delay(140).springify()}>
-          <View className="rounded-2xl mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+        <Animated.View entering={FadeInDown.delay(140).springify()} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+          <View className="rounded-2xl" style={{ backgroundColor: colors.background, borderRadius: 16, borderWidth: 0 }}>
             <Pressable
               onPress={() => {
                 Haptics.selectionAsync();
@@ -4086,8 +4040,8 @@ export default function EventDetailScreen() {
           if (!hasEnded || (!reflectionEnabled && !hasSummary)) return null;
 
           return (
-            <Animated.View entering={FadeInDown.delay(150).springify()}>
-              <View className="rounded-2xl p-5 mb-4" style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <Animated.View entering={FadeInDown.delay(150).springify()} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+              <View className="rounded-2xl p-5" style={{ backgroundColor: colors.background, borderRadius: 16 }}>
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
                     <NotebookPen size={20} color={themeColor} />
@@ -4171,7 +4125,6 @@ export default function EventDetailScreen() {
           );
         })()}
 
-        </View>{/* close padded content wrapper */}
       </KeyboardAwareScrollView>
 
       {/* Calendar Sync Modal */}
