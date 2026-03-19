@@ -1,14 +1,18 @@
 /**
  * ThemeEffectLayer — Ambient particle effects for themed event pages.
  *
- * POC: worship_night only. Renders warm candlelight dust particles
- * drifting slowly upward with gentle horizontal sway.
+ * V1 engine: supports per-theme effect presets with configurable
+ * particle behavior (direction, speed, palette, density, sway).
+ *
+ * Active effects:
+ *   worship_night → warm candlelight dust drifting upward
+ *   winter_glow   → soft snowfall drifting downward
  *
  * Renders behind the card (absolutely positioned in the atmospheric zone).
  * Returns null for themes with no effect or when reduced motion is enabled.
  *
  * Uses react-native-reanimated for animation (no external deps).
- * Proof tag: [THEME_EFFECT_LAYER_POC]
+ * Proof tag: [THEME_EFFECT_ENGINE_V1]
  */
 
 import React, { memo, useMemo } from "react";
@@ -25,38 +29,89 @@ import Animated, {
 } from "react-native-reanimated";
 import type { ThemeId } from "@/lib/eventThemes";
 
-// ─── Effect registry — only worship_night for this POC ─────
+// ─── Effect preset config ────────────────────────────────────
 
-type EffectPreset = "ambient_dust";
+interface EffectConfig {
+  particleCount: number;
+  minSize: number;
+  maxSize: number;
+  minOpacity: number;
+  maxOpacity: number;
+  /** Milliseconds for one full vertical cycle */
+  minDuration: number;
+  maxDuration: number;
+  /** Horizontal sway range in points */
+  swayRange: number;
+  /** +1 = fall down, -1 = rise up */
+  direction: 1 | -1;
+  /** Vertical travel distance in points */
+  travelDistance: number;
+  /** Max stagger delay for initial start (ms) */
+  staggerMs: number;
+  /** Fade-in duration (ms) */
+  fadeInMs: number;
+  colors: string[];
+}
 
-const THEME_EFFECTS: Partial<Record<ThemeId, EffectPreset>> = {
+// ─── Effect presets ──────────────────────────────────────────
+
+const EFFECT_CONFIGS = {
+  ambient_dust: {
+    particleCount: 20,
+    minSize: 2,
+    maxSize: 6,
+    minOpacity: 0.15,
+    maxOpacity: 0.45,
+    minDuration: 8000,
+    maxDuration: 15000,
+    swayRange: 30,
+    direction: -1,
+    travelDistance: 600,
+    staggerMs: 4000,
+    fadeInMs: 2000,
+    colors: [
+      "rgba(255, 244, 220, 1)", // warm white
+      "rgba(255, 223, 170, 1)", // soft gold
+      "rgba(255, 210, 140, 1)", // amber glow
+      "rgba(240, 200, 150, 1)", // candlelight
+    ],
+  },
+  snowfall: {
+    particleCount: 28,
+    minSize: 3,
+    maxSize: 8,
+    minOpacity: 0.2,
+    maxOpacity: 0.55,
+    minDuration: 10000,
+    maxDuration: 18000,
+    swayRange: 45,
+    direction: 1,
+    travelDistance: 700,
+    staggerMs: 5000,
+    fadeInMs: 2500,
+    colors: [
+      "rgba(255, 255, 255, 1)",   // pure white
+      "rgba(230, 240, 255, 1)",   // ice blue
+      "rgba(210, 225, 250, 1)",   // cool periwinkle
+      "rgba(200, 215, 255, 1)",   // cornflower frost
+    ],
+  },
+} as const satisfies Record<string, EffectConfig>;
+
+type EffectPresetId = keyof typeof EFFECT_CONFIGS;
+
+// ─── Theme → effect mapping ─────────────────────────────────
+
+const THEME_EFFECTS: Partial<Record<ThemeId, EffectPresetId>> = {
   worship_night: "ambient_dust",
+  winter_glow: "snowfall",
 };
 
-// ─── Particle config ────────────────────────────────────────
-
-const PARTICLE_COUNT = 20;
-const MIN_SIZE = 2;
-const MAX_SIZE = 6;
-const MIN_OPACITY = 0.15;
-const MAX_OPACITY = 0.45;
-const MIN_DURATION = 8000;
-const MAX_DURATION = 15000;
-const SWAY_RANGE = 30; // horizontal sway in points
-
-// Warm white to soft gold palette for worship_night
-const PARTICLE_COLORS = [
-  "rgba(255, 244, 220, 1)", // warm white
-  "rgba(255, 223, 170, 1)", // soft gold
-  "rgba(255, 210, 140, 1)", // amber glow
-  "rgba(240, 200, 150, 1)", // candlelight
-];
-
-// ─── Seed a particle's random properties ────────────────────
+// ─── Particle seed ──────────────────────────────────────────
 
 interface ParticleSeed {
-  x: number; // 0-1 fraction of container width
-  startY: number; // 0-1 fraction, starting vertical position
+  x: number;
+  startY: number;
   size: number;
   opacity: number;
   duration: number;
@@ -65,19 +120,19 @@ interface ParticleSeed {
   color: string;
 }
 
-function seedParticles(count: number): ParticleSeed[] {
+function seedParticles(config: EffectConfig): ParticleSeed[] {
   const particles: ParticleSeed[] = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < config.particleCount; i++) {
     const rand = () => Math.random();
     particles.push({
       x: rand(),
-      startY: rand(), // spread across full height initially
-      size: MIN_SIZE + rand() * (MAX_SIZE - MIN_SIZE),
-      opacity: MIN_OPACITY + rand() * (MAX_OPACITY - MIN_OPACITY),
-      duration: MIN_DURATION + rand() * (MAX_DURATION - MIN_DURATION),
-      delay: rand() * 4000, // stagger initial start
-      swayAmount: (rand() - 0.5) * 2 * SWAY_RANGE,
-      color: PARTICLE_COLORS[Math.floor(rand() * PARTICLE_COLORS.length)],
+      startY: rand(),
+      size: config.minSize + rand() * (config.maxSize - config.minSize),
+      opacity: config.minOpacity + rand() * (config.maxOpacity - config.minOpacity),
+      duration: config.minDuration + rand() * (config.maxDuration - config.minDuration),
+      delay: rand() * config.staggerMs,
+      swayAmount: (rand() - 0.5) * 2 * config.swayRange,
+      color: config.colors[Math.floor(rand() * config.colors.length)],
     });
   }
   return particles;
@@ -85,26 +140,32 @@ function seedParticles(count: number): ParticleSeed[] {
 
 // ─── Single particle ────────────────────────────────────────
 
-const Particle = memo(function Particle({ seed }: { seed: ParticleSeed }) {
+const Particle = memo(function Particle({
+  seed,
+  config,
+}: {
+  seed: ParticleSeed;
+  config: EffectConfig;
+}) {
   const translateY = useSharedValue(0);
   const translateX = useSharedValue(0);
   const particleOpacity = useSharedValue(0);
 
   React.useEffect(() => {
-    // Vertical drift: rise from start position to above viewport
+    // Vertical drift: direction determines up (-1) or down (+1)
     translateY.value = withDelay(
       seed.delay,
       withRepeat(
-        withTiming(-1.2, {
+        withTiming(config.direction * 1.2, {
           duration: seed.duration,
           easing: Easing.linear,
         }),
-        -1, // infinite
+        -1,
         false
       )
     );
 
-    // Horizontal sway: gentle back and forth
+    // Horizontal sway
     translateX.value = withDelay(
       seed.delay,
       withRepeat(
@@ -123,11 +184,11 @@ const Particle = memo(function Particle({ seed }: { seed: ParticleSeed }) {
       )
     );
 
-    // Fade in gently, then hold
+    // Fade in gently
     particleOpacity.value = withDelay(
       seed.delay,
       withTiming(seed.opacity, {
-        duration: 2000,
+        duration: config.fadeInMs,
         easing: Easing.out(Easing.quad),
       })
     );
@@ -136,9 +197,7 @@ const Particle = memo(function Particle({ seed }: { seed: ParticleSeed }) {
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: particleOpacity.value,
     transform: [
-      // translateY.value is 0...-1.2 (fraction), multiply by container
-      // We use percentage-based positioning via top/left and translate in points
-      { translateY: translateY.value * 600 },
+      { translateY: translateY.value * config.travelDistance },
       { translateX: translateX.value },
     ],
   }));
@@ -172,22 +231,23 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
 
-  const effectPreset = themeId
+  const presetId = themeId
     ? THEME_EFFECTS[themeId as ThemeId] ?? null
     : null;
 
+  const config = presetId ? EFFECT_CONFIGS[presetId] : null;
+
   const particles = useMemo(
-    () => (effectPreset ? seedParticles(PARTICLE_COUNT) : []),
-    [effectPreset]
+    () => (config ? seedParticles(config) : []),
+    [config]
   );
 
-  // No effect for this theme, or reduced motion enabled
-  if (!effectPreset || reducedMotion) return null;
+  if (!config || reducedMotion) return null;
 
   return (
     <View style={styles.container} pointerEvents="none">
       {particles.map((seed, i) => (
-        <Particle key={i} seed={seed} />
+        <Particle key={i} seed={seed} config={config} />
       ))}
     </View>
   );
