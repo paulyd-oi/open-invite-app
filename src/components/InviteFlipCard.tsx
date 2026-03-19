@@ -346,6 +346,8 @@ export function InviteFlipCard({
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
                 backgroundColor: themedCardBg,
+                borderWidth: explicitTheme ? 1.5 : 0,
+                borderColor: explicitTheme ? `${backAccent}30` : "transparent",
               }}
             >
               {imageUri ? (
@@ -359,17 +361,17 @@ export function InviteFlipCard({
                     priority="high"
                   />
 
-                  {/* Gradient overlay — vibe-tinted bottom for theme warmth */}
+                  {/* Gradient overlay — theme-tinted mid zone + dark scrim bottom */}
                   <LinearGradient
                     colors={[
-                      "rgba(0,0,0,0.15)",
+                      explicitTheme ? `${backAccent}28` : "rgba(0,0,0,0.15)",
                       "transparent",
-                      "transparent",
+                      ct.gradientTint !== "transparent" ? ct.gradientTint : "transparent",
                       ct.gradientTint !== "transparent" ? ct.gradientTint : "rgba(0,0,0,0.35)",
-                      "rgba(0,0,0,0.55)",
+                      "rgba(0,0,0,0.60)",
                       "rgba(0,0,0,0.94)",
                     ]}
-                    locations={[0, 0.08, 0.3, 0.52, 0.68, 1]}
+                    locations={[0, 0.10, 0.34, 0.54, 0.72, 1]}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -534,7 +536,7 @@ export function InviteFlipCard({
                     )}
 
                     {/* Social proof row */}
-                    <View style={{ borderTopWidth: 0.5, borderTopColor: "rgba(255,255,255,0.15)", paddingTop: 12 }}>
+                    <View style={{ borderTopWidth: 0.5, borderTopColor: explicitTheme ? `${backAccent}35` : "rgba(255,255,255,0.15)", paddingTop: 12 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         {visibleAvatars.length > 0 && (
                           <View

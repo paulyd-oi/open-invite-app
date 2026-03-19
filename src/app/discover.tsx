@@ -48,6 +48,7 @@ import { postIdempotent } from "@/lib/idempotencyKey";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { Button } from "@/ui/Button";
 import { STATUS, HERO_GRADIENT } from "@/ui/tokens";
+import { resolveEventTheme } from "@/lib/eventThemes";
 import { RADIUS } from "@/ui/layout";
 import { computeAvailabilityBatch, getAvailabilityChip } from "@/lib/availabilitySignal";
 import type { GetEventsResponse } from "@/shared/contracts";
@@ -109,6 +110,7 @@ interface PopularEvent {
   viewerRsvpStatus?: "going" | "not_going" | "interested" | "maybe" | null;
   createdAt?: string;
   eventPhotoUrl?: string | null;
+  themeId?: string | null;
   joinRequests?: Array<{
     id: string;
     userId: string;
@@ -581,6 +583,8 @@ export default function DiscoverScreen() {
                 const almostFull = spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 3;
                 // [AVAILABILITY_V1] Availability chip for this card
                 const availChip = getAvailabilityChip(availabilityMap.get(event.id) ?? "unknown");
+                const cardTheme = resolveEventTheme(event.themeId);
+                const cardAccent = cardTheme?.backAccent;
 
                 return (
                   <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
@@ -591,8 +595,8 @@ export default function DiscoverScreen() {
                         borderRadius: RADIUS.xl,
                         overflow: "hidden",
                         backgroundColor: colors.surface,
-                        borderWidth: 1,
-                        borderColor: colors.borderSubtle,
+                        borderWidth: cardAccent ? 1.5 : 1,
+                        borderColor: cardAccent ? `${cardAccent}30` : colors.borderSubtle,
                         ...tileShadow,
                       }}
                     >
@@ -645,23 +649,25 @@ export default function DiscoverScreen() {
                                 height: "100%",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED",
+                                backgroundColor: cardTheme
+                                  ? (isDark ? cardTheme.backBgDark : cardTheme.backBgLight)
+                                  : isDark ? "#2C2C2E" : "#FFF7ED",
                               }}
                             >
                               <Text style={{ fontSize: 56 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
                             </View>
                           )}
 
-                          {/* Gradient overlay — readability-safe scrim for text zone */}
+                          {/* Gradient overlay — theme-tinted scrim for text zone */}
                           <LinearGradient
                             colors={[
-                              "rgba(0,0,0,0.0)",
-                              "rgba(0,0,0,0.03)",
-                              "rgba(0,0,0,0.25)",
+                              cardTheme ? `${cardAccent}18` : "rgba(0,0,0,0.0)",
+                              cardTheme ? cardTheme.gradientTint : "rgba(0,0,0,0.03)",
+                              cardTheme ? cardTheme.gradientTint : "rgba(0,0,0,0.25)",
                               "rgba(0,0,0,0.65)",
                               "rgba(0,0,0,0.88)",
                             ]}
-                            locations={[0, 0.15, 0.4, 0.7, 1]}
+                            locations={[0, 0.18, 0.42, 0.70, 1]}
                             style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "75%" }}
                           />
 
