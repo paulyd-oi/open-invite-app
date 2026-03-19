@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
@@ -142,6 +143,7 @@ export default function DiscoverScreen() {
   // ── Lens state ──
   const [lens, setLens] = useState<Lens>("events");
   const [eventSort, setEventSort] = useState<EventSort>("popular");
+  const [chromeHeight, setChromeHeight] = useState<number>(0);
   const queryClient = useQueryClient();
 
   // ── For You: save state + toast ──
@@ -387,67 +389,88 @@ export default function DiscoverScreen() {
 
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
       {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
-      <AppHeader
-        title="Discover"
-        left={<HelpSheet screenKey="discover" config={HELP_SHEETS.discover} />}
-        right={
-          <Button
-            variant="primary"
-            size="sm"
-            label="Create"
-            /* INVARIANT_ALLOW_INLINE_HANDLER */
-            onPress={() => {
-              if (!guardEmailVerification(session)) return;
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push("/create");
-            }}
-          />
-        }
-      />
+      {/* ═══ Floating translucent top chrome ═══ */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ paddingTop: discoverInsets.top, overflow: "hidden" }}
+        >
+          {/* Subtle bottom border for definition */}
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+            {/* Header */}
+            <AppHeader
+              title="Discover"
+              left={<HelpSheet screenKey="discover" config={HELP_SHEETS.discover} />}
+              right={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  label="Create"
+                  /* INVARIANT_ALLOW_INLINE_HANDLER */
+                  onPress={() => {
+                    if (!guardEmailVerification(session)) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push("/create");
+                  }}
+                />
+              }
+            />
 
-      <View className="px-5">
-        {/* ═══ Lens Switcher ═══ */}
-        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-        <View className="flex-row mt-3 rounded-full p-0.5" style={{ backgroundColor: colors.segmentBg }}>
-          {/* INVARIANT_ALLOW_SMALL_MAP */}
-          {LENS_OPTIONS.map((opt) => {
-            const active = lens === opt.key;
-            return (
-              <Pressable
-                key={opt.key}
-                testID={`discover-tab-${opt.key}`}
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => {
-                  if (lens !== opt.key) {
-                    setLens(opt.key);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length });
-                  }
-                }}
-                className="flex-1 items-center py-2 rounded-full"
-                style={active ? { backgroundColor: colors.surface, ...tileShadow } : undefined}
-              >
-                <Text
-                  className={`text-sm ${active ? "font-semibold" : "font-normal"}`}
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ color: active ? themeColor : colors.textTertiary }}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+            <View className="px-5" style={{ paddingBottom: 12 }}>
+              {/* ═══ Lens Switcher ═══ */}
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <View className="flex-row rounded-full p-0.5" style={{ backgroundColor: isDark ? "rgba(44,44,46,0.7)" : "rgba(240,240,240,0.7)" }}>
+                {/* INVARIANT_ALLOW_SMALL_MAP */}
+                {LENS_OPTIONS.map((opt) => {
+                  const active = lens === opt.key;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      testID={`discover-tab-${opt.key}`}
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        if (lens !== opt.key) {
+                          setLens(opt.key);
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          if (__DEV__) devLog("[DISCOVER_LENS]", { lens: opt.key, totalEnriched: enrichedEvents.length });
+                        }
+                      }}
+                      className="flex-1 items-center py-2 rounded-full"
+                      style={active ? { backgroundColor: isDark ? "rgba(58,58,60,0.9)" : "rgba(255,255,255,0.95)", ...tileShadow } : undefined}
+                    >
+                      <Text
+                        className={`text-sm ${active ? "font-semibold" : "font-normal"}`}
+                        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                        style={{ color: active ? themeColor : colors.textTertiary }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </BlurView>
       </View>
 
       {lens === "ideas" ? (
         /* ═══ Ideas Deck ═══ */
-        <DailyIdeasDeck />
+        <View style={{ flex: 1, paddingTop: chromeHeight }}>
+          <DailyIdeasDeck />
+        </View>
       ) : lens === "events" ? (
         /* ═══ Events Feed ═══ */
         <View style={{ flex: 1 }}>
@@ -459,7 +482,7 @@ export default function DiscoverScreen() {
               pointerEvents="box-none"
               style={{
                 position: "absolute",
-                top: 12,
+                top: chromeHeight + 12,
                 left: 0,
                 right: 0,
                 zIndex: 100,
@@ -494,12 +517,13 @@ export default function DiscoverScreen() {
               data={activeFeed}
               keyExtractor={(item) => item.id}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ padding: 20, paddingTop: 12, paddingBottom: 100 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 12, paddingBottom: 100 }}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}
                   onRefresh={onManualRefresh}
                   tintColor={themeColor}
+                  progressViewOffset={chromeHeight}
                 />
               }
               ListHeaderComponent={
@@ -816,7 +840,7 @@ export default function DiscoverScreen() {
             </View>
           ) : savedEventsList.length === 0 ? (
             /* ═══ Saved V2 — Empty State ═══ */
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, paddingTop: chromeHeight }}>
               <View style={{
                 width: 56, height: 56, borderRadius: 28,
                 alignItems: "center", justifyContent: "center",
@@ -856,13 +880,14 @@ export default function DiscoverScreen() {
             /* ═══ Saved V2 — Event List with Time Groups ═══ */
             <ScrollView
               style={{ flex: 1 }}
-              contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 100 }}
+              contentContainerStyle={{ padding: 20, paddingTop: chromeHeight + 8, paddingBottom: 100 }}
               showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl
                   refreshing={isRefreshing}
                   onRefresh={onManualRefresh}
                   tintColor={themeColor}
+                  progressViewOffset={chromeHeight}
                 />
               }
             >
