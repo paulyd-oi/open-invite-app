@@ -91,7 +91,6 @@ import { STATUS, HERO_GRADIENT, HERO_WASH } from "@/ui/tokens";
 import { guardEmailVerification } from "@/lib/emailVerificationGate";
 import { shouldMaskEvent } from "@/lib/eventVisibility";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { EventVisibilityBadge } from "@/components/EventVisibilityBadge";
 import {
   type GetEventsResponse,
   type Event,
@@ -2376,9 +2375,12 @@ export default function EventDetailScreen() {
   const canvasColor = pageTheme ? (isDark ? pageTheme.backBgDark : pageTheme.backBgLight) : colors.background;
 
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={["bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style={isDark ? "light" : "dark"} />
+
+      {/* Full-page particle effect — behind all content */}
+      <ThemeEffectLayer themeId={event.themeId} />
 
       <KeyboardAwareScrollView
         className="flex-1"
@@ -2440,8 +2442,7 @@ export default function EventDetailScreen() {
             })()
           )}
 
-          {/* Ambient theme effect — behind card and nav, on top of canvas */}
-          <ThemeEffectLayer themeId={event.themeId} />
+          {/* Theme effect moved to full-page level (SafeAreaView) */}
 
           {/* Nav bar — glass-effect over atmosphere */}
           <View style={{
@@ -2598,18 +2599,13 @@ export default function EventDetailScreen() {
 
         </View>
 
-        {/* Canvas → content transition — visual overlay, zero net layout space */}
-        <LinearGradient
-          colors={[canvasColor, "transparent"]}
-          locations={[0, 1]}
-          pointerEvents="none"
-          style={{ height: 80, marginBottom: -80, zIndex: 1 }}
-        />
+        {/* ═══ Padded content — RSVP + utility below ═══ */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 6, backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
 
         {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
         {effectiveGoingCount > 0 && attendeesList.length > 0 && (
           <Animated.View entering={FadeInDown.delay(45).springify()}>
-            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 22, paddingTop: 2, paddingBottom: 2 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 4, paddingTop: 2, paddingBottom: 2 }}>
               {attendeesList.slice(0, 3).map((a: AttendeeInfo, i: number) => (
                 <View key={a.id} style={{ marginLeft: i === 0 ? 0 : -6, zIndex: 3 - i }}>
                   <EntityAvatar
@@ -2630,29 +2626,6 @@ export default function EventDetailScreen() {
             </View>
           </Animated.View>
         )}
-
-        {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
-        <Animated.View entering={FadeInDown.delay(55).springify()}>
-          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 6, paddingBottom: 4 }}>
-            <EventVisibilityBadge
-              visibility={event.visibility}
-              circleId={event.circleId}
-              isBusy={event.isBusy}
-              circleName={event.circleName}
-              eventId={event.id}
-              surface="event_detail"
-              isDark={isDark}
-            />
-            {liveChipText && (
-              <View style={{ marginLeft: 8, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, backgroundColor: ET.chipTone }}>
-                <Text style={{ fontSize: 11, color: colors.textSecondary }}>{liveChipText}</Text>
-              </View>
-            )}
-          </View>
-        </Animated.View>
-
-        {/* ═══ Padded content — RSVP + utility below ═══ */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 6 }}>
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (

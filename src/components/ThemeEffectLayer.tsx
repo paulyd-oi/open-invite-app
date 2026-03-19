@@ -1,18 +1,19 @@
 /**
  * ThemeEffectLayer — Ambient particle effects for themed event pages.
  *
- * V1 engine powered by @shopify/react-native-skia Canvas.
+ * V2 engine powered by @shopify/react-native-skia Canvas.
  * GPU-accelerated particle rendering with soft-edged circles.
+ * Full-page coverage — particles drift across the entire screen.
  *
  * Active effects:
  *   worship_night → warm candlelight dust drifting upward
  *   winter_glow   → soft snowfall drifting downward
  *
  * Effect preset mapping lives in eventThemes.ts (effectPreset field).
- * Renders behind the card (absolutely positioned in the atmospheric zone).
+ * Absolutely positioned at the SafeAreaView level for full-page coverage.
  * Returns null for themes with no effect or when reduced motion is enabled.
  *
- * Proof tag: [THEME_EFFECT_ENGINE_V1]
+ * Proof tag: [THEME_EFFECT_ENGINE_V2]
  */
 
 import React, { memo, useMemo } from "react";
@@ -22,10 +23,6 @@ import {
   Circle,
   Group,
   BlurMask,
-  Mask,
-  Rect,
-  LinearGradient as SkiaLinearGradient,
-  vec,
 } from "@shopify/react-native-skia";
 import {
   useDerivedValue,
@@ -239,13 +236,10 @@ const ParticleField = memo(function ParticleField({
 
 interface ThemeEffectLayerProps {
   themeId: string | null | undefined;
-  /** Height of the bottom fade zone in points (default 150) */
-  fadeHeight?: number;
 }
 
 export const ThemeEffectLayer = memo(function ThemeEffectLayer({
   themeId,
-  fadeHeight = 80,
 }: ThemeEffectLayerProps) {
   const reducedMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
@@ -260,21 +254,7 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
 
   return (
     <Canvas style={styles.container} pointerEvents="none">
-      <Mask
-        mode="alpha"
-        mask={
-          <Rect x={0} y={0} width={width} height={height}>
-            <SkiaLinearGradient
-              start={vec(0, 0)}
-              end={vec(0, height)}
-              colors={["white", "white", "transparent"]}
-              positions={[0, Math.max(0, (height - fadeHeight) / height), 1]}
-            />
-          </Rect>
-        }
-      >
-        <ParticleField config={config} width={width} height={height} />
-      </Mask>
+      <ParticleField config={config} width={width} height={height} />
     </Canvas>
   );
 });
