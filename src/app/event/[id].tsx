@@ -2372,7 +2372,7 @@ export default function EventDetailScreen() {
 
   // Themed canvas — theme owns the page background behind the card
   const pageTheme = resolveEventTheme(event.themeId);
-  const canvasColor = pageTheme ? (isDark ? pageTheme.backBgDark : pageTheme.backBgLight) : colors.background;
+  const canvasColor = isDark ? pageTheme.backBgDark : pageTheme.backBgLight;
 
   return (
     <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: canvasColor }} edges={["bottom"]}>
@@ -2412,8 +2412,7 @@ export default function EventDetailScreen() {
               />
               {/* Theme tint wash over photo backdrop */}
               {(() => {
-                const et = resolveEventTheme(event.themeId);
-                const tint = et ? (isDark ? et.pageTintDark : et.pageTintLight) : undefined;
+                const tint = isDark ? pageTheme.pageTintDark : pageTheme.pageTintLight;
                 return tint && tint !== "transparent" ? (
                   <LinearGradient
                     colors={[tint, "transparent"]}
@@ -2426,8 +2425,7 @@ export default function EventDetailScreen() {
           ) : (
             /* No-photo: warmer gradient atmosphere (theme-aware) */
             (() => {
-              const et = resolveEventTheme(event.themeId);
-              const tint = et ? (isDark ? et.pageTintDark : et.pageTintLight) : undefined;
+              const tint = isDark ? pageTheme.pageTintDark : pageTheme.pageTintLight;
               const baseTint = tint && tint !== "transparent" ? tint : undefined;
               return (
                 <LinearGradient
@@ -2532,9 +2530,6 @@ export default function EventDetailScreen() {
               themeColor={themeColor}
               isDark={isDark}
               colors={colors}
-              heroFallbackBg={ET.heroFallbackBg}
-              heroWashColors={ET.heroWashColors}
-              heroWashLocations={ET.heroWashLocations}
               themeId={event.themeId ?? null}
               editButton={
                 isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (

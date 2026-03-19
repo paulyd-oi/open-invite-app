@@ -5,7 +5,7 @@
  *        Reads as a crafted invitation at a glance.
  * Back:  the details side — host, date/time, location, description, capacity.
  *
- * Card themes: deterministic emoji→vibe mapping tints the card per event mood.
+ * Card themes: resolved from eventThemes.ts SSOT (neutral fallback for unthemed events).
  * Card floats with depth shadow. Tap to flip with premium 3D rotation.
  *
  * Proof tag: [EVENT_DETAIL_V5_FLIP_CARD]
@@ -70,12 +70,7 @@ export interface InviteFlipCardProps {
     border: string;
   };
 
-  // No-photo hero theme
-  heroFallbackBg: string;
-  heroWashColors: readonly string[];
-  heroWashLocations: readonly number[];
-
-  // Event Themes V1 — explicit theme overrides inferred vibe
+  // Event Themes V1
   themeId?: string | null;
 
   // Host edit button (rendered on front)
@@ -83,129 +78,6 @@ export interface InviteFlipCardProps {
 
   // Photo nudge (rendered on front, no-photo only)
   photoNudge?: React.ReactNode;
-}
-
-// ─── Card Theme System ──────────────────────────────────
-// Deterministic emoji→vibe mapping. Each theme tints the card.
-// No backend changes — purely visual, inferred from emoji.
-
-type CardVibe = "party" | "food" | "outdoors" | "sports" | "chill" | "nightlife" | "games" | "neutral";
-
-interface CardThemeTokens {
-  /** Gradient tint mixed into photo overlay bottom */
-  gradientTint: string;
-  /** Back-face accent color (overrides themeColor for back) */
-  backAccent: string;
-  /** Back-face background */
-  backBgDark: string;
-  backBgLight: string;
-  /** No-photo front label color */
-  vibeLabel: string | null;
-}
-
-const VIBE_THEMES: Record<CardVibe, CardThemeTokens> = {
-  party: {
-    gradientTint: "rgba(255,80,60,0.12)",
-    backAccent: "#FF6B4A",
-    backBgDark: "#1E1614",
-    backBgLight: "#FFF8F6",
-    vibeLabel: "You're Invited",
-  },
-  food: {
-    gradientTint: "rgba(255,152,0,0.10)",
-    backAccent: "#FF9800",
-    backBgDark: "#1E1A14",
-    backBgLight: "#FFFAF5",
-    vibeLabel: "You're Invited",
-  },
-  outdoors: {
-    gradientTint: "rgba(0,188,212,0.08)",
-    backAccent: "#00ACC1",
-    backBgDark: "#14191E",
-    backBgLight: "#F5FBFC",
-    vibeLabel: "You're Invited",
-  },
-  sports: {
-    gradientTint: "rgba(76,175,80,0.08)",
-    backAccent: "#43A047",
-    backBgDark: "#141E15",
-    backBgLight: "#F5FAF5",
-    vibeLabel: "Game On",
-  },
-  chill: {
-    gradientTint: "rgba(156,39,176,0.08)",
-    backAccent: "#AB47BC",
-    backBgDark: "#1A141E",
-    backBgLight: "#FAF5FC",
-    vibeLabel: "You're Invited",
-  },
-  nightlife: {
-    gradientTint: "rgba(99,102,241,0.10)",
-    backAccent: "#7C3AED",
-    backBgDark: "#16141E",
-    backBgLight: "#F8F5FF",
-    vibeLabel: "You're Invited",
-  },
-  games: {
-    gradientTint: "rgba(99,102,241,0.08)",
-    backAccent: "#6366F1",
-    backBgDark: "#14141E",
-    backBgLight: "#F5F5FF",
-    vibeLabel: "Game Night",
-  },
-  neutral: {
-    gradientTint: "transparent",
-    backAccent: "",  // falls back to themeColor
-    backBgDark: "#1C1C1E",
-    backBgLight: "#FAF9F7",
-    vibeLabel: "You're Invited",
-  },
-};
-
-// Emoji → vibe mapping (covers common event emojis)
-const EMOJI_VIBE_MAP: Record<string, CardVibe> = {
-  // Party
-  "🎉": "party", "🥳": "party", "🎊": "party", "🎂": "party", "🍾": "party",
-  "🎁": "party", "🎈": "party", "💃": "party", "🕺": "party", "✨": "party",
-  // Food
-  "🍽️": "food", "🍕": "food", "🌮": "food", "🍔": "food", "☕": "food",
-  "🍣": "food", "🍝": "food", "🥘": "food", "🧁": "food", "🍻": "food",
-  "🍷": "food", "🥂": "food", "🍜": "food", "🍱": "food", "🥡": "food",
-  // Outdoors
-  "🏕️": "outdoors", "🏖️": "outdoors", "🌊": "outdoors", "⛰️": "outdoors",
-  "🥾": "outdoors", "🚴": "outdoors", "🏄": "outdoors", "🌳": "outdoors",
-  "☀️": "outdoors", "🌅": "outdoors", "🏞️": "outdoors", "🎣": "outdoors",
-  // Sports
-  "⚽": "sports", "🏀": "sports", "🏈": "sports", "⚾": "sports", "🎾": "sports",
-  "🏐": "sports", "🏓": "sports", "🏸": "sports", "🥊": "sports", "🏋️": "sports",
-  "🧘": "sports", "🏊": "sports", "🎳": "sports", "🥏": "sports",
-  // Chill / study / worship
-  "📖": "chill", "✝️": "chill", "⛪": "chill", "🕌": "chill", "🕍": "chill",
-  "🙏": "chill", "📚": "chill", "🎧": "chill", "🧘‍♀️": "chill", "🎨": "chill",
-  "🎹": "chill", "🎵": "chill", "🎶": "chill",
-  // Nightlife
-  "🍸": "nightlife", "🪩": "nightlife", "🎤": "nightlife", "🌙": "nightlife",
-  "🥃": "nightlife", "🫧": "nightlife",
-  // Games
-  "🎮": "games", "🎲": "games", "🃏": "games", "🎯": "games", "🎰": "games",
-  "♟️": "games", "🎱": "games", "🕹️": "games",
-};
-
-function inferCardVibe(emoji: string, title: string): CardVibe {
-  // Direct emoji match first
-  if (EMOJI_VIBE_MAP[emoji]) return EMOJI_VIBE_MAP[emoji];
-
-  // Keyword fallback from title
-  const t = title.toLowerCase();
-  if (/party|birthday|celebration|kickback|hangout/.test(t)) return "party";
-  if (/dinner|lunch|brunch|bbq|cookout|potluck|coffee/.test(t)) return "food";
-  if (/hike|beach|camping|surf|park|outdoor|lake/.test(t)) return "outdoors";
-  if (/soccer|basketball|tennis|pickleball|football|gym|workout/.test(t)) return "sports";
-  if (/bible|study|church|worship|prayer|book club/.test(t)) return "chill";
-  if (/bar|club|drinks|happy hour|brewery|cocktail/.test(t)) return "nightlife";
-  if (/game night|board game|trivia|poker/.test(t)) return "games";
-
-  return "neutral";
 }
 
 // ─── Constants ───────────────────────────────────────────
@@ -250,33 +122,17 @@ export function InviteFlipCard({
   themeColor,
   isDark,
   colors,
-  heroFallbackBg,
-  heroWashColors,
-  heroWashLocations,
   themeId,
   editButton,
   photoNudge,
 }: InviteFlipCardProps) {
   const flipProgress = useSharedValue(0);
 
-  // ── Card theme: explicit themeId wins, then inferred vibe fallback ──
-  const explicitTheme = useMemo(() => resolveEventTheme(themeId), [themeId]);
-  const vibe = useMemo(() => inferCardVibe(emoji, title), [emoji, title]);
-  const vibeTokens = VIBE_THEMES[vibe];
-  // Merge: explicit theme overrides vibe tokens
-  const ct = useMemo(() => {
-    if (!explicitTheme) return vibeTokens;
-    return {
-      gradientTint: explicitTheme.gradientTint,
-      backAccent: explicitTheme.backAccent,
-      backBgDark: explicitTheme.backBgDark,
-      backBgLight: explicitTheme.backBgLight,
-      vibeLabel: explicitTheme.vibeLabel,
-    };
-  }, [explicitTheme, vibeTokens]);
+  // ── Card theme (always resolves — neutral fallback for unthemed events) ──
+  const ct = useMemo(() => resolveEventTheme(themeId), [themeId]);
   const backAccent = ct.backAccent || themeColor;
-  const themedCardBg = explicitTheme ? (isDark ? ct.backBgDark : ct.backBgLight) : heroFallbackBg;
-  const plaqueBg = explicitTheme ? (isDark ? ct.backBgDark : ct.backBgLight) : (isDark ? "#1C1C1E" : "#FAF9F7");
+  const themedCardBg = isDark ? ct.backBgDark : ct.backBgLight;
+  const plaqueBg = isDark ? ct.backBgDark : ct.backBgLight;
 
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -347,8 +203,8 @@ export function InviteFlipCard({
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
                 backgroundColor: imageUri ? plaqueBg : themedCardBg,
-                borderWidth: explicitTheme ? 2 : 0,
-                borderColor: explicitTheme ? `${backAccent}40` : "transparent",
+                borderWidth: 2,
+                borderColor: `${backAccent}40`,
               }}
             >
               {imageUri ? (
@@ -390,9 +246,7 @@ export function InviteFlipCard({
                           backgroundColor:
                             countdownLabel === "Happening now"
                               ? "rgba(34,197,94,0.3)"
-                              : explicitTheme
-                                ? `${backAccent}50`
-                                : "rgba(0,0,0,0.25)",
+                              : `${backAccent}50`,
                         }}
                       >
                         <Text
@@ -428,7 +282,7 @@ export function InviteFlipCard({
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 5,
-                        backgroundColor: explicitTheme ? `${backAccent}30` : "rgba(0,0,0,0.15)",
+                        backgroundColor: `${backAccent}30`,
                       }}
                     >
                       <Text style={{ fontSize: 18 }}>{emoji}</Text>
@@ -447,7 +301,7 @@ export function InviteFlipCard({
                     }}
                   >
                     {/* Theme label pill — bridge between photo and plaque */}
-                    {explicitTheme && explicitTheme.label !== "Classic" && (
+                    {ct.label !== "Classic" && (
                       <View style={{
                         backgroundColor: `${backAccent}18`,
                         paddingHorizontal: 10,
@@ -463,7 +317,7 @@ export function InviteFlipCard({
                           letterSpacing: 1.2,
                           textTransform: "uppercase",
                         }}>
-                          {explicitTheme.label}
+                          {ct.label}
                         </Text>
                       </View>
                     )}
@@ -485,7 +339,7 @@ export function InviteFlipCard({
 
                     {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-                      <Calendar size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
+                      <Calendar size={14} color={backAccent} />
                       <Text
                         style={{
                           fontSize: 14,
@@ -559,10 +413,8 @@ export function InviteFlipCard({
                 /* ── No-photo: invitation poster ── */
                 <>
                   <LinearGradient
-                    colors={(explicitTheme
-                      ? [isDark ? `${backAccent}20` : `${backAccent}15`, "transparent"]
-                      : heroWashColors) as any}
-                    locations={(explicitTheme ? [0, 1] : heroWashLocations) as any}
+                    colors={[isDark ? `${backAccent}20` : `${backAccent}15`, "transparent"] as any}
+                    locations={[0, 1] as any}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -582,7 +434,7 @@ export function InviteFlipCard({
                     {/* ── Poster: theme label + emoji + title + details ── */}
 
                     {/* Theme label pill */}
-                    {explicitTheme && ct.vibeLabel && explicitTheme.label !== "Classic" && (
+                    {ct.vibeLabel && ct.label !== "Classic" && (
                       <View style={{
                         backgroundColor: `${backAccent}18`,
                         paddingHorizontal: 10,
@@ -598,7 +450,7 @@ export function InviteFlipCard({
                           letterSpacing: 1.2,
                           textTransform: "uppercase",
                         }}>
-                          {explicitTheme.label}
+                          {ct.label}
                         </Text>
                       </View>
                     )}
@@ -623,14 +475,14 @@ export function InviteFlipCard({
                       width: 32,
                       height: 3,
                       borderRadius: 1.5,
-                      backgroundColor: explicitTheme ? `${backAccent}50` : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)"),
+                      backgroundColor: `${backAccent}50`,
                       marginTop: 20,
                       marginBottom: 14,
                     }} />
 
                     {/* Date + Time */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                      <Calendar size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
+                      <Calendar size={14} color={backAccent} />
                       <Text
                         style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "600" }}
                         numberOfLines={1}
@@ -642,7 +494,7 @@ export function InviteFlipCard({
                     {/* Location */}
                     {locationDisplay && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                        <MapPin size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
+                        <MapPin size={14} color={backAccent} />
                         <Text
                           style={{ fontSize: 14, color: colors.textSecondary, marginLeft: 7, fontWeight: "500" }}
                           numberOfLines={1}
@@ -655,13 +507,13 @@ export function InviteFlipCard({
                     {/* Host attribution */}
                     {hostName && (
                       <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: explicitTheme ? `${backAccent}30` : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"), overflow: "hidden" }}>
+                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: `${backAccent}30`, overflow: "hidden" }}>
                           <EntityAvatar
                             photoUrl={hostImageUrl}
                             initials={hostName?.[0] ?? "?"}
                             size={22}
                             backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
-                            foregroundColor={explicitTheme ? backAccent : colors.textSecondary}
+                            foregroundColor={backAccent}
                           />
                         </View>
                         <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginLeft: 7 }}>
@@ -690,11 +542,7 @@ export function InviteFlipCard({
                             backgroundColor:
                               countdownLabel === "Happening now"
                                 ? STATUS.going.bgSoft
-                                : explicitTheme
-                                  ? `${backAccent}18`
-                                  : isDark
-                                    ? "rgba(255,255,255,0.08)"
-                                    : "rgba(0,0,0,0.04)",
+                                : `${backAccent}18`,
                             paddingHorizontal: 10,
                             paddingVertical: 4,
                             borderRadius: 10,
