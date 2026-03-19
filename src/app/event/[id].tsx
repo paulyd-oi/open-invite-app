@@ -135,7 +135,7 @@ import { invalidateEventMedia } from "@/lib/mediaInvalidation";
 import HeroBannerSurface from "@/components/HeroBannerSurface";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/heroSSOT";
-import { InviteFlipCard } from "@/components/InviteFlipCard";
+import { EventHero } from "@/components/EventHero";
 import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
@@ -2377,44 +2377,106 @@ export default function EventDetailScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
-        <View style={{ position: "relative", overflow: "hidden" }}>
-          {/* Ambient blurred background — cinematic atmosphere */}
-          {eventBannerUri && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
-              <ExpoImage
-                source={{ uri: toCloudinaryTransformedUrl(eventBannerUri, CLOUDINARY_PRESETS.AVATAR_THUMB) }}
-                style={{ width: "100%", height: "100%", opacity: isDark ? 0.7 : 0.55 }}
-                contentFit="cover"
-                blurRadius={70}
-                cachePolicy="memory-disk"
-              />
-              {/* Layered scrim: let color through, fade to page bg */}
-              <LinearGradient
-                colors={[
-                  isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)",
-                  isDark ? "rgba(0,0,0,0.15)" : "transparent",
-                  isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.03)",
-                  colors.background,
-                ]}
-                locations={[0, 0.25, 0.7, 1]}
-                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-              />
-            </View>
-          ) : (
-            /* No-photo: warmer gradient atmosphere */
-            <LinearGradient
-              colors={isDark
-                ? [`${themeColor}30`, `${themeColor}12`, colors.background]
-                : [`${themeColor}20`, `${themeColor}0A`, colors.background]
-              }
-              locations={[0, 0.4, 1]}
-              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-            />
-          )}
+        {/* ═══ IMMERSIVE HERO — edge-to-edge, event IS the page ═══ */}
+        <View style={{ position: "relative" }}>
+          <EventHero
+            title={event.title}
+            imageUri={
+              event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"
+                ? toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_DETAIL)
+                : null
+            }
+            emoji={event.emoji}
+            countdownLabel={countdownLabel}
+            dateLabel={dateLabel}
+            timeLabel={timeLabel}
+            locationDisplay={locationDisplay}
+            goingCount={effectiveGoingCount}
+            attendeeAvatars={(() => {
+              const hostId = event?.user?.id;
+              const hostInList = attendeesList.find((a: AttendeeInfo) => a.id === hostId);
+              const nonHost = attendeesList.filter((a: AttendeeInfo) => a.id !== hostId);
+              const ordered: AttendeeInfo[] = [...(hostInList ? [hostInList] : []), ...nonHost];
+              const hostFallback: AttendeeInfo | null = (!hostInList && event?.user)
+                ? { id: event.user.id ?? "host", name: event.user.name ?? "Host", imageUrl: event.user.image ?? null, isHost: true }
+                : null;
+              return (hostFallback ? [hostFallback, ...ordered] : ordered).slice(0, 4);
+            })()}
+            hostName={event.user?.name ?? null}
+            hostImageUrl={event.user?.image ?? null}
+            isMyEvent={isMyEvent}
+            themeColor={themeColor}
+            isDark={isDark}
+            colors={colors}
+            heroFallbackBg={ET.heroFallbackBg}
+            heroWashColors={ET.heroWashColors}
+            heroWashLocations={ET.heroWashLocations}
+            editButton={
+              isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
+                <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>
+                  <Pressable
+                    onPress={() => {
+                      if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
+                      RNAnimated.sequence([
+                        RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
+                        RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
+                      ]).start();
+                      setShowPhotoSheet(true);
+                    }}
+                    style={{
+                      borderRadius: 20,
+                      padding: 8,
+                      backgroundColor: "rgba(0,0,0,0.55)",
+                      borderWidth: 1,
+                      borderColor: "rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    <Pencil size={16} color="#fff" />
+                  </Pressable>
+                </RNAnimated.View>
+              ) : undefined
+            }
+            photoNudge={
+              isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
+                <Pressable
+                  onPress={() => launchEventPhotoPicker()}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 12,
+                    marginTop: 10,
+                    backgroundColor: isDark ? "rgba(28,28,30,0.8)" : "rgba(255,255,255,0.8)",
+                    borderWidth: 1,
+                    borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
+                    borderStyle: "dashed",
+                    borderRadius: RADIUS.lg,
+                  }}
+                >
+                  <Camera size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
+                  <Text style={{ fontSize: 14, marginLeft: 8, color: isDark ? "#9CA3AF" : colors.textSecondary }}>Add a cover photo</Text>
+                  <Pressable
+                    onPress={async (e) => {
+                      e.stopPropagation();
+                      setPhotoNudgeDismissed(true);
+                      await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
+                    }}
+                    style={{ marginLeft: "auto", padding: 4 }}
+                    hitSlop={8}
+                  >
+                    <X size={14} color={colors.textTertiary} />
+                  </Pressable>
+                </Pressable>
+              ) : undefined
+            }
+          />
 
-          {/* Nav bar — glass-effect over atmosphere */}
+          {/* ── Overlaid nav bar ── */}
           <View style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -2465,109 +2527,11 @@ export default function EventDetailScreen() {
               </Pressable>
             )}
           </View>
-
-          {/* Floating invite card */}
-          <Animated.View entering={FadeInDown.delay(30).springify()} style={{ paddingTop: 4, paddingBottom: 20 }}>
-            <InviteFlipCard
-              title={event.title}
-              imageUri={
-                event.eventPhotoUrl && !event.isBusy && event.visibility !== "private"
-                  ? toCloudinaryTransformedUrl(eventBannerUri!, CLOUDINARY_PRESETS.HERO_DETAIL)
-                  : null
-              }
-              emoji={event.emoji}
-              countdownLabel={countdownLabel}
-              dateLabel={dateLabel}
-              timeLabel={timeLabel}
-              locationDisplay={locationDisplay}
-              goingCount={effectiveGoingCount}
-              attendeeAvatars={(() => {
-                const hostId = event?.user?.id;
-                const hostInList = attendeesList.find((a: AttendeeInfo) => a.id === hostId);
-                const nonHost = attendeesList.filter((a: AttendeeInfo) => a.id !== hostId);
-                const ordered: AttendeeInfo[] = [...(hostInList ? [hostInList] : []), ...nonHost];
-                const hostFallback: AttendeeInfo | null = (!hostInList && event?.user)
-                  ? { id: event.user.id ?? "host", name: event.user.name ?? "Host", imageUrl: event.user.image ?? null, isHost: true }
-                  : null;
-                return (hostFallback ? [hostFallback, ...ordered] : ordered).slice(0, 4);
-              })()}
-              description={event.description ?? null}
-              hostName={event.user?.name ?? null}
-              hostImageUrl={event.user?.image ?? null}
-              isMyEvent={isMyEvent}
-              capacity={eventMeta.capacity}
-              currentGoing={effectiveGoingCount}
-              themeColor={themeColor}
-              isDark={isDark}
-              colors={colors}
-              heroFallbackBg={ET.heroFallbackBg}
-              heroWashColors={ET.heroWashColors}
-              heroWashLocations={ET.heroWashLocations}
-              editButton={
-                isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
-                  <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>
-                    <Pressable
-                      onPress={() => {
-                        if (__DEV__) devLog("[EVENT_HERO_EDIT_TAP]");
-                        RNAnimated.sequence([
-                          RNAnimated.timing(editScale, { toValue: 0.94, duration: 60, useNativeDriver: true }),
-                          RNAnimated.timing(editScale, { toValue: 1, duration: 60, useNativeDriver: true }),
-                        ]).start();
-                        setShowPhotoSheet(true);
-                      }}
-                      style={{
-                        borderRadius: 20,
-                        padding: 8,
-                        backgroundColor: "rgba(0,0,0,0.55)",
-                        borderWidth: 1,
-                        borderColor: "rgba(255,255,255,0.15)",
-                      }}
-                    >
-                      <Pencil size={16} color="#fff" />
-                    </Pressable>
-                  </RNAnimated.View>
-                ) : undefined
-              }
-              photoNudge={
-                isMyEvent && !event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" && !photoNudgeDismissed ? (
-                  <Pressable
-                    onPress={() => launchEventPhotoPicker()}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 12,
-                      marginTop: 10,
-                      backgroundColor: isDark ? "rgba(28,28,30,0.8)" : "rgba(255,255,255,0.8)",
-                      borderWidth: 1,
-                      borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
-                      borderStyle: "dashed",
-                      borderRadius: RADIUS.lg,
-                    }}
-                  >
-                    <Camera size={18} color={isDark ? "#9CA3AF" : "#6B7280"} />
-                    <Text style={{ fontSize: 14, marginLeft: 8, color: isDark ? "#9CA3AF" : colors.textSecondary }}>Add a cover photo</Text>
-                    <Pressable
-                      onPress={async (e) => {
-                        e.stopPropagation();
-                        setPhotoNudgeDismissed(true);
-                        await AsyncStorage.setItem(`dismissedEventPhotoNudge_${id}`, "true");
-                      }}
-                      style={{ marginLeft: "auto", padding: 4 }}
-                      hitSlop={8}
-                    >
-                      <X size={14} color={colors.textTertiary} />
-                    </Pressable>
-                  </Pressable>
-                ) : undefined
-              }
-            />
-          </Animated.View>
         </View>
 
-        {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
+        {/* ═══ Tight sub-hero bar — visibility + share ═══ */}
         <Animated.View entering={FadeInDown.delay(55).springify()}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 4, paddingBottom: 2 }}>
             <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <EventVisibilityBadge
                 visibility={event.visibility}
@@ -2597,8 +2561,8 @@ export default function EventDetailScreen() {
           </View>
         </Animated.View>
 
-        {/* ═══ Padded content — RSVP + utility below ═══ */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
+        {/* ═══ Content — RSVP + details below ═══ */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 6 }}>
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
