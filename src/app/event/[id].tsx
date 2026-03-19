@@ -2596,13 +2596,15 @@ export default function EventDetailScreen() {
             />
           </Animated.View>
 
-          {/* Canvas → standard background transition (150px eased multi-stop) */}
-          <LinearGradient
-            colors={[canvasColor, canvasColor, colors.background, colors.background]}
-            locations={[0, 0.2, 0.75, 1]}
-            style={{ height: 150 }}
-          />
         </View>
+
+        {/* Canvas → content transition — visual overlay, zero net layout space */}
+        <LinearGradient
+          colors={[canvasColor, "transparent"]}
+          locations={[0, 1]}
+          pointerEvents="none"
+          style={{ height: 80, marginBottom: -80, zIndex: 1 }}
+        />
 
         {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
         {effectiveGoingCount > 0 && attendeesList.length > 0 && (
