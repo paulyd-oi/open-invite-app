@@ -12,7 +12,8 @@ import { resolveBannerUri } from "@/lib/heroSSOT";
 import { toCloudinaryTransformedUrl, CLOUDINARY_PRESETS } from "@/lib/mediaTransformSSOT";
 import { usePreloadHeroBanners } from "@/lib/usePreloadHeroBanners";
 
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 
@@ -97,6 +98,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const profileInsets = useSafeAreaInsets();
+  const [chromeHeight, setChromeHeight] = useState<number>(100);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -486,28 +489,47 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Header */}
-      <AppHeader
-        title="Profile"
-        right={
-          <Pressable
-            onPress={() => router.push("/settings")}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: colors.inputBg }}
-          >
-            <Settings size={20} color={colors.textSecondary} />
-          </Pressable>
-        }
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["bottom"]}>
+
+      {/* ═══ Floating translucent top chrome ═══ */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ paddingTop: profileInsets.top, overflow: "hidden" }}
+        >
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+            <AppHeader
+              title="Profile"
+              right={
+                <Pressable
+                  onPress={() => router.push("/settings")}
+                  className="w-10 h-10 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.inputBg }}
+                >
+                  <Settings size={20} color={colors.textSecondary} />
+                </Pressable>
+              }
+            />
+          </View>
+        </BlurView>
+      </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingTop: chromeHeight, paddingHorizontal: 20, paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={themeColor}
+            progressViewOffset={chromeHeight}
           />
         }
       >

@@ -18,7 +18,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { devLog, devWarn, devError } from "@/lib/devLog";
 import { refreshAfterFriendAccept, refreshAfterFriendReject, refreshAfterCircleCreate, refreshAfterCircleLeave } from "@/lib/refreshAfterMutation";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -605,6 +606,8 @@ export default function FriendsScreen() {
   // [LEGACY_GROUPS_PURGED] initialGroupId removed - no longer filtering by groups
   const queryClient = useQueryClient();
   const { themeColor, isDark, colors } = useTheme();
+  const friendsInsets = useSafeAreaInsets();
+  const [chromeHeight, setChromeHeight] = useState<number>(160);
 
   // ── Tab shell: Activity(0) | Chats(1) | People(2) ─────────
   // Default to Chats (index 1); deep-link ?tab= overrides
@@ -1317,93 +1320,113 @@ export default function FriendsScreen() {
   return (
     /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
     /* INVARIANT_ALLOW_INLINE_ARRAY_PROP */
-    <SafeAreaView testID="friends-screen" className="flex-1" edges={["top"]} style={{ backgroundColor: colors.background }}>
-      <AppHeader
-        title="Friends"
-        left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
-        right={
-          <View className="flex-row items-center">
-            {receivedRequests.length > 0 && (
-              <View
-                className="w-6 h-6 rounded-full items-center justify-center mr-2"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: themeColor }}
-              >
-                <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
-              </View>
-            )}
-            <Button
-              testID="friends-invite-open"
-              variant="primary"
-              size="sm"
-              label="Add"
-              leftIcon={<Plus size={14} color="#fff" />}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push("/add-friends" as any);
-              }}
-            />
-          </View>
-        }
-      />
+    <SafeAreaView testID="friends-screen" className="flex-1" edges={["bottom"]} style={{ backgroundColor: colors.background }}>
 
-      {/* ── Tab Header: Activity | Chats | People ────────── */}
-      <View className="px-5 pb-3">
-        {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-        <View className="flex-row" style={{ backgroundColor: colors.surface2, borderRadius: 12, padding: 3 }}>
-          {/* INVARIANT_ALLOW_SMALL_MAP */}
-          {FRIENDS_TABS.map((label, idx) => {
-            const isActive = friendsTab === idx;
-            const icon = idx === 0 ? Activity : idx === 1 ? MessageCircle : Users;
-            const IconComp = icon;
-            return (
-              <Pressable
-                key={label}
-                testID={`friends-tab-${label.toLowerCase()}`}
-                /* INVARIANT_ALLOW_INLINE_HANDLER */
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setFriendsTab(idx);
-                }}
-                className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
-                /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                style={{ backgroundColor: isActive ? colors.surface : "transparent" }}
-              >
-                {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
-                <View style={{ position: "relative" }}>
-                  <IconComp size={15} color={isActive ? themeColor : colors.textSecondary} />
-                  {/* Activity badge: unseen count dot */}
-                  {idx === 0 && unseenCount > 0 && (
+      {/* ═══ Floating translucent top chrome ═══ */}
+      <View
+        style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          if (h > 0 && h !== chromeHeight) setChromeHeight(h);
+        }}
+        pointerEvents="box-none"
+      >
+        <BlurView
+          intensity={88}
+          tint={isDark ? "dark" : "light"}
+          style={{ paddingTop: friendsInsets.top, overflow: "hidden" }}
+        >
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)" }}>
+            <AppHeader
+              title="Friends"
+              left={<HelpSheet screenKey="friends" config={HELP_SHEETS.friends} />}
+              right={
+                <View className="flex-row items-center">
+                  {receivedRequests.length > 0 && (
                     <View
-                      className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full"
+                      className="w-6 h-6 rounded-full items-center justify-center mr-2"
                       /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                      style={{ backgroundColor: "#EF4444" }}
-                    />
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      <Text className="text-white text-xs font-bold">{receivedRequests.length}</Text>
+                    </View>
                   )}
+                  <Button
+                    testID="friends-invite-open"
+                    variant="primary"
+                    size="sm"
+                    label="Add"
+                    leftIcon={<Plus size={14} color="#fff" />}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push("/add-friends" as any);
+                    }}
+                  />
                 </View>
-                <Text
-                  className="text-xs font-semibold ml-1.5"
-                  /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-                  style={{ color: isActive ? themeColor : colors.textSecondary }}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+              }
+            />
+
+            {/* ── Tab Header: Activity | Chats | People ────────── */}
+            <View className="px-5 pb-3">
+              {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+              <View className="flex-row" style={{ backgroundColor: colors.surface2, borderRadius: 12, padding: 3 }}>
+                {/* INVARIANT_ALLOW_SMALL_MAP */}
+                {FRIENDS_TABS.map((label, idx) => {
+                  const isActive = friendsTab === idx;
+                  const icon = idx === 0 ? Activity : idx === 1 ? MessageCircle : Users;
+                  const IconComp = icon;
+                  return (
+                    <Pressable
+                      key={label}
+                      testID={`friends-tab-${label.toLowerCase()}`}
+                      /* INVARIANT_ALLOW_INLINE_HANDLER */
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setFriendsTab(idx);
+                      }}
+                      className="flex-1 flex-row items-center justify-center py-2 rounded-lg"
+                      /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                      style={{ backgroundColor: isActive ? colors.surface : "transparent" }}
+                    >
+                      {/* INVARIANT_ALLOW_INLINE_OBJECT_PROP */}
+                      <View style={{ position: "relative" }}>
+                        <IconComp size={15} color={isActive ? themeColor : colors.textSecondary} />
+                        {/* Activity badge: unseen count dot */}
+                        {idx === 0 && unseenCount > 0 && (
+                          <View
+                            className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full"
+                            /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                            style={{ backgroundColor: "#EF4444" }}
+                          />
+                        )}
+                      </View>
+                      <Text
+                        className="text-xs font-semibold ml-1.5"
+                        /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
+                        style={{ color: isActive ? themeColor : colors.textSecondary }}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </BlurView>
       </View>
 
       <ScrollView
         className="flex-1"
         /* INVARIANT_ALLOW_INLINE_OBJECT_PROP */
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: chromeHeight, paddingHorizontal: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={liveIsRefreshing || isRefetching}
             onRefresh={onFriendsManualRefresh}
             tintColor={themeColor}
+            progressViewOffset={chromeHeight}
           />
         }
       >
