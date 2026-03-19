@@ -24,6 +24,7 @@ import { refreshAfterFriendRequestSent } from "@/lib/refreshAfterMutation";
 import { markTimeline } from "@/lib/devConvergenceTimeline";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
@@ -2369,9 +2370,14 @@ export default function EventDetailScreen() {
     bannerUrl: event?.eventPhotoUrl ?? null,
   });
 
+  // Themed canvas — theme owns the page background behind the card
+  const pageTheme = resolveEventTheme(event.themeId);
+  const canvasColor = pageTheme ? (isDark ? pageTheme.backBgDark : pageTheme.backBgLight) : colors.background;
+
   return (
-    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["top", "bottom"]}>
+    <SafeAreaView testID="event-detail-screen" className="flex-1" style={{ backgroundColor: colors.background }} edges={["bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style={isDark ? "light" : "dark"} />
 
       <KeyboardAwareScrollView
         className="flex-1"
@@ -2379,7 +2385,7 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
-        <View style={{ position: "relative", overflow: "hidden" }}>
+        <View style={{ position: "relative", overflow: "hidden", backgroundColor: canvasColor }}>
           {/* Ambient blurred background — cinematic atmosphere */}
           {eventBannerUri && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
             <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -2390,13 +2396,13 @@ export default function EventDetailScreen() {
                 blurRadius={70}
                 cachePolicy="memory-disk"
               />
-              {/* Layered scrim: let color through, fade to page bg */}
+              {/* Layered scrim: let color through, fade to canvas */}
               <LinearGradient
                 colors={[
                   isDark ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.02)",
                   isDark ? "rgba(0,0,0,0.15)" : "transparent",
                   isDark ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.03)",
-                  colors.background,
+                  canvasColor,
                 ]}
                 locations={[0, 0.25, 0.7, 1]}
                 style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
@@ -2423,8 +2429,8 @@ export default function EventDetailScreen() {
               return (
                 <LinearGradient
                   colors={isDark
-                    ? [baseTint ?? `${themeColor}30`, baseTint ? "transparent" : `${themeColor}12`, colors.background]
-                    : [baseTint ?? `${themeColor}20`, baseTint ? "transparent" : `${themeColor}0A`, colors.background]
+                    ? [baseTint ?? `${themeColor}30`, baseTint ? "transparent" : `${themeColor}12`, canvasColor]
+                    : [baseTint ?? `${themeColor}20`, baseTint ? "transparent" : `${themeColor}0A`, canvasColor]
                   }
                   locations={[0, 0.4, 1]}
                   style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
@@ -2439,7 +2445,8 @@ export default function EventDetailScreen() {
             alignItems: "center",
             justifyContent: "space-between",
             paddingHorizontal: 14,
-            paddingVertical: 6,
+            paddingTop: insets.top + 6,
+            paddingBottom: 6,
             zIndex: 10,
           }}>
             {eventBannerUri && event.eventPhotoUrl ? (
@@ -2584,6 +2591,12 @@ export default function EventDetailScreen() {
               }
             />
           </Animated.View>
+
+          {/* Canvas → standard background transition */}
+          <LinearGradient
+            colors={[canvasColor, colors.background]}
+            style={{ height: 60 }}
+          />
         </View>
 
         {/* ═══ SOCIAL ENERGY PULSE — attendee names below card ═══ */}
