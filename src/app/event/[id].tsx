@@ -138,7 +138,7 @@ import { resolveBannerUri, getHeroTextColor, getHeroSubTextColor } from "@/lib/h
 import { InviteFlipCard } from "@/components/InviteFlipCard";
 import { resolveEventTheme } from "@/lib/eventThemes";
 import { ThemeEffectLayer } from "@/components/ThemeEffectLayer";
-import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart } from "@/lib/liveActivity";
+import { startLiveActivity, updateLiveActivity, endLiveActivity, getActiveLiveActivityEventId, areLiveActivitiesEnabled, isEligibleForAutoStart, isEligibleForAutoStartOnFocus } from "@/lib/liveActivity";
 
 // Helper to open event location using the shared utility
 // Accepts pre-computed query + optional event for lat/lng coords.
@@ -416,6 +416,8 @@ export default function EventDetailScreen() {
   // Live Activity state
   const [liveActivityActive, setLiveActivityActive] = useState(false);
   const [liveActivitySupported, setLiveActivitySupported] = useState(false);
+  // Track if user manually turned off Live Activity this session (don't auto-restart)
+  const liveActivityManuallyDismissed = useRef(false);
 
   // [EVENT_LIVE_UI] Event settings accordion — collapsed by default
   const [settingsExpanded, setSettingsExpanded] = useState(false);
@@ -2369,6 +2371,43 @@ export default function EventDetailScreen() {
     bannerPhotoUrl: event?.eventPhotoUrl ?? null,
     bannerUrl: event?.eventPhotoUrl ?? null,
   });
+
+  // [LIVE_ACTIVITY_AUTO_ON] Silent auto-start on focus for qualifying events.
+  // Placed here because it depends on event, isMyEvent, myRsvpStatus, locationDisplay
+  // which are all derived above.
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS !== "ios" || !id || !event || !liveActivitySupported) return;
+      (async () => {
+        // Re-check active state (may have changed since last focus check)
+        const activeId = await getActiveLiveActivityEventId();
+        if (activeId) return; // Another activity is already running
+
+        // Don't auto-start if user manually dismissed this session
+        if (liveActivityManuallyDismissed.current) return;
+
+        // Only auto-start for hosts or users who RSVP'd going
+        if (!isMyEvent && myRsvpStatus !== "going") return;
+
+        // Check 60-minute eligibility window
+        if (!isEligibleForAutoStartOnFocus(event)) return;
+
+        const ok = await startLiveActivity({
+          eventId: event.id,
+          eventTitle: event.title,
+          startTime: event.startTime,
+          locationName: locationDisplay,
+          rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
+          emoji: event.emoji,
+          goingCount: effectiveGoingCount,
+        });
+        if (ok) {
+          setLiveActivityActive(true);
+          devLog("[LIVE_ACTIVITY_AUTO_ON]", "auto-started for event", id);
+        }
+      })();
+    }, [id, event, isMyEvent, myRsvpStatus, liveActivitySupported, effectiveGoingCount, locationDisplay])
+  );
 
   // Themed canvas — theme owns the page background behind the card
   const pageTheme = resolveEventTheme(event.themeId);
@@ -4401,6 +4440,7 @@ export default function EventDetailScreen() {
                         if (liveActivityActive) {
                           await endLiveActivity(event.id);
                           setLiveActivityActive(false);
+                          liveActivityManuallyDismissed.current = true;
                           safeToast.success("Stopped", "Lock Screen updates off");
                         } else {
                           const ok = await startLiveActivity({
@@ -4414,6 +4454,7 @@ export default function EventDetailScreen() {
                           });
                           if (ok) {
                             setLiveActivityActive(true);
+                            liveActivityManuallyDismissed.current = false;
                             safeToast.success("Started", "Tracking on Lock Screen");
                           } else {
                             safeToast.error("Couldn't start", "Check Live Activities in Settings");

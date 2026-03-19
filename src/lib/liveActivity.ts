@@ -18,8 +18,11 @@ import { devLog, devWarn } from "@/lib/devLog";
 
 const TAG = "[LiveActivity]";
 
-/** Eligibility window: auto-start only for events starting within this many hours. */
+/** Eligibility window: auto-start only for events starting within this many hours (RSVP trigger). */
 const AUTO_START_HORIZON_HOURS = 4;
+
+/** Tighter eligibility window for auto-start on screen focus (minutes). */
+const AUTO_START_ON_FOCUS_HORIZON_MINUTES = 60;
 
 interface LiveActivityBridgeModule {
   startActivity(
@@ -173,6 +176,25 @@ export function isEligibleForAutoStart(event: {
   const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
   if (Number.isNaN(endMs)) return false;
   const startsWithinHorizon = startMs - now < AUTO_START_HORIZON_HOURS * 3600000;
+  const hasEnded = now > endMs;
+  return startsWithinHorizon && !hasEnded;
+}
+
+/**
+ * Check if an event is eligible for silent auto-start on screen focus.
+ * Tighter window (60 min) than RSVP-triggered auto-start (4h).
+ * Eligible = starts within 60 minutes OR already started but not ended.
+ */
+export function isEligibleForAutoStartOnFocus(event: {
+  startTime: string;
+  endTime?: string | null;
+}): boolean {
+  const now = Date.now();
+  const startMs = new Date(event.startTime).getTime();
+  if (Number.isNaN(startMs)) return false;
+  const endMs = event.endTime ? new Date(event.endTime).getTime() : startMs + 3600000;
+  if (Number.isNaN(endMs)) return false;
+  const startsWithinHorizon = startMs - now < AUTO_START_ON_FOCUS_HORIZON_MINUTES * 60000;
   const hasEnded = now > endMs;
   return startsWithinHorizon && !hasEnded;
 }
