@@ -19,18 +19,29 @@
 import React, { memo, useMemo } from "react";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import {
-  Canvas,
-  Circle,
-  Group,
-  BlurMask,
-} from "@shopify/react-native-skia";
-import {
   useDerivedValue,
   useSharedValue,
   useFrameCallback,
   useReducedMotion,
 } from "react-native-reanimated";
 import { resolveEventTheme } from "@/lib/eventThemes";
+
+// ─── Safe Skia import (fail-safe if native binary unavailable) ──
+let Canvas: any = null;
+let Circle: any = null;
+let Group: any = null;
+let BlurMask: any = null;
+let _skiaAvailable = false;
+try {
+  const Skia = require("@shopify/react-native-skia");
+  Canvas = Skia.Canvas;
+  Circle = Skia.Circle;
+  Group = Skia.Group;
+  BlurMask = Skia.BlurMask;
+  _skiaAvailable = !!(Canvas && Circle && Group && BlurMask);
+} catch {
+  // Skia native module not available — particles will not render
+}
 
 // ─── Effect preset config ────────────────────────────────────
 
@@ -232,6 +243,21 @@ const ParticleField = memo(function ParticleField({
   );
 });
 
+// ─── Skia error boundary (fail-safe, not fail-hard) ─────────
+
+class SkiaErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
+
 // ─── Main component ─────────────────────────────────────────
 
 interface ThemeEffectLayerProps {
@@ -250,12 +276,14 @@ export const ThemeEffectLayer = memo(function ThemeEffectLayer({
     ? EFFECT_CONFIGS[presetId]
     : null;
 
-  if (!config || reducedMotion) return null;
+  if (!_skiaAvailable || !config || reducedMotion) return null;
 
   return (
-    <Canvas style={styles.container} pointerEvents="none">
-      <ParticleField config={config} width={width} height={height} />
-    </Canvas>
+    <SkiaErrorBoundary>
+      <Canvas style={styles.container} pointerEvents="none">
+        <ParticleField config={config} width={width} height={height} />
+      </Canvas>
+    </SkiaErrorBoundary>
   );
 });
 
