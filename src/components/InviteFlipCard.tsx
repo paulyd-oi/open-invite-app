@@ -447,7 +447,7 @@ export function InviteFlipCard({
                             foregroundColor="#FFFFFF"
                           />
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)", marginLeft: 7 }}>
+                        <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)", marginLeft: 7, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
                           {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
@@ -461,9 +461,9 @@ export function InviteFlipCard({
                         color: "#FFFFFF",
                         letterSpacing: -0.8,
                         lineHeight: 38,
-                        textShadowColor: "rgba(0,0,0,0.6)",
-                        textShadowOffset: { width: 0, height: 1 },
-                        textShadowRadius: 10,
+                        textShadowColor: "rgba(0,0,0,0.7)",
+                        textShadowOffset: { width: 0, height: 2 },
+                        textShadowRadius: 12,
                         marginBottom: 14,
                       }}
                       numberOfLines={3}
@@ -481,6 +481,9 @@ export function InviteFlipCard({
                           color: "rgba(255,255,255,0.92)",
                           marginLeft: 8,
                           letterSpacing: 0.1,
+                          textShadowColor: "rgba(0,0,0,0.5)",
+                          textShadowOffset: { width: 0, height: 1 },
+                          textShadowRadius: 4,
                         }}
                         numberOfLines={1}
                       >
@@ -499,6 +502,9 @@ export function InviteFlipCard({
                             color: "rgba(255,255,255,0.88)",
                             marginLeft: 8,
                             flex: 1,
+                            textShadowColor: "rgba(0,0,0,0.5)",
+                            textShadowOffset: { width: 0, height: 1 },
+                            textShadowRadius: 4,
                           }}
                           numberOfLines={1}
                         >
@@ -551,6 +557,9 @@ export function InviteFlipCard({
                                 fontSize: 14,
                                 fontWeight: "700",
                                 color: "rgba(255,255,255,0.95)",
+                                textShadowColor: "rgba(0,0,0,0.5)",
+                                textShadowOffset: { width: 0, height: 1 },
+                                textShadowRadius: 4,
                               }}
                             >
                               {goingCount} going

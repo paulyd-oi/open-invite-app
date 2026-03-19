@@ -567,7 +567,7 @@ export default function DiscoverScreen() {
                 const hasPhoto = !!event.eventPhotoUrl && event.visibility !== "private";
                 const rsvp = event.viewerRsvpStatus as string | null | undefined;
                 const saved = savedEvents.has(event.id) || rsvp === "interested" || rsvp === "maybe";
-                const hostName = event.user?.name?.split(" ")[0] ?? "someone";
+                const hostName = event.user?.name?.split(" ")[0] ?? null;
                 const dateStr = new Date(event.startTime).toLocaleDateString([], {
                   weekday: "short", month: "short", day: "numeric",
                 });
@@ -652,48 +652,56 @@ export default function DiscoverScreen() {
                             </View>
                           )}
 
-                          {/* Gradient overlay */}
+                          {/* Gradient overlay — readability-safe scrim for text zone */}
                           <LinearGradient
-                            colors={[...HERO_GRADIENT.colors]}
-                            locations={[...HERO_GRADIENT.locations]}
-                            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%" }}
+                            colors={[
+                              "rgba(0,0,0,0.0)",
+                              "rgba(0,0,0,0.03)",
+                              "rgba(0,0,0,0.25)",
+                              "rgba(0,0,0,0.65)",
+                              "rgba(0,0,0,0.88)",
+                            ]}
+                            locations={[0, 0.15, 0.4, 0.7, 1]}
+                            style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "75%" }}
                           />
 
                           {/* Overlay content */}
                           <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 16 }}>
                             <Text
-                              style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", lineHeight: 26 }}
+                              style={{ color: "#FFFFFF", fontSize: 20, fontWeight: "700", lineHeight: 26, textShadowColor: "rgba(0,0,0,0.6)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 }}
                               numberOfLines={2}
                             >
                               {event.emoji} {event.title}
                             </Text>
                             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
                               <Clock size={13} color="rgba(255,255,255,0.8)" />
-                              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginLeft: 5, fontWeight: "500" }}>
+                              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, marginLeft: 5, fontWeight: "500", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
                                 {dateStr} at {timeStr}
                               </Text>
                             </View>
                             {event.location && (
                               <View style={{ flexDirection: "row", alignItems: "center", marginTop: 3 }}>
                                 <MapPin size={13} color="rgba(255,255,255,0.7)" />
-                                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginLeft: 5 }} numberOfLines={1}>
+                                <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, marginLeft: 5, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} numberOfLines={1}>
                                   {event.location}
                                 </Text>
                               </View>
                             )}
-                            {/* [SOCIAL_PROOF_V2] Host line — prominent, always visible */}
-                            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
-                              <EntityAvatar
-                                photoUrl={event.user?.image}
-                                initials={event.user?.name?.[0] ?? "?"}
-                                size={22}
-                                backgroundColor="rgba(255,255,255,0.2)"
-                                foregroundColor="#FFFFFF"
-                              />
-                              <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500", marginLeft: 6 }}>
-                                Hosted by {hostName}
-                              </Text>
-                            </View>
+                            {/* [SOCIAL_PROOF_V2] Host line — only when real name available */}
+                            {hostName && (
+                              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+                                <EntityAvatar
+                                  photoUrl={event.user?.image}
+                                  initials={event.user?.name?.[0] ?? "?"}
+                                  size={22}
+                                  backgroundColor="rgba(255,255,255,0.2)"
+                                  foregroundColor="#FFFFFF"
+                                />
+                                <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "500", marginLeft: 6, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
+                                  Hosted by {hostName}
+                                </Text>
+                              </View>
+                            )}
 
                             {/* [SOCIAL_PROOF_V2] Momentum + chips row */}
                             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6, flexWrap: "wrap", gap: 4 }}>
