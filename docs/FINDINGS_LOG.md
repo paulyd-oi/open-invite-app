@@ -1,5 +1,21 @@
 # Findings Log — Frontend
 
+## Vibe Fallback Audit V1 (2026-03-19)
+
+### Finding
+The legacy vibe inference system (VIBE_THEMES, EMOJI_VIBE_MAP, inferCardVibe) in InviteFlipCard.tsx is still reachable and actively provides fallback styling for events without an explicit themeId.
+
+### Evidence
+- shared/contracts.ts line 68: themeId is z.string().nullable().optional() in eventSchema
+- create.tsx line 1289: themeId only included in payload when selectedThemeId is truthy (conditional spread)
+- create.tsx line 527: selectedThemeId defaults to null
+- InviteFlipCard.tsx lines 263-276: when resolveEventTheme returns null (no themeId), vibeTokens from inferCardVibe are used
+- All events created before Event Themes V1 rollout have no themeId stored in the database
+- edit/[id].tsx line 176: uses (event as any).themeId cast, confirming themeId not guaranteed on event objects
+
+### Recommendation
+Keep vibe fallback for now. Remove only after either: (a) backend backfills all existing events with a default themeId, or (b) a frontend default (e.g. "neutral") is applied when themeId is missing.
+
 ## P8 CTA + Navigation Hierarchy Audit
 
 ### Audit Scope
