@@ -15,7 +15,7 @@
       "bundleIdentifier": "com.vibecode.openinvite.0qi5wk",
       "buildNumber": "263",
       "usesAppleSignIn": true,
-      "jsEngine": "jsc",
+      "jsEngine": "hermes",
       "infoPlist": {
         "UISupportsDocumentBrowser": false,
         "LSSupportsOpeningDocumentsInPlace": false,

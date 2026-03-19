@@ -1,6 +1,7 @@
 # State of the App — Frontend
 
 ## Stable
+- Hermes Evaluation V1: JS engine switched from JSC to Hermes in app.json (ios.jsEngine). No code-level blockers found — zero JSC-specific code in src/, all key dependencies (Reanimated 3.17.4, Skia v2.0.0-next.4, expo-blur, gesture-handler, MMKV) support Hermes via JSI. REQUIRES FRESH NATIVE REBUILD AND DEVICE TESTING before merge. Config-only change, no code changes.
 - Premium Motion Pack V1: 2 new procedural theme effects added to ThemeEffectLayer. chill_hang → coastal_haze (slow aqua mist, large soft particles, blur sigma 11). game_night → arcade_sparkle (violet/white sparks with per-particle opacity pulse, 0.70x–1.15x range, 2.2–4.5s cycle). Engine extended with optional pulse support (additive, non-breaking). worship_night and winter_glow unchanged. Crash safety and reduced-motion paths preserved.
 - UI Stabilization Regression Sweep V1: ThemeEffectLayer crash-safed — Skia import wrapped in try-catch with _skiaAvailable guard, SkiaErrorBoundary added around Canvas render. If Skia native binary is unavailable, particles silently degrade to null instead of crashing. All 5 tab screens and event detail verified clean — no spacing, clipping, z-index, or content regressions found.
 - Tab Chrome Parity V2 (Friends + Profile): Both screens now use Discover's floating translucent BlurView chrome pattern. Friends: AppHeader + tab switcher (Activity|Chats|People) inside BlurView. Profile: AppHeader inside BlurView. SafeAreaView edges changed to ["bottom"] on both screens.
