@@ -2405,7 +2405,7 @@ export default function EventDetailScreen() {
           ) : (
             /* No-photo: warmer gradient atmosphere (theme-aware) */
             (() => {
-              const et = resolveEventTheme((event as any).themeId);
+              const et = resolveEventTheme(event.themeId);
               const tint = et ? (isDark ? et.pageTintDark : et.pageTintLight) : undefined;
               const baseTint = tint && tint !== "transparent" ? tint : undefined;
               return (
@@ -2511,7 +2511,7 @@ export default function EventDetailScreen() {
               heroFallbackBg={ET.heroFallbackBg}
               heroWashColors={ET.heroWashColors}
               heroWashLocations={ET.heroWashLocations}
-              themeId={(event as any).themeId ?? null}
+              themeId={event.themeId ?? null}
               editButton={
                 isMyEvent && event.eventPhotoUrl && !event.isBusy && event.visibility !== "private" ? (
                   <RNAnimated.View style={{ transform: [{ scale: editScale }] }}>

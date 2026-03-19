@@ -275,6 +275,7 @@ export function InviteFlipCard({
     };
   }, [explicitTheme, vibeTokens]);
   const backAccent = ct.backAccent || themeColor;
+  const themedCardBg = explicitTheme ? (isDark ? ct.backBgDark : ct.backBgLight) : heroFallbackBg;
 
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -344,7 +345,7 @@ export function InviteFlipCard({
                 aspectRatio: 3 / 4,
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
-                backgroundColor: heroFallbackBg,
+                backgroundColor: themedCardBg,
               }}
             >
               {imageUri ? (
@@ -398,7 +399,9 @@ export function InviteFlipCard({
                           backgroundColor:
                             countdownLabel === "Happening now"
                               ? "rgba(34,197,94,0.3)"
-                              : "rgba(0,0,0,0.25)",
+                              : explicitTheme
+                                ? `${backAccent}35`
+                                : "rgba(0,0,0,0.25)",
                         }}
                       >
                         <Text
@@ -434,7 +437,7 @@ export function InviteFlipCard({
                       style={{
                         paddingHorizontal: 10,
                         paddingVertical: 5,
-                        backgroundColor: "rgba(0,0,0,0.15)",
+                        backgroundColor: explicitTheme ? `${backAccent}30` : "rgba(0,0,0,0.15)",
                       }}
                     >
                       <Text style={{ fontSize: 18 }}>{emoji}</Text>
@@ -605,8 +608,10 @@ export function InviteFlipCard({
                 /* ── No-photo: atmospheric emoji poster ── */
                 <>
                   <LinearGradient
-                    colors={heroWashColors as any}
-                    locations={heroWashLocations as any}
+                    colors={(explicitTheme
+                      ? [isDark ? `${backAccent}20` : `${backAccent}15`, "transparent"]
+                      : heroWashColors) as any}
+                    locations={(explicitTheme ? [0, 1] : heroWashLocations) as any}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -631,7 +636,9 @@ export function InviteFlipCard({
                         fontWeight: "700",
                         letterSpacing: 1.5,
                         textTransform: "uppercase",
-                        color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.22)",
+                        color: explicitTheme
+                          ? `${backAccent}90`
+                          : isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.22)",
                         marginBottom: 16,
                       }}>
                         {ct.vibeLabel}
@@ -678,9 +685,11 @@ export function InviteFlipCard({
                           backgroundColor:
                             countdownLabel === "Happening now"
                               ? STATUS.going.bgSoft
-                              : isDark
-                                ? "rgba(255,255,255,0.08)"
-                                : "rgba(0,0,0,0.04)",
+                              : explicitTheme
+                                ? `${backAccent}18`
+                                : isDark
+                                  ? "rgba(255,255,255,0.08)"
+                                  : "rgba(0,0,0,0.04)",
                           paddingHorizontal: 14,
                           paddingVertical: 6,
                           borderRadius: 12,
@@ -788,7 +797,7 @@ export function InviteFlipCard({
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{
-                  height: 4,
+                  height: 6,
                   width: "100%",
                 }}
               />
@@ -813,7 +822,7 @@ export function InviteFlipCard({
                 {/* Host — prominent */}
                 {hostName && (
                   <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
-                    <View style={{ borderRadius: 24, borderWidth: 2.5, borderColor: isDark ? `${backAccent}60` : `${backAccent}40` }}>
+                    <View style={{ borderRadius: 24, borderWidth: 2.5, borderColor: `${backAccent}70` }}>
                       <EntityAvatar
                         photoUrl={hostImageUrl}
                         initials={hostName?.[0] ?? "?"}
@@ -845,7 +854,7 @@ export function InviteFlipCard({
                       borderRadius: 10,
                       alignItems: "center",
                       justifyContent: "center",
-                      backgroundColor: `${backAccent}14`,
+                      backgroundColor: `${backAccent}22`,
                       marginRight: 12,
                     }}
                   >
@@ -871,11 +880,11 @@ export function InviteFlipCard({
                         borderRadius: 10,
                         alignItems: "center",
                         justifyContent: "center",
-                        backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                        backgroundColor: `${backAccent}18`,
                         marginRight: 12,
                       }}
                     >
-                      <MapPin size={16} color={colors.textSecondary} />
+                      <MapPin size={16} color={backAccent} />
                     </View>
                     <View style={{ flex: 1, justifyContent: "center" }}>
                       <Text style={{ fontSize: 11, color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>
@@ -898,11 +907,11 @@ export function InviteFlipCard({
                         borderRadius: 10,
                         alignItems: "center",
                         justifyContent: "center",
-                        backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.03)",
+                        backgroundColor: `${backAccent}18`,
                         marginRight: 12,
                       }}
                     >
-                      <FileText size={16} color={colors.textSecondary} />
+                      <FileText size={16} color={backAccent} />
                     </View>
                     <View style={{ flex: 1, justifyContent: "center" }}>
                       <Text style={{ fontSize: 11, color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 2 }}>
