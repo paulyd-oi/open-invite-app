@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { openMaps } from "@/utils/openMaps";
 import { trackEventRsvp, trackInviteShared, trackRsvpCompleted, trackRsvpShareClicked, trackRsvpSuccessPromptShown, trackRsvpSuccessPromptTap, trackRsvpError } from "@/analytics/analyticsEventsSSOT";
 import { devLog, devWarn, devError } from "@/lib/devLog";
@@ -2373,7 +2374,7 @@ export default function EventDetailScreen() {
 
       <KeyboardAwareScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ═══ V4.2 ATMOSPHERIC ZONE — blurred backdrop + floating card ═══ */}
@@ -2417,34 +2418,52 @@ export default function EventDetailScreen() {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingHorizontal: 12,
-            paddingVertical: 4,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
             zIndex: 10,
           }}>
-            <Pressable
-              onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
-              style={{
-                width: 40, height: 40, borderRadius: 20,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: eventBannerUri && event.eventPhotoUrl ? "rgba(0,0,0,0.3)" : "transparent",
-              }}
-            >
-              <ChevronLeft size={26} color={eventBannerUri && event.eventPhotoUrl ? "#FFFFFF" : colors.text} />
-            </Pressable>
-            <Pressable
-              testID="event-detail-menu-open"
-              onPress={() => {
-                Haptics.selectionAsync();
-                setShowEventActionsSheet(true);
-              }}
-              style={{
-                width: 40, height: 40, borderRadius: 20,
-                alignItems: "center", justifyContent: "center",
-                backgroundColor: eventBannerUri && event.eventPhotoUrl ? "rgba(0,0,0,0.3)" : "transparent",
-              }}
-            >
-              <MoreHorizontal size={24} color={eventBannerUri && event.eventPhotoUrl ? "#FFFFFF" : colors.text} />
-            </Pressable>
+            {eventBannerUri && event.eventPhotoUrl ? (
+              <Pressable
+                onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+                style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden" }}
+              >
+                <BlurView intensity={30} tint="dark" style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.15)" }}>
+                  <ChevronLeft size={24} color="#FFFFFF" />
+                </BlurView>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => router.canGoBack() ? router.back() : router.replace("/calendar" as any)}
+                style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }}
+              >
+                <ChevronLeft size={24} color={colors.text} />
+              </Pressable>
+            )}
+            {eventBannerUri && event.eventPhotoUrl ? (
+              <Pressable
+                testID="event-detail-menu-open"
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowEventActionsSheet(true);
+                }}
+                style={{ width: 40, height: 40, borderRadius: 20, overflow: "hidden" }}
+              >
+                <BlurView intensity={30} tint="dark" style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.15)" }}>
+                  <MoreHorizontal size={22} color="#FFFFFF" />
+                </BlurView>
+              </Pressable>
+            ) : (
+              <Pressable
+                testID="event-detail-menu-open"
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setShowEventActionsSheet(true);
+                }}
+                style={{ width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" }}
+              >
+                <MoreHorizontal size={22} color={colors.text} />
+              </Pressable>
+            )}
           </View>
 
           {/* Floating invite card */}
@@ -2547,8 +2566,8 @@ export default function EventDetailScreen() {
         </View>
 
         {/* ═══ V4.2 QUICK INFO BAR — visibility + share below atmospheric zone ═══ */}
-        <Animated.View entering={FadeInDown.delay(50).springify()}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 }}>
+        <Animated.View entering={FadeInDown.delay(55).springify()}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 10, paddingBottom: 6 }}>
             <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
               <EventVisibilityBadge
                 visibility={event.visibility}
@@ -2571,7 +2590,7 @@ export default function EventDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 if (event) shareEvent({ ...event, location: locationDisplay ?? null });
               }}
-              style={{ width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
+              style={{ width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", borderWidth: 0.5, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
             >
               <Share2 size={18} color={colors.textSecondary} />
             </Pressable>
@@ -2579,30 +2598,32 @@ export default function EventDetailScreen() {
         </Animated.View>
 
         {/* ═══ Padded content — RSVP + utility below ═══ */}
-        <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+        <View style={{ paddingHorizontal: 18, paddingTop: 12 }}>
 
         {/* ═══ PRIMARY ACTION BAR (Task 3) ═══ */}
         {!isMyEvent && !event?.isBusy && (
-          <Animated.View entering={FadeInDown.delay(75).springify()}>
+          <Animated.View entering={FadeInDown.delay(80).springify()}>
             {hasJoinRequest ? (
-              <View style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-                marginBottom: 14,
-                borderRadius: RADIUS.xl,
-                backgroundColor: STATUS.going.bgSoft,
-                borderWidth: 0.5,
-                borderColor: STATUS.going.border,
-              }}>
-                <Check size={18} color={STATUS.going.fg} />
-                <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: STATUS.going.fg }}>You're Attending</Text>
-                <Text style={{ marginLeft: 6, fontSize: 13, color: colors.textSecondary }}>· on your calendar</Text>
-              </View>
+              <Animated.View entering={FadeInDown.duration(300)}>
+                <View style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 16,
+                  paddingHorizontal: 18,
+                  marginBottom: 18,
+                  borderRadius: RADIUS.xxl,
+                  backgroundColor: STATUS.going.bgSoft,
+                  borderWidth: 0.5,
+                  borderColor: STATUS.going.border,
+                }}>
+                  <Check size={18} color={STATUS.going.fg} />
+                  <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "600", color: STATUS.going.fg }}>You're Attending</Text>
+                  <Text style={{ marginLeft: 6, fontSize: 13, color: colors.textSecondary }}>· on your calendar</Text>
+                </View>
+              </Animated.View>
             ) : (
-              <View style={{ marginBottom: 14 }}>
+              <View style={{ marginBottom: 18, padding: 16, borderRadius: RADIUS.xl, backgroundColor: isDark ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0.012)", borderWidth: 0.5, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}>
                 {/* [P0_RSVP] Proof log: Render RSVP state and count */}
                 {__DEV__ && (() => {
                   devLog("[P0_RSVP]", "ui render", {
@@ -2617,15 +2638,15 @@ export default function EventDetailScreen() {
 
                 {/* Current RSVP status — compact inline */}
                 {myRsvpStatus && (
-                  <View style={{ marginBottom: 10 }}>
+                  <Animated.View entering={FadeInDown.duration(250)} style={{ marginBottom: 12 }}>
                     <View
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        paddingVertical: 12,
+                        paddingVertical: 14,
                         paddingHorizontal: 16,
-                        borderRadius: RADIUS.lg,
+                        borderRadius: RADIUS.xl,
                         backgroundColor: myRsvpStatus === "going" ? STATUS.going.bgSoft :
                                          myRsvpStatus === "interested" ? STATUS.interested.bgSoft : colors.surface,
                         borderWidth: 1,
@@ -2683,7 +2704,7 @@ export default function EventDetailScreen() {
                         <Text style={{ fontSize: 13, fontWeight: "500", marginLeft: 6, color: themeColor }}>Share with friends</Text>
                       </Pressable>
                     )}
-                  </View>
+                  </Animated.View>
                 )}
 
                 {/* [GROWTH_V1] Inline success prompt — "Want to bring someone?" */}
@@ -2776,12 +2797,12 @@ export default function EventDetailScreen() {
                       {/* Going — Primary */}
                       {eventMeta.isFull && myRsvpStatus !== "going" ? (
                         <View style={{
-                          flex: 1,
+                          flex: 1.2,
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "center",
-                          paddingVertical: 15,
-                          borderRadius: RADIUS.xl,
+                          paddingVertical: 16,
+                          borderRadius: RADIUS.pill,
                           backgroundColor: isDark ? "#2C2C2E" : "#E5E7EB",
                           opacity: 0.5,
                         }}>
@@ -2794,18 +2815,24 @@ export default function EventDetailScreen() {
                           onPress={() => handleRsvp("going")}
                           disabled={rsvpMutation.isPending}
                           style={({ pressed }) => ({
-                            flex: 1,
+                            flex: 1.2,
                             flexDirection: "row" as const,
                             alignItems: "center" as const,
                             justifyContent: "center" as const,
-                            paddingVertical: 15,
-                            borderRadius: RADIUS.xl,
+                            paddingVertical: 16,
+                            borderRadius: RADIUS.pill,
                             backgroundColor: ET.accentPrimary,
-                            opacity: pressed ? 0.85 : 1,
+                            opacity: pressed ? 0.88 : 1,
+                            ...(Platform.OS === "ios" ? {
+                              shadowColor: ET.accentPrimary,
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.35,
+                              shadowRadius: 12,
+                            } : { elevation: 4 }),
                           })}
                         >
                           <Check size={18} color="#FFFFFF" />
-                          <Text style={{ marginLeft: 8, fontSize: 15, fontWeight: "700", color: "#FFFFFF" }}>
+                          <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.2 }}>
                             {myRsvpStatus === "going" ? "Going" : "I'm In"}
                           </Text>
                         </Pressable>
@@ -2821,8 +2848,8 @@ export default function EventDetailScreen() {
                           flexDirection: "row" as const,
                           alignItems: "center" as const,
                           justifyContent: "center" as const,
-                          paddingVertical: 15,
-                          borderRadius: RADIUS.xl,
+                          paddingVertical: 16,
+                          borderRadius: RADIUS.pill,
                           backgroundColor: myRsvpStatus === "interested"
                             ? STATUS.interested.bgSoft
                             : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.035)"),
@@ -2830,7 +2857,7 @@ export default function EventDetailScreen() {
                           borderColor: myRsvpStatus === "interested"
                             ? STATUS.interested.border
                             : (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"),
-                          opacity: pressed ? 0.85 : 1,
+                          opacity: pressed ? 0.88 : 1,
                         })}
                       >
                         <Heart size={18} color={myRsvpStatus === "interested" ? STATUS.interested.fg : colors.textSecondary} />
@@ -2956,7 +2983,7 @@ export default function EventDetailScreen() {
             : `${eventTitle} is coming up soon. You in? ${eventLink}`;
 
           return (
-            <Animated.View entering={FadeInDown.delay(87).springify()} style={{ marginBottom: 14 }}>
+            <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginBottom: 18 }}>
               <View style={{
                 borderRadius: RADIUS.lg,
                 backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
@@ -3101,19 +3128,19 @@ export default function EventDetailScreen() {
 
         {/* ═══ DESCRIPTION / VIBE ═══ */}
         {event.description && (
-          <Animated.View entering={FadeInDown.delay(85).springify()} style={{ marginTop: 2, marginBottom: 18 }}>
-            <Text style={{ fontSize: 12, fontWeight: "600", color: colors.textTertiary, letterSpacing: 0.3, marginBottom: 6, textTransform: "uppercase" }}>
-              Description
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginTop: 4, marginBottom: 20 }}>
+            <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, letterSpacing: 0.6, marginBottom: 10, textTransform: "uppercase" }}>
+              About
             </Text>
             <Text
-              style={{ fontSize: 15, lineHeight: 23, color: colors.text, letterSpacing: 0.1 }}
+              style={{ fontSize: 16, lineHeight: 25, color: colors.text, letterSpacing: 0.05 }}
               numberOfLines={descriptionExpanded ? undefined : 4}
             >
               {event.description}
             </Text>
             {event.description.length > 200 && (
-              <Pressable onPress={() => setDescriptionExpanded(!descriptionExpanded)} style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 14, fontWeight: "500", color: themeColor }}>
+              <Pressable onPress={() => setDescriptionExpanded(!descriptionExpanded)} style={{ marginTop: 10 }}>
+                <Text style={{ fontSize: 14, fontWeight: "600", color: themeColor }}>
                   {descriptionExpanded ? "Show less" : "Read more"}
                 </Text>
               </Pressable>
@@ -3122,7 +3149,7 @@ export default function EventDetailScreen() {
         )}
 
         {/* ═══ DETAILS BLOCK ═══ */}
-        <Animated.View entering={FadeInDown.delay(90).springify()} style={{ marginBottom: 14 }}>
+        <Animated.View entering={FadeInDown.delay(95).springify()} style={{ marginBottom: 18 }}>
           {/* Get Directions */}
           {locationDisplay && (
             <Pressable
@@ -3133,21 +3160,23 @@ export default function EventDetailScreen() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                paddingVertical: 11,
-                paddingHorizontal: 14,
-                marginBottom: 10,
-                borderRadius: RADIUS.md,
+                paddingVertical: 14,
+                paddingHorizontal: 16,
+                marginBottom: 12,
+                borderRadius: RADIUS.lg,
                 backgroundColor: isDark ? "rgba(20,184,166,0.08)" : "rgba(20,184,166,0.05)",
                 borderWidth: 0.5,
                 borderColor: isDark ? "rgba(20,184,166,0.18)" : "rgba(20,184,166,0.15)",
               }}
             >
-              <Compass size={16} color="#14B8A6" />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={{ fontSize: 14, fontWeight: "600", color: colors.text }} numberOfLines={1}>{locationDisplay}</Text>
-                <Text style={{ fontSize: 11, color: "#14B8A6", marginTop: 1 }}>Open in Maps</Text>
+              <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: isDark ? "rgba(20,184,166,0.15)" : "rgba(20,184,166,0.1)", alignItems: "center", justifyContent: "center" }}>
+                <Compass size={18} color="#14B8A6" />
               </View>
-              <ArrowRight size={14} color="#14B8A6" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={{ fontSize: 15, fontWeight: "600", color: colors.text }} numberOfLines={1}>{locationDisplay}</Text>
+                <Text style={{ fontSize: 12, color: "#14B8A6", marginTop: 2, fontWeight: "500" }}>Get Directions</Text>
+              </View>
+              <ArrowRight size={16} color="#14B8A6" />
             </Pressable>
           )}
 
@@ -3418,8 +3447,8 @@ export default function EventDetailScreen() {
           // Has attendees: show compact roster preview (1-row avatar stack)
           if (effectiveGoingCount > 0 || attendeesList.length > 0) {
             const STACK_MAX = 5;
-            const AVATAR_SIZE = 36;
-            const OVERLAP = 10;
+            const AVATAR_SIZE = 40;
+            const OVERLAP = 11;
             const hostId = event?.user?.id;
             const hostInList = attendeesList.find(a => a.id === hostId);
             const nonHostAttendees = attendeesList.filter(a => a.id !== hostId);
@@ -3439,7 +3468,10 @@ export default function EventDetailScreen() {
             const stackWidth = visibleAvatars.length * (AVATAR_SIZE - OVERLAP) + OVERLAP + (overflowCount > 0 ? AVATAR_SIZE - OVERLAP + OVERLAP : 0);
 
             return (
-              <Animated.View entering={FadeInDown.delay(95).springify()}>
+              <Animated.View entering={FadeInDown.delay(100).springify()} style={{ marginBottom: 14 }}>
+                <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>
+                  Who's Coming
+                </Text>
                 <Pressable
                   testID="event-detail-whos-coming-open"
                   onPress={() => {
@@ -3451,9 +3483,11 @@ export default function EventDetailScreen() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     paddingVertical: 14,
-                    marginBottom: 10,
-                    borderTopWidth: 0.5,
-                    borderTopColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+                    paddingHorizontal: 14,
+                    borderRadius: RADIUS.lg,
+                    backgroundColor: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.015)",
+                    borderWidth: 0.5,
+                    borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
                   }}
                 >
                   {/* Avatar stack */}
@@ -3523,7 +3557,10 @@ export default function EventDetailScreen() {
                         : `${effectiveGoingCount} going`}
                     </Text>
                   </View>
-                  <Text style={{ color: themeColor, fontSize: 13, fontWeight: "500" }}>View all</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: `${themeColor}12` }}>
+                    <Text style={{ color: themeColor, fontSize: 13, fontWeight: "600" }}>View all</Text>
+                    <ChevronRight size={14} color={themeColor} style={{ marginLeft: 2 }} />
+                  </View>
                 </Pressable>
               </Animated.View>
             );
@@ -3616,16 +3653,15 @@ export default function EventDetailScreen() {
         )}
 
         {/* Comments Section */}
-        <Animated.View entering={FadeInDown.delay(120).springify()}>
+        <Animated.View entering={FadeInDown.delay(130).springify()}>
           <View className="mb-3">
-            <View className="flex-row items-center mb-2">
-              <MessageCircle size={20} color={themeColor} />
-              <Text className="text-lg font-semibold ml-2" style={{ color: colors.text }}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
+              <Text style={{ fontSize: 12, fontWeight: "700", color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.6 }}>
                 Discussion
               </Text>
               {comments.length > 0 && (
-                <View className="px-2 py-1 rounded-full ml-2" style={{ backgroundColor: isDark ? "#2C2C2E" : "#FFF7ED" }}>
-                  <Text className="text-xs font-semibold" style={{ color: themeColor }}>
+                <View style={{ marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: `${themeColor}14` }}>
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: themeColor }}>
                     {comments.length}
                   </Text>
                 </View>

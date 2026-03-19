@@ -22,6 +22,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import { MapPin, Calendar, Users, RefreshCw, FileText } from "@/ui/icons";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { RADIUS } from "@/ui/layout";
@@ -91,12 +92,12 @@ const MINI_OVERLAP = 7;
 const CARD_SHADOW = Platform.select({
   ios: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 28,
   },
   android: {
-    elevation: 6,
+    elevation: 10,
   },
   default: {},
 }) as Record<string, unknown>;
@@ -207,13 +208,13 @@ export function InviteFlipCard({
                   {/* Rich gradient overlay — top vignette + bottom info zone */}
                   <LinearGradient
                     colors={[
-                      "rgba(0,0,0,0.15)",
+                      "rgba(0,0,0,0.2)",
                       "transparent",
                       "transparent",
-                      "rgba(0,0,0,0.4)",
-                      "rgba(0,0,0,0.75)",
+                      "rgba(0,0,0,0.5)",
+                      "rgba(0,0,0,0.85)",
                     ]}
-                    locations={[0, 0.15, 0.45, 0.7, 1]}
+                    locations={[0, 0.12, 0.4, 0.65, 1]}
                     style={{
                       position: "absolute",
                       top: 0,
@@ -223,35 +224,43 @@ export function InviteFlipCard({
                     }}
                   />
 
-                  {/* ── Top-left: countdown chip ── */}
+                  {/* ── Top-left: countdown chip (frosted glass) ── */}
                   {countdownLabel && (
                     <View
                       style={{
                         position: "absolute",
                         top: 16,
                         left: 16,
-                        backgroundColor:
-                          countdownLabel === "Happening now"
-                            ? "rgba(34,197,94,0.35)"
-                            : "rgba(0,0,0,0.45)",
-                        paddingHorizontal: 12,
-                        paddingVertical: 5,
-                        borderRadius: 12,
+                        borderRadius: 14,
+                        overflow: "hidden",
                       }}
                     >
-                      <Text
+                      <BlurView
+                        intensity={40}
+                        tint="dark"
                         style={{
-                          fontSize: 12,
-                          fontWeight: "700",
-                          color:
+                          paddingHorizontal: 14,
+                          paddingVertical: 6,
+                          backgroundColor:
                             countdownLabel === "Happening now"
-                              ? "#4ADE80"
-                              : "rgba(255,255,255,0.95)",
-                          letterSpacing: 0.3,
+                              ? "rgba(34,197,94,0.3)"
+                              : "rgba(0,0,0,0.25)",
                         }}
                       >
-                        {countdownLabel}
-                      </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: "700",
+                            color:
+                              countdownLabel === "Happening now"
+                                ? "#4ADE80"
+                                : "rgba(255,255,255,0.95)",
+                            letterSpacing: 0.4,
+                          }}
+                        >
+                          {countdownLabel}
+                        </Text>
+                      </BlurView>
                     </View>
                   )}
 
@@ -262,22 +271,22 @@ export function InviteFlipCard({
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      padding: 20,
-                      paddingBottom: 18,
+                      padding: 22,
+                      paddingBottom: 22,
                     }}
                   >
                     {/* Title */}
                     <Text
                       style={{
-                        fontSize: 26,
+                        fontSize: 30,
                         fontWeight: "800",
                         color: "#FFFFFF",
-                        letterSpacing: -0.5,
-                        lineHeight: 31,
-                        textShadowColor: "rgba(0,0,0,0.4)",
+                        letterSpacing: -0.7,
+                        lineHeight: 36,
+                        textShadowColor: "rgba(0,0,0,0.5)",
                         textShadowOffset: { width: 0, height: 1 },
-                        textShadowRadius: 4,
-                        marginBottom: 10,
+                        textShadowRadius: 6,
+                        marginBottom: 12,
                       }}
                       numberOfLines={3}
                     >
@@ -286,13 +295,14 @@ export function InviteFlipCard({
 
                     {/* Date + Time line */}
                     <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                      <Calendar size={13} color="rgba(255,255,255,0.8)" />
+                      <Calendar size={13} color="rgba(255,255,255,0.75)" />
                       <Text
                         style={{
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: "600",
-                          color: "rgba(255,255,255,0.9)",
-                          marginLeft: 6,
+                          color: "rgba(255,255,255,0.92)",
+                          marginLeft: 7,
+                          letterSpacing: 0.1,
                         }}
                         numberOfLines={1}
                       >
@@ -302,14 +312,14 @@ export function InviteFlipCard({
 
                     {/* Location line */}
                     {locationDisplay && (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                        <MapPin size={13} color="rgba(255,255,255,0.8)" />
+                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                        <MapPin size={13} color="rgba(255,255,255,0.75)" />
                         <Text
                           style={{
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: "500",
-                            color: "rgba(255,255,255,0.85)",
-                            marginLeft: 6,
+                            color: "rgba(255,255,255,0.88)",
+                            marginLeft: 7,
                             flex: 1,
                           }}
                           numberOfLines={1}
@@ -319,31 +329,32 @@ export function InviteFlipCard({
                       </View>
                     )}
 
-                    {/* Social proof row */}
-                    <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      {visibleAvatars.length > 0 && (
-                        <View
-                          style={{
-                            width: avatarStackWidth,
-                            height: MINI_AV,
-                            flexDirection: "row",
-                            marginRight: 8,
-                          }}
-                        >
-                          {visibleAvatars.map((a, i) => (
-                            <View
-                              key={a.id}
-                              style={{
-                                position: "absolute",
-                                left: i * (MINI_AV - MINI_OVERLAP),
-                                width: MINI_AV,
-                                height: MINI_AV,
-                                borderRadius: MINI_AV / 2,
-                                borderWidth: 1.5,
-                                borderColor: "rgba(0,0,0,0.3)",
-                                zIndex: visibleAvatars.length - i,
-                              }}
-                            >
+                    {/* Social proof row — separator + larger presence */}
+                    <View style={{ borderTopWidth: 0.5, borderTopColor: "rgba(255,255,255,0.15)", paddingTop: 12 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        {visibleAvatars.length > 0 && (
+                          <View
+                            style={{
+                              width: avatarStackWidth,
+                              height: MINI_AV,
+                              flexDirection: "row",
+                              marginRight: 10,
+                            }}
+                          >
+                            {visibleAvatars.map((a, i) => (
+                              <View
+                                key={a.id}
+                                style={{
+                                  position: "absolute",
+                                  left: i * (MINI_AV - MINI_OVERLAP),
+                                  width: MINI_AV,
+                                  height: MINI_AV,
+                                  borderRadius: MINI_AV / 2,
+                                  borderWidth: 1.5,
+                                  borderColor: "rgba(255,255,255,0.2)",
+                                  zIndex: visibleAvatars.length - i,
+                                }}
+                              >
                               <EntityAvatar
                                 photoUrl={a.imageUrl}
                                 initials={a.name?.[0] ?? "?"}
@@ -355,26 +366,27 @@ export function InviteFlipCard({
                           ))}
                         </View>
                       )}
-                      {goingCount > 0 ? (
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: "600",
-                            color: "rgba(255,255,255,0.9)",
-                          }}
-                        >
-                          {goingCount} going
-                        </Text>
-                      ) : (
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            color: "rgba(255,255,255,0.6)",
-                          }}
-                        >
-                          Be the first to RSVP
-                        </Text>
-                      )}
+                        {goingCount > 0 ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "700",
+                              color: "rgba(255,255,255,0.95)",
+                            }}
+                          >
+                            {goingCount} going
+                          </Text>
+                        ) : (
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: "rgba(255,255,255,0.6)",
+                            }}
+                          >
+                            Be the first to RSVP
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </>
@@ -401,16 +413,16 @@ export function InviteFlipCard({
                       paddingTop: 40,
                     }}
                   >
-                    <Text style={{ fontSize: 80, marginBottom: 20 }}>{emoji}</Text>
+                    <Text style={{ fontSize: 80, marginBottom: 24 }}>{emoji}</Text>
                     <Text
                       style={{
-                        fontSize: 26,
+                        fontSize: 30,
                         fontWeight: "800",
                         color: colors.text,
                         textAlign: "center",
-                        letterSpacing: -0.5,
-                        lineHeight: 31,
-                        marginBottom: 14,
+                        letterSpacing: -0.7,
+                        lineHeight: 36,
+                        marginBottom: 16,
                       }}
                       numberOfLines={3}
                     >
