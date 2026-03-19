@@ -1,5 +1,29 @@
 # Findings Log — Frontend
 
+## New Architecture Evaluation V1 (2026-03-19)
+
+### Finding
+New Architecture (Fabric + TurboModules + Bridgeless) can be enabled with a trivial config change but should be DEFERRED until post-launch due to the blast radius of the custom native bridge interop and the Vibecode RN patch.
+
+### Evidence
+- app.json line 10: newArchEnabled: false
+- ios/Podfile.properties.json line 4: "newArchEnabled": "false"
+- ios/Podfile line 7: ENV['RCT_NEW_ARCH_ENABLED'] = '0' when newArchEnabled == 'false'
+- android/gradle.properties line 38: newArchEnabled=false
+- LiveActivityBridge.m: uses RCT_EXTERN_MODULE + RCTBridgeModule (legacy bridge API)
+- WidgetBridge.m: uses RCT_EXTERN_MODULE + RCTBridgeModule (legacy bridge API)
+- JS callers (liveActivity.ts, widgetBridge.ts): use NativeModules.X which requires interop layer in bridgeless mode
+- RN 0.79 includes RCTInteropTurboModule (auto-wraps legacy modules) but this path is not battle-tested for custom modules with promise-based methods
+- Vibecode patch modifies RCTInstance.mm (bridgeless runtime entry point) — already targets New Arch code path
+- Vibecode patch modifies RCTHTTPRequestHandler.mm — already conforms to RCTTurboModule protocol
+- All major deps have codegenConfig: Skia v2.0.0-next.4, Reanimated 3.17.4, Gesture Handler 2.24.0, MMKV 3.3.3, Screens 4.11.1, Sentry 6.14.0, SVG 15.11.2, Flash List 1.7.6, Lottie 7.2.2, Pager View 6.7.1, Webview 13.13.5
+- Expo modules (blur, notifications, galeria) use ExpoModulesCore which natively supports New Architecture
+- Some deps lack codegenConfig but are pure JS: calendars, gifted-chat, avatar, sortables, markdown-display, bottom-sheet
+- Some native deps lack codegenConfig but use legacy APIs with interop: segmented-control (RCTViewManager), masked-view (RCTView), purchases (RCT_EXPORT_MODULE), image-colors
+
+### Recommendation
+Defer to post-launch. The config change is trivial but the QA burden is large — every native module call, every view render, and every gesture/animation path changes execution model. The custom bridges are the highest-risk surface because they use legacy APIs through the untested interop layer with promise-based methods. Post-launch, create a dedicated branch, enable, rebuild, and do full device QA.
+
 ## Hermes Enablement V2 — Native File Preservation (2026-03-19)
 
 ### Finding
