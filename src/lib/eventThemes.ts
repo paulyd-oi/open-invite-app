@@ -83,6 +83,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(20,184,166,0.24)",
     pageTintLight: "rgba(20,184,166,0.14)",
     chipAccent: "#14B8A6",
+    effectPreset: "coastal_haze",
   },
   dinner_night: {
     label: "Dinner Night",
@@ -107,6 +108,7 @@ export const EVENT_THEMES: Record<ThemeId, EventThemeTokens> = {
     pageTintDark: "rgba(139,92,246,0.28)",
     pageTintLight: "rgba(139,92,246,0.16)",
     chipAccent: "#8B5CF6",
+    effectPreset: "arcade_sparkle",
   },
   worship_night: {
     label: "Worship Night",
