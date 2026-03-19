@@ -276,6 +276,7 @@ export function InviteFlipCard({
   }, [explicitTheme, vibeTokens]);
   const backAccent = ct.backAccent || themeColor;
   const themedCardBg = explicitTheme ? (isDark ? ct.backBgDark : ct.backBgLight) : heroFallbackBg;
+  const plaqueBg = explicitTheme ? (isDark ? ct.backBgDark : ct.backBgLight) : (isDark ? "#1C1C1E" : "#FAF9F7");
 
   const handleFlip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -345,56 +346,29 @@ export function InviteFlipCard({
                 aspectRatio: 3 / 4,
                 borderRadius: CARD_RADIUS,
                 overflow: "hidden",
-                backgroundColor: themedCardBg,
+                backgroundColor: imageUri ? plaqueBg : themedCardBg,
                 borderWidth: explicitTheme ? 2 : 0,
                 borderColor: explicitTheme ? `${backAccent}40` : "transparent",
               }}
             >
               {imageUri ? (
                 <>
-                  <ExpoImage
-                    source={{ uri: imageUri }}
-                    style={{ width: "100%", height: "100%" }}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={200}
-                    priority="high"
-                  />
-
-                  {/* Gradient overlay — dark scrim for readability */}
-                  <LinearGradient
-                    colors={[
-                      explicitTheme ? `${backAccent}28` : "rgba(0,0,0,0.15)",
-                      "transparent",
-                      ct.gradientTint !== "transparent" ? ct.gradientTint : "transparent",
-                      ct.gradientTint !== "transparent" ? ct.gradientTint : "rgba(0,0,0,0.35)",
-                      "rgba(0,0,0,0.60)",
-                      "rgba(0,0,0,0.94)",
-                    ]}
-                    locations={[0, 0.10, 0.34, 0.54, 0.72, 1]}
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                    }}
-                  />
-
-                  {/* Theme bottom wash — opaque accent survives strong photos */}
-                  {explicitTheme && (
-                    <LinearGradient
-                      colors={["transparent", `${backAccent}3A`]}
-                      locations={[0.35, 1]}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                      }}
+                  {/* ── Photo zone — top 62% ── */}
+                  <View style={{ height: "62%", position: "relative" }}>
+                    <ExpoImage
+                      source={{ uri: imageUri }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                      priority="high"
                     />
-                  )}
+                    {/* Light vignette for chip readability */}
+                    <LinearGradient
+                      colors={["rgba(0,0,0,0.35)", "transparent", "transparent"]}
+                      locations={[0, 0.5, 1]}
+                      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
 
                   {/* ── Top-left: countdown chip (frosted glass) ── */}
                   {countdownLabel && (
@@ -461,56 +435,35 @@ export function InviteFlipCard({
                     </BlurView>
                   </View>
 
-                  {/* ── Bottom info block — the invitation ── */}
+                  </View>
+
+                  {/* ── Plaque — themed solid surface ── */}
                   <View
                     style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      padding: 22,
-                      paddingBottom: 22,
+                      flex: 1,
+                      paddingHorizontal: 20,
+                      paddingTop: 14,
+                      paddingBottom: 18,
                     }}
                   >
-                    {/* Theme label stamp — opaque surface the photo can't overpower */}
+                    {/* Theme label pill — bridge between photo and plaque */}
                     {explicitTheme && explicitTheme.label !== "Classic" && (
                       <View style={{
-                        backgroundColor: `${backAccent}65`,
+                        backgroundColor: `${backAccent}18`,
                         paddingHorizontal: 10,
                         paddingVertical: 3,
                         borderRadius: 8,
                         alignSelf: "flex-start",
-                        marginBottom: 8,
+                        marginBottom: 10,
                       }}>
                         <Text style={{
                           fontSize: 10,
                           fontWeight: "800",
-                          color: "#FFFFFF",
+                          color: backAccent,
                           letterSpacing: 1.2,
                           textTransform: "uppercase",
-                          textShadowColor: "rgba(0,0,0,0.4)",
-                          textShadowOffset: { width: 0, height: 1 },
-                          textShadowRadius: 3,
                         }}>
                           {explicitTheme.label}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Host attribution */}
-                    {hostName && (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-                        <View style={{ borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
-                          <EntityAvatar
-                            photoUrl={hostImageUrl}
-                            initials={hostName?.[0] ?? "?"}
-                            size={22}
-                            backgroundColor="rgba(255,255,255,0.15)"
-                            foregroundColor="#FFFFFF"
-                          />
-                        </View>
-                        <Text style={{ fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.8)", marginLeft: 7, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }}>
-                          {isMyEvent ? "Your event" : `Hosted by ${hostFirst}`}
                         </Text>
                       </View>
                     )}
@@ -518,34 +471,28 @@ export function InviteFlipCard({
                     {/* Title */}
                     <Text
                       style={{
-                        fontSize: 32,
+                        fontSize: 24,
                         fontWeight: "800",
-                        color: "#FFFFFF",
-                        letterSpacing: -0.8,
-                        lineHeight: 38,
-                        textShadowColor: "rgba(0,0,0,0.7)",
-                        textShadowOffset: { width: 0, height: 2 },
-                        textShadowRadius: 12,
-                        marginBottom: 14,
+                        color: colors.text,
+                        letterSpacing: -0.5,
+                        lineHeight: 29,
+                        marginBottom: 10,
                       }}
-                      numberOfLines={3}
+                      numberOfLines={2}
                     >
                       {title}
                     </Text>
 
                     {/* Date + Time */}
-                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                      <Calendar size={14} color="rgba(255,255,255,0.7)" />
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+                      <Calendar size={14} color={explicitTheme ? backAccent : colors.textSecondary} />
                       <Text
                         style={{
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: "600",
-                          color: "rgba(255,255,255,0.92)",
-                          marginLeft: 8,
+                          color: colors.textSecondary,
+                          marginLeft: 7,
                           letterSpacing: 0.1,
-                          textShadowColor: "rgba(0,0,0,0.5)",
-                          textShadowOffset: { width: 0, height: 1 },
-                          textShadowRadius: 4,
                         }}
                         numberOfLines={1}
                       >
@@ -553,96 +500,58 @@ export function InviteFlipCard({
                       </Text>
                     </View>
 
-                    {/* Location */}
-                    {locationDisplay && (
-                      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 14 }}>
-                        <MapPin size={14} color="rgba(255,255,255,0.7)" />
-                        <Text
-                          style={{
-                            fontSize: 15,
-                            fontWeight: "500",
-                            color: "rgba(255,255,255,0.88)",
-                            marginLeft: 8,
-                            flex: 1,
-                            textShadowColor: "rgba(0,0,0,0.5)",
-                            textShadowOffset: { width: 0, height: 1 },
-                            textShadowRadius: 4,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {locationDisplay}
-                        </Text>
-                      </View>
-                    )}
-
                     {/* Social proof row */}
-                    <View style={{ borderTopWidth: 0.5, borderTopColor: explicitTheme ? `${backAccent}35` : "rgba(255,255,255,0.15)", paddingTop: 12 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        {visibleAvatars.length > 0 && (
-                          <View
-                            style={{
-                              width: avatarStackWidth,
-                              height: MINI_AV,
-                              flexDirection: "row",
-                              marginRight: 10,
-                            }}
-                          >
-                            {visibleAvatars.map((a, i) => (
-                              <View
-                                key={a.id}
-                                style={{
-                                  position: "absolute",
-                                  left: i * (MINI_AV - MINI_OVERLAP),
-                                  width: MINI_AV,
-                                  height: MINI_AV,
-                                  borderRadius: MINI_AV / 2,
-                                  borderWidth: 1.5,
-                                  borderColor: "rgba(255,255,255,0.3)",
-                                  zIndex: visibleAvatars.length - i,
-                                }}
-                              >
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: "auto" }}>
+                      {visibleAvatars.length > 0 && (
+                        <View
+                          style={{
+                            width: avatarStackWidth,
+                            height: MINI_AV,
+                            flexDirection: "row",
+                            marginRight: 10,
+                          }}
+                        >
+                          {visibleAvatars.map((a, i) => (
+                            <View
+                              key={a.id}
+                              style={{
+                                position: "absolute",
+                                left: i * (MINI_AV - MINI_OVERLAP),
+                                width: MINI_AV,
+                                height: MINI_AV,
+                                borderRadius: MINI_AV / 2,
+                                borderWidth: 1.5,
+                                borderColor: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)",
+                                zIndex: visibleAvatars.length - i,
+                              }}
+                            >
                               <EntityAvatar
                                 photoUrl={a.imageUrl}
                                 initials={a.name?.[0] ?? "?"}
                                 size={MINI_AV - 3}
-                                backgroundColor="rgba(255,255,255,0.2)"
-                                foregroundColor="#FFFFFF"
+                                backgroundColor={isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}
+                                foregroundColor={colors.textSecondary}
                               />
                             </View>
                           ))}
                         </View>
                       )}
-                        {goingCount > 0 ? (
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text
-                              style={{
-                                fontSize: 14,
-                                fontWeight: "700",
-                                color: "rgba(255,255,255,0.95)",
-                                textShadowColor: "rgba(0,0,0,0.5)",
-                                textShadowOffset: { width: 0, height: 1 },
-                                textShadowRadius: 4,
-                              }}
-                            >
-                              {goingCount} going
-                            </Text>
-                            {capacityText && (
-                              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginLeft: 6 }}>
-                                · {capacityText}
-                              </Text>
-                            )}
-                          </View>
-                        ) : (
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              color: "rgba(255,255,255,0.6)",
-                            }}
-                          >
-                            Be the first to RSVP
+                      {goingCount > 0 ? (
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                          <Text style={{ fontSize: 14, fontWeight: "700", color: colors.text }}>
+                            {goingCount} going
                           </Text>
-                        )}
-                      </View>
+                          {capacityText && (
+                            <Text style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 6 }}>
+                              · {capacityText}
+                            </Text>
+                          )}
+                        </View>
+                      ) : (
+                        <Text style={{ fontSize: 13, color: colors.textTertiary }}>
+                          Be the first to RSVP
+                        </Text>
+                      )}
                     </View>
                   </View>
                 </>
