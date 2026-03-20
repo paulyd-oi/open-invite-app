@@ -418,6 +418,14 @@ export default function EventDetailScreen() {
   const [liveActivitySupported, setLiveActivitySupported] = useState(false);
   // Track if user manually turned off Live Activity this session (don't auto-restart)
   const liveActivityManuallyDismissed = useRef(false);
+  // Ref for auto-start payload — updated every render, read by useFocusEffect callback
+  // to avoid hook-order issues (useFocusEffect must be above early returns).
+  const liveActivityAutoStartRef = useRef<{
+    event: any;
+    isMyEvent: boolean;
+    myRsvpStatus: string | null;
+    effectiveGoingCount: number;
+  } | null>(null);
 
   // [EVENT_LIVE_UI] Event settings accordion — collapsed by default
   const [settingsExpanded, setSettingsExpanded] = useState(false);
@@ -540,16 +548,48 @@ export default function EventDetailScreen() {
     }, [id])
   );
 
-  // Live Activity: check support + active state on focus
+  // Live Activity: check support + active state on focus, then auto-start if eligible.
+  // HOOK ORDER: This must stay above all early returns (loading gate, error gate, busy gate)
+  // to keep hook count stable across renders. Auto-start reads from liveActivityAutoStartRef
+  // (updated every render) to avoid stale closures without needing post-early-return deps.
   useFocusEffect(
     React.useCallback(() => {
       if (Platform.OS !== "ios" || !id) return;
       (async () => {
         const supported = await areLiveActivitiesEnabled();
         setLiveActivitySupported(supported);
-        if (supported) {
-          const activeId = await getActiveLiveActivityEventId();
-          setLiveActivityActive(activeId === id);
+        if (!supported) return;
+
+        const activeId = await getActiveLiveActivityEventId();
+        setLiveActivityActive(activeId === id);
+
+        // [LIVE_ACTIVITY_AUTO_ON] Silent auto-start for qualifying events.
+        if (activeId) return; // Another activity already running
+        if (liveActivityManuallyDismissed.current) return;
+
+        const snap = liveActivityAutoStartRef.current;
+        if (!snap) return; // Event data not loaded yet
+
+        const { event: ev, isMyEvent: host, myRsvpStatus: rsvp, effectiveGoingCount: going } = snap;
+        if (!host && rsvp !== "going") return;
+        if (!isEligibleForAutoStartOnFocus(ev)) return;
+
+        // Derive location from event for the Live Activity payload
+        const loc = ev.locationName ?? ev.placeName ?? ev.venueName ?? ev.address ?? ev.location ?? null;
+
+        const ok = await startLiveActivity({
+          eventId: ev.id,
+          eventTitle: ev.title,
+          startTime: ev.startTime,
+          locationName: loc,
+          rsvpStatus: host ? "going" : (rsvp ?? "going"),
+          emoji: ev.emoji,
+          goingCount: going ?? 0,
+          themeAccentColor: resolveEventTheme(ev.themeId).backAccent,
+        });
+        if (ok) {
+          setLiveActivityActive(true);
+          devLog("[LIVE_ACTIVITY_AUTO_ON]", "auto-started for event", id);
         }
       })();
     }, [id])
@@ -1173,6 +1213,15 @@ export default function EventDetailScreen() {
   const rawRsvpStatus = myRsvpData?.status;
   // Normalize: "maybe" → "interested", "invited" → null (pending RSVP, show controls)
   const myRsvpStatus = rawRsvpStatus === "maybe" ? "interested" : rawRsvpStatus === "invited" ? null : (rawRsvpStatus as "going" | "interested" | "not_going" | null);
+
+  // [LIVE_ACTIVITY_AUTO_ON] Keep ref in sync with latest derived values.
+  // The useFocusEffect callback reads from this ref (declared above early returns).
+  liveActivityAutoStartRef.current = event ? {
+    event,
+    isMyEvent: isMyEvent,
+    myRsvpStatus: myRsvpStatus,
+    effectiveGoingCount: effectiveGoingCount,
+  } : null;
 
   // [P0_RSVP] Render proof: log current RSVP status and its source on every render
   if (__DEV__ && id && !isBusyBlock) {
@@ -2372,44 +2421,6 @@ export default function EventDetailScreen() {
     bannerPhotoUrl: event?.eventPhotoUrl ?? null,
     bannerUrl: event?.eventPhotoUrl ?? null,
   });
-
-  // [LIVE_ACTIVITY_AUTO_ON] Silent auto-start on focus for qualifying events.
-  // Placed here because it depends on event, isMyEvent, myRsvpStatus, locationDisplay
-  // which are all derived above.
-  useFocusEffect(
-    React.useCallback(() => {
-      if (Platform.OS !== "ios" || !id || !event || !liveActivitySupported) return;
-      (async () => {
-        // Re-check active state (may have changed since last focus check)
-        const activeId = await getActiveLiveActivityEventId();
-        if (activeId) return; // Another activity is already running
-
-        // Don't auto-start if user manually dismissed this session
-        if (liveActivityManuallyDismissed.current) return;
-
-        // Only auto-start for hosts or users who RSVP'd going
-        if (!isMyEvent && myRsvpStatus !== "going") return;
-
-        // Check 60-minute eligibility window
-        if (!isEligibleForAutoStartOnFocus(event)) return;
-
-        const ok = await startLiveActivity({
-          eventId: event.id,
-          eventTitle: event.title,
-          startTime: event.startTime,
-          locationName: locationDisplay,
-          rsvpStatus: isMyEvent ? "going" : (myRsvpStatus ?? "going"),
-          emoji: event.emoji,
-          goingCount: effectiveGoingCount,
-          themeAccentColor: resolveEventTheme(event.themeId).backAccent,
-        });
-        if (ok) {
-          setLiveActivityActive(true);
-          devLog("[LIVE_ACTIVITY_AUTO_ON]", "auto-started for event", id);
-        }
-      })();
-    }, [id, event, isMyEvent, myRsvpStatus, liveActivitySupported, effectiveGoingCount, locationDisplay])
-  );
 
   // Themed canvas — theme owns the page background behind the card
   const pageTheme = resolveEventTheme(event.themeId);
