@@ -389,10 +389,19 @@ export default function WelcomeOnboardingScreen() {
 
   // [P0_SIGNUP_FIX] Derive a display name from an email address.
   // Used as fallback when the UI doesn't collect a name field.
-  function deriveDisplayNameFromEmail(emailAddr: string): string {
-    const base = emailAddr.split("@")[0] ?? "";
-    const sanitized = base.replace(/[^a-zA-Z0-9 _.-]/g, "").trim().slice(0, 30);
-    return sanitized.length > 0 ? sanitized : "New User";
+  // [P0_PROFILE_SETUP] Guard: detect if a "name" is actually derived from email
+  function isNameDerivedFromEmail(name: string | null | undefined, emailAddr: string | null | undefined): boolean {
+    if (!name || !emailAddr) return false;
+    const trimmed = name.trim().toLowerCase();
+    if (!trimmed) return false;
+    // Exact match to email
+    if (trimmed === emailAddr.trim().toLowerCase()) return true;
+    // Match to email local part (before @)
+    const localPart = emailAddr.split("@")[0]?.trim().toLowerCase() ?? "";
+    if (localPart && trimmed === localPart) return true;
+    // Match to "New User" placeholder
+    if (trimmed === "new user") return true;
+    return false;
   }
 
   // [P0_SIGNUP_FIX] Map raw backend/auth error messages to user-safe strings.
@@ -423,16 +432,10 @@ export default function WelcomeOnboardingScreen() {
       return;
     }
 
-    // [P0_SIGNUP_FIX] Derive display name from email when not provided by UI
-    const derivedName = deriveDisplayNameFromEmail(email.trim());
-    const nameStrategy = "derived" as const;
-
     if (__DEV__) {
-      devLog("[P0_SIGNUP_FIX] submitting", {
+      devLog("[P0_PROFILE_SETUP] submitting email auth", {
         hasEmail: !!email.trim(),
         hasPassword: !!password.trim(),
-        nameStrategy,
-        nameLength: derivedName.length,
       });
     }
 
@@ -447,10 +450,11 @@ export default function WelcomeOnboardingScreen() {
       let isNewAccount = false;
       
       // Try sign-up first
+      // [P0_PROFILE_SETUP] Never derive name from email — pass undefined.
+      // better-auth backend falls back to "New User" for non-empty requirement.
       result = await authClient.signUp.email({
         email: email.trim(),
         password,
-        name: derivedName,
       });
       
       // If sign-up returns error about existing account, try sign-in
@@ -480,8 +484,15 @@ export default function WelcomeOnboardingScreen() {
         return;
       }
       
-      if (__DEV__) devLog("[Onboarding] Auth successful, userId:", userId, "isNewAccount:", isNewAccount);
-      if (__DEV__) devLog("[P0_SIGNUP_FIX] success");
+      if (__DEV__) {
+        devLog("[P0_PROFILE_SETUP] auth success", {
+          userId: userId.slice(0, 8),
+          isNewAccount,
+          sessionUserName: session?.user?.name ?? null,
+          sessionUserEmail: session?.user?.email ?? null,
+          sessionUserImage: (session?.user as any)?.image ?? null,
+        });
+      }
 
       // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
       if (isNewAccount) {
@@ -513,9 +524,17 @@ export default function WelcomeOnboardingScreen() {
         }
       }
 
-      // Pre-populate name if available from result
-      if (result.data?.user?.name) {
-        setDisplayName(result.data.user.name);
+      // Pre-populate name only if auth provider returned a real name (not email-derived)
+      const returnedName = result.data?.user?.name;
+      const userEmail = result.data?.user?.email || email.trim();
+      if (returnedName && !isNameDerivedFromEmail(returnedName, userEmail)) {
+        setDisplayName(returnedName);
+        if (__DEV__) devLog("[P0_PROFILE_SETUP] prefilled name from provider:", returnedName);
+      } else if (__DEV__) {
+        devLog("[P0_PROFILE_SETUP] skipped name prefill", {
+          returnedName: returnedName ?? null,
+          reason: !returnedName ? "no_name" : "email_derived",
+        });
       }
 
       // Advance to Slide 3
@@ -814,12 +833,13 @@ export default function WelcomeOnboardingScreen() {
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      if (__DEV__) devLog("[AUTH_TRACE] Photo upload failed:", error?.message || error);
+      if (__DEV__) devLog("[P0_PROFILE_SETUP] photo upload failed:", error?.message || error);
       if (isMountedRef.current) {
+        // Clear local preview so user doesn't see broken/stale avatar
+        setAvatarLocalUri(null);
         safeToast.warning("Upload failed", "Could not upload photo. You can add it later in Settings.");
       }
-      // Clear local URI so user doesn't see broken preview
-      // But DON'T clear avatarUrl if it was already set from a previous successful upload
+      // DON'T clear avatarUrl if it was already set from a previous successful upload
     } finally {
       if (isMountedRef.current) {
         setUploadBusy(false);
@@ -907,11 +927,16 @@ export default function WelcomeOnboardingScreen() {
       }
 
       if (__DEV__) {
-        devLog("[Onboarding] /api/profile payload keys", Object.keys(payload));
-        devLog("[Onboarding] /api/profile payload", payload);
+        devLog("[P0_PROFILE_SETUP] save payload", {
+          keys: Object.keys(payload),
+          handle: payload.handle,
+          hasName: !!payload.name,
+          hasAvatarUrl: !!payload.avatarUrl,
+          avatarUrlPreview: payload.avatarUrl?.slice(0, 60) ?? null,
+        });
       }
       const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", payload);
-      if (__DEV__) devLog("[Onboarding] Profile saved successfully");
+      if (__DEV__) devLog("[P0_PROFILE_SETUP] save success", { responseKeys: Object.keys(response || {}) });
 
       // Update React Query cache
       queryClient.setQueryData(["profile"], (old: any) => ({
@@ -940,8 +965,15 @@ export default function WelcomeOnboardingScreen() {
         setCurrentSlide(4);
       }
     } catch (error: any) {
-      devError("[Onboarding] Profile save failed:", error?.message || error);
-      
+      if (__DEV__) {
+        devError("[P0_PROFILE_SETUP] save failed", {
+          message: error?.message,
+          status: error?.status ?? error?.response?.status ?? null,
+          data: error?.data ? JSON.stringify(error.data).slice(0, 300) : null,
+          endpoint: error?.endpoint,
+        });
+      }
+
       // Extract true backend validation reason if available
       const validationReason = error?.data?.error?.fields?.[0]?.reason;
       const backendMessage = error?.data?.message || error?.data?.error?.message;
