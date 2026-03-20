@@ -358,6 +358,10 @@ export default function WelcomeOnboardingScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
+  // [P0_PHOTO_UPLOAD] DEV-only on-screen diagnostic for upload failures.
+  // Visible text (not console.log) so Paul can read it in Vibecode preview.
+  const [uploadDiag, setUploadDiag] = useState<string | null>(null);
+
   // Contacts import state (Slide 4)
   const [contactsLoading, setContactsLoading] = useState(false);
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
@@ -797,7 +801,14 @@ export default function WelcomeOnboardingScreen() {
 
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
-    
+
+    // [P0_PHOTO_UPLOAD] DEV diagnostic helper — shows each step on-screen
+    const diag = (msg: string) => {
+      if (__DEV__ && isMountedRef.current) setUploadDiag(msg);
+      if (__DEV__) devLog("[P0_PHOTO_UPLOAD]", msg);
+    };
+    diag(`pick ok uri=${uri?.slice(0, 60)}`);
+
     // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
     // CRITICAL: Photo upload failure must NOT reset auth state or redirect user.
     // If session check fails, just skip upload - user can add photo later.
@@ -806,34 +817,36 @@ export default function WelcomeOnboardingScreen() {
       const sessionResult = await getSessionCached();
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       if (!effectiveUserId) {
-        if (__DEV__) devLog("[AUTH_TRACE] Photo upload: no effectiveUserId, skipping (user can add later)");
+        diag("SKIP: no effectiveUserId");
         return;
       }
-      if (__DEV__) devLog(`[AUTH_TRACE] Photo upload authorized: effectiveUserId=${effectiveUserId.substring(0, 8)}...`);
-    } catch (err) {
-      if (__DEV__) devLog("[AUTH_TRACE] Photo upload: session check failed, skipping (transient error)");
-      // DO NOT redirect or reset auth state - just skip the upload
+      diag(`session ok uid=${effectiveUserId.substring(0, 8)}`);
+    } catch (err: any) {
+      diag(`SKIP: session err ${err?.message}`);
       return;
     }
 
     setUploadBusy(true);
 
     try {
-      if (__DEV__) devLog("[Onboarding] Uploading photo to Cloudinary...");
+      diag("calling uploadImage...");
       const uploadResponse = await uploadImage(uri, true);
+      diag(`upload ok url=${uploadResponse.url?.slice(0, 50)}`);
       const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
-      if (__DEV__) devLog("[Onboarding] Photo uploaded, normalized URL:", normalizedUrl.substring(0, 50) + "...");
 
       if (!isMountedRef.current) return;
       setAvatarUrl(normalizedUrl);
+      if (__DEV__) setUploadDiag(null); // Clear diag on success
 
       // Photo uploaded - defer profile save to Continue step when handle is available
-      if (__DEV__) devLog("[Onboarding] Photo uploaded, stored in state. Will save with profile on Continue.");
       safeToast.success("Photo uploaded", "It will be saved with your profile.");
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      if (__DEV__) devLog("[P0_PROFILE_SETUP] photo upload failed:", error?.message || error);
+      const errMsg = error?.message || String(error);
+      const errStatus = error?.status ?? error?.response?.status ?? "none";
+      diag(`FAIL step=uploadImage status=${errStatus} err=${errMsg.slice(0, 200)}`);
+
       if (isMountedRef.current) {
         // Clear local preview so user doesn't see broken/stale avatar
         setAvatarLocalUri(null);
@@ -1331,6 +1344,15 @@ export default function WelcomeOnboardingScreen() {
               </Text>
             </Pressable>
           </Animated.View>
+
+          {/* [P0_PHOTO_UPLOAD] DEV-only on-screen diagnostic — visible text for upload debugging */}
+          {__DEV__ && uploadDiag && (
+            <View style={{ backgroundColor: "#1a1a2e", borderRadius: 8, padding: 8, marginBottom: 8 }}>
+              <Text style={{ color: "#ff9500", fontSize: 10, fontFamily: "monospace" }} numberOfLines={4}>
+                [P0_PHOTO_UPLOAD] {uploadDiag}
+              </Text>
+            </View>
+          )}
 
           <Animated.View entering={smoothFadeIn(200)} style={styles.inputGroup}>
             <StyledInput

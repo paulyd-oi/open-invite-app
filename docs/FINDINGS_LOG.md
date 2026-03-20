@@ -1,5 +1,21 @@
 # Findings Log — Frontend
 
+## Onboarding Photo Upload Fix V2 — NEEDS REPRO (2026-03-20)
+
+### Finding: Upload Code Path Identical Between Settings and Onboarding
+Compared Settings avatar upload (settings.tsx:1326) against Onboarding avatar upload (welcome.tsx:823). Both call `uploadImage(uri, true)` which delegates to `uploadByKind(uri, "avatar")`. Same compression profile, same sign endpoint, same Cloudinary POST, same complete endpoint. ImagePicker calls are also identical (mediaTypes: ["images"], allowsEditing: true, aspect: [1,1], quality: 0.8).
+
+### Finding: Error Status Lost in uploadByKind Outer Catch
+The outer try/catch in `uploadByKind` (imageUpload.ts:429-433) created a new Error with only the message, dropping `error.status` and `error.data`. This made it impossible for caller diagnostics to read the HTTP status that caused the failure.
+
+### Fix
+1. Added `uploadDiag` state + on-screen DEV diagnostic panel to welcome.tsx Slide 3. Shows [P0_PHOTO_UPLOAD] tag with exact step, status, and error message as visible text (not just console.log).
+2. Fixed `uploadByKind` outer catch to preserve `error.status` and `error.data` on the re-thrown error.
+3. Confirmed Apple Sign-In diagnostics button is already DEV-gated (`__DEV__ && Platform.OS === "ios"`).
+
+### Next Step
+Paul needs one repro. The on-screen diagnostic will show exactly which step fails (session check, sign request, Cloudinary upload, or complete request) with the HTTP status and error message.
+
 ## Onboarding Photo Upload Fix V1 — Network Gate Blocks Uploads During Onboarding (2026-03-20)
 
 ### Finding: Network Auth Gate Not Re-Enabled For Onboarding Status

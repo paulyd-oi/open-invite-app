@@ -428,7 +428,11 @@ export async function uploadByKind(
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
     if (__DEV__) devError('[P0_UPLOAD_KIND]', 'pipeline_error', { kind, message: error?.message, status: error?.status });
-    throw new Error(error?.message || "Failed to upload image");
+    // [P0_PHOTO_UPLOAD] Preserve status on re-thrown error so caller diagnostics can read it
+    const wrapped: any = new Error(error?.message || "Failed to upload image");
+    if (error?.status != null) wrapped.status = error.status;
+    if (error?.data != null) wrapped.data = error.data;
+    throw wrapped;
   }
 }
 
