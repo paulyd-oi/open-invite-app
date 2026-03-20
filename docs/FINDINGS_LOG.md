@@ -1,5 +1,19 @@
 # Findings Log — Frontend
 
+## Event Detail Hook Order Fix V1 — useFocusEffect Below Early Returns (2026-03-19)
+
+### Finding
+Live Activity Auto-On V1 added a `useFocusEffect` at line ~2379 in event/[id].tsx. This line is BELOW four component-level early returns: (1) invalid id (line 1933), (2) loading spinner (line 1948), (3) no event / error / privacy (line 1964), (4) busy block (line 2179). When event data is null (loading or error), the component returns before reaching the hook. When event loads, it passes through and reaches the hook. Different hook count per render = React crash.
+
+### Root Cause
+The hook was placed late in the component to access derived variables (event, isMyEvent, myRsvpStatus, effectiveGoingCount, locationDisplay) that are computed mid-component. TypeScript enforces TDZ for const/let declarations, preventing the hook from referencing these variables in its dependency array if declared before them.
+
+### Fix
+Merged auto-start logic into the existing `useFocusEffect` at line ~544 (unconditional hook zone, above all early returns). Added `liveActivityAutoStartRef` (useRef) that is updated every render after derived values are computed. The focus callback reads from the ref instead of closing over the values directly. Dependency array stays as `[id]` — the ref always contains the latest values at callback execution time.
+
+### Why Ref Pattern
+`useFocusEffect(useCallback(..., [id]))` fires on screen focus. With `[id]` as sole dep, the callback is memoized and would capture stale values. The ref is updated synchronously every render, so when the callback executes async after focus, `liveActivityAutoStartRef.current` holds fresh data. This avoids both TDZ issues and stale closure issues.
+
 ## Live Activity Premium UI V1 — Themed Lock Screen Card (2026-03-19)
 
 ### Finding
