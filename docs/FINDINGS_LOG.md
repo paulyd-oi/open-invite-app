@@ -1,5 +1,22 @@
 # Findings Log — Frontend
 
+## Onboarding Profile Setup Fix V1 — Email-as-Name Leak + Failed Photo State (2026-03-20)
+
+### Finding: Full Name Derived From Email
+`deriveDisplayNameFromEmail()` in welcome.tsx extracted the email local-part (e.g., "testemailpilot" from "testemailpilot@..."), passed it as `name` to `authClient.signUp.email()`, which stored it in better-auth as `user.name`. On slide 3, `result.data.user.name` was then used to prefill the displayName input. The user saw their email local-part as their "full name".
+
+### Fix
+Removed `deriveDisplayNameFromEmail`. Signup now passes no name — better-auth's backend uses its own default ("New User"). Added `isNameDerivedFromEmail(name, email)` guard that checks if the returned name matches the email, email local-part, or "New User" placeholder. Prefill only fires for real provider names (Apple Sign-In, Google).
+
+### Finding: Failed Photo Upload Leaves Stale Preview
+`uploadPhotoInBackground` sets `avatarLocalUri` immediately on photo pick (line 773) but the error handler (line 814-822) had a comment saying "Clear local URI" without actually calling `setAvatarLocalUri(null)`. User saw their chosen photo still displayed after upload failure.
+
+### Fix
+Added `setAvatarLocalUri(null)` in the catch block of `uploadPhotoInBackground`.
+
+### Finding: Profile Save Error Logging
+The catch handler at line 942 called `devError` but didn't log the full error response (status, data). Added structured [P0_PROFILE_SETUP] DEV log with status, response data, and endpoint for diagnosis.
+
 ## Event Detail Hook Order Fix V1 — useFocusEffect Below Early Returns (2026-03-19)
 
 ### Finding
