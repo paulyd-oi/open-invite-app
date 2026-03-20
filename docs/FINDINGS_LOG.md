@@ -1,5 +1,26 @@
 # Findings Log — Frontend
 
+## Onboarding Photo Upload Fix V1 — Network Gate Blocks Uploads During Onboarding (2026-03-20)
+
+### Finding: Network Auth Gate Not Re-Enabled For Onboarding Status
+After a user logout, `performLogout()` calls `disableAuthedNetwork()` which sets the module-level `_enabled` flag to `false`. This flag is checked by `shouldAllowAuthedRequest()` in `fetchFn()` (api.ts) and blocks ALL authenticated API calls except the PUBLIC_PATHS allow-list. The gate was only re-enabled when `bootStatus === 'authed'` in `useBootAuthority.ts`. But during onboarding, bootStatus is `'onboarding'` — the user IS authenticated (valid session, proven by ensureSessionReady) but hasn't completed profile setup. Result: `api.post("/api/uploads/sign")` was blocked with a synthetic `[P0_POST_LOGOUT_NET] blocked` error, caught by uploadPhotoInBackground's catch block, shown as "Upload failed" toast.
+
+### Root Cause Chain
+1. `performLogout()` → `disableAuthedNetwork()` → `_enabled = false`
+2. User creates new account → `runExactAppleAuthBootstrap()` succeeds → session is valid
+3. `requestBootstrapRefreshOnce()` → bootstrap re-runs → returns `{ state: 'onboarding' }`
+4. `setBootStatus('onboarding')` → `enableAuthedNetwork()` NOT called (only for 'authed')
+5. `uploadPhotoInBackground()` → `api.post("/api/uploads/sign")` → `shouldAllowAuthedRequest()` returns `false` → throws
+6. Error caught → "Upload failed" toast
+
+### Fix
+1. **useBootAuthority.ts**: `enableAuthedNetwork()` now fires for both `'authed'` and `'onboarding'` statuses.
+2. **exactAppleAuthBootstrap.ts**: Calls `enableAuthedNetwork()` immediately after session barrier passes (before `requestBootstrapRefreshOnce()`), closing the race window between auth success and bootstrap re-run.
+3. **networkAuthGate.ts**: Lifecycle comment updated to reflect both triggers.
+
+### Note
+For truly fresh installs (no prior logout), the gate defaults to `_enabled = true` and this bug doesn't manifest. The bug specifically requires a prior logout within the same app session (or a cold start after logout where the gate is re-defaulted — which actually works because the default is true).
+
 ## Onboarding Profile Setup Fix V1 — Email-as-Name Leak + Failed Photo State (2026-03-20)
 
 ### Finding: Full Name Derived From Email

@@ -58,7 +58,10 @@ function setGlobalState(status: BootStatus, error?: string) {
   }
 
   // [P0_POST_LOGOUT_NET] Re-enable authed network calls when session is confirmed good.
-  if (status === 'authed') {
+  // [P0_ONBOARD_UPLOAD] Also enable for 'onboarding' — user IS authenticated, just
+  // hasn't completed profile setup. Without this, uploads during onboarding are blocked
+  // after a prior logout (gate was disabled by performLogout and never re-opened).
+  if (status === 'authed' || status === 'onboarding') {
     enableAuthedNetwork();
   }
   

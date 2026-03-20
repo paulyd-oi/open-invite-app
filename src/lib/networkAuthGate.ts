@@ -8,7 +8,8 @@
  * Lifecycle:
  *   - Default: enabled (true)
  *   - performLogout() → disableAuthedNetwork() (FIRST step, before resetSession)
- *   - bootStatus becomes 'authed' → enableAuthedNetwork()
+ *   - bootStatus becomes 'authed' or 'onboarding' → enableAuthedNetwork()
+ *   - Session barrier passes in auth bootstrap → enableAuthedNetwork() (immediate)
  *
  * DEV proof tag: [P0_POST_LOGOUT_NET]
  */

@@ -18,6 +18,7 @@ import {
   isValidBetterAuthToken,
 } from "./authSessionToken";
 import { requestBootstrapRefreshOnce } from "@/hooks/useBootAuthority";
+import { enableAuthedNetwork } from "./networkAuthGate";
 
 const BETTER_AUTH_EXPO_COOKIE_KEY = "open-invite_cookie";
 
@@ -266,6 +267,13 @@ export async function runExactAppleAuthBootstrap(
     if (__DEV__) devLog(`[EXACT_APPLE_BOOTSTRAP] barrierPassed=true userId=${barrierResult.userId?.substring(0, 8)}...`);
     traceLog("session_barrier_success", { userId: barrierResult.userId?.substring(0, 8) });
     // ============ END SESSION BARRIER ============
+
+    // [P0_ONBOARD_UPLOAD] Re-enable authed network IMMEDIATELY after session is proven.
+    // After a prior logout, the gate is disabled. The bootstrap re-run (below) will
+    // eventually set bootStatus = 'onboarding' which also enables the gate, but there
+    // is a race window between requestBootstrapRefreshOnce() and the user picking a
+    // photo. Enabling here closes that window.
+    enableAuthedNetwork();
 
     // CRITICAL: Request bootstrap refresh so bootStatus updates from loggedOut → onboarding/authed
     // Without this, BootRouter may redirect to /login because bootStatus is stale
