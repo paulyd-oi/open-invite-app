@@ -1,32 +1,43 @@
 # Findings Log — Frontend
 
-## Onboarding Avatar Upload V2 — FIXED (2026-03-20)
+## Onboarding Avatar Upload V2 — FIXED + HARDENED (2026-03-20)
 
 ### Root Cause: isValidBetterAuthToken() Rejects Valid Session Tokens
-`isValidBetterAuthToken()` in `src/lib/authSessionToken.ts` contained a check requiring a dot (`.`) in the token string (line 20-22: `if (!trimmed.includes(".")) return { isValid: false, reason: "no_dot_not_signed" }`). This assumed Better Auth tokens are JWTs (which contain dots). In reality, Better Auth's response body `token` field is a plain 32-char alphanumeric string (e.g. `uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C`). The dot-separated format (`token.signature`) only appears in Set-Cookie headers.
+`isValidBetterAuthToken()` in `src/lib/authSessionToken.ts` contained a check requiring a dot (`.`) in the token string. This assumed Better Auth tokens are JWTs. In reality, Better Auth's response body `token` field is a plain 32-char alphanumeric string (e.g. `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB`). The dot-separated format (`token.signature`) only appears in Set-Cookie headers.
 
-### Proof (HTTP requests to production backend)
-1. `POST /api/auth/sign-in/email` → response body: `{"token":"uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C"}` (no dot)
-2. Same response's `Set-Cookie: __Secure-better-auth.session_token=uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C.o6U5nStLcQ5P07boN9%2Fdk8...` (has dot)
-3. Short token via `x-oi-session-token` header → `GET /api/auth/session` → 200 with valid user (backend accepts it)
-4. `POST /api/uploads/sign` with valid session → 200 with signed Cloudinary params (backend allows avatar for unverified users)
-5. `POST /api/uploads/sign` without session → 401 (confirms auth is the only guard for avatars)
+### Validator Hardening
+After removing the dot requirement, added explicit character-class validation to prevent over-permissive acceptance. The validator now checks:
+1. Non-empty string (reject null/undefined/non-string)
+2. Length >= 20 (reject short strings)
+3. Not a UUID pattern (reject database IDs)
+4. Characters match SAFE_TOKEN_CHARS: `/^[A-Za-z0-9._\-+/=%]+$/` (reject whitespace, control chars, unsafe punctuation)
 
-### Failure Chain
-1. User signs up → `betterAuthClient.signUp.email()` returns `result.data` with `token` field (no dot)
-2. `runExactAppleAuthBootstrap()` extracts `data.token` → `isValidBetterAuthToken()` rejects it (no dot) → returns `{ success: false }`
-3. Fallback path (`captureAndStoreCookie` + `refreshExplicitCookie`) does NOT call `setOiSessionToken()`
-4. `oiSessionToken` remains null → `x-oi-session-token` header not sent
-5. `formatReactNativeCookieHeader()` prepends `"; "` to cookie value, producing malformed `cookie: ; __Secure-better-auth...` header
-6. Backend session resolution fails on both paths → 401 → upload fails
+Accepted token shapes:
+- Opaque body token: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB` (alphanumeric, 32 chars)
+- Cookie-style signed: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB.Kq8vSdzWSfnWOrTpn%2FbhOA...` (dot-separated, base64-safe + percent-encoded)
+
+Apple Sign-In tokens: covered. Apple Sign-In goes through the same Better Auth backend which issues the same opaque token format. The frontend never sees raw Apple JWTs — the backend validates the Apple credential and returns a standard Better Auth session token.
+
+### HTTP Proof (fresh account, production backend)
+1. POST /api/auth/sign-up/email with fresh email → 200, body token: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB` (no dot, 32 chars alphanumeric)
+2. Set-Cookie: `__Secure-better-auth.session_token=rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB.Kq8vSdzWSfnWOrTpn%2FbhOAYyAXJ9fSJ7dOMY8hDKNVA%3D` (dot-separated with base64url signature)
+3. GET /api/auth/session with x-oi-session-token body token → 200, valid user returned (emailVerified: false, onboardingCompleted: false)
+4. POST /api/uploads/sign with kind=avatar + body token → 200, signed Cloudinary params returned (fresh unverified account, avatar upload works)
+
+### Failure Chain (original bug, now fixed)
+1. User signs up → `betterAuthClient.signUp.email()` returns `data.token` (no dot)
+2. `runExactAppleAuthBootstrap()` extracts `data.token` → old validator rejects (no dot) → `{ success: false }`
+3. Fallback path does NOT call `setOiSessionToken()` → `x-oi-session-token` header never sent
+4. `formatReactNativeCookieHeader()` prepends `"; "` → malformed cookie header
+5. Backend session resolution fails → 401 → upload fails
 
 ### Fix Applied
-1. Removed dot requirement from `isValidBetterAuthToken()` — Better Auth tokens are valid session strings, not JWTs
-2. Fixed `formatReactNativeCookieHeader()` — strips leading `; ` instead of prepending it
-3. Removed all [ONBOARD_AVATAR] diagnostic logs from welcome.tsx and imageUpload.ts
+1. Removed dot requirement, added SAFE_TOKEN_CHARS character-class validation
+2. Fixed `formatReactNativeCookieHeader()` — strips leading `"; "` instead of prepending it
+3. Removed all [ONBOARD_AVATAR] diagnostic logs
 
-### Secondary Bug Found: formatReactNativeCookieHeader() Malformed Cookie
-`formatReactNativeCookieHeader()` in `authSessionToken.ts:27-33` was prepending `"; "` to every cookie header value, producing `cookie: ; __Secure-better-auth.session_token=TOKEN` which is non-standard. Fixed to strip leading semicolons/spaces instead.
+### Secondary Bug: formatReactNativeCookieHeader() Malformed Cookie
+Was prepending `"; "` to every cookie header value. Fixed to strip leading semicolons/spaces instead.
 
 ## Onboarding Photo Upload — RESOLVED (2026-03-20)
 

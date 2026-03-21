@@ -1,5 +1,19 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Accepted token shapes (Better Auth):
+ *   1. Opaque body token — alphanumeric, typically 32 chars
+ *      Example: "rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB"
+ *   2. Cookie-style signed token — two dot-separated segments,
+ *      each alphanumeric / base64-safe (A-Z a-z 0-9 + / = % -)
+ *      Example: "rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB.Kq8vSdzWSfnWOrTpn%2FbhOA..."
+ *
+ * Allowed characters: alphanumeric, dot, hyphen, underscore, plus, slash,
+ * equals, percent (for URL-encoded cookie values). No whitespace or other
+ * punctuation.
+ */
+const SAFE_TOKEN_CHARS = /^[A-Za-z0-9._\-+/=%]+$/;
+
 export const BETTER_AUTH_SESSION_COOKIE_NAME = "__Secure-better-auth.session_token";
 
 export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reason: string } {
@@ -17,10 +31,9 @@ export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reas
     return { isValid: false, reason: "uuid_pattern" };
   }
 
-  // Better Auth session tokens are random alphanumeric strings (e.g. 32 chars),
-  // NOT JWTs. The dot-separated format (token.signature) only appears in
-  // Set-Cookie headers, not in the response body `token` field. Both formats
-  // are valid — the backend resolves either via Better Auth or DB fallback.
+  if (!SAFE_TOKEN_CHARS.test(trimmed)) {
+    return { isValid: false, reason: "unsafe_characters" };
+  }
 
   return { isValid: true, reason: "valid" };
 }
