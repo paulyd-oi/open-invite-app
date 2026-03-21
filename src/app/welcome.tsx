@@ -757,26 +757,17 @@ export default function WelcomeOnboardingScreen() {
   // ============ SLIDE 3: PROFILE HANDLERS ============
 
   const handlePickPhoto = async () => {
-    if (__DEV__) devLog("[ONBOARD_AVATAR] picker: requesting permissions");
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      if (__DEV__) devLog("[ONBOARD_AVATAR] picker: permission denied", { status });
       safeToast.warning("Permission Required", "Please allow access to your photos.");
       return;
     }
 
-    if (__DEV__) devLog("[ONBOARD_AVATAR] picker: launching library");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-    });
-
-    if (__DEV__) devLog("[ONBOARD_AVATAR] picker: result", {
-      canceled: result.canceled,
-      assetCount: result.assets?.length ?? 0,
-      uriPrefix: result.assets?.[0]?.uri?.slice(0, 60) ?? "none",
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -789,8 +780,6 @@ export default function WelcomeOnboardingScreen() {
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
 
-    if (__DEV__) devLog("[ONBOARD_AVATAR] upload: start", { uriPrefix: uri?.slice(0, 60) });
-
     // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
     // CRITICAL: Photo upload failure must NOT reset auth state or redirect user.
     // If session check fails, just skip upload - user can add photo later.
@@ -798,28 +787,17 @@ export default function WelcomeOnboardingScreen() {
     try {
       const sessionResult = await getSessionCached();
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
-      if (__DEV__) devLog("[ONBOARD_AVATAR] session", {
-        hasResult: !!sessionResult,
-        effectiveUserId: effectiveUserId?.slice(0, 8) ?? "null",
-        keys: sessionResult ? Object.keys(sessionResult) : [],
-      });
       if (!effectiveUserId) {
-        if (__DEV__) devLog("[ONBOARD_AVATAR] SKIP: no effectiveUserId");
         return;
       }
-    } catch (err: any) {
-      if (__DEV__) devLog("[ONBOARD_AVATAR] SKIP: session error", { msg: err?.message });
+    } catch {
       return;
     }
 
     setUploadBusy(true);
 
     try {
-      if (__DEV__) devLog("[ONBOARD_AVATAR] calling uploadImage...");
       const uploadResponse = await uploadImage(uri, true);
-      if (__DEV__) devLog("[ONBOARD_AVATAR] upload OK", {
-        urlPrefix: uploadResponse.url?.slice(0, 60),
-      });
       const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
 
       if (!isMountedRef.current) return;
@@ -830,11 +808,6 @@ export default function WelcomeOnboardingScreen() {
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      if (__DEV__) devLog("[ONBOARD_AVATAR] FAIL", {
-        message: error?.message,
-        status: error?.status ?? "none",
-        data: error?.data ? JSON.stringify(error.data).slice(0, 200) : "none",
-      });
       if (isMountedRef.current) {
         // Clear local preview so user doesn't see broken/stale avatar
         setAvatarLocalUri(null);

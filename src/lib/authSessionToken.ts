@@ -17,9 +17,10 @@ export function isValidBetterAuthToken(token: unknown): { isValid: boolean; reas
     return { isValid: false, reason: "uuid_pattern" };
   }
 
-  if (!trimmed.includes(".")) {
-    return { isValid: false, reason: "no_dot_not_signed" };
-  }
+  // Better Auth session tokens are random alphanumeric strings (e.g. 32 chars),
+  // NOT JWTs. The dot-separated format (token.signature) only appears in
+  // Set-Cookie headers, not in the response body `token` field. Both formats
+  // are valid — the backend resolves either via Better Auth or DB fallback.
 
   return { isValid: true, reason: "valid" };
 }
@@ -29,5 +30,7 @@ export function formatReactNativeCookieHeader(cookiePair: string): string {
     return "";
   }
 
-  return cookiePair.startsWith("; ") ? cookiePair : `; ${cookiePair.replace(/^;\s*/, "")}`;
+  // Cookie header value must NOT start with "; " — that's malformed.
+  // Strip any leading semicolons/spaces and return the clean cookie pair.
+  return cookiePair.replace(/^[;\s]+/, "");
 }

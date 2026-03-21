@@ -1,18 +1,32 @@
 # Findings Log — Frontend
 
-## Onboarding Avatar Upload V2 — NEEDS RUNTIME PROOF (2026-03-20)
+## Onboarding Avatar Upload V2 — FIXED (2026-03-20)
 
-### Finding: UX Refresh V1 Did NOT Cause Upload Regression
-git diff 46f264b..97851db (the UX refresh commit) shows zero changes to upload, auth, network, or session code. The diff is purely CTA copy changes, a new OnboardingBackground component, and style additions. The upload code path (handlePickPhoto -> uploadPhotoInBackground -> uploadImage -> uploadByKind) is provably identical before and after the merge.
+### Root Cause: isValidBetterAuthToken() Rejects Valid Session Tokens
+`isValidBetterAuthToken()` in `src/lib/authSessionToken.ts` contained a check requiring a dot (`.`) in the token string (line 20-22: `if (!trimmed.includes(".")) return { isValid: false, reason: "no_dot_not_signed" }`). This assumed Better Auth tokens are JWTs (which contain dots). In reality, Better Auth's response body `token` field is a plain 32-char alphanumeric string (e.g. `uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C`). The dot-separated format (`token.signature`) only appears in Set-Cookie headers.
 
-### Finding: No Upload Logic Changed Since Diagnostic Cleanup
-git diff 46f264b..HEAD against imageUpload.ts, api.ts, sessionCache.ts, networkAuthGate.ts, authClient.ts, exactAppleAuthBootstrap.ts, and useBootAuthority.ts returns empty — zero changes to any file in the upload or auth chain.
+### Proof (HTTP requests to production backend)
+1. `POST /api/auth/sign-in/email` → response body: `{"token":"uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C"}` (no dot)
+2. Same response's `Set-Cookie: __Secure-better-auth.session_token=uGqE2i5o6IWl5X5m5RJJpn9imfdzOr4C.o6U5nStLcQ5P07boN9%2Fdk8...` (has dot)
+3. Short token via `x-oi-session-token` header → `GET /api/auth/session` → 200 with valid user (backend accepts it)
+4. `POST /api/uploads/sign` with valid session → 200 with signed Cloudinary params (backend allows avatar for unverified users)
+5. `POST /api/uploads/sign` without session → 401 (confirms auth is the only guard for avatars)
 
-### Finding: Upload Was Working on Different Account
-The previous successful upload was on a different test account. The current failure is on a new account. The most likely explanation is the backend /api/uploads/sign endpoint returning an error for this specific account state (e.g., 403 email not verified, missing profile row, or similar auth/account state issue).
+### Failure Chain
+1. User signs up → `betterAuthClient.signUp.email()` returns `result.data` with `token` field (no dot)
+2. `runExactAppleAuthBootstrap()` extracts `data.token` → `isValidBetterAuthToken()` rejects it (no dot) → returns `{ success: false }`
+3. Fallback path (`captureAndStoreCookie` + `refreshExplicitCookie`) does NOT call `setOiSessionToken()`
+4. `oiSessionToken` remains null → `x-oi-session-token` header not sent
+5. `formatReactNativeCookieHeader()` prepends `"; "` to cookie value, producing malformed `cookie: ; __Secure-better-auth...` header
+6. Backend session resolution fails on both paths → 401 → upload fails
 
-### Diagnostic Added
-[ONBOARD_AVATAR] tagged DEV-only logs added to welcome.tsx and imageUpload.ts covering every step: picker permissions, picker result, session check, sign request, sign response, Cloudinary POST, Cloudinary response, complete request, complete response, and failure details (status, message, data).
+### Fix Applied
+1. Removed dot requirement from `isValidBetterAuthToken()` — Better Auth tokens are valid session strings, not JWTs
+2. Fixed `formatReactNativeCookieHeader()` — strips leading `; ` instead of prepending it
+3. Removed all [ONBOARD_AVATAR] diagnostic logs from welcome.tsx and imageUpload.ts
+
+### Secondary Bug Found: formatReactNativeCookieHeader() Malformed Cookie
+`formatReactNativeCookieHeader()` in `authSessionToken.ts:27-33` was prepending `"; "` to every cookie header value, producing `cookie: ; __Secure-better-auth.session_token=TOKEN` which is non-standard. Fixed to strip leading semicolons/spaces instead.
 
 ## Onboarding Photo Upload — RESOLVED (2026-03-20)
 
