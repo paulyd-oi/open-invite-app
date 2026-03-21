@@ -121,6 +121,14 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Post-Onboarding Email Gate Modal Freeze)
+- Email verification gate modal presented during in-flight navigation transition after onboarding, causing iOS touch responder to not initialize properly for modal buttons
+- Fix: Deferred modal presentation using InteractionManager.runAfterInteractions + 800ms delay, ensuring navigation transition and calendar mount are fully settled before presenting the Modal
+- Affected: email signup users only (Apple Sign-In users have emailVerified=true, never see the modal)
+- Files changed: src/app/_layout.tsx (email gate effect), src/components/EmailVerificationGateModal.tsx (diagnostic logs), src/app/welcome.tsx (diagnostic logs)
+- Blast radius: zero — normal (non-onboarding) app launch unaffected because hasShownGateModal returns true after first presentation; InteractionManager is a no-op when no transitions are pending
+- Status: NEEDS RUNTIME RETEST (fix is based on static analysis of timing; diagnostic logs added for runtime verification)
+
 ## Fixed This Session (Apple Login Cookie Fix + Legacy Onboarding Removal)
 - Token validator added: isValidBetterAuthToken() in authClient.ts rejects UUIDs, short strings, strings without dots
 - Cookie capture hardened: captureAndStoreCookie() removed substring fallback, validates tokens before storing

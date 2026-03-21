@@ -1073,7 +1073,7 @@ export default function WelcomeOnboardingScreen() {
   // ============ SLIDE 5: FINISH ============
 
   const handleFinishOnboarding = async () => {
-    if (__DEV__) devLog("[Onboarding] Finishing...");
+    if (__DEV__) devLog("[POST_ONBOARD] handleFinishOnboarding start");
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Mark onboarding complete
@@ -1084,7 +1084,9 @@ export default function WelcomeOnboardingScreen() {
 
     // ✅ AUTH ROUTING SSOT: Use shared post-onboarding routing
     // This ensures consistent routing logic with login.tsx
+    if (__DEV__) devLog("[POST_ONBOARD] calling routeAfterAuthSuccess");
     await routeAfterAuthSuccess(router, { source: 'signup' });
+    if (__DEV__) devLog("[POST_ONBOARD] routeAfterAuthSuccess returned");
   };
 
   // REMOVED: handleNotificationNudgeClose - no longer needed

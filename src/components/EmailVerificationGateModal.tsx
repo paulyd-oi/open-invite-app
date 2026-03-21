@@ -12,7 +12,7 @@
  * - Auto-hides when email verified
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, Modal } from "react-native";
 import { Mail } from "@/ui/icons";
 import * as Haptics from "expo-haptics";
@@ -22,6 +22,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { SCRIM } from "@/ui/tokens";
 import { resendVerificationEmail } from "@/lib/authFlowClient";
 import { triggerVerificationCooldown } from "@/components/EmailVerificationBanner";
+import { devLog } from "@/lib/devLog";
 
 interface EmailVerificationGateModalProps {
   visible: boolean;
@@ -34,6 +35,24 @@ export function EmailVerificationGateModal({ visible, onClose }: EmailVerificati
   const [isResending, setIsResending] = useState(false);
 
   const userEmail = session?.user?.email;
+
+  // [POST_ONBOARD] Diagnostic: log mount and visibility changes
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[POST_ONBOARD]', 'EmailVerificationGateModal mounted', {
+        visible,
+        hasSession: !!session,
+        emailVerified: session?.user?.emailVerified,
+        userEmail: userEmail ? userEmail.substring(0, 4) + '...' : 'none',
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (__DEV__) {
+      devLog('[POST_ONBOARD]', 'EmailVerificationGateModal visibility changed', { visible });
+    }
+  }, [visible]);
 
   const handleResend = async () => {
     if (isResending || !userEmail) return;
@@ -54,8 +73,14 @@ export function EmailVerificationGateModal({ visible, onClose }: EmailVerificati
   };
 
   const handleDismiss = () => {
+    if (__DEV__) {
+      devLog('[POST_ONBOARD]', 'EmailVerificationGateModal: "I\'ll do it later" pressed');
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
+    if (__DEV__) {
+      devLog('[POST_ONBOARD]', 'EmailVerificationGateModal: onClose() called');
+    }
   };
 
   // Don't show if email is verified
