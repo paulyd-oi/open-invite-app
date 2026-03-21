@@ -301,7 +301,6 @@ export function useRefreshEntitlements() {
  * CANONICAL SSOT: Single refresh contract for Pro status.
  * 
  * Use this hook's returned function for ALL pro/premium refresh operations:
- * - Promo code redemption
  * - Purchase success
  * - Restore purchases
  * - Manual refresh button
@@ -379,7 +378,7 @@ export function useRefreshProContract() {
     // [P0_ENTITLEMENT_INVARIANT] Upgrade assertion: if this was an upgrade-class event,
     // combinedIsPro MUST be true. Fire a DEV warning if not.
     if (__DEV__) {
-      const UPGRADE_REASONS = ["purchase", "restore", "promo", "redeem"];
+      const UPGRADE_REASONS = ["purchase", "restore"];
       if (UPGRADE_REASONS.some((r) => reason.toLowerCase().includes(r)) && !combinedIsPro) {
         devWarn(
           `[P0_ENTITLEMENT_INVARIANT] VIOLATION - upgrade event reason=${reason} but combinedIsPro=false! rcIsPro=${rcIsPro} backendIsPro=${backendIsPro}`,

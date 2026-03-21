@@ -1,31 +1,36 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { devLog, devWarn, devError } from "@/lib/devLog";
+import { devLog, devWarn } from "@/lib/devLog";
 import {
   Crown,
   Check,
   X,
   Sparkles,
-  Gift,
-  ChevronRight,
+  Flame,
+  Ticket,
+  CalendarDays,
+  Palette,
+  Users,
+  TrendingUp,
+  Lock,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { type PurchasesPackage } from "react-native-purchases";
+import Purchases, { type PurchasesPackage } from "react-native-purchases";
 
 import { useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/queryKeys";
 import { useTheme } from "@/lib/ThemeContext";
-import { api } from "@/lib/api";
 import { safeToast } from "@/lib/safeToast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useRefreshProContract } from "@/lib/entitlements";
@@ -35,31 +40,79 @@ import {
   getOfferingWithFallback,
   purchasePackage,
   restorePurchases,
-  REVENUECAT_OFFERING_ID,
   RC_PACKAGE_ANNUAL,
+  RC_PACKAGE_MONTHLY,
   RC_PACKAGE_LIFETIME,
   getKeySource,
 } from "@/lib/revenuecatClient";
+import { useFounderSpots, useEarlyMemberSpots } from "@/lib/useInventory";
+import { PRICING } from "@/lib/useSubscription";
 
-// Beta mode - set to false for production (payments are active)
-const BETA_MODE = false;
+// ── Feature comparison categories ──────────────────────────────────────
 
-// Free tier features - only list what is actually enforced
-const FREE_FEATURES = [
-  { text: "Host up to 3 events per month", included: true },
-  { text: "Unlimited friends", included: true },
-  { text: "RSVP to any event", included: true },
-  { text: "Unlimited hosting", included: false },
-];
+interface FeatureRow {
+  name: string;
+  icon: React.ReactNode;
+  freeValue: string;
+  proValue: string;
+}
 
-// Founder Pro v1 features - only list what is actually enforced
-const PREMIUM_FEATURES = [
-  { text: "Unlimited hosting", included: true },
-  { text: "Everything in Free", included: true },
-];
+interface FeatureCategory {
+  title: string;
+  features: FeatureRow[];
+}
 
-// Future expansion note
-const FOUNDER_PRO_NOTE = "More organizer tools will be added as they ship.";
+// ── Urgency progress bar ───────────────────────────────────────────────
+
+function SpotsCounter({
+  claimed,
+  total,
+  label,
+  themeColor,
+  colors,
+}: {
+  claimed: number;
+  total: number;
+  label: string;
+  themeColor: string;
+  colors: any;
+}) {
+  const remaining = Math.max(0, total - claimed);
+  const pct = Math.min(1, claimed / total);
+  const isSoldOut = remaining === 0;
+
+  return (
+    <View className="mt-2">
+      <View className="flex-row justify-between mb-1">
+        <Text style={{ color: colors.textSecondary }} className="text-xs">
+          {label}
+        </Text>
+        <Text
+          style={{ color: isSoldOut ? "#EF4444" : themeColor }}
+          className="text-xs font-semibold"
+        >
+          {isSoldOut ? "Sold out" : `${remaining.toLocaleString()} left`}
+        </Text>
+      </View>
+      <View
+        className="h-2 rounded-full overflow-hidden"
+        style={{ backgroundColor: colors.border }}
+      >
+        <View
+          className="h-2 rounded-full"
+          style={{
+            width: `${Math.max(2, pct * 100)}%`,
+            backgroundColor: pct > 0.85 ? "#EF4444" : themeColor,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PAYWALL SCREEN
+// ════════════════════════════════════════════════════════════════════════
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -70,20 +123,25 @@ export default function PaywallScreen() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
+  const [selectedPlan, setSelectedPlan] = useState<"lifetime" | "yearly" | "monthly">("lifetime");
   const [yearlyPackage, setYearlyPackage] = useState<PurchasesPackage | null>(null);
+  const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [lifetimePackage, setLifetimePackage] = useState<PurchasesPackage | null>(null);
   const [revenueCatEnabled, setRevenueCatEnabled] = useState(false);
 
-  // Modal state
-  const [showPremiumSuccessModal, setShowPremiumSuccessModal] = useState(false);
+  // Modals
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showRestoreSuccessModal, setShowRestoreSuccessModal] = useState(false);
+
+  // Inventory counters
+  const founderSpots = useFounderSpots();
+  const earlyMemberSpots = useEarlyMemberSpots();
 
   useEffect(() => {
     loadOfferings();
   }, []);
 
-  // Redirect premium users back - they shouldn't see paywall
+  // Redirect premium users
   useEffect(() => {
     if (isPremium && !isLoading) {
       if (__DEV__) devLog("[Paywall] Premium user detected, redirecting back");
@@ -91,14 +149,12 @@ export default function PaywallScreen() {
     }
   }, [isPremium, isLoading, router]);
 
-  // Refresh subscription status on mount to ensure fresh premium check
   useEffect(() => {
     refreshSubscription();
   }, [refreshSubscription]);
 
   const loadOfferings = async () => {
     setIsLoading(true);
-
     const enabled = isRevenueCatEnabled();
     setRevenueCatEnabled(enabled);
 
@@ -111,38 +167,44 @@ export default function PaywallScreen() {
 
     if (result.ok && result.data.offering) {
       const packages = result.data.offering.availablePackages;
-      const yearly = packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL) ?? null;
-      const lifetime = packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME) ?? null;
-      setYearlyPackage(yearly);
-      setLifetimePackage(lifetime);
+      setYearlyPackage(packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL) ?? null);
+      setMonthlyPackage(packages.find((p) => p.identifier === RC_PACKAGE_MONTHLY) ?? null);
+      setLifetimePackage(packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME) ?? null);
 
-      // [P0_RC_STATE] Offering loaded snapshot
       if (__DEV__) {
         devLog("[P0_RC_STATE] OFFERING_LOADED", {
           keySource: getKeySource(),
           offeringId: result.data.usedId,
           foundRequested: result.data.foundRequested,
           packagesTotal: packages.length,
-          hasAnnual: !!yearly,
-          hasLifetime: !!lifetime,
+          hasAnnual: !!packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL),
+          hasMonthly: !!packages.find((p) => p.identifier === RC_PACKAGE_MONTHLY),
+          hasLifetime: !!packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME),
           packageIds: packages.map((p) => p.identifier),
         });
       }
     } else if (!result.ok) {
-      // SDK-level failure — calm inline message, no modal
       if (__DEV__) {
         devWarn("[Paywall] Offering load failed:", result.reason);
         devLog("[P0_RC_STATE] OFFERING_FAILED", { keySource: getKeySource(), reason: result.reason });
       }
     }
-    // If result.ok but offering is null → no offerings at all;
-    // purchase button stays disabled, no scary toast.
 
     setIsLoading(false);
   };
 
+  // ── Purchase handler ────────────────────────────────────────────────
+
+  const getPackageForPlan = (): PurchasesPackage | null => {
+    switch (selectedPlan) {
+      case "lifetime": return lifetimePackage;
+      case "yearly": return yearlyPackage;
+      case "monthly": return monthlyPackage;
+    }
+  };
+
   const handlePurchase = async () => {
-    const packageToPurchase = selectedPlan === "lifetime" ? lifetimePackage : yearlyPackage;
+    const packageToPurchase = getPackageForPlan();
     if (!packageToPurchase) {
       safeToast.error("Load Failed", "Unable to load subscription. Please try again.");
       return;
@@ -154,23 +216,21 @@ export default function PaywallScreen() {
     const result = await purchasePackage(packageToPurchase);
 
     if (result.ok) {
-      // CANONICAL: Use refreshProContract for SSOT after purchase
       const { combinedIsPro } = await refreshProContract({ reason: "purchase:paywall" });
 
       if (__DEV__) {
         devLog("[PRO_SOT] AFTER screen=paywall_purchase combinedIsPro=", combinedIsPro);
         devLog("[P0_RC_PURCHASE_CONFIRM]", {
           surface: "paywall",
+          plan: selectedPlan,
           storekitSuccess: true,
           didRefresh: true,
           combinedIsPro,
         });
       }
 
-      // Show success regardless — purchase succeeded at StoreKit level.
-      // combinedIsPro may lag in simulator; trust the purchase result.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowPremiumSuccessModal(true);
+      setShowSuccessModal(true);
     } else if (result.reason === "sdk_error") {
       // Purchase cancelled or failed silently
     }
@@ -182,7 +242,6 @@ export default function PaywallScreen() {
     setIsPurchasing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // [PRO_SOT] Log BEFORE state
     if (__DEV__) {
       devLog("[PRO_SOT] BEFORE screen=paywall_restore isPremium=", isPremium);
     }
@@ -190,10 +249,8 @@ export default function PaywallScreen() {
     const result = await restorePurchases();
 
     if (result.ok) {
-      // CANONICAL: Use refreshProContract for SSOT after restore
-      const { rcIsPro, backendIsPro, combinedIsPro } = await refreshProContract({ reason: "restore:paywall" });
-      
-      // [PRO_SOT] Log AFTER state
+      const { combinedIsPro } = await refreshProContract({ reason: "restore:paywall" });
+
       if (__DEV__) {
         devLog("[PRO_SOT] AFTER screen=paywall_restore combinedIsPro=", combinedIsPro);
       }
@@ -202,10 +259,7 @@ export default function PaywallScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowRestoreSuccessModal(true);
       } else {
-        safeToast.info(
-          "No Purchases Found",
-          "We couldn't find any previous purchases to restore."
-        );
+        safeToast.info("No Purchases Found", "We couldn't find any previous purchases to restore.");
       }
     } else {
       safeToast.error("Restore Failed", "Failed to restore purchases. Please try again.");
@@ -214,13 +268,76 @@ export default function PaywallScreen() {
     setIsPurchasing(false);
   };
 
+  // ── Offer code redemption (Apple-blessed Guideline 3.1.1) ──────────
 
-  const getSelectedPrice = () => {
-    if (selectedPlan === "lifetime") {
-      return lifetimePackage?.product?.priceString ?? "–";
+  const handleRedeemOfferCode = async () => {
+    if (Platform.OS !== "ios") return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Purchases.presentCodeRedemptionSheet();
+      // Listener in SubscriptionContext will auto-detect entitlement changes
+    } catch (e) {
+      if (__DEV__) devWarn("[Paywall] presentCodeRedemptionSheet error:", e);
     }
-    return yearlyPackage?.product?.priceString ?? "–";
   };
+
+  // ── Feature comparison ──────────────────────────────────────────────
+
+  const featureCategories: FeatureCategory[] = [
+    {
+      title: "Hosting",
+      features: [
+        { name: "Events per Month", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "3 max", proValue: "Unlimited" },
+      ],
+    },
+    {
+      title: "Themes",
+      features: [
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "Default", proValue: "All themes" },
+      ],
+    },
+    {
+      title: "Social",
+      features: [
+        { name: "Friends", icon: <Users size={16} color={themeColor} />, freeValue: "Unlimited", proValue: "Unlimited" },
+        { name: "Circles", icon: <Users size={16} color={themeColor} />, freeValue: "2 max", proValue: "Unlimited" },
+      ],
+    },
+    {
+      title: "Planning",
+      features: [
+        { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
+        { name: "Recurring Events", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
+      ],
+    },
+    {
+      title: "Insights",
+      features: [
+        { name: "Analytics", icon: <TrendingUp size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
+      ],
+    },
+  ];
+
+  // ── Price helpers ───────────────────────────────────────────────────
+
+  const getSelectedPrice = (): string => {
+    switch (selectedPlan) {
+      case "lifetime": return lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`;
+      case "yearly": return yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`;
+      case "monthly": return monthlyPackage?.product?.priceString ?? `$${PRICING.proMonthly}`;
+    }
+  };
+
+  const getPlanCTALabel = (): string => {
+    if (isPurchasing) return "";
+    switch (selectedPlan) {
+      case "lifetime": return `Get Founder Lifetime — ${getSelectedPrice()}`;
+      case "yearly": return `Get Annual Pro — ${getSelectedPrice()}/yr`;
+      case "monthly": return `Get Monthly Pro — ${getSelectedPrice()}/mo`;
+    }
+  };
+
+  // ── Loading state ───────────────────────────────────────────────────
 
   if (isLoading) {
     return (
@@ -230,34 +347,31 @@ export default function PaywallScreen() {
         </View>
         <ActivityIndicator size="large" color={themeColor} />
         <Text style={{ color: colors.textSecondary }} className="mt-4 text-base">
-          Loading plans…
+          Loading plans...
         </Text>
       </View>
     );
   }
 
+  // ── Render ──────────────────────────────────────────────────────────
+
   return (
     <View className="flex-1" style={{ backgroundColor: colors.background }}>
-      {/* Header with gradient */}
+      {/* Header */}
       <LinearGradient
         colors={[themeColor, `${themeColor}CC`]}
         style={{
           paddingTop: 60,
-          paddingBottom: 32,
+          paddingBottom: 28,
           paddingHorizontal: 20,
           borderBottomLeftRadius: 32,
           borderBottomRightRadius: 32,
         }}
       >
-        {/* Close button */}
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/");
-            }
+            router.canGoBack() ? router.back() : router.replace("/");
           }}
           className="absolute top-14 right-5 w-8 h-8 rounded-full bg-white/20 items-center justify-center"
           style={{ zIndex: 10 }}
@@ -270,10 +384,10 @@ export default function PaywallScreen() {
             <Crown size={40} color="#fff" />
           </View>
           <Text className="text-white text-3xl font-bold text-center">
-            Choose Your Plan
+            Upgrade to Pro
           </Text>
           <Text className="text-white/80 text-center mt-2 text-base">
-            Unlock all features and connect with everyone
+            Unlock unlimited hosting and organizer tools
           </Text>
         </Animated.View>
       </LinearGradient>
@@ -283,190 +397,225 @@ export default function PaywallScreen() {
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Beta Banner */}
-        {BETA_MODE && (
-          <Animated.View entering={FadeInUp.delay(150)}>
-            <View
-              className="rounded-2xl p-4 mb-6 flex-row items-center"
-              style={{ backgroundColor: "#10B98120", borderWidth: 1, borderColor: "#10B981" }}
-            >
-              <View className="w-10 h-10 rounded-full items-center justify-center mr-3" style={{ backgroundColor: "#10B981" }}>
-                <Gift size={20} color="#fff" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-semibold" style={{ color: "#10B981" }}>
-                  Beta Launch Special!
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textSecondary }}>
-                  Enjoy all premium features free for the first month
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
+        {/* ── Plan Cards ──────────────────────────────────────────── */}
 
-
-        {/* Plans Side by Side */}
-        <Animated.View entering={FadeInUp.delay(200)} className="flex-row gap-3 mb-6">
-          {/* Free Plan */}
-          <View
-            className="flex-1 rounded-2xl p-4"
+        {/* Founder Lifetime */}
+        <Animated.View entering={FadeInUp.delay(150)}>
+          <Pressable
+            onPress={() => { setSelectedPlan("lifetime"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            className="rounded-2xl p-4 mb-3"
             style={{
-              backgroundColor: colors.surface,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text style={{ color: colors.text }} className="text-lg font-bold text-center mb-1">
-              Free
-            </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-center text-sm mb-4">
-              Basic features
-            </Text>
-
-            <View className="items-center mb-4">
-              <Text style={{ color: colors.text }} className="text-2xl font-bold">
-                $0
-              </Text>
-              <Text style={{ color: colors.textTertiary }} className="text-xs">
-                forever
-              </Text>
-            </View>
-
-            <View className="space-y-2">
-              {FREE_FEATURES.map((feature, index) => (
-                <View key={index} className="flex-row items-center mb-2">
-                  {feature.included ? (
-                    <Check size={14} color="#10B981" />
-                  ) : (
-                    <X size={14} color={colors.textTertiary} />
-                  )}
-                  <Text
-                    className="text-xs ml-2 flex-1"
-                    style={{ color: feature.included ? colors.text : colors.textTertiary }}
-                  >
-                    {feature.text}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Premium Plan */}
-          <View
-            className="flex-1 rounded-2xl p-4"
-            style={{
-              backgroundColor: `${themeColor}10`,
+              backgroundColor: selectedPlan === "lifetime" ? `${themeColor}15` : colors.surface,
               borderWidth: 2,
-              borderColor: themeColor,
+              borderColor: selectedPlan === "lifetime" ? themeColor : colors.border,
             }}
           >
-            {/* Best Value Badge */}
+            {/* Badge */}
             <View
-              className="absolute -top-3 left-1/2 px-3 py-1 rounded-full"
-              style={{
-                backgroundColor: themeColor,
-                transform: [{ translateX: -40 }],
-              }}
+              className="absolute -top-3 left-4 px-3 py-1 rounded-full flex-row items-center"
+              style={{ backgroundColor: "#F59E0B" }}
             >
-              <Text className="text-white text-xs font-semibold">Most Popular</Text>
+              <Flame size={12} color="#fff" />
+              <Text className="text-white text-xs font-bold ml-1">Founder</Text>
             </View>
 
-            <Text style={{ color: colors.text }} className="text-lg font-bold text-center mb-1 mt-2">
-              Premium
-            </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-center text-sm mb-4">
-              All features
-            </Text>
-
-            <View className="items-center mb-4">
-              <Text style={{ color: themeColor }} className="text-2xl font-bold">
-                {getSelectedPrice()}
-              </Text>
-              <Text style={{ color: colors.textTertiary }} className="text-xs">
-                {selectedPlan === "lifetime" ? "one-time" : "per year"}
-              </Text>
-            </View>
-
-            <View className="space-y-2">
-              {PREMIUM_FEATURES.map((feature, index) => (
-                <View key={index} className="flex-row items-center mb-2">
-                  <Sparkles size={14} color={themeColor} />
-                  <Text
-                    className="text-xs ml-2 flex-1"
-                    style={{ color: colors.text }}
-                  >
-                    {feature.text}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            
-            {/* Founder Pro Note */}
-            <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
-              <Text
-                className="text-xs text-center italic"
-                style={{ color: colors.textTertiary }}
+            <View className="flex-row items-center justify-between mt-2">
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="text-base font-bold">
+                  Founder Lifetime
+                </Text>
+                <Text style={{ color: themeColor }} className="text-xl font-bold mt-1">
+                  {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
+                </Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                  One-time payment. Pro forever.
+                </Text>
+              </View>
+              <View
+                className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                style={{
+                  borderColor: selectedPlan === "lifetime" ? themeColor : colors.textTertiary,
+                  backgroundColor: selectedPlan === "lifetime" ? themeColor : "transparent",
+                }}
               >
-                {FOUNDER_PRO_NOTE}
-              </Text>
+                {selectedPlan === "lifetime" && <Check size={14} color="#fff" />}
+              </View>
             </View>
-          </View>
+
+            {/* Urgency counter */}
+            {founderSpots.data && !founderSpots.data.isSoldOut && (
+              <SpotsCounter
+                claimed={founderSpots.data.claimed}
+                total={founderSpots.data.total}
+                label={`${founderSpots.data.total.toLocaleString()} founder spots`}
+                themeColor="#F59E0B"
+                colors={colors}
+              />
+            )}
+            {founderSpots.data?.isSoldOut && (
+              <Text style={{ color: "#EF4444" }} className="text-xs font-semibold mt-2">
+                All founder spots claimed
+              </Text>
+            )}
+          </Pressable>
         </Animated.View>
 
-        {/* Plan Selector — only shown if lifetime package exists in current offering */}
-        {lifetimePackage && (
-          <Animated.View entering={FadeInUp.delay(260)} className="mb-4">
-            <View
-              className="flex-row rounded-xl overflow-hidden"
-              style={{ borderWidth: 1, borderColor: colors.border }}
-            >
-              <Pressable
-                onPress={() => setSelectedPlan("yearly")}
-                className="flex-1 py-2 items-center"
-                style={{ backgroundColor: selectedPlan === "yearly" ? themeColor : colors.surface }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: selectedPlan === "yearly" ? "#fff" : colors.text }}
-                >
-                  Annual
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setSelectedPlan("lifetime")}
-                className="flex-1 py-2 items-center"
-                style={{ backgroundColor: selectedPlan === "lifetime" ? themeColor : colors.surface }}
-              >
-                <Text
-                  className="text-sm font-semibold"
-                  style={{ color: selectedPlan === "lifetime" ? "#fff" : colors.text }}
-                >
-                  Lifetime
-                </Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Value Proposition */}
-        <Animated.View entering={FadeInUp.delay(300)}>
-          <View
-            className="rounded-2xl p-4"
-            style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+        {/* Annual Pro */}
+        <Animated.View entering={FadeInUp.delay(200)}>
+          <Pressable
+            onPress={() => { setSelectedPlan("yearly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            className="rounded-2xl p-4 mb-3"
+            style={{
+              backgroundColor: selectedPlan === "yearly" ? `${themeColor}15` : colors.surface,
+              borderWidth: 2,
+              borderColor: selectedPlan === "yearly" ? themeColor : colors.border,
+            }}
           >
-            <Text style={{ color: colors.text }} className="font-semibold text-center mb-2">
-              Why Go Premium?
-            </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-sm text-center leading-5">
-              Connect with unlimited friends, create unlimited events, and never miss when your friends are free.
-              That's less than $1/month!
-            </Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="text-base font-bold">
+                  Annual Pro
+                </Text>
+                <Text style={{ color: themeColor }} className="text-xl font-bold mt-1">
+                  {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`} / year
+                </Text>
+                {yearlyPackage?.product?.introPrice ? (
+                  <Text style={{ color: "#10B981" }} className="text-xs font-semibold mt-1">
+                    Intro: {yearlyPackage.product.introPrice.priceString} for first year
+                  </Text>
+                ) : null}
+              </View>
+              <View
+                className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                style={{
+                  borderColor: selectedPlan === "yearly" ? themeColor : colors.textTertiary,
+                  backgroundColor: selectedPlan === "yearly" ? themeColor : "transparent",
+                }}
+              >
+                {selectedPlan === "yearly" && <Check size={14} color="#fff" />}
+              </View>
+            </View>
+
+            {/* Early member urgency counter */}
+            {earlyMemberSpots.data && !earlyMemberSpots.data.isSoldOut && (
+              <SpotsCounter
+                claimed={earlyMemberSpots.data.claimed}
+                total={earlyMemberSpots.data.total}
+                label={`${earlyMemberSpots.data.total.toLocaleString()} early member spots`}
+                themeColor={themeColor}
+                colors={colors}
+              />
+            )}
+          </Pressable>
+        </Animated.View>
+
+        {/* Monthly Pro */}
+        <Animated.View entering={FadeInUp.delay(250)}>
+          <Pressable
+            onPress={() => { setSelectedPlan("monthly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            className="rounded-2xl p-4 mb-6"
+            style={{
+              backgroundColor: selectedPlan === "monthly" ? `${themeColor}15` : colors.surface,
+              borderWidth: 2,
+              borderColor: selectedPlan === "monthly" ? themeColor : colors.border,
+            }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="text-base font-bold">
+                  Monthly Pro
+                </Text>
+                <Text style={{ color: themeColor }} className="text-xl font-bold mt-1">
+                  {monthlyPackage?.product?.priceString ?? `$${PRICING.proMonthly}`} / month
+                </Text>
+                <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                  Cancel anytime
+                </Text>
+              </View>
+              <View
+                className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                style={{
+                  borderColor: selectedPlan === "monthly" ? themeColor : colors.textTertiary,
+                  backgroundColor: selectedPlan === "monthly" ? themeColor : "transparent",
+                }}
+              >
+                {selectedPlan === "monthly" && <Check size={14} color="#fff" />}
+              </View>
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {/* ── Feature Comparison ────────────────────────────────── */}
+        <Animated.View entering={FadeInUp.delay(300)}>
+          <Text style={{ color: colors.textSecondary }} className="text-sm font-medium mb-3 ml-1">
+            COMPARE PLANS
+          </Text>
+          <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden">
+            {/* Header row */}
+            <View className="flex-row py-3 px-4" style={{ backgroundColor: isDark ? "#2C2C2E" : "#F3F4F6" }}>
+              <View className="flex-1">
+                <Text style={{ color: colors.text }} className="font-semibold">Feature</Text>
+              </View>
+              <View className="w-16 items-center">
+                <Text style={{ color: colors.textSecondary }} className="font-medium text-xs">FREE</Text>
+              </View>
+              <View className="w-16 items-center">
+                <View className="flex-row items-center">
+                  <Crown size={12} color={themeColor} />
+                  <Text style={{ color: themeColor }} className="font-bold text-xs ml-1">PRO</Text>
+                </View>
+              </View>
+            </View>
+
+            {featureCategories.map((category, catIdx) => (
+              <View key={category.title}>
+                <View
+                  className="px-4 py-2"
+                  style={{
+                    backgroundColor: isDark ? "#1A1A1C" : "#FAFAFA",
+                    borderTopWidth: catIdx > 0 ? 1 : 0,
+                    borderTopColor: colors.border,
+                  }}
+                >
+                  <Text style={{ color: colors.textTertiary }} className="text-xs font-semibold uppercase">
+                    {category.title}
+                  </Text>
+                </View>
+                {category.features.map((f) => (
+                  <View
+                    key={f.name}
+                    className="flex-row py-3 px-4 items-center"
+                    style={{ borderTopWidth: 1, borderTopColor: colors.border }}
+                  >
+                    <View className="flex-1 flex-row items-center">
+                      {f.icon}
+                      <Text style={{ color: colors.text }} className="ml-2 text-sm" numberOfLines={1}>{f.name}</Text>
+                    </View>
+                    <View className="w-16 items-center">
+                      {f.freeValue === "No" ? (
+                        <X size={14} color={colors.textTertiary} />
+                      ) : (
+                        <Text style={{ color: colors.textSecondary }} className="text-xs text-center">{f.freeValue}</Text>
+                      )}
+                    </View>
+                    <View className="w-16 items-center">
+                      {f.proValue === "Yes" ? (
+                        <Check size={14} color="#10B981" />
+                      ) : f.proValue === "Unlimited" ? (
+                        <Text style={{ color: "#10B981" }} className="text-xs font-medium">Unlimited</Text>
+                      ) : (
+                        <Text style={{ color: themeColor }} className="text-xs font-medium text-center">{f.proValue}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
           </View>
         </Animated.View>
 
         {/* Not configured message */}
-        {!revenueCatEnabled && !BETA_MODE && (
+        {!revenueCatEnabled && (
           <View
             className="rounded-2xl p-4 mt-6"
             style={{ backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#F59E0B" }}
@@ -478,120 +627,84 @@ export default function PaywallScreen() {
         )}
       </ScrollView>
 
-      {/* Bottom CTA */}
+      {/* ── Bottom CTA ──────────────────────────────────────────── */}
       <SafeAreaView edges={["bottom"]} style={{ backgroundColor: colors.background }}>
         <View className="px-5 pb-4">
-          {BETA_MODE ? (
-            <>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.back();
-                }}
-                className="rounded-2xl py-4 items-center"
-                style={{
-                  backgroundColor: "#10B981",
-                  shadowColor: "#10B981",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                }}
-              >
-                <Text className="text-white text-lg font-semibold">
-                  Continue with Free Beta
-                </Text>
-              </Pressable>
-              <Text
-                style={{ color: colors.textTertiary }}
-                className="text-xs text-center mt-3 px-4"
-              >
-                All premium features are free during beta! We'll notify you before the beta period ends.
-              </Text>
-            </>
-          ) : (
-            <>
-              <Pressable
-                onPress={handlePurchase}
-                disabled={
-                  isPurchasing ||
-                  !revenueCatEnabled ||
-                  (selectedPlan === "lifetime" ? !lifetimePackage : !yearlyPackage)
-                }
-                className="rounded-2xl py-4 items-center"
-                style={{
-                  backgroundColor: isPurchasing || !revenueCatEnabled ? colors.border : themeColor,
-                  shadowColor: themeColor,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                }}
-              >
-                {isPurchasing ? (
-                  <ActivityIndicator color="#fff" />
-                ) : selectedPlan === "lifetime" ? (
-                  <Text className="text-white text-lg font-semibold">
-                    Get Lifetime — {getSelectedPrice()}
-                  </Text>
-                ) : (
-                  <Text className="text-white text-lg font-semibold">
-                    Get Premium — {getSelectedPrice()}/year
-                  </Text>
-                )}
-              </Pressable>
+          <Pressable
+            onPress={handlePurchase}
+            disabled={isPurchasing || !revenueCatEnabled || !getPackageForPlan()}
+            className="rounded-2xl py-4 items-center"
+            style={{
+              backgroundColor: isPurchasing || !revenueCatEnabled ? colors.border : themeColor,
+              shadowColor: themeColor,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+            }}
+          >
+            {isPurchasing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white text-lg font-semibold">{getPlanCTALabel()}</Text>
+            )}
+          </Pressable>
 
-              <Pressable
-                onPress={handleRestore}
-                disabled={isPurchasing || !revenueCatEnabled}
-                className="py-3 items-center mt-2"
-              >
-                <Text style={{ color: colors.textSecondary }}>
-                  Restore Purchases
-                </Text>
-              </Pressable>
-
-              <Text
-                style={{ color: colors.textTertiary }}
-                className="text-xs text-center mt-2 px-4"
-              >
-                Cancel anytime in Settings. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
+          {/* Secondary actions row */}
+          <View className="flex-row justify-center mt-3">
+            <Pressable
+              onPress={handleRestore}
+              disabled={isPurchasing || !revenueCatEnabled}
+              className="py-2 px-4"
+            >
+              <Text style={{ color: colors.textSecondary }} className="text-sm">
+                Restore Purchases
               </Text>
-            </>
-          )}
+            </Pressable>
+
+            {Platform.OS === "ios" && (
+              <>
+                <Text style={{ color: colors.border }} className="py-2">|</Text>
+                <Pressable
+                  onPress={handleRedeemOfferCode}
+                  disabled={isPurchasing}
+                  className="py-2 px-4"
+                >
+                  <Text style={{ color: colors.textSecondary }} className="text-sm">
+                    Redeem Code
+                  </Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          <Text
+            style={{ color: colors.textTertiary }}
+            className="text-xs text-center mt-2 px-4"
+          >
+            Cancel anytime in Settings. Subscription auto-renews unless cancelled at least 24 hours before the end of the current period.
+          </Text>
         </View>
       </SafeAreaView>
 
-      {/* Premium Success Modal */}
+      {/* Success Modal */}
       <ConfirmModal
-        visible={showPremiumSuccessModal}
-        title="Welcome to Premium!"
+        visible={showSuccessModal}
+        title="Welcome to Pro!"
         message="You now have access to all premium features."
         confirmText="Let's Go!"
-        onConfirm={() => {
-          setShowPremiumSuccessModal(false);
-          router.back();
-        }}
-        onCancel={() => {
-          setShowPremiumSuccessModal(false);
-          router.back();
-        }}
+        onConfirm={() => { setShowSuccessModal(false); router.back(); }}
+        onCancel={() => { setShowSuccessModal(false); router.back(); }}
       />
 
-      {/* Restore Success Modal */}
+      {/* Restore Modal */}
       <ConfirmModal
         visible={showRestoreSuccessModal}
         title="Purchases Restored!"
         message="Your premium subscription has been restored."
         confirmText="Great!"
-        onConfirm={() => {
-          setShowRestoreSuccessModal(false);
-          router.back();
-        }}
-        onCancel={() => {
-          setShowRestoreSuccessModal(false);
-          router.back();
-        }}
+        onConfirm={() => { setShowRestoreSuccessModal(false); router.back(); }}
+        onCancel={() => { setShowRestoreSuccessModal(false); router.back(); }}
       />
-
     </View>
   );
 }

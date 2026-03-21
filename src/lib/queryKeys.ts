@@ -52,6 +52,10 @@ export const qk = {
   workSchedule: () => ["workSchedule"] as const,
   appConfig: () => ["app-config"] as const,
 
+  // ── Inventory (public, no auth) ──────────────────────────────────────
+  inventoryFounderSpots: () => ["inventoryFounderSpots"] as const,
+  inventoryEarlyMemberSpots: () => ["inventoryEarlyMemberSpots"] as const,
+
   // ── Admin ─────────────────────────────────────────────────────────────
   adminStatus: () => ["adminStatus"] as const,
 } as const;
@@ -87,6 +91,8 @@ const QK_OWNED_ROOTS = new Set([
   "birthdays",
   "workSchedule",
   "app-config",
+  "inventoryFounderSpots",
+  "inventoryEarlyMemberSpots",
   "adminStatus",
 ]);
 

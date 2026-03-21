@@ -57,10 +57,10 @@ export const PRO_TIER_LIMITS = {
 
 export const PRICING = {
   free: 0,
-  proYearly: 10,
-  proYearlyFuture: 25,
-  lifetime: 249, // Apple one-time lifetime price; UI prefers lifetimePackage.product.priceString
-  trialDays: 14,
+  proMonthly: 4.99,
+  proYearly: 39.99,
+  proYearlyIntro: 9.99,
+  lifetime: 29.99,
 } as const;
 
 // ============================================

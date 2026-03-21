@@ -191,7 +191,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setFeatures(data.features);
 
       // Step 3: Always compute backend isPro — never skip this based on RC state.
-      // Backend is the source of truth for promo codes, gifted Pro, lifetime, etc.
+      // Backend is the source of truth for gifted Pro, lifetime, etc.
       const tier = data.subscription?.tier as string | undefined;
       const backendIsPro = tier === "premium" ||
         tier === "pro" ||
@@ -199,7 +199,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         (data.subscription as any)?.isPro === true;
 
       // Step 4: OR semantics — Pro if EITHER backend OR RevenueCat says so.
-      // This ensures backend PRO (promo/gift/lifetime) is never masked by RC dev-test failures.
+      // This ensures backend PRO (gift/lifetime) is never masked by RC dev-test failures.
       computedIsPro = rcIsPro || backendIsPro;
       setIsPremium(computedIsPro);
 
@@ -237,7 +237,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     }
   }, [session, bootStatus]);
 
-  // Register customerInfo update listener (handles promo codes + purchases from external sources)
+  // Register customerInfo update listener (handles purchases from external sources)
   useEffect(() => {
     if (!isRevenueCatEnabled() || listenerRegistered.current) {
       return;

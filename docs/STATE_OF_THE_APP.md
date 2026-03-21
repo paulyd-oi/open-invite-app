@@ -27,8 +27,9 @@
 - Profile hook-order crash fixed: All hooks (useMemo, useCallback, useRef, useEffect, useSharedValue, useAnimatedStyle) moved above loading gate to prevent "Rendered fewer hooks than expected" on logout. DEV proof: [P0_PROFILE_HOOK_GUARD]
 - Legacy Groups UI fully removed: Friends filter + Friend profile "Groups Together" section purged. Circles remain the only group concept.
 - Apple Sign-In cookie storage FIXED: Proper token extraction from backend response (mobileSessionToken > token > session.token > Set-Cookie header), correct setExplicitCookiePair usage (token only, not full cookie pair), direct module cache set via setExplicitCookieValueDirectly(), refreshExplicitCookie now checks SESSION_COOKIE_KEY as fallback
-- Promo code redemption: /redeem-code screen for entering codes like AWAKEN, POST /api/discount/redeem (unified with paywall + subscription), calm error handling with mom-safe language, success shows benefit text
-- Subscription UI entitlement-smart: Loading gate prevents flash, Pro users see "Subscription" (not "Founder Pro"), no upgrade CTA for Pro users, friend pin is green (#10B981)
+- Promo/discount code UI fully removed (Apple Guideline 3.1.1): All promo code types, API calls, comments purged from frontend. /redeem-code screen shows "Feature Unavailable". Offer code redemption wired via Purchases.presentCodeRedemptionSheet() on paywall and subscription screens.
+- Paywall redesigned with 3 pricing tiers: Founder Lifetime ($29.99, capped at 1000), Annual Pro ($39.99/yr with intro offer detection), Monthly Pro ($4.99/mo). Urgency counters fetch from backend /api/inventory/ endpoints. Feature comparison table: Hosting, Themes, Social, Planning, Insights.
+- Subscription UI entitlement-smart: Loading gate prevents flash, Pro users see "Subscription" (not "Founder Pro"), no upgrade CTA for Pro users, friend pin is green (#10B981). 3-tier plan selector (Founder Lifetime, Annual, Monthly).
 - Edit Event UX matches Create Event: Inline compact DateTimePicker (not modal pickers), no Private visibility option, no co-hosts section
 - Coachmark permanent dismissal: SecureStore with versioned keys (guide_friends_add_people_v1, guide_create_first_plan_v1), loadedOnce gating
 - Pin Friend persistence: Query invalidation for pinnedFriendships after pin mutation, DEV logs

@@ -27,6 +27,11 @@ import {
   CalendarDays,
   Heart,
   RotateCcw,
+  Palette,
+  Users,
+  TrendingUp,
+  Flame,
+  Ticket,
 } from "@/ui/icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -43,6 +48,7 @@ import {
   getCustomerInfo,
   REVENUECAT_OFFERING_ID,
   RC_PACKAGE_ANNUAL,
+  RC_PACKAGE_MONTHLY,
   RC_PACKAGE_LIFETIME,
 } from "@/lib/revenuecatClient";
 import { safeToast } from "@/lib/safeToast";
@@ -51,7 +57,7 @@ import { useSubscription as useSubscriptionContext } from "@/lib/SubscriptionCon
 import { useRefreshProContract } from "@/lib/entitlements";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { STATUS } from "@/ui/tokens";
-import type { PurchasesPackage } from "react-native-purchases";
+import Purchases, { type PurchasesPackage } from "react-native-purchases";
 
 // Types for subscription details from backend
 interface SubscriptionDetails {
@@ -64,15 +70,6 @@ interface SubscriptionDetails {
     trialEndDate: string | null;
     transactionId: string | null;
     isBeta: boolean;
-  };
-  discountCodes: {
-    redemptions: Array<{
-      code: string;
-      type: string;
-      redeemedAt: string;
-    }>;
-    hasUsedLifetimeCode: boolean;
-    canUseDiscountCode: boolean;
   };
 }
 
@@ -98,12 +95,13 @@ export default function SubscriptionScreen() {
   const { data: session } = useSession();
   const { status: bootStatus } = useBootAuthority();
 
-  const [selectedPlan, setSelectedPlan] = useState<"yearly" | "lifetime">("yearly");
+  const [selectedPlan, setSelectedPlan] = useState<"lifetime" | "yearly" | "monthly">("yearly");
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
 
   // RevenueCat packages
   const [yearlyPackage, setYearlyPackage] = useState<PurchasesPackage | null>(null);
+  const [monthlyPackage, setMonthlyPackage] = useState<PurchasesPackage | null>(null);
   const [lifetimePackage, setLifetimePackage] = useState<PurchasesPackage | null>(null);
   const [packagesLoading, setPackagesLoading] = useState(true);
 
@@ -133,6 +131,7 @@ export default function SubscriptionScreen() {
       if (result.ok && result.data.offering) {
         const packages = result.data.offering.availablePackages;
         setYearlyPackage(packages.find((p) => p.identifier === RC_PACKAGE_ANNUAL) ?? null);
+        setMonthlyPackage(packages.find((p) => p.identifier === RC_PACKAGE_MONTHLY) ?? null);
         setLifetimePackage(packages.find((p) => p.identifier === RC_PACKAGE_LIFETIME) ?? null);
       }
       // No scary toast — if no offering found, purchase buttons stay disabled
@@ -144,7 +143,7 @@ export default function SubscriptionScreen() {
 
   // Handle purchase
   const handlePurchase = async () => {
-    const packageToPurchase = selectedPlan === "yearly" ? yearlyPackage : lifetimePackage;
+    const packageToPurchase = selectedPlan === "lifetime" ? lifetimePackage : selectedPlan === "yearly" ? yearlyPackage : monthlyPackage;
 
     if (!packageToPurchase) {
       safeToast.error("Load Failed", "Unable to load subscription options. Please try again.");
@@ -334,18 +333,37 @@ export default function SubscriptionScreen() {
 
   const sourceCopy = getSourceCopy();
 
-  // Grouped comparison features - ONLY show what's actually enforced today
-  // Currently enforced: hosting limits (3 events / 30 days for free, unlimited for Pro)
   const featureCategories: FeatureCategory[] = [
     {
       title: "Hosting",
       features: [
-        {
-          name: "Events per Month",
-          icon: <CalendarDays size={16} color={themeColor} />,
-          freeValue: "3 max",
-          proValue: "Unlimited",
-        },
+        { name: "Events per Month", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "3 max", proValue: "Unlimited" },
+      ],
+    },
+    {
+      title: "Themes",
+      features: [
+        { name: "Event Themes", icon: <Palette size={16} color={themeColor} />, freeValue: "Default", proValue: "All themes" },
+      ],
+    },
+    {
+      title: "Social",
+      features: [
+        { name: "Friends", icon: <Users size={16} color={themeColor} />, freeValue: "Unlimited", proValue: "Unlimited" },
+        { name: "Circles", icon: <Users size={16} color={themeColor} />, freeValue: "2 max", proValue: "Unlimited" },
+      ],
+    },
+    {
+      title: "Planning",
+      features: [
+        { name: "Who's Free", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "7 days", proValue: "90 days" },
+        { name: "Recurring Events", icon: <CalendarDays size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
+      ],
+    },
+    {
+      title: "Insights",
+      features: [
+        { name: "Analytics", icon: <TrendingUp size={16} color={themeColor} />, freeValue: "No", proValue: "Yes" },
       ],
     },
   ];
@@ -538,12 +556,46 @@ export default function SubscriptionScreen() {
               {isPremium && !isTrial ? "YOUR PLAN" : "CHOOSE A PLAN"}
             </Text>
             <View style={{ backgroundColor: colors.surface }} className="rounded-2xl overflow-hidden p-4">
-              {/* Yearly Option - Primary */}
+              {/* Founder Lifetime */}
               <Pressable
-                onPress={() => {
-                  setSelectedPlan("yearly");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPress={() => { setSelectedPlan("lifetime"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                className="rounded-xl p-4 mb-3"
+                style={{
+                  backgroundColor: selectedPlan === "lifetime" ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F3F4F6",
+                  borderWidth: 2,
+                  borderColor: selectedPlan === "lifetime" ? themeColor : "transparent",
                 }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <View className="flex-row items-center">
+                      <Flame size={14} color="#F59E0B" />
+                      <Text style={{ color: colors.text }} className="text-base font-semibold ml-1">
+                        Founder Lifetime
+                      </Text>
+                    </View>
+                    <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
+                      {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
+                    </Text>
+                    <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                      One-time payment. Pro forever.
+                    </Text>
+                  </View>
+                  <View
+                    className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                    style={{
+                      borderColor: selectedPlan === "lifetime" ? themeColor : colors.textTertiary,
+                      backgroundColor: selectedPlan === "lifetime" ? themeColor : "transparent",
+                    }}
+                  >
+                    {selectedPlan === "lifetime" && <Check size={14} color="#fff" />}
+                  </View>
+                </View>
+              </Pressable>
+
+              {/* Annual Pro */}
+              <Pressable
+                onPress={() => { setSelectedPlan("yearly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
                 className="rounded-xl p-4 mb-3"
                 style={{
                   backgroundColor: selectedPlan === "yearly" ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F3F4F6",
@@ -553,20 +605,17 @@ export default function SubscriptionScreen() {
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-1">
-                    <View className="flex-row items-center">
-                      <Text style={{ color: colors.text }} className="text-base font-semibold">
-                        Yearly Pro
-                      </Text>
-                    </View>
+                    <Text style={{ color: colors.text }} className="text-base font-semibold">
+                      Annual Pro
+                    </Text>
                     <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
                       {yearlyPackage?.product?.priceString ?? `$${PRICING.proYearly}`} / year
                     </Text>
-                    <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                      Early member rate.{"\n"}Regular price: $40 / year.
-                    </Text>
-                    <Text style={{ color: STATUS.going.fg }} className="text-xs mt-1">
-                      Unlimited hosting
-                    </Text>
+                    {yearlyPackage?.product?.introPrice ? (
+                      <Text style={{ color: "#10B981" }} className="text-xs font-semibold mt-1">
+                        Intro: {yearlyPackage.product.introPrice.priceString} for first year
+                      </Text>
+                    ) : null}
                   </View>
                   <View
                     className="w-6 h-6 rounded-full border-2 items-center justify-center"
@@ -580,44 +629,39 @@ export default function SubscriptionScreen() {
                 </View>
               </Pressable>
 
-              {/* Lifetime Option - Secondary */}
-              {lifetimePackage && (
-                <Pressable
-                  onPress={() => {
-                    setSelectedPlan("lifetime");
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  className="rounded-xl p-4"
-                  style={{
-                    backgroundColor: selectedPlan === "lifetime" ? `${colors.textTertiary}15` : isDark ? "#2C2C2E" : "#F3F4F6",
-                    borderWidth: 2,
-                    borderColor: selectedPlan === "lifetime" ? colors.textTertiary : "transparent",
-                  }}
-                >
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1">
-                      <Text style={{ color: colors.textSecondary }} className="text-sm font-medium">
-                        Founding Member – Limited
-                      </Text>
-                      <Text style={{ color: colors.text }} className="text-base font-semibold mt-0.5">
-                        {lifetimePackage?.product?.priceString ?? `$${PRICING.lifetime}`}
-                      </Text>
-                      <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
-                        One-time payment. Long-term access.
-                      </Text>
-                    </View>
-                    <View
-                      className="w-6 h-6 rounded-full border-2 items-center justify-center"
-                      style={{
-                        borderColor: selectedPlan === "lifetime" ? colors.textTertiary : colors.textTertiary,
-                        backgroundColor: selectedPlan === "lifetime" ? colors.textTertiary : "transparent",
-                      }}
-                    >
-                      {selectedPlan === "lifetime" && <Check size={14} color="#fff" />}
-                    </View>
+              {/* Monthly Pro */}
+              <Pressable
+                onPress={() => { setSelectedPlan("monthly"); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                className="rounded-xl p-4"
+                style={{
+                  backgroundColor: selectedPlan === "monthly" ? `${themeColor}15` : isDark ? "#2C2C2E" : "#F3F4F6",
+                  borderWidth: 2,
+                  borderColor: selectedPlan === "monthly" ? themeColor : "transparent",
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1">
+                    <Text style={{ color: colors.text }} className="text-base font-semibold">
+                      Monthly Pro
+                    </Text>
+                    <Text style={{ color: themeColor }} className="text-lg font-bold mt-1">
+                      {monthlyPackage?.product?.priceString ?? `$${PRICING.proMonthly}`} / month
+                    </Text>
+                    <Text style={{ color: colors.textTertiary }} className="text-xs mt-1">
+                      Cancel anytime
+                    </Text>
                   </View>
-                </Pressable>
-              )}
+                  <View
+                    className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                    style={{
+                      borderColor: selectedPlan === "monthly" ? themeColor : colors.textTertiary,
+                      backgroundColor: selectedPlan === "monthly" ? themeColor : "transparent",
+                    }}
+                  >
+                    {selectedPlan === "monthly" && <Check size={14} color="#fff" />}
+                  </View>
+                </View>
+              </Pressable>
 
               {/* Purchase Button */}
               <Button
@@ -638,7 +682,7 @@ export default function SubscriptionScreen() {
               )}
 
               {/* No packages warning */}
-              {!packagesLoading && !yearlyPackage && !lifetimePackage && Platform.OS !== "web" && (
+              {!packagesLoading && !yearlyPackage && !monthlyPackage && !lifetimePackage && Platform.OS !== "web" && (
                 <Text style={{ color: colors.textTertiary }} className="text-xs text-center mt-3">
                   Subscription options unavailable. Please try again later.
                 </Text>
@@ -667,6 +711,26 @@ export default function SubscriptionScreen() {
             style={{ borderRadius: 16, paddingVertical: 14 }}
           />
         </Animated.View>
+
+        {/* Redeem Offer Code (Apple-blessed 3.1.1 mechanism) */}
+        {Platform.OS === "ios" && (
+          <Animated.View entering={FadeInDown.delay(450).springify()} className="mx-4 mt-4">
+            <Button
+              variant="secondary"
+              label="Redeem Offer Code"
+              onPress={async () => {
+                try {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  await Purchases.presentCodeRedemptionSheet();
+                } catch (e) {
+                  if (__DEV__) devWarn("[Subscription] presentCodeRedemptionSheet error:", e);
+                }
+              }}
+              leftIcon={<Ticket size={18} color={colors.buttonSecondaryText} />}
+              style={{ borderRadius: 16, paddingVertical: 14 }}
+            />
+          </Animated.View>
+        )}
 
         {/* Manage Subscription Link */}
         {isPremium && !isLifetime && Platform.OS === "ios" && (

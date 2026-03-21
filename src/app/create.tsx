@@ -710,7 +710,7 @@ export default function CreateEventScreen() {
     if (entitlementsLoading || premiumStatus.isFetching) return false;
     if (hostingQuota.isLoading || hostingQuota.isFetching) return false;
     if (hostingQuota.error) return false;
-    // Unlimited plans (promo codes etc) → no nudge
+    // Unlimited plans → no nudge
     if (hostingQuota.isUnlimited) return false;
     // Backend SSOT: nudgeMeta drives threshold logic
     if (!hostingQuota.nudgeMeta || !hostingQuota.nudgeMeta.shouldNudgeNow) return false;
