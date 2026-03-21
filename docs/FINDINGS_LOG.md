@@ -1,5 +1,31 @@
 # Findings Log — Frontend
 
+## Post-Onboarding Email Gate Modal Freeze — FIXED (2026-03-20)
+
+### Probable Root Cause: Modal Presented During In-Flight Navigation Transition
+
+After onboarding completes, `routeAfterAuthSuccess()` calls `rebootstrapAfterLogin()` which sets `globalStatus = 'authed'` BEFORE calling `router.replace("/calendar")`. The email gate effect in BootRouter fires immediately on the 'authed' transition and starts an 800ms timer. This timer fires while the calendar screen is still in its heavy initial mount/render cycle. Presenting a React Native `<Modal>` during an in-flight navigation on iOS can leave the modal's touch responder improperly configured, making the "I'll do it later" and "Resend email" buttons unresponsive.
+
+### Evidence
+- User screenshot: calendar grid visible behind modal, "Verify your email to continue" modal on top
+- App unresponsive — user had to force-close
+- After relaunch, everything works (modal marked as shown, never re-appears)
+- Only affects email signup users (Apple Sign-In has emailVerified=true)
+
+### Fix
+Wrapped the email gate timer start in `InteractionManager.runAfterInteractions()` so the modal only presents AFTER all pending navigation transitions and interactions complete. The 800ms timer runs after InteractionManager resolves, ensuring the calendar is fully mounted and idle before the Modal appears.
+
+### Files Changed
+- src/app/_layout.tsx: email gate effect (InteractionManager + cleanup)
+- src/components/EmailVerificationGateModal.tsx: [POST_ONBOARD] diagnostic logs
+- src/app/welcome.tsx: [POST_ONBOARD] diagnostic logs
+
+### Verification
+- TypeScript: PASS (npx tsc --noEmit)
+- verify_frontend.sh: same pre-existing failures only
+- Blast radius: zero — normal app launch unaffected
+- Status: NEEDS RUNTIME RETEST
+
 ## Onboarding Avatar Upload V2 — FIXED + HARDENED (2026-03-20)
 
 ### Root Cause: isValidBetterAuthToken() Rejects Valid Session Tokens

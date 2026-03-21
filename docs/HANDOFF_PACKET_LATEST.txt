@@ -1,0 +1,71 @@
+HANDOFF_PACKET — Post-Onboarding Email Gate Modal Freeze Fix
+Date: 2026-03-20
+
+SUMMARY
+
+Fixed app freeze on first post-onboarding landing. The email verification gate modal was presenting during an in-flight navigation transition, leaving its touch responder broken on iOS. Buttons were unresponsive, requiring force-close. Fix defers modal presentation using InteractionManager.runAfterInteractions so the modal only appears after all navigation transitions and the calendar initial mount are fully settled.
+
+PROBABLE ROOT CAUSE (static analysis only)
+
+After onboarding, routeAfterAuthSuccess calls rebootstrapAfterLogin which sets globalStatus to authed BEFORE calling router.replace /calendar. The email gate effect in BootRouter fires immediately on the authed transition and starts an 800ms setTimeout. This timer fires while the calendar screen heavy initial mount is still in progress. Presenting a React Native Modal during an in-flight navigation transition on iOS can leave the modal touch responder improperly configured, making the I will do it later and Resend email buttons unresponsive.
+
+MODAL ANALYSIS
+
+Modal component: src/components/EmailVerificationGateModal.tsx line 31
+Dismiss handler: src/components/EmailVerificationGateModal.tsx line 56 handleDismiss calls onClose prop
+Condition that triggers display: src/app/_layout.tsx lines 654-720 email gate useEffect fires when bootStatus is authed AND session.user.emailVerified is false AND hasShownGateModal returns false for the userId
+What is different about first post-onboarding render vs normal launch: On normal launch hasShownGateModal returns true because it was marked on first presentation. On first post-onboarding render the modal has never been shown, AND the timer starts during the rebootstrap-to-calendar navigation transition window.
+Definitive bug vs defensive fix: Defensive fix. The dismiss handler code is correct. The probable cause is a timing issue where Modal is presented during an in-flight navigation causing iOS touch responder misconfiguration. InteractionManager.runAfterInteractions ensures the modal only presents when the UI is idle.
+
+EXACT FILES CHANGED
+
+1. src/app/_layout.tsx
+   Line 13: Added InteractionManager to react-native import
+   Lines 654-720: Email gate effect rewritten to use InteractionManager.runAfterInteractions before starting the 800ms timer. Added interactionTaskRef for cleanup. Added POST_ONBOARD diagnostic logs.
+
+2. src/components/EmailVerificationGateModal.tsx
+   Line 1: Added useEffect to imports
+   Line 11: Added devLog import
+   Lines 28-42: Added POST_ONBOARD mount and visibility diagnostic logs
+   Lines 56-62: Added POST_ONBOARD press and onClose diagnostic logs
+
+3. src/app/welcome.tsx
+   Lines 1076-1090: Added POST_ONBOARD diagnostic logs around handleFinishOnboarding and routeAfterAuthSuccess calls
+
+FIX
+
+Wrapped the email gate timer start in InteractionManager.runAfterInteractions so the Modal only presents AFTER all pending navigation transitions and JS interactions complete. The 800ms delay still applies after InteractionManager resolves. Added interactionTaskRef for proper cleanup on effect re-run or unmount.
+
+VERIFICATION
+
+npx tsc --noEmit: PASS clean (exit 0)
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only
+  create.tsx:1571 and circle/[id].tsx:2166 raw Image annotations
+  No new failures introduced.
+
+BLAST RADIUS SWEEP
+
+Normal non-onboarding app launch: UNAFFECTED. hasShownGateModal returns true after first presentation. The InteractionManager call is a no-op when no transitions are pending. The 800ms delay is identical.
+Apple Sign-In users: UNAFFECTED. emailVerified is true so the email gate effect returns early before scheduling anything.
+Email signup users on relaunch: UNAFFECTED. Modal was already marked as shown on first presentation.
+Logout and re-login: UNAFFECTED. Same flow as normal launch, gate modal flag persists in AsyncStorage.
+
+STATE/FINDINGS DOC UPDATES
+
+docs/STATE_OF_THE_APP.md: Added Fixed This Session section for post-onboarding email gate modal freeze
+docs/FINDINGS_LOG.md: Added finding with probable root cause, evidence, fix, and verification
+
+GIT PROOF
+
+commit 721daaee9b9739d37390c86c6f7f6abd6c46a9d2
+6 files changed, 177 insertions(+), 21 deletions(-)
+docs/FINDINGS_LOG.md
+docs/HANDOFF_PACKET_LATEST.txt
+docs/STATE_OF_THE_APP.md
+src/app/_layout.tsx
+src/app/welcome.tsx
+src/components/EmailVerificationGateModal.tsx
+
+FINAL STATUS
+
+FIXED — NEEDS RUNTIME RETEST

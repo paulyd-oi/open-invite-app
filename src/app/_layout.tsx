@@ -10,7 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, ActivityIndicator, useWindowDimensions, InteractionManager } from 'react-native';
 import { useFonts } from 'expo-font';
 import { APP_FONTS } from '@/lib/fonts';
 
@@ -652,39 +652,70 @@ function BootRouter() {
   }, [bootStatus, session?.user?.id]);
 
   // Email verification gate modal (global, show once per account if unverified)
+  // [POST_ONBOARD] FIX: Use InteractionManager to defer modal until navigation
+  // transitions are fully complete. Previously the 800ms timer started during
+  // rebootstrapAfterLogin() (before router.replace("/calendar")), causing the
+  // Modal to present while the calendar was still mounting — leaving the modal's
+  // touch responder improperly configured on iOS (buttons unresponsive).
+  const interactionTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
   useEffect(() => {
     const checkEmailGate = async () => {
       const userId = session?.user?.id;
       const emailVerified = session?.user?.emailVerified;
-      
+
+      if (__DEV__) {
+        devLog('[POST_ONBOARD]', 'email gate check', {
+          userId: userId?.substring(0, 8) || 'none',
+          emailVerified,
+          bootStatus,
+          hasTimer: !!gateTimerRef.current,
+          hasInteraction: !!interactionTaskRef.current,
+        });
+      }
+
       if (!userId || emailVerified !== false) return;
-      
+
       // Prevent double-scheduling: if timer already scheduled, do nothing
-      if (gateTimerRef.current) return;
-      
+      if (gateTimerRef.current || interactionTaskRef.current) return;
+
       const hasShown = await hasShownGateModal(userId);
       if (!hasShown) {
-        // Wait 800ms after authed state, then show modal
-        gateTimerRef.current = setTimeout(async () => {
-          // Mark as shown BEFORE opening modal (best-effort persistence)
-          try {
-            await markGateModalShown(userId);
-          } catch (error) {
-            devLog('[EMAIL_GATE]', 'Failed to persist show-once flag:', error);
-            // Continue showing modal even if write fails (better UX)
-          }
-          setShowEmailGateModal(true);
-          gateTimerRef.current = null;
-        }, 800);
+        if (__DEV__) {
+          devLog('[POST_ONBOARD]', 'email gate: scheduling modal (InteractionManager + 800ms delay)');
+        }
+        // Wait for all navigation transitions to complete FIRST, then delay 800ms.
+        // This prevents presenting a Modal while router.replace is in flight,
+        // which can leave the modal's touch responder broken on iOS.
+        interactionTaskRef.current = InteractionManager.runAfterInteractions(() => {
+          interactionTaskRef.current = null;
+          gateTimerRef.current = setTimeout(async () => {
+            // Mark as shown BEFORE opening modal (best-effort persistence)
+            try {
+              await markGateModalShown(userId);
+            } catch (error) {
+              devLog('[EMAIL_GATE]', 'Failed to persist show-once flag:', error);
+              // Continue showing modal even if write fails (better UX)
+            }
+            if (__DEV__) {
+              devLog('[POST_ONBOARD]', 'email gate: presenting modal NOW');
+            }
+            setShowEmailGateModal(true);
+            gateTimerRef.current = null;
+          }, 800);
+        });
       }
     };
-    
+
     if (bootStatus === 'authed') {
       checkEmailGate();
     }
 
-    // Cleanup: clear timer if effect re-runs or component unmounts
+    // Cleanup: cancel interaction task and clear timer if effect re-runs or component unmounts
     return () => {
+      if (interactionTaskRef.current) {
+        interactionTaskRef.current.cancel();
+        interactionTaskRef.current = null;
+      }
       if (gateTimerRef.current) {
         clearTimeout(gateTimerRef.current);
         gateTimerRef.current = null;
