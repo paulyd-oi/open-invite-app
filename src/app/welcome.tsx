@@ -78,6 +78,7 @@ import { Button } from "@/ui/Button";
 import { RADIUS } from "@/ui/layout";
 import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 import { routeAfterAuthSuccess, assertAuthRoutingSSoT } from "@/lib/authRouting";
+import { OnboardingBackground } from "@/components/onboarding/OnboardingBackground";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,10 +165,14 @@ const OnboardingLayout = ({
   children,
   background,
   testID,
+  themeColor: layoutThemeColor,
+  isDark: layoutIsDark,
 }: {
   children: React.ReactNode;
   background: string;
   testID?: string;
+  themeColor?: string;
+  isDark?: boolean;
 }) => {
   // [P0_SAFE_AREA_SSOT] SafeAreaScreen handles insets via useSafeAreaInsets().
   // Hook retained here ONLY for DEV probe logging (inset values).
@@ -227,6 +232,9 @@ const OnboardingLayout = ({
       onLayout={handleRootLayout}
       style={{ backgroundColor: background }}
     >
+      {layoutThemeColor && layoutIsDark !== undefined && (
+        <OnboardingBackground themeColor={layoutThemeColor} isDark={layoutIsDark} />
+      )}
       <Animated.View style={popStyle}>
         {children}
       </Animated.View>
@@ -1062,7 +1070,7 @@ export default function WelcomeOnboardingScreen() {
   };
 
   const renderSlide1 = () => (
-    <OnboardingLayout background={colors.background}>
+    <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <View style={styles.slideContent}>
         <Animated.View
           entering={smoothFadeIn(100)}
@@ -1085,17 +1093,14 @@ export default function WelcomeOnboardingScreen() {
         <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
           <Button
             variant="primary"
-            label="Continue"
+            label="Create account"
             onPress={() => setCurrentSlide(2)}
             leftIcon={<ArrowRight size={20} color="#fff" />}
             style={{ borderRadius: RADIUS.lg }}
           />
-          <Button
-            testID="welcome-login-button"
-            variant="ghost"
-            label="Log In"
-            onPress={() => router.replace("/login")}
-          />
+          <Pressable onPress={() => router.replace("/login")} style={styles.loginLink}>
+            <Text style={[styles.loginLinkText, { color: colors.textSecondary }]}>Log in</Text>
+          </Pressable>
         </Animated.View>
       </View>
     </OnboardingLayout>
@@ -1105,7 +1110,7 @@ export default function WelcomeOnboardingScreen() {
     if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/createAccount', input: 'SSOT', button: 'SSOT', card: 'n/a' });
     if (__DEV__) devLog("[P0_SIGNUP_JITTER]", { slide: currentSlide, fix: "scrollContentKeyboard-no-justifyCenter" });
     return (
-    <OnboardingLayout background={colors.background}>
+    <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex1}
@@ -1213,18 +1218,21 @@ export default function WelcomeOnboardingScreen() {
 
             <Button
               variant="secondary"
-              label="Continue with Email"
+              label="Create account with email"
               onPress={handleEmailAuth}
               loading={isLoading}
-              style={{ borderRadius: RADIUS.lg, marginBottom: 8 }}
+              style={{ borderRadius: RADIUS.lg }}
             />
           </Animated.View>
 
-          <Button
-            variant="ghost"
-            label="Already have an account? Log In"
-            onPress={() => router.replace("/login")}
-          />
+          <View style={styles.loginSection}>
+            <Text style={[styles.loginSectionLabel, { color: colors.textTertiary }]}>
+              Already have an account?
+            </Text>
+            <Pressable onPress={() => router.replace("/login")} style={styles.loginLink}>
+              <Text style={[styles.loginLinkText, { color: themeColor }]}>Log in</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </OnboardingLayout>
@@ -1234,7 +1242,7 @@ export default function WelcomeOnboardingScreen() {
   const renderSlide3 = () => {
     if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/profileSetup', input: 'SSOT', button: 'SSOT', card: 'n/a' });
     return (
-    <OnboardingLayout background={colors.background}>
+    <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex1}
@@ -1343,7 +1351,7 @@ export default function WelcomeOnboardingScreen() {
       devLog('[ONBOARDING_CONTACTS_RENDER_SHARED]', { using: 'FriendDiscoverySurface' });
     }
     return (
-    <OnboardingLayout background={colors.background}>
+    <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <View style={styles.slideContent}>
         <FriendDiscoverySurface
           showSkipButton={true}
@@ -1368,7 +1376,7 @@ export default function WelcomeOnboardingScreen() {
   const renderSlide5 = () => {
     if (__DEV__) devLog('[P2_ONBOARDING_UI_SSOT]', { screen: 'welcome/quote', input: 'n/a', button: 'SSOT', card: 'SSOT' });
     return (
-    <OnboardingLayout background={colors.background}>
+    <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <View style={styles.slideContent}>
         <Animated.View entering={smoothFadeIn()} style={styles.centeredContent}>
           <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
@@ -1388,7 +1396,7 @@ export default function WelcomeOnboardingScreen() {
         <Animated.View entering={smoothFadeIn(300)} style={styles.buttonGroup}>
           <Button
             variant="primary"
-            label="Continue"
+            label="Get started"
             onPress={handleFinishOnboarding}
             leftIcon={<ArrowRight size={20} color="#fff" />}
             style={{ borderRadius: RADIUS.lg }}
@@ -1623,5 +1631,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Sora_600SemiBold",
     textAlign: "center",
+  },
+  loginLink: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  loginLinkText: {
+    fontSize: 15,
+    fontFamily: "Sora_600SemiBold",
+  },
+  loginSection: {
+    alignItems: "center",
+    marginTop: 16,
+    gap: 4,
+  },
+  loginSectionLabel: {
+    fontSize: 13,
+    fontFamily: "Sora_400Regular",
   },
 });
