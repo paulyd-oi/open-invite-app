@@ -1,0 +1,114 @@
+appId: com.vibecode.openinvite.0qi5wk
+---
+# Onboarding Visual Polish Screenshot Flow
+# Navigates all 5 onboarding screens and captures a screenshot of each.
+# Requires fresh app state (clearState: true) to land on welcome screen.
+# Requires dev server running on localhost:8081.
+
+- launchApp:
+    appId: "com.vibecode.openinvite.0qi5wk"
+    clearState: true
+
+- waitForAnimationToEnd
+
+# Connect to dev server (Expo dev client launcher)
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+# Wait for JS bundle to load
+- waitForAnimationToEnd:
+    timeout: 30000
+
+# Dismiss Expo dev menu by tapping outside it (top area above the modal)
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# If dev welcome overlay still showing, tap Continue
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Last resort: tap outside again
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ── Slide 1: Welcome ──
+- assertVisible: "Your Social Calendar"
+- takeScreenshot: "onboarding_1_welcome"
+
+# ── Navigate to Slide 2 ──
+- tapOn: "Create account"
+- waitForAnimationToEnd
+
+# ── Slide 2: Create Account ──
+- assertVisible: "Create Account"
+- takeScreenshot: "onboarding_2_create_account"
+
+# ── Fill credentials to proceed to Slide 3 ──
+- tapOn:
+    text: "Email"
+- inputText: "maestro-${timestamp}@openinvite.cloud"
+- tapOn:
+    text: "Password"
+- inputText: "TestPass123!"
+# Dismiss keyboard by tapping title
+- tapOn: "Create Account"
+- tapOn: "Create account with email"
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Dismiss iOS "Save Password?" dialog if present
+- tapOn:
+    text: "Not Now"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ── Slide 3: Profile Setup ──
+- assertVisible: "Set Up Your Profile"
+- takeScreenshot: "onboarding_3_profile_setup"
+
+# ── Fill profile to proceed to Slide 4 ──
+- tapOn:
+    text: "Full Name"
+- inputText: "Maestro Test"
+- tapOn:
+    text: "Unique handle"
+- inputText: "maestro${timestamp}"
+# Dismiss keyboard by tapping title area
+- tapOn: "Set Up Your Profile"
+- tapOn: "Continue"
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# ── Slide 4: Add Friends ──
+- assertVisible:
+    text: "Find Your People"
+    optional: true
+- takeScreenshot: "onboarding_4_add_friends"
+
+# ── Navigate to Slide 5 ──
+- scrollUntilVisible:
+    element: "Skip for now"
+    direction: DOWN
+    timeout: 5000
+- tapOn: "Skip for now"
+- waitForAnimationToEnd
+
+# ── Slide 5: Quote / Get Started ──
+- assertVisible:
+    text: "Get started"
+    optional: true
+- takeScreenshot: "onboarding_5_quote_get_started"

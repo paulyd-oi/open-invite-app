@@ -121,6 +121,15 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Onboarding Visual Polish V1)
+- OnboardingBackground: Orbs enlarged from 340px to 460px, opacity ranges boosted (~2x), third pink/magenta orb added at center-bottom, colors more saturated. Background now reads as intentional on all 5 screens.
+- Slide 4 (Add Friends): Added onboarding hero heading — purple icon circle, "Find Your People" title, descriptive subtitle. FriendDiscoverySurface wrapped in onboarding-specific framing (shared component untouched). Screen now feels like a true onboarding step.
+- Slide 5 (Quote/Get Started): Sparkles icon enlarged in purple-tinted circle, quote card given subtle purple background tint and accent border (not generic borderSubtle), purple accent bar between quote and attribution. More elevated and intentional.
+- Files changed: src/components/onboarding/OnboardingBackground.tsx, src/app/welcome.tsx
+- FriendDiscoverySurface NOT modified — onboarding wraps it with hero heading, main app untouched
+- Readability verified: all text, inputs, labels, and CTAs on slides 1-3 remain fully readable against bolder background
+- Screenshots captured via Maestro flow for all 5 screens
+
 ## Fixed This Session (Image Picker Latency + ONBOARD_AVATAR Log Cleanup)
 - Moved media library permission request from on-tap to slide 3 mount, eliminating ~200-500ms delay before picker opens
 - Used cached permission status in handlePickPhoto — if pre-request resolved, picker opens instantly on tap

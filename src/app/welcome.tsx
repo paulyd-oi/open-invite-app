@@ -1376,21 +1376,34 @@ export default function WelcomeOnboardingScreen() {
     return (
     <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <View style={styles.slideContent}>
-        <FriendDiscoverySurface
-          showSkipButton={true}
-          onSkip={() => {
-            if (__DEV__) {
-              devLog('[ONBOARDING_CONTACTS_SKIP]', { action: 'skip', nextSlide: 5 });
-            }
-            setCurrentSlide(5);
-          }}
-          onFriendAdded={() => {
-            // Optionally trigger refresh or analytics tracking
-            devLog("Friend added during onboarding");
-          }}
-        />
+        {/* Onboarding hero heading */}
+        <Animated.View entering={smoothFadeIn()} style={styles.friendsHero}>
+          <View style={[styles.friendsIconCircle, { backgroundColor: isDark ? "rgba(147,51,234,0.2)" : "rgba(147,51,234,0.1)" }]}>
+            <Users size={28} color="#9333EA" />
+          </View>
+          <Text style={[styles.friendsTitle, { color: colors.text }]}>
+            Find Your People
+          </Text>
+          <Text style={[styles.friendsSubtitle, { color: colors.textSecondary }]}>
+            Import contacts or search to connect with friends already on Open Invite.
+          </Text>
+        </Animated.View>
 
-
+        {/* Shared discovery surface (onboarding-wrapped, component untouched) */}
+        <View style={styles.friendsSurfaceWrapper}>
+          <FriendDiscoverySurface
+            showSkipButton={true}
+            onSkip={() => {
+              if (__DEV__) {
+                devLog('[ONBOARDING_CONTACTS_SKIP]', { action: 'skip', nextSlide: 5 });
+              }
+              setCurrentSlide(5);
+            }}
+            onFriendAdded={() => {
+              devLog("Friend added during onboarding");
+            }}
+          />
+        </View>
       </View>
     </OnboardingLayout>
   );
@@ -1402,14 +1415,18 @@ export default function WelcomeOnboardingScreen() {
     <OnboardingLayout background={colors.background} themeColor={themeColor} isDark={isDark}>
       <View style={styles.slideContent}>
         <Animated.View entering={smoothFadeIn()} style={styles.centeredContent}>
-          <View style={[styles.iconContainer, { backgroundColor: `${themeColor}20` }]}>
-            <Sparkles size={36} color={themeColor} />
+          <View style={[styles.quoteIconContainer, { backgroundColor: isDark ? "rgba(147,51,234,0.2)" : "rgba(147,51,234,0.1)" }]}>
+            <Sparkles size={40} color="#9333EA" />
           </View>
 
-          <View style={[styles.quoteCard, { backgroundColor: colors.surface, borderColor: colors.borderSubtle }]}>
+          <View style={[styles.quoteCard, {
+            backgroundColor: isDark ? "rgba(147,51,234,0.08)" : "rgba(147,51,234,0.04)",
+            borderColor: isDark ? "rgba(147,51,234,0.2)" : "rgba(147,51,234,0.12)",
+          }]}>
             <Text style={[styles.quoteText, { color: colors.text }]}>
               "The quality of your life is measured by the quality of your relationships."
             </Text>
+            <View style={[styles.quoteAccentBar, { backgroundColor: "#9333EA" }]} />
             <Text style={[styles.quoteAttribution, { color: colors.textSecondary }]}>
               — Jürgen Matthesius
             </Text>
@@ -1638,8 +1655,8 @@ const styles = StyleSheet.create({
   },
   quoteCard: {
     borderRadius: RADIUS.xl,
-    padding: 28,
-    borderWidth: 1,
+    padding: 32,
+    borderWidth: 1.5,
     marginTop: 24,
   },
   quoteText: {
@@ -1671,5 +1688,53 @@ const styles = StyleSheet.create({
   loginSectionLabel: {
     fontSize: 13,
     fontFamily: "Sora_400Regular",
+  },
+  // ── Slide 4: Friends hero ──
+  friendsHero: {
+    alignItems: "center",
+    marginBottom: 16,
+    paddingTop: 8,
+  },
+  friendsIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  friendsTitle: {
+    fontSize: 26,
+    fontFamily: "Sora_700Bold",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  friendsSubtitle: {
+    fontSize: 15,
+    fontFamily: "Sora_400Regular",
+    textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  friendsSurfaceWrapper: {
+    flex: 1,
+    minHeight: 0,
+  },
+  // ── Slide 5: Quote enhancements ──
+  quoteIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 32,
+  },
+  quoteAccentBar: {
+    width: 40,
+    height: 3,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 12,
   },
 });

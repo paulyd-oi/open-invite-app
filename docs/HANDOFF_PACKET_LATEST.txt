@@ -1,44 +1,88 @@
-HANDOFF_PACKET — Image Picker Latency + ONBOARD_AVATAR Log Cleanup
-Date: 2026-03-20
+HANDOFF_PACKET — Onboarding Visual Polish V1
+Date: 2026-03-21
 
 SUMMARY
 
-Reduced perceived latency when tapping Add Photo during onboarding avatar selection. Moved media library permission request from on-tap to slide 3 mount so it resolves before the user ever taps. handlePickPhoto now uses the cached permission result, skipping the async permission call entirely when already granted. Also removed all 28 [ONBOARD_AVATAR] diagnostic logs across 3 files — the upload bug they were tracking is fixed and shipped.
+Visual polish pass on onboarding screens. Made background treatment bolder and more visible across all 5 screens. Added onboarding-specific hero framing to the Add Friends screen. Strengthened the Quote/Get Started screen with purple accent tones and a more elevated quote card.
 
-WHAT CHANGED
+DESIGN CHANGES MADE
 
-1. src/app/welcome.tsx
-   - Added mediaPermissionRef (useRef) and useEffect that pre-requests media library permission when currentSlide === 3
-   - Rewrote handlePickPhoto: checks cached permission first, only falls back to fresh request if not granted. Added [IMAGE_PICKER_PERF] DEV-only timing logs (permission resolve + picker return)
-   - Removed 12 [ONBOARD_AVATAR] console.log calls from handlePickPhoto and uploadPhotoInBackground
-   - uploadPhotoInBackground: stripped verbose diagnostic logs, kept functional error handling
+OnboardingBackground treatment:
+- Orb size increased from 340px to 460px (35% larger)
+- Opacity ranges boosted ~2x (dark: 0.6-0.9 from 0.45-0.7, light proportionally)
+- Third pink/magenta orb added at center-bottom for richer color wash
+- Violet tint strengthened: dark 0.32 from 0.18, light 0.14 from 0.08
+- Accent orb opacity: dark 0x38 from 0x20, light 0x1A from 0x10
+- Background now reads as intentional on all screens, not ghostly
 
-2. src/lib/imageUpload.ts
-   - Removed 14 [ONBOARD_AVATAR] console.log calls from uploadByKind (A1-A4, B1-B3, C1-C3, D1-D4, E1)
-   - Zero functional changes — all error paths and throw statements preserved
+Add Friends onboarding screen (Slide 4):
+- Added hero heading with purple icon circle (Users icon, 56px)
+- "Find Your People" title (26px, bold)
+- Descriptive subtitle explaining what to do
+- FriendDiscoverySurface wrapped in onboarding framing but component itself untouched
+- Screen now has proper vertical hierarchy: hero → surface → skip
 
-3. src/lib/authClient.ts
-   - Removed 2 [ONBOARD_AVATAR] console.log calls from $fetch (AUTH token validation + cookie header logging for upload paths)
-   - Existing AUTH_DEBUG logging remains untouched
+Quote / Get Started screen (Slide 5):
+- Sparkles icon enlarged (40px in 80px circle) with purple-tinted background
+- Quote card given subtle purple tint (not generic borderSubtle)
+- Border uses purple at 20% (dark) / 12% (light) instead of generic gray
+- Purple accent bar (40x3px) between quote text and attribution
+- Card padding increased (32 from 28), border width 1.5 from 1
+- Overall effect: more framed, more elevated, more intentional
 
-WHY THIS HELPS
+All onboarding screens affected by background update:
+- Welcome: orbs visible, all text and CTAs fully readable
+- Create Account: orbs visible, all inputs/labels/buttons readable
+- Profile Setup: orbs visible, all inputs/labels/avatar/buttons readable
 
-Before: Every Add Photo tap awaited requestMediaLibraryPermissionsAsync() before launching picker (~200-500ms on first call, ~50-100ms on subsequent). After: Permission is already cached from slide mount. Tap goes straight to launchImageLibraryAsync.
+COMPONENT ISOLATION
+
+FriendDiscoverySurface is a shared component used in both onboarding and main app Add Friends screen.
+Confirmed: FriendDiscoverySurface was NOT modified.
+Onboarding wraps it with hero heading/subtitle via a containing View in renderSlide4.
+Main app Friends tab and Add Friend UI are completely untouched.
+
+EXACT FILES CHANGED
+
+1. src/components/onboarding/OnboardingBackground.tsx
+   - Orbs enlarged, third orb added, opacity ranges boosted, colors more saturated
+
+2. src/app/welcome.tsx
+   - renderSlide4: Added hero heading (icon + title + subtitle) wrapping FriendDiscoverySurface
+   - renderSlide5: Replaced iconContainer with quoteIconContainer (larger, purple-tinted), quote card uses purple tint/border, added quoteAccentBar
+   - Styles: Added friendsHero, friendsIconCircle, friendsTitle, friendsSubtitle, friendsSurfaceWrapper, quoteIconContainer, quoteAccentBar. Updated quoteCard padding/border.
+
+3. docs/STATE_OF_THE_APP.md
+   - Added Fixed This Session entry
+
+4. maestro/flows/onboarding_screenshots.yaml
+   - New Maestro flow for capturing all 5 onboarding screenshots
+
+WHAT WAS NOT CHANGED
+
+- Profile setup logic and layout: UNTOUCHED
+- Auth: UNTOUCHED
+- Upload: UNTOUCHED
+- Backend calls: UNTOUCHED
+- Routing: UNTOUCHED
+- Main app Friends tab UI: UNTOUCHED
+- FriendDiscoverySurface component: UNTOUCHED
+- Onboarding order and logic: UNTOUCHED
+- Quote copy, attribution, CTA text: UNTOUCHED
 
 VERIFICATION
 
 npx tsc --noEmit: PASS clean (exit 0)
-bash scripts/ai/verify_frontend.sh: same pre-existing failures only
-  create.tsx:1571 and circle/[id].tsx:2166 raw Image annotations
-  No new failures introduced.
-Zero [ONBOARD_AVATAR] matches in src/ confirmed via grep.
-
-BLAST RADIUS
-
-Non-avatar upload flows (event photos, circle photos, banners): UNAFFECTED. Only removed DEV-only logs, no functional changes.
-Permission behavior: IDENTICAL. Same requestMediaLibraryPermissionsAsync call, just moved earlier. If permission not yet resolved on tap, falls back to fresh request.
-Upload error handling: PRESERVED. All try/catch blocks and throw statements kept intact.
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
+SENTRY_DISABLE_AUTO_UPLOAD=true npx expo run:ios: Build Succeeded
+maestro test maestro/flows/onboarding_screenshots.yaml: 1/1 Flow Passed (2m 5s)
+All 5 screenshots captured and copied to repo root:
+  onboarding_1_welcome.png
+  onboarding_2_create_account.png
+  onboarding_3_profile_setup.png
+  onboarding_4_add_friends.png
+  onboarding_5_quote_get_started.png
 
 FINAL STATUS
 
-DONE — NEEDS RUNTIME RETEST (confirm picker opens faster on Add Photo tap)
+VISUAL POLISH APPLIED — NEEDS DESIGN REVIEW

@@ -24,17 +24,23 @@ interface OnboardingBackgroundProps {
 }
 
 export function OnboardingBackground({ themeColor, isDark }: OnboardingBackgroundProps) {
-  const breathe1 = useSharedValue(0.45);
-  const breathe2 = useSharedValue(0.3);
+  const breathe1 = useSharedValue(0.6);
+  const breathe2 = useSharedValue(0.45);
+  const breathe3 = useSharedValue(0.35);
 
   useEffect(() => {
     breathe1.value = withRepeat(
-      withTiming(0.7, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.9, { duration: 4000, easing: Easing.inOut(Easing.sin) }),
       -1,
       true,
     );
     breathe2.value = withRepeat(
-      withTiming(0.55, { duration: 5500, easing: Easing.inOut(Easing.sin) }),
+      withTiming(0.7, { duration: 5500, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+    breathe3.value = withRepeat(
+      withTiming(0.6, { duration: 6000, easing: Easing.inOut(Easing.sin) }),
       -1,
       true,
     );
@@ -48,11 +54,18 @@ export function OnboardingBackground({ themeColor, isDark }: OnboardingBackgroun
     opacity: breathe2.value,
   }));
 
-  // Soft violet/lilac tint for ambient glow
-  const violet = isDark ? "rgba(147,51,234,0.18)" : "rgba(147,51,234,0.08)";
+  const orbStyle3 = useAnimatedStyle(() => ({
+    opacity: breathe3.value,
+  }));
+
+  // Stronger violet/purple presence
+  const violet = isDark ? "rgba(147,51,234,0.32)" : "rgba(147,51,234,0.14)";
+  // Warm accent orb
   const accent = isDark
-    ? `${themeColor}20`
-    : `${themeColor}10`;
+    ? `${themeColor}38`
+    : `${themeColor}1A`;
+  // Pink/magenta center orb for energy
+  const pink = isDark ? "rgba(219,39,119,0.22)" : "rgba(219,39,119,0.10)";
   const transparent = "transparent";
 
   return (
@@ -76,11 +89,21 @@ export function OnboardingBackground({ themeColor, isDark }: OnboardingBackgroun
           end={{ x: 0.9, y: 0.1 }}
         />
       </Animated.View>
+
+      {/* Center-bottom pink orb */}
+      <Animated.View style={[styles.orb, styles.orbCenterBottom, orbStyle3]}>
+        <LinearGradient
+          colors={[pink, transparent]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0.5, y: 0.4 }}
+          end={{ x: 0.5, y: 1 }}
+        />
+      </Animated.View>
     </View>
   );
 }
 
-const ORB_SIZE = 340;
+const ORB_SIZE = 460;
 
 const styles = StyleSheet.create({
   orb: {
@@ -91,11 +114,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   orbTopRight: {
-    top: -60,
-    right: -80,
+    top: -80,
+    right: -60,
   },
   orbBottomLeft: {
-    bottom: 40,
-    left: -100,
+    bottom: 20,
+    left: -120,
+  },
+  orbCenterBottom: {
+    bottom: -60,
+    alignSelf: "center",
+    left: "15%",
   },
 });
