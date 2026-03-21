@@ -5,11 +5,12 @@ import { devLog } from "@/lib/devLog";
 
 const THEME_COLOR_KEY = "@openinvite_theme_color";
 const THEME_MODE_KEY = "@openinvite_theme_mode";
-const DEFAULT_THEME_COLOR = "#FF6B4A"; // Coral/Orange
+const DEFAULT_THEME_COLOR = "#007AFF"; // Apple System Blue
 
 export type ThemeMode = "light" | "dark" | "auto";
 
 export const THEME_COLORS = [
+  { name: "Blue", color: "#007AFF" },
   { name: "Coral", color: "#FF6B4A" },
   { name: "Teal", color: "#4ECDC4" },
   { name: "Sky Blue", color: "#45B7D1" },
@@ -43,9 +44,9 @@ export const DARK_COLORS = {
   segmentBg: "#141416",
   segmentActive: "#2C2C2E",
   // Button tokens
-  buttonPrimaryBg: "#FF6B4A",
+  buttonPrimaryBg: "#007AFF",
   buttonPrimaryText: "#FFFFFF",
-  buttonPrimaryPressedBg: "#E05A3A",
+  buttonPrimaryPressedBg: "#0066DD",
   buttonPrimaryDisabledBg: "#2C2C2E",
   buttonPrimaryDisabledText: "#6E6E73",
   buttonSecondaryBg: "#2A2A2E",
@@ -72,8 +73,8 @@ export const DARK_COLORS = {
   chipNeutralText: "#98989F",
   chipMutedBg: "#141416",
   chipMutedText: "#6E6E73",
-  chipAccentBg: "#FF6B4A20",
-  chipAccentText: "#FF6B4A",
+  chipAccentBg: "#007AFF20",
+  chipAccentText: "#007AFF",
   chipStatusBg: "#2C2C2E",
   chipStatusText: "#98989F",
   chipBorder: "#3C3C40",
@@ -100,9 +101,9 @@ export const LIGHT_COLORS = {
   segmentBg: "#F2F2F7",
   segmentActive: "#FFFFFF",
   // Button tokens
-  buttonPrimaryBg: "#FF6B4A",
+  buttonPrimaryBg: "#007AFF",
   buttonPrimaryText: "#FFFFFF",
-  buttonPrimaryPressedBg: "#E05A3A",
+  buttonPrimaryPressedBg: "#0066DD",
   buttonPrimaryDisabledBg: "#E5E7EB",
   buttonPrimaryDisabledText: "#9CA3AF",
   buttonSecondaryBg: "#FFFFFF",
@@ -129,8 +130,8 @@ export const LIGHT_COLORS = {
   chipNeutralText: "#6B7280",
   chipMutedBg: "#F2F2F7",
   chipMutedText: "#9CA3AF",
-  chipAccentBg: "#FF6B4A15",
-  chipAccentText: "#FF6B4A",
+  chipAccentBg: "#007AFF15",
+  chipAccentText: "#007AFF",
   chipStatusBg: "#F3F4F6",
   chipStatusText: "#6B7280",
   chipBorder: "#F0F0F0",
@@ -169,7 +170,7 @@ const ThemeContext = createContext<ThemeContextType>({
   themeColor: DEFAULT_THEME_COLOR,
   setThemeColor: async () => {},
   themeColorLight: DEFAULT_THEME_COLOR + "20",
-  themeColorName: "Coral",
+  themeColorName: "Blue",
   themeMode: "auto",
   setThemeMode: async () => {},
   isDark: false,

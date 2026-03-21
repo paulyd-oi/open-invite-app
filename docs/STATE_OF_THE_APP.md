@@ -121,6 +121,15 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Default Theme Color → Blue)
+- DEFAULT_THEME_COLOR changed from #FF6B4A (Coral) to #007AFF (Apple System Blue)
+- { name: "Blue", color: "#007AFF" } added as first entry in THEME_COLORS array; Coral preserved as second
+- buttonPrimaryBg/buttonPrimaryPressedBg updated to #007AFF/#0066DD in both DARK_COLORS and LIGHT_COLORS
+- chipAccentBg/chipAccentText updated to #007AFF variants in both palettes
+- Context default themeColorName updated from "Coral" to "Blue"
+- Existing users keep their saved preference; new installs get blue
+- File changed: src/lib/ThemeContext.tsx only
+
 ## Fixed This Session (Login Screen Visual Alignment)
 - Login screen now uses shared OnboardingBackground (animated orbs) instead of flat LinearGradient
 - SafeAreaScreen set to transparent so orbs show through — same pattern as welcome.tsx

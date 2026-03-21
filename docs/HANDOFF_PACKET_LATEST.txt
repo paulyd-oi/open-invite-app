@@ -1,47 +1,36 @@
-HANDOFF_PACKET — Login Screen Visual Alignment
+HANDOFF_PACKET — Default Theme Color → Apple System Blue
 Date: 2026-03-21
 
 SUMMARY
 
-Aligned the Log In screen visual treatment to match the Create Account / onboarding screens. Replaced the flat LinearGradient background with the shared OnboardingBackground (animated orbs) and matched input field styling (border radius, padding).
+Changed the app's default accent color from Coral (#FF6B4A) to Apple System Blue (#007AFF). Added Blue as a new theme color option (first in palette). Updated all hardcoded #FF6B4A references in button and chip color tokens.
 
 EXACT FILES CHANGED
 
-1. src/app/login.tsx
-   - Added import: OnboardingBackground from @/components/onboarding/OnboardingBackground
-   - Main login view: Replaced LinearGradient wrapper with OnboardingBackground + transparent SafeAreaScreen
-   - Email input: borderRadius 14→RADIUS.lg, paddingHorizontal 16→20
-   - Password input: borderRadius 14→RADIUS.lg, paddingHorizontal 16→20
-   - Removed LinearGradient closing tag for main login view
-   - forgotPassword and success views: UNTOUCHED (kept LinearGradient per minimal-diff rule)
-
-ARCHITECTURE RESULT
-
-Login screen is a separate route (/login) in the same Stack navigator, navigated via router.replace("/login") from welcome.tsx. Since OnboardingLayout is local to welcome.tsx and not exported, OnboardingBackground is rendered directly as an absolute-positioned layer behind the content in login.tsx, with SafeAreaScreen set to transparent background — same pattern used in welcome.tsx.
+1. src/lib/ThemeContext.tsx
+   - DEFAULT_THEME_COLOR: "#FF6B4A" → "#007AFF"
+   - THEME_COLORS: Added { name: "Blue", color: "#007AFF" } as first entry; Coral moved to second
+   - DARK_COLORS: buttonPrimaryBg "#FF6B4A" → "#007AFF", buttonPrimaryPressedBg "#E05A3A" → "#0066DD"
+   - DARK_COLORS: chipAccentBg "#FF6B4A20" → "#007AFF20", chipAccentText "#FF6B4A" → "#007AFF"
+   - LIGHT_COLORS: buttonPrimaryBg "#FF6B4A" → "#007AFF", buttonPrimaryPressedBg "#E05A3A" → "#0066DD"
+   - LIGHT_COLORS: chipAccentBg "#FF6B4A15" → "#007AFF15", chipAccentText "#FF6B4A" → "#007AFF"
+   - Context default themeColorName: "Coral" → "Blue"
 
 WHAT WAS NOT CHANGED
 
+- Coral NOT removed from palette (still available as second option)
 - Auth logic: UNTOUCHED
 - Backend calls: UNTOUCHED
 - Navigation/routing: UNTOUCHED
-- Create Account screen (welcome.tsx): UNTOUCHED
-- Forgot Password view: UNTOUCHED (still uses LinearGradient)
-- Success view: UNTOUCHED (still uses LinearGradient)
-- OnboardingBackground component: UNTOUCHED
-- Main app: UNTOUCHED
-- No new dependencies added
+- No other files changed
+- No new dependencies
 
 VERIFICATION
 
 npx tsc --noEmit: PASS clean (exit 0)
-Simulator confirmation:
-- Tapped "Log in" from Welcome screen
-- Animated orbs visible on Login screen (violet top-right, accent bottom-left)
-- Background matches Create Account treatment
-- Inputs have rounded corners matching Create Account styling
-- All buttons readable and properly styled
-- "Continue with Apple" button present and styled
+bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
+Note: Existing users with saved theme preference will keep their color; new installs default to blue.
 
 FINAL STATUS
 
-LOGIN VISUAL ALIGNMENT APPLIED — NEEDS DESIGN REVIEW
+DEFAULT THEME COLOR UPDATED — NEEDS DESIGN REVIEW
