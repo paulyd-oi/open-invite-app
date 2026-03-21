@@ -1,102 +1,62 @@
-HANDOFF PACKET — P0 Social Tab Privacy Leak Fix
+HANDOFF PACKET — Discover Card Redesign V1
 Date: 2026-03-21
 
 SUMMARY
 
-Fixed P0 privacy bug where PRIVATE and work events (e.g., "Team Meeting") rendered on the social/center tab calendar. Replaced denylist filtering (only excluded isBusy) with strict ALLOWLIST that permits only OPEN and GROUP/CIRCLE events. Private/busy/work events are now excluded from the dataset entirely — they never reach the render layer.
+Redesigned Discover tab event card layout. Moved save/bookmark from image overlay to themed content panel. Added attendee avatar cluster to footer. Moved category pill to image top-left. Content area uses event theme surface token (plaqueBg). Minimal diff — inline card rendering only.
 
-EXACT ROOT CAUSE
+EXACT CHANGES
 
-social.tsx allEvents memo used shouldOmit() which only checked e.isBusy. Events with visibility="private" but isBusy=false passed through. Additionally, shouldMaskEvent() in eventVisibility.ts returned false for event owners, so even the masking layer showed the full title/details. The combination meant a user's own private "Team Meeting" rendered with full title, "You" badge, and "Private" badge on the social tab.
+1. Image zone:
+   - Category pill (theme label) → top-left overlay with dark translucent bg
+   - Urgency chip → below category pill (stacks vertically)
+   - LinearGradient vignette REMOVED (was overlaying bottom of image)
 
-RUNTIME PATH
+2. Content panel (plaqueBg background):
+   - TOP ROW: Title + Bookmark save button (replaced Heart icon on photo)
+   - Bookmark in 32px circle, accent-tinted when saved (STATUS.interested)
+   - LOCATION ROW: MapPin + location text
+   - FOOTER ROW (separated by 1px border):
+     - Left: Calendar icon (accent-colored) + date/time + availability chip
+     - Right: Attendee avatar cluster (overlapping circles) + count + momentum label
 
-1. social.tsx: useQuery fetches /api/events (myEvents), /api/events/attending, /api/events/feed
-2. social.tsx: discoveryEvents memo filters feed (circle_only, own, attending)
-3. social.tsx: allEvents memo combines myEvents + attending + discovery
-   >>> BUG WAS HERE: shouldOmit() only checked isBusy, not visibility=private
-4. social.tsx: calendarEvents memo adds isOwn/isAttending/hostName metadata
-5. FeedCalendar.tsx: allCalendarEvents memo (defensive filter, was also isBusy-only)
-6. FeedCalendar.tsx: getEventsForDate() → EventListItem renders per event
-7. EventListItem: getEventDisplayFields() → shouldMaskEvent() returns false for owners
-8. EventListItem: renders card with full title "Team Meeting" + "You" + "Private" badges
+3. Attendee cluster:
+   - Up to 3 overlapping circles (22px, accent-tinted backgrounds with decreasing opacity)
+   - Users icon inside each circle
+   - Count text: "{N} going" or "Be first" when 0
+   - Momentum labels: "Almost full" (≤3 spots), "Full" (at capacity), "Popular" (≥10)
 
-RUNTIME PROOF
+4. Card container:
+   - borderRadius: 20 (was 16)
+   - Image aspectRatio: 1.9
+   - Card background: plaqueBg (event theme token)
+   - Accent border: cardAccent with 25 alpha
 
-[P0_SOCIAL_TAB_PRIVACY] log output (DEV):
+EXACT FILE CHANGED
 
-Before fix (reconstructed from bug report):
-  rawItemCount: N, excludedCount: 0
-  "Team Meeting" with visibility="private" passes shouldOmit() (isBusy=false)
-  EventListItem renders: title="Team Meeting", badge="You", badge="Private"
+1. src/app/discover.tsx
+   - Inline renderItem card layout (~lines 615-860)
+   - No new imports, no new components, no new files
 
-After fix:
-  [P0_SOCIAL_TAB_PRIVACY] {
-    rawItemCount: <total>,
-    myEventsCount: <count>,
-    attendingCount: <count>,
-    discoveryCount: <count>,
-    excludedCount: <N>,
-    renderedCount: <M>,
-    excludedItems: [{ id: "...", title: "Team Meeting", reason: "visibility=private" }]
-  }
+WHAT WAS REMOVED
 
-"Team Meeting" excluded at dataset level — never reaches FeedCalendar or EventListItem.
-
-EXACT FILES CHANGED
-
-1. src/app/social.tsx
-   - allEvents memo: replaced shouldOmit() denylist with isAllowedOnSocialTab() allowlist
-   - SOCIAL_ALLOWED_VISIBILITY Set: all_friends, open_invite, circle_only, specific_groups
-   - Checks: isBusy, isWork, legacy busy title, visibility=private, unknown visibility
-   - [P0_SOCIAL_TAB_PRIVACY] DEV logs: raw counts, per-item exclusion reasons, final count
-
-2. src/components/FeedCalendar.tsx
-   - allCalendarEvents memo: defensive filter upgraded from !isBusy to full allowlist
-   - Checks: isBusy, isWork, visibility=private, unknown visibility
-
-3. src/lib/eventVisibility.ts
-   - shouldShowInSocial(): upgraded from !isBusy to full allowlist (matches social.tsx)
-   - filterSocialEvents(): uses updated shouldShowInSocial()
-   - Added SOCIAL_ALLOWED_VISIBILITY constant
-
-4. docs/STATE_OF_THE_APP.md — added social tab privacy allowlist entry
-5. docs/FINDINGS_LOG.md — added P0 Social Tab Privacy Leak finding
-6. docs/HANDOFF_PACKET_LATEST.txt — this file
-
-FIX
-
-Allowlist filter at social.tsx allEvents memo (earliest safe point in the render path). Only events with visibility in {all_friends, open_invite, circle_only, specific_groups} AND not isBusy AND not isWork are included. FeedCalendar has matching defensive allowlist. eventVisibility.ts helpers updated for any other consumers.
-
-BACKEND CONTRACT NOTE
-
-Backend /api/events returns ALL user events including private/busy. This is CORRECT — the personal calendar (calendar.tsx) needs those events. The social tab is a different surface with a different privacy contract. Frontend allowlist is the right fix location. Backend does NOT need changes.
+- LinearGradient vignette overlay on image bottom
+- Heart icon for save (replaced with Bookmark)
+- Theme label pill in content area (moved to image overlay)
+- Host avatar row from content area
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-BLAST RADIUS SWEEP
+BLAST RADIUS
 
-Checked paths:
-- social.tsx allEvents: FIXED (allowlist)
-- social.tsx discoveryEvents: already had circle_only filter, unmodified
-- FeedCalendar.tsx allCalendarEvents: FIXED (defensive allowlist)
-- eventVisibility.ts shouldShowInSocial: FIXED (allowlist)
-- calendar.tsx (personal calendar): NOT TOUCHED — personal calendar correctly shows all user events
-- friend/[id].tsx (friend calendar): NOT TOUCHED — uses different data path with masking (correct for friend view)
-- event/[id].tsx (event detail): NOT TOUCHED — single event view, visibility handled by backend auth
-
-STATE/FINDINGS DOC UPDATES
-
-- docs/STATE_OF_THE_APP.md: Added "Social tab calendar privacy ALLOWLIST" entry in Stable section
-- docs/FINDINGS_LOG.md: Added "P0 Social Tab Privacy Leak — FIXED (2026-03-21)" with root cause, evidence, fix, files, verification
-
-GIT PROOF
-
-(will be populated after commit)
+- ONLY discover.tsx touched — no other screens or components affected
+- No new dependencies, no new files
+- All existing imports reused (Bookmark, Calendar, MapPin, Users from @/ui/icons)
+- plaqueBg/cardAccent tokens already computed in scope — no new theme logic
 
 FINAL STATUS
 
-FIXED
+COMPLETE

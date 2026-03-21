@@ -613,21 +613,21 @@ export default function DiscoverScreen() {
                 const plaqueBg = isDark ? cardTheme.backBgDark : cardTheme.backBgLight;
 
                 return (
-                  <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 16 }}>
+                  <Animated.View entering={FadeInDown.delay(index * 30).duration(220)} style={{ marginBottom: 18 }}>
                     <Pressable
                       testID="discover-card-open"
                       onPress={() => handleEventPress(event.id)}
                       style={{
-                        borderRadius: RADIUS.xl,
+                        borderRadius: 20,
                         overflow: "hidden",
                         backgroundColor: plaqueBg,
                         borderWidth: cardAccent ? 1.5 : 1,
-                        borderColor: cardAccent ? `${cardAccent}30` : colors.borderSubtle,
+                        borderColor: cardAccent ? `${cardAccent}25` : colors.borderSubtle,
                         ...tileShadow,
                       }}
                     >
-                      {/* ── Photo zone ── */}
-                      <View style={{ aspectRatio: 2, position: "relative" }}>
+                      {/* ── Image zone ── */}
+                      <View style={{ aspectRatio: 1.9, position: "relative" }}>
                         {hasPhoto ? (
                           <ExpoImage
                             source={{ uri: toCloudinaryTransformedUrl(event.eventPhotoUrl!, CLOUDINARY_PRESETS.HERO_BANNER) }}
@@ -648,56 +648,42 @@ export default function DiscoverScreen() {
                                 : isDark ? "#2C2C2E" : "#FFF7ED",
                             }}
                           >
-                            <Text style={{ fontSize: 48 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
+                            <Text style={{ fontSize: 52 }}>{event.emoji || "\uD83D\uDCC5"}</Text>
                           </View>
                         )}
 
-                        {/* Light vignette at top for save button readability */}
-                        <LinearGradient
-                          colors={["rgba(0,0,0,0.35)", "transparent"]}
-                          locations={[0, 0.6]}
-                          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 60 }}
-                        />
-
-                        {/* Save toggle — photo zone overlay */}
-                        <Pressable
-                          testID="discover-card-save"
-                          disabled={saved || saveMutation.isPending}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            saveMutation.mutate(event.id);
-                          }}
-                          hitSlop={10}
-                          style={{
+                        {/* Category pill — image top-left */}
+                        {cardTheme && cardTheme.label !== "Classic" && (
+                          <View style={{
                             position: "absolute",
-                            top: 10,
-                            right: 10,
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: saved ? STATUS.interested.bgSoft : "rgba(0,0,0,0.4)",
-                            borderWidth: saved ? 1.5 : 0,
-                            borderColor: saved ? STATUS.interested.fg : "transparent",
-                            opacity: saveMutation.isPending ? 0.5 : 1,
-                          }}
-                        >
-                          <Heart
-                            size={17}
-                            color={saved ? STATUS.interested.fg : "#FFFFFF"}
-                          />
-                        </Pressable>
+                            top: 12,
+                            left: 12,
+                            backgroundColor: "rgba(0,0,0,0.5)",
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 8,
+                          }}>
+                            <Text style={{
+                              fontSize: 10,
+                              fontWeight: "800",
+                              color: "#FFFFFF",
+                              letterSpacing: 0.8,
+                              textTransform: "uppercase",
+                            }}>
+                              {cardTheme.label}
+                            </Text>
+                          </View>
+                        )}
 
-                        {/* Urgency chip — photo zone */}
+                        {/* Urgency chip — image top-left (below category if present) */}
                         {urgency.label ? (
                           <View style={{
                             position: "absolute",
-                            top: 10,
-                            left: 10,
+                            top: cardTheme && cardTheme.label !== "Classic" ? 42 : 12,
+                            left: 12,
                             backgroundColor: urgency.tone === "soon"
                               ? STATUS.soon.bgSoft
-                              : cardAccent ? `${cardAccent}50` : "rgba(0,0,0,0.25)",
+                              : "rgba(0,0,0,0.45)",
                             paddingHorizontal: 8,
                             paddingVertical: 4,
                             borderRadius: 8,
@@ -713,106 +699,154 @@ export default function DiscoverScreen() {
                         ) : null}
                       </View>
 
-                      {/* ── Plaque — solid themed surface ── */}
-                      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 }}>
-                        {/* Theme label pill */}
-                        {cardTheme && cardTheme.label !== "Classic" && (
-                          <View style={{
-                            backgroundColor: `${cardAccent}18`,
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 6,
-                            alignSelf: "flex-start",
-                            marginBottom: 6,
-                          }}>
-                            <Text style={{
-                              fontSize: 9,
-                              fontWeight: "800",
-                              color: cardAccent,
-                              letterSpacing: 1,
-                              textTransform: "uppercase",
-                            }}>
-                              {cardTheme.label}
-                            </Text>
-                          </View>
-                        )}
-
-                        {/* Title */}
-                        <Text
-                          style={{ color: colors.text, fontSize: 18, fontWeight: "700", lineHeight: 23 }}
-                          numberOfLines={2}
-                        >
-                          {event.emoji} {event.title}
-                        </Text>
-
-                        {/* Date + Time */}
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
-                          <Calendar size={13} color={cardAccent ?? colors.textSecondary} />
-                          <Text style={{ color: colors.textSecondary, fontSize: 13, marginLeft: 5, fontWeight: "500" }}>
-                            {dateStr} at {timeStr}
+                      {/* ── Themed content panel ── */}
+                      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16 }}>
+                        {/* TOP ROW: Title + Save/Bookmark */}
+                        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                          <Text
+                            style={{
+                              flex: 1,
+                              color: colors.text,
+                              fontSize: 18,
+                              fontWeight: "700",
+                              lineHeight: 24,
+                              letterSpacing: -0.2,
+                            }}
+                            numberOfLines={2}
+                          >
+                            {event.emoji} {event.title}
                           </Text>
+                          <Pressable
+                            testID="discover-card-save"
+                            disabled={saved || saveMutation.isPending}
+                            onPress={() => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              saveMutation.mutate(event.id);
+                            }}
+                            hitSlop={10}
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 16,
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginLeft: 10,
+                              marginTop: 1,
+                              backgroundColor: saved
+                                ? STATUS.interested.bgSoft
+                                : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
+                              opacity: saveMutation.isPending ? 0.5 : 1,
+                            }}
+                          >
+                            <Bookmark
+                              size={16}
+                              color={saved ? STATUS.interested.fg : colors.textTertiary}
+                            />
+                          </Pressable>
                         </View>
 
-                        {/* Social proof + chips row */}
-                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, flexWrap: "wrap", gap: 4 }}>
-                          {/* Momentum-aware attendance */}
+                        {/* DESCRIPTION (1-2 lines) */}
+                        {event.location ? (
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
+                            <MapPin size={13} color={colors.textTertiary} />
+                            <Text
+                              style={{ color: colors.textSecondary, fontSize: 13, marginLeft: 4, fontWeight: "400" }}
+                              numberOfLines={1}
+                            >
+                              {event.location}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {/* FOOTER ROW: date/time + availability | attendees */}
+                        <View style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginTop: 12,
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+                        }}>
+                          {/* Left: date/time + "Looks clear" pill */}
+                          <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 6 }}>
+                            <Calendar size={14} color={cardAccent ?? colors.textSecondary} />
+                            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                              {dateStr}, {timeStr}
+                            </Text>
+                            {/* [AVAILABILITY_V1] Calendar-fit chip */}
+                            {availChip && (
+                              <View style={{
+                                backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"),
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                              }}>
+                                <Text style={{
+                                  fontSize: 10,
+                                  fontWeight: "600",
+                                  color: availChip.tone ? STATUS[availChip.tone].fg : colors.textTertiary,
+                                }}>
+                                  {availChip.label}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+
+                          {/* Right: attendee indicator */}
                           {(() => {
                             const count = event.attendeeCount ?? 0;
                             const cap = event.capacity ?? null;
                             if (count === 0) return (
-                              <View style={{
-                                backgroundColor: cardAccent ? `${cardAccent}15` : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
-                                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                              }}>
-                                <Text style={{ fontSize: 11, fontWeight: "600", color: colors.textTertiary }}>
-                                  Be the first to join
-                                </Text>
-                              </View>
+                              <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary }}>
+                                Be first
+                              </Text>
                             );
-                            let label: string;
-                            if (cap && count >= cap) {
-                              label = `${count} going · Full`;
-                            } else if (count >= 10) {
-                              label = `${count} going · Popular`;
-                            } else if (count >= 5) {
-                              label = `${count} going · Filling up`;
-                            } else {
-                              label = `${count} going`;
-                            }
+
+                            // Avatar cluster placeholder circles + count
+                            const displayCount = Math.min(count, 3);
+                            const AVATAR_SIZE = 22;
+                            const OVERLAP = -6;
+                            let momentum = "";
+                            if (almostFull) momentum = " · Almost full";
+                            else if (cap && count >= cap) momentum = " · Full";
+                            else if (count >= 10) momentum = " · Popular";
+
                             return (
                               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                <Users size={12} color={STATUS.going.fg} />
-                                <Text style={{ color: STATUS.going.fg, fontSize: 12, fontWeight: "600", marginLeft: 4 }}>
-                                  {label}
+                                {/* Overlapping circles */}
+                                <View style={{ flexDirection: "row", marginRight: 6 }}>
+                                  {Array.from({ length: displayCount }).map((_, i) => (
+                                    <View
+                                      key={i}
+                                      style={{
+                                        width: AVATAR_SIZE,
+                                        height: AVATAR_SIZE,
+                                        borderRadius: AVATAR_SIZE / 2,
+                                        backgroundColor: cardAccent
+                                          ? `${cardAccent}${i === 0 ? "40" : i === 1 ? "30" : "20"}`
+                                          : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"),
+                                        borderWidth: 1.5,
+                                        borderColor: plaqueBg,
+                                        marginLeft: i === 0 ? 0 : OVERLAP,
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <Users size={10} color={cardAccent ?? colors.textTertiary} />
+                                    </View>
+                                  ))}
+                                </View>
+                                <Text style={{
+                                  fontSize: 12,
+                                  fontWeight: "600",
+                                  color: STATUS.going.fg,
+                                }}>
+                                  {count}{momentum}
                                 </Text>
                               </View>
                             );
                           })()}
-                          {almostFull && (
-                            <View style={{
-                              backgroundColor: STATUS.soon.bgSoft,
-                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                            }}>
-                              <Text style={{ fontSize: 11, fontWeight: "700", color: STATUS.soon.fg }}>
-                                {spotsLeft} {spotsLeft === 1 ? "spot" : "spots"} left
-                              </Text>
-                            </View>
-                          )}
-                          {/* [AVAILABILITY_V1] Calendar-fit chip */}
-                          {availChip && (
-                            <View style={{
-                              backgroundColor: availChip.tone ? STATUS[availChip.tone].bgSoft : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)"),
-                              paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
-                            }}>
-                              <Text style={{
-                                fontSize: 11,
-                                fontWeight: "600",
-                                color: availChip.tone ? STATUS[availChip.tone].fg : colors.textSecondary,
-                              }}>
-                                {availChip.label}
-                              </Text>
-                            </View>
-                          )}
                         </View>
                       </View>
                     </Pressable>
