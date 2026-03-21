@@ -1,5 +1,19 @@
 # Findings Log — Frontend
 
+## Onboarding Avatar Upload V2 — NEEDS RUNTIME PROOF (2026-03-20)
+
+### Finding: UX Refresh V1 Did NOT Cause Upload Regression
+git diff 46f264b..97851db (the UX refresh commit) shows zero changes to upload, auth, network, or session code. The diff is purely CTA copy changes, a new OnboardingBackground component, and style additions. The upload code path (handlePickPhoto -> uploadPhotoInBackground -> uploadImage -> uploadByKind) is provably identical before and after the merge.
+
+### Finding: No Upload Logic Changed Since Diagnostic Cleanup
+git diff 46f264b..HEAD against imageUpload.ts, api.ts, sessionCache.ts, networkAuthGate.ts, authClient.ts, exactAppleAuthBootstrap.ts, and useBootAuthority.ts returns empty — zero changes to any file in the upload or auth chain.
+
+### Finding: Upload Was Working on Different Account
+The previous successful upload was on a different test account. The current failure is on a new account. The most likely explanation is the backend /api/uploads/sign endpoint returning an error for this specific account state (e.g., 403 email not verified, missing profile row, or similar auth/account state issue).
+
+### Diagnostic Added
+[ONBOARD_AVATAR] tagged DEV-only logs added to welcome.tsx and imageUpload.ts covering every step: picker permissions, picker result, session check, sign request, sign response, Cloudinary POST, Cloudinary response, complete request, complete response, and failure details (status, message, data).
+
 ## Onboarding Photo Upload — RESOLVED (2026-03-20)
 
 ### Root Cause (Backend)
