@@ -50,6 +50,7 @@ import { RADIUS } from "@/ui/layout";
 import { SafeAreaScreen } from "@/ui/SafeAreaScreen";
 import { isAppleSignInAvailable } from "@/lib/appleSignIn";
 import { handleSharedAppleSignIn } from "@/lib/sharedAppleAuth";
+import { OnboardingBackground } from "@/components/onboarding/OnboardingBackground";
 
 // Apple Authentication - dynamically loaded (requires native build with usesAppleSignIn: true)
 let AppleAuthentication: any = null;
@@ -438,8 +439,8 @@ export default function LoginScreen() {
   // Main Login View
   return (
     <View testID="login-screen" onLayout={onLoginLayout} style={{ flex: 1, backgroundColor: colors.background, opacity: isLoginStable ? 1 : 0 }}>
-      <LinearGradient colors={[isDark ? `${themeColor}30` : `${themeColor}15`, colors.background]} style={{ flex: 1 }}>
-        <SafeAreaScreen>
+      <OnboardingBackground themeColor={themeColor} isDark={isDark} />
+      <SafeAreaScreen style={{ backgroundColor: "transparent" }}>
           {/* Header with back to Getting Started */}
           <View
             style={{
@@ -529,12 +530,12 @@ export default function LoginScreen() {
                   entering={FadeIn.delay(100).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
-                    borderRadius: 14,
+                    borderRadius: RADIUS.lg,
                     borderWidth: 1,
                     borderColor: colors.borderSubtle,
                     flexDirection: "row",
                     alignItems: "center",
-                    paddingHorizontal: 16,
+                    paddingHorizontal: 20,
                     marginBottom: 16,
                   }}
                 >
@@ -565,12 +566,12 @@ export default function LoginScreen() {
                   entering={FadeIn.delay(200).duration(300)}
                   style={{
                     backgroundColor: colors.inputBg,
-                    borderRadius: 14,
+                    borderRadius: RADIUS.lg,
                     borderWidth: 1,
                     borderColor: colors.borderSubtle,
                     flexDirection: "row",
                     alignItems: "center",
-                    paddingHorizontal: 16,
+                    paddingHorizontal: 20,
                     marginBottom: 12,
                   }}
                 >
@@ -694,7 +695,6 @@ export default function LoginScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         </SafeAreaScreen>
-      </LinearGradient>
     </View>
   );
 }

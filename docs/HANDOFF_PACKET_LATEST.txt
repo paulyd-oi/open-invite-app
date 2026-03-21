@@ -1,71 +1,47 @@
-HANDOFF_PACKET — Onboarding Animated Orb Drift
+HANDOFF_PACKET — Login Screen Visual Alignment
 Date: 2026-03-21
 
 SUMMARY
 
-Added slow continuous drift animation to all 3 onboarding background orbs. Lifted OnboardingBackground mount from per-slide OnboardingLayout to the top-level welcome screen render so orb motion persists across slide transitions without resetting.
+Aligned the Log In screen visual treatment to match the Create Account / onboarding screens. Replaced the flat LinearGradient background with the shared OnboardingBackground (animated orbs) and matched input field styling (border radius, padding).
 
 EXACT FILES CHANGED
 
-1. src/components/onboarding/OnboardingBackground.tsx
-   - Added 6 shared values for drift (translateX/Y per orb)
-   - Added withRepeat/withTiming drift animations in existing useEffect
-   - Added transform: [translateX, translateY] to each orbStyle animated style
-   - No new imports, no new dependencies
-
-2. src/app/welcome.tsx
-   - Main render: Wrapped slides in outer View with backgroundColor, OnboardingBackground rendered once outside per-slide key wrapper
-   - OnboardingLayout: SafeAreaScreen background changed to transparent so persistent orbs show through
-   - Removed OnboardingBackground render from inside OnboardingLayout (was being recreated per slide)
-
-3. docs/STATE_OF_THE_APP.md
-   - Added Fixed This Session entry
+1. src/app/login.tsx
+   - Added import: OnboardingBackground from @/components/onboarding/OnboardingBackground
+   - Main login view: Replaced LinearGradient wrapper with OnboardingBackground + transparent SafeAreaScreen
+   - Email input: borderRadius 14→RADIUS.lg, paddingHorizontal 16→20
+   - Password input: borderRadius 14→RADIUS.lg, paddingHorizontal 16→20
+   - Removed LinearGradient closing tag for main login view
+   - forgotPassword and success views: UNTOUCHED (kept LinearGradient per minimal-diff rule)
 
 ARCHITECTURE RESULT
 
-Background WAS being remounted per slide. Each of the 5 renderSlide functions wraps content in OnboardingLayout, which rendered OnboardingBackground inside SafeAreaScreen. The outer render used key={currentSlide} which forced full unmount/remount on every slide change, resetting all animations.
-
-Fix: OnboardingBackground now renders once at the top-level return, outside the key={currentSlide} wrapper. OnboardingLayout's SafeAreaScreen uses transparent background so the persistent orbs show through from behind.
-
-ANIMATION DETAILS
-
-Orb 1 (violet, top-right — large):
-  translateX: 0 → +30px, 11s cycle, reverse loop
-  translateY: 0 → -28px, 13s cycle, reverse loop
-
-Orb 2 (accent, bottom-left — medium):
-  translateX: 0 → -24px, 12s cycle, reverse loop
-  translateY: 0 → +20px, 9.5s cycle, reverse loop
-
-Orb 3 (pink, center-bottom — small):
-  translateX: 0 → +18px, 14s cycle, reverse loop
-  translateY: 0 → -22px, 10.5s cycle, reverse loop
-
-All use Easing.inOut(Easing.sin) for smooth sinusoidal motion.
-Existing breathing (opacity) animations unchanged.
-Each orb has unique timing per axis creating organic Lissajous-like paths.
+Login screen is a separate route (/login) in the same Stack navigator, navigated via router.replace("/login") from welcome.tsx. Since OnboardingLayout is local to welcome.tsx and not exported, OnboardingBackground is rendered directly as an absolute-positioned layer behind the content in login.tsx, with SafeAreaScreen set to transparent background — same pattern used in welcome.tsx.
 
 WHAT WAS NOT CHANGED
 
-- Auth: UNTOUCHED
-- Upload: UNTOUCHED
-- Navigation/routing: UNTOUCHED
+- Auth logic: UNTOUCHED
 - Backend calls: UNTOUCHED
-- Onboarding order/logic: UNTOUCHED
-- Slide content/layout: UNTOUCHED
+- Navigation/routing: UNTOUCHED
+- Create Account screen (welcome.tsx): UNTOUCHED
+- Forgot Password view: UNTOUCHED (still uses LinearGradient)
+- Success view: UNTOUCHED (still uses LinearGradient)
+- OnboardingBackground component: UNTOUCHED
 - Main app: UNTOUCHED
 - No new dependencies added
 
 VERIFICATION
 
 npx tsc --noEmit: PASS clean (exit 0)
-bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
 Simulator confirmation:
-- Orbs drift smoothly on Welcome screen
-- Orb positions change between screenshots taken 5s apart
-- Text and CTAs remain fully readable
-- pointerEvents="none" preserved — no touch blocking
+- Tapped "Log in" from Welcome screen
+- Animated orbs visible on Login screen (violet top-right, accent bottom-left)
+- Background matches Create Account treatment
+- Inputs have rounded corners matching Create Account styling
+- All buttons readable and properly styled
+- "Continue with Apple" button present and styled
 
 FINAL STATUS
 
-ANIMATED ORBS APPLIED — NEEDS DESIGN REVIEW
+LOGIN VISUAL ALIGNMENT APPLIED — NEEDS DESIGN REVIEW

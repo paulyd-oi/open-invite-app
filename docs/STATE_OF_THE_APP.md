@@ -121,6 +121,13 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Login Screen Visual Alignment)
+- Login screen now uses shared OnboardingBackground (animated orbs) instead of flat LinearGradient
+- SafeAreaScreen set to transparent so orbs show through — same pattern as welcome.tsx
+- Input field borderRadius aligned to RADIUS.lg, paddingHorizontal to 20 — matches Create Account inputs
+- Only main login view changed; forgotPassword and success views untouched (minimal-diff)
+- File changed: src/app/login.tsx only
+
 ## Fixed This Session (Onboarding Animated Orb Drift)
 - OnboardingBackground orbs now drift slowly and continuously on both X and Y axes using Reanimated withRepeat/withTiming
 - Orb 1 (violet, top-right): ±30px X (11s), ±28px Y (13s)
