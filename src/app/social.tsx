@@ -1270,44 +1270,68 @@ export default function SocialScreen() {
   }, [feedData?.events, myEventsData?.events, attendingData?.events, session?.user?.id]);
 
   // All events for calendar (includes my events + attending + discovery)
-  // IMPORTANT: Filter out busy events - they are private and must not appear in social view
+  // [P0_SOCIAL_TAB_PRIVACY] ALLOWLIST: Only OPEN and GROUP/CIRCLE events may appear.
+  // PRIVATE, BUSY, and work events must be excluded from the dataset entirely — no masking.
   const allEvents = useMemo(() => {
     const myEvents = myEventsData?.events ?? [];
     const attendingEvents = attendingData?.events ?? [];
 
-    // Helper: determine if event should be omitted (busy or legacy title "busy")
-    const shouldOmit = (e: Event) => {
-      if (e.isBusy) return true;
-      // Defensive: legacy data may have title "busy" without isBusy flag
+    // ALLOWLIST visibility values permitted on the social/center tab calendar
+    const SOCIAL_ALLOWED_VISIBILITY = new Set([
+      "all_friends",
+      "open_invite",
+      "circle_only",
+      "specific_groups",
+    ]);
+
+    // Allowlist filter: event must have allowed visibility AND not be busy/work
+    const isAllowedOnSocialTab = (e: Event): { allowed: boolean; reason?: string } => {
+      if (e.isBusy) return { allowed: false, reason: "isBusy" };
+      if ((e as any).isWork) return { allowed: false, reason: "isWork" };
+      // Legacy busy detection
       const t = (e.title ?? "").toLowerCase().trim();
-      if (t === "busy" || t.startsWith("busy ")) return true;
-      return false;
+      if (t === "busy" || t.startsWith("busy ")) return { allowed: false, reason: "legacy_busy_title" };
+
+      const vis = (e.visibility ?? "").toLowerCase();
+      if (vis === "private") return { allowed: false, reason: "visibility=private" };
+      if (!SOCIAL_ALLOWED_VISIBILITY.has(vis)) return { allowed: false, reason: `visibility=${vis}_not_in_allowlist` };
+
+      return { allowed: true };
     };
 
     const eventMap = new Map<string, Event>();
-    // Filter out busy events from all sources - busy is private
-    myEvents.filter(e => !shouldOmit(e)).forEach(e => eventMap.set(e.id, e));
-    attendingEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
-    discoveryEvents.filter(e => !shouldOmit(e)).forEach(e => { if (!eventMap.has(e.id)) eventMap.set(e.id, e); });
+    const excluded: Array<{ id: string; title: string; reason: string }> = [];
+
+    const addIfAllowed = (e: Event) => {
+      if (eventMap.has(e.id)) return;
+      const check = isAllowedOnSocialTab(e);
+      if (check.allowed) {
+        eventMap.set(e.id, e);
+      } else {
+        excluded.push({ id: e.id, title: e.title, reason: check.reason! });
+      }
+    };
+
+    myEvents.forEach(addIfAllowed);
+    attendingEvents.forEach(addIfAllowed);
+    discoveryEvents.forEach(addIfAllowed);
 
     const result = Array.from(eventMap.values());
-    
-    // DEV logging for social busy omit invariant
+
+    // [P0_SOCIAL_TAB_PRIVACY] DEV proof: log raw counts, per-item decisions, final count
     if (__DEV__) {
       const totalInput = myEvents.length + attendingEvents.length + discoveryEvents.length;
-      const busyOmittedCount = myEvents.filter(e => shouldOmit(e)).length + 
-        attendingEvents.filter(e => shouldOmit(e)).length + 
-        discoveryEvents.filter(e => shouldOmit(e)).length;
-      if (busyOmittedCount > 0) {
-        devLog("[SOCIAL_OMIT_BUSY]", {
-          inputCount: totalInput,
-          omittedCount: busyOmittedCount,
-          outputCount: result.length,
-          sampleOmittedIds: myEvents.filter(e => shouldOmit(e)).slice(0, 3).map(e => e.id),
-        });
-      }
+      devLog("[P0_SOCIAL_TAB_PRIVACY]", {
+        rawItemCount: totalInput,
+        myEventsCount: myEvents.length,
+        attendingCount: attendingEvents.length,
+        discoveryCount: discoveryEvents.length,
+        excludedCount: excluded.length,
+        renderedCount: result.length,
+        excludedItems: excluded.slice(0, 10),
+      });
     }
-    
+
     return result;
   }, [myEventsData?.events, attendingData?.events, discoveryEvents]);
 

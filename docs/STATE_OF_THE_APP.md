@@ -70,6 +70,7 @@
 - Keyboard avoidance: Group Settings modal uses KeyboardAvoidingView
 - Bottom nav order: Discover | Calendar | Social (CENTER) | Friends | Profile
 - Default landing: Social feed on cold launch (authenticated users)
+- Social tab calendar privacy ALLOWLIST: Only OPEN and GROUP/CIRCLE events render. PRIVATE, BUSY, work events excluded from dataset entirely (not masked). Allowlist in social.tsx allEvents + defensive allowlist in FeedCalendar.tsx. shouldShowInSocial() in eventVisibility.ts also uses allowlist. DEV proof: [P0_SOCIAL_TAB_PRIVACY]
 - Social feed: Pure discovery (filters out going/interested/host events, no filter pills UI)
 - Social feed collapsible sections: Today/Tomorrow/This Week/Upcoming sections collapsible with count display
 - RSVP states: Going, Interested, Can't Make It (no Maybe in types or UI)

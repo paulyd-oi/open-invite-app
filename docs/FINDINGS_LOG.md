@@ -1,5 +1,32 @@
 # Findings Log — Frontend
 
+## P0 Social Tab Privacy Leak — FIXED (2026-03-21)
+
+### Root Cause: Denylist logic instead of allowlist on social/center tab calendar
+
+The social tab calendar (`social.tsx` → `FeedCalendar.tsx`) used denylist filtering: it only excluded events with `isBusy: true`. Events with `visibility: "private"` or `isWork: true` passed through unfiltered. For the event owner, `shouldMaskEvent()` also returned `false` (owners see their own events unmasked), so PRIVATE events like "Team Meeting" rendered with full title, "You" badge, and "Private" visibility badge.
+
+### Evidence
+- "Team Meeting" card rendered on social tab with badges: You, Private
+- `[P0_PRIVACY_BUSY] shouldMaskEvent shouldMask: false` in logs (owner exemption)
+- `shouldOmit()` only checked `isBusy` — never checked `visibility === "private"`
+
+### Fix
+Replaced denylist (`shouldOmit` checking only `isBusy`) with ALLOWLIST filter in `social.tsx` `allEvents` memo. Only these visibility values are now permitted: `all_friends`, `open_invite`, `circle_only`, `specific_groups`. Events with `visibility=private`, `isBusy`, or `isWork` are excluded from the dataset entirely — never passed to FeedCalendar. FeedCalendar also has a defensive allowlist filter as safety net.
+
+### Backend Note
+Backend `/api/events` endpoint returns all user events including private/busy. This is correct for personal calendar but over-returns for the social tab. Frontend allowlist is the correct fix point — backend should not restrict its own endpoint.
+
+### Files Changed
+- src/app/social.tsx: `allEvents` memo — denylist→allowlist, [P0_SOCIAL_TAB_PRIVACY] proof logs
+- src/components/FeedCalendar.tsx: defensive filter — denylist→allowlist
+- src/lib/eventVisibility.ts: `shouldShowInSocial()` + `filterSocialEvents()` strengthened to allowlist
+
+### Verification
+- TypeScript: PASS
+- verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166)
+- Proof tag: [P0_SOCIAL_TAB_PRIVACY] logs raw/excluded/rendered counts + per-item exclusion reasons
+
 ## Post-Onboarding Email Gate Modal Freeze — FIXED (2026-03-20)
 
 ### Probable Root Cause: Modal Presented During In-Flight Navigation Transition

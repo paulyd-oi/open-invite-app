@@ -89,8 +89,23 @@ export function getEventDisplayFields(
   };
 }
 
+/**
+ * [P0_SOCIAL_TAB_PRIVACY] ALLOWLIST gate for the social/center tab.
+ * Only OPEN and GROUP/CIRCLE events are permitted. Everything else excluded.
+ */
+const SOCIAL_ALLOWED_VISIBILITY = new Set([
+  "all_friends",
+  "open_invite",
+  "circle_only",
+  "specific_groups",
+]);
+
 export function shouldShowInSocial(event: any): boolean {
-  return !event?.isBusy;
+  if (event?.isBusy || event?.isWork) return false;
+  const vis = (event?.visibility ?? "").toLowerCase();
+  if (vis === "private") return false;
+  if (vis && !SOCIAL_ALLOWED_VISIBILITY.has(vis)) return false;
+  return true;
 }
 
 export function filterSocialEvents<T>(events: T[]): T[] {

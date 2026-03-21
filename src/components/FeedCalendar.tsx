@@ -240,15 +240,17 @@ export function FeedCalendar({ events, themeColor, isDark, colors, userId, onDat
   // User's event color overrides
   const { colorOverrides } = useEventColorOverrides();
 
-  // Combine all events - IMPORTANT: filter out any busy events (defensive)
-  // Busy events are private and must never appear in social/feed contexts
+  // [P0_SOCIAL_TAB_PRIVACY] Defensive allowlist — only open/group events render.
+  // Caller (social.tsx) already filters, but this is the last-resort safety net.
   const allCalendarEvents: CalendarEvent[] = useMemo(() => {
-    // Filter out any events marked as busy (defensive - should already be filtered by caller)
-    return events
-      .filter((e) => !(e as any).isBusy)
-      .map((e) => ({
-        ...e,
-      }));
+    const ALLOWED = new Set(["all_friends", "open_invite", "circle_only", "specific_groups"]);
+    return events.filter((e) => {
+      if ((e as any).isBusy || (e as any).isWork) return false;
+      const vis = ((e as any).visibility ?? "").toLowerCase();
+      if (vis === "private") return false;
+      if (vis && !ALLOWED.has(vis)) return false;
+      return true;
+    });
   }, [events]);
 
   // Get events for a specific date
