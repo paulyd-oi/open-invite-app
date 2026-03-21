@@ -14,6 +14,7 @@ import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { SocialProof } from "@/components/SocialProof";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
@@ -111,6 +112,7 @@ interface PopularEvent {
   isFull?: boolean;
   viewerRsvpStatus?: "going" | "not_going" | "interested" | "maybe" | null;
   createdAt?: string;
+  description?: string | null;
   eventPhotoUrl?: string | null;
   themeId?: string | null;
   joinRequests?: Array<{
@@ -746,16 +748,13 @@ export default function DiscoverScreen() {
                         </View>
 
                         {/* DESCRIPTION (1-2 lines) */}
-                        {event.location ? (
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 6 }}>
-                            <MapPin size={13} color={colors.textTertiary} />
-                            <Text
-                              style={{ color: colors.textSecondary, fontSize: 13, marginLeft: 4, fontWeight: "400" }}
-                              numberOfLines={1}
-                            >
-                              {event.location}
-                            </Text>
-                          </View>
+                        {event.description ? (
+                          <Text
+                            style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "400", marginTop: 6, lineHeight: 18 }}
+                            numberOfLines={2}
+                          >
+                            {event.description}
+                          </Text>
                         ) : null}
 
                         {/* FOOTER ROW: date/time + availability | attendees */}
@@ -770,8 +769,8 @@ export default function DiscoverScreen() {
                         }}>
                           {/* Left: date/time + "Looks clear" pill */}
                           <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 6 }}>
-                            <Calendar size={14} color={cardAccent ?? colors.textSecondary} />
-                            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "500" }}>
+                            <Calendar size={12} color={cardAccent ?? colors.textSecondary} />
+                            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "600", letterSpacing: 0.1 }}>
                               {dateStr}, {timeStr}
                             </Text>
                             {/* [AVAILABILITY_V1] Calendar-fit chip */}
@@ -793,58 +792,26 @@ export default function DiscoverScreen() {
                             )}
                           </View>
 
-                          {/* Right: attendee indicator */}
+                          {/* Right: attendee avatar stack */}
                           {(() => {
                             const count = event.attendeeCount ?? 0;
-                            const cap = event.capacity ?? null;
                             if (count === 0) return (
-                              <Text style={{ fontSize: 11, fontWeight: "500", color: colors.textTertiary }}>
+                              <Text style={{ fontSize: 10, fontWeight: "600", color: colors.textTertiary }}>
                                 Be first
                               </Text>
                             );
 
-                            // Avatar cluster placeholder circles + count
-                            const displayCount = Math.min(count, 3);
-                            const AVATAR_SIZE = 22;
-                            const OVERLAP = -6;
-                            let momentum = "";
-                            if (almostFull) momentum = " · Almost full";
-                            else if (cap && count >= cap) momentum = " · Full";
-                            else if (count >= 10) momentum = " · Popular";
+                            const accepted = (event.joinRequests ?? [])
+                              .filter((r) => r.status === "accepted")
+                              .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
 
                             return (
-                              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                {/* Overlapping circles */}
-                                <View style={{ flexDirection: "row", marginRight: 6 }}>
-                                  {Array.from({ length: displayCount }).map((_, i) => (
-                                    <View
-                                      key={i}
-                                      style={{
-                                        width: AVATAR_SIZE,
-                                        height: AVATAR_SIZE,
-                                        borderRadius: AVATAR_SIZE / 2,
-                                        backgroundColor: cardAccent
-                                          ? `${cardAccent}${i === 0 ? "40" : i === 1 ? "30" : "20"}`
-                                          : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"),
-                                        borderWidth: 1.5,
-                                        borderColor: plaqueBg,
-                                        marginLeft: i === 0 ? 0 : OVERLAP,
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                      }}
-                                    >
-                                      <Users size={10} color={cardAccent ?? colors.textTertiary} />
-                                    </View>
-                                  ))}
-                                </View>
-                                <Text style={{
-                                  fontSize: 12,
-                                  fontWeight: "600",
-                                  color: STATUS.going.fg,
-                                }}>
-                                  {count}{momentum}
-                                </Text>
-                              </View>
+                              <SocialProof
+                                attendees={accepted}
+                                totalCount={count}
+                                maxDisplay={3}
+                                size="small"
+                              />
                             );
                           })()}
                         </View>

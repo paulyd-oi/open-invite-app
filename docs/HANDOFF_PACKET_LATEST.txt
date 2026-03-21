@@ -1,62 +1,70 @@
-HANDOFF PACKET — Discover Card Redesign V1
+HANDOFF PACKET — Discover Card Follow-Up V2
 Date: 2026-03-21
 
 SUMMARY
 
-Redesigned Discover tab event card layout. Moved save/bookmark from image overlay to themed content panel. Added attendee avatar cluster to footer. Moved category pill to image top-left. Content area uses event theme surface token (plaqueBg). Minimal diff — inline card rendering only.
+Follow-up polish pass on Discover card. Three targeted fixes: (1) show event description instead of venue address under title, (2) tighten date/time metadata styling, (3) replace placeholder icon circles with real SocialProof attendee avatar stack using joinRequests data.
 
-EXACT CHANGES
-
-1. Image zone:
-   - Category pill (theme label) → top-left overlay with dark translucent bg
-   - Urgency chip → below category pill (stacks vertically)
-   - LinearGradient vignette REMOVED (was overlaying bottom of image)
-
-2. Content panel (plaqueBg background):
-   - TOP ROW: Title + Bookmark save button (replaced Heart icon on photo)
-   - Bookmark in 32px circle, accent-tinted when saved (STATUS.interested)
-   - LOCATION ROW: MapPin + location text
-   - FOOTER ROW (separated by 1px border):
-     - Left: Calendar icon (accent-colored) + date/time + availability chip
-     - Right: Attendee avatar cluster (overlapping circles) + count + momentum label
-
-3. Attendee cluster:
-   - Up to 3 overlapping circles (22px, accent-tinted backgrounds with decreasing opacity)
-   - Users icon inside each circle
-   - Count text: "{N} going" or "Be first" when 0
-   - Momentum labels: "Almost full" (≤3 spots), "Full" (at capacity), "Popular" (≥10)
-
-4. Card container:
-   - borderRadius: 20 (was 16)
-   - Image aspectRatio: 1.9
-   - Card background: plaqueBg (event theme token)
-   - Accent border: cardAccent with 25 alpha
-
-EXACT FILE CHANGED
+EXACT FILES CHANGED
 
 1. src/app/discover.tsx
-   - Inline renderItem card layout (~lines 615-860)
-   - No new imports, no new components, no new files
+   - Added `description` to PopularEvent interface
+   - Added SocialProof import from @/components/SocialProof
+   - Row 2: event.description replaces event.location (MapPin removed)
+   - Footer date/time: Calendar icon 14→12, font 13→11, weight 500→600, added letterSpacing 0.1
+   - Footer right: replaced inline placeholder circles with SocialProof component
+     using joinRequests data (filtered to accepted, mapped to {id, name, image})
+   - "Be first" text: font 11→10, weight 500→600
 
-WHAT WAS REMOVED
+2. docs/STATE_OF_THE_APP.md
+   - Updated discover card entry to V1+V2
 
-- LinearGradient vignette overlay on image bottom
-- Heart icon for save (replaced with Bookmark)
-- Theme label pill in content area (moved to image overlay)
-- Host avatar row from content area
+3. docs/HANDOFF_PACKET_LATEST.txt — this file
+
+FIXES APPLIED
+
+- Description source: event.description (1-2 lines, truncated) replaces event.location/MapPin row.
+  No venue/address on card. Description comes from API feed response, typed as optional string.
+
+- Metadata styling: Calendar icon shrunk to 12px. Date/time text: fontSize 11, fontWeight "600",
+  letterSpacing 0.1. Reads as clean secondary metadata, not body text.
+
+- Attendee avatar rendering: Replaced hand-rolled accent-tinted placeholder circles + Users icon
+  with SocialProof component (src/components/SocialProof.tsx). Uses joinRequests array from feed
+  response — filters to status==="accepted", maps to {id, name, image}. SocialProof renders
+  real EntityAvatar profile photos with overlapping stack + "+N" remaining badge + copy text.
+  Falls back gracefully when joinRequests is empty (shows count-only via SocialProof).
+  Zero-attendee case still shows "Be first" text.
+
+WHAT WAS NOT CHANGED
+
+- Card layout structure (image zone, content panel, footer row)
+- Save/bookmark behavior and positioning
+- Category pill and urgency chip
+- Availability "Looks clear" pill
+- Card tap navigation
+- No backend changes, no new API calls
+- No other screens touched
 
 VERIFICATION
 
 npm run typecheck: PASS (0 errors)
 bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:1571, circle/[id].tsx:2166 — untouched files)
 
-BLAST RADIUS
+GIT PROOF
 
-- ONLY discover.tsx touched — no other screens or components affected
-- No new dependencies, no new files
-- All existing imports reused (Bookmark, Calendar, MapPin, Users from @/ui/icons)
-- plaqueBg/cardAccent tokens already computed in scope — no new theme logic
+git show --stat HEAD
+commit 6c33a85f15a9c4595236a0d39a28c1ae1a9a9eb1
+ docs/HANDOFF_PACKET_LATEST.txt | 76 ++++++++++++++++++++---------------------
+ docs/STATE_OF_THE_APP.md       |  2 +-
+ src/app/discover.tsx           | 77 ++++++++++++------------------------------
+ 3 files changed, 60 insertions(+), 95 deletions(-)
+
+git show --name-only HEAD
+docs/HANDOFF_PACKET_LATEST.txt
+docs/STATE_OF_THE_APP.md
+src/app/discover.tsx
 
 FINAL STATUS
 
-COMPLETE
+DISCOVER CARD FOLLOW-UP APPLIED — NEEDS DESIGN REVIEW
