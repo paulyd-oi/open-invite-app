@@ -16,7 +16,7 @@
 
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
-import { devLog, devWarn, devError } from "./devLog";
+import { devError } from "./devLog";
 import { api } from "./api";
 import { API_ROUTES } from "./apiRoutes";
 
@@ -158,22 +158,10 @@ export async function uploadByKind(
     const profile = COMPRESSION_PROFILES[kind];
     const entityId = opts?.eventId ?? opts?.circleId ?? null;
 
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'uploadByKind_entry', {
-        kind,
-        surface: kind,
-        hasEntityId: !!entityId,
-      });
-    }
-
     // --- A. Compress -------------------------------------------------------
     const origInfo = await FileSystem.getInfoAsync(uri);
     const originalBytes = (origInfo as any).size ?? 0;
     const origExists = (origInfo as any).exists ?? false;
-
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'original_file', { kind, exists: origExists, bytes: originalBytes });
-    }
 
     if (!origExists) {
       throw new Error(`Source image does not exist at URI: ${uri?.slice(0, 80)}`);
@@ -207,23 +195,13 @@ export async function uploadByKind(
     if (!finalInfo.exists) throw new Error("Image file does not exist");
     const finalBytes = (finalInfo as any).size ?? 0;
 
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'compression_result', { kind, originalBytes, finalBytes, qualityUsed: quality });
-    }
-
     if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
       throw new Error(`${kind} photo is too large after compression (max 5 MB).`);
     }
 
     // --- B. Request signed params from backend -----------------------------
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'sign_request', { kind, hasEntityId: !!entityId, endpoint: API_ROUTES.uploads.sign });
-    }
-
-    // ── P0_UPLOAD_SIGN_INVARIANT ──────────────────────────────────────────────
-    // Strict SSOT: only known kinds are valid. eventId/circleId are ONLY
-    // included when they are non-empty strings — never null/undefined/"".
-    // Prevents backend 400 from malformed sign-request bodies.
+    // Strict SSOT: only known kinds are valid.
+    // Strict SSOT: only known kinds are valid. entityId only when non-empty string.
     const VALID_UPLOAD_KINDS: readonly UploadKind[] = [
       "avatar",
       "banner",
@@ -251,16 +229,6 @@ export async function uploadByKind(
       signBody.circleId = _rawCircleId;
     }
 
-    if (__DEV__) {
-      // [P0_UPLOAD_SIGN_BODY] — always-on proof log: keys + kind only, no secrets
-      devLog("[P0_UPLOAD_SIGN_BODY]", "signBody_pre_post", {
-        keys: Object.keys(signBody),
-        kind: signBody.kind,
-        hasEventId: "eventId" in signBody,
-        hasCircleId: "circleId" in signBody,
-      });
-    }
-
     let signed: SignedUploadParams | null = null;
     try {
       signed = await api.post<SignedUploadParams>(
@@ -268,54 +236,19 @@ export async function uploadByKind(
         signBody,
       );
     } catch (signErr: any) {
-      if (__DEV__) {
-        devError('[P0_UPLOAD_KIND]', 'sign_FAILED', {
-          kind,
-          status: signErr?.status,
-          message: signErr?.message,
-          data: signErr?.data ? JSON.stringify(signErr.data).slice(0, 200) : 'none',
-        });
-      }
       throw new Error(`Upload sign failed (${signErr?.status || 'network'}): ${signErr?.message || 'unknown'}`);
-    }
-
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_SIGN_TARGET]', {
-        kind,
-        uploadUrl: signed?.uploadUrl?.slice(0, 60),
-        cloudName: signed?.cloudName,
-        signedKeys: signed?.signedParams ? Object.keys(signed.signedParams) : [],
-      });
     }
 
     if (!signed?.uploadUrl || !signed?.signedParams) {
       throw new Error(`Backend sign response missing required fields (uploadUrl=${!!signed?.uploadUrl}, signedParams=${!!signed?.signedParams}).`);
     }
 
-    if (__DEV__) {
-      devLog("[P0_UPLOAD_SIGPROOF]", "sign_response_audit", {
-        kind,
-        endpoint_EXACT: signed.uploadUrl,
-        signedParamKeys_sorted: Object.keys(signed.signedParams).sort(),
-        signedParamValues: Object.fromEntries(
-          Object.entries(signed.signedParams).map(([k, v]) =>
-            k === "signature" ? [k, String(v).slice(0, 8) + "..."] :
-            k === "api_key" ? [k, "REDACTED"] : [k, String(v)]
-          )
-        ),
-        keyCount: Object.keys(signed.signedParams).length,
-      });
-    }
-
     // --- C. Upload to Cloudinary (signed) ----------------------------------
     const formData = new FormData();
     // CRITICAL: String() every value — JSON.parse may return numbers/booleans
     // which React Native FormData does not reliably coerce on iOS.
-    const formFields: Record<string, string> = {};
     for (const [key, value] of Object.entries(signed.signedParams)) {
-      const strVal = String(value);
-      formData.append(key, strVal);
-      formFields[key] = strVal;
+      formData.append(key, String(value));
     }
     formData.append("file", {
       uri: compressedUri,
@@ -323,88 +256,33 @@ export async function uploadByKind(
       name: profile.filename,
     } as any);
 
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'formData_keys', {
-        kind,
-        keys: Object.keys(formFields),
-        hasSignature: !!formFields.signature,
-        hasApiKey: !!formFields.api_key,
-      });
-    }
-
     // SSOT: use backend-provided uploadUrl verbatim
     const endpoint = signed.uploadUrl;
-    if (__DEV__) {
-      const appendedKeys = Object.keys(formFields);
-      const signedKeys = Object.keys(signed.signedParams);
-      const extraKeys = appendedKeys.filter(k => !(k in signed.signedParams));
-      const missingKeys = signedKeys.filter(k => !(k in formFields));
-      devLog("[P0_UPLOAD_SIGPROOF]", "formdata_assembly_trace", {
-        kind,
-        endpoint_EXACT: endpoint,
-        appendedKeys_inOrder: appendedKeys,
-        appendedCount: appendedKeys.length,
-        signedCount: signedKeys.length,
-        extraKeys_NOT_in_signedParams: extraKeys,
-        missingKeys_NOT_in_formData: missingKeys,
-        duplicateCheck: appendedKeys.length === new Set(appendedKeys).size ? "NO_DUPLICATES" : "HAS_DUPLICATES",
-        values: Object.fromEntries(
-          Object.entries(formFields).map(([k, v]) =>
-            k === "signature" ? [k, v.slice(0, 8) + "..."] :
-            k === "api_key" ? [k, "REDACTED"] : [k, v]
-          )
-        ),
-        fileField: "appended_last_as_image/jpeg",
-      });
-      devLog('[P0_UPLOAD_CLOUDINARY_POST]', { kind, url: endpoint, hasFile: true, fileName: profile.filename, mimeType: 'image/jpeg' });
-    }
     let res: Response;
     try {
       res = await fetch(endpoint, { method: "POST", body: formData });
     } catch (fetchErr: any) {
-      if (__DEV__) devError('[P0_UPLOAD_CLOUDINARY_RES]', 'network_FAILED', { kind, error: fetchErr?.message });
       throw new Error(`Cloudinary network error: ${fetchErr?.message || 'fetch failed'}`);
     }
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { json = null; }
 
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_CLOUDINARY_RES]', {
-        kind,
-        status: res.status,
-        ok: res.ok,
-        hasSecureUrl: !!json?.secure_url,
-        errorSnippet: !res.ok ? (json?.error?.message || text?.slice(0, 120)) : undefined,
-      });
-    }
-
     if (!res.ok) {
       const msg =
         (json && (json.error?.message || json.error)) ||
         text?.substring(0, 200) ||
         "Upload failed";
-      if (__DEV__) {
-        devError('[P0_UPLOAD_CLOUDINARY_RES]', 'upload_FAILED', {
-          kind, status: res.status, msg,
-          responseBody: text?.slice(0, 500),
-        });
-      }
       throw new Error(`Cloudinary upload failed (${res.status}): ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
     }
 
     const secureUrl = json?.secure_url as string | undefined;
     const publicId = json?.public_id as string | undefined;
     if (!secureUrl || secureUrl.length === 0) {
-      if (__DEV__) devError('[P0_UPLOAD_CLOUDINARY_RES]', 'missing_secure_url', { kind }, json);
       throw new Error("Upload succeeded but no URL was returned.");
     }
 
     // --- D. Notify backend complete ----------------------------------------
-    if (__DEV__) {
-      devLog('[P0_UPLOAD_KIND]', 'complete_request', { kind, secureUrlPrefix: secureUrl?.slice(0, 50) });
-    }
-
     const completeBody: UploadCompleteBody = {
       kind,
       secureUrl,
@@ -416,19 +294,12 @@ export async function uploadByKind(
     try {
       await api.post(API_ROUTES.uploads.complete, completeBody);
     } catch (completeErr: any) {
-      if (__DEV__) {
-        devError('[P0_UPLOAD_KIND]', 'complete_FAILED', {
-          kind, status: completeErr?.status, message: completeErr?.message,
-        });
-      }
       throw new Error(`Upload complete failed (${completeErr?.status || 'network'}): ${completeErr?.message || 'unknown'}`);
     }
 
-    if (__DEV__) devLog('[P0_UPLOAD_KIND]', 'pipeline_success', { kind, secureUrlPrefix: secureUrl?.slice(0, 60) });
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
-    if (__DEV__) devError('[P0_UPLOAD_KIND]', 'pipeline_error', { kind, message: error?.message, status: error?.status });
-    // [P0_PHOTO_UPLOAD] Preserve status on re-thrown error so caller diagnostics can read it
+    // Preserve status/data on re-thrown error so callers can inspect HTTP details
     const wrapped: any = new Error(error?.message || "Failed to upload image");
     if (error?.status != null) wrapped.status = error.status;
     if (error?.data != null) wrapped.data = error.data;

@@ -1,20 +1,16 @@
 # Findings Log — Frontend
 
-## Onboarding Photo Upload Fix V2 — NEEDS REPRO (2026-03-20)
+## Onboarding Photo Upload — RESOLVED (2026-03-20)
 
-### Finding: Upload Code Path Identical Between Settings and Onboarding
-Compared Settings avatar upload (settings.tsx:1326) against Onboarding avatar upload (welcome.tsx:823). Both call `uploadImage(uri, true)` which delegates to `uploadByKind(uri, "avatar")`. Same compression profile, same sign endpoint, same Cloudinary POST, same complete endpoint. ImagePicker calls are also identical (mediaTypes: ["images"], allowsEditing: true, aspect: [1,1], quality: 0.8).
+### Root Cause (Backend)
+Backend's /api/uploads/sign endpoint returned 403 "Email not verified" for authenticated-but-unverified users during onboarding. Fixed server-side.
 
-### Finding: Error Status Lost in uploadByKind Outer Catch
-The outer try/catch in `uploadByKind` (imageUpload.ts:429-433) created a new Error with only the message, dropping `error.status` and `error.data`. This made it impossible for caller diagnostics to read the HTTP status that caused the failure.
+### Frontend Fixes Retained
+1. Network auth gate enables for 'onboarding' bootStatus (V1 — useBootAuthority.ts, exactAppleAuthBootstrap.ts).
+2. `uploadByKind` outer catch preserves `error.status` and `error.data` on re-throw (general improvement for all upload callers).
 
-### Fix
-1. Added `uploadDiag` state + on-screen DEV diagnostic panel to welcome.tsx Slide 3. Shows [P0_PHOTO_UPLOAD] tag with exact step, status, and error message as visible text (not just console.log).
-2. Fixed `uploadByKind` outer catch to preserve `error.status` and `error.data` on the re-thrown error.
-3. Confirmed Apple Sign-In diagnostics button is already DEV-gated (`__DEV__ && Platform.OS === "ios"`).
-
-### Next Step
-Paul needs one repro. The on-screen diagnostic will show exactly which step fails (session check, sign request, Cloudinary upload, or complete request) with the HTTP status and error message.
+### Cleanup (V3)
+All temporary P0 diagnostics removed: uploadDiag state, on-screen diagnostic panel, P0_PHOTO_UPLOAD/P0_PROFILE_SETUP/P0_UPLOAD_KIND DEV logs. Permanent fixes (blank-name guard, stale-preview cleanup, network gate, error.status preservation) retained.
 
 ## Onboarding Photo Upload Fix V1 — Network Gate Blocks Uploads During Onboarding (2026-03-20)
 
@@ -50,9 +46,6 @@ Removed `deriveDisplayNameFromEmail`. Signup now passes no name — better-auth'
 
 ### Fix
 Added `setAvatarLocalUri(null)` in the catch block of `uploadPhotoInBackground`.
-
-### Finding: Profile Save Error Logging
-The catch handler at line 942 called `devError` but didn't log the full error response (status, data). Added structured [P0_PROFILE_SETUP] DEV log with status, response data, and endpoint for diagnosis.
 
 ## Event Detail Hook Order Fix V1 — useFocusEffect Below Early Returns (2026-03-19)
 

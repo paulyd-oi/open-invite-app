@@ -478,7 +478,6 @@ export default function EventDetailScreen() {
       }
       if (__DEV__) devLog('[EVENT_PHOTO_PICK_OK]', { uri: result.assets[0].uri.slice(-30) });
       setUploadingPhoto(true);
-      if (__DEV__) devLog('[P0_UPLOAD_SIGN_FIX]', { hasEventId: !!id, eventId: id?.slice(0, 8) });
       const upload = await uploadEventPhoto(result.assets[0].uri, id ?? undefined);
       await api.put(`/api/events/${id}/photo`, {
         eventPhotoUrl: upload.url,

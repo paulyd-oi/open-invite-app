@@ -358,10 +358,6 @@ export default function WelcomeOnboardingScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
-  // [P0_PHOTO_UPLOAD] DEV-only on-screen diagnostic for upload failures.
-  // Visible text (not console.log) so Paul can read it in Vibecode preview.
-  const [uploadDiag, setUploadDiag] = useState<string | null>(null);
-
   // Contacts import state (Slide 4)
   const [contactsLoading, setContactsLoading] = useState(false);
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
@@ -391,9 +387,7 @@ export default function WelcomeOnboardingScreen() {
 
   // ============ SLIDE 2: AUTH HANDLERS ============
 
-  // [P0_SIGNUP_FIX] Derive a display name from an email address.
-  // Used as fallback when the UI doesn't collect a name field.
-  // [P0_PROFILE_SETUP] Guard: detect if a "name" is actually derived from email
+  // Guard: detect if a "name" is actually derived from email (local-part or placeholder)
   function isNameDerivedFromEmail(name: string | null | undefined, emailAddr: string | null | undefined): boolean {
     if (!name || !emailAddr) return false;
     const trimmed = name.trim().toLowerCase();
@@ -436,13 +430,6 @@ export default function WelcomeOnboardingScreen() {
       return;
     }
 
-    if (__DEV__) {
-      devLog("[P0_PROFILE_SETUP] submitting email auth", {
-        hasEmail: !!email.trim(),
-        hasPassword: !!password.trim(),
-      });
-    }
-
     if (__DEV__) devLog("[Onboarding] Starting email auth...");
     setIsLoading(true);
     setErrorBanner(null);
@@ -454,8 +441,7 @@ export default function WelcomeOnboardingScreen() {
       let isNewAccount = false;
       
       // Try sign-up first
-      // [P0_PROFILE_SETUP] Never derive name from email — pass undefined.
-      // better-auth backend falls back to "New User" for non-empty requirement.
+      // Never derive name from email — better-auth falls back to "New User".
       result = await authClient.signUp.email({
         email: email.trim(),
         password,
@@ -488,16 +474,6 @@ export default function WelcomeOnboardingScreen() {
         return;
       }
       
-      if (__DEV__) {
-        devLog("[P0_PROFILE_SETUP] auth success", {
-          userId: userId.slice(0, 8),
-          isNewAccount,
-          sessionUserName: session?.user?.name ?? null,
-          sessionUserEmail: session?.user?.email ?? null,
-          sessionUserImage: (session?.user as any)?.image ?? null,
-        });
-      }
-
       // [P0_ANALYTICS_EVENT] signup_completed (new email accounts only)
       if (isNewAccount) {
         trackSignupCompleted({ authProvider: "email", isEmailVerified: false });
@@ -533,12 +509,6 @@ export default function WelcomeOnboardingScreen() {
       const userEmail = result.data?.user?.email || email.trim();
       if (returnedName && !isNameDerivedFromEmail(returnedName, userEmail)) {
         setDisplayName(returnedName);
-        if (__DEV__) devLog("[P0_PROFILE_SETUP] prefilled name from provider:", returnedName);
-      } else if (__DEV__) {
-        devLog("[P0_PROFILE_SETUP] skipped name prefill", {
-          returnedName: returnedName ?? null,
-          reason: !returnedName ? "no_name" : "email_derived",
-        });
       }
 
       // Advance to Slide 3
@@ -802,13 +772,6 @@ export default function WelcomeOnboardingScreen() {
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
 
-    // [P0_PHOTO_UPLOAD] DEV diagnostic helper — shows each step on-screen
-    const diag = (msg: string) => {
-      if (__DEV__ && isMountedRef.current) setUploadDiag(msg);
-      if (__DEV__) devLog("[P0_PHOTO_UPLOAD]", msg);
-    };
-    diag(`pick ok uri=${uri?.slice(0, 60)}`);
-
     // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
     // CRITICAL: Photo upload failure must NOT reset auth state or redirect user.
     // If session check fails, just skip upload - user can add photo later.
@@ -817,36 +780,29 @@ export default function WelcomeOnboardingScreen() {
       const sessionResult = await getSessionCached();
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
       if (!effectiveUserId) {
-        diag("SKIP: no effectiveUserId");
+        if (__DEV__) devLog("[AUTH_TRACE] Photo upload: no effectiveUserId, skipping");
         return;
       }
-      diag(`session ok uid=${effectiveUserId.substring(0, 8)}`);
-    } catch (err: any) {
-      diag(`SKIP: session err ${err?.message}`);
+    } catch (err) {
+      if (__DEV__) devLog("[AUTH_TRACE] Photo upload: session check failed, skipping");
       return;
     }
 
     setUploadBusy(true);
 
     try {
-      diag("calling uploadImage...");
       const uploadResponse = await uploadImage(uri, true);
-      diag(`upload ok url=${uploadResponse.url?.slice(0, 50)}`);
       const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
 
       if (!isMountedRef.current) return;
       setAvatarUrl(normalizedUrl);
-      if (__DEV__) setUploadDiag(null); // Clear diag on success
 
       // Photo uploaded - defer profile save to Continue step when handle is available
       safeToast.success("Photo uploaded", "It will be saved with your profile.");
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      const errMsg = error?.message || String(error);
-      const errStatus = error?.status ?? error?.response?.status ?? "none";
-      diag(`FAIL step=uploadImage status=${errStatus} err=${errMsg.slice(0, 200)}`);
-
+      if (__DEV__) devLog("[Onboarding] photo upload failed:", error?.message || error);
       if (isMountedRef.current) {
         // Clear local preview so user doesn't see broken/stale avatar
         setAvatarLocalUri(null);
@@ -939,17 +895,7 @@ export default function WelcomeOnboardingScreen() {
         payload.avatarUrl = avatarUrl.trim();
       }
 
-      if (__DEV__) {
-        devLog("[P0_PROFILE_SETUP] save payload", {
-          keys: Object.keys(payload),
-          handle: payload.handle,
-          hasName: !!payload.name,
-          hasAvatarUrl: !!payload.avatarUrl,
-          avatarUrlPreview: payload.avatarUrl?.slice(0, 60) ?? null,
-        });
-      }
       const response = await api.put<{ success?: boolean; profile?: any }>("/api/profile", payload);
-      if (__DEV__) devLog("[P0_PROFILE_SETUP] save success", { responseKeys: Object.keys(response || {}) });
 
       // Update React Query cache
       queryClient.setQueryData(["profile"], (old: any) => ({
@@ -978,15 +924,6 @@ export default function WelcomeOnboardingScreen() {
         setCurrentSlide(4);
       }
     } catch (error: any) {
-      if (__DEV__) {
-        devError("[P0_PROFILE_SETUP] save failed", {
-          message: error?.message,
-          status: error?.status ?? error?.response?.status ?? null,
-          data: error?.data ? JSON.stringify(error.data).slice(0, 300) : null,
-          endpoint: error?.endpoint,
-        });
-      }
-
       // Extract true backend validation reason if available
       const validationReason = error?.data?.error?.fields?.[0]?.reason;
       const backendMessage = error?.data?.message || error?.data?.error?.message;
@@ -1344,15 +1281,6 @@ export default function WelcomeOnboardingScreen() {
               </Text>
             </Pressable>
           </Animated.View>
-
-          {/* [P0_PHOTO_UPLOAD] DEV-only on-screen diagnostic — visible text for upload debugging */}
-          {__DEV__ && uploadDiag && (
-            <View style={{ backgroundColor: "#1a1a2e", borderRadius: 8, padding: 8, marginBottom: 8 }}>
-              <Text style={{ color: "#ff9500", fontSize: 10, fontFamily: "monospace" }} numberOfLines={4}>
-                [P0_PHOTO_UPLOAD] {uploadDiag}
-              </Text>
-            </View>
-          )}
 
           <Animated.View entering={smoothFadeIn(200)} style={styles.inputGroup}>
             <StyledInput
