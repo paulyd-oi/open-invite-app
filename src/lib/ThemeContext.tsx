@@ -5,11 +5,12 @@ import { devLog } from "@/lib/devLog";
 
 const THEME_COLOR_KEY = "@openinvite_theme_color";
 const THEME_MODE_KEY = "@openinvite_theme_mode";
-const DEFAULT_THEME_COLOR = "#007AFF"; // Apple System Blue
+const DEFAULT_THEME_COLOR = "#5B67CA"; // Indigo
 
 export type ThemeMode = "light" | "dark" | "auto";
 
 export const THEME_COLORS = [
+  { name: "Indigo", color: "#5B67CA" },
   { name: "Blue", color: "#007AFF" },
   { name: "Coral", color: "#FF6B4A" },
   { name: "Teal", color: "#4ECDC4" },
@@ -18,7 +19,6 @@ export const THEME_COLORS = [
   { name: "Purple", color: "#9B59B6" },
   { name: "Rose", color: "#E84393" },
   { name: "Amber", color: "#F39C12" },
-  { name: "Indigo", color: "#5B67CA" },
 ];
 
 // Dark mode color palette
@@ -44,9 +44,9 @@ export const DARK_COLORS = {
   segmentBg: "#141416",
   segmentActive: "#2C2C2E",
   // Button tokens
-  buttonPrimaryBg: "#007AFF",
+  buttonPrimaryBg: "#5B67CA",
   buttonPrimaryText: "#FFFFFF",
-  buttonPrimaryPressedBg: "#0066DD",
+  buttonPrimaryPressedBg: "#4A56B0",
   buttonPrimaryDisabledBg: "#2C2C2E",
   buttonPrimaryDisabledText: "#6E6E73",
   buttonSecondaryBg: "#2A2A2E",
@@ -73,8 +73,8 @@ export const DARK_COLORS = {
   chipNeutralText: "#98989F",
   chipMutedBg: "#141416",
   chipMutedText: "#6E6E73",
-  chipAccentBg: "#007AFF20",
-  chipAccentText: "#007AFF",
+  chipAccentBg: "#5B67CA20",
+  chipAccentText: "#5B67CA",
   chipStatusBg: "#2C2C2E",
   chipStatusText: "#98989F",
   chipBorder: "#3C3C40",
@@ -101,9 +101,9 @@ export const LIGHT_COLORS = {
   segmentBg: "#F2F2F7",
   segmentActive: "#FFFFFF",
   // Button tokens
-  buttonPrimaryBg: "#007AFF",
+  buttonPrimaryBg: "#5B67CA",
   buttonPrimaryText: "#FFFFFF",
-  buttonPrimaryPressedBg: "#0066DD",
+  buttonPrimaryPressedBg: "#4A56B0",
   buttonPrimaryDisabledBg: "#E5E7EB",
   buttonPrimaryDisabledText: "#9CA3AF",
   buttonSecondaryBg: "#FFFFFF",
@@ -130,8 +130,8 @@ export const LIGHT_COLORS = {
   chipNeutralText: "#6B7280",
   chipMutedBg: "#F2F2F7",
   chipMutedText: "#9CA3AF",
-  chipAccentBg: "#007AFF15",
-  chipAccentText: "#007AFF",
+  chipAccentBg: "#5B67CA15",
+  chipAccentText: "#5B67CA",
   chipStatusBg: "#F3F4F6",
   chipStatusText: "#6B7280",
   chipBorder: "#F0F0F0",
@@ -170,7 +170,7 @@ const ThemeContext = createContext<ThemeContextType>({
   themeColor: DEFAULT_THEME_COLOR,
   setThemeColor: async () => {},
   themeColorLight: DEFAULT_THEME_COLOR + "20",
-  themeColorName: "Blue",
+  themeColorName: "Indigo",
   themeMode: "auto",
   setThemeMode: async () => {},
   isDark: false,
