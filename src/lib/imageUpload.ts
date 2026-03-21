@@ -16,7 +16,7 @@
 
 import * as ImageManipulator from "expo-image-manipulator";
 import * as FileSystem from "expo-file-system";
-import { devError } from "./devLog";
+import { devLog, devError } from "./devLog";
 import { api } from "./api";
 import { API_ROUTES } from "./apiRoutes";
 
@@ -163,6 +163,8 @@ export async function uploadByKind(
     const originalBytes = (origInfo as any).size ?? 0;
     const origExists = (origInfo as any).exists ?? false;
 
+    if (__DEV__) devLog("[ONBOARD_AVATAR] uploadByKind", { kind, exists: origExists, bytes: originalBytes });
+
     if (!origExists) {
       throw new Error(`Source image does not exist at URI: ${uri?.slice(0, 80)}`);
     }
@@ -200,7 +202,6 @@ export async function uploadByKind(
     }
 
     // --- B. Request signed params from backend -----------------------------
-    // Strict SSOT: only known kinds are valid.
     // Strict SSOT: only known kinds are valid. entityId only when non-empty string.
     const VALID_UPLOAD_KINDS: readonly UploadKind[] = [
       "avatar",
@@ -229,13 +230,17 @@ export async function uploadByKind(
       signBody.circleId = _rawCircleId;
     }
 
+    if (__DEV__) devLog("[ONBOARD_AVATAR] sign request", { kind, endpoint: API_ROUTES.uploads.sign });
+
     let signed: SignedUploadParams | null = null;
     try {
       signed = await api.post<SignedUploadParams>(
         API_ROUTES.uploads.sign,
         signBody,
       );
+      if (__DEV__) devLog("[ONBOARD_AVATAR] sign OK", { hasUploadUrl: !!signed?.uploadUrl, hasParams: !!signed?.signedParams });
     } catch (signErr: any) {
+      if (__DEV__) devLog("[ONBOARD_AVATAR] sign FAILED", { status: signErr?.status, message: signErr?.message, data: signErr?.data ? JSON.stringify(signErr.data).slice(0, 200) : "none" });
       throw new Error(`Upload sign failed (${signErr?.status || 'network'}): ${signErr?.message || 'unknown'}`);
     }
 
@@ -258,21 +263,26 @@ export async function uploadByKind(
 
     // SSOT: use backend-provided uploadUrl verbatim
     const endpoint = signed.uploadUrl;
+    if (__DEV__) devLog("[ONBOARD_AVATAR] cloudinary POST", { endpoint: endpoint?.slice(0, 60) });
     let res: Response;
     try {
       res = await fetch(endpoint, { method: "POST", body: formData });
     } catch (fetchErr: any) {
+      if (__DEV__) devLog("[ONBOARD_AVATAR] cloudinary NETWORK_FAIL", { error: fetchErr?.message });
       throw new Error(`Cloudinary network error: ${fetchErr?.message || 'fetch failed'}`);
     }
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { json = null; }
 
+    if (__DEV__) devLog("[ONBOARD_AVATAR] cloudinary response", { status: res.status, ok: res.ok, hasSecureUrl: !!json?.secure_url });
+
     if (!res.ok) {
       const msg =
         (json && (json.error?.message || json.error)) ||
         text?.substring(0, 200) ||
         "Upload failed";
+      if (__DEV__) devLog("[ONBOARD_AVATAR] cloudinary FAIL", { status: res.status, msg: typeof msg === 'string' ? msg.slice(0, 120) : JSON.stringify(msg).slice(0, 120) });
       throw new Error(`Cloudinary upload failed (${res.status}): ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
     }
 
@@ -291,9 +301,12 @@ export async function uploadByKind(
     if (opts?.eventId) completeBody.eventId = opts.eventId;
     if (opts?.circleId) completeBody.circleId = opts.circleId;
 
+    if (__DEV__) devLog("[ONBOARD_AVATAR] complete request", { kind, urlPrefix: secureUrl?.slice(0, 50) });
     try {
       await api.post(API_ROUTES.uploads.complete, completeBody);
+      if (__DEV__) devLog("[ONBOARD_AVATAR] complete OK");
     } catch (completeErr: any) {
+      if (__DEV__) devLog("[ONBOARD_AVATAR] complete FAILED", { status: completeErr?.status, message: completeErr?.message });
       throw new Error(`Upload complete failed (${completeErr?.status || 'network'}): ${completeErr?.message || 'unknown'}`);
     }
 
