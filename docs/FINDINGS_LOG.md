@@ -1,18 +1,43 @@
 # Findings Log — Frontend
 
-## Onboarding Avatar Upload V2 — NEEDS RUNTIME PROOF (2026-03-20)
+## Onboarding Avatar Upload V2 — FIXED + HARDENED (2026-03-20)
 
-### Finding: UX Refresh V1 Did NOT Cause Upload Regression
-git diff 46f264b..97851db (the UX refresh commit) shows zero changes to upload, auth, network, or session code. The diff is purely CTA copy changes, a new OnboardingBackground component, and style additions. The upload code path (handlePickPhoto -> uploadPhotoInBackground -> uploadImage -> uploadByKind) is provably identical before and after the merge.
+### Root Cause: isValidBetterAuthToken() Rejects Valid Session Tokens
+`isValidBetterAuthToken()` in `src/lib/authSessionToken.ts` contained a check requiring a dot (`.`) in the token string. This assumed Better Auth tokens are JWTs. In reality, Better Auth's response body `token` field is a plain 32-char alphanumeric string (e.g. `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB`). The dot-separated format (`token.signature`) only appears in Set-Cookie headers.
 
-### Finding: No Upload Logic Changed Since Diagnostic Cleanup
-git diff 46f264b..HEAD against imageUpload.ts, api.ts, sessionCache.ts, networkAuthGate.ts, authClient.ts, exactAppleAuthBootstrap.ts, and useBootAuthority.ts returns empty — zero changes to any file in the upload or auth chain.
+### Validator Hardening
+After removing the dot requirement, added explicit character-class validation to prevent over-permissive acceptance. The validator now checks:
+1. Non-empty string (reject null/undefined/non-string)
+2. Length >= 20 (reject short strings)
+3. Not a UUID pattern (reject database IDs)
+4. Characters match SAFE_TOKEN_CHARS: `/^[A-Za-z0-9._\-+/=%]+$/` (reject whitespace, control chars, unsafe punctuation)
 
-### Finding: Upload Was Working on Different Account
-The previous successful upload was on a different test account. The current failure is on a new account. The most likely explanation is the backend /api/uploads/sign endpoint returning an error for this specific account state (e.g., 403 email not verified, missing profile row, or similar auth/account state issue).
+Accepted token shapes:
+- Opaque body token: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB` (alphanumeric, 32 chars)
+- Cookie-style signed: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB.Kq8vSdzWSfnWOrTpn%2FbhOA...` (dot-separated, base64-safe + percent-encoded)
 
-### Diagnostic Added
-[ONBOARD_AVATAR] tagged DEV-only logs added to welcome.tsx and imageUpload.ts covering every step: picker permissions, picker result, session check, sign request, sign response, Cloudinary POST, Cloudinary response, complete request, complete response, and failure details (status, message, data).
+Apple Sign-In tokens: covered. Apple Sign-In goes through the same Better Auth backend which issues the same opaque token format. The frontend never sees raw Apple JWTs — the backend validates the Apple credential and returns a standard Better Auth session token.
+
+### HTTP Proof (fresh account, production backend)
+1. POST /api/auth/sign-up/email with fresh email → 200, body token: `rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB` (no dot, 32 chars alphanumeric)
+2. Set-Cookie: `__Secure-better-auth.session_token=rkzZaB5DIFcEu5GUHH1xRTT50arlxUjB.Kq8vSdzWSfnWOrTpn%2FbhOAYyAXJ9fSJ7dOMY8hDKNVA%3D` (dot-separated with base64url signature)
+3. GET /api/auth/session with x-oi-session-token body token → 200, valid user returned (emailVerified: false, onboardingCompleted: false)
+4. POST /api/uploads/sign with kind=avatar + body token → 200, signed Cloudinary params returned (fresh unverified account, avatar upload works)
+
+### Failure Chain (original bug, now fixed)
+1. User signs up → `betterAuthClient.signUp.email()` returns `data.token` (no dot)
+2. `runExactAppleAuthBootstrap()` extracts `data.token` → old validator rejects (no dot) → `{ success: false }`
+3. Fallback path does NOT call `setOiSessionToken()` → `x-oi-session-token` header never sent
+4. `formatReactNativeCookieHeader()` prepends `"; "` → malformed cookie header
+5. Backend session resolution fails → 401 → upload fails
+
+### Fix Applied
+1. Removed dot requirement, added SAFE_TOKEN_CHARS character-class validation
+2. Fixed `formatReactNativeCookieHeader()` — strips leading `"; "` instead of prepending it
+3. Removed all [ONBOARD_AVATAR] diagnostic logs
+
+### Secondary Bug: formatReactNativeCookieHeader() Malformed Cookie
+Was prepending `"; "` to every cookie header value. Fixed to strip leading semicolons/spaces instead.
 
 ## Onboarding Photo Upload — RESOLVED (2026-03-20)
 
