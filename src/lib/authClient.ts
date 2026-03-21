@@ -295,24 +295,6 @@ async function $fetch<T = any>(
       finalHeaders.set("cookie", formatReactNativeCookieHeader(explicitCookieValue));
     }
 
-    // [ONBOARD_AVATAR] DEV-only: log auth header state for upload-related paths
-    if (__DEV__ && (path.includes("/uploads/") || path.includes("/auth/session"))) {
-      const builtCookie = explicitCookieValue ? formatReactNativeCookieHeader(explicitCookieValue) : null;
-      console.log("[ONBOARD_AVATAR] AUTH token validation", {
-        path,
-        oiTokenLen: oiSessionToken?.length ?? 0,
-        oiTokenFirst4: oiSessionToken?.slice(0, 4) ?? "null",
-        oiTokenPassesValidation: oiSessionToken ? isValidBetterAuthToken(oiSessionToken).isValid : false,
-        oiTokenValidationReason: oiSessionToken ? isValidBetterAuthToken(oiSessionToken).reason : "no_token",
-      });
-      console.log("[ONBOARD_AVATAR] AUTH cookie header built", {
-        path,
-        cookieLen: builtCookie?.length ?? 0,
-        cookieFirst20: builtCookie?.slice(0, 20) ?? "null",
-        hadExplicitCookie: hadCookie,
-      });
-    }
-    
     // DEV-only: Log auth header state (never log token values)
     if (AUTH_DEBUG) {
       devLog(`[AUTH_HDR] x-oi-session-token len=${oiSessionToken?.length ?? 0} hadCookie=${hadCookie}`);

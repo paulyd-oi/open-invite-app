@@ -366,6 +366,17 @@ export default function WelcomeOnboardingScreen() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
 
+  // Pre-request media library permission when slide 3 (profile) is reached
+  const mediaPermissionRef = useRef<ImagePicker.MediaLibraryPermissionResponse | null>(null);
+  useEffect(() => {
+    if (currentSlide === 3) {
+      ImagePicker.requestMediaLibraryPermissionsAsync().then((result) => {
+        mediaPermissionRef.current = result;
+        if (__DEV__) devLog('[IMAGE_PICKER_PERF]', 'pre-requested media library permission', { status: result.status });
+      });
+    }
+  }, [currentSlide]);
+
   // Contacts import state (Slide 4)
   const [contactsLoading, setContactsLoading] = useState(false);
   const [phoneContacts, setPhoneContacts] = useState<Contacts.Contact[]>([]);
@@ -757,32 +768,34 @@ export default function WelcomeOnboardingScreen() {
   // ============ SLIDE 3: PROFILE HANDLERS ============
 
   const handlePickPhoto = async () => {
-    if (__DEV__) console.log("[ONBOARD_AVATAR] 1. Add Photo pressed");
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (__DEV__) console.log("[ONBOARD_AVATAR] 2. permission result", { status });
+    const t0 = __DEV__ ? Date.now() : 0;
+
+    // Use cached permission from mount-time pre-request; fall back to fresh request
+    let status: ImagePicker.PermissionStatus;
+    if (mediaPermissionRef.current?.status === "granted") {
+      status = mediaPermissionRef.current.status;
+    } else {
+      const result = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      mediaPermissionRef.current = result;
+      status = result.status;
+    }
+    if (__DEV__) devLog('[IMAGE_PICKER_PERF]', 'permission resolved', { status, ms: Date.now() - t0 });
+
     if (status !== "granted") {
       safeToast.warning("Permission Required", "Please allow access to your photos.");
       return;
     }
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] 3. picker launched");
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    if (__DEV__) console.log("[ONBOARD_AVATAR] 4. picker result", {
-      canceled: result.canceled,
-      assetCount: result.assets?.length ?? 0,
-      uri: result.assets?.[0]?.uri?.slice(0, 80) ?? "none",
-      type: result.assets?.[0]?.type ?? "none",
-      fileSize: (result.assets?.[0] as any)?.fileSize ?? "unknown",
-    });
+    if (__DEV__) devLog('[IMAGE_PICKER_PERF]', 'picker returned', { canceled: result.canceled, ms: Date.now() - t0 });
 
     if (!result.canceled && result.assets[0]) {
       setAvatarLocalUri(result.assets[0].uri);
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 5. upload function called", { uri: result.assets[0].uri.slice(0, 80) });
       // Start upload in background (best-effort)
       uploadPhotoInBackground(result.assets[0].uri);
     }
@@ -791,45 +804,24 @@ export default function WelcomeOnboardingScreen() {
   const uploadPhotoInBackground = async (uri: string) => {
     if (!isMountedRef.current) return;
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] 6. uploadPhotoInBackground entered", { uri: uri?.slice(0, 80) });
-
     // Check session (cookie auth) before upload - use effectiveUserId for unified auth check
     // CRITICAL: Photo upload failure must NOT reset auth state or redirect user.
     // If session check fails, just skip upload - user can add photo later.
     let effectiveUserId: string | null = null;
     try {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 7. session retrieval start");
       const sessionResult = await getSessionCached();
       effectiveUserId = sessionResult?.effectiveUserId ?? sessionResult?.user?.id ?? null;
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 8. session retrieval result", {
-        hasResult: !!sessionResult,
-        effectiveUserId: effectiveUserId ? effectiveUserId.slice(0, 8) + "..." : "null",
-        keys: sessionResult ? Object.keys(sessionResult) : [],
-      });
       if (!effectiveUserId) {
-        if (__DEV__) console.log("[ONBOARD_AVATAR] 8b. BAIL: no effectiveUserId — skipping upload");
         return;
       }
     } catch (sessionErr: any) {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 8c. BAIL: session error", {
-        message: sessionErr?.message,
-        name: sessionErr?.name,
-        stack: sessionErr?.stack?.slice(0, 300),
-        raw: JSON.stringify(sessionErr, Object.getOwnPropertyNames(sessionErr)).slice(0, 500),
-      });
       return;
     }
 
     setUploadBusy(true);
 
     try {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 9. calling uploadImage", { uri: uri?.slice(0, 80) });
       const uploadResponse = await uploadImage(uri, true);
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 10. upload function returned SUCCESS", {
-        url: uploadResponse.url?.slice(0, 80),
-        publicId: uploadResponse.publicId,
-        success: uploadResponse.success,
-      });
       const normalizedUrl = normalizeAvatarUrl(uploadResponse.url);
 
       if (!isMountedRef.current) return;
@@ -840,15 +832,6 @@ export default function WelcomeOnboardingScreen() {
     } catch (error: any) {
       // CRITICAL: Photo upload failure must NOT affect auth state or navigation
       // Just log and inform user - they can add photo later from settings
-      if (__DEV__) console.log("[ONBOARD_AVATAR] 11. catch block hit — upload FAILED", {
-        message: error?.message,
-        name: error?.name,
-        status: error?.status,
-        data: error?.data ? JSON.stringify(error.data).slice(0, 300) : "none",
-        stack: error?.stack?.slice(0, 300),
-        raw: JSON.stringify(error, Object.getOwnPropertyNames(error)).slice(0, 500),
-        typeof: typeof error,
-      });
       if (isMountedRef.current) {
         // Clear local preview so user doesn't see broken/stale avatar
         setAvatarLocalUri(null);

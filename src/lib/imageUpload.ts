@@ -154,7 +154,6 @@ export async function uploadByKind(
   kind: UploadKind,
   opts?: UploadByKindOptions,
 ): Promise<UploadResponse> {
-  if (__DEV__) console.log("[ONBOARD_AVATAR] A1. uploadByKind called", { uri: uri?.slice(0, 80), kind });
   try {
     const profile = COMPRESSION_PROFILES[kind];
     const entityId = opts?.eventId ?? opts?.circleId ?? null;
@@ -164,13 +163,10 @@ export async function uploadByKind(
     const originalBytes = (origInfo as any).size ?? 0;
     const origExists = (origInfo as any).exists ?? false;
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] A2. file exists check", { exists: origExists, bytes: originalBytes, uriPrefix: uri?.slice(0, 80) });
-
     if (!origExists) {
       throw new Error(`Source image does not exist at URI: ${uri?.slice(0, 80)}`);
     }
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] A3. compress start", { maxWidth: profile.maxWidth, maxHeight: profile.maxHeight, quality: profile.quality });
     let quality = profile.quality;
     let compressedUri = await compressImage(uri, {
       maxWidth: profile.maxWidth,
@@ -198,8 +194,6 @@ export async function uploadByKind(
     const finalInfo = await FileSystem.getInfoAsync(compressedUri);
     if (!finalInfo.exists) throw new Error("Image file does not exist");
     const finalBytes = (finalInfo as any).size ?? 0;
-
-    if (__DEV__) console.log("[ONBOARD_AVATAR] A4. compress result", { compressedUri: compressedUri?.slice(0, 80), finalBytes, quality });
 
     if (typeof finalBytes === "number" && finalBytes > MAX_UPLOAD_BYTES) {
       throw new Error(`${kind} photo is too large after compression (max 5 MB).`);
@@ -234,29 +228,13 @@ export async function uploadByKind(
       signBody.circleId = _rawCircleId;
     }
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] B1. sign request start", { endpoint: API_ROUTES.uploads.sign, signBody });
     let signed: SignedUploadParams | null = null;
     try {
       signed = await api.post<SignedUploadParams>(
         API_ROUTES.uploads.sign,
         signBody,
       );
-      if (__DEV__) console.log("[ONBOARD_AVATAR] B2. sign request response", {
-        hasUploadUrl: !!signed?.uploadUrl,
-        hasSignedParams: !!signed?.signedParams,
-        uploadUrl: signed?.uploadUrl?.slice(0, 60),
-        paramKeys: signed?.signedParams ? Object.keys(signed.signedParams) : [],
-      });
     } catch (signErr: any) {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] B3. sign request error", {
-        message: signErr?.message,
-        name: signErr?.name,
-        status: signErr?.status,
-        data: signErr?.data ? JSON.stringify(signErr.data).slice(0, 300) : "none",
-        isNetworkAuthGated: signErr?.isNetworkAuthGated,
-        stack: signErr?.stack?.slice(0, 300),
-        raw: JSON.stringify(signErr, Object.getOwnPropertyNames(signErr)).slice(0, 500),
-      });
       throw new Error(`Upload sign failed (${signErr?.status || 'network'}): ${signErr?.message || 'unknown'}`);
     }
 
@@ -279,29 +257,15 @@ export async function uploadByKind(
 
     // SSOT: use backend-provided uploadUrl verbatim
     const endpoint = signed.uploadUrl;
-    if (__DEV__) console.log("[ONBOARD_AVATAR] C1. cloudinary upload start", { endpoint: endpoint?.slice(0, 60) });
     let res: Response;
     try {
       res = await fetch(endpoint, { method: "POST", body: formData });
     } catch (fetchErr: any) {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] C2. cloudinary upload error", {
-        message: fetchErr?.message,
-        name: fetchErr?.name,
-        stack: fetchErr?.stack?.slice(0, 300),
-        raw: JSON.stringify(fetchErr, Object.getOwnPropertyNames(fetchErr)).slice(0, 500),
-      });
       throw new Error(`Cloudinary network error: ${fetchErr?.message || 'fetch failed'}`);
     }
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { json = null; }
-
-    if (__DEV__) console.log("[ONBOARD_AVATAR] C3. cloudinary upload response", {
-      status: res.status,
-      ok: res.ok,
-      hasSecureUrl: !!json?.secure_url,
-      bodyPreview: text?.slice(0, 200),
-    });
 
     if (!res.ok) {
       const msg =
@@ -326,33 +290,14 @@ export async function uploadByKind(
     if (opts?.eventId) completeBody.eventId = opts.eventId;
     if (opts?.circleId) completeBody.circleId = opts.circleId;
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] D1. complete request start", { kind, urlPrefix: secureUrl?.slice(0, 60) });
     try {
       await api.post(API_ROUTES.uploads.complete, completeBody);
-      if (__DEV__) console.log("[ONBOARD_AVATAR] D2. complete request response OK");
     } catch (completeErr: any) {
-      if (__DEV__) console.log("[ONBOARD_AVATAR] D3. complete request error", {
-        message: completeErr?.message,
-        name: completeErr?.name,
-        status: completeErr?.status,
-        data: completeErr?.data ? JSON.stringify(completeErr.data).slice(0, 300) : "none",
-        stack: completeErr?.stack?.slice(0, 300),
-        raw: JSON.stringify(completeErr, Object.getOwnPropertyNames(completeErr)).slice(0, 500),
-      });
       throw new Error(`Upload complete failed (${completeErr?.status || 'network'}): ${completeErr?.message || 'unknown'}`);
     }
 
-    if (__DEV__) console.log("[ONBOARD_AVATAR] D4. uploadByKind SUCCESS", { secureUrl: secureUrl?.slice(0, 60), publicId });
     return { success: true, url: secureUrl, publicId };
   } catch (error: any) {
-    if (__DEV__) console.log("[ONBOARD_AVATAR] E1. uploadByKind outer catch", {
-      message: error?.message,
-      name: error?.name,
-      status: error?.status,
-      data: error?.data ? JSON.stringify(error.data).slice(0, 300) : "none",
-      stack: error?.stack?.slice(0, 300),
-      raw: JSON.stringify(error, Object.getOwnPropertyNames(error)).slice(0, 500),
-    });
     // Preserve status/data on re-thrown error so callers can inspect HTTP details
     const wrapped: any = new Error(error?.message || "Failed to upload image");
     if (error?.status != null) wrapped.status = error.status;

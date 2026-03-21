@@ -121,6 +121,14 @@
 ## Unstable / Regressions
 - None currently known
 
+## Fixed This Session (Image Picker Latency + ONBOARD_AVATAR Log Cleanup)
+- Moved media library permission request from on-tap to slide 3 mount, eliminating ~200-500ms delay before picker opens
+- Used cached permission status in handlePickPhoto — if pre-request resolved, picker opens instantly on tap
+- Removed ALL [ONBOARD_AVATAR] diagnostic logs (14 in imageUpload.ts, 12 in welcome.tsx, 2 in authClient.ts) — upload bug is fixed and shipped
+- Added [IMAGE_PICKER_PERF] DEV-only timing logs for tap-to-picker measurement
+- Files changed: src/app/welcome.tsx, src/lib/imageUpload.ts, src/lib/authClient.ts
+- Blast radius: zero — only changed timing of permission request (moved earlier) and removed DEV-only logs
+
 ## Fixed This Session (Post-Onboarding Email Gate Modal Freeze)
 - Email verification gate modal presented during in-flight navigation transition after onboarding, causing iOS touch responder to not initialize properly for modal buttons
 - Fix: Deferred modal presentation using InteractionManager.runAfterInteractions + 800ms delay, ensuring navigation transition and calendar mount are fully settled before presenting the Modal
