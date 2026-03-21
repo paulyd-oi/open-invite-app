@@ -1,50 +1,37 @@
-HANDOFF PACKET — Discover Card Follow-Up V2
+HANDOFF PACKET — Discover Card Attendee Polish V3
 Date: 2026-03-21
 
 SUMMARY
 
-Follow-up polish pass on Discover card. Three targeted fixes: (1) show event description instead of venue address under title, (2) tighten date/time metadata styling, (3) replace placeholder icon circles with real SocialProof attendee avatar stack using joinRequests data.
+Removed "N friend(s) going" text label from Discover card attendee area. Replaced SocialProof component with inline EntityAvatar stack rendering visual-only overlapping profile circles and a compact +N badge. No text labels remain.
 
 EXACT FILES CHANGED
 
 1. src/app/discover.tsx
-   - Added `description` to PopularEvent interface
-   - Added SocialProof import from @/components/SocialProof
-   - Row 2: event.description replaces event.location (MapPin removed)
-   - Footer date/time: Calendar icon 14→12, font 13→11, weight 500→600, added letterSpacing 0.1
-   - Footer right: replaced inline placeholder circles with SocialProof component
-     using joinRequests data (filtered to accepted, mapped to {id, name, image})
-   - "Be first" text: font 11→10, weight 500→600
+   - Removed SocialProof import (unused after this change)
+   - Replaced SocialProof component call with inline EntityAvatar stack
+   - joinRequests filtered to accepted, sliced to 3, rendered as overlapping circles
+   - +N badge renders only when remaining > 0 (accent-colored circle, white text)
+   - "Be first" text removed (returns null for count=0)
 
-2. docs/STATE_OF_THE_APP.md
-   - Updated discover card entry to V1+V2
+FIX APPLIED
 
-3. docs/HANDOFF_PACKET_LATEST.txt — this file
-
-FIXES APPLIED
-
-- Description source: event.description (1-2 lines, truncated) replaces event.location/MapPin row.
-  No venue/address on card. Description comes from API feed response, typed as optional string.
-
-- Metadata styling: Calendar icon shrunk to 12px. Date/time text: fontSize 11, fontWeight "600",
-  letterSpacing 0.1. Reads as clean secondary metadata, not body text.
-
-- Attendee avatar rendering: Replaced hand-rolled accent-tinted placeholder circles + Users icon
-  with SocialProof component (src/components/SocialProof.tsx). Uses joinRequests array from feed
-  response — filters to status==="accepted", maps to {id, name, image}. SocialProof renders
-  real EntityAvatar profile photos with overlapping stack + "+N" remaining badge + copy text.
-  Falls back gracefully when joinRequests is empty (shows count-only via SocialProof).
-  Zero-attendee case still shows "Be first" text.
+- Removed: SocialProof component (which rendered "1 friend going" / "Alice + 2 others going" copy)
+- Added: Inline avatar stack using EntityAvatar with real profile photos from joinRequests
+  - 20px circles, -6px overlap, 1.5px border matching plaqueBg
+  - Accent-tinted fallback backgrounds when no photo
+  - +N badge: 20px accent circle with white bold count text
+  - z-index stacking: leftmost avatar on top
+- Zero attendees: renders nothing (was "Be first" text)
 
 WHAT WAS NOT CHANGED
 
-- Card layout structure (image zone, content panel, footer row)
-- Save/bookmark behavior and positioning
-- Category pill and urgency chip
-- Availability "Looks clear" pill
+- Card layout structure, image zone, content panel, footer row
+- Description row, date/time metadata styling
+- Save/bookmark behavior
+- Category pill, urgency chip, availability pill
 - Card tap navigation
-- No backend changes, no new API calls
-- No other screens touched
+- Event contracts, backend, other screens
 
 VERIFICATION
 
@@ -54,17 +41,13 @@ bash scripts/ai/verify_frontend.sh: same pre-existing failures only (create.tsx:
 GIT PROOF
 
 git show --stat HEAD
-commit 6c33a85f15a9c4595236a0d39a28c1ae1a9a9eb1
- docs/HANDOFF_PACKET_LATEST.txt | 76 ++++++++++++++++++++---------------------
- docs/STATE_OF_THE_APP.md       |  2 +-
- src/app/discover.tsx           | 77 ++++++++++++------------------------------
- 3 files changed, 60 insertions(+), 95 deletions(-)
+commit 3edc8bc675f360a0ab08b6226cbf3216b4147040
+ src/app/discover.tsx | 58 ++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 45 insertions(+), 13 deletions(-)
 
 git show --name-only HEAD
-docs/HANDOFF_PACKET_LATEST.txt
-docs/STATE_OF_THE_APP.md
 src/app/discover.tsx
 
 FINAL STATUS
 
-DISCOVER CARD FOLLOW-UP APPLIED — NEEDS DESIGN REVIEW
+DISCOVER ATTENDEE POLISH APPLIED — NEEDS DESIGN REVIEW

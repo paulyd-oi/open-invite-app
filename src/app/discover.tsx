@@ -14,7 +14,6 @@ import { devLog } from "@/lib/devLog";
 import { useLiveRefreshContract } from "@/lib/useLiveRefreshContract";
 import { EventPhotoEmoji } from "@/components/EventPhotoEmoji";
 import { EntityAvatar } from "@/components/EntityAvatar";
-import { SocialProof } from "@/components/SocialProof";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, Stack } from "expo-router";
 import {
@@ -792,26 +791,59 @@ export default function DiscoverScreen() {
                             )}
                           </View>
 
-                          {/* Right: attendee avatar stack */}
+                          {/* Right: attendee avatar stack (visual only) */}
                           {(() => {
                             const count = event.attendeeCount ?? 0;
-                            if (count === 0) return (
-                              <Text style={{ fontSize: 10, fontWeight: "600", color: colors.textTertiary }}>
-                                Be first
-                              </Text>
-                            );
+                            if (count === 0) return null;
 
                             const accepted = (event.joinRequests ?? [])
                               .filter((r) => r.status === "accepted")
+                              .slice(0, 3)
                               .map((r) => ({ id: r.userId, name: r.user?.name ?? null, image: r.user?.image ?? null }));
+                            const remaining = count - accepted.length;
+                            const AVSZ = 20;
 
                             return (
-                              <SocialProof
-                                attendees={accepted}
-                                totalCount={count}
-                                maxDisplay={3}
-                                size="small"
-                              />
+                              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                {accepted.map((a, i) => (
+                                  <View
+                                    key={a.id}
+                                    style={{
+                                      marginLeft: i > 0 ? -6 : 0,
+                                      borderWidth: 1.5,
+                                      borderColor: plaqueBg,
+                                      borderRadius: AVSZ / 2,
+                                      zIndex: 3 - i,
+                                    }}
+                                  >
+                                    <EntityAvatar
+                                      photoUrl={a.image}
+                                      initials={a.name?.[0] ?? "?"}
+                                      size={AVSZ - 3}
+                                      backgroundColor={a.image ? (isDark ? "#2C2C2E" : "#E5E7EB") : `${cardAccent ?? themeColor}30`}
+                                      foregroundColor={cardAccent ?? themeColor}
+                                    />
+                                  </View>
+                                ))}
+                                {remaining > 0 && (
+                                  <View style={{
+                                    width: AVSZ,
+                                    height: AVSZ,
+                                    borderRadius: AVSZ / 2,
+                                    marginLeft: -6,
+                                    borderWidth: 1.5,
+                                    borderColor: plaqueBg,
+                                    backgroundColor: cardAccent ?? themeColor,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    zIndex: 0,
+                                  }}>
+                                    <Text style={{ fontSize: 8, fontWeight: "700", color: "#fff" }}>
+                                      +{remaining}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
                             );
                           })()}
                         </View>
